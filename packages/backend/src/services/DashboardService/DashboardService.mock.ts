@@ -75,6 +75,7 @@ export const dashboard: Dashboard = {
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
+    dashboardVersionId: 1,
     description: 'description',
     updatedAt: new Date(),
     tiles: [

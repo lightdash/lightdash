@@ -76,6 +76,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                 size="sm"
                                 lighter
                                 defaultValue={value}
+                                placeholder={getItemLabelWithoutTableName(item)}
                                 onChange={(event) => {
                                     setValue(event.currentTarget.value);
                                     updateSingleSeries({

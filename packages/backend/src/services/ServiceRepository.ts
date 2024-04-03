@@ -66,6 +66,7 @@ interface ServiceManifest {
 
     /** An implementation signature for embedService is not available at this stage */
     embedService: unknown;
+    aiService: unknown;
 }
 
 /**
@@ -604,6 +605,10 @@ export class ServiceRepository
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
         return this.getService('embedService');
+    }
+
+    public getAiService<AiServiceImplT>(): AiServiceImplT {
+        return this.getService('aiService');
     }
 
     /**

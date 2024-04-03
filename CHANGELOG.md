@@ -1,3 +1,31 @@
+# [0.1049.0](https://github.com/lightdash/lightdash/compare/0.1048.1...0.1049.0) (2024-04-03)
+
+
+### Features
+
+* address remaining bits on chart config ui changes ([#9609](https://github.com/lightdash/lightdash/issues/9609)) ([6636468](https://github.com/lightdash/lightdash/commit/6636468713029db188414e502678d16bc02ad4ea))
+
+## [0.1048.1](https://github.com/lightdash/lightdash/compare/0.1048.0...0.1048.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* check if metric exists in results before trying to process data ([#9614](https://github.com/lightdash/lightdash/issues/9614)) ([b6d8b5c](https://github.com/lightdash/lightdash/commit/b6d8b5c2b10a100912d48d410c559993f48e6539))
+
+# [0.1048.0](https://github.com/lightdash/lightdash/compare/0.1047.2...0.1048.0) (2024-04-02)
+
+
+### Features
+
+* require some filters to have values before running dashboard  ([#9505](https://github.com/lightdash/lightdash/issues/9505)) ([cf396c3](https://github.com/lightdash/lightdash/commit/cf396c3bd260f26bbf3f2ef7d80c701f9559f797))
+
+## [0.1047.2](https://github.com/lightdash/lightdash/compare/0.1047.1...0.1047.2) (2024-04-02)
+
+
+### Bug Fixes
+
+* optional project bigquery ([#9595](https://github.com/lightdash/lightdash/issues/9595)) ([d39d666](https://github.com/lightdash/lightdash/commit/d39d6665c0a055e9ae15f68c4825c73e663ac84a))
+
 ## [0.1047.1](https://github.com/lightdash/lightdash/compare/0.1047.0...0.1047.1) (2024-04-02)
 
 

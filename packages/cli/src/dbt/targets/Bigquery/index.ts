@@ -14,7 +14,7 @@ import {
 } from './serviceAccount';
 
 type BigqueryTarget = {
-    project: string;
+    project?: string;
     dataset: string;
     schema: string;
     priority?: 'interactive' | 'batch';
@@ -29,6 +29,7 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     properties: {
         project: {
             type: 'string',
+            nullable: true,
         },
         dataset: {
             type: 'string',
@@ -58,7 +59,7 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
             nullable: true,
         },
     },
-    required: ['project'],
+    required: [],
     oneOf: [
         {
             required: ['dataset'],
@@ -93,9 +94,14 @@ export const convertBigquerySchema = async (
                 );
         }
 
+        if (target.project === undefined && target.method !== 'oauth')
+            throw new ParseError(
+                `BigQuery project is required for ${target.method} authentication method`,
+            );
+
         return {
             type: WarehouseTypes.BIGQUERY,
-            project: target.project,
+            project: target.project || '',
             dataset: target.dataset || target.schema,
             timeoutSeconds: target.timeout_seconds,
             priority: target.priority,
