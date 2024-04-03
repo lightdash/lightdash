@@ -1,3 +1,10 @@
+# [0.1049.0](https://github.com/lightdash/lightdash/compare/0.1048.1...0.1049.0) (2024-04-03)
+
+
+### Features
+
+* address remaining bits on chart config ui changes ([#9609](https://github.com/lightdash/lightdash/issues/9609)) ([6636468](https://github.com/lightdash/lightdash/commit/6636468713029db188414e502678d16bc02ad4ea))
+
 ## [0.1048.1](https://github.com/lightdash/lightdash/compare/0.1048.0...0.1048.1) (2024-04-03)
 
 
