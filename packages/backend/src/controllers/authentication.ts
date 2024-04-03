@@ -553,9 +553,15 @@ const azureAdPrivateKeyJksStrategy = async (): Promise<
         azuread.openIdConnectMetadataEndpoint!,
     );
 
-    const [publicCert, jwk] = await buildJwtKeySet({
-        certificateFilePath: azuread.x509PublicKeyCertPath!,
-        keyFilePath: azuread.privateKeyFilePath!,
+    /**
+     * Build the JWT Key Set out of whatever options are available - this may be
+     * file paths or actual pem-encoded contents.
+     */
+    const { jwk } = await buildJwtKeySet({
+        certificateFilePath: azuread.x509PublicKeyCertPath,
+        certificateFile: azuread.x509PublicKeyCert,
+        keyFilePath: azuread.privateKeyFilePath,
+        keyFile: azuread.privateKeyFile,
     });
 
     /**
@@ -658,8 +664,8 @@ export const createAzureAdPassportStrategy = () => {
         /** We don't want to use this method if a secret is provided */
         !azuread.oauth2ClientSecret &&
         azuread.openIdConnectMetadataEndpoint &&
-        azuread.x509PublicKeyCertPath &&
-        azuread.privateKeyFilePath
+        (azuread.x509PublicKeyCertPath || azuread.x509PublicKeyCert) &&
+        (azuread.privateKeyFilePath || azuread.privateKeyFile)
     ) {
         return azureAdPrivateKeyJksStrategy();
     }

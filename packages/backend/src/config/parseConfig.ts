@@ -192,16 +192,18 @@ export type AuthAzureADConfig = {
     openIdConnectMetadataEndpoint: string | undefined;
 
     /**
-     * Path to the x509 pem-encoded public key certificate for use as part of
+     * Path or content of the x509 pem-encoded public key certificate for use as part of
      * private_key_jwt token auth,
      */
     x509PublicKeyCertPath: string | undefined;
+    x509PublicKeyCert: string | undefined;
 
     /**
-     * Path to the private key file used as part of private_key_jwt. Must be a
-     * valid key for x509PublicKeyCertPath defined above.
+     * Path or content of the private key file used as part of private_key_jwt. Must be a
+     * valid key for x509PublicKeyCert[Path] defined above.
      */
     privateKeyFilePath: string | undefined;
+    privateKeyFile: string | undefined;
 };
 
 export type AuthGoogleConfig = {
@@ -389,7 +391,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 callbackPath: '/oauth/redirect/azuread',
                 loginPath: '/login/azuread',
                 x509PublicKeyCertPath: process.env.AUTH_AZURE_AD_X509_CERT_PATH,
+                x509PublicKeyCert: process.env.AUTH_AZURE_AD_X509_CERT,
                 privateKeyFilePath: process.env.AUTH_AZURE_AD_PRIVATE_KEY_PATH,
+                privateKeyFile: process.env.AUTH_AZURE_AD_PRIVATE_KEY,
                 openIdConnectMetadataEndpoint:
                     process.env.AUTH_AZURE_AD_OIDC_METADATA_ENDPOINT ||
                     process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID
