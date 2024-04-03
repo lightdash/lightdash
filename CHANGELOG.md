@@ -1,3 +1,10 @@
+## [0.1048.1](https://github.com/lightdash/lightdash/compare/0.1048.0...0.1048.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* check if metric exists in results before trying to process data ([#9614](https://github.com/lightdash/lightdash/issues/9614)) ([b6d8b5c](https://github.com/lightdash/lightdash/commit/b6d8b5c2b10a100912d48d410c559993f48e6539))
+
 # [0.1048.0](https://github.com/lightdash/lightdash/compare/0.1047.2...0.1048.0) (2024-04-02)
 
 
