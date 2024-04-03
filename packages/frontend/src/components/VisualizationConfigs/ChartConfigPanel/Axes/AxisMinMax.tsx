@@ -3,7 +3,7 @@ import { useCallback, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useTracking } from '../../../../providers/TrackingProvider';
 import { EventName } from '../../../../types/Events';
-import { Config } from '../common/Config';
+import { Config } from '../../common/Config';
 
 type Props = {
     label: string;

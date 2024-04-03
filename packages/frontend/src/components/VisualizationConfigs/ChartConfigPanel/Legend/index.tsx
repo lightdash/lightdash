@@ -17,7 +17,7 @@ import { useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { Config } from '../common/Config';
+import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
 
