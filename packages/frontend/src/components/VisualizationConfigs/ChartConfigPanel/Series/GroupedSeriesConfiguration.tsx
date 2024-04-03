@@ -156,126 +156,132 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Label>
                 </Group>
-                <Group ml="md" noWrap spacing="xs" align="start">
-                    <ChartTypeSelect
-                        chartValue={chartValue}
-                        showMixed={!isChartTypeTheSameForAllSeries}
-                        onChange={(value) => {
-                            const newType =
-                                value === CartesianSeriesType.AREA
-                                    ? CartesianSeriesType.LINE
-                                    : value;
-                            updateAllGroupedSeries(fieldKey, {
-                                type: newType as Series['type'],
-                                areaStyle:
+                <Stack spacing="xs" ml="md">
+                    <Group noWrap spacing="xs" align="start">
+                        <ChartTypeSelect
+                            chartValue={chartValue}
+                            showMixed={!isChartTypeTheSameForAllSeries}
+                            onChange={(value) => {
+                                const newType =
                                     value === CartesianSeriesType.AREA
-                                        ? {}
-                                        : undefined,
-                            });
-                        }}
-                    />
+                                        ? CartesianSeriesType.LINE
+                                        : value;
+                                updateAllGroupedSeries(fieldKey, {
+                                    type: newType as Series['type'],
+                                    areaStyle:
+                                        value === CartesianSeriesType.AREA
+                                            ? {}
+                                            : undefined,
+                                });
+                            }}
+                        />
 
-                    <Select
-                        label="Axis"
-                        value={
-                            isAxisTheSameForAllSeries
-                                ? String(seriesGroup[0].yAxisIndex)
-                                : 'mixed'
-                        }
-                        data={
-                            isAxisTheSameForAllSeries
-                                ? layout?.flipAxes
-                                    ? FLIPPED_AXIS_OPTIONS
-                                    : AXIS_OPTIONS
-                                : [
-                                      ...(layout?.flipAxes
-                                          ? FLIPPED_AXIS_OPTIONS
-                                          : AXIS_OPTIONS),
-                                      {
-                                          value: 'mixed',
-                                          label: 'Mixed',
-                                      },
-                                  ]
-                        }
-                        onChange={(value) => {
-                            updateAllGroupedSeries(fieldKey, {
-                                yAxisIndex: parseInt(value || '0', 10),
-                            });
-                        }}
-                    />
-                    <Select
-                        label="Value labels"
-                        value={
-                            isLabelTheSameForAllSeries
-                                ? seriesGroup[0].label?.position || 'hidden'
-                                : 'mixed'
-                        }
-                        data={
-                            isLabelTheSameForAllSeries
-                                ? VALUE_LABELS_OPTIONS
-                                : [
-                                      ...VALUE_LABELS_OPTIONS,
-                                      {
-                                          value: 'mixed',
-                                          label: 'Mixed',
-                                      },
-                                  ]
-                        }
-                        onChange={(value) => {
-                            updateAllGroupedSeries(fieldKey, {
-                                label:
-                                    value === 'hidden'
-                                        ? { show: false }
-                                        : {
-                                              show: true,
-                                              position: value as any,
+                        <Select
+                            label="Axis"
+                            value={
+                                isAxisTheSameForAllSeries
+                                    ? String(seriesGroup[0].yAxisIndex)
+                                    : 'mixed'
+                            }
+                            data={
+                                isAxisTheSameForAllSeries
+                                    ? layout?.flipAxes
+                                        ? FLIPPED_AXIS_OPTIONS
+                                        : AXIS_OPTIONS
+                                    : [
+                                          ...(layout?.flipAxes
+                                              ? FLIPPED_AXIS_OPTIONS
+                                              : AXIS_OPTIONS),
+                                          {
+                                              value: 'mixed',
+                                              label: 'Mixed',
                                           },
-                            });
-                        }}
-                    />
-                    {seriesGroup[0].stack &&
-                        chartValue === CartesianSeriesType.BAR && (
-                            <Stack spacing="xs" mt="two">
-                                <Config.SubLabel>Total</Config.SubLabel>
-                                <Switch
-                                    checked={seriesGroup[0].stackLabel?.show}
-                                    onChange={() => {
-                                        updateAllGroupedSeries(fieldKey, {
-                                            stackLabel: {
-                                                show: !seriesGroup[0].stackLabel
-                                                    ?.show,
-                                            },
-                                        });
-                                    }}
-                                />
-                            </Stack>
-                        )}
-                </Group>
-                {(chartValue === CartesianSeriesType.LINE ||
-                    chartValue === CartesianSeriesType.AREA) && (
-                    <Group spacing="xs">
-                        <Checkbox
-                            checked={seriesGroup[0].showSymbol ?? true}
-                            label="Show symbol"
-                            onChange={() => {
+                                      ]
+                            }
+                            onChange={(value) => {
                                 updateAllGroupedSeries(fieldKey, {
-                                    showSymbol: !(
-                                        seriesGroup[0].showSymbol ?? true
-                                    ),
+                                    yAxisIndex: parseInt(value || '0', 10),
                                 });
                             }}
                         />
-                        <Checkbox
-                            checked={seriesGroup[0].smooth}
-                            label="Smooth"
-                            onChange={() => {
+                        <Select
+                            label="Value labels"
+                            value={
+                                isLabelTheSameForAllSeries
+                                    ? seriesGroup[0].label?.position || 'hidden'
+                                    : 'mixed'
+                            }
+                            data={
+                                isLabelTheSameForAllSeries
+                                    ? VALUE_LABELS_OPTIONS
+                                    : [
+                                          ...VALUE_LABELS_OPTIONS,
+                                          {
+                                              value: 'mixed',
+                                              label: 'Mixed',
+                                          },
+                                      ]
+                            }
+                            onChange={(value) => {
                                 updateAllGroupedSeries(fieldKey, {
-                                    smooth: !(seriesGroup[0].smooth ?? true),
+                                    label:
+                                        value === 'hidden'
+                                            ? { show: false }
+                                            : {
+                                                  show: true,
+                                                  position: value as any,
+                                              },
                                 });
                             }}
                         />
+                        {seriesGroup[0].stack &&
+                            chartValue === CartesianSeriesType.BAR && (
+                                <Stack spacing="xs" mt="two">
+                                    <Config.SubLabel>Total</Config.SubLabel>
+                                    <Switch
+                                        checked={
+                                            seriesGroup[0].stackLabel?.show
+                                        }
+                                        onChange={() => {
+                                            updateAllGroupedSeries(fieldKey, {
+                                                stackLabel: {
+                                                    show: !seriesGroup[0]
+                                                        .stackLabel?.show,
+                                                },
+                                            });
+                                        }}
+                                    />
+                                </Stack>
+                            )}
                     </Group>
-                )}
+                    {(chartValue === CartesianSeriesType.LINE ||
+                        chartValue === CartesianSeriesType.AREA) && (
+                        <Group spacing="xs">
+                            <Checkbox
+                                checked={seriesGroup[0].showSymbol ?? true}
+                                label="Show symbol"
+                                onChange={() => {
+                                    updateAllGroupedSeries(fieldKey, {
+                                        showSymbol: !(
+                                            seriesGroup[0].showSymbol ?? true
+                                        ),
+                                    });
+                                }}
+                            />
+                            <Checkbox
+                                checked={seriesGroup[0].smooth}
+                                label="Smooth"
+                                onChange={() => {
+                                    updateAllGroupedSeries(fieldKey, {
+                                        smooth: !(
+                                            seriesGroup[0].smooth ?? true
+                                        ),
+                                    });
+                                }}
+                            />
+                        </Group>
+                    )}
+                </Stack>
                 <Box
                     bg="gray.1"
                     p="xxs"

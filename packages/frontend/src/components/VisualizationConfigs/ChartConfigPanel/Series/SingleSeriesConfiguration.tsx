@@ -105,6 +105,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             <EditableText
                                 disabled={series.hidden}
                                 defaultValue={seriesValue}
+                                placeholder={seriesLabel}
                                 onChange={(event) => {
                                     setSeriesValue(event.currentTarget.value);
                                     updateSingleSeries({
@@ -143,8 +144,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 </Group>
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
-                <Stack ml={isGrouped ? 'lg' : 'none'} spacing="xs">
-                    <Group ml="lg" spacing="xs" noWrap>
+                <Stack ml="lg" spacing="xs">
+                    <Group spacing="xs" noWrap>
                         <ChartTypeSelect
                             showLabel={!isGrouped}
                             chartValue={type}
