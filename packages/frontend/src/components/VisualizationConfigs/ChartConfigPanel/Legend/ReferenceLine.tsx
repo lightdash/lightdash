@@ -52,7 +52,7 @@ type UpdateReferenceLineProps = {
     field?: Field | TableCalculation | CompiledDimension | CustomDimension;
     label: string | undefined;
     lineColor: string;
-    useAverage?: boolean;
+    dynamicValue?: 'average';
     labelPosition: 'start' | 'middle' | 'end';
     lineId: string;
 };
@@ -269,12 +269,12 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         referenceLine.data.name ||
         '';
 
-    const currentLineConfig = {
+    const currentLineConfig: UpdateReferenceLineProps = {
         value,
         field: selectedField,
         label,
         lineColor,
-        useAverage,
+        dynamicValue: useAverage ? 'average' : undefined,
         labelPosition,
         lineId: lineId,
     };
@@ -410,7 +410,9 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                 if (selectedField !== undefined) {
                                     updateReferenceLine({
                                         ...currentLineConfig,
-                                        useAverage: newState.target.checked,
+                                        dynamicValue: newState.target.checked
+                                            ? 'average'
+                                            : undefined,
                                     });
                                 }
                             }}

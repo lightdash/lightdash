@@ -146,7 +146,7 @@ export type MarkLineData = {
         formatter?: string;
         position?: 'start' | 'middle' | 'end';
     };
-    useAverage?: boolean;
+    dynamicValue?: 'average';
 };
 export type MarkLine = {
     data: MarkLineData[];

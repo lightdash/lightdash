@@ -64,7 +64,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 field,
                 label,
                 lineColor,
-                useAverage,
+                dynamicValue,
                 labelPosition,
                 lineId,
             }) => {
@@ -83,6 +83,10 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         : field.name;
 
                     const isNumericField = field && isNumericItem(field);
+                    const useAverage =
+                        dynamicValue === 'average' && isNumericField;
+
+                    console.log('1', useAverage, dynamicValue);
 
                     if (dirtyEchartsConfig?.series) {
                         const selectedSeries = dirtyEchartsConfig?.series.find(
@@ -92,16 +96,14 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     : serie.encode.yRef
                                 ).field === fieldId,
                         );
-                        if (selectedSeries === undefined) return;
+                        console.log('2');
 
-                        const averageAvailable = isNumericField;
+                        if (selectedSeries === undefined) return;
+                        console.log('3', selectedSeries);
 
                         const dataWithAxis = {
                             name: label,
-                            type:
-                                useAverage && averageAvailable
-                                    ? 'average'
-                                    : undefined,
+                            type: useAverage ? 'average' : undefined,
                             uuid: lineId,
                             lineStyle: { color: lineColor },
                             label: {
@@ -121,6 +123,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     ? undefined
                                     : value || '',
                         };
+
+                        console.log('4', JSON.stringify(dataWithAxis, null, 2));
 
                         const updatedReferenceLines: ReferenceLineField[] =
                             referenceLines.map((line) => {
