@@ -61,7 +61,13 @@ export const Layout: React.FC = () => {
                             }
                             withinPortal
                         >
-                            <AddButton onClick={groupAdd} />
+                            <AddButton
+                                onClick={groupAdd}
+                                disabled={
+                                    dimensions.length === 0 ||
+                                    groupFieldIds.length === dimensions.length
+                                }
+                            />
                         </Tooltip>
                     </Config.Group>
 

@@ -1,12 +1,15 @@
-import { Button } from '@mantine/core';
+import { Button, type ButtonProps } from '@mantine/core';
+import { type ButtonHTMLAttributes, type FC } from 'react';
 
-export const AddButton = ({ onClick }: { onClick: () => void }) => (
+type Props = ButtonProps & ButtonHTMLAttributes<HTMLButtonElement>;
+
+export const AddButton: FC<Props> = ({ ...props }) => (
     <Button
         size="sm"
         variant="subtle"
         compact
         leftIcon="+"
-        onClick={onClick}
+        {...props}
         styles={{
             leftIcon: {
                 marginRight: 2,
