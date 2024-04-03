@@ -2,6 +2,7 @@ import {
     Anchor,
     Box,
     Group,
+    MantineProvider,
     Popover,
     Text,
     Title,
@@ -19,7 +20,10 @@ import { useItemDetail } from './ItemDetailContext';
  * to avoid markdown styling from completely throwing its surroundings out
  * of whack.
  */
-export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
+export const ItemDetailMarkdown: FC<{
+    source: string;
+    variant?: 'tooltip' | 'default';
+}> = ({ source, variant = 'default' }) => {
     const theme = useMantineTheme();
     return (
         <ReactMarkdownPreview
@@ -31,6 +35,9 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
                 h3: ({ children }) => <Title order={4}>{children}</Title>,
             }}
             rehypeRewrite={rehypeRemoveHeaderLinks}
+            wrapperElement={{
+                'data-color-mode': variant === 'tooltip' ? 'dark' : undefined,
+            }}
             source={source}
             disallowedElements={['img']}
             style={{
@@ -73,7 +80,7 @@ export const ItemDetailPreview: FC<{
                         : undefined,
                 }}
             >
-                <ItemDetailMarkdown source={description} />
+                <ItemDetailMarkdown source={description} variant="tooltip" />
             </Box>
             {isTruncated && (
                 <Box ta={'center'}>
@@ -111,6 +118,7 @@ export const TableItemDetailPreview = ({
     offset?: number;
 }>) => {
     const { showItemDetail } = useItemDetail();
+    const theme = useMantineTheme();
 
     const onOpenDescriptionView = () => {
         closePreview();
@@ -126,34 +134,38 @@ export const TableItemDetailPreview = ({
     };
 
     return (
-        <Popover
-            opened={showPreview}
-            keepMounted={false}
-            shadow="sm"
-            withinPortal
-            disabled={!description}
-            position="right"
-            withArrow
-            offset={offset}
-        >
-            <Popover.Target>{children}</Popover.Target>
-            <Popover.Dropdown
-                /**
-                 * Takes up space to the right, so it's OK to go fairly wide in the interest
-                 * of readability.
-                 */
-                maw={500}
-                /**
-                 * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
-                 * while interacting with the hovercard.
-                 */
-                onClick={(event) => event.stopPropagation()}
+        <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+            <Popover
+                opened={showPreview}
+                keepMounted={false}
+                shadow="sm"
+                withinPortal
+                disabled={!description}
+                position="right"
+                withArrow
+                offset={offset}
             >
-                <ItemDetailPreview
-                    onViewDescription={onOpenDescriptionView}
-                    description={description}
-                />
-            </Popover.Dropdown>
-        </Popover>
+                <Popover.Target>{children}</Popover.Target>
+                <Popover.Dropdown
+                    /**
+                     * Takes up space to the right, so it's OK to go fairly wide in the interest
+                     * of readability.
+                     */
+                    maw={500}
+                    /**
+                     * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                     * while interacting with the hovercard.
+                     */
+                    onClick={(event) => event.stopPropagation()}
+                    bg={theme.black}
+                    p="xs"
+                >
+                    <ItemDetailPreview
+                        onViewDescription={onOpenDescriptionView}
+                        description={description}
+                    />
+                </Popover.Dropdown>
+            </Popover>
+        </MantineProvider>
     );
 };

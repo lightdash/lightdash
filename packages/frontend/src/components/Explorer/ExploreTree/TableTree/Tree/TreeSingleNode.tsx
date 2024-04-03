@@ -14,9 +14,11 @@ import {
     Group,
     Highlight,
     HoverCard,
+    MantineProvider,
     NavLink,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
 import { darken, lighten } from 'polished';
@@ -45,6 +47,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         missingCustomMetrics,
         onItemClick,
     } = useTableTreeContext();
+    const theme = useMantineTheme();
     const { isFilteredField } = useFilters();
     const { showItemDetail } = useItemDetail();
 
@@ -149,51 +152,56 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             onMouseLeave={() => toggleHover(false)}
             label={
                 <Group noWrap>
-                    <HoverCard
-                        openDelay={300}
-                        keepMounted={false}
-                        shadow="sm"
-                        withinPortal
-                        withArrow
-                        disabled={!description && !isMissing}
-                        position="right"
-                        /** Ensures the hover card does not overlap with the right-hand menu. */
-                        offset={isFiltered ? 80 : 40}
-                    >
-                        <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                sx={{ flexGrow: 1 }}
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
-                        </HoverCard.Target>
-                        <HoverCard.Dropdown
-                            hidden={!isHover}
-                            p="xs"
-                            /**
-                             * Takes up space to the right, so it's OK to go fairly wide in the interest
-                             * of readability.
-                             */
-                            maw={500}
-                            /**
-                             * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
-                             * while interacting with the hovercard.
-                             */
-                            onClick={(event) => event.stopPropagation()}
+                    <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+                        <HoverCard
+                            openDelay={300}
+                            keepMounted={false}
+                            shadow="sm"
+                            withinPortal
+                            withArrow
+                            disabled={!description && !isMissing}
+                            position="right"
+                            /** Ensures the hover card does not overlap with the right-hand menu. */
+                            offset={isFiltered ? 80 : 40}
                         >
-                            {isMissing ? (
-                                `This field from '${item.table}' table is no longer available`
-                            ) : (
-                                <ItemDetailPreview
-                                    onViewDescription={onOpenDescriptionView}
-                                    description={description}
-                                />
-                            )}
-                        </HoverCard.Dropdown>
-                    </HoverCard>
+                            <HoverCard.Target>
+                                <Highlight
+                                    component={Text}
+                                    truncate
+                                    sx={{ flexGrow: 1 }}
+                                    highlight={searchQuery || ''}
+                                >
+                                    {label}
+                                </Highlight>
+                            </HoverCard.Target>
+                            <HoverCard.Dropdown
+                                hidden={!isHover}
+                                /**
+                                 * Takes up space to the right, so it's OK to go fairly wide in the interest
+                                 * of readability.
+                                 */
+                                maw={500}
+                                /**
+                                 * If we don't stop propagation, users may unintentionally toggle dimensions/metrics
+                                 * while interacting with the hovercard.
+                                 */
+                                onClick={(event) => event.stopPropagation()}
+                                bg={theme.black}
+                                p="xs"
+                            >
+                                {isMissing ? (
+                                    `This field from '${item.table}' table is no longer available`
+                                ) : (
+                                    <ItemDetailPreview
+                                        onViewDescription={
+                                            onOpenDescriptionView
+                                        }
+                                        description={description}
+                                    />
+                                )}
+                            </HoverCard.Dropdown>
+                        </HoverCard>
+                    </MantineProvider>
 
                     {isFiltered ? (
                         <Tooltip withinPortal label="This field is filtered">
