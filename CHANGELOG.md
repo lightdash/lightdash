@@ -1,3 +1,10 @@
+# [0.1051.0](https://github.com/lightdash/lightdash/compare/0.1050.3...0.1051.0) (2024-04-03)
+
+
+### Features
+
+* show value of average reference lines ([#9470](https://github.com/lightdash/lightdash/issues/9470)) ([38048c0](https://github.com/lightdash/lightdash/commit/38048c083257403d3a72db8e36bed1387908e1be))
+
 ## [0.1050.3](https://github.com/lightdash/lightdash/compare/0.1050.2...0.1050.3) (2024-04-03)
 
 
