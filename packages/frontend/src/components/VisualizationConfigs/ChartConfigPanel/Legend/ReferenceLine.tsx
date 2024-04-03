@@ -45,7 +45,7 @@ import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { Config } from '../common/Config';
+import { Config } from '../../common/Config';
 
 type UpdateReferenceLineProps = {
     value?: string;
