@@ -533,43 +533,12 @@ export const isOktaPassportStrategyAvailableToUse = !!(
 );
 
 /**
- * Loads a JWK file from a given path
- */
-const loadJWKFromPath = async (
-    filePath: string,
-): Promise<Record<string, unknown>> => {
-    try {
-        const file = await fs.readFile(filePath, 'utf-8');
-        return JSON.parse(file);
-    } catch (err) {
-        throw new Error(
-            `Failed to load JWK from file at '${filePath}' - may be missing or not valid JSON`,
-            err,
-        );
-    }
-};
-
-/**
- * Loads a JWK from a JSON-encoded string, likely provided as an environment variable.
- */
-const loadJWKFromConfig = (jwkConfigValue: string): Record<string, unknown> => {
-    try {
-        return JSON.parse(jwkConfigValue);
-    } catch (err) {
-        throw new Error(
-            `Failed to parse JWK from configuration - must be valid JSON`,
-            err,
-        );
-    }
-};
-
-/**
  * Azure-specific (but also mostly generic) implementation of private_key_jks
  * token authentication, using openid-client.
  *
  * Requires its own strategy since this method is not supported by OpenIdConnect.
  */
-export const azureAdPrivateKeyJksStrategy = async (): Promise<
+const azureAdPrivateKeyJksStrategy = async (): Promise<
     OpenIdClientStrategy<unknown, BaseClient>
 > => {
     Logger.info('Using azureAdPrivateKeyJksStrategy');
