@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 import { themeOverride } from '../mantineTheme';
 import PieChartDisplayConfig from './PieChartDisplayConfig';
 import { Layout } from './PieChartLayoutConfig';
-import PieChartSeriesConfig from './PieChartSeriesConfig';
+import { Series } from './PieChartSeriesConfig';
 
 export const ConfigTabs: React.FC = memo(() => {
     return (
@@ -26,7 +26,7 @@ export const ConfigTabs: React.FC = memo(() => {
                 </Tabs.Panel>
 
                 <Tabs.Panel value="series">
-                    <PieChartSeriesConfig />
+                    <Series />
                 </Tabs.Panel>
 
                 <Tabs.Panel value="display">
