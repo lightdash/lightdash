@@ -1,11 +1,11 @@
 import { MantineProvider, Tabs } from '@mantine/core';
-import React, { memo } from 'react';
+import { memo, type FC } from 'react';
 import { themeOverride } from '../mantineTheme';
-import PieChartDisplayConfig from './PieChartDisplayConfig';
+import { Display } from './PieChartDisplayConfig';
 import { Layout } from './PieChartLayoutConfig';
 import { Series } from './PieChartSeriesConfig';
 
-export const ConfigTabs: React.FC = memo(() => {
+export const ConfigTabs: FC = memo(() => {
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Tabs defaultValue="layout" keepMounted={false}>
@@ -30,7 +30,7 @@ export const ConfigTabs: React.FC = memo(() => {
                 </Tabs.Panel>
 
                 <Tabs.Panel value="display">
-                    <PieChartDisplayConfig />
+                    <Display />
                 </Tabs.Panel>
             </Tabs>
         </MantineProvider>
