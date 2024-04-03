@@ -160,11 +160,11 @@ export const Layout: FC<Props> = ({ items }) => {
     return (
         <Stack>
             <Config>
-                <Config.Group>
-                    <Config.LabelGroup>
-                        <Config.Label>{`${
+                <Config.Section>
+                    <Config.Group>
+                        <Config.Heading>{`${
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
-                        }-axis`}</Config.Label>
+                        }-axis`}</Config.Heading>
                         <Group spacing="two">
                             <Tooltip variant="xs" label="Flip Axes">
                                 <ActionIcon
@@ -184,7 +184,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                 />
                             )}
                         </Group>
-                    </Config.LabelGroup>
+                    </Config.Group>
                     {dirtyLayout?.xField !== EMPTY_X_AXIS && (
                         <FieldSelect
                             data-testid="x-axis-field-select"
@@ -200,15 +200,15 @@ export const Layout: FC<Props> = ({ items }) => {
                             }
                         />
                     )}
-                </Config.Group>
+                </Config.Section>
             </Config>
 
             <Config>
-                <Config.Group>
-                    <Config.LabelGroup>
-                        <Config.Label>{`${
+                <Config.Section>
+                    <Config.Group>
+                        <Config.Heading>{`${
                             validConfig?.layout.flipAxes ? 'X' : 'Y'
-                        }-axis`}</Config.Label>
+                        }-axis`}</Config.Heading>
                         {availableYFields.length > 0 && (
                             <AddButton
                                 onClick={() =>
@@ -218,7 +218,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                 }
                             />
                         )}
-                    </Config.LabelGroup>
+                    </Config.Group>
 
                     {yFields.map((field, index) => {
                         const activeField = yActiveField(field);
@@ -249,15 +249,15 @@ export const Layout: FC<Props> = ({ items }) => {
                             />
                         );
                     })}
-                </Config.Group>
+                </Config.Section>
             </Config>
 
             <Config>
-                <Config.Group>
+                <Config.Section>
                     <Stack spacing="xs">
-                        <Config.LabelGroup>
+                        <Config.Group>
                             <Group spacing="one">
-                                <Config.Label>Group</Config.Label>
+                                <Config.Heading>Group</Config.Heading>
                             </Group>
                             {canAddPivot && (
                                 <AddButton
@@ -271,7 +271,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     }
                                 />
                             )}
-                        </Config.LabelGroup>
+                        </Config.Group>
                         {!chartHasMetricOrTableCalc &&
                             !(pivotDimensions && !!pivotDimensions.length) && (
                                 <FieldSelect
@@ -354,7 +354,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                 disabled={!isXAxisFieldNumeric}
                             >
                                 <Group spacing="xs">
-                                    <Config.SubLabel>Stacking</Config.SubLabel>
+                                    <Config.Label>Stacking</Config.Label>
                                     <SegmentedControl
                                         disabled={isXAxisFieldNumeric}
                                         value={
@@ -374,7 +374,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                 </Group>
                             </Tooltip>
                         )}
-                </Config.Group>
+                </Config.Section>
             </Config>
         </Stack>
     );
