@@ -43,13 +43,13 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
             />
             {!isAuto && (
                 <Group noWrap spacing="xs">
-                    <Config.SubLabel>Min</Config.SubLabel>
+                    <Config.Label>Min</Config.Label>
                     <TextInput
                         placeholder="Min"
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
-                    <Config.SubLabel>Max</Config.SubLabel>
+                    <Config.Label>Max</Config.Label>
                     <TextInput
                         placeholder="Max"
                         defaultValue={max || undefined}

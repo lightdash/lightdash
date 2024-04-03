@@ -148,13 +148,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
 
     return (
         <Config>
-            <Config.Group>
+            <Config.Section>
                 <Group noWrap spacing="two">
                     <GrabIcon dragHandleProps={dragHandleProps} />
 
-                    <Config.Label>
+                    <Config.Heading>
                         {getItemLabelWithoutTableName(item)} (grouped)
-                    </Config.Label>
+                    </Config.Heading>
                 </Group>
                 <Stack spacing="xs" ml="md">
                     <Group noWrap spacing="xs" align="start">
@@ -237,7 +237,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         {seriesGroup[0].stack &&
                             chartValue === CartesianSeriesType.BAR && (
                                 <Stack spacing="xs" mt="two">
-                                    <Config.SubLabel>Total</Config.SubLabel>
+                                    <Config.Label>Total</Config.Label>
                                     <Switch
                                         checked={
                                             seriesGroup[0].stackLabel?.show
@@ -402,7 +402,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         </Droppable>
                     </DragDropContext>
                 </Box>
-            </Config.Group>
+            </Config.Section>
         </Config>
     );
 };

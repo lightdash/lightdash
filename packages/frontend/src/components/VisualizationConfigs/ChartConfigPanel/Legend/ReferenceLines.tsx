@@ -219,11 +219,11 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
     return (
         <Config>
-            <Config.Group>
-                <Config.LabelGroup>
-                    <Config.Label>Reference lines</Config.Label>
+            <Config.Section>
+                <Config.Group>
+                    <Config.Heading>Reference lines</Config.Heading>
                     <AddButton onClick={addReferenceLine} />
-                </Config.LabelGroup>
+                </Config.Group>
 
                 {referenceLines && (
                     <Accordion
@@ -261,7 +261,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         ))}
                     </Accordion>
                 )}
-            </Config.Group>
+            </Config.Section>
         </Config>
     );
 };
