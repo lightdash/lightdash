@@ -1186,7 +1186,7 @@ export class UserService {
         return accessToken;
     }
 
-    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
+    async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
