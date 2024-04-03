@@ -18,7 +18,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { Config } from '../common/Config';
+import { Config } from '../../common/Config';
 import { AxisMinMax } from './AxisMinMax';
 
 type Props = {
