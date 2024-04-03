@@ -93,6 +93,22 @@ apiV1Router.get(lightdashConfig.auth.azuread.callbackPath, (req, res, next) =>
 );
 
 apiV1Router.get(
+    lightdashConfig.auth.oidc.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate('oidc', {
+        scope: ['openid', 'profile', 'email'].join(' '),
+    }),
+);
+
+apiV1Router.get(lightdashConfig.auth.oidc.callbackPath, (req, res, next) =>
+    passport.authenticate('oidc', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: getSuccessURLWithReturnTo(req),
+        failureFlash: true,
+    })(req, res, next),
+);
+
+apiV1Router.get(
     lightdashConfig.auth.oneLogin.loginPath,
     storeOIDCRedirect,
     passport.authenticate('oneLogin', {

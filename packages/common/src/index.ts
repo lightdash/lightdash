@@ -705,6 +705,10 @@ export type HealthState = {
             enabled: boolean;
             loginPath: string;
         };
+        oidc: {
+            enabled: boolean;
+            loginPath: string;
+        };
     };
     posthog: {
         projectApiKey: string;

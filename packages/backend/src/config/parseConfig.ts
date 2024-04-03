@@ -1,6 +1,7 @@
 import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { type ClientAuthMethod } from 'openid-client';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { VERSION } from '../version';
 
@@ -176,21 +177,7 @@ export type PosthogConfig = {
     apiHost: string;
 };
 
-export type AuthAzureADConfig = {
-    oauth2ClientId: string | undefined;
-    oauth2ClientSecret: string | undefined;
-    oauth2TenantId: string | undefined;
-    loginPath: string;
-    callbackPath: string;
-
-    /**
-     * OpenID Connect metadata endpoint, available under the Azure application's
-     * Endpoints section.
-     *
-     * Inferred from the tenantID, if not specified (and the tenantID is available)
-     */
-    openIdConnectMetadataEndpoint: string | undefined;
-
+type JwtKeySetConfig = {
     /**
      * Path or content of the x509 pem-encoded public key certificate for use as part of
      * private_key_jwt token auth,
@@ -205,6 +192,22 @@ export type AuthAzureADConfig = {
     privateKeyFilePath: string | undefined;
     privateKeyFile: string | undefined;
 };
+
+export type AuthAzureADConfig = {
+    oauth2ClientId: string | undefined;
+    oauth2ClientSecret: string | undefined;
+    oauth2TenantId: string | undefined;
+    loginPath: string;
+    callbackPath: string;
+
+    /**
+     * OpenID Connect metadata endpoint, available under the Azure application's
+     * Endpoints section.
+     *
+     * Inferred from the tenantID, if not specified (and the tenantID is available)
+     */
+    openIdConnectMetadataEndpoint: string | undefined;
+} & JwtKeySetConfig;
 
 export type AuthGoogleConfig = {
     oauth2ClientId: string | undefined;
@@ -234,14 +237,15 @@ type AuthOneLoginConfig = {
     loginPath: string;
 };
 
-type AuthOpenIdConfig = {
-    issuerUrl: string;
-    authorizationUrl: string;
+type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
-    clientId: string;
-    clientSecret: string;
-};
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    metadataDocumentEndpoint: string | undefined;
+    authSigningAlg: string | undefined;
+    authMethod: ClientAuthMethod | undefined;
+} & JwtKeySetConfig;
 
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
@@ -250,6 +254,7 @@ export type AuthConfig = {
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
+    oidc: AuthOidcConfig;
 };
 
 export type SmtpConfig = {
@@ -399,6 +404,23 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID
                         ? `https://login.microsoftonline.com/${process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID}/v2.0/.well-known/openid-configuration`
                         : undefined,
+            },
+            oidc: {
+                callbackPath: '/oauth/redirect/oidc',
+                loginPath: '/login/oidc',
+                clientId: process.env.AUTH_OIDC_CLIENT_ID,
+                clientSecret: process.env.AUTH_OIDC_CLIENT_SECRET,
+                metadataDocumentEndpoint:
+                    process.env.AUTH_OIDC_METADATA_DOCUMENT_URL,
+                x509PublicKeyCertPath: process.env.AUTH_OIDC_X509_CERT_PATH,
+                x509PublicKeyCert: process.env.AUTH_OIDC_X509_CERT,
+                privateKeyFilePath: process.env.AUTH_OIDC_PRIVATE_KEY_PATH,
+                privateKeyFile: process.env.AUTH_OIDC_PRIVATE_KEY,
+                authSigningAlg:
+                    process.env.AUTH_OIDC_AUTH_SIGNING_ALG || 'RS256',
+                authMethod:
+                    (process.env.AUTH_OIDC_AUTH_METHOD as ClientAuthMethod) ||
+                    'client_secret_basic',
             },
         },
         intercom: {

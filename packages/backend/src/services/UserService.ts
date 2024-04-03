@@ -1195,6 +1195,7 @@ export class UserService {
             case OpenIdIdentityIssuerType.OKTA:
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
+            case OpenIdIdentityIssuerType.GENERIC_OIDC:
                 return true;
             default:
                 assertUnreachable(
@@ -1293,6 +1294,8 @@ export class UserService {
                     return this.lightdashConfig.auth.okta.loginPath;
                 case OpenIdIdentityIssuerType.ONELOGIN:
                     return this.lightdashConfig.auth.oneLogin.loginPath;
+                case OpenIdIdentityIssuerType.GENERIC_OIDC:
+                    return this.lightdashConfig.auth.oidc.loginPath;
                 default:
                     assertUnreachable(
                         issuer,
