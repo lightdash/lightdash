@@ -47,7 +47,11 @@ export const Layout: FC = () => {
                 />
 
                 <Grid gutter="xs">
-                    <Grid.Col span={7}>
+                    <Grid.Col
+                        span={
+                            showStyle ? 7 : 12 // Mantine's default Grid system is 12 columns
+                        }
+                    >
                         <TextInput
                             variant={showBigNumberLabel ? 'default' : 'filled'}
                             label="Label"
