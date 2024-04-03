@@ -6,17 +6,20 @@ import {
     type ConditionalFormattingConfig,
     type FilterableItem,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Accordion } from '@mantine/core';
 import produce from 'immer';
-import { useCallback, useMemo, useState } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import { useCallback, useMemo } from 'react';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ConditionalFormatting from './ConditionalFormatting';
+import { AddButton } from '../common/AddButton';
+import { Config } from '../common/Config';
+import { useControlledAccordion } from '../common/hooks/useControlledAccordion';
+import { ConditionalFormattingItem } from './ConditionalFormattingItem';
 
 const ConditionalFormattingList = ({}) => {
-    const [isAddingNew, setIsAddingNew] = useState(false);
+    const { openItems, handleAccordionChange, addNewItem, removeItem } =
+        useControlledAccordion();
+
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
         useVisualizationContext();
 
@@ -63,7 +66,6 @@ const ConditionalFormattingList = ({}) => {
 
         const { onSetConditionalFormattings } = chartConfig;
 
-        setIsAddingNew(true);
         onSetConditionalFormattings(
             produce(activeConfigs, (draft) => {
                 draft.push(
@@ -71,9 +73,10 @@ const ConditionalFormattingList = ({}) => {
                         colorPalette[0],
                     ),
                 );
+                addNewItem(`${draft.length}`);
             }),
         );
-    }, [chartConfig, activeConfigs, colorPalette]);
+    }, [chartConfig, activeConfigs, colorPalette, addNewItem]);
 
     const handleRemove = useCallback(
         (index: number) => {
@@ -106,30 +109,37 @@ const ConditionalFormattingList = ({}) => {
     );
 
     return (
-        <Stack spacing="xs">
-            {activeConfigs.map((conditionalFormatting, index) => (
-                <ConditionalFormatting
-                    key={index}
-                    colorPalette={colorPalette}
-                    isDefaultOpen={activeConfigs.length === 1 || isAddingNew}
-                    index={index}
-                    fields={visibleActiveNumericFields}
-                    value={conditionalFormatting}
-                    onChange={(newConfig) => handleChange(index, newConfig)}
-                    onRemove={() => handleRemove(index)}
-                />
-            ))}
-
-            <Button
-                sx={{ alignSelf: 'start' }}
-                size="xs"
-                variant="outline"
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                onClick={handleAdd}
-            >
-                Add new rule
-            </Button>
-        </Stack>
+        <Config>
+            <Config.Section>
+                <Config.Group>
+                    <Config.Heading>Rules and Conditions</Config.Heading>
+                    <AddButton onClick={handleAdd} />
+                </Config.Group>
+                <Accordion
+                    multiple
+                    variant="contained"
+                    value={openItems}
+                    onChange={handleAccordionChange}
+                >
+                    {activeConfigs.map((conditionalFormatting, index) => (
+                        <ConditionalFormattingItem
+                            key={index}
+                            isOpen={openItems.includes(`${index}`)}
+                            addNewItem={addNewItem}
+                            removeItem={removeItem}
+                            colorPalette={colorPalette}
+                            index={index + 1}
+                            fields={visibleActiveNumericFields}
+                            value={conditionalFormatting}
+                            onChange={(newConfig) =>
+                                handleChange(index, newConfig)
+                            }
+                            onRemove={() => handleRemove(index)}
+                        />
+                    ))}
+                </Accordion>
+            </Config.Section>
+        </Config>
     );
 };
 
