@@ -1,8 +1,8 @@
 import { Tabs } from '@mantine/core';
 import React, { memo } from 'react';
-import PieChartDisplayConfig from './PieChartDisplayConfig';
-import PieChartLayoutConfig from './PieChartLayoutConfig';
-import PieChartSeriesConfig from './PieChartSeriesConfig';
+import PieChartDisplayConfig from '../PieChartDisplayConfig';
+import PieChartLayoutConfig from '../PieChartLayoutConfig';
+import PieChartSeriesConfig from '../PieChartSeriesConfig';
 
 const PieChartConfigTabs: React.FC = memo(() => {
     return (
