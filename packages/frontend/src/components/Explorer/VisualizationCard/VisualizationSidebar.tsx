@@ -12,7 +12,7 @@ import { memo, useMemo, type FC } from 'react';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
-import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
+import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
 import PieChartConfigTabs from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
