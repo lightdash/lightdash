@@ -45,6 +45,7 @@ import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
+import { Config } from '../common/Config';
 
 type UpdateReferenceLineProps = {
     value?: string;
@@ -278,12 +279,9 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         lineId: lineId,
     };
 
-    const isDateField =
-        selectedField &&
-        !isCustomDimension(selectedField) &&
-        isDateItem(selectedField);
+    const isNumericField = selectedField && isNumericItem(selectedField);
 
-    const averageAvailable = !isDateField && markLineKey === 'yAxis';
+    const averageAvailable = isNumericField && markLineKey === 'yAxis';
     const controlLabel = `Line ${index}`;
     const accordionValue = `${index}`;
 
@@ -382,9 +380,13 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         </Box>
                         <TextInput
                             label="Label"
-                            disabled={!value}
+                            // disabled={!value}
                             value={label}
-                            placeholder={value ?? 'Untitled'}
+                            placeholder={
+                                useAverage && averageAvailable
+                                    ? value ?? 'Average'
+                                    : value ?? ''
+                            }
                             onChange={(e) => {
                                 setLabel(e.target.value);
                             }}
@@ -398,12 +400,11 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             }}
                         />
                     </Group>
-                    <Group noWrap align="baseline" position="apart">
+                    <Group noWrap position="apart">
                         <Checkbox
-                            style={{ flex: 4 }}
                             label="Use series average"
                             disabled={!averageAvailable}
-                            checked={useAverage}
+                            checked={useAverage && averageAvailable}
                             onChange={(newState) => {
                                 setUseAverage(newState.target.checked);
                                 if (selectedField !== undefined) {
@@ -414,47 +415,50 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                 }
                             }}
                         />
-                        <SegmentedControl
-                            size="xs"
-                            id="label-position"
-                            value={labelPosition}
-                            onChange={(
-                                newPosition: 'start' | 'middle' | 'end',
-                            ) => {
-                                setLabelPosition(newPosition);
+                        <Group noWrap>
+                            <Config.Label>Position</Config.Label>
+                            <SegmentedControl
+                                size="xs"
+                                id="label-position"
+                                value={labelPosition}
+                                onChange={(
+                                    newPosition: 'start' | 'middle' | 'end',
+                                ) => {
+                                    setLabelPosition(newPosition);
 
-                                updateReferenceLine({
-                                    ...currentLineConfig,
-                                    labelPosition: newPosition,
-                                });
-                            }}
-                            data={[
-                                {
-                                    value: 'start',
-                                    label: (
-                                        <MantineIcon
-                                            icon={IconLayoutAlignLeft}
-                                        />
-                                    ),
-                                },
-                                {
-                                    value: 'middle',
-                                    label: (
-                                        <MantineIcon
-                                            icon={IconLayoutAlignTop}
-                                        />
-                                    ),
-                                },
-                                {
-                                    value: 'end',
-                                    label: (
-                                        <MantineIcon
-                                            icon={IconLayoutAlignRight}
-                                        />
-                                    ),
-                                },
-                            ]}
-                        />
+                                    updateReferenceLine({
+                                        ...currentLineConfig,
+                                        labelPosition: newPosition,
+                                    });
+                                }}
+                                data={[
+                                    {
+                                        value: 'start',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignLeft}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        value: 'middle',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignTop}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        value: 'end',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignRight}
+                                            />
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </Group>
                     </Group>
                 </Stack>
             </Accordion.Panel>

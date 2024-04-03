@@ -1,8 +1,7 @@
 import {
     fieldId as getFieldId,
-    isCustomDimension,
-    isDateItem,
     isField,
+    isNumericItem,
     type CompiledDimension,
     type CustomDimension,
     type Field,
@@ -13,10 +12,7 @@ import { Accordion } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
-import {
-    getMarkLineAxis,
-    type ReferenceLineField,
-} from '../../../common/ReferenceLine';
+import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { AddButton } from '../common/AddButton';
@@ -86,27 +82,19 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         ? getFieldId(field)
                         : field.name;
 
-                    const axis = getMarkLineAxis(
-                        dirtyLayout?.xField,
-                        dirtyLayout?.flipAxes,
-                        fieldId,
-                    );
-
-                    const isDateField =
-                        field && !isCustomDimension(field) && isDateItem(field);
+                    const isNumericField = field && isNumericItem(field);
 
                     if (dirtyEchartsConfig?.series) {
                         const selectedSeries = dirtyEchartsConfig?.series.find(
                             (serie: Series) =>
-                                (axis === 'xAxis'
+                                (dirtyLayout?.xField === fieldId
                                     ? serie.encode.xRef
                                     : serie.encode.yRef
                                 ).field === fieldId,
                         );
                         if (selectedSeries === undefined) return;
 
-                        const averageAvailable =
-                            !isDateField && axis === 'yAxis';
+                        const averageAvailable = isNumericField;
 
                         const dataWithAxis = {
                             name: label,
@@ -122,9 +110,12 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     ? `${label}${useAverage ? ': {c}' : ''}`
                                     : undefined,
                             },
-                            xAxis: axis === 'xAxis' ? value || '' : undefined,
+                            xAxis:
+                                dirtyLayout?.xField === fieldId
+                                    ? value || ''
+                                    : undefined,
                             yAxis:
-                                axis === 'xAxis'
+                                dirtyLayout?.xField === fieldId
                                     ? undefined
                                     : useAverage
                                     ? undefined
