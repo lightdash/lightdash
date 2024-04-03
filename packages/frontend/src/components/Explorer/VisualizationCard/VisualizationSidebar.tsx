@@ -15,7 +15,7 @@ import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import BigNumberConfigTabs from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
-import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/ConfigTabs';
+import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/ConfigTabs/PieChartConfigTabs';
 import TableConfigTabs from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
