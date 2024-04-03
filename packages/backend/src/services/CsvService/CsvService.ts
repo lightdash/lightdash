@@ -29,7 +29,7 @@ import {
     SchedulerFormat,
     SessionUser,
 } from '@lightdash/common';
-
+import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
 import * as fs from 'fs';
 import * as fsPromise from 'fs/promises';
@@ -815,5 +815,54 @@ export class CsvService {
 
             throw e;
         }
+    }
+
+    async exportCsvDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+        queryFilters: SchedulerFilterRule[] | undefined,
+    ) {
+        const writeZipFile = async (files: AttachmentUrl[]) =>
+            new Promise<string>((resolve, reject) => {
+                const zipName = `/tmp/${nanoid()}.zip`;
+                const output = fs.createWriteStream(zipName);
+                const archive = archiver('zip', {
+                    zlib: { level: 9 }, // Sets the compression level.
+                });
+                output.on('close', () => {
+                    Logger.info(
+                        `Generated .zip file of ${archive.pointer()} bytes`,
+                    );
+                    resolve(zipName);
+                });
+                archive.on('error', (err) => {
+                    reject(err);
+                });
+                files.forEach((file) => {
+                    archive.file(file.localPath, {
+                        name: `${file.filename}.csv`,
+                    });
+                });
+                archive.pipe(output);
+                void archive.finalize(); // This finalize doesn't wait for the files to be written
+            });
+        const options: SchedulerCsvOptions = {
+            formatted: true,
+            limit: 'table',
+        };
+        const csvFiles = await this.getCsvsForDashboard(
+            user,
+            dashboardUuid,
+            options,
+            undefined,
+        );
+        const zipFile = await writeZipFile(csvFiles);
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        return this.s3Client.uploadZip(
+            fs.createReadStream(zipFile),
+            `${dashboard.name}.zip`,
+        );
     }
 }

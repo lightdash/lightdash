@@ -5,6 +5,7 @@ import {
     type DashboardAvailableFilters,
     type DashboardTile,
     type SavedChartsInfoForDashboardAvailableFilters,
+    type SchedulerFilterRule,
     type UpdateDashboard,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -156,11 +157,14 @@ export const useExportDashboard = () => {
     );
 };
 
-const exportCsvDashboard = async (id: string, queryFilters: string) =>
+const exportCsvDashboard = async (
+    id: string,
+    filters: SchedulerFilterRule[] | undefined,
+) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
-        body: JSON.stringify({ queryFilters }),
+        body: JSON.stringify({ filters }),
     });
 
 export const useExportCsvDashboard = () => {
@@ -170,9 +174,9 @@ export const useExportCsvDashboard = () => {
         ApiError,
         {
             dashboard: Dashboard;
-            queryFilters: string;
+            filters: SchedulerFilterRule[] | undefined;
         }
-    >((data) => exportCsvDashboard(data.dashboard.uuid, data.queryFilters), {
+    >((data) => exportCsvDashboard(data.dashboard.uuid, data.filters), {
         mutationKey: ['export_csv_dashboard'],
         onMutate: (data) => {
             showToastInfo({

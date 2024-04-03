@@ -6,6 +6,7 @@ import {
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as Sentry from '@sentry/node';
+import { ReadStream } from 'fs';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
@@ -54,7 +55,7 @@ export class S3Client {
     ): Promise<string> {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
             throw new Error(
-                "Missing S3 bucket configuration, can't upload image",
+                "Missing S3 bucket configuration, can't upload files",
             );
         }
         const upload = new Upload({
@@ -103,6 +104,10 @@ export class S3Client {
         csvName: string,
     ): Promise<string> {
         return this.uploadFile(csvName, csv, 'text/csv');
+    }
+
+    async uploadZip(zip: ReadStream, zipName: string): Promise<string> {
+        return this.uploadFile(zipName, zip, 'application/zip');
     }
 
     isEnabled(): boolean {

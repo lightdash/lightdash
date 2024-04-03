@@ -1,4 +1,4 @@
-import { type Dashboard } from '@lightdash/common';
+import { type Dashboard, type SchedulerFilterRule } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -32,7 +32,7 @@ type CsvExportProps = {
 
 const CsvExport: FC<CsvExportProps & ModalProps> = ({ dashboard, onClose }) => {
     const exportCsvDashboardMutation = useExportCsvDashboard();
-    const location = useLocation();
+    const dashboardFilters: SchedulerFilterRule[] | undefined = [];
 
     return (
         <Group position="right" pb="md" px="md" spacing="lg">
@@ -50,7 +50,7 @@ const CsvExport: FC<CsvExportProps & ModalProps> = ({ dashboard, onClose }) => {
                         onClick={() => {
                             exportCsvDashboardMutation.mutate({
                                 dashboard,
-                                queryFilters: location.search,
+                                filters: dashboardFilters,
                             });
                             onClose();
                         }}
@@ -176,12 +176,12 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                     ml="md"
                     data={[
                         {
-                            label: '.csv',
-                            value: 'csv',
-                        },
-                        {
                             label: 'Image',
                             value: 'image',
+                        },
+                        {
+                            label: '.csv',
+                            value: 'csv',
                         },
                     ]}
                     w="50%"
