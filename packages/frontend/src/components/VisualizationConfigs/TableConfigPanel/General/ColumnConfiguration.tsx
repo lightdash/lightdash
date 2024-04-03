@@ -14,11 +14,10 @@ import {
     type VisualizationConfigTable,
 } from '../../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { EditableText } from '../../common/EditableText';
 
 type ColumnConfigurationInputProps = Pick<
     ColumnConfigurationProps,
-    'fieldId' | 'withEditableText'
+    'fieldId'
 > & {
     chartConfig: VisualizationConfigTable['chartConfig'];
     disableHidingDimensions: boolean;
@@ -26,7 +25,6 @@ type ColumnConfigurationInputProps = Pick<
 
 const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
     fieldId,
-    withEditableText,
     disableHidingDimensions,
     chartConfig: {
         updateColumnProperty,
@@ -40,28 +38,10 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
         500,
     );
 
-    if (withEditableText)
-        return (
-            <EditableText
-                disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
-                placeholder={getFieldLabelDefault(fieldId)}
-                defaultValue={value}
-                onChange={(e) => {
-                    setValue(e.currentTarget.value);
-                    updateColumnProperty(fieldId, {
-                        name: e.currentTarget.value,
-                    });
-                }}
-                sx={(theme) => ({
-                    border: `1px solid ${theme.colors.gray['4']}`,
-                    borderRadius: theme.radius.sm,
-                })}
-            />
-        );
-
     return (
         <TextInput
             disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
+            placeholder={getFieldLabelDefault(fieldId)}
             defaultValue={value}
             onChange={(e) => {
                 setValue(e.currentTarget.value);
@@ -75,13 +55,9 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
 type ColumnConfigurationProps = {
     fieldId: string;
-    withEditableText?: boolean;
 };
 
-const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
-    fieldId,
-    withEditableText = false,
-}) => {
+const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
@@ -104,7 +80,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 }}
             >
                 <ColumnConfigurationInput
-                    withEditableText={withEditableText}
                     fieldId={fieldId}
                     chartConfig={visualizationConfig.chartConfig}
                     disableHidingDimensions={disableHidingDimensions}

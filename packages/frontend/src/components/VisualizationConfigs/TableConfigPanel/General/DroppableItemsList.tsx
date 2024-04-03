@@ -102,7 +102,6 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                             />
 
                                             <ColumnConfiguration
-                                                withEditableText
                                                 fieldId={itemId}
                                             />
                                         </Group>
