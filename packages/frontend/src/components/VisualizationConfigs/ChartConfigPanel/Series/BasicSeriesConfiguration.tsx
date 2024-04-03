@@ -13,7 +13,7 @@ import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { Config } from '../common/Config';
+import { Config } from '../../common/Config';
 import { EditableText } from '../common/EditableText';
 import { GrabIcon } from '../common/GrabIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
