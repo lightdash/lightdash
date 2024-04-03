@@ -1,3 +1,10 @@
+## [0.1050.2](https://github.com/lightdash/lightdash/compare/0.1050.1...0.1050.2) (2024-04-03)
+
+
+### Bug Fixes
+
+* return to dashboard tooltip overflow ([#9624](https://github.com/lightdash/lightdash/issues/9624)) ([3679225](https://github.com/lightdash/lightdash/commit/367922580b2280267ab5f5c62c85d25bbd69e534))
+
 ## [0.1050.1](https://github.com/lightdash/lightdash/compare/0.1050.0...0.1050.1) (2024-04-03)
 
 
