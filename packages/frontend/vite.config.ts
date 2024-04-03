@@ -18,6 +18,24 @@ export default defineConfig({
             forceBuildCDN: true,
             languageWorkers: ['json'],
         }),
+        /**
+         * Disable packaging the CSS styles for react-markdown-preview, in lieu of our own. This
+         * allows us for more control over how it looks alongside our Mantine theme.
+         *
+         * This works by forcing .css imports for this package to be inlined (and immediately discarded).
+         */
+        {
+            name: 'ignore-markdown-preview-css',
+            enforce: 'pre',
+            resolveId: (id) => {
+                if (
+                    id.includes('@uiw/react-markdown-preview') &&
+                    id.endsWith('.css')
+                ) {
+                    return `${id}?inline`;
+                }
+            },
+        },
     ],
     css: {
         transformer: 'lightningcss',
