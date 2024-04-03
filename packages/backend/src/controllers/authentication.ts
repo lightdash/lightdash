@@ -104,15 +104,7 @@ const createOpenIdUserFromUserInfo = (
     issuerType: OpenIdIdentityIssuerType,
     fail: OpenIDClientOktaStrategy['fail'],
 ) => {
-    /**
-     * AzureAD may return a UPN, but not an email, depending on issuer configuration;
-     * this is not ideal, and likely points to a misconfiguration, but we can try it
-     * anyway:
-     * https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/plan-connect-userprincipalname
-     */
-    const email = userInfo.email || (userInfo.upn as string);
-
-    if (!email || !userInfo.sub) {
+    if (!userInfo.email || !userInfo.sub) {
         return fail(
             {
                 message: 'Could not parse authentication token',
@@ -128,7 +120,7 @@ const createOpenIdUserFromUserInfo = (
 
     const openIdUser: OpenIdUser = {
         openId: {
-            email,
+            email: userInfo.email,
             issuer: issuer || '',
             subject: userInfo.sub,
             firstName,
