@@ -820,8 +820,46 @@ export class CsvService {
     async exportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
-        queryFilters: SchedulerFilterRule[] | undefined,
+        dashboardFilters: SchedulerFilterRule[] | undefined,
     ) {
+        if (this.s3Client.isEnabled()) {
+            throw new Error('Cloud storage is not enabled');
+        }
+        const options: SchedulerCsvOptions = {
+            formatted: true,
+            limit: 'table',
+        };
+
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const analyticProperties: DownloadCsv['properties'] = {
+            jobId: '', // not a job
+            userId: user.userUuid,
+            organizationId: user.organizationUuid,
+            projectId: dashboard.projectUuid,
+            fileType: SchedulerFormat.CSV,
+            values: options.formatted ? 'formatted' : 'raw',
+            limit: options.limit === 'table' ? 'results' : 'all',
+            context: 'dashboard csv zip',
+        };
+        this.analytics.track({
+            event: 'download_results.started',
+            userId: user.userUuid,
+            properties: {
+                ...analyticProperties,
+            },
+        });
+
         const writeZipFile = async (files: AttachmentUrl[]) =>
             new Promise<string>((resolve, reject) => {
                 const zipName = `/tmp/${nanoid()}.zip`;
@@ -846,19 +884,23 @@ export class CsvService {
                 archive.pipe(output);
                 void archive.finalize(); // This finalize doesn't wait for the files to be written
             });
-        const options: SchedulerCsvOptions = {
-            formatted: true,
-            limit: 'table',
-        };
+
         const csvFiles = await this.getCsvsForDashboard(
             user,
             dashboardUuid,
             options,
-            undefined,
+            dashboardFilters,
         );
         const zipFile = await writeZipFile(csvFiles);
 
-        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+        this.analytics.track({
+            event: 'download_results.completed',
+            userId: user.userUuid,
+            properties: {
+                ...analyticProperties,
+                numCharts: csvFiles.length,
+            },
+        });
 
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
