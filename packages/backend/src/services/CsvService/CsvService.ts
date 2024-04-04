@@ -8,6 +8,7 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
+    FeatureFlags,
     ForbiddenError,
     formatItemValue,
     friendlyName,
@@ -52,6 +53,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread } from '../../utils';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -407,10 +409,19 @@ export class CsvService {
                   )
                 : undefined;
 
+        const isDashboardFilterOverrideEnabled: boolean =
+            await isFeatureFlagEnabled(
+                FeatureFlags.DashboardFilterOverridesChartFilters,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+            );
         const metricQueryWithDashboardFilters = dashboardFiltersForTile
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
+                  isDashboardFilterOverrideEnabled,
               )
             : metricQuery;
 
