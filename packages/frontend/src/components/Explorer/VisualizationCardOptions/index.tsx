@@ -229,6 +229,7 @@ const VisualizationCardOptions: FC = memo(() => {
                     ? 'Custom'
                     : `Custom - This feature is currently unavailable.`,
                 chartKind: ChartKind.CUSTOM,
+                disabled: !isCustomConfigEnabled,
                 onClick: () => {
                     setPivotDimensions(undefined);
                     setStacking(undefined);
@@ -259,7 +260,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <VisualizationActionIcon
                     key={viz.chartKind}
                     label={viz.label}
-                    disabled={disabled}
+                    disabled={viz.disabled ?? disabled}
                     onClick={viz.onClick}
                     selected={viz.selected}
                     chartKind={viz.chartKind}
