@@ -161,3 +161,25 @@ These variables enable you to control Single Sign On (SSO) functionality for Azu
 | `AUTH_AZURE_AD_X509_CERT`              | Optional for Azure AD |           |         |
 | `AUTH_AZURE_AD_PRIVATE_KEY_PATH`       | Optional for Azure AD |           |         |
 | `AUTH_AZURE_AD_PRIVATE_KEY`            | Optional for Azure AD |           |         |
+
+## OpenID Connect
+
+Lightdash supports OpenID Connect-compliant SSO providers, via our configurable OIDC connector.
+
+### Configuring Lightdash for OpenID Connect
+
+These variables enable you to control Single Sign On (SSO) functionality for a generic OpenID Connect provider.
+
+| Variable                          | Description                                                           | Required? | Default               |
+| --------------------------------- | --------------------------------------------------------------------- | --------- | --------------------- |
+| `AUTH_OIDC_CLIENT_ID`             |                                                                       | ✅        |                       |
+| `AUTH_OIDC_CLIENT_SECRET`         | Required unless AUTH_METHOD is `private_key_jwt`                      |           |                       |
+| `AUTH_OIDC_METADATA_DOCUMENT_URL` | [URL to OIDC metadata discovery endpoint][providerconfrequest]        | ✅        |                       |
+| `AUTH_OIDC_AUTH_METHOD`           | `client_secret_basic` or `private_key_jwt`                            |           | `client_secret_basic` |
+| `AUTH_OIDC_X509_CERT`             | PEM-encoded content of a public key certificate for `private_key_jwt` |           |                       |
+| `AUTH_OIDC_PRIVATE_KEY`           | PEM-encoded content of a private key file for `private_key_jwt`       |           |                       |
+| `AUTH_OIDC_X509_CERT_PATH`        | Path to a PEM-encoded public key certificate for `private_key_jwt`    |           |                       |
+| `AUTH_OIDC_PRIVATE_KEY_PATH`      | Path to a PEM-encoded private key for `private_key_jwt`               |           |                       |
+| `AUTH_OIDC_SCOPES`                | List of space-delimited OIDC scopes                                   |           |                       |
+
+[providerconfrequest]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest
