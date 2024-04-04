@@ -3,7 +3,6 @@ import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
     applyDimensionOverrides,
-    applyMetricOverrides,
     DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
