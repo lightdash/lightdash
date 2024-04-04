@@ -1,3 +1,10 @@
+# [0.1058.0](https://github.com/lightdash/lightdash/compare/0.1057.0...0.1058.0) (2024-04-04)
+
+
+### Features
+
+* generic OIDC support ([#9633](https://github.com/lightdash/lightdash/issues/9633)) ([4bdb0e2](https://github.com/lightdash/lightdash/commit/4bdb0e2073df8c42e65783f4e1f31643b7502b82))
+
 # [0.1057.0](https://github.com/lightdash/lightdash/compare/0.1056.0...0.1057.0) (2024-04-04)
 
 
