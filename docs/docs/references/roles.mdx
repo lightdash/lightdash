@@ -68,16 +68,17 @@ Users with `Full Access` to a space can restrict and increase a user’s inherit
 Space permissions don't otherwise control what users can do, or which data they can use to build their own content.
 
 This means:
+
 - a project viewer who has `Can edit` space permissions cannot get access to build or edit charts because Viewers don't have access to the Explore view
 - an interactive viewer who is given `Can edit` space permissions can save content in that space but not in any other space (unless given `edit` access to another space)
 - an editor who is given `Can view` space permissions cannot edit the content in that space, but they can create/edit content in other parts of the project (unless they're given `Can view` access).
 
-| Action                   | Full Access  | Can Edit | Can View |
-| :----------------------- | :----------: | :------: | :------: |
-| View space content       |      ✅      |     ✅    |    ✅    |
-| Manage space content     |      ✅      |     ✅    |    ❌    |
-| Manage space access      |      ✅      |     ❌    |    ❌    |
-| Manage space details     |      ✅      |     ❌    |    ❌    |
+| Action               | Full Access | Can Edit | Can View |
+| :------------------- | :---------: | :------: | :------: |
+| View space content   |     ✅      |    ✅    |    ✅    |
+| Manage space content |     ✅      |    ✅    |    ❌    |
+| Manage space access  |     ✅      |    ❌    |    ❌    |
+| Manage space details |     ✅      |    ❌    |    ❌    |
 
 ## Allowed email domains to join organization automatically
 

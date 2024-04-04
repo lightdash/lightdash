@@ -6,6 +6,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardSummary,
 } from './types/dashboard';
 import { type DbtCloudIntegration } from './types/dbtCloud';
 import { type Explore, type SummaryExplore } from './types/explore';
@@ -539,6 +540,16 @@ export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
 
+export type ApiAiDashboardSummaryResponse = {
+    status: 'ok';
+    results: DashboardSummary;
+};
+
+export type ApiAiGetDashboardSummaryResponse = {
+    status: 'ok';
+    results: DashboardSummary;
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -615,7 +626,9 @@ type ApiResults =
     | ApiGetComments['results']
     | ApiDeleteComment
     | ApiSuccessEmpty
-    | ApiCreateProjectResults;
+    | ApiCreateProjectResults
+    | ApiAiDashboardSummaryResponse['results']
+    | ApiAiGetDashboardSummaryResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

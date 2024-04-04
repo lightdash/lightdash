@@ -77,6 +77,7 @@ export type ModelManifest = {
 
     /** An implementation signature for these models are not available at this stage */
     embedModel: unknown;
+    dashboardSummaryModel: unknown;
 };
 
 /**
@@ -446,6 +447,10 @@ export class ModelRepository
 
     public getEmbedModel<ModelImplT>(): ModelImplT {
         return this.getModel('embedModel');
+    }
+
+    public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
+        return this.getModel('dashboardSummaryModel');
     }
 
     /**

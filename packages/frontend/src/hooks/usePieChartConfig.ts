@@ -243,6 +243,14 @@ const usePieChartConfig: PieChartConfigFn = (
             return [];
         }
 
+        const isMetricPresentInResults = resultsData?.rows.some(
+            (r) => r[metricId],
+        );
+
+        if (!isMetricPresentInResults) {
+            return [];
+        }
+
         const mappedData = resultsData.rows.map((row) => {
             const name = groupFieldIds
                 .map((groupFieldId) => row[groupFieldId]?.value?.formatted)

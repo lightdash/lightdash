@@ -4201,8 +4201,17 @@
             },
             "MarkLineData": {
                 "properties": {
+                    "dynamicValue": {
+                        "type": "string",
+                        "enum": ["average"],
+                        "nullable": false
+                    },
                     "label": {
                         "properties": {
+                            "position": {
+                                "type": "string",
+                                "enum": ["start", "middle", "end"]
+                            },
                             "formatter": {
                                 "type": "string"
                             }
@@ -4218,6 +4227,12 @@
                         "required": ["color"],
                         "type": "object"
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
                     "value": {
                         "type": "string"
                     },
@@ -4231,7 +4246,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["value", "name"],
+                "required": ["uuid"],
                 "type": "object"
             },
             "MarkLine": {
@@ -6720,7 +6735,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1046.2",
+        "version": "0.1052.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

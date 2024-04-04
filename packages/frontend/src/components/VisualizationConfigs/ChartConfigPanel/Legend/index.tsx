@@ -1,23 +1,24 @@
 import {
     type CompiledDimension,
     type CustomDimension,
+    type EchartsLegend,
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
 import {
     Collapse,
+    Group,
     SegmentedControl,
-    SimpleGrid,
     Stack,
     Switch,
-    Text,
 } from '@mantine/core';
-import startCase from 'lodash/startCase';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import UnitInput from '../../../common/UnitInput';
+import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { Config } from '../../common/Config';
+import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
 
 enum Positions {
@@ -27,16 +28,71 @@ enum Positions {
     Bottom = 'bottom',
 }
 
-enum Units {
-    Pixels = 'px',
-    Percentage = '%',
-}
+type MarginConfigurationProps = {
+    legendConfig: EchartsLegend;
+    handleChange: (prop: string, newValue: string | undefined) => void;
+};
 
-const units = Object.values(Units);
+const PositionConfiguration: FC<MarginConfigurationProps> = ({
+    legendConfig,
+    handleChange,
+}) => {
+    const hasPositionConfigChanged = (
+        config: MarginConfigurationProps['legendConfig'],
+    ) => {
+        const positionValues = Object.values(Positions);
+
+        return Object.keys(config).some((key) =>
+            positionValues.includes(key as Positions),
+        );
+    };
+
+    const [isAutoPosition, toggleAuto] = useToggle(
+        !hasPositionConfigChanged(legendConfig),
+    );
+
+    const defaultConfig = {
+        top: 'auto',
+        left: 'auto',
+        right: 'auto',
+        bottom: 'auto',
+    };
+
+    return (
+        <Config>
+            <Config.Section>
+                <Switch
+                    labelPosition="left"
+                    label={`Custom position`}
+                    checked={!isAutoPosition}
+                    onChange={toggleAuto}
+                    styles={{
+                        label: {
+                            paddingLeft: 0,
+                        },
+                    }}
+                />
+
+                {!isAutoPosition && (
+                    <UnitInputsGrid
+                        centerLabel="Position"
+                        config={legendConfig}
+                        onChange={(position, newValue) =>
+                            handleChange(position, newValue)
+                        }
+                        defaultConfig={defaultConfig}
+                    />
+                )}
+            </Config.Section>
+        </Config>
+    );
+};
+
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
-const LegendPanel: FC<Props> = ({ items }) => {
+
+export const Legend: FC<Props> = ({ items }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { visualizationConfig } = useVisualizationContext();
@@ -59,69 +115,62 @@ const LegendPanel: FC<Props> = ({ items }) => {
     const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
     return (
         <Stack>
-            <Switch
-                label="Show legend"
-                checked={legendConfig.show ?? showDefault}
-                onChange={(e) => handleChange('show', e.currentTarget.checked)}
-            />
-            <Collapse in={legendConfig.show ?? showDefault}>
-                <Switch
-                    label="Scroll legend"
-                    mb="md"
-                    checked={dirtyEchartsConfig?.legend?.type !== 'plain'}
-                    onChange={(e) =>
-                        handleChange(
-                            'type',
-                            e.currentTarget.checked ? 'scroll' : 'plain',
-                        )
-                    }
-                />
-                <Text fw={600}>Position</Text>
-                {[
-                    [Positions.Left, Positions.Right],
-                    [Positions.Top, Positions.Bottom],
-                ].map((positionGroup) => (
-                    <SimpleGrid
-                        cols={2}
-                        mt="xs"
-                        ml="xs"
-                        mb="md"
-                        spacing="md"
-                        key={positionGroup.join(',')}
-                    >
-                        {positionGroup.map((position) => (
-                            <UnitInput
-                                key={position}
-                                label={
-                                    <Text fw={400}>{startCase(position)} </Text>
-                                }
-                                name={position}
-                                units={units}
-                                value={legendConfig[position] ?? 'auto'}
-                                defaultValue="auto"
-                                onChange={(e) => handleChange(position, e)}
-                            />
-                        ))}
-                    </SimpleGrid>
-                ))}
+            <Config>
+                <Config.Section>
+                    <Group spacing="xs" align="center">
+                        <Config.Heading>Legend</Config.Heading>
+                        <Switch
+                            checked={legendConfig.show ?? showDefault}
+                            onChange={(e) =>
+                                handleChange('show', e.currentTarget.checked)
+                            }
+                        />
+                    </Group>
 
-                <Text fw={600}>Orientation</Text>
-                <SegmentedControl
-                    name="orient"
-                    color="blue"
-                    size="sm"
-                    fullWidth
-                    value={legendConfig.orient ?? 'horizontal'}
-                    onChange={(val) => handleChange('orient', val)}
-                    data={[
-                        { label: 'Horizontal', value: 'horizontal' },
-                        { label: 'Vertical', value: 'vertical' },
-                    ]}
-                />
-            </Collapse>
+                    <Collapse in={legendConfig.show ?? showDefault}>
+                        <Stack spacing="xs">
+                            <Group spacing="xs">
+                                <Config.Label>Scroll behavior</Config.Label>
+                                <SegmentedControl
+                                    value={dirtyEchartsConfig?.legend?.type}
+                                    data={[
+                                        { label: 'Default', value: 'plain' },
+                                        { label: 'Scroll', value: 'scroll' },
+                                    ]}
+                                    onChange={(value) =>
+                                        handleChange('type', value)
+                                    }
+                                />
+                            </Group>
+                            <Group spacing="xs">
+                                <Config.Label>Orientation</Config.Label>
+                                <SegmentedControl
+                                    name="orient"
+                                    value={legendConfig.orient ?? 'horizontal'}
+                                    onChange={(val) =>
+                                        handleChange('orient', val)
+                                    }
+                                    data={[
+                                        {
+                                            label: 'Horizontal',
+                                            value: 'horizontal',
+                                        },
+                                        {
+                                            label: 'Vertical',
+                                            value: 'vertical',
+                                        },
+                                    ]}
+                                />
+                            </Group>
+                            <PositionConfiguration
+                                legendConfig={legendConfig}
+                                handleChange={handleChange}
+                            />
+                        </Stack>
+                    </Collapse>
+                </Config.Section>
+            </Config>
             <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
     );
 };
-
-export default LegendPanel;

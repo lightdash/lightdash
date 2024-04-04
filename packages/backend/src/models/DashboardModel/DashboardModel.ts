@@ -577,6 +577,7 @@ export class DashboardModel {
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
+            dashboardVersionId: dashboard.dashboard_version_id,
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
             description: dashboard.description,

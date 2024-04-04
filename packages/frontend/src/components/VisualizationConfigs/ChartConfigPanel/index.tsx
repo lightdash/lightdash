@@ -7,7 +7,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import ChartConfigTabs from './ChartConfigTabs';
+import { ConfigTabs } from './ConfigTabs';
 
 const ChartConfigPanel: React.FC = () => {
     const { resultsData, visualizationConfig } = useVisualizationContext();
@@ -41,7 +41,7 @@ const ChartConfigPanel: React.FC = () => {
 
             <Popover.Dropdown>
                 <Box w={335}>
-                    <ChartConfigTabs />
+                    <ConfigTabs />
                 </Box>
             </Popover.Dropdown>
         </Popover>

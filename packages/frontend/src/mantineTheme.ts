@@ -69,6 +69,13 @@ export const getMantineThemeOverride = (overrides?: {
             defaultProps: {
                 withArrow: true,
             },
+            variants: {
+                xs: (theme) => ({
+                    tooltip: {
+                        fontSize: theme.fontSizes.xs,
+                    },
+                }),
+            },
         },
 
         Modal: {

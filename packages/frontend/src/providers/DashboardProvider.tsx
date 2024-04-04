@@ -27,7 +27,11 @@ import React, {
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
-import { type FieldsWithSuggestions } from '../components/common/Filters/FiltersProvider';
+import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs';
+import {
+    type FieldsWithSuggestions,
+    type FieldWithSuggestions,
+} from '../components/common/Filters/FiltersProvider';
 import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useGetComments,
@@ -105,6 +109,7 @@ type DashboardContext = {
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
+    requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
 };
 
 const Context = createContext<DashboardContext | undefined>(undefined);
@@ -570,6 +575,39 @@ export const DashboardProvider: React.FC<
         [resultsCacheTimes],
     );
 
+    // Filters that are required to have a value set
+    const requiredDashboardFilters = useMemo(
+        () =>
+            dashboardFilters.dimensions
+                // Get filters that are required to have a value set (required) and that have no default value set (disabled)
+                .filter((f) => f.required && f.disabled)
+                .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
+                    (acc, f) => {
+                        const field = fieldsWithSuggestions[
+                            f.target.fieldId
+                        ] as FieldWithSuggestions | undefined;
+
+                        let label = '';
+
+                        if (f.label) {
+                            label = f.label;
+                        } else if (field) {
+                            label = getConditionalRuleLabel(f, field).field;
+                        }
+
+                        return [
+                            ...acc,
+                            {
+                                id: f.id,
+                                label,
+                            },
+                        ];
+                    },
+                    [],
+                ),
+        [dashboardFilters.dimensions, fieldsWithSuggestions],
+    );
+
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -609,6 +647,7 @@ export const DashboardProvider: React.FC<
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
+        requiredDashboardFilters,
     };
     return <Context.Provider value={value}>{children}</Context.Provider>;
 };

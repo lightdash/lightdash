@@ -7,10 +7,15 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine/core';
-import { IconGripVertical } from '@tabler/icons-react';
-import React, { type FC } from 'react';
-import MantineIcon from '../../../common/MantineIcon';
+import { Box, Group } from '@mantine/core';
+import { useDebouncedState } from '@mantine/hooks';
+import { type FC } from 'react';
+import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import ColorSelector from '../../ColorSelector';
+import { Config } from '../../common/Config';
+import { EditableText } from '../common/EditableText';
+import { GrabIcon } from '../common/GrabIcon';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 type BasicSeriesConfigurationProps = {
@@ -18,40 +23,81 @@ type BasicSeriesConfigurationProps = {
     layout?: CartesianChartLayout;
     series: Series;
     item: Field | TableCalculation | CustomDimension;
-    updateSingleSeries: (series: Series) => void;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
-};
+} & Pick<
+    ReturnType<typeof useCartesianChartConfig>,
+    'updateSingleSeries' | 'getSingleSeries'
+>;
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     isSingle,
     layout,
     series,
     item,
+    getSingleSeries,
     updateSingleSeries,
     dragHandleProps,
 }) => {
+    const { colorPalette, getSeriesColor } = useVisualizationContext();
+    const [value, setValue] = useDebouncedState(
+        getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
+        500,
+    );
+
     return (
-        <Stack spacing="xs">
-            <Group noWrap spacing="two">
-                <Box
-                    {...dragHandleProps}
-                    sx={{
-                        opacity: 0.6,
-                        '&:hover': { opacity: 1 },
-                    }}
-                >
-                    <MantineIcon icon={IconGripVertical} />
-                </Box>
-                <Text fw={500}> {getItemLabelWithoutTableName(item)} </Text>
-            </Group>
-            <SingleSeriesConfiguration
-                layout={layout}
-                series={series}
-                isSingle={isSingle}
-                seriesLabel={getItemLabelWithoutTableName(item)}
-                updateSingleSeries={updateSingleSeries}
-            />
-        </Stack>
+        <Config>
+            <Config.Section>
+                <Group noWrap spacing="two">
+                    <GrabIcon dragHandleProps={dragHandleProps} />
+
+                    <ColorSelector
+                        color={getSeriesColor(series)}
+                        swatches={colorPalette}
+                        onColorChange={(color) => {
+                            updateSingleSeries({
+                                ...series,
+                                color,
+                            });
+                        }}
+                    />
+                    {isSingle ? (
+                        <Config.Heading>
+                            {getItemLabelWithoutTableName(item)}
+                        </Config.Heading>
+                    ) : (
+                        <Box
+                            style={{
+                                flexGrow: 1,
+                            }}
+                        >
+                            <EditableText
+                                sx={{ flexGrow: 1 }}
+                                fw={600}
+                                size="sm"
+                                lighter
+                                defaultValue={value}
+                                placeholder={getItemLabelWithoutTableName(item)}
+                                onChange={(event) => {
+                                    setValue(event.currentTarget.value);
+                                    updateSingleSeries({
+                                        ...series,
+                                        name: event.currentTarget.value,
+                                    });
+                                }}
+                            />
+                        </Box>
+                    )}
+                </Group>
+                <SingleSeriesConfiguration
+                    layout={layout}
+                    series={series}
+                    isSingle={isSingle}
+                    seriesLabel={getItemLabelWithoutTableName(item)}
+                    updateSingleSeries={updateSingleSeries}
+                    getSingleSeries={getSingleSeries}
+                />
+            </Config.Section>
+        </Config>
     );
 };
 

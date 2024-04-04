@@ -1,3 +1,87 @@
+# [0.1052.0](https://github.com/lightdash/lightdash/compare/0.1051.0...0.1052.0) (2024-04-03)
+
+
+### Features
+
+* big number config UI/UX changes  ([#9623](https://github.com/lightdash/lightdash/issues/9623)) ([8703295](https://github.com/lightdash/lightdash/commit/87032951cc1fce1d348393e093658ec9011f0ff6))
+
+# [0.1051.0](https://github.com/lightdash/lightdash/compare/0.1050.3...0.1051.0) (2024-04-03)
+
+
+### Features
+
+* show value of average reference lines ([#9470](https://github.com/lightdash/lightdash/issues/9470)) ([38048c0](https://github.com/lightdash/lightdash/commit/38048c083257403d3a72db8e36bed1387908e1be))
+
+## [0.1050.3](https://github.com/lightdash/lightdash/compare/0.1050.2...0.1050.3) (2024-04-03)
+
+
+### Bug Fixes
+
+* error when project viewer has a higher space access ([#9625](https://github.com/lightdash/lightdash/issues/9625)) ([3fb4bec](https://github.com/lightdash/lightdash/commit/3fb4bec5182089d88d61bf22e891a02f7db05733))
+
+## [0.1050.2](https://github.com/lightdash/lightdash/compare/0.1050.1...0.1050.2) (2024-04-03)
+
+
+### Bug Fixes
+
+* return to dashboard tooltip overflow ([#9624](https://github.com/lightdash/lightdash/issues/9624)) ([3679225](https://github.com/lightdash/lightdash/commit/367922580b2280267ab5f5c62c85d25bbd69e534))
+
+## [0.1050.1](https://github.com/lightdash/lightdash/compare/0.1050.0...0.1050.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* duplicate improvement bugfix and types ([#9616](https://github.com/lightdash/lightdash/issues/9616)) ([5de85dc](https://github.com/lightdash/lightdash/commit/5de85dc2d4d4c6ab7640ec767ec341b7ab4094ab))
+
+# [0.1050.0](https://github.com/lightdash/lightdash/compare/0.1049.0...0.1050.0) (2024-04-03)
+
+
+### Features
+
+* AzureAd OIDC `private_key_jwt` token authentication ([#9612](https://github.com/lightdash/lightdash/issues/9612)) ([d9e178b](https://github.com/lightdash/lightdash/commit/d9e178bc7debc527f027685801d02c4ed5211a85))
+
+# [0.1049.0](https://github.com/lightdash/lightdash/compare/0.1048.1...0.1049.0) (2024-04-03)
+
+
+### Features
+
+* address remaining bits on chart config ui changes ([#9609](https://github.com/lightdash/lightdash/issues/9609)) ([6636468](https://github.com/lightdash/lightdash/commit/6636468713029db188414e502678d16bc02ad4ea))
+
+## [0.1048.1](https://github.com/lightdash/lightdash/compare/0.1048.0...0.1048.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* check if metric exists in results before trying to process data ([#9614](https://github.com/lightdash/lightdash/issues/9614)) ([b6d8b5c](https://github.com/lightdash/lightdash/commit/b6d8b5c2b10a100912d48d410c559993f48e6539))
+
+# [0.1048.0](https://github.com/lightdash/lightdash/compare/0.1047.2...0.1048.0) (2024-04-02)
+
+
+### Features
+
+* require some filters to have values before running dashboard  ([#9505](https://github.com/lightdash/lightdash/issues/9505)) ([cf396c3](https://github.com/lightdash/lightdash/commit/cf396c3bd260f26bbf3f2ef7d80c701f9559f797))
+
+## [0.1047.2](https://github.com/lightdash/lightdash/compare/0.1047.1...0.1047.2) (2024-04-02)
+
+
+### Bug Fixes
+
+* optional project bigquery ([#9595](https://github.com/lightdash/lightdash/issues/9595)) ([d39d666](https://github.com/lightdash/lightdash/commit/d39d6665c0a055e9ae15f68c4825c73e663ac84a))
+
+## [0.1047.1](https://github.com/lightdash/lightdash/compare/0.1047.0...0.1047.1) (2024-04-02)
+
+
+### Bug Fixes
+
+* reference line accordion item index ([#9607](https://github.com/lightdash/lightdash/issues/9607)) ([a6df7e3](https://github.com/lightdash/lightdash/commit/a6df7e3873f1ff69fcf284b098cabb7a65a9ae18))
+
+# [0.1047.0](https://github.com/lightdash/lightdash/compare/0.1046.2...0.1047.0) (2024-04-02)
+
+
+### Features
+
+* cartesian chart config UI/UX changes ([#9528](https://github.com/lightdash/lightdash/issues/9528)) ([f016f1b](https://github.com/lightdash/lightdash/commit/f016f1b44822bca2f2a1f01899ce9bf119aa2787))
+
 ## [0.1046.2](https://github.com/lightdash/lightdash/compare/0.1046.1...0.1046.2) (2024-04-02)
 
 
