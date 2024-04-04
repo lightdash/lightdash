@@ -186,7 +186,6 @@ const VisualizationCardOptions: FC = memo(() => {
             },
             {
                 chartKind: ChartKind.TABLE,
-
                 onClick: () => {
                     setPivotDimensions(undefined);
                     setStacking(undefined);
@@ -205,7 +204,6 @@ const VisualizationCardOptions: FC = memo(() => {
                 },
                 selected: isBigNumberVisualizationConfig(visualizationConfig),
             },
-
             {
                 chartKind: ChartKind.CUSTOM,
                 onClick: () => {
