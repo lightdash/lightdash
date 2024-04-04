@@ -2,12 +2,19 @@ import {
     PieChartLegendPositions,
     type PieChartLegendPosition,
 } from '@lightdash/common';
-import { Collapse, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
+import {
+    Collapse,
+    Group,
+    SegmentedControl,
+    Stack,
+    Switch,
+} from '@mantine/core';
 import React from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
+import { Config } from '../common/Config';
 
-const PieChartDisplayConfig: React.FC = () => {
+export const Display: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
@@ -21,33 +28,31 @@ const PieChartDisplayConfig: React.FC = () => {
 
     return (
         <Stack>
-            <Switch
-                label="Show legend"
-                checked={showLegend}
-                onChange={toggleShowLegend}
-            />
+            <Config>
+                <Group>
+                    <Config.Heading>Show legend</Config.Heading>
+                    <Switch checked={showLegend} onChange={toggleShowLegend} />
+                </Group>
+            </Config>
 
             <Collapse in={showLegend}>
-                <Text fw={600}>Orientation</Text>
-                <SegmentedControl
-                    name="orient"
-                    color="blue"
-                    size="sm"
-                    fullWidth
-                    value={legendPosition}
-                    onChange={(val: PieChartLegendPosition) =>
-                        legendPositionChange(val)
-                    }
-                    data={Object.entries(PieChartLegendPositions).map(
-                        ([position, label]) => ({
-                            label,
-                            value: position,
-                        }),
-                    )}
-                />
+                <Group spacing="xs">
+                    <Config.Label>Orientation</Config.Label>
+                    <SegmentedControl
+                        name="orient"
+                        value={legendPosition}
+                        onChange={(val: PieChartLegendPosition) =>
+                            legendPositionChange(val)
+                        }
+                        data={Object.entries(PieChartLegendPositions).map(
+                            ([position, label]) => ({
+                                label,
+                                value: position,
+                            }),
+                        )}
+                    />
+                </Group>
             </Collapse>
         </Stack>
     );
 };
-
-export default PieChartDisplayConfig;
