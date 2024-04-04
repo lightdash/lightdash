@@ -33,8 +33,16 @@ describe('Settings - Profile', () => {
             .should('not.be.disabled')
             .should('have.value', SEED_ORG_1_ADMIN_EMAIL.email);
 
-        cy.findByPlaceholderText('First name').clear().type('Kevin');
-        cy.findByPlaceholderText('Last name').clear().type('Space');
+        cy.findByPlaceholderText('First name')
+            .focus()
+            .clear()
+            .should('have.value', '');
+        cy.findByPlaceholderText('First name').type('Kevin');
+        cy.findByPlaceholderText('Last name')
+            .focus()
+            .clear()
+            .should('have.value', '');
+        cy.findByPlaceholderText('Last name').type('Space');
 
         cy.findByRole('button', { name: 'Update' }).click();
 
