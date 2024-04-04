@@ -85,8 +85,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     const useAverage =
                         dynamicValue === 'average' && isNumericField;
 
-                    console.log('1', useAverage, dynamicValue);
-
                     if (dirtyEchartsConfig?.series) {
                         const selectedSeries = dirtyEchartsConfig?.series.find(
                             (serie: Series) =>
@@ -95,10 +93,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     : serie.encode.yRef
                                 ).field === fieldId,
                         );
-                        console.log('2');
 
                         if (selectedSeries === undefined) return;
-                        console.log('3', selectedSeries);
 
                         const dataWithAxis = {
                             name: label,
@@ -122,8 +118,6 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                     ? undefined
                                     : value || '',
                         };
-
-                        console.log('4', JSON.stringify(dataWithAxis, null, 2));
 
                         const updatedReferenceLines: ReferenceLineField[] =
                             referenceLines.map((line) => {
