@@ -3,7 +3,7 @@ import {
     ChartType,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Drawer, Stack, Text } from '@mantine/core';
+import { Button, Drawer, Group, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -99,21 +99,29 @@ const VisualizationSidebar: FC<{
                             top: sidebarVerticalOffset,
                             height: `calc(100% - ${sidebarVerticalOffset}px)`,
                         },
-                        body: {
-                            paddingTop: theme.spacing.xs,
+                        content: {
+                            display: 'flex',
+                            flexDirection: 'column',
                         },
                         header: {
                             paddingBottom: theme.spacing.sm,
                             marginBottom: theme.spacing.xs,
+                            flexShrink: 0,
+                        },
+                        body: {
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            paddingTop: theme.spacing.xs,
                         },
                     })}
                     onClose={onClose}
                 >
-                    <Stack spacing="xs">
+                    <Group pb="sm">
                         <VisualizationCardOptions />
+                    </Group>
 
-                        <ConfigTab />
-                    </Stack>
+                    <ConfigTab />
                 </Drawer>
             </>
         );
