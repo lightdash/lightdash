@@ -5,7 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { ActionIcon, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Group, Tooltip } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
@@ -38,12 +38,16 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
     selected,
 }) => (
     <Tooltip variant="xs" label={label} withinPortal>
-        <ActionIcon disabled={disabled} onClick={onClick}>
-            <ChartIcon
-                color={selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED}
-                chartKind={chartKind}
-            />
-        </ActionIcon>
+        <Box>
+            <ActionIcon disabled={disabled} onClick={onClick}>
+                <ChartIcon
+                    color={
+                        selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED
+                    }
+                    chartKind={chartKind}
+                />
+            </ActionIcon>
+        </Box>
     </Tooltip>
 );
 
@@ -180,7 +184,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
-                label: 'Mixed chart',
+                label:
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig)
+                        ? 'Mixed chart - Use series tab to configure it'
+                        : 'Mixed chart',
                 chartKind: ChartKind.MIXED,
                 disabled:
                     (isChartTypeTheSameForAllSeries &&
