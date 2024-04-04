@@ -25,7 +25,7 @@ import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { Config } from '../../common/Config';
-import { GrabIcon } from '../common/GrabIcon';
+import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 

@@ -2,7 +2,7 @@ import { Box, TextInput, type TextInputProps } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 
 type Props = TextInputProps & { lighter?: boolean };
 
