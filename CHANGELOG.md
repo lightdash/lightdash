@@ -1,3 +1,17 @@
+# [0.1054.0](https://github.com/lightdash/lightdash/compare/0.1053.0...0.1054.0) (2024-04-04)
+
+
+### Features
+
+* export dashboard csv ([#9604](https://github.com/lightdash/lightdash/issues/9604)) ([3e4aeba](https://github.com/lightdash/lightdash/commit/3e4aebae26e6272896b1b342bb8f7d20a9789480))
+
+# [0.1053.0](https://github.com/lightdash/lightdash/compare/0.1052.1...0.1053.0) (2024-04-04)
+
+
+### Features
+
+* pie chart config - tabs (1/4) ([#9619](https://github.com/lightdash/lightdash/issues/9619)) ([c89f8be](https://github.com/lightdash/lightdash/commit/c89f8be160abfb7ca2f6414e69f99d25a76624cf))
+
 ## [0.1052.1](https://github.com/lightdash/lightdash/compare/0.1052.0...0.1052.1) (2024-04-04)
 
 

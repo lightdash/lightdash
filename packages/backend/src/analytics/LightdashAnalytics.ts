@@ -787,7 +787,8 @@ export type DownloadCsv = BaseTrack & {
             | 'chart'
             | 'scheduled delivery chart'
             | 'scheduled delivery dashboard'
-            | 'sql runner';
+            | 'sql runner'
+            | 'dashboard csv zip';
         storage?: 'local' | 's3';
         numCharts?: number;
         numRows?: number;
