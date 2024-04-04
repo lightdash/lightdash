@@ -254,7 +254,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
             >
                 <Group spacing="xs" position="apart">
                     <Group spacing="xs">
-                        <Config.Label>{controlLabel}</Config.Label>
+                        <Config.Heading>{controlLabel}</Config.Heading>
 
                         <Tooltip
                             variant="xs"
