@@ -1,7 +1,6 @@
 import { MantineProvider, Tabs } from '@mantine/core';
 import { memo } from 'react';
-// TODO: Import from common folder in root of configs instead of from ChartConfigPanel
-import { themeOverride } from '../ChartConfigPanel/ConfigTabs/mantineTheme';
+import { themeOverride } from '../mantineTheme';
 import { Comparison } from './BigNumberComparison';
 import { Layout } from './BigNumberLayout';
 
