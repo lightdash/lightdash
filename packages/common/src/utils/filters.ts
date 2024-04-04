@@ -598,7 +598,7 @@ const convertDashboardFilterRuleToFilterRule = (
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
-    shouldOverride: boolean = false,
+    shouldOverride: boolean,
 ): MetricQuery => {
     const mergeStrategy = shouldOverride
         ? overrideFilterGroupWithFilterRules
