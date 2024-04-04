@@ -3,8 +3,10 @@ import {
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
 import { Button, Image, type ButtonProps } from '@mantine/core';
+import { IconLock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useApp } from '../../../providers/AppProvider';
+import MantineIcon from '../MantineIcon';
 
 type ThirdPartySignInButtonProps = {
     inviteCode?: string;
@@ -17,7 +19,7 @@ type ThirdPartySignInButtonProps = {
 const ThirdPartySignInButtonBase: FC<
     {
         loginPath: string;
-        logo: string;
+        logo: string | JSX.Element;
         providerName: string;
         redirect?: string;
     } & Pick<ThirdPartySignInButtonProps, 'inviteCode' | 'intent'> &
@@ -44,7 +46,15 @@ const ThirdPartySignInButtonBase: FC<
                     : ''
             }`}
             leftIcon={
-                <Image width={16} src={logo} alt={`${providerName} logo}`} />
+                typeof logo === 'string' ? (
+                    <Image
+                        width={16}
+                        src={logo}
+                        alt={`${providerName} logo}`}
+                    />
+                ) : (
+                    logo
+                )
             }
             sx={{ ':hover': { textDecoration: 'underline' } }}
             {...props}
@@ -113,6 +123,18 @@ export const ThirdPartySignInButton: FC<ThirdPartySignInButtonProps> = ({
                     inviteCode={inviteCode}
                     providerName="Microsoft"
                     logo="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAApgAAAKYB3X3/OAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAACCSURBVEiJ7ZSxDcJAEATnTxd8CBlNkJK/CFwAETW4QV4EbsEd0ASBg5eOFlZIDizdxrs7J5205Xu/vYAJQVGsPecLwKL4gW5q+Z+abMdyABKQgASAR7GmmsfYVgcGyBm/Pt76OdvgczoDVY54CXm4iOoNKljImeM/OQEJOAig79jff9AUF4fE3EHkAAAAAElFTkSuQmCC"
+                    {...props}
+                />
+            ) : null;
+        case OpenIdIdentityIssuerType.GENERIC_OIDC:
+            return health.data?.auth.oidc.enabled ? (
+                <ThirdPartySignInButtonBase
+                    loginPath={health.data.auth.oidc.loginPath}
+                    redirect={redirect}
+                    intent={intent}
+                    inviteCode={inviteCode}
+                    providerName="OpenID Connect"
+                    logo={<MantineIcon icon={IconLock} />}
                     {...props}
                 />
             ) : null;

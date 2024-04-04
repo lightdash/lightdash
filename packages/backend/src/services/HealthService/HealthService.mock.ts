@@ -26,6 +26,10 @@ export const BaseResponse = {
             enabled: false,
             loginPath: '',
         },
+        oidc: {
+            enabled: false,
+            loginPath: '',
+        },
     },
     defaultProject: undefined,
     latest: { version: '0.2.7' },
@@ -62,6 +66,9 @@ export const Config = {
             loginPath: '',
         },
         azuread: {
+            loginPath: '',
+        },
+        oidc: {
             loginPath: '',
         },
     },

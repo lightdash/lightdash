@@ -690,6 +690,70 @@ export const oneLoginPassportStrategy = !(
           genericOidcHandler(OpenIdIdentityIssuerType.ONELOGIN),
       );
 
+export const isGenericOidcPassportStrategyAvailableToUse =
+    lightdashConfig.auth.oidc.clientId &&
+    lightdashConfig.auth.oidc.metadataDocumentEndpoint;
+
+export const createGenericOidcPassportStrategy = async () => {
+    const { oidc } = lightdashConfig.auth;
+    const issuer = await Issuer.discover(oidc.metadataDocumentEndpoint!);
+
+    const hasJwtConfig =
+        (oidc.privateKeyFile || oidc.privateKeyFilePath) &&
+        (oidc.x509PublicKeyCert || oidc.x509PublicKeyCertPath);
+
+    const keySet = hasJwtConfig
+        ? await buildJwtKeySet({
+              certificateFilePath: oidc.x509PublicKeyCertPath,
+              certificateFile: oidc.x509PublicKeyCert,
+              keyFilePath: oidc.privateKeyFilePath,
+              keyFile: oidc.privateKeyFile,
+          })
+        : undefined;
+
+    const client = new issuer.Client(
+        {
+            client_id: oidc.clientId!,
+            client_secret: oidc.clientSecret,
+            token_endpoint_auth_signing_alg: oidc.authSigningAlg,
+            token_endpoint_auth_method: oidc.authMethod,
+        },
+        keySet ? { keys: [keySet.jwk] } : undefined,
+    );
+
+    return new OpenIdClientStrategy(
+        {
+            client,
+            usePKCE: !!keySet,
+            passReqToCallback: true,
+            params: {
+                redirect_uri: new URL(
+                    `/api/v1${oidc.callbackPath}`,
+                    lightdashConfig.siteUrl,
+                ).href,
+            },
+            extras: {
+                ...(keySet
+                    ? {
+                          clientAssertionPayload: {
+                              aud: issuer.metadata.issuer,
+                              typ: 'JWT',
+                          },
+                      }
+                    : {}),
+            },
+        },
+
+        /**
+         * This is compatible, but types differ from what's otherwise expected.
+         */
+        genericOidcHandler(
+            OpenIdIdentityIssuerType.GENERIC_OIDC,
+            issuer.metadata.issuer,
+        ) as unknown as StrategyVerifyCallback<unknown>,
+    );
+};
+
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
         next();

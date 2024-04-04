@@ -3,6 +3,7 @@ export enum OpenIdIdentityIssuerType {
     OKTA = 'okta',
     ONELOGIN = 'oneLogin',
     AZUREAD = 'azuread',
+    GENERIC_OIDC = 'oidc',
 }
 
 export type CreateOpenIdIdentity = {

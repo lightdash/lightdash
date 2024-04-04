@@ -61,6 +61,10 @@ export default function mockHealthResponse(
                 loginPath: '/login/azuread',
                 enabled: false,
             },
+            oidc: {
+                loginPath: '/login/oidc',
+                enabled: false,
+            },
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,

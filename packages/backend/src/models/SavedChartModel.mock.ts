@@ -1,23 +1,4 @@
-import {
-    ConditionalOperator,
-    CreateBigqueryCredentials,
-    DbtCloudIDEProjectConfig,
-    DbtProjectType,
-    DefaultSupportedDbtVersion,
-    DimensionType,
-    Explore,
-    FieldType,
-    LightdashMode,
-    MetricFilterRule,
-    MetricType,
-    OrderFieldsByStrategy,
-    Project,
-    ProjectType,
-    SupportedDbtAdapter,
-    TablesConfiguration,
-    TableSelectionType,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { LightdashMode } from '@lightdash/common';
 import { LightdashConfig } from '../config/parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
@@ -73,6 +54,20 @@ export const lightdashConfigMock: LightdashConfig = {
             openIdConnectMetadataEndpoint: undefined,
             privateKeyFile: undefined,
             privateKeyFilePath: undefined,
+            x509PublicKeyCert: undefined,
+            x509PublicKeyCertPath: undefined,
+        },
+        oidc: {
+            authMethod: undefined,
+            authSigningAlg: undefined,
+            callbackPath: '',
+            loginPath: '',
+            clientId: undefined,
+            clientSecret: undefined,
+            metadataDocumentEndpoint: undefined,
+            privateKeyFile: undefined,
+            privateKeyFilePath: undefined,
+            scopes: undefined,
             x509PublicKeyCert: undefined,
             x509PublicKeyCertPath: undefined,
         },

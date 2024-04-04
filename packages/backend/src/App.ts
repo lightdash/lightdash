@@ -35,8 +35,10 @@ import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
     createAzureAdPassportStrategy,
+    createGenericOidcPassportStrategy,
     googlePassportStrategy,
     isAzureAdPassportStrategyAvailableToUse,
+    isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
     localPassportStrategy,
     oneLoginPassportStrategy,
@@ -379,6 +381,9 @@ export default class App {
         }
         if (isAzureAdPassportStrategyAvailableToUse) {
             passport.use('azuread', await createAzureAdPassportStrategy());
+        }
+        if (isGenericOidcPassportStrategyAvailableToUse) {
+            passport.use('oidc', await createGenericOidcPassportStrategy());
         }
 
         passport.serializeUser((user, done) => {
