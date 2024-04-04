@@ -4,7 +4,7 @@ import {
     Droppable,
     type DropResult,
 } from '@hello-pangea/dnd';
-import { Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
@@ -86,16 +86,14 @@ export const Series: FC = () => {
                         <DragDropContext onDragEnd={handleDragEnd}>
                             <Droppable droppableId="droppable">
                                 {(droppableProvided, droppableSnapshot) => (
-                                    <Stack
-                                        spacing="xs"
+                                    <Box
                                         ref={droppableProvided.innerRef}
                                         bg={
                                             droppableSnapshot.isDraggingOver
                                                 ? 'gray.1'
                                                 : 'gray.0'
                                         }
-                                        py="xs"
-                                        pr="xs"
+                                        p="xs"
                                     >
                                         {sortedGroupLabels.map(
                                             (groupLabel, index) => (
@@ -204,7 +202,7 @@ export const Series: FC = () => {
                                         )}
 
                                         {droppableProvided.placeholder}
-                                    </Stack>
+                                    </Box>
                                 )}
                             </Droppable>
                         </DragDropContext>
