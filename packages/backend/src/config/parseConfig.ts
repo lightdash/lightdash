@@ -245,6 +245,7 @@ type AuthOidcConfig = {
     metadataDocumentEndpoint: string | undefined;
     authSigningAlg: string | undefined;
     authMethod: ClientAuthMethod | undefined;
+    scopes: string | undefined;
 } & JwtKeySetConfig;
 
 export type AuthConfig = {
@@ -421,6 +422,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 authMethod:
                     (process.env.AUTH_OIDC_AUTH_METHOD as ClientAuthMethod) ||
                     'client_secret_basic',
+                scopes: process.env.AUTH_OIDC_SCOPES,
             },
         },
         intercom: {
