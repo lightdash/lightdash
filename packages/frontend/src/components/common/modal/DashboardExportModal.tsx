@@ -184,7 +184,7 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                             value: 'csv',
                         },
                     ]}
-                    w="50%"
+                    w="min-content"
                     mb="xs"
                     defaultValue="image"
                     onChange={setExportType}
