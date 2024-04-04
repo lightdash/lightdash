@@ -5,7 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { ActionIcon, Group } from '@mantine/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
@@ -24,6 +24,7 @@ enum ICON_COLORS {
 
 type VisualizationActionIconProps = {
     chartKind: ChartKind;
+    label: string;
     onClick: () => void;
     disabled: boolean;
     selected: boolean;
@@ -31,20 +32,23 @@ type VisualizationActionIconProps = {
 
 const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
     chartKind,
+    label,
     onClick,
     disabled,
     selected,
 }) => (
-    <ActionIcon
-        disabled={disabled}
-        onClick={onClick}
-        opacity={disabled ? 0.3 : 1}
-    >
-        <ChartIcon
-            color={selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED}
-            chartKind={chartKind}
-        />
-    </ActionIcon>
+    <Tooltip variant="xs" label={label} withinPortal>
+        <ActionIcon
+            disabled={disabled}
+            onClick={onClick}
+            opacity={disabled ? 0.3 : 1}
+        >
+            <ChartIcon
+                color={selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED}
+                chartKind={chartKind}
+            />
+        </ActionIcon>
+    </Tooltip>
 );
 
 const VisualizationCardOptions: FC = memo(() => {
@@ -89,6 +93,7 @@ const VisualizationCardOptions: FC = memo(() => {
     const visualizations = useMemo(
         () => [
             {
+                label: 'Bar chart',
                 chartKind: ChartKind.VERTICAL_BAR,
                 onClick: () => {
                     setCartesianType({
@@ -106,6 +111,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Horizontal bar chart',
                 chartKind: ChartKind.HORIZONTAL_BAR,
                 onClick: () => {
                     setCartesianType({
@@ -124,6 +130,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Line chart',
                 chartKind: ChartKind.LINE,
                 onClick: () => {
                     setCartesianType({
@@ -141,6 +148,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Area chart',
                 chartKind: ChartKind.AREA,
                 onClick: () => {
                     setCartesianType({
@@ -158,6 +166,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Scatter plot',
                 chartKind: ChartKind.SCATTER,
                 onClick: () => {
                     setCartesianType({
@@ -175,6 +184,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Pie chart',
                 chartKind: ChartKind.PIE,
                 onClick: () => {
                     setPivotDimensions(undefined);
@@ -185,6 +195,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 selected: isPieVisualizationConfig(visualizationConfig),
             },
             {
+                label: 'Table',
                 chartKind: ChartKind.TABLE,
                 onClick: () => {
                     setPivotDimensions(undefined);
@@ -195,6 +206,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 selected: isTableVisualizationConfig(visualizationConfig),
             },
             {
+                label: 'Big number',
                 chartKind: ChartKind.BIG_NUMBER,
                 onClick: () => {
                     setPivotDimensions(undefined);
@@ -205,6 +217,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 selected: isBigNumberVisualizationConfig(visualizationConfig),
             },
             {
+                label: 'Custom',
                 chartKind: ChartKind.CUSTOM,
                 onClick: () => {
                     setPivotDimensions(undefined);
@@ -233,6 +246,7 @@ const VisualizationCardOptions: FC = memo(() => {
             {visualizations.map((viz) => (
                 <VisualizationActionIcon
                     key={viz.chartKind}
+                    label={viz.label}
                     disabled={
                         (viz.chartKind === ChartKind.CUSTOM &&
                             !isCustomConfigVisible) ||
