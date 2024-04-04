@@ -20,9 +20,14 @@ jobs:
             - name: Install packages
               run: yarn install --frozen-lockfile
             - name: Run dangerjs
-              # Ensure the dangerjs check only runs on pull requests, while allowing
+              # Ensure the dangerjs check only runs on internal pull requests, while allowing
               # us to reuse the remainder of the setup for this workflow:
-              if: github.event_name == 'pull_request'
+              #
+              # If we ever migrate this away from this action, `pull_request_target` solves for
+              # this problem out of the gate, and is a cleaner solution.
+              if: |
+                  github.event_name == 'pull_request' &&
+                  ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
               run: yarn danger ci --use-github-checks
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
