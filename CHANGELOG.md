@@ -1,3 +1,10 @@
+# [0.1057.0](https://github.com/lightdash/lightdash/compare/0.1056.0...0.1057.0) (2024-04-04)
+
+
+### Features
+
+* override chart filters with dashboard filters ([#8461](https://github.com/lightdash/lightdash/issues/8461)) ([354b37c](https://github.com/lightdash/lightdash/commit/354b37c516f80e7a166433cf36d60be21aac303d))
+
 # [0.1056.0](https://github.com/lightdash/lightdash/compare/0.1055.0...0.1056.0) (2024-04-04)
 
 
