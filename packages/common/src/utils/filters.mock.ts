@@ -1,5 +1,12 @@
 import { ConditionalOperator } from '../types/conditionalRule';
-import { AndFilterGroup, FilterRule, OrFilterGroup } from '../types/filter';
+import {
+    FilterOperator,
+    type AndFilterGroup,
+    type DashboardFilters,
+    type FilterRule,
+    type OrFilterGroup,
+} from '../types/filter';
+import type { MetricQuery } from '../types/metricQuery';
 
 export const chartAndFilterGroup: AndFilterGroup = {
     id: 'fillter-group-1',
@@ -60,3 +67,130 @@ export const dashboardFilterWithSameTargetButDifferentOperator: FilterRule[] = [
         operator: ConditionalOperator.NOT_EQUALS,
     },
 ];
+
+export const metricQueryWithFilters: MetricQuery = {
+    exploreName: 'test',
+    limit: 501,
+    dimensions: ['a_dim1'],
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'a_dim1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+            ],
+        },
+    },
+};
+
+export const dashboardFilters: DashboardFilters = {
+    dimensions: [
+        {
+            id: '4',
+            label: undefined,
+            target: {
+                fieldId: 'a_dim1',
+                tableName: 'test',
+            },
+            operator: ConditionalOperator.EQUALS,
+            values: ['1', '2', '3'],
+        },
+    ],
+    metrics: [],
+    tableCalculations: [],
+};
+
+export const expectedChartWithMergedDashboardFilters: MetricQuery = {
+    exploreName: 'test',
+    dimensions: ['a_dim1'],
+    limit: 501,
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            and: [
+                {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'a_dim1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [0],
+                        },
+                    ],
+                },
+                {
+                    id: '4',
+                    target: { fieldId: 'a_dim1' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['1', '2', '3'],
+                },
+            ],
+            id: 'uuid',
+        },
+        metrics: {
+            and: [],
+            id: 'uuid',
+        },
+        tableCalculations: {
+            and: [],
+            id: 'uuid',
+        },
+    },
+};
+
+export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
+    exploreName: 'test',
+    dimensions: ['a_dim1'],
+    limit: 501,
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            and: [
+                {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'a_dim1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['1', '2', '3'],
+                        },
+                    ],
+                },
+                {
+                    id: '4',
+                    target: { fieldId: 'a_dim1' },
+                    operator: ConditionalOperator.EQUALS,
+                    values: ['1', '2', '3'],
+                },
+            ],
+            id: 'uuid',
+        },
+        metrics: {
+            and: [],
+            id: 'uuid',
+        },
+        tableCalculations: {
+            and: [],
+            id: 'uuid',
+        },
+    },
+};

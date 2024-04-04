@@ -1,12 +1,41 @@
 import { ConditionalOperator } from '../types/conditionalRule';
-import { overrideChartFilter } from './filters';
+import {
+    addDashboardFiltersToMetricQuery,
+    overrideChartFilter,
+} from './filters';
 import {
     chartAndFilterGroup,
     chartOrFilterGroup,
+    dashboardFilters,
     dashboardFilterWithSameTargetAndOperator,
     dashboardFilterWithSameTargetButDifferentOperator,
+    expectedChartWithMergedDashboardFilters,
+    expectedChartWithOverrideDashboardFilters,
+    metricQueryWithFilters,
 } from './filters.mock';
 
+jest.mock('uuid', () => ({
+    v4: jest.fn(() => 'uuid'),
+}));
+
+describe('addDashboardFiltersToMetricQuery', () => {
+    test('should merge the chart filters with dashboard filters', async () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithFilters,
+            dashboardFilters,
+            false,
+        );
+        expect(result).toEqual(expectedChartWithMergedDashboardFilters);
+    });
+    test('should override the chart filters with dashboard filters', async () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithFilters,
+            dashboardFilters,
+            true,
+        );
+        expect(result).toEqual(expectedChartWithOverrideDashboardFilters);
+    });
+});
 describe('overrideChartFilter', () => {
     test('should override the chart and group filter', async () => {
         const result = overrideChartFilter(

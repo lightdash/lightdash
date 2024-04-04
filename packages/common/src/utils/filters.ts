@@ -21,8 +21,8 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
-    OrFilterGroup,
     UnitOfTime,
+    type AndFilterGroup,
     type DashboardFieldTarget,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -32,7 +32,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
-    type AndFilterGroup,
+    type OrFilterGroup,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
@@ -559,7 +559,7 @@ export const overrideChartFilter = (
               ),
           };
 
-const combineFilterGroupWithFilterRules = (
+const overrideFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
 ): FilterGroup => ({
@@ -568,6 +568,14 @@ const combineFilterGroupWithFilterRules = (
         ...(filterGroup ? [overrideChartFilter(filterGroup, filterRules)] : []),
         ...filterRules,
     ],
+});
+
+const combineFilterGroupWithFilterRules = (
+    filterGroup: FilterGroup | undefined,
+    filterRules: FilterRule[],
+): FilterGroup => ({
+    id: uuidv4(),
+    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
 });
 
 const convertDashboardFilterRuleToFilterRule = (
@@ -590,26 +598,32 @@ const convertDashboardFilterRuleToFilterRule = (
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
-): MetricQuery => ({
-    ...metricQuery,
-    filters: {
-        dimensions: combineFilterGroupWithFilterRules(
-            metricQuery.filters?.dimensions,
-            dashboardFilters.dimensions.map(
-                convertDashboardFilterRuleToFilterRule,
+    shouldOverride: boolean = false,
+): MetricQuery => {
+    const mergeStrategy = shouldOverride
+        ? overrideFilterGroupWithFilterRules
+        : combineFilterGroupWithFilterRules;
+    return {
+        ...metricQuery,
+        filters: {
+            dimensions: mergeStrategy(
+                metricQuery.filters?.dimensions,
+                dashboardFilters.dimensions.map(
+                    convertDashboardFilterRuleToFilterRule,
+                ),
             ),
-        ),
-        metrics: combineFilterGroupWithFilterRules(
-            metricQuery.filters?.metrics,
-            dashboardFilters.metrics.map(
-                convertDashboardFilterRuleToFilterRule,
+            metrics: mergeStrategy(
+                metricQuery.filters?.metrics,
+                dashboardFilters.metrics.map(
+                    convertDashboardFilterRuleToFilterRule,
+                ),
             ),
-        ),
-        tableCalculations: combineFilterGroupWithFilterRules(
-            metricQuery.filters?.tableCalculations,
-            dashboardFilters.tableCalculations.map(
-                convertDashboardFilterRuleToFilterRule,
+            tableCalculations: mergeStrategy(
+                metricQuery.filters?.tableCalculations,
+                dashboardFilters.tableCalculations.map(
+                    convertDashboardFilterRuleToFilterRule,
+                ),
             ),
-        ),
-    },
-});
+        },
+    };
+};
