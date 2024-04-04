@@ -243,8 +243,8 @@ type AuthOidcConfig = {
     clientId: string | undefined;
     clientSecret: string | undefined;
     metadataDocumentEndpoint: string | undefined;
-    authSigningAlg: string;
-    authMethod: ClientAuthMethod;
+    authSigningAlg: string | undefined;
+    authMethod: ClientAuthMethod | undefined;
     scopes: string | undefined;
 } & JwtKeySetConfig;
 
