@@ -38,11 +38,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
     selected,
 }) => (
     <Tooltip variant="xs" label={label} withinPortal>
-        <ActionIcon
-            disabled={disabled}
-            onClick={onClick}
-            opacity={disabled ? 0.3 : 1}
-        >
+        <ActionIcon disabled={disabled} onClick={onClick}>
             <ChartIcon
                 color={selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED}
                 chartKind={chartKind}
@@ -57,7 +53,7 @@ const VisualizationCardOptions: FC = memo(() => {
         FeatureFlags.CustomVisualizationsEnabled,
     );
 
-    const isCustomConfigVisible = useMemo(
+    const isCustomConfigEnabled = useMemo(
         () => !!(health.data?.customVisualizationsEnabled || customVizEnabled),
         [customVizEnabled, health.data?.customVisualizationsEnabled],
     );
@@ -184,6 +180,18 @@ const VisualizationCardOptions: FC = memo(() => {
                 ),
             },
             {
+                label: 'Mixed chart',
+                chartKind: ChartKind.MIXED,
+                disabled:
+                    (isChartTypeTheSameForAllSeries &&
+                        isCartesianVisualizationConfig(visualizationConfig)) ||
+                    disabled,
+                onClick: () => {},
+                selected:
+                    !isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig),
+            },
+            {
                 label: 'Pie chart',
                 chartKind: ChartKind.PIE,
                 onClick: () => {
@@ -217,7 +225,9 @@ const VisualizationCardOptions: FC = memo(() => {
                 selected: isBigNumberVisualizationConfig(visualizationConfig),
             },
             {
-                label: 'Custom',
+                label: isCustomConfigEnabled
+                    ? 'Custom'
+                    : `Custom - This feature is currently unavailable.`,
                 chartKind: ChartKind.CUSTOM,
                 onClick: () => {
                     setPivotDimensions(undefined);
@@ -231,7 +241,9 @@ const VisualizationCardOptions: FC = memo(() => {
         [
             cartesianFlipAxis,
             cartesianType,
+            disabled,
             isChartTypeTheSameForAllSeries,
+            isCustomConfigEnabled,
             pivotDimensions,
             setCartesianType,
             setChartType,
@@ -247,11 +259,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 <VisualizationActionIcon
                     key={viz.chartKind}
                     label={viz.label}
-                    disabled={
-                        (viz.chartKind === ChartKind.CUSTOM &&
-                            !isCustomConfigVisible) ||
-                        disabled
-                    }
+                    disabled={disabled}
                     onClick={viz.onClick}
                     selected={viz.selected}
                     chartKind={viz.chartKind}

@@ -14,9 +14,9 @@ import {
 } from '@mantine/core';
 import {
     IconChartArea,
-    IconChartAreaLine,
     IconChartBar,
     IconChartDots,
+    IconChartHistogram,
     IconChartLine,
     IconChartPie,
     IconCode,
@@ -80,7 +80,7 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
         case ChartKind.AREA:
             return IconChartArea;
         case ChartKind.MIXED:
-            return IconChartAreaLine;
+            return IconChartHistogram;
         case ChartKind.PIE:
             return IconChartPie;
         case ChartKind.TABLE:
