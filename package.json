@@ -102,7 +102,8 @@
         "prepare": "husky install",
         "load:env": "dotenv -c -e .env.development.local",
         "generate-api": "yarn common-build && yarn workspace backend generate-api && yarn workspace backend formatter --write ./src/generated",
-        "danger-local-lint": "danger -b main -f"
+        "danger-local-lint": "danger -b main -f",
+        "danger-ci-lint": "[[ -n $GITHUB_TOKEN ]] && danger ci --use-github-checks || echo 'Skipped - no GITHUB_TOKEN' present"
     },
     "lint-staged": {
         "docs/**/*.(md|mdx|yml|yaml)": [
