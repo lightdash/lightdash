@@ -199,7 +199,7 @@ dashboardRouter.post(
                     req.user!,
 
                     req.params.dashboardUuid,
-                    req.body.queryFilters,
+                    req.body.filters,
                 );
 
             res.json({

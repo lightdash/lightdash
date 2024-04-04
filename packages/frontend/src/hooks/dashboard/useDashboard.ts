@@ -3,9 +3,9 @@ import {
     type CreateDashboard,
     type Dashboard,
     type DashboardAvailableFilters,
+    type DashboardFilters,
     type DashboardTile,
     type SavedChartsInfoForDashboardAvailableFilters,
-    type SchedulerFilterRule,
     type UpdateDashboard,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -157,10 +157,7 @@ export const useExportDashboard = () => {
     );
 };
 
-const exportCsvDashboard = async (
-    id: string,
-    filters: SchedulerFilterRule[] | undefined,
-) =>
+const exportCsvDashboard = async (id: string, filters: DashboardFilters) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
@@ -174,7 +171,7 @@ export const useExportCsvDashboard = () => {
         ApiError,
         {
             dashboard: Dashboard;
-            filters: SchedulerFilterRule[] | undefined;
+            filters: DashboardFilters;
         }
     >((data) => exportCsvDashboard(data.dashboard.uuid, data.filters), {
         mutationKey: ['export_csv_dashboard'],

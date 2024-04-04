@@ -1,4 +1,4 @@
-import { type Dashboard, type SchedulerFilterRule } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -19,6 +19,7 @@ import {
     useExportCsvDashboard,
     useExportDashboard,
 } from '../../../hooks/dashboard/useDashboard';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../MantineIcon';
 
 type Props = {
@@ -30,10 +31,12 @@ type CsvExportProps = {
     dashboard: Dashboard;
 };
 
-const CsvExport: FC<CsvExportProps & ModalProps> = ({ dashboard, onClose }) => {
+const CsvExport: FC<CsvExportProps & Pick<ModalProps, 'onClose'>> = ({
+    dashboard,
+    onClose,
+}) => {
     const exportCsvDashboardMutation = useExportCsvDashboard();
-    const dashboardFilters: SchedulerFilterRule[] | undefined = [];
-
+    const dashboardFilters = useDashboardContext((c) => c.allFilters);
     return (
         <Group position="right" pb="md" px="md" spacing="lg">
             <Button variant="outline" onClick={onClose}>
@@ -64,7 +67,7 @@ const CsvExport: FC<CsvExportProps & ModalProps> = ({ dashboard, onClose }) => {
     );
 };
 
-const ImageExport: FC<Props & ModalProps> = ({
+const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
     onClose,
     gridWidth,
     dashboard,
@@ -190,18 +193,13 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                     onChange={setExportType}
                 />
                 {exportType === 'csv' && (
-                    <CsvExport
-                        dashboard={dashboard}
-                        onClose={onClose}
-                        opened={true}
-                    />
+                    <CsvExport dashboard={dashboard} onClose={onClose} />
                 )}
 
                 {exportType === 'image' && (
                     <ImageExport
                         dashboard={dashboard}
                         onClose={onClose}
-                        opened={true}
                         gridWidth={gridWidth}
                     />
                 )}

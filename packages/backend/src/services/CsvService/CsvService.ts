@@ -3,6 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
     applyDimensionOverrides,
+    applyMetricOverrides,
     DashboardFilters,
     DimensionType,
     DownloadCsvPayload,
@@ -503,12 +504,14 @@ export class CsvService {
         dashboardUuid: string,
         options: SchedulerCsvOptions | undefined,
         schedulerFilters?: SchedulerFilterRule[],
+        overrideDashboardFilters?: DashboardFilters,
     ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
-        const dashboardFilters = dashboard.filters;
+        const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
         if (schedulerFilters) {
+            // Scheduler filters can only override existing filters from the dashboard
             dashboardFilters.dimensions = applyDimensionOverrides(
                 dashboard.filters,
                 schedulerFilters,
@@ -820,7 +823,7 @@ export class CsvService {
     async exportCsvDashboard(
         user: SessionUser,
         dashboardUuid: string,
-        dashboardFilters: SchedulerFilterRule[] | undefined,
+        dashboardFilters: DashboardFilters,
     ) {
         if (!this.s3Client.isEnabled()) {
             throw new Error('Cloud storage is not enabled');
@@ -889,6 +892,7 @@ export class CsvService {
             user,
             dashboardUuid,
             options,
+            undefined,
             dashboardFilters,
         );
         const zipFile = await writeZipFile(csvFiles);
