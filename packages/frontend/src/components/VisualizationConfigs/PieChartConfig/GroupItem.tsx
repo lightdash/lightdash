@@ -122,7 +122,7 @@ export const GroupItem = forwardRef<
                 </Group>
 
                 <Collapse in={opened}>
-                    <Stack ml="xl" spacing="xs">
+                    <Stack ml="xl" spacing="xs" pb="xs">
                         <ValueOptions
                             valueLabel={valueLabel}
                             onValueLabelChange={(newValue) =>
