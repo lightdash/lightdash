@@ -1,3 +1,10 @@
+## [0.1052.1](https://github.com/lightdash/lightdash/compare/0.1052.0...0.1052.1) (2024-04-04)
+
+
+### Bug Fixes
+
+* handle disabled filter change correctly ([#9635](https://github.com/lightdash/lightdash/issues/9635)) ([01b37cf](https://github.com/lightdash/lightdash/commit/01b37cf3da19bb8ac3e60057d7c1dbe895bc8056))
+
 # [0.1052.0](https://github.com/lightdash/lightdash/compare/0.1051.0...0.1052.0) (2024-04-03)
 
 
