@@ -3,7 +3,7 @@ import {
     ChartType,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Drawer, Group, Text } from '@mantine/core';
+import { Button, Drawer, Stack, Text } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -83,7 +83,11 @@ const VisualizationSidebar: FC<{
                 </Button>
 
                 <Drawer
-                    title={<Text fw={600}>Configure chart</Text>}
+                    title={
+                        <Text fz="sm" fw={600}>
+                            Chart builder
+                        </Text>
+                    }
                     zIndex={100}
                     opened={isOpen}
                     withOverlay={false}
@@ -95,29 +99,21 @@ const VisualizationSidebar: FC<{
                             top: sidebarVerticalOffset,
                             height: `calc(100% - ${sidebarVerticalOffset}px)`,
                         },
-                        content: {
-                            display: 'flex',
-                            flexDirection: 'column',
+                        body: {
+                            paddingTop: theme.spacing.xs,
                         },
                         header: {
-                            borderBottom: `1px solid ${theme.colors.gray[4]}`,
-                            borderTop: `1px solid ${theme.colors.gray[2]}`,
-                            flexShrink: 0,
-                        },
-                        body: {
-                            flexGrow: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
+                            paddingBottom: theme.spacing.sm,
+                            marginBottom: theme.spacing.xs,
                         },
                     })}
                     onClose={onClose}
                 >
-                    <Group py="lg">
-                        <Text fw={600}>Chart type</Text>
+                    <Stack spacing="xs">
                         <VisualizationCardOptions />
-                    </Group>
 
-                    <ConfigTab />
+                        <ConfigTab />
+                    </Stack>
                 </Drawer>
             </>
         );
