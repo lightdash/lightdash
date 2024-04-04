@@ -1,3 +1,10 @@
+# [0.1053.0](https://github.com/lightdash/lightdash/compare/0.1052.1...0.1053.0) (2024-04-04)
+
+
+### Features
+
+* pie chart config - tabs (1/4) ([#9619](https://github.com/lightdash/lightdash/issues/9619)) ([c89f8be](https://github.com/lightdash/lightdash/commit/c89f8be160abfb7ca2f6414e69f99d25a76624cf))
+
 ## [0.1052.1](https://github.com/lightdash/lightdash/compare/0.1052.0...0.1052.1) (2024-04-04)
 
 
