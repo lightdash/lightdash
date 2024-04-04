@@ -3826,9 +3826,20 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dynamicValue: { dataType: 'enum', enums: ['average'] },
                 label: {
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { formatter: { dataType: 'string' } },
+                    nestedProperties: {
+                        position: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['start'] },
+                                { dataType: 'enum', enums: ['middle'] },
+                                { dataType: 'enum', enums: ['end'] },
+                            ],
+                        },
+                        formatter: { dataType: 'string' },
+                    },
                 },
                 lineStyle: {
                     dataType: 'nestedObjectLiteral',
@@ -3836,8 +3847,10 @@ const models: TsoaRoute.Models = {
                         color: { dataType: 'string', required: true },
                     },
                 },
-                value: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+                type: { dataType: 'string' },
+                value: { dataType: 'string' },
+                name: { dataType: 'string' },
                 xAxis: { dataType: 'string' },
                 yAxis: { dataType: 'string' },
             },

@@ -4,16 +4,22 @@ import {
     Button,
     Group,
     Modal,
+    SegmentedControl,
     Stack,
     Title,
+    Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconEyeCog, IconFileExport } from '@tabler/icons-react';
+import { IconCsv, IconEyeCog, IconFileExport } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router-dom';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
-import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
+import {
+    useExportCsvDashboard,
+    useExportDashboard,
+} from '../../../hooks/dashboard/useDashboard';
+import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../MantineIcon';
 
 type Props = {
@@ -21,8 +27,47 @@ type Props = {
     dashboard: Dashboard;
 };
 
-export const DashboardExportModal: FC<Props & ModalProps> = ({
-    opened,
+type CsvExportProps = {
+    dashboard: Dashboard;
+};
+
+const CsvExport: FC<CsvExportProps & Pick<ModalProps, 'onClose'>> = ({
+    dashboard,
+    onClose,
+}) => {
+    const exportCsvDashboardMutation = useExportCsvDashboard();
+    const dashboardFilters = useDashboardContext((c) => c.allFilters);
+    return (
+        <Group position="right" pb="md" px="md" spacing="lg">
+            <Button variant="outline" onClick={onClose}>
+                Cancel
+            </Button>
+
+            <Group spacing="xs">
+                <Tooltip
+                    withinPortal
+                    position="bottom"
+                    label="Export results in table for all charts in a zip file"
+                >
+                    <Button
+                        onClick={() => {
+                            exportCsvDashboardMutation.mutate({
+                                dashboard,
+                                filters: dashboardFilters,
+                            });
+                            onClose();
+                        }}
+                        leftIcon={<MantineIcon icon={IconCsv} />}
+                    >
+                        Export CSV
+                    </Button>
+                </Tooltip>
+            </Group>
+        </Group>
+    );
+};
+
+const ImageExport: FC<Props & Pick<ModalProps, 'onClose'>> = ({
     onClose,
     gridWidth,
     dashboard,
@@ -69,6 +114,52 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
         previewChoice,
         setPreviews,
     ]);
+    return (
+        <Stack>
+            <Box p="md">
+                <PreviewAndCustomizeScreenshot
+                    containerWidth={gridWidth}
+                    exportMutation={exportDashboardMutation}
+                    previews={previews}
+                    setPreviews={setPreviews}
+                    previewChoice={previewChoice}
+                    setPreviewChoice={setPreviewChoice}
+                    onPreviewClick={handlePreviewClick}
+                />
+            </Box>
+
+            <Group position="right" pb="md" px="md" spacing="lg">
+                <Button variant="outline" onClick={onClose}>
+                    Cancel
+                </Button>
+
+                <Group spacing="xs">
+                    <Button
+                        loading={exportDashboardMutation.isLoading}
+                        onClick={handleExportClick}
+                        leftIcon={
+                            <MantineIcon
+                                icon={
+                                    previewChoice ? IconEyeCog : IconFileExport
+                                }
+                            />
+                        }
+                    >
+                        Export dashboard
+                    </Button>
+                </Group>
+            </Group>
+        </Stack>
+    );
+};
+
+export const DashboardExportModal: FC<Props & ModalProps> = ({
+    opened,
+    onClose,
+    gridWidth,
+    dashboard,
+}) => {
+    const [exportType, setExportType] = useState<string>('image');
 
     return (
         <>
@@ -84,43 +175,34 @@ export const DashboardExportModal: FC<Props & ModalProps> = ({
                     },
                 }}
             >
-                <Stack>
-                    <Box p="md">
-                        <PreviewAndCustomizeScreenshot
-                            containerWidth={gridWidth}
-                            exportMutation={exportDashboardMutation}
-                            previews={previews}
-                            setPreviews={setPreviews}
-                            previewChoice={previewChoice}
-                            setPreviewChoice={setPreviewChoice}
-                            onPreviewClick={handlePreviewClick}
-                        />
-                    </Box>
+                <SegmentedControl
+                    ml="md"
+                    data={[
+                        {
+                            label: 'Image',
+                            value: 'image',
+                        },
+                        {
+                            label: '.csv',
+                            value: 'csv',
+                        },
+                    ]}
+                    w="min-content"
+                    mb="xs"
+                    defaultValue="image"
+                    onChange={setExportType}
+                />
+                {exportType === 'csv' && (
+                    <CsvExport dashboard={dashboard} onClose={onClose} />
+                )}
 
-                    <Group position="right" pb="md" px="md" spacing="lg">
-                        <Button variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-
-                        <Group spacing="xs">
-                            <Button
-                                loading={exportDashboardMutation.isLoading}
-                                onClick={handleExportClick}
-                                leftIcon={
-                                    <MantineIcon
-                                        icon={
-                                            previewChoice
-                                                ? IconEyeCog
-                                                : IconFileExport
-                                        }
-                                    />
-                                }
-                            >
-                                Export dashboard
-                            </Button>
-                        </Group>
-                    </Group>
-                </Stack>
+                {exportType === 'image' && (
+                    <ImageExport
+                        dashboard={dashboard}
+                        onClose={onClose}
+                        gridWidth={gridWidth}
+                    />
+                )}
             </Modal>
         </>
     );

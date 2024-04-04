@@ -186,3 +186,28 @@ dashboardRouter.post(
         }
     },
 );
+
+dashboardRouter.post(
+    '/:dashboardUuid/exportCsv',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await req.services
+                .getCsvService()
+                .exportCsvDashboard(
+                    req.user!,
+
+                    req.params.dashboardUuid,
+                    req.body.filters,
+                );
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);

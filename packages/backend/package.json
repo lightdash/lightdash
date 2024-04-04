@@ -23,6 +23,7 @@
         "@types/passport-oauth2-refresh": "^1.1.1",
         "@types/passport-strategy": "^0.2.35",
         "@types/pg": "^8.10.7",
+        "@types/archiver": "^6.0.2",
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0"
@@ -66,6 +67,7 @@
         "ajv": "^8.3.0",
         "ajv-formats": "^2.1.0",
         "apache-arrow": "^15.0.0",
+        "archiver": "^7.0.1",
         "bcrypt": "^5.1.1",
         "connect-flash": "^0.1.1",
         "connect-session-knex": "^3.0.0",
