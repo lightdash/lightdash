@@ -1,3 +1,10 @@
+# [0.1056.0](https://github.com/lightdash/lightdash/compare/0.1055.0...0.1056.0) (2024-04-04)
+
+
+### Features
+
+* pie chart config - series (3/4) ([#9621](https://github.com/lightdash/lightdash/issues/9621)) ([d1f451c](https://github.com/lightdash/lightdash/commit/d1f451c4d2f4fb96d6d893c05a91f6804cf6202f)), closes [#9622](https://github.com/lightdash/lightdash/issues/9622)
+
 # [0.1055.0](https://github.com/lightdash/lightdash/compare/0.1054.0...0.1055.0) (2024-04-04)
 
 
