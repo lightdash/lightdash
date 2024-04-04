@@ -822,7 +822,7 @@ export class CsvService {
         dashboardUuid: string,
         dashboardFilters: SchedulerFilterRule[] | undefined,
     ) {
-        if (this.s3Client.isEnabled()) {
+        if (!this.s3Client.isEnabled()) {
             throw new Error('Cloud storage is not enabled');
         }
         const options: SchedulerCsvOptions = {
