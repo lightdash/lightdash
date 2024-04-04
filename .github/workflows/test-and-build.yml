@@ -26,8 +26,8 @@ jobs:
               # If we ever migrate this away from this action, `pull_request_target` solves for
               # this problem out of the gate, and is a cleaner solution.
               if: |
-                  github.event_name == 'pull_request' &&
-                  ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+                  github.event_name == 'pull_request'
+                  #${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
               run: yarn danger ci --use-github-checks
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
