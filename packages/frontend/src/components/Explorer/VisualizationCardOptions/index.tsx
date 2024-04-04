@@ -17,10 +17,45 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/Visuali
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
+enum ICON_COLORS {
+    SELECTED = 'violet.6',
+    UNSELECTED = 'gray.7',
+}
+
+type VisualizationActionIconProps = {
+    chartKind: ChartKind;
+    onClick: () => void;
+    disabled: boolean;
+    selected: boolean;
+};
+
+const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
+    chartKind,
+    onClick,
+    disabled,
+    selected,
+}) => (
+    <ActionIcon
+        disabled={disabled}
+        onClick={onClick}
+        opacity={disabled ? 0.3 : 1}
+    >
+        <ChartIcon
+            color={selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED}
+            chartKind={chartKind}
+        />
+    </ActionIcon>
+);
+
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();
     const customVizEnabled = useFeatureFlagEnabled(
         FeatureFlags.CustomVisualizationsEnabled,
+    );
+
+    const isCustomConfigVisible = useMemo(
+        () => !!(health.data?.customVisualizationsEnabled || customVizEnabled),
+        [customVizEnabled, health.data?.customVisualizationsEnabled],
     );
 
     const {
@@ -51,34 +86,28 @@ const VisualizationCardOptions: FC = memo(() => {
           )
         : undefined;
 
-    return (
-        <Group spacing="sm">
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+    const visualizations = useMemo(
+        () => [
+            {
+                chartKind: ChartKind.VERTICAL_BAR,
+                onClick: () => {
                     setCartesianType({
                         type: CartesianSeriesType.BAR,
                         flipAxes: false,
                         hasAreaStyle: false,
                     });
                     setChartType(ChartType.CARTESIAN);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isChartTypeTheSameForAllSeries &&
-                        isCartesianVisualizationConfig(visualizationConfig) &&
-                        cartesianType === CartesianSeriesType.BAR &&
-                        !cartesianFlipAxis
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.VERTICAL_BAR}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: !!(
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig) &&
+                    cartesianType === CartesianSeriesType.BAR &&
+                    !cartesianFlipAxis
+                ),
+            },
+            {
+                chartKind: ChartKind.HORIZONTAL_BAR,
+                onClick: () => {
                     setCartesianType({
                         type: CartesianSeriesType.BAR,
                         flipAxes: true,
@@ -86,23 +115,17 @@ const VisualizationCardOptions: FC = memo(() => {
                     });
                     if (!pivotDimensions) setStacking(false);
                     setChartType(ChartType.CARTESIAN);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isChartTypeTheSameForAllSeries &&
-                        isCartesianVisualizationConfig(visualizationConfig) &&
-                        cartesianType === CartesianSeriesType.BAR &&
-                        cartesianFlipAxis
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.HORIZONTAL_BAR}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: !!(
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig) &&
+                    cartesianType === CartesianSeriesType.BAR &&
+                    cartesianFlipAxis
+                ),
+            },
+            {
+                chartKind: ChartKind.LINE,
+                onClick: () => {
                     setCartesianType({
                         type: CartesianSeriesType.LINE,
                         flipAxes: false,
@@ -110,22 +133,16 @@ const VisualizationCardOptions: FC = memo(() => {
                     });
                     setStacking(false);
                     setChartType(ChartType.CARTESIAN);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isChartTypeTheSameForAllSeries &&
-                        isCartesianVisualizationConfig(visualizationConfig) &&
-                        cartesianType === CartesianSeriesType.LINE
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.LINE}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: !!(
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig) &&
+                    cartesianType === CartesianSeriesType.LINE
+                ),
+            },
+            {
+                chartKind: ChartKind.AREA,
+                onClick: () => {
                     setCartesianType({
                         type: CartesianSeriesType.LINE,
                         flipAxes: false,
@@ -133,22 +150,16 @@ const VisualizationCardOptions: FC = memo(() => {
                     });
                     setStacking(true);
                     setChartType(ChartType.CARTESIAN);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isChartTypeTheSameForAllSeries &&
-                        isCartesianVisualizationConfig(visualizationConfig) &&
-                        cartesianType === CartesianSeriesType.AREA
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.AREA}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: !!(
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig) &&
+                    cartesianType === CartesianSeriesType.AREA
+                ),
+            },
+            {
+                chartKind: ChartKind.SCATTER,
+                onClick: () => {
                     setCartesianType({
                         type: CartesianSeriesType.SCATTER,
                         flipAxes: false,
@@ -156,93 +167,84 @@ const VisualizationCardOptions: FC = memo(() => {
                     });
                     setStacking(false);
                     setChartType(ChartType.CARTESIAN);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isChartTypeTheSameForAllSeries &&
-                        isCartesianVisualizationConfig(visualizationConfig) &&
-                        cartesianType === CartesianSeriesType.SCATTER
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.SCATTER}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: !!(
+                    isChartTypeTheSameForAllSeries &&
+                    isCartesianVisualizationConfig(visualizationConfig) &&
+                    cartesianType === CartesianSeriesType.SCATTER
+                ),
+            },
+            {
+                chartKind: ChartKind.PIE,
+                onClick: () => {
                     setPivotDimensions(undefined);
                     setStacking(undefined);
                     setCartesianType(undefined);
                     setChartType(ChartType.PIE);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isPieVisualizationConfig(visualizationConfig)
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.PIE}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: isPieVisualizationConfig(visualizationConfig),
+            },
+            {
+                chartKind: ChartKind.TABLE,
+
+                onClick: () => {
                     setPivotDimensions(undefined);
                     setStacking(undefined);
                     setCartesianType(undefined);
                     setChartType(ChartType.TABLE);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isTableVisualizationConfig(visualizationConfig)
-                            ? 'violet.6'
-                            : 'gray.7'
-                    }
-                    chartKind={ChartKind.TABLE}
-                />
-            </ActionIcon>
-            <ActionIcon
-                disabled={disabled}
-                onClick={() => {
+                },
+                selected: isTableVisualizationConfig(visualizationConfig),
+            },
+            {
+                chartKind: ChartKind.BIG_NUMBER,
+                onClick: () => {
                     setPivotDimensions(undefined);
                     setStacking(undefined);
                     setCartesianType(undefined);
                     setChartType(ChartType.BIG_NUMBER);
-                }}
-            >
-                <ChartIcon
-                    color={
-                        isBigNumberVisualizationConfig(visualizationConfig)
-                            ? 'violet.6'
-                            : 'gray.7'
+                },
+                selected: isBigNumberVisualizationConfig(visualizationConfig),
+            },
+
+            {
+                chartKind: ChartKind.CUSTOM,
+                onClick: () => {
+                    setPivotDimensions(undefined);
+                    setStacking(undefined);
+                    setCartesianType(undefined);
+                    setChartType(ChartType.CUSTOM);
+                },
+                selected: isCustomVisualizationConfig(visualizationConfig),
+            },
+        ],
+        [
+            cartesianFlipAxis,
+            cartesianType,
+            isChartTypeTheSameForAllSeries,
+            pivotDimensions,
+            setCartesianType,
+            setChartType,
+            setPivotDimensions,
+            setStacking,
+            visualizationConfig,
+        ],
+    );
+
+    return (
+        <Group spacing="sm">
+            {visualizations.map((viz) => (
+                <VisualizationActionIcon
+                    key={viz.chartKind}
+                    disabled={
+                        (viz.chartKind === ChartKind.CUSTOM &&
+                            !isCustomConfigVisible) ||
+                        disabled
                     }
-                    chartKind={ChartKind.BIG_NUMBER}
+                    onClick={viz.onClick}
+                    selected={viz.selected}
+                    chartKind={viz.chartKind}
                 />
-            </ActionIcon>
-            {(health.data?.customVisualizationsEnabled || customVizEnabled) && (
-                <ActionIcon
-                    disabled={disabled}
-                    onClick={() => {
-                        setPivotDimensions(undefined);
-                        setStacking(undefined);
-                        setCartesianType(undefined);
-                        setChartType(ChartType.CUSTOM);
-                    }}
-                >
-                    <ChartIcon
-                        color={
-                            isCustomVisualizationConfig(visualizationConfig)
-                                ? 'violet.6'
-                                : 'gray.7'
-                        }
-                        chartKind={ChartKind.CUSTOM}
-                    />
-                </ActionIcon>
-            )}
+            ))}
         </Group>
     );
 });
