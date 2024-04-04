@@ -3427,7 +3427,7 @@ export class ProjectService {
         previewProjectUuid: string,
         user: SessionUser,
     ): Promise<void> {
-        Logger.debug(
+        Logger.info(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
         await wrapSentryTransaction<void>(

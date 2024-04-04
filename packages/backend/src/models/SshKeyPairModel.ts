@@ -1,44 +1,12 @@
-import { SshKeyPair } from '@lightdash/common';
-import { generateKeyPair } from 'crypto';
+import { type SshKeyPair } from '@lightdash/common';
 import { Knex } from 'knex';
-import { parseKey } from 'sshpk';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { type EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { generateOpenSshKeyPair } from '../utils';
 
 type SshKeyPairModelArguments = {
     encryptionService: EncryptionService;
     database: Knex;
 };
-
-const generateOpenSshKeyPair = async (): Promise<SshKeyPair> =>
-    new Promise<SshKeyPair>((resolve, reject) => {
-        generateKeyPair(
-            'rsa',
-            {
-                modulusLength: 4096,
-                publicKeyEncoding: {
-                    type: 'pkcs1',
-                    format: 'pem',
-                },
-                privateKeyEncoding: {
-                    type: 'pkcs1',
-                    format: 'pem',
-                },
-            },
-            (err, publicKey, privateKey) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const parsedPublicKey = parseKey(publicKey, 'pem');
-                    parsedPublicKey.comment = `(generated_by_lightdash_at_${new Date().toISOString()})`;
-                    const openSshPublicKey = parsedPublicKey.toString('ssh');
-                    resolve({
-                        publicKey: openSshPublicKey,
-                        privateKey,
-                    });
-                }
-            },
-        );
-    });
 
 export class SshKeyPairModel {
     private readonly database: Knex;

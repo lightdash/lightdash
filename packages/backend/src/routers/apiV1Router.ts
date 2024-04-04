@@ -80,7 +80,7 @@ apiV1Router.get(
     lightdashConfig.auth.azuread.loginPath,
     storeOIDCRedirect,
     passport.authenticate('azuread', {
-        scope: ['openid', 'profile', 'email'],
+        scope: ['openid', 'profile', 'email'].join(' '),
     }),
 );
 
