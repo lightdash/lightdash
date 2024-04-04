@@ -1,3 +1,5 @@
+process.exit(1); // boot faster
+
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
