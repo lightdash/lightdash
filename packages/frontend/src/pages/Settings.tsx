@@ -117,7 +117,8 @@ const Settings: FC = () => {
         health.auth.google.enabled ||
         health.auth.okta.enabled ||
         health.auth.oneLogin.enabled ||
-        health.auth.azuread.enabled;
+        health.auth.azuread.enabled ||
+        health.auth.oidc.enabled;
 
     const isGroupManagementEnabled = health.hasGroups;
 
