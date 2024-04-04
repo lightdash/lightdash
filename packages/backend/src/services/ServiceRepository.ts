@@ -7,7 +7,6 @@ import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
-import { EncryptionService } from './EncryptionService/EncryptionService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -41,7 +40,6 @@ interface ServiceManifest {
     csvService: CsvService;
     dashboardService: DashboardService;
     downloadFileService: DownloadFileService;
-    encryptionService: EncryptionService;
     gitIntegrationService: GitIntegrationService;
     githubAppService: GithubAppService;
     gdriveService: GdriveService;
@@ -138,8 +136,8 @@ abstract class ServiceRepositoryBase {
      *
      * new ServiceRepository({
      *    serviceProviders: {
-     *      encryptionService: ({ repository, context }) => {
-     *          return new EncryptionServiceOverride(...);
+     *      projectService: ({ repository, context }) => {
+     *          return new ProjectServiceOverride(...);
      *      }
      *    }
      * })
@@ -267,16 +265,6 @@ export class ServiceRepository
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
                     downloadFileModel: this.models.getDownloadFileModel(),
-                }),
-        );
-    }
-
-    public getEncryptionService(): EncryptionService {
-        return this.getService(
-            'encryptionService',
-            () =>
-                new EncryptionService({
-                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
@@ -534,7 +522,6 @@ export class ServiceRepository
             () =>
                 new UnfurlService({
                     lightdashConfig: this.context.lightdashConfig,
-                    encryptionService: this.getEncryptionService(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),

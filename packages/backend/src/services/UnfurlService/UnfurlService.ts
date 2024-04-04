@@ -29,7 +29,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
-import { EncryptionService } from '../EncryptionService/EncryptionService';
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
 const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
@@ -92,7 +91,6 @@ type UnfurlServiceArguments = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     shareModel: ShareModel;
-    encryptionService: EncryptionService;
     s3Client: S3Client;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
@@ -109,8 +107,6 @@ export class UnfurlService {
 
     shareModel: ShareModel;
 
-    encryptionService: EncryptionService;
-
     s3Client: S3Client;
 
     projectModel: ProjectModel;
@@ -123,7 +119,6 @@ export class UnfurlService {
         savedChartModel,
         spaceModel,
         shareModel,
-        encryptionService,
         s3Client,
         projectModel,
         downloadFileModel,
@@ -133,7 +128,6 @@ export class UnfurlService {
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.shareModel = shareModel;
-        this.encryptionService = encryptionService;
         this.s3Client = s3Client;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;

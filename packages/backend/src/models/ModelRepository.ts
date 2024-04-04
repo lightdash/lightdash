@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
-import { EncryptionService } from '../services/EncryptionService/EncryptionService';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -208,7 +208,7 @@ export class ModelRepository
             () =>
                 new GithubAppInstallationsModel({
                     database: this.database,
-                    encryptionService: new EncryptionService({
+                    encryptionUtil: new EncryptionUtil({
                         lightdashConfig: this.lightdashConfig,
                     }),
                 }),
@@ -327,7 +327,7 @@ export class ModelRepository
                 new ProjectModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
-                    encryptionService: new EncryptionService({
+                    encryptionUtil: new EncryptionUtil({
                         lightdashConfig: this.lightdashConfig,
                     }),
                 }),
@@ -400,7 +400,7 @@ export class ModelRepository
             () =>
                 new SshKeyPairModel({
                     database: this.database,
-                    encryptionService: new EncryptionService({
+                    encryptionUtil: new EncryptionUtil({
                         lightdashConfig: this.lightdashConfig,
                     }),
                 }),
@@ -431,7 +431,7 @@ export class ModelRepository
             () =>
                 new UserWarehouseCredentialsModel({
                     database: this.database,
-                    encryptionService: new EncryptionService({
+                    encryptionUtil: new EncryptionUtil({
                         lightdashConfig: this.lightdashConfig,
                     }),
                 }),
