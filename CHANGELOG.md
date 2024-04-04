@@ -1,3 +1,10 @@
+# [0.1054.0](https://github.com/lightdash/lightdash/compare/0.1053.0...0.1054.0) (2024-04-04)
+
+
+### Features
+
+* export dashboard csv ([#9604](https://github.com/lightdash/lightdash/issues/9604)) ([3e4aeba](https://github.com/lightdash/lightdash/commit/3e4aebae26e6272896b1b342bb8f7d20a9789480))
+
 # [0.1053.0](https://github.com/lightdash/lightdash/compare/0.1052.1...0.1053.0) (2024-04-04)
 
 
