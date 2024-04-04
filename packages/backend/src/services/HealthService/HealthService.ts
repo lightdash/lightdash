@@ -1,13 +1,16 @@
 import {
+    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
+    SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { VERSION } from '../../version';
 
 type HealthServiceArguments = {
@@ -33,7 +36,9 @@ export class HealthService {
         this.migrationModel = migrationModel;
     }
 
-    async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
+    async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
+        const isAuthenticated: boolean = !!user?.userUuid;
+
         const { isComplete, currentVersion } =
             await this.migrationModel.getMigrationStatus();
 
@@ -109,10 +114,22 @@ export class HealthService {
             hasDbtSemanticLayer:
                 !!process.env.DBT_CLOUD_ENVIRONMENT_ID &&
                 !!process.env.DBT_CLOUD_BEARER_TOKEN,
-            hasGroups: this.lightdashConfig.groups.enabled,
+            hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
         };
+    }
+
+    private async hasGroups(user: SessionUser | undefined): Promise<boolean> {
+        const isGroupsFeatureFlagEnabled: boolean = user
+            ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
+                  userUuid: user.userUuid,
+                  organizationUuid: user.organizationUuid,
+              })
+            : false;
+        return (
+            this.lightdashConfig.groups.enabled || isGroupsFeatureFlagEnabled
+        );
     }
 
     private hasSlackConfig(): boolean {
