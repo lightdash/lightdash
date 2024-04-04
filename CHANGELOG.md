@@ -1,3 +1,10 @@
+# [0.1055.0](https://github.com/lightdash/lightdash/compare/0.1054.0...0.1055.0) (2024-04-04)
+
+
+### Features
+
+* pie chart config - layout (2/4) ([#9620](https://github.com/lightdash/lightdash/issues/9620)) ([b00cc14](https://github.com/lightdash/lightdash/commit/b00cc1441cb044482e32cfe0c18aae2dd4681551))
+
 # [0.1054.0](https://github.com/lightdash/lightdash/compare/0.1053.0...0.1054.0) (2024-04-04)
 
 
