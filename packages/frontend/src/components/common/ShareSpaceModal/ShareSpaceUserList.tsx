@@ -15,10 +15,12 @@ import {
     Select,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
+    IconAlertCircle,
     IconBuildingBank,
     IconChevronDown,
     IconChevronUp,
@@ -151,6 +153,9 @@ const UserAccessList: FC<UserAccessListProps> = ({
             {accessList
                 .sort(sortByRole(sessionUser?.userUuid))
                 .map((sharedUser) => {
+                    const needsToBePromotedToInteractiveViewer =
+                        sharedUser.inheritedRole === ProjectMemberRole.VIEWER &&
+                        sharedUser.role !== SpaceMemberRole.VIEWER;
                     const isSessionUser =
                         sharedUser.userUuid === sessionUser?.userUuid;
 
@@ -222,31 +227,56 @@ const UserAccessList: FC<UserAccessListProps> = ({
                                     )?.title ?? sharedUser.role}
                                 </Badge>
                             ) : (
-                                <Select
-                                    styles={{
-                                        input: {
-                                            fontWeight: 500,
-                                            textAlign: 'right',
-                                        },
-                                    }}
-                                    size="xs"
-                                    variant="unstyled"
+                                <Tooltip
+                                    disabled={
+                                        !needsToBePromotedToInteractiveViewer
+                                    }
                                     withinPortal
-                                    data={userAccessTypes.map((u) => ({
-                                        label: u.title,
-                                        ...u,
-                                    }))}
-                                    value={sharedUser.role}
-                                    itemComponent={UserAccessSelectItem}
-                                    onChange={(userAccessOption) => {
-                                        if (userAccessOption) {
-                                            onAccessChange(
-                                                userAccessOption as UserAccessAction,
-                                                sharedUser,
-                                            );
+                                    label="User needs to be promoted to interactive viewer to have this space access"
+                                    maw={350}
+                                    multiline
+                                >
+                                    <Select
+                                        styles={{
+                                            input: {
+                                                fontWeight: 500,
+                                                textAlign: 'right',
+                                            },
+                                            rightSection: {
+                                                pointerEvents: 'none',
+                                            },
+                                        }}
+                                        size="xs"
+                                        variant="unstyled"
+                                        withinPortal
+                                        data={userAccessTypes.map((u) => ({
+                                            label: u.title,
+                                            ...u,
+                                        }))}
+                                        value={sharedUser.role}
+                                        itemComponent={UserAccessSelectItem}
+                                        onChange={(userAccessOption) => {
+                                            if (userAccessOption) {
+                                                onAccessChange(
+                                                    userAccessOption as UserAccessAction,
+                                                    sharedUser,
+                                                );
+                                            }
+                                        }}
+                                        error={
+                                            needsToBePromotedToInteractiveViewer
                                         }
-                                    }}
-                                />
+                                        rightSection={
+                                            needsToBePromotedToInteractiveViewer ? (
+                                                <MantineIcon
+                                                    icon={IconAlertCircle}
+                                                    size="sm"
+                                                    color="red.6"
+                                                />
+                                            ) : null
+                                        }
+                                    />
+                                </Tooltip>
                             )}
                         </Group>
                     );
@@ -291,25 +321,6 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         subtitle: `An admin can not be a space ${userAccessOption}`,
                     });
                     return;
-                }
-
-                if (sharedUser.inheritedRole === ProjectMemberRole.VIEWER) {
-                    if (
-                        userAccessOption === UserAccessAction.EDITOR ||
-                        userAccessOption === UserAccessAction.ADMIN
-                    ) {
-                        showToastError({
-                            title: `Failed to update user access`,
-                            subtitle: `A${
-                                sharedUser.inheritedFrom === 'organization'
-                                    ? 'n'
-                                    : ''
-                            } ${sharedUser.inheritedFrom} ${
-                                sharedUser.inheritedRole
-                            } can not be a space ${userAccessOption}`,
-                        });
-                        return;
-                    }
                 }
 
                 shareSpaceMutation([

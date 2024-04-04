@@ -1,7 +1,9 @@
-import { ParameterError, validateEmail } from '@lightdash/common';
+import { ParameterError, SshKeyPair, validateEmail } from '@lightdash/common';
 import { Attributes, Span, SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
+import { generateKeyPair } from 'crypto';
+import { parseKey } from 'sshpk';
 import { Worker } from 'worker_threads';
 import {
     DbPinnedChart,
@@ -119,3 +121,34 @@ export function runWorkerThread<T>(worker: Worker): Promise<T> {
             }),
     );
 }
+
+export const generateOpenSshKeyPair = async (): Promise<SshKeyPair> =>
+    new Promise<SshKeyPair>((resolve, reject) => {
+        generateKeyPair(
+            'rsa',
+            {
+                modulusLength: 4096,
+                publicKeyEncoding: {
+                    type: 'pkcs1',
+                    format: 'pem',
+                },
+                privateKeyEncoding: {
+                    type: 'pkcs1',
+                    format: 'pem',
+                },
+            },
+            (err, publicKey, privateKey) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const parsedPublicKey = parseKey(publicKey, 'pem');
+                    parsedPublicKey.comment = `(generated_by_lightdash_at_${new Date().toISOString()})`;
+                    const openSshPublicKey = parsedPublicKey.toString('ssh');
+                    resolve({
+                        publicKey: openSshPublicKey,
+                        privateKey,
+                    });
+                }
+            },
+        );
+    });

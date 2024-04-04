@@ -507,6 +507,8 @@ const SavedChartsHeader: FC = () => {
                                             <Tooltip
                                                 offset={-1}
                                                 label="Return to dashboard"
+                                                withinPortal
+                                                position="bottom"
                                             >
                                                 <ActionIcon
                                                     variant="default"

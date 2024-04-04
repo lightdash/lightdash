@@ -1,3 +1,52 @@
+## [0.1052.1](https://github.com/lightdash/lightdash/compare/0.1052.0...0.1052.1) (2024-04-04)
+
+
+### Bug Fixes
+
+* handle disabled filter change correctly ([#9635](https://github.com/lightdash/lightdash/issues/9635)) ([01b37cf](https://github.com/lightdash/lightdash/commit/01b37cf3da19bb8ac3e60057d7c1dbe895bc8056))
+
+# [0.1052.0](https://github.com/lightdash/lightdash/compare/0.1051.0...0.1052.0) (2024-04-03)
+
+
+### Features
+
+* big number config UI/UX changes  ([#9623](https://github.com/lightdash/lightdash/issues/9623)) ([8703295](https://github.com/lightdash/lightdash/commit/87032951cc1fce1d348393e093658ec9011f0ff6))
+
+# [0.1051.0](https://github.com/lightdash/lightdash/compare/0.1050.3...0.1051.0) (2024-04-03)
+
+
+### Features
+
+* show value of average reference lines ([#9470](https://github.com/lightdash/lightdash/issues/9470)) ([38048c0](https://github.com/lightdash/lightdash/commit/38048c083257403d3a72db8e36bed1387908e1be))
+
+## [0.1050.3](https://github.com/lightdash/lightdash/compare/0.1050.2...0.1050.3) (2024-04-03)
+
+
+### Bug Fixes
+
+* error when project viewer has a higher space access ([#9625](https://github.com/lightdash/lightdash/issues/9625)) ([3fb4bec](https://github.com/lightdash/lightdash/commit/3fb4bec5182089d88d61bf22e891a02f7db05733))
+
+## [0.1050.2](https://github.com/lightdash/lightdash/compare/0.1050.1...0.1050.2) (2024-04-03)
+
+
+### Bug Fixes
+
+* return to dashboard tooltip overflow ([#9624](https://github.com/lightdash/lightdash/issues/9624)) ([3679225](https://github.com/lightdash/lightdash/commit/367922580b2280267ab5f5c62c85d25bbd69e534))
+
+## [0.1050.1](https://github.com/lightdash/lightdash/compare/0.1050.0...0.1050.1) (2024-04-03)
+
+
+### Bug Fixes
+
+* duplicate improvement bugfix and types ([#9616](https://github.com/lightdash/lightdash/issues/9616)) ([5de85dc](https://github.com/lightdash/lightdash/commit/5de85dc2d4d4c6ab7640ec767ec341b7ab4094ab))
+
+# [0.1050.0](https://github.com/lightdash/lightdash/compare/0.1049.0...0.1050.0) (2024-04-03)
+
+
+### Features
+
+* AzureAd OIDC `private_key_jwt` token authentication ([#9612](https://github.com/lightdash/lightdash/issues/9612)) ([d9e178b](https://github.com/lightdash/lightdash/commit/d9e178bc7debc527f027685801d02c4ed5211a85))
+
 # [0.1049.0](https://github.com/lightdash/lightdash/compare/0.1048.1...0.1049.0) (2024-04-03)
 
 
