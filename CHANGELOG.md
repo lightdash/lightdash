@@ -1,3 +1,10 @@
+# [0.1059.0](https://github.com/lightdash/lightdash/compare/0.1058.0...0.1059.0) (2024-04-05)
+
+
+### Features
+
+* add support for base64-encoded secrets/configuration values ([#9651](https://github.com/lightdash/lightdash/issues/9651)) ([3a4cb99](https://github.com/lightdash/lightdash/commit/3a4cb99e577d8cd25a05551752b2daa6862f5d0f))
+
 # [0.1058.0](https://github.com/lightdash/lightdash/compare/0.1057.0...0.1058.0) (2024-04-04)
 
 
