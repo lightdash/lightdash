@@ -55,6 +55,7 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
 // We need to override this interface to have our user typing
@@ -89,6 +90,7 @@ type AppArguments = {
     };
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
+    utilProviders?: UtilProviderMap;
 };
 
 export default class App {
@@ -107,6 +109,8 @@ export default class App {
     private schedulerWorker: SchedulerWorker | undefined;
 
     private readonly clients: ClientRepository;
+
+    private readonly utils: UtilRepository;
 
     private readonly models: ModelRepository;
 
@@ -134,10 +138,15 @@ export default class App {
                 ? args.knexConfig.production
                 : args.knexConfig.development,
         );
+        this.utils = new UtilRepository({
+            utilProviders: args.utilProviders,
+            lightdashConfig: this.lightdashConfig,
+        });
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
             database: this.database,
+            utils: this.utils,
         });
         this.clients = new ClientRepository({
             clientProviders: args.clientProviders,

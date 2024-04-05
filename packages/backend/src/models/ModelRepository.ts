@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
-import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -134,18 +134,23 @@ abstract class ModelRepositoryBase {
      */
     protected readonly database: Knex;
 
+    protected readonly utils: UtilRepository;
+
     constructor({
         modelProviders,
         lightdashConfig,
         database,
+        utils,
     }: {
         modelProviders?: ModelProviderMap<ModelManifest>;
         lightdashConfig: LightdashConfig;
         database: Knex;
+        utils: UtilRepository;
     }) {
         this.providers = modelProviders ?? {};
         this.lightdashConfig = lightdashConfig;
         this.database = database;
+        this.utils = utils;
     }
 }
 
@@ -208,9 +213,7 @@ export class ModelRepository
             () =>
                 new GithubAppInstallationsModel({
                     database: this.database,
-                    encryptionUtil: new EncryptionUtil({
-                        lightdashConfig: this.lightdashConfig,
-                    }),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
@@ -327,9 +330,7 @@ export class ModelRepository
                 new ProjectModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
-                    encryptionUtil: new EncryptionUtil({
-                        lightdashConfig: this.lightdashConfig,
-                    }),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
@@ -400,9 +401,7 @@ export class ModelRepository
             () =>
                 new SshKeyPairModel({
                     database: this.database,
-                    encryptionUtil: new EncryptionUtil({
-                        lightdashConfig: this.lightdashConfig,
-                    }),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
@@ -431,9 +430,7 @@ export class ModelRepository
             () =>
                 new UserWarehouseCredentialsModel({
                     database: this.database,
-                    encryptionUtil: new EncryptionUtil({
-                        lightdashConfig: this.lightdashConfig,
-                    }),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
