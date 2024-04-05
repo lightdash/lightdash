@@ -3,7 +3,7 @@ import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { HealthService } from './HealthService';
-import { BaseResponse, Config } from './HealthService.mock';
+import { BaseResponse, Config, userMock } from './HealthService.mock';
 
 jest.mock('../../version', () => ({
     VERSION: '0.1.0',
@@ -41,21 +41,23 @@ describe('health', () => {
     });
 
     it('Should get current and latest version', async () => {
-        expect(await healthService.getHealthState(false)).toEqual(BaseResponse);
+        expect(await healthService.getHealthState(undefined)).toEqual(
+            BaseResponse,
+        );
     });
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as jest.Mock).mockImplementationOnce(
             () => undefined,
         );
 
-        expect(await healthService.getHealthState(false)).toEqual({
+        expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             latest: { version: undefined },
         });
     });
 
     it('Should return isAuthenticated true', async () => {
-        expect(await healthService.getHealthState(true)).toEqual({
+        expect(await healthService.getHealthState(userMock)).toEqual({
             ...BaseResponse,
             isAuthenticated: true,
         });
@@ -70,7 +72,7 @@ describe('health', () => {
             },
             migrationModel: migrationModel as unknown as MigrationModel,
         });
-        expect(await service.getHealthState(false)).toEqual({
+        expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             mode: LightdashMode.CLOUD_BETA,
             localDbtEnabled: false,
@@ -78,7 +80,7 @@ describe('health', () => {
     });
     it('Should return localDbtEnabled false when install type is heroku', async () => {
         process.env.LIGHTDASH_INSTALL_TYPE = LightdashInstallType.HEROKU;
-        expect(await healthService.getHealthState(false)).toEqual({
+        expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             localDbtEnabled: false,
         });
@@ -88,7 +90,7 @@ describe('health', () => {
             async () => false,
         );
 
-        expect(await healthService.getHealthState(false)).toEqual({
+        expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
             requiresOrgRegistration: true,
         });
