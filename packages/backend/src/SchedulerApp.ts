@@ -5,17 +5,13 @@ import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { S3Client } from './clients/Aws/s3';
-import { S3CacheClient } from './clients/Aws/S3CacheClient';
-import { ClientManifest } from './clients/clients';
-import DbtCloudGraphqlClient from './clients/dbtCloud/DbtCloudGraphqlClient';
-import EmailClient from './clients/EmailClient/EmailClient';
-import { GoogleDriveClient } from './clients/Google/GoogleDriveClient';
-import { SlackClient } from './clients/Slack/SlackClient';
+import {
+    ClientProviderMap,
+    ClientRepository,
+} from './clients/ClientRepository';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { SchedulerClient } from './scheduler/SchedulerClient';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { registerWorkerMetrics } from './schedulerMetrics';
 import {
@@ -35,6 +31,7 @@ type SchedulerAppArguments = {
         production: Knex.Config<Knex.PgConnectionConfig>;
         development: Knex.Config<Knex.PgConnectionConfig>;
     };
+    clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
 };
 
@@ -51,7 +48,7 @@ export default class SchedulerApp {
 
     private readonly otelSdk: NodeSDK;
 
-    private readonly clients: ClientManifest;
+    private readonly clients: ClientRepository;
 
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -83,30 +80,15 @@ export default class SchedulerApp {
             database,
         });
 
-        this.clients = {
-            dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
-            emailClient: new EmailClient({
+        this.clients = new ClientRepository({
+            clientProviders: args.clientProviders,
+            context: new OperationContext({
+                operationId: 'SchedulerApp#ctor',
+                lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
             }),
-            googleDriveClient: new GoogleDriveClient({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            s3CacheClient: new S3CacheClient({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            s3Client: new S3Client({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            schedulerClient: new SchedulerClient({
-                lightdashConfig: this.lightdashConfig,
-                analytics: this.analytics,
-                schedulerModel: models.getSchedulerModel(),
-            }),
-            slackClient: new SlackClient({
-                slackAuthenticationModel: models.getSlackAuthenticationModel(),
-                lightdashConfig: this.lightdashConfig,
-            }),
-        };
+            models,
+        });
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -153,9 +135,15 @@ export default class SchedulerApp {
                     this.serviceRepository.getValidationService(),
                 userService: this.serviceRepository.getUserService(),
             },
-            ...this.clients,
+            ...{
+                emailClient: this.clients.getEmailClient(),
+                googleDriveClient: this.clients.getGoogleDriveClient(),
+                s3Client: this.clients.getS3Client(),
+                schedulerClient: this.clients.getSchedulerClient(),
+                slackClient: this.clients.getSlackClient(),
+            },
         });
-        registerWorkerMetrics(this.clients.schedulerClient);
+        registerWorkerMetrics(this.clients.getSchedulerClient());
         await worker.run();
         return worker;
     }

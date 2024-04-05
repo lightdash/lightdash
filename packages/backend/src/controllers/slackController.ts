@@ -44,9 +44,9 @@ export class SlackController extends BaseController {
         if (!organizationUuid) throw new ForbiddenError();
         return {
             status: 'ok',
-            results: await req.services.clients.slackClient.getChannels(
-                organizationUuid,
-            ),
+            results: await req.clients
+                .getSlackClient()
+                .getChannels(organizationUuid),
         };
     }
 
@@ -71,8 +71,9 @@ export class SlackController extends BaseController {
         if (!organizationUuid) throw new ForbiddenError();
         return {
             status: 'ok',
-            results:
-                await req.services.clients.slackClient.updateNotificationChannel(
+            results: await req.clients
+                .getSlackClient()
+                .updateNotificationChannel(
                     `${req.user?.firstName} ${req.user?.lastName}`,
                     organizationUuid,
                     body.channelId,
