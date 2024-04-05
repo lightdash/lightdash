@@ -1,8 +1,6 @@
 name: Bug report
-about: Create a report to help us improve
-title: "Bug:"
+description: Create a report to help us improve
 labels: 🐛 bug
-assignees: ""
 body:
   - type: input
     id: description
@@ -13,17 +11,17 @@ body:
     validations:
       required: true
   - type: textarea
-    id: reproduce
+    id: steps
     attributes:
-      label: To Reproduce
-      description: Steps & screenshot/gif/loom to reproduce the behavior
-      placeholder: >-
-        1. Go to '...' 
+      label: Steps to Reproduce the Bug or Issue
+      description: Describe the steps we have to take to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
         2. Click on '....'
-        3. Scroll down to '....' 
+        3. Scroll down to '....'
         4. See error
     validations:
-      required: false
+      required: true
   - type: input
     id: version
     attributes:
