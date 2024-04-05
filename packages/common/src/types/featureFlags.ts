@@ -33,4 +33,7 @@ export enum FeatureFlags {
 
     /* Dashboard filters will override chart filters */
     DashboardFilterOverridesChartFilters = 'dashboard-filter-overrides-chart-filters',
+
+    /* Show user groups */
+    UserGroupsEnabled = 'user-groups-enabled',
 }

@@ -1,4 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, SessionUser } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 export const BaseResponse = {
@@ -79,3 +79,8 @@ export const Config = {
         enabled: false,
     },
 } as LightdashConfig; // TODO: Refactor this to be a mock of the actual configuration, rather than a partial that might contain incorrect properties.
+
+export const userMock = {
+    userUuid: 'uuid',
+    organizationUuid: 'orguuid',
+} as any as SessionUser;
