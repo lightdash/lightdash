@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -187,9 +188,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
 
+                    // NOTE: Using .format() makes this a standard ISO string
                     const timestampValue = valueIsDate
-                        ? moment(value).format('YYYY-MM-DDTHH:mm:ssZ')
-                        : moment().utc(true).format('YYYY-MM-DDTHH:mm:ssZ');
+                        ? dayjs(value).format()
+                        : dayjs().format();
 
                     filterRuleDefaults.values = [timestampValue];
                 } else {

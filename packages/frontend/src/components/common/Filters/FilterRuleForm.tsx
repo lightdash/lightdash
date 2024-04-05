@@ -74,7 +74,7 @@ const FilterRuleForm: FC<Props> = ({
         <div
             style={{
                 display: 'inline-flex',
-                alignItems: 'center',
+                alignItems: 'start',
                 gap: 10,
                 flex: 1,
             }}

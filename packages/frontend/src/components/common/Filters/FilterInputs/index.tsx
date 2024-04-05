@@ -14,6 +14,7 @@ import {
     isFilterableItem,
     isFilterRule,
     isMomentInput,
+    TimeFrames,
     type ConditionalRule,
     type ConditionalRuleLabels,
     type Field,
@@ -197,7 +198,7 @@ const getValueAsString = (
                             ) {
                                 return formatTimestamp(
                                     value,
-                                    field.timeInterval,
+                                    field.timeInterval || TimeFrames.SECOND,
                                 );
                             } else if (
                                 isDimension(field) &&

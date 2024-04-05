@@ -170,24 +170,13 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
             }
 
             if (isTimestamp) {
-                const parsedTimestampToUtc = rule.values
-                    ? dayjs(
-                          parseTimestamp(
-                              formatTimestamp(
-                                  rule.values[0],
-                                  TimeFrames.MILLISECOND,
-                              ),
-                              TimeFrames.MILLISECOND,
-                          ),
-                      ).utc()
-                    : null;
+                // For display only
+                const displayFormat = 'YYYY-MM-DD HH:mm:ss (Z)';
 
-                const valueFormat =
-                    parsedTimestampToUtc?.format('YYYY-MM-DD HH:mm:ss') ??
-                    undefined;
-
-                // NOTE: This ensures that valueFormat and value are always in sync with each other and that there's no mismatch between the input value and the calendar + time input values set
-                const value = dayjs(valueFormat).toDate() ?? null;
+                let value =
+                    rule.values && rule.values[0]
+                        ? dayjs(rule?.values?.[0]).toDate()
+                        : dayjs().toDate(); // Create
 
                 return (
                     <FilterDateTimePicker
@@ -196,7 +185,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         // @ts-ignore
                         placeholder={placeholder}
                         withSeconds
-                        valueFormat={valueFormat}
+                        valueFormat={displayFormat}
                         // FIXME: mantine v7
                         // mantine does not set the first day of the week based on the locale
                         // so we need to do it manually and always pass it as a prop
@@ -206,15 +195,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         onChange={(v: Date | null) => {
                             onChange({
                                 ...rule,
-                                values:
-                                    v === null
-                                        ? []
-                                        : [
-                                              formatTimestamp(
-                                                  v,
-                                                  TimeFrames.SECOND,
-                                              ),
-                                          ],
+                                // format as an ISO string, not for display
+                                values: v === null ? [] : [dayjs(v).format()],
                             });
                         }}
                     />

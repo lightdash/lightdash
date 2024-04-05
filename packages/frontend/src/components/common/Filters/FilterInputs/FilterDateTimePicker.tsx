@@ -1,3 +1,4 @@
+import { Text } from '@mantine/core';
 import {
     DateTimePicker,
     type DateTimePickerProps,
@@ -35,6 +36,8 @@ const FilterDateTimePicker: FC<Props> = ({
                 if (!date) return;
                 onChange(date);
             }}
+            inputWrapperOrder={['input', 'description']}
+            description={<Text ml="two">UTC time: {value?.toUTCString()}</Text>}
         />
     );
 };
