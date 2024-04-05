@@ -21,6 +21,71 @@ export const getIntegerFromEnvironmentVariable = (
     return parsed;
 };
 
+/**
+ * Given a value, uses the arguments provided to figure out if that value
+ * should be decoded as a base64 string.
+ *
+ * This can be used to circumvent limitations with some secret managers, or to
+ * simplify passing some types of values around (e.g file contents)
+ */
+export const getMaybeBase64EncodedFromEnvironmentVariable = (
+    stringContent: string | undefined,
+    {
+        decodeIfStartsWith,
+        decodeUnlessStartsWith,
+        stripPrefix = true,
+    }: {
+        decodeIfStartsWith?: string;
+        decodeUnlessStartsWith?: string;
+        stripPrefix?: boolean;
+    } = {},
+) => {
+    if (!stringContent) {
+        return undefined;
+    }
+
+    if (decodeIfStartsWith && decodeUnlessStartsWith) {
+        throw new Error(
+            'invariant: Cannot use decodeIfstartsWith and decodeUnlessStartsWith in the same check',
+        );
+    }
+
+    if (
+        (decodeIfStartsWith && stringContent.startsWith(decodeIfStartsWith)) ||
+        (decodeUnlessStartsWith &&
+            !stringContent.startsWith(decodeUnlessStartsWith))
+    ) {
+        /**
+         * If we have a match, figure out if we also want to strip the positive
+         * match string from the beginning of the content. This allows us to use
+         * things like a `base64:` prefix to tag base64-encoded content, and also
+         * strip it from the string to be decoded.
+         */
+        const contentMaybeWithoutPrefix = stripPrefix
+            ? stringContent.substring(decodeIfStartsWith?.length ?? 0)
+            : stringContent;
+
+        return Buffer.from(contentMaybeWithoutPrefix, 'base64').toString(
+            'utf-8',
+        );
+    }
+
+    return stringContent;
+};
+
+/**
+ * Minimal wrapper around getMaybeBase64EncodedFromEnvironmentVariable for PEM-encoded certificates
+ * and private keys.
+ */
+export const getPemFileContent = (certValue: string | undefined) =>
+    getMaybeBase64EncodedFromEnvironmentVariable(certValue, {
+        /**
+         * Use to figure out if we should potentially base64-decode PEM-encoded certificates or not,
+         * as part of `private_key_jwt` configuration.
+         */
+        decodeUnlessStartsWith: '-----BEGIN ', // -----BEGIN CERTIFICATE | -----BEGIN PRIVATE KEY
+    });
+
 export type LightdashConfigIn = {
     version: '1.0';
     mode: LightdashMode;
@@ -397,9 +462,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 callbackPath: '/oauth/redirect/azuread',
                 loginPath: '/login/azuread',
                 x509PublicKeyCertPath: process.env.AUTH_AZURE_AD_X509_CERT_PATH,
-                x509PublicKeyCert: process.env.AUTH_AZURE_AD_X509_CERT,
+                x509PublicKeyCert: getPemFileContent(
+                    process.env.AUTH_AZURE_AD_X509_CERT,
+                ),
                 privateKeyFilePath: process.env.AUTH_AZURE_AD_PRIVATE_KEY_PATH,
-                privateKeyFile: process.env.AUTH_AZURE_AD_PRIVATE_KEY,
+                privateKeyFile: getPemFileContent(
+                    process.env.AUTH_AZURE_AD_PRIVATE_KEY,
+                ),
                 openIdConnectMetadataEndpoint:
                     process.env.AUTH_AZURE_AD_OIDC_METADATA_ENDPOINT ||
                     process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID
@@ -414,9 +483,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 metadataDocumentEndpoint:
                     process.env.AUTH_OIDC_METADATA_DOCUMENT_URL,
                 x509PublicKeyCertPath: process.env.AUTH_OIDC_X509_CERT_PATH,
-                x509PublicKeyCert: process.env.AUTH_OIDC_X509_CERT,
+                x509PublicKeyCert: getPemFileContent(
+                    process.env.AUTH_OIDC_X509_CERT,
+                ),
                 privateKeyFilePath: process.env.AUTH_OIDC_PRIVATE_KEY_PATH,
-                privateKeyFile: process.env.AUTH_OIDC_PRIVATE_KEY,
+                privateKeyFile: getPemFileContent(
+                    process.env.AUTH_OIDC_PRIVATE_KEY,
+                ),
                 authSigningAlg:
                     process.env.AUTH_OIDC_AUTH_SIGNING_ALG || 'RS256',
                 authMethod:

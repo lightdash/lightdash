@@ -1,6 +1,10 @@
 import { ParseError } from '@lightdash/common';
 import { VERSION } from '../version';
-import { getIntegerFromEnvironmentVariable, parseConfig } from './parseConfig';
+import {
+    getIntegerFromEnvironmentVariable,
+    getMaybeBase64EncodedFromEnvironmentVariable,
+    parseConfig,
+} from './parseConfig';
 import {
     BASIC_CONFIG,
     EMPTY_CONFIG,
@@ -83,4 +87,62 @@ test('Should throw ParseError if not a valid integer', () => {
     expect(() => getIntegerFromEnvironmentVariable('MY_NUMBER')).toThrowError(
         ParseError,
     );
+});
+
+describe('getMaybeBase64EncodedFromEnvironmentVariable', () => {
+    const b64 = (value: string) =>
+        Buffer.from(value, 'utf-8').toString('base64');
+
+    test('returns undefined if given undefined as content', () => {
+        expect(getMaybeBase64EncodedFromEnvironmentVariable(undefined)).toEqual(
+            undefined,
+        );
+    });
+
+    test('passes-through unchanged with default settings', () => {
+        expect(
+            getMaybeBase64EncodedFromEnvironmentVariable('Hey there'),
+        ).toEqual('Hey there');
+    });
+
+    test('decodes base64 with a prefix with base64: prefix', () => {
+        expect(
+            getMaybeBase64EncodedFromEnvironmentVariable(
+                `base64:${b64('Hey there')}`,
+                {
+                    decodeIfStartsWith: 'base64:',
+                },
+            ),
+        ).toEqual('Hey there');
+    });
+
+    test('decodes base64 with a prefix with custom prefix', () => {
+        expect(
+            getMaybeBase64EncodedFromEnvironmentVariable(
+                `DECODE-ME:${b64('Hello')}`,
+                {
+                    decodeIfStartsWith: 'DECODE-ME:',
+                },
+            ),
+        ).toEqual('Hello');
+    });
+
+    test('does not decode base64 with custom prefix', () => {
+        expect(
+            getMaybeBase64EncodedFromEnvironmentVariable(
+                `-----BEGIN CERTIFICATE-----\nPlease do not decode me`,
+                {
+                    decodeUnlessStartsWith: '-----BEGIN CERTIFICATE-----',
+                },
+            ),
+        ).toEqual('-----BEGIN CERTIFICATE-----\nPlease do not decode me');
+    });
+
+    test('decodes base64 with custom negative prefix if not a match', () => {
+        expect(
+            getMaybeBase64EncodedFromEnvironmentVariable(b64('Hey there'), {
+                decodeUnlessStartsWith: '-----BEGIN CERTIFICATE-----',
+            }),
+        ).toEqual('Hey there');
+    });
 });
