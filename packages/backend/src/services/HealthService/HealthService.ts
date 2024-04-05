@@ -121,14 +121,14 @@ export class HealthService {
     }
 
     private async hasGroups(user: SessionUser | undefined): Promise<boolean> {
-        const isGroupsFeatureFlagEnabled: boolean = user
-            ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
-                  userUuid: user.userUuid,
-                  organizationUuid: user.organizationUuid,
-              })
-            : false;
         return (
-            this.lightdashConfig.groups.enabled || isGroupsFeatureFlagEnabled
+            this.lightdashConfig.groups.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : false)
         );
     }
 
