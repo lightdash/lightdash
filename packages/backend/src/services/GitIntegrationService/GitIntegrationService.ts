@@ -10,7 +10,6 @@ import {
     isUserWithOrg,
     lightdashDbtYamlSchema,
     ParseError,
-    Project,
     PullRequestCreated,
     SavedChart,
     SessionUser,
