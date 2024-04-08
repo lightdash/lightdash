@@ -14,7 +14,6 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { lighten } from 'polished';
 import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
@@ -67,7 +66,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
                             '&[data-with-border]': {
                                 borderColor: selected
                                     ? ICON_SELECTED_COLOR
-                                    : lighten(0.1, ICON_UNSELECTED_COLOR),
+                                    : ICON_UNSELECTED_COLOR,
                             },
                         })}
                     >
