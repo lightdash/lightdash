@@ -93,7 +93,7 @@ const VisualizationSidebar: FC<{
                     withOverlay={false}
                     lockScroll={false}
                     shadow="lg"
-                    size={410}
+                    size={400}
                     styles={(theme) => ({
                         inner: {
                             top: sidebarVerticalOffset,
