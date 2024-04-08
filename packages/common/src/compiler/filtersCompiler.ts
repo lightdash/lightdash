@@ -22,10 +22,10 @@ import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import { type WeekDay } from '../utils/timeFrames';
 
-// NOTE: This function requires an ISO string with timezone information
-// It makes it a timezoneless string which is implied to be in UTC.
+// NOTE: This function requires a complete date as input.
+// It produces a timezoneless string which is implied to be in UTC.
 // We could probably have it be a string WITH a timezone in the future.
-// Calling .utc() hear makes it safe to drop the tz.
+// Calling .utc() here makes it safe to drop the tz.
 const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
