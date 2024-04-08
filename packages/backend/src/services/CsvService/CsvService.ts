@@ -883,7 +883,7 @@ export class CsvService extends BaseService {
                     zlib: { level: 9 }, // Sets the compression level.
                 });
                 output.on('close', () => {
-                    Logger.info(
+                    this.logger.info(
                         `Generated .zip file of ${archive.pointer()} bytes`,
                     );
                     resolve(zipName);

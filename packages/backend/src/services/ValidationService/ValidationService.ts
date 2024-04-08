@@ -175,7 +175,7 @@ export class ValidationService extends BaseService {
         const errors = explores.reduce<CreateTableValidation[]>(
             (acc, explore) => {
                 if (!isTableEnabled(explore)) {
-                    Logger.debug(
+                    this.logger.debug(
                         `Table ${explore.name} is disabled, skipping validation`,
                     );
                     return acc;
@@ -509,7 +509,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
     ): Promise<CreateValidation[]> {
-        Logger.debug(
+        this.logger.debug(
             `Generating validation for project ${projectUuid} with explores ${
                 compiledExplores ? 'from CLI' : 'from cache'
             }`,
@@ -557,7 +557,7 @@ export class ValidationService extends BaseService {
         );
 
         if (!existingFields) {
-            Logger.warn(
+            this.logger.warn(
                 `No fields found for project validation ${projectUuid}`,
             );
             return [];

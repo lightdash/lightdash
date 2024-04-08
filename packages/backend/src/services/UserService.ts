@@ -256,7 +256,7 @@ export class UserService extends BaseService {
         }
 
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
-            Logger.error(
+            this.logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
             );
             throw new AuthorizationError(
@@ -480,7 +480,7 @@ export class UserService extends BaseService {
                     inviteLink.email.toLowerCase() !==
                         loginUser.email.toLowerCase()
                 ) {
-                    Logger.error(
+                    this.logger.error(
                         `User accepted invite with wrong email ${loginUser.email} when the invited email was ${inviteLink.email}`,
                     );
                     throw new AuthorizationError(

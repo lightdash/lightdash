@@ -374,7 +374,7 @@ export class UnfurlService extends BaseService {
         resourceName?: string;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
-            Logger.error(
+            this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
             );
             throw new Error(
@@ -432,7 +432,7 @@ export class UnfurlService extends BaseService {
                         });
                     }
                     page.on('requestfailed', (request) => {
-                        Logger.warn(
+                        this.logger.warn(
                             `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
                                 request.failure()?.errorText
                             }`,
@@ -441,7 +441,7 @@ export class UnfurlService extends BaseService {
                     page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
-                            Logger.warn(
+                            this.logger.warn(
                                 `Headless browser console error - file: ${
                                     msg.location().url
                                 }, text ${msg.text()} `,
@@ -479,14 +479,14 @@ export class UnfurlService extends BaseService {
                                 (buffer) => {
                                     const status = response.status();
                                     if (status >= 400) {
-                                        Logger.error(
+                                        this.logger.error(
                                             `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
                                         );
                                         chartRequestErrors += 1;
                                     }
                                 },
                                 (error) => {
-                                    Logger.error(
+                                    this.logger.error(
                                         `Headless browser response buffer error: ${error.message}`,
                                     );
                                     chartRequestErrors += 1;
@@ -502,7 +502,7 @@ export class UnfurlService extends BaseService {
                         });
                     } catch (e) {
                         timeout = true;
-                        Logger.warn(
+                        this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
@@ -514,7 +514,7 @@ export class UnfurlService extends BaseService {
                         })
                         .catch(() => {
                             timeout = true;
-                            Logger.warn(
+                            this.logger.warn(
                                 `Got a timeout when waiting for all charts to be loaded, returning current content`,
                             );
                         });
@@ -550,7 +550,7 @@ export class UnfurlService extends BaseService {
                     }
 
                     if (!element) {
-                        Logger.warn(`Can't find element on page`);
+                        this.logger.warn(`Can't find element on page`);
                         return undefined;
                     }
 
@@ -620,7 +620,7 @@ export class UnfurlService extends BaseService {
                         code: SpanStatusCode.ERROR,
                     });
 
-                    Logger.error(
+                    this.logger.error(
                         `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
                     );
                     throw e;
@@ -630,7 +630,7 @@ export class UnfurlService extends BaseService {
                     span.end();
 
                     const executionTime = Date.now() - startTime;
-                    Logger.info(
+                    this.logger.info(
                         `UnfurlService saveScreenshot took ${executionTime} ms`,
                     );
                     taskDurationHistogram.record(executionTime, {
@@ -651,7 +651,7 @@ export class UnfurlService extends BaseService {
             `${shareUrl.path}${shareUrl.params}`,
             this.lightdashConfig.siteUrl,
         ).href;
-        Logger.debug(`Shared url ${shareId}: ${fullUrl}`);
+        this.logger.debug(`Shared url ${shareId}: ${fullUrl}`);
 
         return fullUrl;
     }
@@ -712,7 +712,7 @@ export class UnfurlService extends BaseService {
             };
         }
 
-        Logger.debug(`URL to unfurl ${url} is not valid`);
+        this.logger.debug(`URL to unfurl ${url} is not valid`);
         return {
             isValid: false,
             url,
