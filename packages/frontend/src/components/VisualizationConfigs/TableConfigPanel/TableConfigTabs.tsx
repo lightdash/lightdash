@@ -6,7 +6,7 @@ import GeneralSettings from './GeneralSettings';
 
 export const ConfigTabs: FC = memo(() => (
     <MantineProvider inherit theme={themeOverride}>
-        <Accordion multiple radius="none" styles={getAccordionConfigTabsStyles}>
+        <Accordion radius="none" styles={getAccordionConfigTabsStyles}>
             <Accordion.Item value="General">
                 <Accordion.Control>General</Accordion.Control>
                 <Accordion.Panel>
