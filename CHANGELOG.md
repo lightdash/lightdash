@@ -1,3 +1,12 @@
+# [0.1062.0](https://github.com/lightdash/lightdash/compare/0.1061.1...0.1062.0) (2024-04-08)
+
+
+### Features
+
+* enable grouping on field select in big number config ([#9676](https://github.com/lightdash/lightdash/issues/9676)) ([89c59d0](https://github.com/lightdash/lightdash/commit/89c59d0d1bbbed3d11cc1ce45ce83e2befb1dbc9))
+* enable grouping on field select in chart config ([#9673](https://github.com/lightdash/lightdash/issues/9673)) ([ca64da7](https://github.com/lightdash/lightdash/commit/ca64da714706f17a04238b35a44a5b5c9528d013))
+* enable grouping on field select in pie config ([#9675](https://github.com/lightdash/lightdash/issues/9675)) ([8cb96ff](https://github.com/lightdash/lightdash/commit/8cb96ff1e5bbc25b6ac8c05985807dd75e6bfccc))
+
 ## [0.1061.1](https://github.com/lightdash/lightdash/compare/0.1061.0...0.1061.1) (2024-04-08)
 
 
