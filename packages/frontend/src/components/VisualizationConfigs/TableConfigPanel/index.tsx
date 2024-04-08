@@ -7,8 +7,7 @@ import {
 } from '../../common/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-
-import TableConfigTabs from './TableConfigTabs';
+import { ConfigTabs } from './TableConfigTabs';
 
 const TableConfigPanel: React.FC = () => {
     const { resultsData } = useVisualizationContext();
@@ -30,7 +29,7 @@ const TableConfigPanel: React.FC = () => {
 
             <Popover.Dropdown>
                 <Box w={320}>
-                    <TableConfigTabs />
+                    <ConfigTabs />
                 </Box>
             </Popover.Dropdown>
         </Popover>

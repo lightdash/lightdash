@@ -1,13 +1,17 @@
-import { Tabs } from '@mantine/core';
-import React, { memo } from 'react';
+import { MantineProvider, Tabs } from '@mantine/core';
+import { memo, type FC } from 'react';
+import { themeOverride } from '../mantineTheme';
 import ConditionalFormattingList from './ConditionalFormattingList';
 import GeneralSettings from './GeneralSettings';
-const TableConfigTabs: React.FC = memo(() => {
-    return (
+
+export const ConfigTabs: FC = memo(() => (
+    <MantineProvider inherit theme={themeOverride}>
         <Tabs defaultValue="general" keepMounted={false}>
             <Tabs.List mb="sm">
-                <Tabs.Tab value="general">General</Tabs.Tab>
-                <Tabs.Tab value="conditional-formatting">
+                <Tabs.Tab px="sm" value="general">
+                    General
+                </Tabs.Tab>
+                <Tabs.Tab px="sm" value="conditional-formatting">
                     Conditional formatting
                 </Tabs.Tab>
             </Tabs.List>
@@ -19,7 +23,5 @@ const TableConfigTabs: React.FC = memo(() => {
                 <ConditionalFormattingList />
             </Tabs.Panel>
         </Tabs>
-    );
-});
-
-export default TableConfigTabs;
+    </MantineProvider>
+));
