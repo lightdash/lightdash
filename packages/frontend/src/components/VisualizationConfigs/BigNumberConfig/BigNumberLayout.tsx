@@ -44,6 +44,7 @@ export const Layout: FC = () => {
                             newValue ? getItemId(newValue) : undefined,
                         );
                     }}
+                    hasGrouping
                 />
 
                 <Grid gutter="xs">
