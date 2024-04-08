@@ -76,10 +76,12 @@ type VisualizationContext = {
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
 
-    getSeriesColor: (seriesLike: SeriesLike) => string;
+    getSeriesColor: (
+        seriesLike: SeriesLike,
+        metadata?: Record<string, SeriesMetadata>,
+    ) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     setMetadata: (metadata: Record<string, SeriesMetadata>) => void;
-    metadata?: Record<string, SeriesMetadata>;
     colorPalette: string[];
 };
 
@@ -154,7 +156,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const chartRef = useRef<EChartsReact>(null);
 
-    const [metadata, setMetadata] = useState<Record<string, SeriesMetadata>>();
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
 
@@ -258,6 +259,10 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
             // Check if color is stored in metadata
             const serieId = calculateSeriesLikeIdentifier(seriesLike).join('.');
+            const metadata =
+                chartConfig.type === ChartType.CARTESIAN
+                    ? chartConfig.config?.metadata
+                    : undefined;
             if (metadata && metadata?.[serieId]?.color)
                 return metadata?.[serieId].color;
 
@@ -272,7 +277,25 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
-        [calculateSeriesColorAssignment, fallbackColors, metadata],
+        [calculateSeriesColorAssignment, fallbackColors, chartConfig],
+    );
+    const setMetadata = useCallback(
+        (metadata: Record<string, SeriesMetadata>) => {
+            if (!onChartConfigChange) return;
+            if (
+                chartConfig?.type === ChartType.CARTESIAN &&
+                chartConfig.config
+            ) {
+                onChartConfigChange({
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        ...chartConfig.config,
+                        metadata,
+                    },
+                });
+            }
+        },
+        [chartConfig, onChartConfigChange],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
@@ -293,7 +316,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         getGroupColor,
         getSeriesColor,
         setMetadata,
-        metadata,
     };
 
     switch (chartConfig.type) {
