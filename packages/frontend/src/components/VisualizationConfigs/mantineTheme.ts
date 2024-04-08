@@ -1,3 +1,4 @@
+import { type MantineTheme } from '@mantine/core';
 import { getMantineThemeOverride } from '../../mantineTheme';
 
 export const themeOverride = getMantineThemeOverride({
@@ -69,6 +70,27 @@ export const themeOverride = getMantineThemeOverride({
             defaultProps: {
                 size: 'sm',
             },
+        },
+    },
+});
+
+export const getAccordionConfigTabsStyles = (theme: MantineTheme) => ({
+    item: {
+        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+        '&:first-of-type': {
+            borderTop: `1px solid ${theme.colors.gray[2]}`,
+        },
+    },
+    label: {
+        padding: 0,
+        fontSize: theme.fontSizes.sm,
+        fontWeight: 500,
+    },
+    control: {
+        padding: theme.spacing.xs,
+        borderTop: `1px solid ${theme.colors.gray[0]}`,
+        '&[aria-expanded="false"]': {
+            backgroundColor: theme.colors.gray[0],
         },
     },
 });

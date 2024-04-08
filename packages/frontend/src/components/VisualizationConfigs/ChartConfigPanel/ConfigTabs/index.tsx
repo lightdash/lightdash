@@ -1,7 +1,10 @@
-import { MantineProvider, Tabs } from '@mantine/core';
+import { Accordion, MantineProvider } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { themeOverride } from '../../mantineTheme';
+import {
+    getAccordionConfigTabsStyles,
+    themeOverride,
+} from '../../mantineTheme';
 import { Axes } from '../Axes';
 import { Grid } from '../Grid';
 import { Layout } from '../Layout';
@@ -15,40 +18,42 @@ export const ConfigTabs: FC = memo(() => {
 
     return (
         <MantineProvider inherit theme={themeOverride}>
-            <Tabs defaultValue="layout" keepMounted={false}>
-                <Tabs.List mb="sm">
-                    <Tabs.Tab px="sm" value="layout">
-                        Layout
-                    </Tabs.Tab>
-                    <Tabs.Tab px="sm" value="series">
-                        Series
-                    </Tabs.Tab>
-                    <Tabs.Tab px="sm" value="axes">
-                        Axes
-                    </Tabs.Tab>
-                    <Tabs.Tab px="sm" value="legend">
-                        Display
-                    </Tabs.Tab>
-                    <Tabs.Tab px="sm" value="grid">
-                        Margins
-                    </Tabs.Tab>
-                </Tabs.List>
-                <Tabs.Panel value="layout">
-                    <Layout items={items} />
-                </Tabs.Panel>
-                <Tabs.Panel value="series">
-                    <Series items={items} />
-                </Tabs.Panel>
-                <Tabs.Panel value="axes">
-                    <Axes itemsMap={itemsMap} />
-                </Tabs.Panel>
-                <Tabs.Panel value="legend">
-                    <Legend items={items} />
-                </Tabs.Panel>
-                <Tabs.Panel value="grid">
-                    <Grid />
-                </Tabs.Panel>
-            </Tabs>
+            <Accordion
+                multiple
+                radius="none"
+                styles={getAccordionConfigTabsStyles}
+            >
+                <Accordion.Item value="layout">
+                    <Accordion.Control>Layout</Accordion.Control>
+                    <Accordion.Panel>
+                        <Layout items={items} />
+                    </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="series">
+                    <Accordion.Control>Series</Accordion.Control>
+                    <Accordion.Panel>
+                        <Series items={items} />
+                    </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="axes">
+                    <Accordion.Control>Axes</Accordion.Control>
+                    <Accordion.Panel>
+                        <Axes itemsMap={itemsMap} />
+                    </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="legend">
+                    <Accordion.Control>Legend</Accordion.Control>
+                    <Accordion.Panel>
+                        <Legend items={items} />
+                    </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="grid">
+                    <Accordion.Control>Grid</Accordion.Control>
+                    <Accordion.Panel>
+                        <Grid />
+                    </Accordion.Panel>
+                </Accordion.Item>
+            </Accordion>
         </MantineProvider>
     );
 });

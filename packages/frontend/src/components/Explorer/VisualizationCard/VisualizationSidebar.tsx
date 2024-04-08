@@ -112,12 +112,13 @@ const VisualizationSidebar: FC<{
                             flexGrow: 1,
                             display: 'flex',
                             flexDirection: 'column',
+                            padding: 0,
                             paddingTop: theme.spacing.xs,
                         },
                     })}
                     onClose={onClose}
                 >
-                    <Group pb="sm">
+                    <Group p="sm" pt={0}>
                         <VisualizationCardOptions />
                     </Group>
 
