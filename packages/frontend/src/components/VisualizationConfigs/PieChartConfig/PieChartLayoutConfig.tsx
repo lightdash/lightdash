@@ -111,6 +111,7 @@ export const Layout: React.FC = () => {
                                         groupRemove(dimensionId);
                                     }
                                 }}
+                                hasGrouping
                             />
                         );
                     })}
@@ -142,6 +143,7 @@ export const Layout: React.FC = () => {
                                         metricChange(newField.name);
                                     else metricChange(null);
                                 }}
+                                hasGrouping
                             />
                         </Box>
                     </Tooltip>
