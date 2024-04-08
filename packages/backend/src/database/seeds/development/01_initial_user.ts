@@ -181,7 +181,7 @@ export async function seed(knex: Knex): Promise<void> {
             },
             DefaultSupportedDbtVersion,
         );
-        const explores = await adapter.compileAllExplores();
+        const explores = await adapter.compileAllExplores(false, 'UTC');
         await new ProjectModel({
             database: knex,
             lightdashConfig,

@@ -487,7 +487,10 @@ export class ProjectService {
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            return await adapter.compileAllExplores(
+                                false,
+                                this.lightdashConfig.warehouseTimezone,
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
@@ -713,7 +716,10 @@ export class ProjectService {
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            return await adapter.compileAllExplores(
+                                false,
+                                this.lightdashConfig.warehouseTimezone,
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
@@ -2240,7 +2246,10 @@ export class ProjectService {
         );
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores();
+            const explores = await adapter.compileAllExplores(
+                false,
+                this.lightdashConfig.warehouseTimezone,
+            );
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,

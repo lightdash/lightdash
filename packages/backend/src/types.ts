@@ -8,7 +8,10 @@ import {
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
 export interface ProjectAdapter {
-    compileAllExplores(): Promise<(Explore | ExploreError)[]>;
+    compileAllExplores(
+        loadSources: boolean,
+        warehouseTimezone?: string,
+    ): Promise<(Explore | ExploreError)[]>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;
 

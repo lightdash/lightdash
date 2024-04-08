@@ -27,8 +27,6 @@ import Logger from '../logging/logger';
 import { CachedWarehouse, DbtClient, ProjectAdapter } from '../types';
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
-    lightdashConfig: LightdashConfig;
-
     dbtClient: DbtClient;
 
     warehouseClient: WarehouseClient;
@@ -38,13 +36,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtVersion: SupportedDbtVersions;
 
     constructor(
-        lightdashConfig: LightdashConfig,
         dbtClient: DbtClient,
         warehouseClient: WarehouseClient,
         cachedWarehouse: CachedWarehouse,
         dbtVersion: SupportedDbtVersions,
     ) {
-        this.lightdashConfig = lightdashConfig;
         this.dbtClient = dbtClient;
         this.warehouseClient = warehouseClient;
         this.cachedWarehouse = cachedWarehouse;
@@ -73,6 +69,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     public async compileAllExplores(
         loadSources: boolean = false,
+        warehouseTimezone?: string,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
@@ -139,7 +136,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 metrics,
                 this.warehouseClient,
-                this.lightdashConfig.warehouseTimezone,
+                warehouseTimezone,
             );
             return [...lazyExplores, ...failedExplores];
         } catch (e) {
@@ -177,7 +174,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     adapterType,
                     metrics,
                     this.warehouseClient,
-                    this.lightdashConfig.warehouseTimezone,
+                    warehouseTimezone,
                 );
                 return [...explores, ...failedExplores];
             }
