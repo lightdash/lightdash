@@ -19,6 +19,7 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
 type SchedulerAppArguments = {
@@ -33,6 +34,7 @@ type SchedulerAppArguments = {
     };
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
+    utilProviders?: UtilProviderMap;
 };
 
 export default class SchedulerApp {
@@ -74,10 +76,15 @@ export default class SchedulerApp {
                 : args.knexConfig.development,
         );
 
+        const utils = new UtilRepository({
+            utilProviders: args.utilProviders,
+            lightdashConfig: this.lightdashConfig,
+        });
         const models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
             database,
+            utils,
         });
 
         this.clients = new ClientRepository({
