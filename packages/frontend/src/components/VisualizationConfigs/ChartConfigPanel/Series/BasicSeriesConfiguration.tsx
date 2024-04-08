@@ -5,6 +5,7 @@ import {
     type CustomDimension,
     type Field,
     type Series,
+    type SeriesMetadata,
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
@@ -24,19 +25,22 @@ type BasicSeriesConfigurationProps = {
     series: Series;
     item: Field | TableCalculation | CustomDimension;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    metadata?: Record<string, SeriesMetadata>;
 } & Pick<
     ReturnType<typeof useCartesianChartConfig>,
-    'updateSingleSeries' | 'getSingleSeries'
+    'updateSingleSeries' | 'getSingleSeries' | 'updateMetadata'
 >;
 
 const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     isSingle,
     layout,
+    metadata,
     series,
     item,
     getSingleSeries,
     updateSingleSeries,
     dragHandleProps,
+    updateMetadata,
 }) => {
     const { colorPalette, getSeriesColor } = useVisualizationContext();
     const [value, setValue] = useDebouncedState(
@@ -95,6 +99,8 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     seriesLabel={getItemLabelWithoutTableName(item)}
                     updateSingleSeries={updateSingleSeries}
                     getSingleSeries={getSingleSeries}
+                    metadata={metadata}
+                    updateMetadata={updateMetadata}
                 />
             </Config.Section>
         </Config>

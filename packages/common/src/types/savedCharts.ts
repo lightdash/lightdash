@@ -77,6 +77,9 @@ export const PieChartLegendPositionDefault = Object.keys(
     PieChartLegendPositions,
 )[0] as PieChartLegendPosition;
 
+export type SeriesMetadata = {
+    color: string;
+};
 export type PieChart = {
     groupFieldIds?: string[];
     metricId?: string;
@@ -90,6 +93,7 @@ export type PieChart = {
     groupSortOverrides?: string[];
     showLegend?: boolean;
     legendPosition?: PieChartLegendPosition;
+    metadata?: Record<string, SeriesMetadata>;
 };
 
 export type ColumnProperties = {
@@ -253,6 +257,7 @@ export type CustomVis = {
 export type CartesianChart = {
     layout: CartesianChartLayout;
     eChartsConfig: EChartsConfig;
+    metadata?: Record<string, SeriesMetadata>;
 };
 
 export type BigNumberConfig = {

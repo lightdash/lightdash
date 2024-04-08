@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
@@ -57,8 +58,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationContext();
+    const { colorPalette, getSeriesColor, setMetadata, metadata } =
+        useVisualizationContext();
     const { hovered, ref } = useHover();
+
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
@@ -92,6 +95,15 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 updateSingleSeries({
                                     ...series,
                                     color,
+                                });
+                                const serieId =
+                                    calculateSeriesLikeIdentifier(series).join(
+                                        '.',
+                                    );
+
+                                setMetadata({
+                                    ...metadata,
+                                    [serieId]: { color },
                                 });
                             }}
                         />

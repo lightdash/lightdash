@@ -12,6 +12,7 @@ import {
     type ItemsMap,
     type MarkLineData,
     type Series,
+    type SeriesMetadata,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 
@@ -126,6 +127,10 @@ const useCartesianChartConfig = ({
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
+    const [dirtyMetadata, setDirtyMetadata] = useState<
+        CartesianChart['metadata'] | undefined
+    >(initialChartConfig?.metadata);
+
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
     >(initialChartConfig?.eChartsConfig);
@@ -805,9 +810,10 @@ const useCartesianChartConfig = ({
             ? {
                   layout: dirtyLayout,
                   eChartsConfig: dirtyEchartsConfig,
+                  metadata: dirtyMetadata,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [dirtyLayout, dirtyEchartsConfig]);
+    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
@@ -822,11 +828,19 @@ const useCartesianChartConfig = ({
         };
     }, [dirtyEchartsConfig]);
 
+    const updateMetadata = useCallback(
+        (metadata: Record<string, SeriesMetadata>) => {
+            setDirtyMetadata(metadata);
+        },
+        [],
+    );
+
     return {
         validConfig,
         dirtyChartType,
         dirtyLayout,
         dirtyEchartsConfig,
+        dirtyMetadata,
         setXField,
         setType,
         setXAxisName,
@@ -853,6 +867,7 @@ const useCartesianChartConfig = ({
         updateSeries,
         referenceLines,
         setReferenceLines,
+        updateMetadata,
     };
 };
 

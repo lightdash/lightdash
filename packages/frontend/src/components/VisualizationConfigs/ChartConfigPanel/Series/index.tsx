@@ -95,10 +95,12 @@ export const Series: FC<Props> = ({ items }) => {
     const {
         dirtyEchartsConfig,
         dirtyLayout,
+        dirtyMetadata,
         updateSeries,
         getSingleSeries,
         updateSingleSeries,
         updateAllGroupedSeries,
+        updateMetadata,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -181,6 +183,10 @@ export const Series: FC<Props> = ({ items }) => {
                                                             dirtyEchartsConfig?.series ||
                                                             []
                                                         }
+                                                        metadata={dirtyMetadata}
+                                                        updateMetadata={
+                                                            updateMetadata
+                                                        }
                                                     />
                                                 ) : (
                                                     <BasicSeriesConfiguration
@@ -199,6 +205,10 @@ export const Series: FC<Props> = ({ items }) => {
                                                         }
                                                         dragHandleProps={
                                                             dragHandleProps
+                                                        }
+                                                        metadata={dirtyMetadata}
+                                                        updateMetadata={
+                                                            updateMetadata
                                                         }
                                                     />
                                                 )}
