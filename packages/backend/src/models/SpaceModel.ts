@@ -829,7 +829,7 @@ export class SpaceModel {
                 `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
-            .leftJoin(SpaceTableName, function spaceJoin() {
+            .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
                     `saved_queries.space_id`,
                     '=',
