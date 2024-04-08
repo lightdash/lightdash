@@ -20,7 +20,7 @@ import {
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectTable } from '../../database/entities/projects';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 export const lightdashConfigMock: LightdashConfig = {
     mode: LightdashMode.DEFAULT,
@@ -170,10 +170,10 @@ const bigqueryCredentials: CreateBigqueryCredentials = {
     maximumBytesBilled: 1,
 };
 
-export const encryptionServiceMock = {
+export const encryptionUtilMock = {
     encrypt: jest.fn(() => Buffer.from('encrypted')),
     decrypt: jest.fn((encrypted: Buffer) => encrypted.toString()),
-} as any as EncryptionService;
+} as any as EncryptionUtil;
 
 export const projectUuid = 'project uuid';
 

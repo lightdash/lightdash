@@ -6,11 +6,11 @@ import {
 } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 
-type EncryptionServiceArguments = {
+type EncryptionUtilArguments = {
     lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;
 };
 
-export class EncryptionService {
+export class EncryptionUtil {
     lightdashConfig: Pick<LightdashConfig, 'lightdashSecret'>;
 
     algorithm: 'aes-256-gcm' = 'aes-256-gcm';
@@ -37,7 +37,7 @@ export class EncryptionService {
 
     messageOffset: number;
 
-    constructor({ lightdashConfig }: EncryptionServiceArguments) {
+    constructor({ lightdashConfig }: EncryptionUtilArguments) {
         this.lightdashConfig = lightdashConfig;
         this.saltOffset = 0;
         this.tagOffset = this.saltLength;

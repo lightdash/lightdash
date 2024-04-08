@@ -9,7 +9,7 @@ import {
 } from '../../database/entities/projects';
 import { ProjectModel } from './ProjectModel';
 import {
-    encryptionServiceMock,
+    encryptionUtilMock,
     expectedProject,
     expectedTablesConfiguration,
     exploresWithSameName,
@@ -39,7 +39,7 @@ describe('ProjectModel', () => {
     const model = new ProjectModel({
         database: knex({ client: MockClient, dialect: 'pg' }),
         lightdashConfig: lightdashConfigMock,
-        encryptionService: encryptionServiceMock,
+        encryptionUtil: encryptionUtilMock,
     });
     let tracker: Tracker;
     beforeAll(() => {
