@@ -118,7 +118,7 @@ const VisualizationSidebar: FC<{
                     })}
                     onClose={onClose}
                 >
-                    <Group p="sm" pt={0}>
+                    <Group p="sm" pt={0} pl="md">
                         <VisualizationCardOptions />
                     </Group>
 

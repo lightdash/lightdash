@@ -43,7 +43,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
 }) => {
     const { colors } = useMantineTheme();
     const ICON_SELECTED_COLOR = colors.violet[6];
-    const ICON_UNSELECTED_COLOR = colors.gray[6];
+    const ICON_UNSELECTED_COLOR = colors.gray[7];
 
     return (
         <Tooltip variant="xs" label={label} withinPortal>
@@ -66,7 +66,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
                             '&[data-with-border]': {
                                 borderColor: selected
                                     ? ICON_SELECTED_COLOR
-                                    : ICON_UNSELECTED_COLOR,
+                                    : 'none',
                             },
                         })}
                     >
@@ -87,6 +87,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
                                     ? 'rotate(90)'
                                     : undefined
                             }
+                            size="lg"
                             stroke={1.5}
                             fillOpacity={0.1}
                         />
@@ -231,8 +232,11 @@ const VisualizationCardOptions: FC = memo(() => {
             },
             {
                 label:
-                    isChartTypeTheSameForAllSeries &&
-                    isCartesianVisualizationConfig(visualizationConfig)
+                    (isChartTypeTheSameForAllSeries &&
+                        isCartesianVisualizationConfig(visualizationConfig)) ||
+                    isTableVisualizationConfig(visualizationConfig) ||
+                    isBigNumberVisualizationConfig(visualizationConfig) ||
+                    isPieVisualizationConfig(visualizationConfig)
                         ? 'Mixed chart - Use series tab to configure it'
                         : 'Mixed chart',
                 chartKind: ChartKind.MIXED,
@@ -309,7 +313,7 @@ const VisualizationCardOptions: FC = memo(() => {
     );
 
     return (
-        <Group spacing="sm">
+        <Group spacing="md">
             {visualizations.map((viz) => (
                 <VisualizationActionIcon
                     key={viz.chartKind}
