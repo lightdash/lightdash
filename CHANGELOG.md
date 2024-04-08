@@ -1,3 +1,10 @@
+# [0.1063.0](https://github.com/lightdash/lightdash/compare/0.1062.0...0.1063.0) (2024-04-08)
+
+
+### Features
+
+* enable grouping on field select in table config ([#9677](https://github.com/lightdash/lightdash/issues/9677)) ([86be87b](https://github.com/lightdash/lightdash/commit/86be87b2c63f0a06e2e5542f789a7c90b0073055))
+
 # [0.1062.0](https://github.com/lightdash/lightdash/compare/0.1061.1...0.1062.0) (2024-04-08)
 
 
