@@ -208,7 +208,19 @@ const AccordionControl: FC<AccordionControlProps> = ({
     const { ref, hovered } = useHover<HTMLDivElement>();
     const { colorPalette } = useVisualizationContext();
     return (
-        <Group noWrap ref={ref} spacing="one" px="xs" pos="relative">
+        <Group
+            noWrap
+            ref={ref}
+            spacing="one"
+            px="xs"
+            pos="relative"
+            sx={(theme) => ({
+                borderRadius: theme.radius.sm,
+                '&:hover': {
+                    backgroundColor: theme.colors.gray[0],
+                },
+            })}
+        >
             <Box onClick={(e) => e.stopPropagation()}>
                 <ColorSelector
                     color={lineColor}
