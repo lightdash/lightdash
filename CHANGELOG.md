@@ -1,3 +1,10 @@
+# [0.1061.0](https://github.com/lightdash/lightdash/compare/0.1060.0...0.1061.0) (2024-04-08)
+
+
+### Features
+
+* table chart config - conditional formatting (3/3) ([#9630](https://github.com/lightdash/lightdash/issues/9630)) ([e217263](https://github.com/lightdash/lightdash/commit/e217263bb73f9eaada71d1bf0771939f1491ed57))
+
 # [0.1060.0](https://github.com/lightdash/lightdash/compare/0.1059.0...0.1060.0) (2024-04-08)
 
 
