@@ -36,6 +36,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { BaseService } from '../BaseService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
@@ -49,7 +50,7 @@ type ValidationServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
-export class ValidationService {
+export class ValidationService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -76,6 +77,7 @@ export class ValidationService {
         spaceModel,
         schedulerClient,
     }: ValidationServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;

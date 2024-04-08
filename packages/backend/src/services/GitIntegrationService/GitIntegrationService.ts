@@ -30,6 +30,7 @@ import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { BaseService } from '../BaseService';
 
 type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -64,7 +65,7 @@ export type YamlSchema = {
     models?: DbtModelNode[];
 };
 
-export class GitIntegrationService {
+export class GitIntegrationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly savedChartModel: SavedChartModel;
@@ -76,6 +77,7 @@ export class GitIntegrationService {
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
     constructor(args: GitIntegrationServiceArguments) {
+        super();
         this.lightdashConfig = args.lightdashConfig;
         this.savedChartModel = args.savedChartModel;
         this.projectModel = args.projectModel;

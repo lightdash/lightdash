@@ -12,6 +12,7 @@ import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { VERSION } from '../../version';
+import { BaseService } from '../BaseService';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -19,7 +20,7 @@ type HealthServiceArguments = {
     migrationModel: MigrationModel;
 };
 
-export class HealthService {
+export class HealthService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly organizationModel: OrganizationModel;
@@ -31,6 +32,7 @@ export class HealthService {
         migrationModel,
         lightdashConfig,
     }: HealthServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;

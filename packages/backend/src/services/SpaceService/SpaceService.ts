@@ -13,6 +13,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { BaseService } from '../BaseService';
 
 type SpaceServiceArguments = {
     analytics: LightdashAnalytics;
@@ -60,7 +61,7 @@ export const hasViewAccessToSpace = (
             access,
         }),
     );
-export class SpaceService {
+export class SpaceService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -70,6 +71,7 @@ export class SpaceService {
     private readonly pinnedListModel: PinnedListModel;
 
     constructor(args: SpaceServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;

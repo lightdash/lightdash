@@ -29,6 +29,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
+import { BaseService } from '../BaseService';
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
 const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
@@ -96,7 +97,7 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
 };
 
-export class UnfurlService {
+export class UnfurlService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     dashboardModel: DashboardModel;
@@ -123,6 +124,7 @@ export class UnfurlService {
         projectModel,
         downloadFileModel,
     }: UnfurlServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;

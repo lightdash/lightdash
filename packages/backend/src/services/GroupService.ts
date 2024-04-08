@@ -13,6 +13,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { BaseService } from './BaseService';
 
 type GroupServiceArguments = {
     analytics: LightdashAnalytics;
@@ -20,7 +21,7 @@ type GroupServiceArguments = {
     projectModel: ProjectModel;
 };
 
-export class GroupsService {
+export class GroupsService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly groupsModel: GroupsModel;
@@ -28,6 +29,7 @@ export class GroupsService {
     private readonly projectModel: ProjectModel;
 
     constructor(args: GroupServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;

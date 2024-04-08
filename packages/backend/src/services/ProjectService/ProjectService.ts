@@ -137,6 +137,7 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
+import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -173,7 +174,7 @@ type ProjectServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
-export class ProjectService {
+export class ProjectService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -223,6 +224,7 @@ export class ProjectService {
         userWarehouseCredentialsModel,
         schedulerClient,
     }: ProjectServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;

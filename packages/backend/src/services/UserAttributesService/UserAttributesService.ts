@@ -11,18 +11,20 @@ import {
     UserAttributeCreateAndUpdateEvent,
 } from '../../analytics/LightdashAnalytics';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { BaseService } from '../BaseService';
 
 type UserAttributesServiceArguments = {
     analytics: LightdashAnalytics;
     userAttributesModel: UserAttributesModel;
 };
 
-export class UserAttributesService {
+export class UserAttributesService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly userAttributesModel: UserAttributesModel;
 
     constructor(args: UserAttributesServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.userAttributesModel = args.userAttributesModel;
     }

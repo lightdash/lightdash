@@ -9,6 +9,7 @@ import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ShareModel } from '../../models/ShareModel';
+import { BaseService } from '../BaseService';
 
 type ShareServiceArguments = {
     analytics: LightdashAnalytics;
@@ -16,7 +17,7 @@ type ShareServiceArguments = {
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 };
 
-export class ShareService {
+export class ShareService extends BaseService {
     private readonly lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 
     private readonly analytics: LightdashAnalytics;
@@ -24,6 +25,7 @@ export class ShareService {
     private readonly shareModel: ShareModel;
 
     constructor(args: ShareServiceArguments) {
+        super();
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.shareModel = args.shareModel;

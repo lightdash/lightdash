@@ -58,6 +58,7 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
 import { wrapOtelSpan } from '../utils';
+import { BaseService } from './BaseService';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -77,7 +78,7 @@ type UserServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };
 
-export class UserService {
+export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -129,6 +130,7 @@ export class UserService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
     }: UserServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;

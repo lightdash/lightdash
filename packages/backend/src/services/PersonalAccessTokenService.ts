@@ -6,18 +6,20 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
+import { BaseService } from './BaseService';
 
 type PersonalAccessTokenServiceArguments = {
     analytics: LightdashAnalytics;
     personalAccessTokenModel: PersonalAccessTokenModel;
 };
 
-export class PersonalAccessTokenService {
+export class PersonalAccessTokenService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
     constructor(args: PersonalAccessTokenServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.personalAccessTokenModel = args.personalAccessTokenModel;
     }
