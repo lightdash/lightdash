@@ -1,3 +1,10 @@
+## [0.1061.1](https://github.com/lightdash/lightdash/compare/0.1061.0...0.1061.1) (2024-04-08)
+
+
+### Bug Fixes
+
+* destroy session after canceling registration ([#9661](https://github.com/lightdash/lightdash/issues/9661)) ([75b7bb2](https://github.com/lightdash/lightdash/commit/75b7bb23397d2f9a982168ef3a47b4d6d9774bd2))
+
 # [0.1061.0](https://github.com/lightdash/lightdash/compare/0.1060.0...0.1061.0) (2024-04-08)
 
 
