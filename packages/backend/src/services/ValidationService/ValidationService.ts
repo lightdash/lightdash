@@ -15,9 +15,7 @@ import {
     getItemId,
     InlineErrorType,
     isDashboardChartTileType,
-    isDimension,
     isExploreError,
-    isMetric,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
@@ -29,7 +27,6 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
