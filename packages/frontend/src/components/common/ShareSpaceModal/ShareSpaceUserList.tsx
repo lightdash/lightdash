@@ -29,6 +29,7 @@ import { forwardRef, useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useAddSpaceShareMutation,
+    // useDeleteSpaceGroupAccessMutation,
     useDeleteSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
@@ -276,6 +277,11 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         projectUuid,
         space.uuid,
     );
+
+    // const { mutate: unshareGroupSpaceAccessMutation } = useDeleteSpaceGroupAccessMutation(
+    //     projectUuid,
+    //     space.uuid,
+    // );
 
     const handleAccessChange = useCallback(
         (userAccessOption: UserAccessAction, sharedUser: SpaceShare) => {

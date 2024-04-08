@@ -9,10 +9,16 @@ import {
     Text,
     type SelectItem,
 } from '@mantine/core';
+import { IconUsers } from '@tabler/icons-react';
 import { forwardRef, useMemo, useState, type FC } from 'react';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { useAddSpaceShareMutation } from '../../../hooks/useSpaces';
+import {
+    useAddGroupSpaceShareMutation,
+    useAddSpaceShareMutation,
+} from '../../../hooks/useSpaces';
+import MantineIcon from '../MantineIcon';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -29,10 +35,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const { data: projectAccess } = useProjectAccess(projectUuid);
     const { data: organizationUsers } = useOrganizationUsers();
+    const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
+    const { mutateAsync: shareGroupSpaceMutation } =
+        useAddGroupSpaceShareMutation(projectUuid, space.uuid);
 
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
@@ -49,6 +58,21 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
     const UserItemComponent = useMemo(() => {
         return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
+            if (props.group === 'Groups') {
+                return (
+                    <Group ref={ref} {...props} position={'apart'}>
+                        <Group>
+                            <Avatar size="md" radius="xl" color="blue">
+                                <MantineIcon icon={IconUsers} />
+                            </Avatar>
+                            <Stack spacing="two">
+                                <Text fw={500}>{props.label}</Text>
+                            </Stack>
+                        </Group>
+                    </Group>
+                );
+            }
+
             const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
@@ -100,32 +124,43 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     }, [organizationUsers, space.access]);
 
     const data = useMemo(() => {
-        return userUuids
-            .map((userUuid): SelectItem | null => {
-                const user = organizationUsers?.find(
-                    (a) => a.userUuid === userUuid,
-                );
+        const usersSet = userUuids.map((userUuid): SelectItem | null => {
+            const user = organizationUsers?.find(
+                (a) => a.userUuid === userUuid,
+            );
 
-                if (!user) return null;
+            if (!user) return null;
 
-                const hasDirectAccess = !!(space.access || []).find(
-                    (access) => access.userUuid === userUuid,
-                )?.hasDirectAccess;
+            const hasDirectAccess = !!(space.access || []).find(
+                (access) => access.userUuid === userUuid,
+            )?.hasDirectAccess;
 
-                if (hasDirectAccess) return null;
+            if (hasDirectAccess) return null;
 
-                return {
-                    value: userUuid,
-                    label: getUserNameOrEmail(
-                        user.userUuid,
-                        user.firstName,
-                        user.lastName,
-                        user.email,
-                    ),
-                };
-            })
-            .filter((item): item is SelectItem => item !== null);
-    }, [organizationUsers, userUuids, space.access]);
+            return {
+                value: userUuid,
+                label: getUserNameOrEmail(
+                    user.userUuid,
+                    user.firstName,
+                    user.lastName,
+                    user.email,
+                ),
+                group: 'Users',
+            };
+        });
+
+        const groupsSet = groups?.map((group): SelectItem | null => {
+            return {
+                value: group.uuid,
+                label: group.name,
+                group: 'Groups',
+            };
+        });
+
+        return [...usersSet, ...(groupsSet ?? [])].filter(
+            (item): item is SelectItem => item !== null,
+        );
+    }, [organizationUsers, userUuids, space.access, groups]);
 
     return (
         <Group>
@@ -149,9 +184,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             <Button
                 disabled={usersSelected.length === 0}
                 onClick={async () => {
-                    for (const userUuid of usersSelected) {
-                        if (userUuid)
-                            await shareSpaceMutation([userUuid, 'viewer']);
+                    for (const uuid of usersSelected) {
+                        const selectedValue = data.find(
+                            (item) => item.value === uuid,
+                        );
+                        if (selectedValue?.group === 'Users') {
+                            await shareSpaceMutation([uuid, 'viewer']);
+                        } else {
+                            await shareGroupSpaceMutation([uuid, 'viewer']);
+                        }
                     }
                     setUsersSelected([]);
                 }}

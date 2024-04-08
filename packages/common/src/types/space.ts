@@ -76,3 +76,8 @@ export type AddSpaceUserAccess = {
     userUuid: string;
     spaceRole: SpaceMemberRole;
 };
+
+export type AddSpaceGroupAccess = {
+    groupUuid: string;
+    spaceRole: SpaceMemberRole;
+};

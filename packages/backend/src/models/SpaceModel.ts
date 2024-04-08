@@ -52,6 +52,7 @@ import {
 } from '../database/entities/savedCharts';
 import {
     DbSpace,
+    SpaceGroupAccessTableName,
     SpaceTableName,
     SpaceUserAccessTableName,
 } from '../database/entities/spaces';
@@ -1123,6 +1124,31 @@ export class SpaceModel {
         await this.database(SpaceUserAccessTableName)
             .where('space_uuid', spaceUuid)
             .andWhere('user_uuid', userUuid)
+            .delete();
+    }
+
+    async addSpaceGroupAccess(
+        spaceUuid: string,
+        groupUuid: string,
+        spaceRole: SpaceMemberRole,
+    ): Promise<void> {
+        await this.database(SpaceGroupAccessTableName)
+            .insert({
+                space_uuid: spaceUuid,
+                group_uuid: groupUuid,
+                space_role: spaceRole,
+            })
+            .onConflict(['group_uuid', 'space_uuid'])
+            .merge();
+    }
+
+    async removeSpaceGroupAccess(
+        spaceUuid: string,
+        groupUuid: string,
+    ): Promise<void> {
+        await this.database(SpaceGroupAccessTableName)
+            .where('space_uuid', spaceUuid)
+            .andWhere('group_uuid', groupUuid)
             .delete();
     }
 }
