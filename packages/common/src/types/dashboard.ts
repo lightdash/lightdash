@@ -129,6 +129,7 @@ export type DashboardSummary = {
     dashboardVersionId: number;
     context?: string | null;
     tone: DashboardSummaryTone;
+    audience: string[];
     summary: string;
     createdAt: Date;
 };
