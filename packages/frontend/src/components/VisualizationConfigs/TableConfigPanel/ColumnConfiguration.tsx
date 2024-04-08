@@ -1,17 +1,63 @@
 import { isDimension } from '@lightdash/common';
 import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
+import { useDebouncedState } from '@mantine/hooks';
 import {
     IconEye,
     IconEyeOff,
     IconLock,
     IconLockOpen,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
+import {
+    isTableVisualizationConfig,
+    type VisualizationConfigTable,
+} from '../../LightdashVisualization/VisualizationConfigTable';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 
-const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
+type ColumnConfigurationInputProps = Pick<
+    ColumnConfigurationProps,
+    'fieldId'
+> & {
+    chartConfig: VisualizationConfigTable['chartConfig'];
+    disableHidingDimensions: boolean;
+};
+
+const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
+    fieldId,
+    disableHidingDimensions,
+    chartConfig: {
+        updateColumnProperty,
+        isColumnVisible,
+        getFieldLabelOverride,
+        getFieldLabelDefault,
+    },
+}) => {
+    const [value, setValue] = useDebouncedState(
+        getFieldLabelOverride(fieldId) ?? getFieldLabelDefault(fieldId),
+        500,
+    );
+
+    return (
+        <TextInput
+            disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
+            placeholder={getFieldLabelDefault(fieldId)}
+            defaultValue={value}
+            onChange={(e) => {
+                setValue(e.currentTarget.value);
+                updateColumnProperty(fieldId, {
+                    name: e.currentTarget.value,
+                });
+            }}
+        />
+    );
+};
+
+type ColumnConfigurationProps = {
+    fieldId: string;
+};
+
+const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
@@ -19,33 +65,27 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
-    const {
-        updateColumnProperty,
-        getFieldLabelOverride,
-        getFieldLabelDefault,
-        isColumnVisible,
-        isColumnFrozen,
-        getField,
-    } = visualizationConfig.chartConfig;
+    const { updateColumnProperty, isColumnVisible, isColumnFrozen, getField } =
+        visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
-    const disableHidingDimensions = pivotDimensions && isDimension(field);
+    const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
 
     return (
-        <Group spacing="xs" noWrap style={{ width: '100%' }}>
-            <TextInput
-                sx={{ flexGrow: 1 }}
-                key={fieldId}
-                disabled={!isColumnVisible(fieldId) && !disableHidingDimensions}
-                defaultValue={getFieldLabelOverride(fieldId)}
-                placeholder={getFieldLabelDefault(fieldId)}
-                onBlur={(e) => {
-                    updateColumnProperty(fieldId, {
-                        name: e.currentTarget.value,
-                    });
+        <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
+            <Box
+                style={{
+                    flexGrow: 1,
                 }}
-            />
+            >
+                <ColumnConfigurationInput
+                    fieldId={fieldId}
+                    chartConfig={visualizationConfig.chartConfig}
+                    disableHidingDimensions={disableHidingDimensions}
+                />
+            </Box>
+
             <Tooltip
                 position="top"
                 opened={isShowTooltipVisible}
@@ -86,11 +126,11 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
                             }
                         }}
                     >
-                        {isColumnVisible(fieldId) ? (
-                            <MantineIcon icon={IconEyeOff} />
-                        ) : (
-                            <MantineIcon icon={IconEye} />
-                        )}
+                        <MantineIcon
+                            icon={
+                                isColumnVisible(fieldId) ? IconEyeOff : IconEye
+                            }
+                        />
                     </ActionIcon>
                 </Box>
             </Tooltip>
@@ -120,11 +160,13 @@ const ColumnConfiguration: React.FC<{ fieldId: string }> = ({ fieldId }) => {
                                 });
                             }}
                         >
-                            {isColumnFrozen(fieldId) ? (
-                                <MantineIcon icon={IconLock} />
-                            ) : (
-                                <MantineIcon icon={IconLockOpen} />
-                            )}
+                            <MantineIcon
+                                icon={
+                                    isColumnFrozen(fieldId)
+                                        ? IconLock
+                                        : IconLockOpen
+                                }
+                            />
                         </ActionIcon>
                     </Box>
                 </Tooltip>
