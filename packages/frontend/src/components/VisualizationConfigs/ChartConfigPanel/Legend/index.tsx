@@ -1,10 +1,4 @@
-import {
-    type CompiledDimension,
-    type CustomDimension,
-    type EchartsLegend,
-    type Field,
-    type TableCalculation,
-} from '@lightdash/common';
+import { type EchartsLegend } from '@lightdash/common';
 import {
     Collapse,
     Group,
@@ -13,13 +7,11 @@ import {
     Switch,
 } from '@mantine/core';
 import { type FC } from 'react';
-import { useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
-import { ReferenceLines } from './ReferenceLines';
 
 enum Positions {
     Left = 'left',
@@ -88,13 +80,7 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
     );
 };
 
-type Props = {
-    items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
-};
-
-export const Legend: FC<Props> = ({ items }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-
+export const Legend: FC = () => {
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
@@ -170,7 +156,6 @@ export const Legend: FC<Props> = ({ items }) => {
                     </Collapse>
                 </Config.Section>
             </Config>
-            <ReferenceLines items={items} projectUuid={projectUuid} />
         </Stack>
     );
 };

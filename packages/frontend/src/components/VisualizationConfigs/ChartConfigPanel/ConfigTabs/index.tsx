@@ -9,6 +9,7 @@ import { Axes } from '../Axes';
 import { Grid } from '../Grid';
 import { Layout } from '../Layout';
 import { Legend } from '../Legend';
+import { ReferenceLines } from '../ReferenceLines/ReferenceLines';
 import { Series } from '../Series';
 
 export const ConfigTabs: FC = memo(() => {
@@ -44,7 +45,13 @@ export const ConfigTabs: FC = memo(() => {
                 <Accordion.Item value="legend">
                     <Accordion.Control>Legend</Accordion.Control>
                     <Accordion.Panel>
-                        <Legend items={items} />
+                        <Legend />
+                    </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="reference-lines">
+                    <Accordion.Control>Reference Lines</Accordion.Control>
+                    <Accordion.Panel>
+                        <ReferenceLines items={items} />
                     </Accordion.Panel>
                 </Accordion.Item>
                 <Accordion.Item value="grid">

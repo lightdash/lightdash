@@ -2,14 +2,12 @@ import {
     fieldId as getFieldId,
     isField,
     isNumericItem,
-    type CompiledDimension,
-    type CustomDimension,
-    type Field,
+    type ItemsMap,
     type Series,
-    type TableCalculation,
 } from '@lightdash/common';
-import { Accordion } from '@mantine/core';
+import { Accordion, Group } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
+import { useParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
@@ -21,11 +19,12 @@ import { useControlledAccordion } from '../../common/hooks/useControlledAccordio
 import { ReferenceLine, type ReferenceLineProps } from './ReferenceLine';
 
 type Props = {
-    items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
-    projectUuid: string;
+    items: ItemsMap[string][];
 };
 
-export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
+export const ReferenceLines: FC<Props> = ({ items }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
@@ -190,10 +189,9 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     return (
         <Config>
             <Config.Section>
-                <Config.Group>
-                    <Config.Heading>Reference lines</Config.Heading>
+                <Group position="right">
                     <AddButton onClick={addReferenceLine} />
-                </Config.Group>
+                </Group>
 
                 {referenceLines && (
                     <Accordion
