@@ -7,8 +7,9 @@ import WeekDaySelect from './WeekDaySelect';
 const WeeklyInputs: FC<{
     disabled?: boolean;
     cronExpression: string;
+    timeZone: string;
     onChange: (value: string) => void;
-}> = ({ disabled, cronExpression, onChange }) => {
+}> = ({ disabled, cronExpression, onChange, timeZone: Timezone }) => {
     const { minutes, hours, weekDay } = parseCronExpression(cronExpression);
 
     const onDayChange = (newWeekday: number) => {
@@ -31,7 +32,7 @@ const WeeklyInputs: FC<{
                     cronExpression={cronExpression}
                     onChange={onTimeChange}
                 />
-                <Input.Label>UTC</Input.Label>
+                {Timezone}
             </Group>
         </>
     );

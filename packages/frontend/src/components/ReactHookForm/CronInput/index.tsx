@@ -31,7 +31,7 @@ export const CronInternalInputs: FC<
         };
         onBlur?: () => void;
     } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
-> = ({ value, disabled, onChange, name, error, errors }) => {
+> = ({ value, disabled, onChange, name, error, errors, timeZone }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
     );
@@ -61,13 +61,13 @@ export const CronInternalInputs: FC<
                 <HourlyInputs cronExpression={value} onChange={onChange} />
             )}
             {frequency === Frequency.DAILY && (
-                <DailyInputs cronExpression={value} onChange={onChange} />
+                <DailyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
             )}
             {frequency === Frequency.WEEKLY && (
-                <WeeklyInputs cronExpression={value} onChange={onChange} />
+                <WeeklyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
             )}
             {frequency === Frequency.MONTHLY && (
-                <MonthlyInputs cronExpression={value} onChange={onChange} />
+                <MonthlyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
             )}
             {frequency === Frequency.CUSTOM && (
                 <CustomInputs

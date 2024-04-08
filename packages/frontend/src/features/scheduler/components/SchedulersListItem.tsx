@@ -39,7 +39,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     </Text>
                     <Group>
                         <Text color="gray" size={12}>
-                            {getHumanReadableCronExpression(scheduler.cron)}
+                            {getHumanReadableCronExpression(scheduler.cron, scheduler.timezone)}
                         </Text>
 
                         {/* TODO: This icon should use Mantine icon,

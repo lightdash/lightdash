@@ -61,6 +61,7 @@ export class SchedulerModel {
             updatedAt: scheduler.updated_at,
             createdBy: scheduler.created_by,
             cron: scheduler.cron,
+            timezone: scheduler.timezone,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
             format: scheduler.format,
@@ -213,6 +214,7 @@ export class SchedulerModel {
                     format: newScheduler.format,
                     created_by: newScheduler.createdBy,
                     cron: newScheduler.cron,
+                    timezone: newScheduler.timezone,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
@@ -281,6 +283,7 @@ export class SchedulerModel {
                     message: scheduler.message,
                     format: scheduler.format,
                     cron: scheduler.cron,
+                    timezone: scheduler.timezone,
                     updated_at: new Date(),
                     options: scheduler.options,
                     filters:

@@ -28,7 +28,7 @@ const SchedulersModal: FC<
         <Modal
             opened={isOpen}
             onClose={onClose}
-            size="lg"
+            size="xl"
             yOffset={65}
             title={
                 isThresholdAlert ? (

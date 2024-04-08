@@ -62,6 +62,7 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import { SchedulerPreview } from './SchedulerPreview';
+import TimezoneSelect from '../../../components/ReactHookForm/CronInput/TimezoneSelect';
 
 export enum Limit {
     TABLE = 'table',
@@ -86,6 +87,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
+    timezone: 'UTC',
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
@@ -158,6 +160,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         message: schedulerData.message,
         format: schedulerData.format,
         cron: schedulerData.cron,
+        timezone: schedulerData.timezone,
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
@@ -298,6 +301,7 @@ const SchedulerForm: FC<Props> = ({
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
+                timezone: values.timezone,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {
@@ -586,6 +590,13 @@ const SchedulerForm: FC<Props> = ({
                                     {...form.getInputProps('cron')}
                                     value={form.values.cron}
                                     name="cron"
+                                    timeZone={
+                                        <TimezoneSelect
+                                            disabled={disabled} 
+                                            name="timezone"
+                                            {...form.getInputProps('timezone')}
+                                        />
+                                    }
                                 />
                             </Box>
                         </Input.Wrapper>

@@ -106,6 +106,7 @@ export type SchedulerBase = {
     createdBy: string;
     format: SchedulerFormat;
     cron: string;
+    timezone: string;
     savedChartUuid: string | null;
     dashboardUuid: string | null;
     options: SchedulerOptions;
