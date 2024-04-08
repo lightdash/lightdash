@@ -3,6 +3,7 @@ import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { BaseService } from './BaseService';
 import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
@@ -100,7 +101,7 @@ export type ServiceProviderMap<T extends ServiceManifest = ServiceManifest> =
  * OperationContext can be subclassed to provide additional functionality for specific
  * types of operations, if necessary.
  */
-export class OperationContext {
+export class OperationContext extends BaseService {
     public readonly operationId: string;
 
     public readonly lightdashAnalytics: LightdashAnalytics;
@@ -116,6 +117,7 @@ export class OperationContext {
         lightdashAnalytics: LightdashAnalytics;
         lightdashConfig: LightdashConfig;
     }) {
+        super();
         this.operationId = operationId;
         this.lightdashAnalytics = lightdashAnalytics;
         this.lightdashConfig = lightdashConfig;

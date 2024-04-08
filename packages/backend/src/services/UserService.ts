@@ -43,7 +43,6 @@ import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
-import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { GroupsModel } from '../models/GroupsModel';
@@ -58,6 +57,7 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
 import { wrapOtelSpan } from '../utils';
+import { BaseService } from './BaseService';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -77,7 +77,7 @@ type UserServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };
 
-export class UserService {
+export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -129,6 +129,7 @@ export class UserService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
     }: UserServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
@@ -254,7 +255,7 @@ export class UserService {
         }
 
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
-            Logger.error(
+            this.logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
             );
             throw new AuthorizationError(
@@ -478,7 +479,7 @@ export class UserService {
                     inviteLink.email.toLowerCase() !==
                         loginUser.email.toLowerCase()
                 ) {
-                    Logger.error(
+                    this.logger.error(
                         `User accepted invite with wrong email ${loginUser.email} when the invited email was ${inviteLink.email}`,
                     );
                     throw new AuthorizationError(

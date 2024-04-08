@@ -31,6 +31,7 @@ import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberP
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
+import { BaseService } from '../BaseService';
 
 type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -46,7 +47,7 @@ type OrganizationServiceArguments = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 };
 
-export class OrganizationService {
+export class OrganizationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -79,6 +80,7 @@ export class OrganizationService {
         groupsModel,
         organizationAllowedEmailDomainsModel,
     }: OrganizationServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.organizationModel = organizationModel;
