@@ -355,6 +355,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                     field: newField,
                                 });
                         }}
+                        hasGrouping
                     />
 
                     <Group noWrap grow align="baseline">
