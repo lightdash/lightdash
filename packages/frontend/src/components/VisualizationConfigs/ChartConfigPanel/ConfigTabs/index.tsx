@@ -20,9 +20,9 @@ export const ConfigTabs: FC = memo(() => {
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Accordion
-                multiple={false}
                 radius="none"
                 styles={getAccordionConfigTabsStyles}
+                defaultValue="layout"
             >
                 <Accordion.Item value="layout">
                     <Accordion.Control>Layout</Accordion.Control>

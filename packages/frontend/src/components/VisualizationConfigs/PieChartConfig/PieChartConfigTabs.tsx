@@ -8,7 +8,11 @@ import { Series } from './PieChartSeriesConfig';
 export const ConfigTabs: FC = memo(() => {
     return (
         <MantineProvider inherit theme={themeOverride}>
-            <Accordion radius="none" styles={getAccordionConfigTabsStyles}>
+            <Accordion
+                radius="none"
+                styles={getAccordionConfigTabsStyles}
+                defaultValue="layout"
+            >
                 <Accordion.Item value="layout">
                     <Accordion.Control>Layout</Accordion.Control>
                     <Accordion.Panel>
