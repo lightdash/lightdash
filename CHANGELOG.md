@@ -1,3 +1,10 @@
+# [0.1060.0](https://github.com/lightdash/lightdash/compare/0.1059.0...0.1060.0) (2024-04-08)
+
+
+### Features
+
+* table chart config - general settings (2/3) ([#9629](https://github.com/lightdash/lightdash/issues/9629)) ([acbe8ad](https://github.com/lightdash/lightdash/commit/acbe8ad1be8799b67afa5e7a4a1f5947074fdbf7))
+
 # [0.1059.0](https://github.com/lightdash/lightdash/compare/0.1058.0...0.1059.0) (2024-04-05)
 
 
