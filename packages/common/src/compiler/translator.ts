@@ -53,7 +53,7 @@ const convertTimezone = (
             // TIMESTAMP_NTZ: no tz. assume default_source_tz. convert from default_source_tz to target_tz
             // TIMESTAMP_LTZ: stored in utc. returns in session tz. convert from session tz to target_tz
             // TIMESTAMP_TZ: stored with tz. returns with tz. convert from value tz to target_tz
-            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${timestampSql}))`;
+            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('${default_source_tz}', ${timestampSql}))`;
         case SupportedDbtAdapter.REDSHIFT:
             // TIMESTAMP WITH TIME ZONE: stored in utc. returns utc. convert from utc to target_tz
             // TIMESTAMP WITHOUT TIME ZONE: no tz. assume utc. convert from utc to target_tz
@@ -84,6 +84,7 @@ const convertDimension = (
     timeInterval?: TimeFrames,
     startOfWeek?: WeekDay | null,
     isAdditionalDimension?: boolean,
+    warehouseTimezone?: string,
 ): Dimension => {
     let type =
         column.meta.dimension?.type || column.data_type || DimensionType.STRING;
@@ -102,7 +103,12 @@ const convertDimension = (
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
     let label = column.meta.dimension?.label || friendlyName(name);
     if (type === DimensionType.TIMESTAMP) {
-        sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
+        sql = convertTimezone(
+            sql,
+            warehouseTimezone || 'UTC',
+            'UTC',
+            targetWarehouse,
+        );
     }
     if (timeInterval) {
         sql = timeFrameConfigs[timeInterval].getSql(
@@ -248,6 +254,7 @@ export const convertTable = (
     model: DbtModelNode,
     dbtMetrics: DbtMetric[],
     startOfWeek?: WeekDay | null,
+    warehouseTimezone?: string,
 ): Omit<Table, 'lineageGraph'> => {
     const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
     const tableLabel = meta.label || friendlyName(model.name);
@@ -265,6 +272,8 @@ export const convertTable = (
                 undefined,
                 undefined,
                 startOfWeek,
+                undefined, // isAdditionalDimension
+                warehouseTimezone,
             );
 
             let extraDimensions = {};
@@ -303,6 +312,8 @@ export const convertTable = (
                                 undefined,
                                 interval,
                                 startOfWeek,
+                                undefined, // isAdditionalDimension
+                                warehouseTimezone,
                             ),
                     }),
                     {},
@@ -329,7 +340,8 @@ export const convertTable = (
                         undefined,
                         undefined,
                         startOfWeek,
-                        true,
+                        true, // isAdditionalDimension
+                        warehouseTimezone,
                     ),
                 }),
                 extraDimensions,
@@ -481,6 +493,7 @@ export const convertExplores = async (
     adapterType: SupportedDbtAdapter,
     metrics: DbtMetric[],
     warehouseClient: WarehouseClient,
+    warehouseTimezone?: string,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -497,6 +510,7 @@ export const convertExplores = async (
                     model,
                     tableMetrics,
                     warehouseClient.getStartOfWeek(),
+                    warehouseTimezone,
                 );
 
                 // add sources

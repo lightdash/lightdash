@@ -9,6 +9,7 @@ import { DbtCompileOptions } from './compile';
 type DbtRunHandlerOptions = DbtCompileOptions & {
     excludeMeta: boolean;
     verbose: boolean;
+    timezone?: string;
 };
 
 export const dbtRunHandler = async (

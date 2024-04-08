@@ -199,6 +199,7 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    warehouseTimezone?: string;
 };
 
 export type SlackConfig = {
@@ -623,6 +624,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
+        warehouseTimezone: process.env.WAREHOUSE_TIMEZONE,
     };
 };
 

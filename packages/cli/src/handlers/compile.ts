@@ -35,6 +35,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     vars: string | undefined;
     verbose: boolean;
     startOfWeek?: number;
+    timezone?: string;
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
@@ -170,6 +171,7 @@ ${errors.join('')}`),
     GlobalState.debug(
         `> Converting explores with adapter: ${manifest.metadata.adapter_type}`,
     );
+    GlobalState.debug(`> Warehouse timezone selected ${options.timezone}`);
     const validExplores = await convertExplores(
         validModelsWithTypes,
         false,
@@ -180,6 +182,7 @@ ${errors.join('')}`),
             ? []
             : Object.values(manifest.metrics),
         warehouseClient,
+        options.timezone,
     );
     console.error('');
 

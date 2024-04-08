@@ -245,6 +245,10 @@ ${styles.bold('Examples:')}
         false,
     )
     .option('--verbose', undefined, false)
+    .option(
+        '--timezone <timezone>',
+        'Warehouse timezone to use for date functions',
+    )
 
     .action(dbtRunHandler);
 
@@ -283,6 +287,10 @@ program
     .option('--state <state>')
     .option('--full-refresh')
     .option('--verbose', undefined, false)
+    .option(
+        '--timezone <timezone>',
+        'Warehouse timezone to use for date functions',
+    )
 
     .action(compileHandler);
 
@@ -346,6 +354,11 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option(
+        '--timezone <timezone>',
+        'Warehouse timezone to use for date functions',
+    )
+
     .action(previewHandler);
 
 program
@@ -408,6 +421,11 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option(
+        '--timezone <timezone>',
+        'Warehouse timezone to use for date functions',
+    )
+
     .action(startPreviewHandler);
 
 program
@@ -482,6 +500,10 @@ program
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
+    )
+    .option(
+        '--timezone <timezone>',
+        'Warehouse timezone to use for date functions',
     )
     .action(deployHandler);
 

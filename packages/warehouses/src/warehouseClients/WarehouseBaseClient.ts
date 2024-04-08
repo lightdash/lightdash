@@ -16,6 +16,8 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
 
     startOfWeek: WeekDay | null | undefined;
 
+    warehouseTimezone: string | undefined;
+
     constructor(credentials: T) {
         this.credentials = credentials;
         this.startOfWeek = credentials.startOfWeek;

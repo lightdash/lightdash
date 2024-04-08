@@ -30,6 +30,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     verbose: boolean;
     ignoreErrors: boolean;
     startOfWeek?: number;
+    timezone?: string;
 };
 
 type DeployArgs = DeployHandlerOptions & {
