@@ -5,22 +5,27 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Center,
+    Group,
+    Paper,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
+import { lighten } from 'polished';
 import { memo, useMemo, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
-import { ChartIcon } from '../../common/ResourceIcon';
+import MantineIcon from '../../common/MantineIcon';
+import { getChartIcon } from '../../common/ResourceIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-
-enum ICON_COLORS {
-    SELECTED = 'violet.6',
-    UNSELECTED = 'gray.7',
-}
 
 type VisualizationActionIconProps = {
     chartKind: ChartKind;
@@ -36,20 +41,62 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
     onClick,
     disabled,
     selected,
-}) => (
-    <Tooltip variant="xs" label={label} withinPortal>
-        <Box>
-            <ActionIcon disabled={disabled} onClick={onClick}>
-                <ChartIcon
-                    color={
-                        selected ? ICON_COLORS.SELECTED : ICON_COLORS.UNSELECTED
-                    }
-                    chartKind={chartKind}
-                />
-            </ActionIcon>
-        </Box>
-    </Tooltip>
-);
+}) => {
+    const { colors } = useMantineTheme();
+    const ICON_SELECTED_COLOR = colors.violet[6];
+    const ICON_UNSELECTED_COLOR = colors.gray[6];
+
+    return (
+        <Tooltip variant="xs" label={label} withinPortal>
+            <Box>
+                <ActionIcon disabled={disabled} onClick={onClick}>
+                    <Paper
+                        display="flex"
+                        component={Center}
+                        w={32}
+                        h={32}
+                        withBorder
+                        radius="sm"
+                        shadow={selected ? 'sm' : 'none'}
+                        sx={(theme) => ({
+                            flexGrow: 0,
+                            flexShrink: 0,
+                            backgroundColor: selected
+                                ? theme.colors.violet[0]
+                                : 'white',
+                            '&[data-with-border]': {
+                                borderColor: selected
+                                    ? ICON_SELECTED_COLOR
+                                    : lighten(0.1, ICON_UNSELECTED_COLOR),
+                            },
+                        })}
+                    >
+                        <MantineIcon
+                            icon={getChartIcon(chartKind)}
+                            color={
+                                selected
+                                    ? ICON_SELECTED_COLOR
+                                    : ICON_UNSELECTED_COLOR
+                            }
+                            fill={
+                                selected
+                                    ? ICON_SELECTED_COLOR
+                                    : ICON_UNSELECTED_COLOR
+                            }
+                            transform={
+                                chartKind === ChartKind.HORIZONTAL_BAR
+                                    ? 'rotate(90)'
+                                    : undefined
+                            }
+                            stroke={1.5}
+                            fillOpacity={0.1}
+                        />
+                    </Paper>
+                </ActionIcon>
+            </Box>
+        </Tooltip>
+    );
+};
 
 const VisualizationCardOptions: FC = memo(() => {
     const { health } = useApp();
