@@ -165,10 +165,21 @@ export class SpaceModel {
         const space = await this.getFirstAccessibleSpace(projectUuid, userUuid);
         const savedQueries = await this.database('saved_queries')
             .leftJoin(
-                SpaceTableName,
-                `saved_queries.space_id`,
-                `${SpaceTableName}.space_id`,
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
             )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SavedChartsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 'users',
                 'saved_queries.last_version_updated_by_user_uuid',
@@ -193,11 +204,6 @@ export class SpaceModel {
                 OrganizationTableName,
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
             )
             .select<
                 {
@@ -815,10 +821,21 @@ export class SpaceModel {
         let spaceQueriesQuery = this.database('saved_queries')
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
-                SpaceTableName,
-                `saved_queries.space_id`,
-                `${SpaceTableName}.space_id`,
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
             )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SavedChartsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 'users',
                 'saved_queries.last_version_updated_by_user_uuid',
@@ -843,11 +860,6 @@ export class SpaceModel {
                 OrganizationTableName,
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
             )
             .select<
                 {
