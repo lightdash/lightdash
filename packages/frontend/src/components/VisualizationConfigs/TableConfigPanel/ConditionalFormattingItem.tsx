@@ -284,6 +284,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             item={field}
                             items={fields}
                             onChange={handleChangeField}
+                            hasGrouping
                         />
 
                         <Group spacing="xs">
