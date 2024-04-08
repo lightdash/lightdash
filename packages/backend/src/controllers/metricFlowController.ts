@@ -80,7 +80,7 @@ export class MetricFlowController extends BaseController {
 
         return {
             status: 'ok',
-            results: await req.services.clients.dbtCloudGraphqlClient.runQuery({
+            results: await req.clients.getDbtCloudGraphqlClient().runQuery({
                 domain,
                 bearerToken,
                 environmentId,
