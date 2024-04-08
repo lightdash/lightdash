@@ -815,20 +815,31 @@ export class SpaceModel {
         let spaceQueriesQuery = this.database('saved_queries')
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
-                SpaceTableName,
-                `saved_queries.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .leftJoin(
                 'users',
                 'saved_queries.last_version_updated_by_user_uuid',
                 'users.user_uuid',
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
             )
             .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
             )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `saved_queries.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                ).orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
@@ -843,11 +854,6 @@ export class SpaceModel {
                 OrganizationTableName,
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
             )
             .select<
                 {
