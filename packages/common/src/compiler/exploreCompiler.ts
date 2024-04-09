@@ -485,7 +485,14 @@ export class ExploreCompiler {
         }
         const { refTable, refName } = getParsedReference(ref, currentTable);
 
-        const referencedDimension = tables[refTable]?.dimensions[refName];
+        /** Resolve the table reference through its original name, or via an alias: */
+        const referencedTable = Object.values(tables).find(
+            (table) =>
+                table.name === refTable || table.originalName === refTable,
+        );
+
+        const referencedDimension = referencedTable?.dimensions[refName];
+
         if (referencedDimension === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a dimension reference: \${${ref}} which matches no dimension`,
