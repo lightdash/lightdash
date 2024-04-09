@@ -171,7 +171,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 // For display only
-                const displayFormat = 'YYYY-MM-DD HH:mm:ss';
 
                 let value =
                     rule.values && rule.values[0]
@@ -185,7 +184,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         // @ts-ignore
                         placeholder={placeholder}
                         withSeconds
-                        valueFormat={displayFormat}
                         // FIXME: mantine v7
                         // mantine does not set the first day of the week based on the locale
                         // so we need to do it manually and always pass it as a prop

@@ -29,6 +29,8 @@ const FilterDateTimePicker: FC<Props> = ({
     showTimezone = true,
     ...rest
 }) => {
+    const displayFormat = 'YYYY-MM-DD HH:mm:ss';
+
     return (
         <Group noWrap spacing="xs" align="start">
             {/* // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
@@ -37,6 +39,7 @@ const FilterDateTimePicker: FC<Props> = ({
                 w="100%"
                 size="xs"
                 miw={185}
+                valueFormat={displayFormat}
                 {...rest}
                 popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
                 firstDayOfWeek={firstDayOfWeek}
