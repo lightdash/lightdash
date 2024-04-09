@@ -874,6 +874,7 @@ export class UserModel {
                 'openid_identities.user_id',
             )
             .where('emails.email', email)
+            .andWhere('openid_identities.email', email) // Ensure the email is the same
             .andWhere('emails.is_primary', true)
             .select('openid_identities.issuer_type')
             .first();
