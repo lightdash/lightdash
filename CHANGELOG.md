@@ -1,3 +1,11 @@
+## [0.1064.2](https://github.com/lightdash/lightdash/compare/0.1064.1...0.1064.2) (2024-04-09)
+
+
+### Bug Fixes
+
+* only use enabled openid issuers ([#9687](https://github.com/lightdash/lightdash/issues/9687)) ([b3c1b06](https://github.com/lightdash/lightdash/commit/b3c1b0677bd7b3f107b182fb42c57d54a0ad97a5))
+* table alias not always correctly resolved during compile ([#9693](https://github.com/lightdash/lightdash/issues/9693)) ([3e9f15a](https://github.com/lightdash/lightdash/commit/3e9f15af8d845f0543929e6a19545ea8255ddace))
+
 ## [0.1064.1](https://github.com/lightdash/lightdash/compare/0.1064.0...0.1064.1) (2024-04-09)
 
 
