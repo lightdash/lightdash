@@ -15,7 +15,6 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Box,
     Checkbox,
     Group,
@@ -23,15 +22,11 @@ import {
     Stack,
     Text,
     TextInput,
-    Tooltip,
-    type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,
     IconLayoutAlignTop,
-    IconTrash,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -46,6 +41,7 @@ import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
+import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
 
 type UpdateReferenceLineProps = {
@@ -189,72 +185,6 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     );
 };
 
-type AccordionControlProps = {
-    label: string;
-    lineColor: string;
-    onControlClick: () => void;
-    onDelete: () => void;
-    onColorChange: (c: string) => void;
-} & MantineAccordionControlProps;
-
-const AccordionControl: FC<AccordionControlProps> = ({
-    label,
-    lineColor,
-    onControlClick,
-    onDelete,
-    onColorChange,
-    ...props
-}) => {
-    const { ref, hovered } = useHover<HTMLDivElement>();
-    const { colorPalette } = useVisualizationContext();
-    return (
-        <Group
-            noWrap
-            ref={ref}
-            spacing="one"
-            px="xs"
-            pos="relative"
-            sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[0],
-                },
-            })}
-        >
-            <Box onClick={(e) => e.stopPropagation()}>
-                <ColorSelector
-                    color={lineColor}
-                    swatches={colorPalette}
-                    onColorChange={(c) => onColorChange(c)}
-                />
-            </Box>
-
-            <Tooltip
-                variant="xs"
-                label="Remove reference line"
-                position="left"
-                withinPortal
-            >
-                <ActionIcon
-                    onClick={onDelete}
-                    pos="absolute"
-                    right={40}
-                    sx={{
-                        visibility: hovered ? 'visible' : 'hidden',
-                    }}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-            <Accordion.Control onClick={onControlClick} {...props}>
-                <Text fw={500} size="xs">
-                    {label}
-                </Text>
-            </Accordion.Control>
-        </Group>
-    );
-};
-
 export const ReferenceLine: FC<ReferenceLineProps> = ({
     index,
     items,
@@ -266,7 +196,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, colorPalette } = useVisualizationContext();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -384,11 +314,16 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                lineColor={lineColor}
                 label={controlLabel}
                 onControlClick={onControlClick}
-                onDelete={() => removeReferenceLine(lineId)}
-                onColorChange={(c: string) => onColorChange(c)}
+                onRemove={() => removeReferenceLine(lineId)}
+                extraControlElements={
+                    <ColorSelector
+                        color={lineColor}
+                        swatches={colorPalette}
+                        onColorChange={(c) => onColorChange(c)}
+                    />
+                }
             />
 
             <Accordion.Panel>

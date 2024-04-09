@@ -17,19 +17,14 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Box,
     Button,
     Divider,
     Group,
     SegmentedControl,
     Stack,
-    Text,
-    Tooltip,
-    type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconPercentage, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPercentage, IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
@@ -37,6 +32,7 @@ import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInp
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
+import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -55,59 +51,6 @@ type Props = {
 const ConditionalFormattingRuleLabels = {
     [ConditionalFormattingConfigType.Single]: 'Single',
     [ConditionalFormattingConfigType.Range]: 'Range',
-};
-
-type AccordionControlProps = {
-    label: string;
-    onControlClick: () => void;
-    onRemove: () => void;
-} & MantineAccordionControlProps;
-
-const AccordionControl: FC<AccordionControlProps> = ({
-    label,
-    onControlClick,
-    onRemove,
-    ...props
-}) => {
-    const { ref, hovered } = useHover<HTMLDivElement>();
-    return (
-        <Group
-            noWrap
-            ref={ref}
-            spacing="one"
-            px="xs"
-            pos="relative"
-            sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[0],
-                },
-            })}
-        >
-            <Tooltip
-                variant="xs"
-                label="Remove reference line"
-                position="left"
-                withinPortal
-            >
-                <ActionIcon
-                    onClick={onRemove}
-                    pos="absolute"
-                    right={40}
-                    sx={{
-                        visibility: hovered ? 'visible' : 'hidden',
-                    }}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-            <Accordion.Control onClick={onControlClick} {...props}>
-                <Text fw={500} size="xs">
-                    {label}
-                </Text>
-            </Accordion.Control>
-        </Group>
-    );
 };
 
 export const ConditionalFormattingItem: FC<Props> = ({
@@ -305,8 +248,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
-                onControlClick={onControlClick}
                 label={controlLabel}
+                onControlClick={onControlClick}
                 onRemove={handleRemove}
             />
 
