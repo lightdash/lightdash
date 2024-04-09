@@ -38,6 +38,8 @@ const tileWithoutId: CreateDashboardChartTile = {
 };
 const tileWithId: DashboardChartTile = {
     uuid: '2a93d63d-ca81-421c-b88b-1124a2f02407',
+    // TODO: remove
+    tabUuid: 'tabUuid2',
     ...tileWithoutId,
 };
 
@@ -271,6 +273,8 @@ export const expectedDashboard: DashboardDAO = {
             y: dashboardTileEntry.y_offset,
             h: dashboardTileEntry.height,
             w: dashboardTileEntry.width,
+            // TODO: remove
+            tabUuid: 'tabUuid',
         } as DashboardMarkdownTile,
     ],
     filters: {

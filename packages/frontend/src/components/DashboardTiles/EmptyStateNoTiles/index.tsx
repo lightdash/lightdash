@@ -20,11 +20,13 @@ import AddTileButton from '../AddTileButton';
 
 interface SavedChartsAvailableProps {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    emptyContainerType?: 'dashboard' | 'tab';
     isEditMode: boolean;
 }
 
 const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
+    emptyContainerType = 'dashboard',
     isEditMode,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -46,9 +48,13 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={
-                            userCanCreateDashboard
-                                ? 'Start building your dashboard!'
-                                : 'Dashboard is empty.'
+                            userCanManageDashboard
+                                ? emptyContainerType === 'dashboard'
+                                    ? 'Start building your dashboard!'
+                                    : 'Add tiles to this tab'
+                                : emptyContainerType === 'dashboard'
+                                ? 'Dashboard is empty.'
+                                : 'Tab is empty'
                         }
                         action={
                             userCanCreateDashboard && isEditMode ? (

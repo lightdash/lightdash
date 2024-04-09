@@ -90,6 +90,8 @@ export const dashboard: Dashboard = {
             y: 3,
             h: 2,
             w: 1,
+            // TODO: remove
+            tabUuid: 'tabUuid',
         },
     ],
     filters: {

@@ -20,6 +20,7 @@ type CreateDashboardTileBase = {
     y: number;
     h: number;
     w: number;
+    tabUuid?: string;
 };
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;
@@ -93,6 +94,11 @@ export const isDashboardChartTileType = (
     tile: DashboardTile,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
+export type DashboardTab = {
+    uuid: string;
+    name: string;
+};
+
 export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;
 
 export type Dashboard = {
@@ -112,6 +118,7 @@ export type Dashboard = {
     firstViewedAt: Date | string | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    tabs?: DashboardTab[];
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
 };
