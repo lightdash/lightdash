@@ -1318,8 +1318,12 @@ export class UserService extends BaseService {
         ].filter(Boolean) as OpenIdIdentityIssuerType[];
 
         const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
-        // First it checks for existing SSO logins
-        if (openIdIssuer !== null && openIdIssuer !== undefined) {
+        // First it checks for existing enabled SSO logins
+        if (
+            openIdIssuer !== null &&
+            openIdIssuer !== undefined &&
+            enabledOpenIdIssuers.includes(openIdIssuer)
+        ) {
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
