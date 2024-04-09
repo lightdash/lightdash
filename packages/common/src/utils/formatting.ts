@@ -132,8 +132,8 @@ export function getLocalTimeDisplay(
     showTimezone: boolean = true,
 ): string {
     // NOTE: Mixing dayjs and moment here is not great, but we're doing it here
-    // because we are typically using moment types in this file and the
-    // plumbing expects them. This is ok here because we are not using them
+    // because we are using moment types in this file and the
+    // plumbing expects them. It should be ok here because we are not moment and dayjs
     // together to operate on the date. Dayjs is only used for the
     // Timezone string, which moment doesn't support.
     const tzString = showTimezone ? `(${dayjs.tz.guess()})` : '';
