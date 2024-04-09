@@ -380,48 +380,42 @@ export const addFilterRule = ({
 export const getFilterRulesByFieldType = (
     fields: Field[],
     filterRules: FilterRule[],
-): {
-    dimensions: FilterRule[];
-    metrics: FilterRule[];
-    tableCalculations: FilterRule[];
-} =>
-    filterRules.reduce<{
-        dimensions: FilterRule[];
-        metrics: FilterRule[];
-        tableCalculations: FilterRule[];
-    }>(
-        (sum, filterRule) => {
+) =>
+    filterRules.reduce<
+        Record<
+            'valid' | 'invalid',
+            Record<'dimensions' | 'metrics' | 'tableCalculations', FilterRule[]>
+        >
+    >(
+        (accumulator, filterRule) => {
             const fieldInRule = fields.find(
                 (field) => fieldId(field) === filterRule.target.fieldId,
             );
-            if (fieldInRule) {
+
+            const updateAccumulator = (
+                key: 'valid' | 'invalid',
+                rule: FilterRule,
+            ) => {
                 if (isDimension(fieldInRule)) {
-                    return {
-                        ...sum,
-                        dimensions: [...sum.dimensions, filterRule],
-                    };
+                    accumulator[key].dimensions.push(rule);
+                } else if (isTableCalculationField(fieldInRule)) {
+                    accumulator[key].tableCalculations.push(rule);
+                } else {
+                    accumulator[key].metrics.push(rule);
                 }
-                if (isTableCalculationField(fieldInRule)) {
-                    return {
-                        ...sum,
-                        tableCalculations: [
-                            ...sum.tableCalculations,
-                            filterRule,
-                        ],
-                    };
-                }
-                return {
-                    ...sum,
-                    metrics: [...sum.metrics, filterRule],
-                };
+            };
+
+            if (fieldInRule) {
+                updateAccumulator('valid', filterRule);
+            } else {
+                updateAccumulator('invalid', filterRule);
             }
 
-            return sum;
+            return accumulator;
         },
         {
-            dimensions: [],
-            metrics: [],
-            tableCalculations: [],
+            valid: { dimensions: [], metrics: [], tableCalculations: [] },
+            invalid: { dimensions: [], metrics: [], tableCalculations: [] },
         },
     );
 
