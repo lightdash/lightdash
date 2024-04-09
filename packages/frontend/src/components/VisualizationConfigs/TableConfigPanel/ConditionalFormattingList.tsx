@@ -120,6 +120,17 @@ const ConditionalFormattingList = ({}) => {
                     variant="contained"
                     value={openItems}
                     onChange={handleAccordionChange}
+                    styles={(theme) => ({
+                        control: {
+                            padding: theme.spacing.xs,
+                        },
+                        label: {
+                            padding: 0,
+                        },
+                        panel: {
+                            padding: 0,
+                        },
+                    })}
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
