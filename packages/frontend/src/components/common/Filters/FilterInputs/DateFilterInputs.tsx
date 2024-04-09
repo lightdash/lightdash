@@ -171,7 +171,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
             if (isTimestamp) {
                 // For display only
-                const displayFormat = 'YYYY-MM-DD HH:mm:ss (Z)';
+                const displayFormat = 'YYYY-MM-DD HH:mm:ss';
 
                 let value =
                     rule.values && rule.values[0]

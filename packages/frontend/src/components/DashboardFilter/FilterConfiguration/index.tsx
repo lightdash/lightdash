@@ -264,7 +264,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value={FilterTabs.SETTINGS} w={350}>
+                <Tabs.Panel value={FilterTabs.SETTINGS} miw={350}>
                     <Stack spacing="sm">
                         {!!fields && isCreatingNew ? (
                             <FieldSelect

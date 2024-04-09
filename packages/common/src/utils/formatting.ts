@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
     CustomFormatType,
@@ -18,6 +19,8 @@ import {
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+
+dayjs.extend(timezone);
 
 export const currencies = [
     'USD',
@@ -122,6 +125,19 @@ export function formatTimestamp(
 ): string {
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
     return momentDate.format(getTimeFormat(timeInterval));
+}
+
+export function getLocalTimeDisplay(
+    value: MomentInput,
+    showTimezone: boolean = true,
+): string {
+    // NOTE: Mixing dayjs and moment here is not great, but we're doing it here
+    // because we are typically using moment types in this file and the
+    // plumbing expects them. This is ok here because we are not using them
+    // together to operate on the date. Dayjs is only used for the
+    // Timezone string, which moment doesn't support.
+    const tzString = showTimezone ? `(${dayjs.tz.guess()})` : '';
+    return `${moment(value).format(`YYYY-MM-DD HH:mm`)} ${tzString}`;
 }
 
 export const parseDate = (
