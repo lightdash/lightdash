@@ -1315,6 +1315,8 @@ export class UserService extends BaseService {
                 OpenIdIdentityIssuerType.OKTA,
             this.lightdashConfig.auth.oneLogin?.oauth2ClientId !== undefined &&
                 OpenIdIdentityIssuerType.ONELOGIN,
+            this.lightdashConfig.auth.oidc.clientId !== undefined &&
+                OpenIdIdentityIssuerType.GENERIC_OIDC,
         ].filter(Boolean) as OpenIdIdentityIssuerType[];
 
         const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
