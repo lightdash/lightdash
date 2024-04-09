@@ -83,6 +83,7 @@ describe('UserService', () => {
                 disablePasswordAuthentication: false,
                 okta: {
                     ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: '1',
                     loginPath: '/login/okta',
                 },
             },
