@@ -923,6 +923,7 @@ const getEchartAxes = ({
             switch (axisItem.timeInterval) {
                 case TimeFrames.WEEK_NUM:
                     axisConfig.axisLabel = {
+                        hideOverlap: true,
                         formatter: (value: any) => {
                             return formatItemValue(axisItem, value, false);
                         },
@@ -955,6 +956,14 @@ const getEchartAxes = ({
             axisConfig.axisLabel.rotate = rotate;
             axisConfig.nameGap = oppositeSide + 15;
         }
+
+        /**
+         * Prevent axis from visually overlapping if positioned too close together,
+         * particularly on smaller chart tiles.
+         */
+        axisConfig.axisLabel ||= {};
+        axisConfig.axisLabel.hideOverlap = true;
+
         return axisConfig;
     };
 
