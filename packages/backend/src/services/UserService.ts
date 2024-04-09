@@ -38,11 +38,13 @@ import {
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
+import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { GroupsModel } from '../models/GroupsModel';
@@ -440,7 +442,7 @@ export class UserService extends BaseService {
 
     async loginWithOpenId(
         openIdUser: OpenIdUser,
-        sessionUser: SessionUser | undefined,
+        authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken?: string,
     ): Promise<SessionUser> {
@@ -518,7 +520,28 @@ export class UserService extends BaseService {
             return loginUser;
         }
 
-        // User already logged in? Link openid identity to logged-in user
+        let sessionUser = authenticatedUser;
+        // Link the openid identity to a user if they already have another OIDC with the same email
+        if (!authenticatedUser) {
+            const identities =
+                await this.openIdIdentityModel.findIdentitiesByEmail(
+                    openIdUser.openId.email,
+                );
+            const identitiesUsers = uniq(
+                identities.map((identity) => identity.userUuid),
+            );
+            if (identitiesUsers.length > 1) {
+                Logger.warn(
+                    `Multiple openid identities found with the same email ${openIdUser.openId.email}`,
+                );
+            } else if (identitiesUsers.length === 1) {
+                sessionUser = await this.userModel.findSessionUserByUUID(
+                    identitiesUsers[0],
+                );
+            }
+        }
+
+        // Link openid identity to existing user
         if (sessionUser?.userId) {
             await this.openIdIdentityModel.createIdentity({
                 userId: sessionUser.userId,
