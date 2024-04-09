@@ -48,7 +48,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                     <SuboptimalState
                         icon={IconLayoutDashboard}
                         title={
-                            userCanManageDashboard
+                            userCanCreateDashboard
                                 ? emptyContainerType === 'dashboard'
                                     ? 'Start building your dashboard!'
                                     : 'Add tiles to this tab'
