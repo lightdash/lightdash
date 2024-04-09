@@ -1319,13 +1319,13 @@ export class UserService extends BaseService {
                 OpenIdIdentityIssuerType.GENERIC_OIDC,
         ].filter(Boolean) as OpenIdIdentityIssuerType[];
 
-        const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         // First it checks for existing enabled SSO logins
-        if (
-            openIdIssuer !== null &&
-            openIdIssuer !== undefined &&
-            enabledOpenIdIssuers.includes(openIdIssuer)
-        ) {
+        const activeIssuers = openIdIssuers.filter((issuer) =>
+            enabledOpenIdIssuers.includes(issuer),
+        );
+        if (activeIssuers.length === 1) {
+            const openIdIssuer = activeIssuers[0];
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,
