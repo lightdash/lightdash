@@ -1315,11 +1315,17 @@ export class UserService extends BaseService {
                 OpenIdIdentityIssuerType.OKTA,
             this.lightdashConfig.auth.oneLogin?.oauth2ClientId !== undefined &&
                 OpenIdIdentityIssuerType.ONELOGIN,
+            this.lightdashConfig.auth.oidc.clientId !== undefined &&
+                OpenIdIdentityIssuerType.GENERIC_OIDC,
         ].filter(Boolean) as OpenIdIdentityIssuerType[];
 
-        const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
-        // First it checks for existing SSO logins
-        if (openIdIssuer !== null && openIdIssuer !== undefined) {
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        // First it checks for existing enabled SSO logins
+        const activeIssuers = openIdIssuers.filter((issuer) =>
+            enabledOpenIdIssuers.includes(issuer),
+        );
+        if (activeIssuers.length === 1) {
+            const openIdIssuer = activeIssuers[0];
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,

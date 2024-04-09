@@ -18,7 +18,7 @@ import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredential
 import { UserService } from './UserService';
 
 const userModel = {
-    getOpenIdIssuer: jest.fn(async () => undefined),
+    getOpenIdIssuers: jest.fn(async () => []),
 };
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
@@ -72,8 +72,8 @@ describe('UserService', () => {
         });
     });
     test('should previous logged in sso provider', async () => {
-        (userModel.getOpenIdIssuer as jest.Mock).mockImplementationOnce(
-            async () => OpenIdIdentityIssuerType.OKTA,
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [OpenIdIdentityIssuerType.OKTA],
         );
 
         const service = createUserService({
@@ -83,6 +83,59 @@ describe('UserService', () => {
                 disablePasswordAuthentication: false,
                 okta: {
                     ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: '1',
+                    loginPath: '/login/okta',
+                },
+            },
+        });
+
+        expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
+            forceRedirect: true,
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/okta?login_hint=test%40lightdash.com',
+            showOptions: ['okta'],
+        });
+    });
+    test('should not login with previous sso provider if not enabled', async () => {
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [OpenIdIdentityIssuerType.OKTA],
+        );
+
+        const service = createUserService({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                disablePasswordAuthentication: false,
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: undefined, // disbled okta
+                    loginPath: '/login/okta',
+                },
+            },
+        });
+
+        expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
+            forceRedirect: false,
+            redirectUri: undefined,
+            showOptions: ['email'],
+        });
+    });
+    test('should previous logged in enabled sso provider', async () => {
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [
+                OpenIdIdentityIssuerType.GOOGLE,
+                OpenIdIdentityIssuerType.OKTA,
+            ],
+        );
+
+        const service = createUserService({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                disablePasswordAuthentication: false,
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: '1',
                     loginPath: '/login/okta',
                 },
             },
