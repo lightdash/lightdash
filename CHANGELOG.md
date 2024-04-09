@@ -1,3 +1,10 @@
+## [0.1064.3](https://github.com/lightdash/lightdash/compare/0.1064.2...0.1064.3) (2024-04-09)
+
+
+### Bug Fixes
+
+* time filter using the wrong timezone ([#9662](https://github.com/lightdash/lightdash/issues/9662)) ([65b83c8](https://github.com/lightdash/lightdash/commit/65b83c86925392e74a6e9a3106a994329685946c))
+
 ## [0.1064.2](https://github.com/lightdash/lightdash/compare/0.1064.1...0.1064.2) (2024-04-09)
 
 
