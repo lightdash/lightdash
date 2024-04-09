@@ -1,3 +1,10 @@
+## [0.1064.4](https://github.com/lightdash/lightdash/compare/0.1064.3...0.1064.4) (2024-04-09)
+
+
+### Bug Fixes
+
+* force chart tiles into a vertical stack in mobile breakpoint on minimal view ([#9699](https://github.com/lightdash/lightdash/issues/9699)) ([c32e275](https://github.com/lightdash/lightdash/commit/c32e2759a4ce2f28911edeab29fea53dd3a81019))
+
 ## [0.1064.3](https://github.com/lightdash/lightdash/compare/0.1064.2...0.1064.3) (2024-04-09)
 
 
