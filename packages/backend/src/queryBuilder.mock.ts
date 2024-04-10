@@ -49,7 +49,9 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
-    credentials: {} as CreateWarehouseCredentials,
+    credentials: {
+        type: WarehouseTypes.BIGQUERY,
+    } as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {
