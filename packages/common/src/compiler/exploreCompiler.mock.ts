@@ -1568,3 +1568,28 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
         },
     },
 };
+
+export const simpleJoinedExploreWithAlwaysTrue: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            always: true,
+        },
+    ],
+};
+
+export const compiledSimpleJoinedExploreWithAlwaysTrue: Explore = {
+    ...compiledSimpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            compiledSqlOn: '("a".dim1) = ("b".dim1)',
+            type: undefined,
+            hidden: undefined,
+            always: true,
+        },
+    ],
+};
