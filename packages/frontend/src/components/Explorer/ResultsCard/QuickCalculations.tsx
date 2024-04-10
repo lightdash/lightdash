@@ -89,31 +89,35 @@ const isCalculationAvailable = (
     return '';
 };
 
+// TODO: Ideally this util should be available in common and not duplicated here. See getFieldQuoteChar in packages/warehouses
+const getFieldQuoteChar = (warehouseType: WarehouseTypes | undefined) => {
+    if (warehouseType) {
+        switch (warehouseType) {
+            case WarehouseTypes.BIGQUERY:
+            case WarehouseTypes.DATABRICKS:
+                return '`';
+            case WarehouseTypes.SNOWFLAKE:
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+                return '"';
+            default:
+                return assertUnreachable(
+                    warehouseType,
+                    `Unknown warehouse type ${warehouseType}`,
+                );
+        }
+    }
+    return '"';
+};
+
 const getSqlForQuickCalculation = (
     quickCalculation: QuickCalculation,
     fieldReference: string,
     sorts: SortField[],
     warehouseType: WarehouseTypes | undefined,
 ) => {
-    let fieldQuoteChar = '"';
-    if (warehouseType) {
-        switch (warehouseType) {
-            case WarehouseTypes.BIGQUERY:
-            case WarehouseTypes.DATABRICKS:
-                fieldQuoteChar = '`';
-                break;
-            case WarehouseTypes.SNOWFLAKE:
-            case WarehouseTypes.REDSHIFT:
-            case WarehouseTypes.POSTGRES:
-            case WarehouseTypes.TRINO:
-                break;
-            default:
-                assertUnreachable(
-                    warehouseType,
-                    `Unknown warehouse type ${warehouseType}`,
-                );
-        }
-    }
+    const fieldQuoteChar = getFieldQuoteChar(warehouseType);
 
     const orderSql =
         sorts.length > 0
