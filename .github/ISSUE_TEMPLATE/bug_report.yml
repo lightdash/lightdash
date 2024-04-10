@@ -1,0 +1,43 @@
+name: Bug report
+description: Create a report to help us improve
+labels: 🐛 bug
+body:
+  - type: input
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what did you expect?
+      placeholder: Selecting a numeric metric on Explore page throws an error "Undefined"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce the Bug or Issue
+      description: Describe the steps we have to take to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: version
+      description: What version of Lightdash were you using when you encountered the
+        bug? (App version is available in the footer of the Lightdash homepage)
+      placeholder: v0.1045.0
+    validations:
+      required: false
+  - type: dropdown
+    id: cloud
+    attributes:
+      label: Cloud or self-hosting
+      description: Did you get this bug on Lightdash cloud or self-hosting
+      options:
+        - cloud
+        - self-hosting
+    validations:
+      required: false
