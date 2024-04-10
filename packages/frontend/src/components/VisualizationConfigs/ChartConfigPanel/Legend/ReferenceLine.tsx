@@ -15,7 +15,6 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Box,
     Checkbox,
     Group,
@@ -23,17 +22,14 @@ import {
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,
     IconLayoutAlignTop,
-    IconTrash,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -45,6 +41,7 @@ import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
+import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
 
 type UpdateReferenceLineProps = {
@@ -269,15 +266,26 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         referenceLine.data.name ||
         '';
 
-    const currentLineConfig: UpdateReferenceLineProps = {
-        value,
-        field: selectedField,
-        label,
-        lineColor,
-        dynamicValue: useAverage ? 'average' : undefined,
-        labelPosition,
-        lineId: lineId,
-    };
+    const currentLineConfig: UpdateReferenceLineProps = useMemo(
+        () => ({
+            value,
+            field: selectedField,
+            label,
+            lineColor,
+            dynamicValue: useAverage ? 'average' : undefined,
+            labelPosition,
+            lineId,
+        }),
+        [
+            value,
+            selectedField,
+            label,
+            lineColor,
+            useAverage,
+            labelPosition,
+            lineId,
+        ],
+    );
 
     const isNumericField = selectedField && isNumericItem(selectedField);
 
@@ -285,55 +293,39 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     const controlLabel = `Line ${index}`;
     const accordionValue = `${index}`;
 
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const onControlClick = useCallback(
+        () =>
+            isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
+        [isOpen, removeItem, addNewItem, accordionValue],
+    );
+
+    const onColorChange = useCallback(
+        (color: string) => {
+            setLineColor(color);
+            if (selectedField !== undefined)
+                updateReferenceLine({
+                    ...currentLineConfig,
+                    lineColor: color,
+                });
+        },
+        [selectedField, updateReferenceLine, currentLineConfig],
+    );
 
     return (
         <Accordion.Item value={accordionValue}>
-            <Accordion.Control
-                onClick={() =>
-                    isOpen
-                        ? removeItem(accordionValue)
-                        : addNewItem(accordionValue)
+            <AccordionControl
+                label={controlLabel}
+                onControlClick={onControlClick}
+                onRemove={() => removeReferenceLine(lineId)}
+                extraControlElements={
+                    <ColorSelector
+                        color={lineColor}
+                        swatches={colorPalette}
+                        onColorChange={(c) => onColorChange(c)}
+                    />
                 }
-                ref={ref}
-            >
-                <Group spacing="xs" position="apart">
-                    <Group spacing="xs">
-                        <Box onClick={(e) => e.stopPropagation()}>
-                            <ColorSelector
-                                color={lineColor}
-                                swatches={colorPalette}
-                                onColorChange={(color) => {
-                                    setLineColor(color);
-                                    if (selectedField !== undefined)
-                                        updateReferenceLine({
-                                            ...currentLineConfig,
-                                            lineColor: color,
-                                        });
-                                }}
-                            />
-                        </Box>
-                        <Text fw={500} size="xs">
-                            {controlLabel}
-                        </Text>
-                        <Tooltip
-                            variant="xs"
-                            label="Remove reference line"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                onClick={() => removeReferenceLine(lineId)}
-                                sx={{
-                                    visibility: hovered ? 'visible' : 'hidden',
-                                }}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                </Group>
-            </Accordion.Control>
+            />
+
             <Accordion.Panel>
                 <Stack
                     bg={'gray.0'}

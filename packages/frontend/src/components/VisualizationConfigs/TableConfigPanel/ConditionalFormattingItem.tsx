@@ -17,17 +17,14 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Box,
     Button,
     Divider,
     Group,
     SegmentedControl,
     Stack,
-    Tooltip,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconPercentage, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPercentage, IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
@@ -35,6 +32,7 @@ import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInp
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
+import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -238,42 +236,22 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [handleChange, config],
     );
 
-    const { ref, hovered } = useHover<HTMLButtonElement>();
     const controlLabel = `Rule ${configIndex}`;
     const accordionValue = `${configIndex}`;
 
+    const onControlClick = useCallback(
+        () =>
+            isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
+        [isOpen, removeItem, addNewItem, accordionValue],
+    );
+
     return (
         <Accordion.Item value={accordionValue}>
-            <Accordion.Control
-                ref={ref}
-                onClick={() =>
-                    isOpen
-                        ? removeItem(accordionValue)
-                        : addNewItem(accordionValue)
-                }
-            >
-                <Group spacing="xs" position="apart">
-                    <Group spacing="xs">
-                        <Config.Heading>{controlLabel}</Config.Heading>
-
-                        <Tooltip
-                            variant="xs"
-                            label="Remove rule"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                onClick={handleRemove}
-                                sx={{
-                                    visibility: hovered ? 'visible' : 'hidden',
-                                }}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                </Group>
-            </Accordion.Control>
+            <AccordionControl
+                label={controlLabel}
+                onControlClick={onControlClick}
+                onRemove={handleRemove}
+            />
 
             <Accordion.Panel>
                 <Stack spacing="xs">
