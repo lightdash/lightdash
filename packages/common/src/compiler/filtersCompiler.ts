@@ -22,8 +22,12 @@ import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import { type WeekDay } from '../utils/timeFrames';
 
-const formatTimestamp = (date: Date): string =>
-    moment(date).format('YYYY-MM-DD HH:mm:ss');
+// NOTE: This function requires a complete date as input.
+// It produces a timezoneless string which is implied to be in UTC.
+// We could probably have it be a string WITH a timezone in the future.
+// Calling .utc() here makes it safe to drop the tz.
+const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
+    moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
 export const renderStringFilterSql = (
     dimensionSql: string,
@@ -393,7 +397,7 @@ export const renderFilterRuleSql = (
                 fieldSql,
                 filterRule,
                 adapterType,
-                formatTimestamp,
+                formatTimestampAsUTCWithNoTimezone,
                 startOfWeek,
             );
         }

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    FeatureFlags,
     isDashboardChartTileType,
     type Dashboard as IDashboard,
     type DashboardTab,
@@ -66,6 +67,7 @@ import {
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -92,12 +94,24 @@ export const getReactGridLayoutConfig = (
     isResizable: isEditMode,
 });
 
-export const getResponsiveGridLayoutProps = (enableAnimation = true) => ({
+export const getResponsiveGridLayoutProps = ({
+    enableAnimation = false,
+    stackVerticallyOnSmallestBreakpoint = false,
+}: {
+    enableAnimation?: boolean;
+
+    /**
+     * If enabled, we effectively disable horizontal stacking and switch to
+     * a simple vertical stack on the smallest breakpoint -- this means each
+     * tile is basically shown on a vertical list on mobile.
+     */
+    stackVerticallyOnSmallestBreakpoint?: boolean;
+} = {}) => ({
     draggableCancel: '.non-draggable',
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,
     breakpoints: { lg: 1200, md: 996, sm: 768 },
-    cols: { lg: 36, md: 30, sm: 18 },
+    cols: { lg: 36, md: 30, sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18 },
     rowHeight: 50,
 });
 
@@ -167,7 +181,7 @@ const GridTile: FC<
 
 const Dashboard: FC = () => {
     const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
-        'lazy-load-dashboard-tiles',
+        FeatureFlags.LazyLoadDashboardTiles,
     );
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
@@ -738,7 +752,6 @@ const Dashboard: FC = () => {
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
-
                 <Tabs
                     value={activeTab?.uuid}
                     onTabChange={(e) => {
