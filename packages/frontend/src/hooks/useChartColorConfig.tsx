@@ -103,7 +103,9 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     ).map(({ value }) => `${value}`);
 
     const pivotValuesSubPath =
-        yPivotValues && yPivotValues.length > 0 ? `${yPivotValues[0]}` : null;
+        yPivotValues && yPivotValues.length > 0
+            ? `${yPivotValues.join('.')}`
+            : null;
 
     /**
      * When dealing with flipped axis, Echarts will include the pivot value as
@@ -130,7 +132,20 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
         ? pivotValuesSubPath
         : baseFieldPath;
 
-    return [baseFieldPath, completeIdentifier];
+    return [
+        `${baseFieldPath}${
+            /**
+             * If we have more than one pivot value, we append the number of pivot values
+             * to the group identifier, giving us a unique group per number of values.
+             *
+             * This is not critical, but gives us better serial color assignment when
+             * switching between number of groups, since we're not tacking each group
+             * configuration on top of eachother (under the same identifier).
+             */
+            yPivotValues.length === 1 ? '' : `${`_n${yPivotValues.length}`}`
+        }`,
+        completeIdentifier,
+    ];
 };
 
 export const useChartColorConfig = ({
