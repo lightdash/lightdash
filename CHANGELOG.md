@@ -1,3 +1,10 @@
+## [0.1064.5](https://github.com/lightdash/lightdash/compare/0.1064.4...0.1064.5) (2024-04-10)
+
+
+### Bug Fixes
+
+* quick calculation order bys quote char ([#9704](https://github.com/lightdash/lightdash/issues/9704)) ([e2448aa](https://github.com/lightdash/lightdash/commit/e2448aa67ff8f0c44fa1a8b0d4d36c5c32e0b053))
+
 ## [0.1064.4](https://github.com/lightdash/lightdash/compare/0.1064.3...0.1064.4) (2024-04-09)
 
 
