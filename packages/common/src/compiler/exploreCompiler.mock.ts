@@ -677,6 +677,7 @@ export const compiledSimpleJoinedExplore: Explore = {
             compiledSqlOn: '("a".dim1) = ("b".dim1)',
             type: undefined,
             hidden: undefined,
+            always: undefined,
         },
     ],
     tables: {
@@ -868,6 +869,7 @@ export const compiledJoinedExploreOverridingJoinAlias: Explore = {
             compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
             type: undefined,
             hidden: undefined,
+            always: undefined,
         },
     ],
     tables: {
@@ -911,6 +913,7 @@ export const compiledJoinedExploreOverridingAliasAndLabel: Explore = {
             compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
             type: undefined,
             hidden: undefined,
+            always: undefined,
         },
     ],
     tables: {
@@ -954,6 +957,7 @@ export const compiledExploreWithHiddenJoin: Explore = {
             compiledSqlOn: '("a".dim1) = ("b".dim1)',
             type: undefined,
             hidden: true,
+            always: undefined,
         },
     ],
     tables: {
@@ -1060,6 +1064,7 @@ export const compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeS
                 compiledSqlOn: '("a".dim1) = ("custom_alias".dim1)',
                 type: undefined,
                 hidden: undefined,
+                always: undefined,
             },
         ],
         tables: {
@@ -1446,6 +1451,7 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
             table: 'b',
             type: undefined,
             hidden: undefined,
+            always: undefined,
         },
     ],
     tables: {
@@ -1560,4 +1566,29 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
             },
         },
     },
+};
+
+export const simpleJoinedExploreWithAlwaysTrue: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            always: true,
+        },
+    ],
+};
+
+export const compiledSimpleJoinedExploreWithAlwaysTrue: Explore = {
+    ...compiledSimpleJoinedExplore,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            compiledSqlOn: '("a".dim1) = ("b".dim1)',
+            type: undefined,
+            hidden: undefined,
+            always: true,
+        },
+    ],
 };

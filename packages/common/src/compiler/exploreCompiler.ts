@@ -576,10 +576,12 @@ export class ExploreCompiler {
                 {
                     table: join.alias || join.table,
                     sqlOn: join.sqlOn,
+                    always: join.always,
                 },
                 tables,
             ),
             hidden: join.hidden,
+            always: join.always,
         };
     }
 }
