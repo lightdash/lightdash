@@ -521,7 +521,7 @@ export class UserService extends BaseService {
         }
 
         // Link the new openid identity to an existing user if they already have another OIDC with the same email
-        if (!authenticatedUser) {
+        if (!authenticatedUser && this.lightdashConfig.auth.enableOidcLinking) {
             const identities =
                 await this.openIdIdentityModel.findIdentitiesByEmail(
                     openIdUser.openId.email,
