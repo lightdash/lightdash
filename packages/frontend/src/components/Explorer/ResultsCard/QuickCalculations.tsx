@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CustomFormatType,
     MetricType,
+    WarehouseTypes,
     type CustomFormat,
     type Metric,
     type SortField,
@@ -11,7 +12,9 @@ import { Menu } from '@mantine/core';
 import { type FC } from 'react';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
+import { useParams } from 'react-router-dom';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
+import { useProject } from '../../../hooks/useProject';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 
@@ -86,17 +89,44 @@ const isCalculationAvailable = (
     return '';
 };
 
+// TODO: Ideally this util should be available in common and not duplicated here. See getFieldQuoteChar in packages/warehouses
+const getFieldQuoteChar = (warehouseType: WarehouseTypes | undefined) => {
+    if (warehouseType) {
+        switch (warehouseType) {
+            case WarehouseTypes.BIGQUERY:
+            case WarehouseTypes.DATABRICKS:
+                return '`';
+            case WarehouseTypes.SNOWFLAKE:
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+                return '"';
+            default:
+                return assertUnreachable(
+                    warehouseType,
+                    `Unknown warehouse type ${warehouseType}`,
+                );
+        }
+    }
+    return '"';
+};
+
 const getSqlForQuickCalculation = (
     quickCalculation: QuickCalculation,
     fieldReference: string,
     sorts: SortField[],
+    warehouseType: WarehouseTypes | undefined,
 ) => {
+    const fieldQuoteChar = getFieldQuoteChar(warehouseType);
+
     const orderSql =
         sorts.length > 0
             ? `ORDER BY ${sorts
                   .map(
                       (sort) =>
-                          `${sort.fieldId} ${sort.descending ? 'DESC' : 'ASC'}`,
+                          `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar} ${
+                              sort.descending ? 'DESC' : 'ASC'
+                          }`,
                   )
                   .join(', ')} `
             : '';
@@ -132,6 +162,8 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
     const addTableCalculation = useExplorerContext(
         (context) => context.actions.addTableCalculation,
     );
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
     const { track } = useTracking();
     const onCreate = (value: TableCalculation) => {
         addTableCalculation(value);
@@ -173,6 +205,7 @@ const QuickCalculationMenuOptions: FC<Props> = ({ item }) => {
                                     quickCalculation as QuickCalculation,
                                     fieldReference,
                                     orderWithoutTableCalculations,
+                                    project?.warehouseConnection?.type,
                                 ),
                                 format: getFormatForQuickCalculation(
                                     quickCalculation as QuickCalculation,

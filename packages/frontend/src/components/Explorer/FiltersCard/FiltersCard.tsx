@@ -119,6 +119,7 @@ const FiltersCard: FC = memo(() => {
                 <>
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip
+                            variant="xs"
                             arrowOffset={12}
                             label={
                                 <div
