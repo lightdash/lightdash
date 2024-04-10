@@ -1,3 +1,15 @@
+# [0.1065.0](https://github.com/lightdash/lightdash/compare/0.1064.6...0.1065.0) (2024-04-10)
+
+
+### Bug Fixes
+
+* upgrade trim package docs ([#9708](https://github.com/lightdash/lightdash/issues/9708)) ([e864191](https://github.com/lightdash/lightdash/commit/e86419160bd0cccf0c3347f5714053d30de0a5fc))
+
+
+### Features
+
+* link oauth accounts with same email ([#9706](https://github.com/lightdash/lightdash/issues/9706)) ([855ed10](https://github.com/lightdash/lightdash/commit/855ed10c636a91c06df969c1fcdb1f41e8c05563))
+
 ## [0.1064.6](https://github.com/lightdash/lightdash/compare/0.1064.5...0.1064.6) (2024-04-10)
 
 
