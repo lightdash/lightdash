@@ -16,10 +16,28 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from './UserService';
+import {
+    openIdUser,
+    openIdUserWithInvalidIssuer,
+    sessionUser,
+} from './UserService.mock';
 
 const userModel = {
     getOpenIdIssuers: jest.fn(async () => []),
+    findSessionUserByOpenId: jest.fn(async () => undefined),
+    findSessionUserByUUID: jest.fn(async () => sessionUser),
+    createUser: jest.fn(async () => sessionUser),
 };
+
+const openIdIdentityModel = {
+    findIdentitiesByEmail: jest.fn(async () => []),
+    createIdentity: jest.fn(async () => {}),
+};
+
+const emailModel = {
+    verifyUserEmailIfExists: jest.fn(async () => []),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
@@ -28,8 +46,9 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userModel: userModel as unknown as UserModel,
         groupsModel: {} as GroupsModel,
         sessionModel: {} as SessionModel,
-        emailModel: {} as EmailModel,
-        openIdIdentityModel: {} as OpenIdIdentityModel,
+        emailModel: emailModel as unknown as EmailModel,
+        openIdIdentityModel:
+            openIdIdentityModel as unknown as OpenIdIdentityModel,
         passwordResetLinkModel: {} as PasswordResetLinkModel,
         emailClient: {} as EmailClient,
         organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
@@ -240,6 +259,27 @@ describe('UserService', () => {
             redirectUri:
                 'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
             showOptions: ['azuread', 'google', 'okta', 'oneLogin'],
+        });
+    });
+
+    describe('loginWithOpenId', () => {
+        test('should throw error if provider not allowed', async () => {
+            await expect(
+                userService.loginWithOpenId(
+                    openIdUserWithInvalidIssuer,
+                    undefined,
+                    undefined,
+                ),
+            ).rejects.toThrowError(
+                'Invalid login method invalid_issuer provided.',
+            );
+        });
+        test('should create user if not exists', async () => {
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(1);
+            expect(userModel.createUser as jest.Mock).toBeCalledWith(
+                openIdUser,
+            );
         });
     });
 });
