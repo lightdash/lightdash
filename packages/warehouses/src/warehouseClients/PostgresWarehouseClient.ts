@@ -334,10 +334,6 @@ export class PostgresClient<
         return catalog;
     }
 
-    getFieldQuoteChar() {
-        return '"';
-    }
-
     getStringQuoteChar() {
         return "'";
     }

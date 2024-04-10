@@ -231,7 +231,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 } catch (e: any) {
                     throw new WarehouseQueryError(e.message);
                 } finally {
-                    if (query) close();
+                    if (query) void close();
                 }
             });
 
@@ -240,10 +240,6 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             await close();
         }
         return catalogToSchema(results);
-    }
-
-    getFieldQuoteChar() {
-        return '"';
     }
 
     getStringQuoteChar() {

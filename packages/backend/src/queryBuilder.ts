@@ -17,6 +17,7 @@ import {
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
+    getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getMetrics,
@@ -213,7 +214,7 @@ export const getCustomDimensionSql = ({
     const { customDimensions } = compiledMetricQuery;
     const startOfWeek = warehouseClient.getStartOfWeek();
 
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
@@ -526,7 +527,7 @@ export const buildQuery = ({
         customDimensions,
     } = compiledMetricQuery;
     const baseTable = explore.tables[explore.baseTable].sqlTable;
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();

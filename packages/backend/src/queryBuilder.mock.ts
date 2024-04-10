@@ -34,7 +34,6 @@ export const warehouseClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
     getMetricSql: (sql, metric) => {
@@ -67,7 +66,6 @@ export const bigqueryClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '`',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => '\\',
     getMetricSql: () => '',

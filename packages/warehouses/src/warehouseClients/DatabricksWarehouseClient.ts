@@ -328,10 +328,6 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         );
     }
 
-    getFieldQuoteChar() {
-        return '`';
-    }
-
     getStringQuoteChar() {
         return "'";
     }
