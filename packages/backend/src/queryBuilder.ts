@@ -660,7 +660,7 @@ export const buildQuery = ({
     ]);
 
     const sqlJoins = explore.joinedTables
-        .filter((join) => joinedTables.has(join.table))
+        .filter((join) => joinedTables.has(join.table) || join.always)
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const joinType = getJoinType(join.type);

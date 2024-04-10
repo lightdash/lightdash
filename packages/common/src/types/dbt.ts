@@ -76,6 +76,7 @@ type DbtModelJoin = {
     type?: DbtModelJoinType;
     hidden?: boolean;
     fields?: string[];
+    always?: boolean;
 };
 type DbtColumnMetadata = DbtColumnLightdashConfig & {};
 type DbtColumnLightdashConfig = {

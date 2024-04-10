@@ -407,7 +407,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_': {
+    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -416,6 +416,7 @@ const models: TsoaRoute.Models = {
                 sqlOn: { dataType: 'string', required: true },
                 type: { ref: 'DbtModelJoinType' },
                 hidden: { dataType: 'boolean' },
+                always: { dataType: 'boolean' },
             },
             validators: {},
         },
@@ -426,7 +427,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_' },
+                {
+                    ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
