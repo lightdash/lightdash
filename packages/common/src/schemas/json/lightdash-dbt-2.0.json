@@ -51,6 +51,9 @@
                                         },
                                         "sql_on": {
                                             "type": "string"
+                                        },
+                                        "always": {
+                                            "type": "boolean"
                                         }
                                     },
                                     "required": ["join", "sql_on"]
