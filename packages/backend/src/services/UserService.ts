@@ -520,8 +520,7 @@ export class UserService extends BaseService {
             return loginUser;
         }
 
-        let sessionUser = authenticatedUser;
-        // Link the openid identity to a user if they already have another OIDC with the same email
+        // Link the new openid identity to an existing user if they already have another OIDC with the same email
         if (!authenticatedUser) {
             const identities =
                 await this.openIdIdentityModel.findIdentitiesByEmail(
@@ -535,45 +534,24 @@ export class UserService extends BaseService {
                     `Multiple openid identities found with the same email ${openIdUser.openId.email}`,
                 );
             } else if (identitiesUsers.length === 1) {
-                sessionUser = await this.userModel.findSessionUserByUUID(
+                const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
+                );
+                return this.linkOpenIdIdentityToUser(
+                    sessionUser,
+                    openIdUser,
+                    refreshToken,
                 );
             }
         }
 
-        // Link openid identity to existing user
-        if (sessionUser?.userId) {
-            await this.openIdIdentityModel.createIdentity({
-                userId: sessionUser.userId,
-                issuer: openIdUser.openId.issuer,
-                subject: openIdUser.openId.subject,
-                email: openIdUser.openId.email,
-                issuerType: openIdUser.openId.issuerType,
+        // Link openid identity to currently logged in user
+        if (authenticatedUser?.userId) {
+            return this.linkOpenIdIdentityToUser(
+                authenticatedUser,
+                openIdUser,
                 refreshToken,
-            });
-            await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
-            this.analytics.track({
-                userId: sessionUser.userUuid,
-                event: 'user.identity_linked',
-                properties: {
-                    loginProvider: 'google',
-                },
-            });
-
-            if (
-                this.lightdashConfig.groups.enabled === true &&
-                this.lightdashConfig.auth.enableGroupSync === true &&
-                Array.isArray(openIdUser.openId.groups) &&
-                openIdUser.openId.groups.length &&
-                sessionUser.organizationUuid
-            )
-                await this.tryAddUserToGroups({
-                    userUuid: sessionUser.userUuid,
-                    groups: openIdUser.openId.groups,
-                    organizationUuid: sessionUser.organizationUuid,
-                });
-
-            return sessionUser;
+            );
         }
 
         // Create user
@@ -612,6 +590,45 @@ export class UserService extends BaseService {
         }
         const user = await this.registerUser(openIdUser);
         return this.userModel.findSessionUserByUUID(user.userUuid);
+    }
+
+    private async linkOpenIdIdentityToUser(
+        sessionUser: SessionUser,
+        openIdUser: OpenIdUser,
+        refreshToken?: string,
+    ): Promise<SessionUser> {
+        await this.openIdIdentityModel.createIdentity({
+            userId: sessionUser.userId,
+            issuer: openIdUser.openId.issuer,
+            subject: openIdUser.openId.subject,
+            email: openIdUser.openId.email,
+            issuerType: openIdUser.openId.issuerType,
+            refreshToken,
+        });
+        await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
+        this.analytics.track({
+            userId: sessionUser.userUuid,
+            event: 'user.identity_linked',
+            properties: {
+                loginProvider: 'google',
+            },
+        });
+
+        if (
+            this.lightdashConfig.groups.enabled &&
+            this.lightdashConfig.auth.enableGroupSync &&
+            Array.isArray(openIdUser.openId.groups) &&
+            openIdUser.openId.groups.length &&
+            sessionUser.organizationUuid
+        ) {
+            await this.tryAddUserToGroups({
+                userUuid: sessionUser.userUuid,
+                groups: openIdUser.openId.groups,
+                organizationUuid: sessionUser.organizationUuid,
+            });
+        }
+
+        return sessionUser;
     }
 
     async completeUserSetup(
