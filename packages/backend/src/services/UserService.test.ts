@@ -286,11 +286,6 @@ describe('UserService', () => {
             );
         });
         test('should create user', async () => {
-            // Mock that no identity is found for that email
-            (
-                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
-            ).mockImplementationOnce(() => []);
-
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
                 openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
@@ -307,11 +302,6 @@ describe('UserService', () => {
             );
         });
         test('should activate invited user', async () => {
-            // Mock that no identity is found for that email
-            (
-                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
-            ).mockImplementationOnce(() => []);
-
             await userService.loginWithOpenId(
                 openIdUser,
                 undefined,
@@ -353,7 +343,14 @@ describe('UserService', () => {
             );
         });
         test('should link openid to an existing user that has another OIDC with the same email', async () => {
-            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcLinking: true,
+                },
+            });
+            await service.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
                 openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
             ).toHaveBeenCalledTimes(0);
