@@ -546,7 +546,7 @@ export class UserService extends BaseService {
         }
 
         // Link openid identity to currently logged in user
-        if (authenticatedUser?.userId) {
+        if (authenticatedUser) {
             return this.linkOpenIdIdentityToUser(
                 authenticatedUser,
                 openIdUser,
