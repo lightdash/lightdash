@@ -38,8 +38,6 @@ export interface WarehouseClient {
 
     getAdapterType(): SupportedDbtAdapter;
 
-    getFieldQuoteChar(): string;
-
     getStringQuoteChar(): string;
 
     getEscapeStringQuoteChar(): string;

@@ -203,6 +203,7 @@ export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/warehouse';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

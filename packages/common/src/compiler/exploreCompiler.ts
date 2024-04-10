@@ -22,6 +22,7 @@ import {
     type DateGranularity,
 } from '../types/timeFrames';
 import { timeFrameConfigs } from '../utils/timeFrames';
+import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
 
 // exclude lightdash prefix from variable pattern
@@ -393,7 +394,7 @@ export class ExploreCompiler {
                 return renderFilterRuleSql(
                     filter,
                     compiledDimension,
-                    this.warehouseClient.getFieldQuoteChar(),
+                    getFieldQuoteChar(this.warehouseClient.credentials.type),
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
                     this.warehouseClient.getStartOfWeek(),
@@ -477,7 +478,9 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
+            const fieldQuoteChar = getFieldQuoteChar(
+                this.warehouseClient.credentials.type,
+            );
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -520,7 +523,9 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
+            const fieldQuoteChar = getFieldQuoteChar(
+                this.warehouseClient.credentials.type,
+            );
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),

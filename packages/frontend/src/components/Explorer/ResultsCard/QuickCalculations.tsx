@@ -1,20 +1,20 @@
 import {
     assertUnreachable,
     CustomFormatType,
+    getFieldQuoteChar,
     MetricType,
-    WarehouseTypes,
     type CustomFormat,
     type Metric,
     type SortField,
     type TableCalculation,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
-import { useExplorerContext } from '../../../providers/ExplorerProvider';
-
 import { useParams } from 'react-router-dom';
 import { getUniqueTableCalculationName } from '../../../features/tableCalculation/utils';
 import { useProject } from '../../../hooks/useProject';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 
@@ -87,28 +87,6 @@ const isCalculationAvailable = (
             );
     }
     return '';
-};
-
-// TODO: Ideally this util should be available in common and not duplicated here. See getFieldQuoteChar in packages/warehouses
-const getFieldQuoteChar = (warehouseType: WarehouseTypes | undefined) => {
-    if (warehouseType) {
-        switch (warehouseType) {
-            case WarehouseTypes.BIGQUERY:
-            case WarehouseTypes.DATABRICKS:
-                return '`';
-            case WarehouseTypes.SNOWFLAKE:
-            case WarehouseTypes.REDSHIFT:
-            case WarehouseTypes.POSTGRES:
-            case WarehouseTypes.TRINO:
-                return '"';
-            default:
-                return assertUnreachable(
-                    warehouseType,
-                    `Unknown warehouse type ${warehouseType}`,
-                );
-        }
-    }
-    return '"';
 };
 
 const getSqlForQuickCalculation = (
