@@ -53,6 +53,14 @@ export class OpenIdIdentityModel {
             );
     }
 
+    async findIdentitiesByEmail(email: string): Promise<OpenIdIdentity[]> {
+        const identities = await this.getOpenIdQueryBuilder().where(
+            'email',
+            email,
+        );
+        return identities.map(OpenIdIdentityModel._parseDbIdentity);
+    }
+
     async getIdentityByOpenId(
         issuer: string,
         subject: string,
