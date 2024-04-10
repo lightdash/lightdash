@@ -13,6 +13,7 @@ import {
     type CompactOrAlias,
     type CustomDimension,
     type CustomFormat,
+    type Dimension,
     type Field,
     type TableCalculation,
 } from '../types/field';
@@ -381,6 +382,7 @@ export function applyCustomFormat(
 export function formatItemValue(
     item:
         | Field
+        | Dimension
         | AdditionalMetric
         | TableCalculation
         | CustomDimension
@@ -426,6 +428,15 @@ export function formatItemValue(
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
                         );
+                    }
+                    break;
+                case DimensionType.NUMBER:
+                    if (
+                        isDimension(item) &&
+                        item.timeInterval &&
+                        item.timeInterval === TimeFrames.YEAR_NUM // Year number (e.g. 2021) is a number, but should be formatted as a string so there's no separator applied
+                    ) {
+                        return `${value}`;
                     }
                     break;
                 default:
