@@ -1,3 +1,10 @@
+## [0.1065.1](https://github.com/lightdash/lightdash/compare/0.1065.0...0.1065.1) (2024-04-10)
+
+
+### Bug Fixes
+
+* treat YEAR_NUM formatting as string ([#9724](https://github.com/lightdash/lightdash/issues/9724)) ([0156d1c](https://github.com/lightdash/lightdash/commit/0156d1cab28b1df4ab399f85bf235ee2243e5d91))
+
 # [0.1065.0](https://github.com/lightdash/lightdash/compare/0.1064.6...0.1065.0) (2024-04-10)
 
 
