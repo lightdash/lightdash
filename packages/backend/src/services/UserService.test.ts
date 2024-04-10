@@ -1,4 +1,4 @@
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
+import { OpenIdIdentityIssuerType, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -17,6 +17,9 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from './UserService';
 import {
+    authenticatedUser,
+    inviteLink,
+    openIdIdentity,
     openIdUser,
     openIdUserWithInvalidIssuer,
     sessionUser,
@@ -27,22 +30,30 @@ const userModel = {
     findSessionUserByOpenId: jest.fn(async () => undefined),
     findSessionUserByUUID: jest.fn(async () => sessionUser),
     createUser: jest.fn(async () => sessionUser),
+    activateUser: jest.fn(async () => sessionUser),
+    getOrganizationsForUser: jest.fn(async () => [sessionUser]),
 };
 
 const openIdIdentityModel = {
-    findIdentitiesByEmail: jest.fn(async () => []),
+    findIdentitiesByEmail: jest.fn(async () => [openIdIdentity]),
     createIdentity: jest.fn(async () => {}),
+    updateIdentityByOpenId: jest.fn(async () => {}),
 };
 
 const emailModel = {
     verifyUserEmailIfExists: jest.fn(async () => []),
 };
 
+const inviteLinkModel = {
+    getByCode: jest.fn(async () => inviteLink),
+    deleteByCode: jest.fn(async () => undefined),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
         lightdashConfig,
-        inviteLinkModel: {} as InviteLinkModel,
+        inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
         userModel: userModel as unknown as UserModel,
         groupsModel: {} as GroupsModel,
         sessionModel: {} as SessionModel,
@@ -274,11 +285,109 @@ describe('UserService', () => {
                 'Invalid login method invalid_issuer provided.',
             );
         });
-        test('should create user if not exists', async () => {
+        test('should create user', async () => {
+            // Mock that no identity is found for that email
+            (
+                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
+            ).mockImplementationOnce(() => []);
+
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
             expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(1);
             expect(userModel.createUser as jest.Mock).toBeCalledWith(
                 openIdUser,
+            );
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should activate invited user', async () => {
+            // Mock that no identity is found for that email
+            (
+                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
+            ).mockImplementationOnce(() => []);
+
+            await userService.loginWithOpenId(
+                openIdUser,
+                undefined,
+                'inviteCode',
+            );
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+        test('should link openid with authenticated user', async () => {
+            await userService.loginWithOpenId(
+                openIdUser,
+                authenticatedUser,
+                undefined,
+            );
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: authenticatedUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should link openid to an existing user that has another OIDC with the same email', async () => {
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: sessionUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should update openid ', async () => {
+            // Mock that identity is found for that openid
+            (
+                userModel.findSessionUserByOpenId as jest.Mock
+            ).mockImplementationOnce(async () => sessionUser);
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
             );
         });
     });

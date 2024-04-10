@@ -1,5 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
+    InviteLink,
+    OpenIdIdentity,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     SessionUser,
@@ -25,7 +27,7 @@ export const openIdUserWithInvalidIssuer: OpenIdUser = {
 
 export const sessionUser: SessionUser = {
     userUuid: 'userUuid',
-    email: 'email',
+    email: openIdUser.openId.email,
     firstName: 'firstName',
     lastName: 'lastName',
     organizationUuid: 'organizationUuid',
@@ -39,4 +41,27 @@ export const sessionUser: SessionUser = {
     ability: new Ability([]),
     isActive: true,
     abilityRules: [],
+};
+
+export const authenticatedUser: SessionUser = {
+    ...sessionUser,
+    userId: 10000,
+};
+
+export const openIdIdentity: OpenIdIdentity = {
+    issuer: 'google',
+    issuerType: OpenIdIdentityIssuerType.GOOGLE,
+    subject: 'subject123',
+    email: 'email',
+    userUuid: 'userUuid',
+    createdAt: new Date(),
+};
+
+export const inviteLink: InviteLink = {
+    email: openIdUser.openId.email,
+    expiresAt: new Date(),
+    inviteCode: 'inviteCode',
+    inviteUrl: 'inviteUrl',
+    organizationUuid: 'organizationUuid',
+    userUuid: 'userUuid',
 };
