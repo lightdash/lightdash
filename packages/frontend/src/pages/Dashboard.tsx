@@ -203,6 +203,10 @@ const Dashboard: FC = () => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
+    const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
+    const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
+    const tabs = useDashboardContext((c) => c.tabs);
+    const setTabs = useDashboardContext((c) => c.setTabs);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -236,12 +240,17 @@ const Dashboard: FC = () => {
         useDisclosure();
     const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
 
-    // TODO put this in context
-    const [tabs, setTabs] = useState<DashboardTab[]>([]);
+    // tabs state
     const [addingTab, setAddingTab] = useState<boolean>(false);
     const [isEditingTabs, setEditingTabs] = useState<boolean>(false);
-
     const [activeTab, setActiveTab] = useState<DashboardTab>();
+
+    const defaultTabUuid = useMemo(() => {
+        if (tabs && tabs.length > 0) {
+            return tabs[0].uuid;
+        }
+        return undefined;
+    }, [tabs]);
 
     const layouts = useMemo(
         () => ({
@@ -253,19 +262,19 @@ const Dashboard: FC = () => {
         [dashboardTiles, isEditMode],
     );
 
-    const defaultTabUuid = useMemo(() => {
-        if (tabs.length > 0) {
-            return tabs[0].uuid;
-        }
-        return undefined;
-    }, [tabs]);
-
     useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles) return;
 
         setDashboardTiles(dashboard?.tiles ?? []);
-    }, [isDashboardLoading, dashboard, dashboardTiles, setDashboardTiles]);
+        setTabs(dashboard?.tabs ?? []);
+    }, [
+        isDashboardLoading,
+        dashboard,
+        dashboardTiles,
+        setDashboardTiles,
+        setTabs,
+    ]);
 
     useEffect(() => {
         if (isDashboardLoading) return;
@@ -402,17 +411,15 @@ const Dashboard: FC = () => {
                     ...tile,
                     tabUuid: activeTab?.uuid,
                 }));
+                setHaveTabsChanged(true);
             }
-
-            console.log('newTiles', newTiles, activeTab, defaultTabUuid);
-
             setDashboardTiles((currentDashboardTiles) =>
                 appendNewTilesToBottom(currentDashboardTiles, newTiles),
             );
 
             setHaveTilesChanged(true);
         },
-        [activeTab, defaultTabUuid, setDashboardTiles, setHaveTilesChanged],
+        [activeTab, setDashboardTiles, setHaveTilesChanged, setHaveTabsChanged],
     );
 
     const handleDeleteTile = useCallback(
@@ -472,6 +479,8 @@ const Dashboard: FC = () => {
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
+        setHaveTabsChanged(false);
+        setTabs(dashboard?.tabs || []);
         history.replace(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
@@ -485,6 +494,8 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setDashboardFilters,
         setHaveTilesChanged,
+        setHaveTabsChanged,
+        setTabs,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -518,7 +529,10 @@ const Dashboard: FC = () => {
 
     useEffect(() => {
         // Check if in edit mode and changes have been made
-        if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+        if (
+            isEditMode &&
+            (haveTilesChanged || haveFiltersChanged || haveTabsChanged)
+        ) {
             // Define the navigation block function
             const navigationBlockFunction = (prompt: { pathname: string }) => {
                 // Check if the user is navigating away from the current dashboard
@@ -556,6 +570,7 @@ const Dashboard: FC = () => {
         haveFiltersChanged,
         projectUuid,
         dashboardUuid,
+        haveTabsChanged,
     ]);
 
     if (dashboardError) {
@@ -594,16 +609,10 @@ const Dashboard: FC = () => {
 
     const handleAddTab = (name: string) => {
         if (name) {
-            if (!tabs.length) {
-                setTabs((currentTabs) => [
-                    ...currentTabs,
-                    { name: 'Tab 1', uuid: uuid4() },
-                ]);
-            }
             const newTab = { uuid: uuid4(), name: name };
-
             setTabs((currentTabs) => [...currentTabs, newTab]);
             setActiveTab(newTab);
+            setHaveTabsChanged(true);
         }
         setAddingTab(false);
     };
@@ -619,6 +628,7 @@ const Dashboard: FC = () => {
                 });
                 return newTabs;
             });
+            setHaveTabsChanged(true);
         }
     };
 
@@ -630,11 +640,8 @@ const Dashboard: FC = () => {
             return newTabs;
         });
         setActiveTab(tabs[0]);
+        setHaveTabsChanged(true);
     };
-
-    // TODO: context
-    // tslint:disable-next-line: no-unused-variable
-    dashboard.tabs = tabs;
 
     return (
         <>
@@ -692,7 +699,8 @@ const Dashboard: FC = () => {
                         hasDashboardChanged={
                             haveTilesChanged ||
                             haveFiltersChanged ||
-                            hasTemporaryFilters
+                            hasTemporaryFilters ||
+                            haveTabsChanged
                         }
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() =>
@@ -713,6 +721,7 @@ const Dashboard: FC = () => {
                                     ],
                                 },
                                 name: dashboard.name,
+                                tabs: tabs,
                             })
                         }
                         onCancel={handleCancel}
@@ -743,8 +752,7 @@ const Dashboard: FC = () => {
                         position="apart"
                         spacing="xs"
                         style={
-                            (dashboard.tabs && dashboard.tabs.length > 0) ||
-                            isEditMode
+                            (tabs && tabs.length > 0) || isEditMode
                                 ? {
                                       background: 'white',
                                       padding: 5,
@@ -754,11 +762,11 @@ const Dashboard: FC = () => {
                         }
                     >
                         <Group>
-                            {dashboard.tabs && dashboard.tabs.length > 0 && (
+                            {tabs && tabs.length > 0 && (
                                 <Group spacing="xs">
                                     {isEditingTabs && isEditMode ? (
                                         <>
-                                            {dashboard.tabs.map((tab, idx) => {
+                                            {tabs.map((tab, idx) => {
                                                 return (
                                                     <Group
                                                         key={idx}
@@ -801,7 +809,7 @@ const Dashboard: FC = () => {
                                         </>
                                     ) : (
                                         <Tabs.List>
-                                            {dashboard.tabs.map((tab, idx) => {
+                                            {tabs.map((tab, idx) => {
                                                 return (
                                                     <Tabs.Tab
                                                         key={idx}
@@ -853,32 +861,24 @@ const Dashboard: FC = () => {
                                 </Group>
                             )}
                         </Group>
-                        {dashboard.tabs &&
-                            dashboard.tabs.length > 0 &&
-                            isEditMode && (
-                                <Button
-                                    compact
-                                    variant="subtle"
-                                    disabled={addingTab}
-                                    leftIcon={
-                                        <MantineIcon
-                                            icon={
-                                                isEditingTabs
-                                                    ? IconCheck
-                                                    : IconEdit
-                                            }
-                                        />
-                                    }
-                                    onClick={() =>
-                                        setEditingTabs((old) => !old)
-                                    }
-                                    sx={{ justifySelf: 'end' }}
-                                >
-                                    {isEditingTabs
-                                        ? 'Done editing'
-                                        : `Edit tabs`}
-                                </Button>
-                            )}
+                        {tabs && tabs.length > 0 && isEditMode && (
+                            <Button
+                                compact
+                                variant="subtle"
+                                disabled={addingTab}
+                                leftIcon={
+                                    <MantineIcon
+                                        icon={
+                                            isEditingTabs ? IconCheck : IconEdit
+                                        }
+                                    />
+                                }
+                                onClick={() => setEditingTabs((old) => !old)}
+                                sx={{ justifySelf: 'end' }}
+                            >
+                                {isEditingTabs ? 'Done editing' : `Edit tabs`}
+                            </Button>
+                        )}
                     </Group>
                     <ResponsiveGridLayout
                         {...getResponsiveGridLayoutProps()}

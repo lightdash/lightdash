@@ -242,7 +242,7 @@ const DashboardHeader = ({
                         <Box>
                             <Button
                                 size="xs"
-                                disabled={true}
+                                disabled={!hasDashboardChanged}
                                 loading={isSaving}
                                 onClick={onSaveDashboard}
                                 color="green.7"

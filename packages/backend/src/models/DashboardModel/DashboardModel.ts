@@ -7,6 +7,7 @@ import {
     DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
+    DashboardTab,
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
@@ -24,6 +25,7 @@ import { AnalyticsDashboardViewsTableName } from '../../database/entities/analyt
 import {
     DashboardsTableName,
     DashboardTable,
+    DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
@@ -128,8 +130,19 @@ export class DashboardModel {
             },
         });
 
+        const tabsPromises = version.tabs.map(async (tab) => {
+            await trx(DashboardTabsTableName).insert({
+                dashboard_version_id: versionId.dashboard_version_id,
+                name: tab.name,
+                uuid: tab.uuid,
+                dashboard_id: dashboardId,
+            });
+        });
+
+        await Promise.all(tabsPromises);
+
         const tilePromises = version.tiles.map(async (tile) => {
-            const { uuid: dashboardTileId, type, w, h, x, y } = tile;
+            const { uuid: dashboardTileId, type, w, h, x, y, tabUuid } = tile;
 
             const [insertedTile] = await trx(DashboardTilesTableName)
                 .insert({
@@ -140,6 +153,7 @@ export class DashboardModel {
                     width: w,
                     x_offset: x,
                     y_offset: y,
+                    tab_uuid: tabUuid,
                 })
                 .returning('*');
 
@@ -495,6 +509,7 @@ export class DashboardModel {
                     belongs_to_dashboard: boolean;
                     name: string | null;
                     last_version_chart_kind: string | null;
+                    tab_uuid: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -503,6 +518,7 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.width`,
                 `${DashboardTilesTableName}.height`,
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                `${DashboardTilesTableName}.tab_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -571,6 +587,21 @@ export class DashboardModel {
                 dashboard.dashboard_version_id,
             );
 
+        const tabs = await this.database(DashboardTabsTableName)
+            .select<DashboardTab[]>(
+                `${DashboardTabsTableName}.name`,
+                `${DashboardTabsTableName}.uuid`,
+                `${DashboardTabsTableName}.dashboard_id`,
+            )
+            .where(
+                `${DashboardTabsTableName}.dashboard_version_id`,
+                dashboard.dashboard_version_id,
+            )
+            .andWhere(
+                `${DashboardTabsTableName}.dashboard_id`,
+                dashboard.dashboard_id,
+            );
+
         const tableCalculationFilters = view?.filters?.tableCalculations;
         view.filters.tableCalculations = tableCalculationFilters || [];
 
@@ -600,17 +631,18 @@ export class DashboardModel {
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
+                    tab_uuid,
                 }) => {
-                    // const base: Omit<
-                    //     DashboardDAO['tiles'][number],
-                    //     'type' | 'properties'
-                    // > = {
-                    const base: any = {
+                    const base: Omit<
+                        DashboardDAO['tiles'][number],
+                        'type' | 'properties'
+                    > = {
                         uuid: dashboard_tile_uuid,
                         x: x_offset,
                         y: y_offset,
                         h: height,
                         w: width,
+                        tabUuid: tab_uuid,
                     };
 
                     const commonProperties = {
@@ -661,6 +693,7 @@ export class DashboardModel {
                     }
                 },
             ),
+            tabs,
             filters: view?.filters || {
                 dimensions: [],
                 metrics: [],
