@@ -93,8 +93,8 @@ export const isGroupedSeries = (series: SeriesLike) => {
 
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
-        (series as Series).encode.yRef?.field ??
-        (series as EChartSeries).encode?.x;
+        (series as EChartSeries).pivotReference?.field ??
+        (series as Series).encode.yRef?.field;
 
     const yPivotValues = (
         (series as EChartSeries)?.pivotReference?.pivotValues ??
@@ -123,6 +123,7 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
      * be assigned the first color)
      */
     const baseFieldPathParts = baseField.split('.');
+
     const baseFieldPath =
         pivotValuesSubPath && baseFieldPathParts.at(-1) === pivotValuesSubPath
             ? baseFieldPathParts.slice(0, -1).join('.')
