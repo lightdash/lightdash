@@ -51,7 +51,7 @@ export const ConfigTabs: FC = memo(() => {
                 </Accordion.Panel>
             </Accordion.Item>
             <Accordion.Item value="grid">
-                <Accordion.Control>Grid</Accordion.Control>
+                <Accordion.Control>Margin</Accordion.Control>
                 <Accordion.Panel>
                     <Grid />
                 </Accordion.Panel>
