@@ -304,13 +304,14 @@ export class ProjectService extends BaseService {
              */
             if (
                 credentials.type === WarehouseTypes.SNOWFLAKE &&
-                typeof credentials.quotedIdentifiersIgnoreCase === 'undefined'
+                typeof credentials.quotedIdentifiersIgnoreCase ===
+                    'undefined' &&
+                (await isFeatureFlagEnabled(
+                    FeatureFlags.DisableSnowflakeQuotedIdentifiersIgnoreCase,
+                    { userUuid },
+                ))
             ) {
-                credentials.quotedIdentifiersIgnoreCase =
-                    await isFeatureFlagEnabled(
-                        FeatureFlags.SnowflakeQuotedIdentifiersIgnoreCase,
-                        { userUuid },
-                    );
+                credentials.quotedIdentifiersIgnoreCase = false;
             }
         }
         return credentials;

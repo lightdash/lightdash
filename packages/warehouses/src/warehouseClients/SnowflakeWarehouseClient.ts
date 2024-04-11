@@ -109,7 +109,7 @@ const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
-    quotedIdentifiersIgnoreCase = false;
+    quotedIdentifiersIgnoreCase?: boolean;
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
@@ -189,15 +189,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             );
 
             /**
-             * This defaults to FALSE, so we only set it if it's true for this client instance.
-             *
-             * Once this change is rolled out widely, we must consider always setting this
-             * to TRUE, potentially overriding an option set at the table level.
+             * For now we only force this to false, if the boolean is explicitly set.
              */
-            if (this.quotedIdentifiersIgnoreCase) {
+            if (this.quotedIdentifiersIgnoreCase === false) {
                 await this.executeStatement(
                     connection,
-                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = TRUE`,
+                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`,
                 );
             }
 
