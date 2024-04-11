@@ -10,6 +10,7 @@ import {
     Box,
     Center,
     Group,
+    LoadingOverlay,
     Paper,
     Tooltip,
     useMantineTheme,
@@ -99,7 +100,7 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
 };
 
 const VisualizationCardOptions: FC = memo(() => {
-    const [, startTransition] = useTransition();
+    const [isPending, startTransition] = useTransition();
 
     const { health } = useApp();
     const customVizEnabled = useFeatureFlagEnabled(
@@ -344,6 +345,10 @@ const VisualizationCardOptions: FC = memo(() => {
                     chartKind={viz.chartKind}
                 />
             ))}
+            <LoadingOverlay
+                visible={isPending}
+                loaderProps={{ size: 'sm', color: 'violet.6', variant: 'dots' }}
+            />
         </Group>
     );
 });
