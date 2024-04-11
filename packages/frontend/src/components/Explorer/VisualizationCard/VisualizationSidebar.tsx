@@ -3,7 +3,7 @@ import {
     ChartType,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Drawer, Group, Text } from '@mantine/core';
+import { Button, Drawer, Group, Text, type DrawerProps } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -19,15 +19,24 @@ import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/Pie
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
-const VisualizationSidebar: FC<{
-    chartType: ChartType;
-    savedChart?: SavedChart;
-    isProjectPreview?: boolean;
-    isOpen: boolean;
-    onClose: () => void;
-    onOpen: () => void;
-}> = memo(
-    ({ chartType, savedChart, isProjectPreview, isOpen, onOpen, onClose }) => {
+const VisualizationSidebar: FC<
+    {
+        isConfigurable: boolean;
+        chartType: ChartType;
+        savedChart?: SavedChart;
+        isProjectPreview?: boolean;
+        onOpen: () => void;
+    } & Pick<DrawerProps, 'opened' | 'onClose'>
+> = memo(
+    ({
+        isConfigurable,
+        chartType,
+        savedChart,
+        isProjectPreview,
+        opened,
+        onOpen,
+        onClose,
+    }) => {
         const sidebarVerticalOffset = useMemo(() => {
             let offset = NAVBAR_HEIGHT;
 
@@ -65,22 +74,24 @@ const VisualizationSidebar: FC<{
 
         return (
             <>
-                <Button
-                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                    onClick={isOpen ? onClose : onOpen}
-                    rightIcon={
-                        <MantineIcon
-                            color="gray"
-                            icon={
-                                isOpen
-                                    ? IconLayoutSidebarLeftCollapse
-                                    : IconLayoutSidebarLeftExpand
-                            }
-                        />
-                    }
-                >
-                    {isOpen ? 'Close configure' : 'Configure'}
-                </Button>
+                {isConfigurable && (
+                    <Button
+                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                        onClick={opened ? onClose : onOpen}
+                        rightIcon={
+                            <MantineIcon
+                                color="gray"
+                                icon={
+                                    opened
+                                        ? IconLayoutSidebarLeftCollapse
+                                        : IconLayoutSidebarLeftExpand
+                                }
+                            />
+                        }
+                    >
+                        {opened ? 'Close configure' : 'Configure'}
+                    </Button>
+                )}
 
                 <Drawer
                     title={
@@ -89,7 +100,7 @@ const VisualizationSidebar: FC<{
                         </Text>
                     }
                     zIndex={100}
-                    opened={isOpen}
+                    opened={opened}
                     withOverlay={false}
                     lockScroll={false}
                     shadow="lg"

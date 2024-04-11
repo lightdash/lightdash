@@ -179,28 +179,24 @@ const VisualizationCard: FC<{
                 isVisualizationCard
                 onToggle={toggleSection}
                 rightHeaderElement={
-                    isOpen && (
-                        <>
-                            {isEditMode ? (
-                                <VisualizationSidebar
-                                    chartType={
-                                        unsavedChartVersion.chartConfig.type
-                                    }
-                                    savedChart={savedChart}
-                                    isProjectPreview={isProjectPreview}
-                                    isOpen={isSidebarOpen}
-                                    onOpen={openSidebar}
-                                    onClose={closeSidebar}
-                                />
-                            ) : null}
-
+                    <>
+                        <VisualizationSidebar
+                            isConfigurable={isEditMode}
+                            chartType={unsavedChartVersion.chartConfig.type}
+                            savedChart={savedChart}
+                            isProjectPreview={isProjectPreview}
+                            opened={isOpen && isEditMode && isSidebarOpen}
+                            onOpen={openSidebar}
+                            onClose={closeSidebar}
+                        />
+                        {isOpen && (
                             <ChartDownloadMenu
                                 getCsvLink={getCsvLink}
                                 projectUuid={projectUuid!}
                                 getGsheetLink={getGsheetLink}
                             />
-                        </>
-                    )
+                        )}
+                    </>
                 }
             >
                 <LightdashVisualization
