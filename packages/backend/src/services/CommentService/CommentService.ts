@@ -14,6 +14,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
+import { BaseService } from '../BaseService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
@@ -25,7 +26,7 @@ type CommentServiceArguments = {
     userModel: UserModel;
 };
 
-export class CommentService {
+export class CommentService extends BaseService {
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -46,6 +47,7 @@ export class CommentService {
         notificationsModel,
         userModel,
     }: CommentServiceArguments) {
+        super();
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;

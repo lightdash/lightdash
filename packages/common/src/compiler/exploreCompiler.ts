@@ -22,6 +22,7 @@ import {
     type DateGranularity,
 } from '../types/timeFrames';
 import { timeFrameConfigs } from '../utils/timeFrames';
+import { getFieldQuoteChar } from '../utils/warehouse';
 import { renderFilterRuleSql } from './filtersCompiler';
 
 // exclude lightdash prefix from variable pattern
@@ -393,7 +394,7 @@ export class ExploreCompiler {
                 return renderFilterRuleSql(
                     filter,
                     compiledDimension,
-                    this.warehouseClient.getFieldQuoteChar(),
+                    getFieldQuoteChar(this.warehouseClient.credentials.type),
                     this.warehouseClient.getStringQuoteChar(),
                     this.warehouseClient.getEscapeStringQuoteChar(),
                     this.warehouseClient.getStartOfWeek(),
@@ -477,7 +478,9 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
+            const fieldQuoteChar = getFieldQuoteChar(
+                this.warehouseClient.credentials.type,
+            );
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -485,7 +488,14 @@ export class ExploreCompiler {
         }
         const { refTable, refName } = getParsedReference(ref, currentTable);
 
-        const referencedDimension = tables[refTable]?.dimensions[refName];
+        /** Resolve the table reference through its original name, or via an alias: */
+        const referencedTable = Object.values(tables).find(
+            (table) =>
+                table.name === refTable || table.originalName === refTable,
+        );
+
+        const referencedDimension = referencedTable?.dimensions[refName];
+
         if (referencedDimension === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a dimension reference: \${${ref}} which matches no dimension`,
@@ -513,7 +523,9 @@ export class ExploreCompiler {
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
-            const fieldQuoteChar = this.warehouseClient.getFieldQuoteChar();
+            const fieldQuoteChar = getFieldQuoteChar(
+                this.warehouseClient.credentials.type,
+            );
             return {
                 sql: `${fieldQuoteChar}${currentTable}${fieldQuoteChar}`,
                 tablesReferences: new Set([currentTable]),
@@ -564,10 +576,12 @@ export class ExploreCompiler {
                 {
                     table: join.alias || join.table,
                     sqlOn: join.sqlOn,
+                    always: join.always,
                 },
                 tables,
             ),
             hidden: join.hidden,
+            always: join.always,
         };
     }
 }

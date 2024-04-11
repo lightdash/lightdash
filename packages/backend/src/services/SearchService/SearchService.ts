@@ -17,6 +17,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { BaseService } from '../BaseService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
@@ -28,7 +29,7 @@ type SearchServiceArguments = {
     userAttributesModel: UserAttributesModel;
 };
 
-export class SearchService {
+export class SearchService extends BaseService {
     private readonly searchModel: SearchModel;
 
     private readonly analytics: LightdashAnalytics;
@@ -40,6 +41,7 @@ export class SearchService {
     private readonly userAttributesModel: UserAttributesModel;
 
     constructor(args: SearchServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.searchModel = args.searchModel;
         this.projectModel = args.projectModel;

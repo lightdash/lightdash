@@ -864,20 +864,17 @@ export class UserModel {
         return row.refresh_token;
     }
 
-    async getOpenIdIssuer(
-        email: string,
-    ): Promise<OpenIdIdentityIssuerType | undefined | null> {
-        const row = await this.database('emails')
+    async getOpenIdIssuers(email: string): Promise<OpenIdIdentityIssuerType[]> {
+        const rows = await this.database('emails')
             .leftJoin(
                 'openid_identities',
                 'emails.user_id',
                 'openid_identities.user_id',
             )
-            .where('emails.email', email)
+            .whereNotNull('openid_identities.issuer_type')
+            .andWhere('emails.email', email)
             .andWhere('emails.is_primary', true)
-            .select('openid_identities.issuer_type')
-            .first();
-
-        return row?.issuer_type;
+            .select('openid_identities.issuer_type');
+        return rows.map((row) => row.issuer_type);
     }
 }

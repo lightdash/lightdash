@@ -16,20 +16,19 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer, { HTTPRequest } from 'puppeteer';
+import puppeteer from 'puppeteer';
 import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { isFeatureFlagEnabled, postHogClient } from '../../postHog';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
-import { EncryptionService } from '../EncryptionService/EncryptionService';
+import { BaseService } from '../BaseService';
 
 const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
 const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
@@ -92,13 +91,12 @@ type UnfurlServiceArguments = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     shareModel: ShareModel;
-    encryptionService: EncryptionService;
     s3Client: S3Client;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
 };
 
-export class UnfurlService {
+export class UnfurlService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     dashboardModel: DashboardModel;
@@ -108,8 +106,6 @@ export class UnfurlService {
     spaceModel: SpaceModel;
 
     shareModel: ShareModel;
-
-    encryptionService: EncryptionService;
 
     s3Client: S3Client;
 
@@ -123,17 +119,16 @@ export class UnfurlService {
         savedChartModel,
         spaceModel,
         shareModel,
-        encryptionService,
         s3Client,
         projectModel,
         downloadFileModel,
     }: UnfurlServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.shareModel = shareModel;
-        this.encryptionService = encryptionService;
         this.s3Client = s3Client;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
@@ -378,7 +373,7 @@ export class UnfurlService {
         resourceName?: string;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
-            Logger.error(
+            this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
             );
             throw new Error(
@@ -436,7 +431,7 @@ export class UnfurlService {
                         });
                     }
                     page.on('requestfailed', (request) => {
-                        Logger.warn(
+                        this.logger.warn(
                             `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
                                 request.failure()?.errorText
                             }`,
@@ -445,7 +440,7 @@ export class UnfurlService {
                     page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
-                            Logger.warn(
+                            this.logger.warn(
                                 `Headless browser console error - file: ${
                                     msg.location().url
                                 }, text ${msg.text()} `,
@@ -483,14 +478,14 @@ export class UnfurlService {
                                 (buffer) => {
                                     const status = response.status();
                                     if (status >= 400) {
-                                        Logger.error(
+                                        this.logger.error(
                                             `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
                                         );
                                         chartRequestErrors += 1;
                                     }
                                 },
                                 (error) => {
-                                    Logger.error(
+                                    this.logger.error(
                                         `Headless browser response buffer error: ${error.message}`,
                                     );
                                     chartRequestErrors += 1;
@@ -506,7 +501,7 @@ export class UnfurlService {
                         });
                     } catch (e) {
                         timeout = true;
-                        Logger.warn(
+                        this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
@@ -518,7 +513,7 @@ export class UnfurlService {
                         })
                         .catch(() => {
                             timeout = true;
-                            Logger.warn(
+                            this.logger.warn(
                                 `Got a timeout when waiting for all charts to be loaded, returning current content`,
                             );
                         });
@@ -554,7 +549,7 @@ export class UnfurlService {
                     }
 
                     if (!element) {
-                        Logger.warn(`Can't find element on page`);
+                        this.logger.warn(`Can't find element on page`);
                         return undefined;
                     }
 
@@ -624,7 +619,7 @@ export class UnfurlService {
                         code: SpanStatusCode.ERROR,
                     });
 
-                    Logger.error(
+                    this.logger.error(
                         `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
                     );
                     throw e;
@@ -634,7 +629,7 @@ export class UnfurlService {
                     span.end();
 
                     const executionTime = Date.now() - startTime;
-                    Logger.info(
+                    this.logger.info(
                         `UnfurlService saveScreenshot took ${executionTime} ms`,
                     );
                     taskDurationHistogram.record(executionTime, {
@@ -655,7 +650,7 @@ export class UnfurlService {
             `${shareUrl.path}${shareUrl.params}`,
             this.lightdashConfig.siteUrl,
         ).href;
-        Logger.debug(`Shared url ${shareId}: ${fullUrl}`);
+        this.logger.debug(`Shared url ${shareId}: ${fullUrl}`);
 
         return fullUrl;
     }
@@ -716,7 +711,7 @@ export class UnfurlService {
             };
         }
 
-        Logger.debug(`URL to unfurl ${url} is not valid`);
+        this.logger.debug(`URL to unfurl ${url} is not valid`);
         return {
             isValid: false,
             url,

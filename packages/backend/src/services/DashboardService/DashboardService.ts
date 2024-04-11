@@ -36,6 +36,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
@@ -51,7 +52,7 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
 };
 
-export class DashboardService {
+export class DashboardService extends BaseService {
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -81,6 +82,7 @@ export class DashboardService {
         schedulerClient,
         slackClient,
     }: DashboardServiceArguments) {
+        super();
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;

@@ -1,4 +1,4 @@
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
+import { OpenIdIdentityIssuerType, SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -16,20 +16,50 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from './UserService';
+import {
+    authenticatedUser,
+    inviteLink,
+    openIdIdentity,
+    openIdUser,
+    openIdUserWithInvalidIssuer,
+    sessionUser,
+} from './UserService.mock';
 
 const userModel = {
-    getOpenIdIssuer: jest.fn(async () => undefined),
+    getOpenIdIssuers: jest.fn(async () => []),
+    findSessionUserByOpenId: jest.fn(async () => undefined),
+    findSessionUserByUUID: jest.fn(async () => sessionUser),
+    createUser: jest.fn(async () => sessionUser),
+    activateUser: jest.fn(async () => sessionUser),
+    getOrganizationsForUser: jest.fn(async () => [sessionUser]),
 };
+
+const openIdIdentityModel = {
+    findIdentitiesByEmail: jest.fn(async () => [openIdIdentity]),
+    createIdentity: jest.fn(async () => {}),
+    updateIdentityByOpenId: jest.fn(async () => {}),
+};
+
+const emailModel = {
+    verifyUserEmailIfExists: jest.fn(async () => []),
+};
+
+const inviteLinkModel = {
+    getByCode: jest.fn(async () => inviteLink),
+    deleteByCode: jest.fn(async () => undefined),
+};
+
 const createUserService = (lightdashConfig: LightdashConfig) =>
     new UserService({
         analytics: analyticsMock,
         lightdashConfig,
-        inviteLinkModel: {} as InviteLinkModel,
+        inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
         userModel: userModel as unknown as UserModel,
         groupsModel: {} as GroupsModel,
         sessionModel: {} as SessionModel,
-        emailModel: {} as EmailModel,
-        openIdIdentityModel: {} as OpenIdIdentityModel,
+        emailModel: emailModel as unknown as EmailModel,
+        openIdIdentityModel:
+            openIdIdentityModel as unknown as OpenIdIdentityModel,
         passwordResetLinkModel: {} as PasswordResetLinkModel,
         emailClient: {} as EmailClient,
         organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
@@ -72,8 +102,8 @@ describe('UserService', () => {
         });
     });
     test('should previous logged in sso provider', async () => {
-        (userModel.getOpenIdIssuer as jest.Mock).mockImplementationOnce(
-            async () => OpenIdIdentityIssuerType.OKTA,
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [OpenIdIdentityIssuerType.OKTA],
         );
 
         const service = createUserService({
@@ -83,6 +113,59 @@ describe('UserService', () => {
                 disablePasswordAuthentication: false,
                 okta: {
                     ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: '1',
+                    loginPath: '/login/okta',
+                },
+            },
+        });
+
+        expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
+            forceRedirect: true,
+            redirectUri:
+                'https://test.lightdash.cloud/api/v1/login/okta?login_hint=test%40lightdash.com',
+            showOptions: ['okta'],
+        });
+    });
+    test('should not login with previous sso provider if not enabled', async () => {
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [OpenIdIdentityIssuerType.OKTA],
+        );
+
+        const service = createUserService({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                disablePasswordAuthentication: false,
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: undefined, // disbled okta
+                    loginPath: '/login/okta',
+                },
+            },
+        });
+
+        expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
+            forceRedirect: false,
+            redirectUri: undefined,
+            showOptions: ['email'],
+        });
+    });
+    test('should previous logged in enabled sso provider', async () => {
+        (userModel.getOpenIdIssuers as jest.Mock).mockImplementationOnce(
+            async () => [
+                OpenIdIdentityIssuerType.GOOGLE,
+                OpenIdIdentityIssuerType.OKTA,
+            ],
+        );
+
+        const service = createUserService({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                disablePasswordAuthentication: false,
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    oauth2ClientId: '1',
                     loginPath: '/login/okta',
                 },
             },
@@ -187,6 +270,122 @@ describe('UserService', () => {
             redirectUri:
                 'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
             showOptions: ['azuread', 'google', 'okta', 'oneLogin'],
+        });
+    });
+
+    describe('loginWithOpenId', () => {
+        test('should throw error if provider not allowed', async () => {
+            await expect(
+                userService.loginWithOpenId(
+                    openIdUserWithInvalidIssuer,
+                    undefined,
+                    undefined,
+                ),
+            ).rejects.toThrowError(
+                'Invalid login method invalid_issuer provided.',
+            );
+        });
+        test('should create user', async () => {
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(1);
+            expect(userModel.createUser as jest.Mock).toBeCalledWith(
+                openIdUser,
+            );
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should activate invited user', async () => {
+            await userService.loginWithOpenId(
+                openIdUser,
+                undefined,
+                'inviteCode',
+            );
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+        test('should link openid with authenticated user', async () => {
+            await userService.loginWithOpenId(
+                openIdUser,
+                authenticatedUser,
+                undefined,
+            );
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: authenticatedUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should link openid to an existing user that has another OIDC with the same email', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcLinking: true,
+                },
+            });
+            await service.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: sessionUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should update openid ', async () => {
+            // Mock that identity is found for that openid
+            (
+                userModel.findSessionUserByOpenId as jest.Mock
+            ).mockImplementationOnce(async () => sessionUser);
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
         });
     });
 });

@@ -35,7 +35,9 @@ const formatters = {
         winston.format.colorize({ all: true }),
         winston.format.printf(
             (info) =>
-                `${info.timestamp} [Lightdash] ${info.level}: ${info.message}`,
+                `${info.timestamp} [Lightdash] ${info.level}: ${
+                    info.serviceName ? `[${info.serviceName}] ` : ''
+                }${info.message}`,
         ),
     ),
     json: winston.format.combine(

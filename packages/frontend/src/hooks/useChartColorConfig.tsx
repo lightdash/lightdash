@@ -93,17 +93,19 @@ export const isGroupedSeries = (series: SeriesLike) => {
 
 export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
     const baseField =
-        (series as Series).encode.yRef?.field ??
-        (series as EChartSeries).encode?.x;
+        (series as EChartSeries).pivotReference?.field ??
+        (series as Series).encode.yRef?.field;
 
-    const yPivotValues = (
+    const pivotValues = (
         (series as EChartSeries)?.pivotReference?.pivotValues ??
         (series as Series)?.encode.yRef.pivotValues ??
         []
     ).map(({ value }) => `${value}`);
 
     const pivotValuesSubPath =
-        yPivotValues && yPivotValues.length > 0 ? `${yPivotValues[0]}` : null;
+        pivotValues && pivotValues.length > 0
+            ? `${pivotValues.join('.')}`
+            : null;
 
     /**
      * When dealing with flipped axis, Echarts will include the pivot value as
@@ -121,6 +123,7 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
      * be assigned the first color)
      */
     const baseFieldPathParts = baseField.split('.');
+
     const baseFieldPath =
         pivotValuesSubPath && baseFieldPathParts.at(-1) === pivotValuesSubPath
             ? baseFieldPathParts.slice(0, -1).join('.')
@@ -130,7 +133,20 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
         ? pivotValuesSubPath
         : baseFieldPath;
 
-    return [baseFieldPath, completeIdentifier];
+    return [
+        `${baseFieldPath}${
+            /**
+             * If we have more than one pivot value, we append the number of pivot values
+             * to the group identifier, giving us a unique group per number of values.
+             *
+             * This is not critical, but gives us better serial color assignment when
+             * switching between number of groups, since we're not tacking each group
+             * configuration on top of eachother (under the same identifier).
+             */
+            pivotValues.length === 1 ? '' : `${`_n${pivotValues.length}`}`
+        }`,
+        completeIdentifier,
+    ];
 };
 
 export const useChartColorConfig = ({

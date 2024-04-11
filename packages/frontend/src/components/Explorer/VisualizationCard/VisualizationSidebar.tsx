@@ -16,7 +16,7 @@ import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/Bi
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
-import TableConfigTabs from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
+import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
 
 const VisualizationSidebar: FC<{

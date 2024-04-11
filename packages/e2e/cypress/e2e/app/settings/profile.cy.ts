@@ -3,9 +3,7 @@ import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
 describe('Settings - Profile', () => {
     beforeEach(() => {
         cy.login();
-    });
 
-    after(() => {
         // Reset to default values
         cy.request({
             url: 'api/v1/user/me',

@@ -10,6 +10,7 @@ import {
     compiledJoinedExploreWithSubsetOfFields,
     compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     compiledSimpleJoinedExplore,
+    compiledSimpleJoinedExploreWithAlwaysTrue,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
     exploreCircularMetricReference,
@@ -40,6 +41,7 @@ import {
     joinedExploreWithSubsetOfFields,
     joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     simpleJoinedExplore,
+    simpleJoinedExploreWithAlwaysTrue,
     tablesWithMetricsWithFilters,
     warehouseClientMock,
 } from './exploreCompiler.mock';
@@ -298,5 +300,13 @@ describe('Explore with user attributes', () => {
         expect(
             compiler.compileExplore(exploreWithRequiredAttributes),
         ).toStrictEqual(exploreWithRequiredAttributesCompiled);
+    });
+});
+
+describe('Explore with always true join', () => {
+    test('should compile explore with always true join', () => {
+        expect(
+            compiler.compileExplore(simpleJoinedExploreWithAlwaysTrue),
+        ).toStrictEqual(compiledSimpleJoinedExploreWithAlwaysTrue);
     });
 });

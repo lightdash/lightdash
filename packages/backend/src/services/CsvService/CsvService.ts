@@ -56,6 +56,7 @@ import { UserModel } from '../../models/UserModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread } from '../../utils';
+import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type CsvServiceArguments = {
@@ -134,7 +135,7 @@ const getSchedulerCsvLimit = (
     }
 };
 
-export class CsvService {
+export class CsvService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -164,6 +165,7 @@ export class CsvService {
         downloadFileModel,
         schedulerClient,
     }: CsvServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.userModel = userModel;
@@ -881,7 +883,7 @@ export class CsvService {
                     zlib: { level: 9 }, // Sets the compression level.
                 });
                 output.on('close', () => {
-                    Logger.info(
+                    this.logger.info(
                         `Generated .zip file of ${archive.pointer()} bytes`,
                     );
                     resolve(zipName);

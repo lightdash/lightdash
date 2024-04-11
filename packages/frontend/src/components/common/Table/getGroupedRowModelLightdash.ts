@@ -1,12 +1,13 @@
 import { type ResultRow } from '@lightdash/common';
-import { createRow } from '@tanstack/table-core/src/core/row';
 import {
+    createRow,
+    flattenBy,
+    memo,
     type Row,
     type RowData,
     type RowModel,
     type Table,
-} from '@tanstack/table-core/src/types';
-import { flattenBy, memo } from '@tanstack/table-core/src/utils';
+} from '@tanstack/react-table';
 
 // Customizes row grouping based on a clone of
 // @tanstack/table-core/src/utils/getGroupedRowModel.ts

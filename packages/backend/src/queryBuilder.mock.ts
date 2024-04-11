@@ -34,7 +34,6 @@ export const warehouseClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
     getMetricSql: (sql, metric) => {
@@ -50,7 +49,9 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
-    credentials: {} as CreateWarehouseCredentials,
+    credentials: {
+        type: WarehouseTypes.BIGQUERY,
+    } as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {
@@ -67,7 +68,6 @@ export const bigqueryClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '`',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => '\\',
     getMetricSql: () => '',

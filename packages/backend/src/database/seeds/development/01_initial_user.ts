@@ -22,7 +22,7 @@ import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { projectAdapterFromConfig } from '../../../projectAdapters/projectAdapter';
-import { EncryptionService } from '../../../services/EncryptionService/EncryptionService';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { DbEmailIn } from '../../entities/emails';
 import { OnboardingTableName } from '../../entities/onboarding';
 import { DbOrganizationIn } from '../../entities/organizations';
@@ -92,7 +92,7 @@ export async function seed(knex: Knex): Promise<void> {
     );
 
     // Try this with relative path
-    const enc = new EncryptionService({ lightdashConfig });
+    const enc = new EncryptionUtil({ lightdashConfig });
     const demoDir = process.env.DBT_DEMO_DIR;
     if (!demoDir) {
         throw new Error(
@@ -185,7 +185,7 @@ export async function seed(knex: Knex): Promise<void> {
         await new ProjectModel({
             database: knex,
             lightdashConfig,
-            encryptionService: enc,
+            encryptionUtil: enc,
         }).saveExploresToCache(SEED_PROJECT.project_uuid, explores);
     } catch (e) {
         console.error(e);

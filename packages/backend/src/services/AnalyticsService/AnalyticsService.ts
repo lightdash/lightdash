@@ -2,18 +2,20 @@ import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { BaseService } from '../BaseService';
 
 type AnalyticsServiceArguments = {
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
 };
 
-export class AnalyticsService {
+export class AnalyticsService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly analyticsModel: AnalyticsModel;
 
     constructor(args: AnalyticsServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.analyticsModel = args.analyticsModel;
     }

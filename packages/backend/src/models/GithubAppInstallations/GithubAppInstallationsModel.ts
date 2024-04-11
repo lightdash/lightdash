@@ -5,21 +5,21 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { GithubAppInstallationTableName } from '../../database/entities/githubAppInstallation';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 type GithubAppInstallationsModelArguments = {
     database: Knex;
-    encryptionService: EncryptionService;
+    encryptionUtil: EncryptionUtil;
 };
 
 export class GithubAppInstallationsModel {
     readonly database: Knex;
 
-    readonly encryptionService: EncryptionService;
+    readonly encryptionUtil: EncryptionUtil;
 
     constructor(args: GithubAppInstallationsModelArguments) {
         this.database = args.database;
-        this.encryptionService = args.encryptionService;
+        this.encryptionUtil = args.encryptionUtil;
     }
 
     async findInstallationId(
@@ -35,7 +35,7 @@ export class GithubAppInstallationsModel {
 
         let installationId: string;
         try {
-            installationId = this.encryptionService.decrypt(
+            installationId = this.encryptionUtil.decrypt(
                 installation.encrypted_installation_id,
             );
         } catch (e) {
@@ -68,7 +68,7 @@ export class GithubAppInstallationsModel {
         await this.database(GithubAppInstallationTableName).insert({
             organization_uuid: user.organizationUuid,
             encrypted_installation_id:
-                this.encryptionService.encrypt(installationId),
+                this.encryptionUtil.encrypt(installationId),
             created_by_user_uuid: user.userUuid,
             updated_by_user_uuid: user.userUuid,
             auth_token: token,
@@ -84,7 +84,7 @@ export class GithubAppInstallationsModel {
             .where({ organization_uuid: user.organizationUuid })
             .update({
                 encrypted_installation_id:
-                    this.encryptionService.encrypt(installationId),
+                    this.encryptionUtil.encrypt(installationId),
                 updated_by_user_uuid: user.userUuid,
                 updated_at: new Date(),
             });

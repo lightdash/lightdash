@@ -10,6 +10,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type GdriveServiceArguments = {
@@ -21,7 +22,7 @@ type GdriveServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
-export class GdriveService {
+export class GdriveService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     projectService: ProjectService;
@@ -42,6 +43,7 @@ export class GdriveService {
         dashboardModel,
         schedulerClient,
     }: GdriveServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
         this.projectService = projectService;

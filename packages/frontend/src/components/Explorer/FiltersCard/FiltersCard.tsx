@@ -119,6 +119,7 @@ const FiltersCard: FC = memo(() => {
                 <>
                     {totalActiveFilters > 0 && !filterIsOpen ? (
                         <Tooltip
+                            variant="xs"
                             arrowOffset={12}
                             label={
                                 <div
@@ -162,6 +163,9 @@ const FiltersCard: FC = memo(() => {
                 startOfWeek={
                     project.data?.warehouseConnection?.startOfWeek ?? undefined
                 }
+                popoverProps={{
+                    withinPortal: true,
+                }}
             >
                 <FiltersForm
                     isEditMode={isEditMode}

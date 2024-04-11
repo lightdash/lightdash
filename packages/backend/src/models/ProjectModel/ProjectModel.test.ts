@@ -2,6 +2,7 @@ import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -9,12 +10,11 @@ import {
 } from '../../database/entities/projects';
 import { ProjectModel } from './ProjectModel';
 import {
-    encryptionServiceMock,
+    encryptionUtilMock,
     expectedProject,
     expectedTablesConfiguration,
     exploresWithSameName,
     exploreWithMetricFilters,
-    lightdashConfigMock,
     mockExploreWithOutdatedMetricFilters,
     projectMock,
     projectUuid,
@@ -39,7 +39,7 @@ describe('ProjectModel', () => {
     const model = new ProjectModel({
         database: knex({ client: MockClient, dialect: 'pg' }),
         lightdashConfig: lightdashConfigMock,
-        encryptionService: encryptionServiceMock,
+        encryptionUtil: encryptionUtilMock,
     });
     let tracker: Tracker;
     beforeAll(() => {
