@@ -109,6 +109,8 @@ const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
+    quotedIdentifiersIgnoreCase = false;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
         let decodedPrivateKey: string | Buffer | undefined =
@@ -126,6 +128,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 format: 'pem',
                 type: 'pkcs8',
             });
+        }
+
+        if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
+            this.quotedIdentifiersIgnoreCase =
+                credentials.quotedIdentifiersIgnoreCase;
         }
 
         this.connectionOptions = {
@@ -180,6 +187,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",
             );
+
+            /**
+             * This defaults to FALSE, so we only set it if it's true for this client instance.
+             *
+             * Once this change is rolled out widely, we must consider always setting this
+             * to TRUE, potentially overriding an option set at the table level.
+             */
+            if (this.quotedIdentifiersIgnoreCase) {
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = TRUE`,
+                );
+            }
+
             const result = await this.executeStreamStatement(
                 connection,
                 sqlText,

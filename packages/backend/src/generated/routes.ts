@@ -2571,6 +2571,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                     },
+                    quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
                 },
                 validators: {},
             },

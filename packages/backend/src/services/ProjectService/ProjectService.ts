@@ -295,6 +295,23 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+
+            /**
+             * Enable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
+             * this option is explicitly set via the credentials.
+             *
+             * This is temporary until the feature flag is rolled over globally.
+             */
+            if (
+                credentials.type === WarehouseTypes.SNOWFLAKE &&
+                typeof credentials.quotedIdentifiersIgnoreCase === 'undefined'
+            ) {
+                credentials.quotedIdentifiersIgnoreCase =
+                    await isFeatureFlagEnabled(
+                        FeatureFlags.SnowflakeQuotedIdentifiersIgnoreCase,
+                        { userUuid },
+                    );
+            }
         }
         return credentials;
     }
