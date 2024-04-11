@@ -33,7 +33,7 @@ describe('Date tests', () => {
         cy.login();
     });
 
-    it.only('Check current timezone', () => {
+    it('Check current timezone', () => {
         const now = new Date('1 January, 2000'); // set specific date to avoid daylight savings
         const timezone = Cypress.env('TZ');
         const offset = now.getTimezoneOffset();
@@ -159,7 +159,7 @@ describe('Date tests', () => {
         });
     });
 
-    it.only('Should use UTC dates', () => {
+    it('Should use UTC dates', () => {
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"exploreName"%3A""%2C"dimensions"%3A["events_timestamp_tz_raw"]%2C"metrics"%3A["events_count"]%2C"filters"%3A{"dimensions"%3A{"id"%3A"3b565490-87c5-4996-a42b-ff0640bb18cd"%2C"and"%3A[{"id"%3A"be863f3c-5807-48c5-9b6f-2e8445610280"%2C"target"%3A{"fieldId"%3A"events_timestamp_tz_raw"}%2C"operator"%3A"equals"%2C"values"%3A["2020-08-12T00%3A58%3A00%2B02%3A00"]}]}}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A500%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_count"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_count"]}%2C"eChartsConfig"%3A{"series"%3A[{"type"%3A"bar"%2C"yAxisIndex"%3A0%2C"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_count"}}}]}}}}`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
@@ -259,7 +259,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
-    it.only('Should filter by datetimes on results table', () => {
+    it('Should filter by datetimes on results table', () => {
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
