@@ -53,6 +53,7 @@ import FilterNumberInput from '../../../components/common/Filters/FilterInputs/F
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
+import TimezoneSelect from '../../../components/ReactHookForm/CronInput/TimezoneSelect';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
@@ -62,7 +63,6 @@ import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import { SchedulerPreview } from './SchedulerPreview';
-import TimezoneSelect from '../../../components/ReactHookForm/CronInput/TimezoneSelect';
 
 export enum Limit {
     TABLE = 'table',
@@ -592,7 +592,7 @@ const SchedulerForm: FC<Props> = ({
                                     name="cron"
                                     timeZone={
                                         <TimezoneSelect
-                                            disabled={disabled} 
+                                            disabled={disabled}
                                             name="timezone"
                                             {...form.getInputProps('timezone')}
                                         />

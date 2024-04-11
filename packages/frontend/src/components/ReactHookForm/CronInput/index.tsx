@@ -61,13 +61,25 @@ export const CronInternalInputs: FC<
                 <HourlyInputs cronExpression={value} onChange={onChange} />
             )}
             {frequency === Frequency.DAILY && (
-                <DailyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
+                <DailyInputs
+                    cronExpression={value}
+                    timeZone={timeZone}
+                    onChange={onChange}
+                />
             )}
             {frequency === Frequency.WEEKLY && (
-                <WeeklyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
+                <WeeklyInputs
+                    cronExpression={value}
+                    timeZone={timeZone}
+                    onChange={onChange}
+                />
             )}
             {frequency === Frequency.MONTHLY && (
-                <MonthlyInputs cronExpression={value} timeZone={timeZone} onChange={onChange} />
+                <MonthlyInputs
+                    cronExpression={value}
+                    timeZone={timeZone}
+                    onChange={onChange}
+                />
             )}
             {frequency === Frequency.CUSTOM && (
                 <CustomInputs

@@ -6,7 +6,7 @@ const TimezoneSelect: FC<{
     value: number;
     onChange: (value: number) => void;
 }> = ({ disabled, value, onChange }) => {
-    const timezones: string[] = Intl.supportedValuesOf("timeZone");
+    const timezones: string[] = Intl.supportedValuesOf('timeZone');
     timezones.push('UTC');
 
     return (
