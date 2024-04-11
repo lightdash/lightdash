@@ -1,3 +1,15 @@
+# [0.1067.0](https://github.com/lightdash/lightdash/compare/0.1066.0...0.1067.0) (2024-04-11)
+
+
+### Bug Fixes
+
+* improve color assignment for charts with multiple groups ([#9716](https://github.com/lightdash/lightdash/issues/9716)) ([ac8e15e](https://github.com/lightdash/lightdash/commit/ac8e15e6f07df574436c66ded13b37ea955e3f9b))
+
+
+### Features
+
+* Set `QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE` for Snowflake via feature flag ([#9730](https://github.com/lightdash/lightdash/issues/9730)) ([6d0e705](https://github.com/lightdash/lightdash/commit/6d0e7052d07db64e6db0774c083bfb4377e81feb))
+
 # [0.1066.0](https://github.com/lightdash/lightdash/compare/0.1065.1...0.1066.0) (2024-04-10)
 
 
