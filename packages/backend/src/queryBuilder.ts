@@ -98,7 +98,7 @@ const getMetricFromId = (
 const replaceAttributes = (
     regex: RegExp,
     sqlFilter: string,
-    userAttributes: UserAttributeValueMap | IntrinsicUserAttributes,
+    userAttributes: Record<string, string | string[]>,
     stringQuoteChar: string,
     filter: string,
 ): string => {

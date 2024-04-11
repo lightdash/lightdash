@@ -115,7 +115,11 @@ export type ApiGetLoginOptionsResponse = {
     results: LoginOptions;
 };
 
-export type IntrinsicUserAttributes = Record<string, string>;
+export type IntrinsicUserAttributes = {
+    email: string;
+    first_name: string;
+    last_name: string;
+};
 
 export const getIntrinsicUserAttributes = (
     user: LightdashUser,
