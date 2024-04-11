@@ -181,7 +181,7 @@ const VisualizationCard: FC<{
                 rightHeaderElement={
                     <>
                         <VisualizationSidebar
-                            isConfigurable={isEditMode}
+                            isConfigurable={isEditMode && isOpen}
                             chartType={unsavedChartVersion.chartConfig.type}
                             savedChart={savedChart}
                             isProjectPreview={isProjectPreview}

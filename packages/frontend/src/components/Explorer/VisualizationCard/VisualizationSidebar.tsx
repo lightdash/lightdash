@@ -3,7 +3,14 @@ import {
     ChartType,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Drawer, Group, Text, type DrawerProps } from '@mantine/core';
+import {
+    Button,
+    Drawer,
+    Group,
+    MantineProvider,
+    Text,
+    type DrawerProps,
+} from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -15,6 +22,7 @@ import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
+import { themeOverride } from '../../VisualizationConfigs/mantineTheme';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
@@ -133,7 +141,9 @@ const VisualizationSidebar: FC<
                         <VisualizationCardOptions />
                     </Group>
 
-                    <ConfigTab />
+                    <MantineProvider inherit theme={themeOverride}>
+                        <ConfigTab />
+                    </MantineProvider>
                 </Drawer>
             </>
         );
