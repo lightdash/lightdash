@@ -109,6 +109,8 @@ const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
+    quotedIdentifiersIgnoreCase?: boolean;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
         let decodedPrivateKey: string | Buffer | undefined =
@@ -126,6 +128,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 format: 'pem',
                 type: 'pkcs8',
             });
+        }
+
+        if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
+            this.quotedIdentifiersIgnoreCase =
+                credentials.quotedIdentifiersIgnoreCase;
         }
 
         this.connectionOptions = {
@@ -154,6 +161,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
         try {
             if (this.connectionOptions.warehouse) {
+                // eslint-disable-next-line no-console
                 console.debug(
                     `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
                 );
@@ -179,6 +187,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 connection,
                 "ALTER SESSION SET TIMEZONE = 'UTC'",
             );
+
+            /**
+             * For now we only force this to false, if the boolean is explicitly set.
+             */
+            if (this.quotedIdentifiersIgnoreCase === false) {
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`,
+                );
+            }
+
             const result = await this.executeStreamStatement(
                 connection,
                 sqlText,

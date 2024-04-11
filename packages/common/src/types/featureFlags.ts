@@ -42,4 +42,10 @@ export enum FeatureFlags {
 
     /** */
     LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
+
+    /**
+     * Disable https://docs.snowflake.com/en/sql-reference/parameters#label-quoted-identifiers-ignore-case
+     * for the Snowflake warehouse client
+     */
+    DisableSnowflakeQuotedIdentifiersIgnoreCase = 'disable-snowflake-quoted-identifiers-ignore-case',
 }
