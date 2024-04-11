@@ -96,15 +96,15 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
         (series as EChartSeries).pivotReference?.field ??
         (series as Series).encode.yRef?.field;
 
-    const yPivotValues = (
+    const pivotValues = (
         (series as EChartSeries)?.pivotReference?.pivotValues ??
         (series as Series)?.encode.yRef.pivotValues ??
         []
     ).map(({ value }) => `${value}`);
 
     const pivotValuesSubPath =
-        yPivotValues && yPivotValues.length > 0
-            ? `${yPivotValues.join('.')}`
+        pivotValues && pivotValues.length > 0
+            ? `${pivotValues.join('.')}`
             : null;
 
     /**
@@ -143,7 +143,7 @@ export const calculateSeriesLikeIdentifier = (series: SeriesLike) => {
              * switching between number of groups, since we're not tacking each group
              * configuration on top of eachother (under the same identifier).
              */
-            yPivotValues.length === 1 ? '' : `${`_n${yPivotValues.length}`}`
+            pivotValues.length === 1 ? '' : `${`_n${pivotValues.length}`}`
         }`,
         completeIdentifier,
     ];
