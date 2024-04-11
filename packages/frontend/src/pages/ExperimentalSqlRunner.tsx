@@ -3,6 +3,7 @@ import {
     getResultValueArray,
     getSeriesId,
     hashFieldReference,
+    type ApiQueryResults,
     type ApiSqlQueryResults,
     type ResultRow,
     type Series,
@@ -10,19 +11,22 @@ import {
 import {
     Box,
     Button,
-    Card,
     Group,
     MultiSelect,
+    ScrollArea,
     Select,
     Stack,
+    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { Prism } from '@mantine/prism';
+import { IconPlayerPlay, IconSql } from '@tabler/icons-react';
 import EChartsReact from 'echarts-for-react';
 import { useCallback, useMemo, useState } from 'react';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import RunSqlQueryButton from '../components/SqlRunner/RunSqlQueryButton';
 import { type EChartSeries } from '../hooks/echarts/useEchartsCartesianConfig';
+import { useQueryResults } from '../hooks/useQueryResults';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
 
 type VizConfigArguments = {
@@ -48,7 +52,7 @@ const VizConfig = ({
     });
     return (
         <form onSubmit={form.onSubmit(onChange)}>
-            <Stack w={200}>
+            <Group>
                 <Select
                     label="Your favorite framework/library"
                     placeholder="Pick one"
@@ -79,14 +83,10 @@ const VizConfig = ({
                     data={pivotOptions}
                     {...form.getInputProps('pivotFields')}
                 />
-                <Button
-                    size={'xs'}
-                    type="submit"
-                    sx={{ alignSelf: 'flex-end' }}
-                >
+                <Button type="submit" sx={{ alignSelf: 'flex-end' }}>
                     Apply
                 </Button>
-            </Stack>
+            </Group>
         </form>
     );
 };
@@ -106,7 +106,9 @@ const Viz = ({ config }: { config: any }) => {
 };
 
 interface SourceDto {
-    type: 'sql_runner';
+    type: string;
+
+    getData: () => unknown;
 
     getRows: () => ResultRow[];
 
@@ -123,6 +125,39 @@ type VizConfiguration = {
     pivotFields: string[];
 };
 
+type ExplorerDtoArguments = {
+    data: ApiQueryResults;
+};
+
+class ExplorerDto implements SourceDto {
+    public type = 'explorer' as const;
+
+    private readonly data: ApiQueryResults;
+
+    constructor(args: ExplorerDtoArguments) {
+        this.data = args.data;
+    }
+
+    public getData() {
+        return this.data;
+    }
+
+    public getFieldOptions() {
+        return [
+            ...this.data.metricQuery.dimensions,
+            ...this.data.metricQuery.metrics,
+        ];
+    }
+
+    public getPivotOptions() {
+        return this.data.metricQuery.dimensions;
+    }
+
+    public getRows() {
+        return this.data.rows;
+    }
+}
+
 type SqlRunnerDtoArguments = {
     data: ApiSqlQueryResults;
 };
@@ -134,6 +169,10 @@ class SqlRunnerDto implements SourceDto {
 
     constructor(args: SqlRunnerDtoArguments) {
         this.data = args.data;
+    }
+
+    public getData() {
+        return this.data;
     }
 
     public getFieldOptions() {
@@ -205,7 +244,6 @@ class EchartsDto implements VizLibDto {
             series: this.getSeries(),
             dataset: this.getDataSet(),
         };
-        console.log(config);
         return config;
     }
 
@@ -318,11 +356,15 @@ class EchartsDto implements VizLibDto {
 }
 
 const ExperimentalSqlRunner = () => {
-    const { isLoading, mutate, data } = useSqlQueryMutation();
+    const { isLoading: isLoadingSqlMutation, mutateAsync: sqlQueryMutate } =
+        useSqlQueryMutation();
+    const { isLoading: isLoadingExploreMutation, mutateAsync: exploreMutate } =
+        useQueryResults();
     const [vizConf, setVizConf] = useState<VizConfiguration>();
+    const [sourceDto, setSourceDto] = useState<SourceDto>();
 
-    const handleSubmit = useCallback(() => {
-        mutate(
+    const handleSqlRunnerSubmit = useCallback(async () => {
+        const data = await sqlQueryMutate(
             'SELECT\n' +
                 '  "orders".status AS "orders_status",\n' +
                 '  DATE_TRUNC(\'WEEK\', "orders".order_date) AS "orders_order_date_week",\n' +
@@ -334,13 +376,22 @@ const ExperimentalSqlRunner = () => {
                 'ORDER BY "orders_status"\n' +
                 'LIMIT 25',
         );
-    }, [mutate]);
+        setSourceDto(new SqlRunnerDto({ data }));
+    }, [sqlQueryMutate]);
 
-    const sourceDto = useMemo(() => {
-        if (data) {
-            return new SqlRunnerDto({ data });
-        }
-    }, [data]);
+    const handleExplorerSubmit = useCallback(async () => {
+        const data = await exploreMutate('orders', {
+            limit: 25,
+            sorts: [],
+            filters: {},
+            exploreName: 'orders',
+            dimensions: ['orders_status', 'orders_order_date_week'],
+            metrics: ['orders_average_order_size'],
+            tableCalculations: [],
+            customDimensions: [],
+        });
+        setSourceDto(new ExplorerDto({ data }));
+    }, [exploreMutate]);
 
     const vizDto = useMemo(() => {
         if (sourceDto) {
@@ -353,16 +404,49 @@ const ExperimentalSqlRunner = () => {
 
     return (
         <Page title="SQL Runner" withFullHeight withPaddedContent>
-            <Group position="right">
-                <RunSqlQueryButton
-                    onSubmit={handleSubmit}
-                    isLoading={isLoading}
-                />
-            </Group>
-            <Stack mt="lg" spacing="sm" sx={{ flexGrow: 1 }}>
-                {vizDto && (
-                    <>
-                        <Group>
+            <Stack spacing={'xl'}>
+                <Stack>
+                    <Title order={2}>Query</Title>
+                    <Group>
+                        <Button
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconSql} />}
+                            onClick={handleSqlRunnerSubmit}
+                            loading={isLoadingSqlMutation}
+                        >
+                            Run SQL runner query
+                        </Button>
+                        <Button
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                            onClick={handleExplorerSubmit}
+                            loading={isLoadingExploreMutation}
+                        >
+                            Run Explorer query
+                        </Button>
+                    </Group>
+
+                    {sourceDto && (
+                        <ScrollArea.Autosize
+                            mah={200}
+                            w={'100%'}
+                            mx="auto"
+                            placeholder={'json'}
+                        >
+                            <Prism
+                                colorScheme="light"
+                                withLineNumbers
+                                language="json"
+                            >
+                                {JSON.stringify(sourceDto.getData(), null, 2)}
+                            </Prism>
+                        </ScrollArea.Autosize>
+                    )}
+                </Stack>
+                <Stack>
+                    <Title order={2}>Viz configuration</Title>
+                    {vizDto && (
+                        <>
                             <VizConfig
                                 value={vizConf}
                                 onChange={setVizConf}
@@ -372,22 +456,47 @@ const ExperimentalSqlRunner = () => {
                                 yAxisOptions={vizDto.getYAxisOptions()}
                                 pivotOptions={vizDto.getPivotOptions()}
                             />
-                            <Box sx={{ flex: 1, height: '100%' }}>
-                                <Viz config={vizDto.getConfig()} />
-                            </Box>
-                        </Group>
-                        <Card>
+                            {vizConf && (
+                                <ScrollArea.Autosize
+                                    mah={200}
+                                    w={'100%'}
+                                    mx="auto"
+                                    placeholder={'json'}
+                                >
+                                    <Prism
+                                        colorScheme="light"
+                                        withLineNumbers
+                                        language="json"
+                                    >
+                                        {JSON.stringify(vizConf, null, 2)}
+                                    </Prism>
+                                </ScrollArea.Autosize>
+                            )}
+                        </>
+                    )}
+                </Stack>
+                <Stack>
+                    <Title order={2}>Viz library</Title>
+                    <Box sx={{ flex: 1, height: '100%' }}>
+                        {vizDto && <Viz config={vizDto.getConfig()} />}
+                    </Box>
+                    {vizDto && (
+                        <ScrollArea.Autosize
+                            mah={200}
+                            w={'100%'}
+                            mx="auto"
+                            placeholder={'json'}
+                        >
                             <Prism
                                 colorScheme="light"
                                 withLineNumbers
                                 language="json"
-                                sx={{ height: 400, overflow: 'auto' }}
                             >
                                 {JSON.stringify(vizDto.getConfig(), null, 2)}
                             </Prism>
-                        </Card>
-                    </>
-                )}
+                        </ScrollArea.Autosize>
+                    )}
+                </Stack>
             </Stack>
         </Page>
     );
