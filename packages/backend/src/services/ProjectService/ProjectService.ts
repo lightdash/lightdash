@@ -297,7 +297,7 @@ export class ProjectService extends BaseService {
             }
 
             /**
-             * Enable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
+             * Disable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
              * this option is explicitly set via the credentials.
              *
              * This is temporary until the feature flag is rolled over globally.
