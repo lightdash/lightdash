@@ -11,6 +11,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { BaseService } from '../BaseService';
 
 type PinningServiceArguments = {
     dashboardModel: DashboardModel;
@@ -24,7 +25,7 @@ type PinningServiceArguments = {
     projectModel: ProjectModel;
 };
 
-export class PinningService {
+export class PinningService extends BaseService {
     dashboardModel: DashboardModel;
 
     savedChartModel: SavedChartModel;
@@ -45,6 +46,7 @@ export class PinningService {
         resourceViewItemModel,
         projectModel,
     }: PinningServiceArguments) {
+        super();
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;

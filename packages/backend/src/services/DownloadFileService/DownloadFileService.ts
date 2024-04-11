@@ -2,18 +2,20 @@ import { DownloadFile, ForbiddenError, NotFoundError } from '@lightdash/common';
 import fs from 'fs';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { BaseService } from '../BaseService';
 
 type DownloadFileServiceArguments = {
     downloadFileModel: DownloadFileModel;
     lightdashConfig: Pick<LightdashConfig, 's3'>;
 };
 
-export class DownloadFileService {
+export class DownloadFileService extends BaseService {
     private readonly lightdashConfig: Pick<LightdashConfig, 's3'>;
 
     private readonly downloadFileModel: DownloadFileModel;
 
     constructor(args: DownloadFileServiceArguments) {
+        super();
         this.lightdashConfig = args.lightdashConfig;
         this.downloadFileModel = args.downloadFileModel;
     }

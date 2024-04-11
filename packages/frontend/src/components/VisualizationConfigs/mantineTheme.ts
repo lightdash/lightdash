@@ -1,4 +1,4 @@
-import { getMantineThemeOverride } from '../../../../mantineTheme';
+import { getMantineThemeOverride } from '../../mantineTheme';
 
 export const themeOverride = getMantineThemeOverride({
     components: {

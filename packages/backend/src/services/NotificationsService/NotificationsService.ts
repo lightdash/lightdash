@@ -5,15 +5,17 @@ import {
     Notification,
 } from '@lightdash/common';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
+import { BaseService } from '../BaseService';
 
 type NotificationsServiceArguments = {
     notificationsModel: NotificationsModel;
 };
 
-export class NotificationsService {
+export class NotificationsService extends BaseService {
     notificationsModel: NotificationsModel;
 
     constructor({ notificationsModel }: NotificationsServiceArguments) {
+        super();
         this.notificationsModel = notificationsModel;
     }
 

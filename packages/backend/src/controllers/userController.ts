@@ -211,6 +211,15 @@ export class UserController extends BaseController {
         await this.services
             .getUserService()
             .delete(req.user!, req.user!.userUuid);
+
+        await new Promise<void>((resolve, reject) => {
+            req.session.destroy((err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
         this.setStatus(200);
         return {
             status: 'ok',

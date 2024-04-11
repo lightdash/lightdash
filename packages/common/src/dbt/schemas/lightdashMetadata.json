@@ -258,6 +258,9 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["inner", "left", "right", "full"]
+                            },
+                            "always": {
+                                "type": "boolean"
                             }
                         }
                     }

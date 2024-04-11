@@ -114,7 +114,6 @@ const ProfilePanel: FC = () => {
                     required
                     disabled={isLoading}
                     {...form.getInputProps('firstName')}
-                    value={form.values.firstName ?? ''}
                 />
 
                 <TextInput
@@ -124,7 +123,6 @@ const ProfilePanel: FC = () => {
                     required
                     disabled={isLoading}
                     {...form.getInputProps('lastName')}
-                    value={form.values.lastName ?? ''}
                 />
 
                 <TextInput
@@ -140,7 +138,6 @@ const ProfilePanel: FC = () => {
                         'description',
                     ]}
                     {...form.getInputProps('email')}
-                    value={form.values.email ?? ''}
                     rightSection={
                         isEmailServerConfigured && data?.isVerified ? (
                             <Tooltip label="This e-mail has been verified">

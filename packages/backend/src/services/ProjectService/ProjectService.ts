@@ -137,6 +137,7 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
+import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -173,7 +174,7 @@ type ProjectServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
-export class ProjectService {
+export class ProjectService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -223,6 +224,7 @@ export class ProjectService {
         userWarehouseCredentialsModel,
         schedulerClient,
     }: ProjectServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -428,7 +430,7 @@ export class ProjectService {
                 hasContentCopy = true;
             } catch (e) {
                 Sentry.captureException(e);
-                Logger.error(`Unable to copy content on preview ${e}`);
+                this.logger.error(`Unable to copy content on preview ${e}`);
             }
         }
 
@@ -551,7 +553,7 @@ export class ProjectService {
 
         await this.jobModel.create(job);
         doAsyncWork().catch((e) =>
-            Logger.error(`Error running background job: ${e}`),
+            this.logger.error(`Error running background job: ${e}`),
         );
         return {
             jobUuid: job.jobUuid,
@@ -758,7 +760,7 @@ export class ProjectService {
 
     private static async testProjectAdapter(
         data: UpdateProject,
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -1372,10 +1374,19 @@ export class ProjectService {
                 dashboardFilters.tableCalculations,
             ),
         };
+        const isDashboardFilterOverrideEnabled: boolean =
+            await isFeatureFlagEnabled(
+                FeatureFlags.DashboardFilterOverridesChartFilters,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid,
+                },
+            );
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
+                isDashboardFilterOverrideEnabled,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
@@ -1663,7 +1674,7 @@ export class ProjectService {
                                 .cacheStateTimeSeconds *
                                 1000
                     ) {
-                        Logger.debug(
+                        this.logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
                         const cacheEntry = await this.s3CacheClient.getResults(
@@ -1683,13 +1694,16 @@ export class ProjectService {
                                     },
                                 };
                             } catch (e) {
-                                Logger.error('Error parsing cache results:', e);
+                                this.logger.error(
+                                    'Error parsing cache results:',
+                                    e,
+                                );
                             }
                         }
                     }
                 }
 
-                Logger.debug(`Run query against warehouse warehouse`);
+                this.logger.debug(`Run query against warehouse warehouse`);
                 const warehouseResults = await wrapOtelSpan(
                     'runWarehouseQuery',
                     {
@@ -1731,7 +1745,9 @@ export class ProjectService {
                         : warehouseResults;
 
                 if (this.lightdashConfig.resultsCache?.enabled) {
-                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    this.logger.debug(
+                        `Writing data to cache with key ${queryHash}`,
+                    );
                     const buffer = Buffer.from(
                         JSON.stringify(warehouseResultsWithTableCalculations),
                     );
@@ -2003,7 +2019,9 @@ export class ProjectService {
                         },
                     });
 
-                    Logger.debug(`Fetch query results from cache or warehouse`);
+                    this.logger.debug(
+                        `Fetch query results from cache or warehouse`,
+                    );
                     span.setAttribute('generatedSql', query);
 
                     /**
@@ -2079,7 +2097,7 @@ export class ProjectService {
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
-        Logger.debug(`Run query against warehouse`);
+        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2191,7 +2209,7 @@ export class ProjectService {
             userAttributes,
         );
 
-        Logger.debug(`Run query against warehouse`);
+        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2309,7 +2327,7 @@ export class ProjectService {
                                     );
                                 }
                             } catch (e) {
-                                Logger.error(
+                                this.logger.error(
                                     `Unable to reduce formattedFieldsCount. ${e}`,
                                 );
                             }
@@ -2518,7 +2536,7 @@ export class ProjectService {
         };
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => Logger.error(`Background job failed: ${e}`));
+            .catch((e) => this.logger.error(`Background job failed: ${e}`));
     }
 
     async getAllExploresSummary(
@@ -3427,7 +3445,7 @@ export class ProjectService {
         previewProjectUuid: string,
         user: SessionUser,
     ): Promise<void> {
-        Logger.info(
+        this.logger.info(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
         await wrapSentryTransaction<void>(
@@ -3617,10 +3635,21 @@ export class ProjectService {
                   ),
               }
             : undefined;
+
+        const isDashboardFilterOverrideEnabled: boolean =
+            await isFeatureFlagEnabled(
+                FeatureFlags.DashboardFilterOverridesChartFilters,
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid,
+                },
+            );
+
         const metricQuery: MetricQuery = appliedDashboardFilters
             ? addDashboardFiltersToMetricQuery(
                   savedChart.metricQuery,
                   appliedDashboardFilters,
+                  isDashboardFilterOverrideEnabled,
               )
             : savedChart.metricQuery;
 

@@ -1,13 +1,13 @@
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
-import type { ClientManifest } from '../clients/clients';
+import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
+import { BaseService } from './BaseService';
 import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
-import { EncryptionService } from './EncryptionService/EncryptionService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -41,7 +41,6 @@ interface ServiceManifest {
     csvService: CsvService;
     dashboardService: DashboardService;
     downloadFileService: DownloadFileService;
-    encryptionService: EncryptionService;
     gitIntegrationService: GitIntegrationService;
     githubAppService: GithubAppService;
     gdriveService: GdriveService;
@@ -102,7 +101,7 @@ export type ServiceProviderMap<T extends ServiceManifest = ServiceManifest> =
  * OperationContext can be subclassed to provide additional functionality for specific
  * types of operations, if necessary.
  */
-export class OperationContext {
+export class OperationContext extends BaseService {
     public readonly operationId: string;
 
     public readonly lightdashAnalytics: LightdashAnalytics;
@@ -118,6 +117,7 @@ export class OperationContext {
         lightdashAnalytics: LightdashAnalytics;
         lightdashConfig: LightdashConfig;
     }) {
+        super();
         this.operationId = operationId;
         this.lightdashAnalytics = lightdashAnalytics;
         this.lightdashConfig = lightdashConfig;
@@ -138,8 +138,8 @@ abstract class ServiceRepositoryBase {
      *
      * new ServiceRepository({
      *    serviceProviders: {
-     *      encryptionService: ({ repository, context }) => {
-     *          return new EncryptionServiceOverride(...);
+     *      projectService: ({ repository, context }) => {
+     *          return new ProjectServiceOverride(...);
      *      }
      *    }
      * })
@@ -154,11 +154,7 @@ abstract class ServiceRepositoryBase {
      */
     protected readonly context: OperationContext;
 
-    /**
-     * @deprecated Clients should be used inside services. This will be removed soon.
-     * Holds client singletons. Temporary solution, will be replaced by dependency injection and should not be exposed.
-     */
-    public clients: ClientManifest;
+    protected clients: ClientRepository;
 
     protected models: ModelRepository;
 
@@ -170,7 +166,7 @@ abstract class ServiceRepositoryBase {
     }: {
         serviceProviders?: ServiceProviderMap<ServiceManifest>;
         context: OperationContext;
-        clients: ClientManifest;
+        clients: ClientRepository;
         models: ModelRepository;
     }) {
         this.providers = serviceProviders ?? {};
@@ -233,11 +229,11 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),
-                    s3Client: this.clients.s3Client,
+                    s3Client: this.clients.getS3Client(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
-                    schedulerClient: this.clients.schedulerClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }
@@ -254,8 +250,8 @@ export class ServiceRepository
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
                     savedChartModel: this.models.getSavedChartModel(),
-                    schedulerClient: this.clients.schedulerClient,
-                    slackClient: this.clients.slackClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    slackClient: this.clients.getSlackClient(),
                 }),
         );
     }
@@ -267,16 +263,6 @@ export class ServiceRepository
                 new DownloadFileService({
                     lightdashConfig: this.context.lightdashConfig,
                     downloadFileModel: this.models.getDownloadFileModel(),
-                }),
-        );
-    }
-
-    public getEncryptionService(): EncryptionService {
-        return this.getService(
-            'encryptionService',
-            () =>
-                new EncryptionService({
-                    lightdashConfig: this.context.lightdashConfig,
                 }),
         );
     }
@@ -318,7 +304,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
-                    schedulerClient: this.clients.schedulerClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }
@@ -417,16 +403,16 @@ export class ServiceRepository
                     onboardingModel: this.models.getOnboardingModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     jobModel: this.models.getJobModel(),
-                    emailClient: this.clients.emailClient,
+                    emailClient: this.clients.getEmailClient(),
                     spaceModel: this.models.getSpaceModel(),
                     sshKeyPairModel: this.models.getSshKeyPairModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
-                    s3CacheClient: this.clients.s3CacheClient,
+                    s3CacheClient: this.clients.getS3CacheClient(),
                     analyticsModel: this.models.getAnalyticsModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
-                    schedulerClient: this.clients.schedulerClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }
@@ -443,8 +429,8 @@ export class ServiceRepository
                     analyticsModel: this.models.getAnalyticsModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
-                    schedulerClient: this.clients.schedulerClient,
-                    slackClient: this.clients.slackClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    slackClient: this.clients.getSlackClient(),
                     dashboardModel: this.models.getDashboardModel(),
                 }),
         );
@@ -461,8 +447,8 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
-                    schedulerClient: this.clients.schedulerClient,
-                    slackClient: this.clients.slackClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    slackClient: this.clients.getSlackClient(),
                 }),
         );
     }
@@ -534,12 +520,11 @@ export class ServiceRepository
             () =>
                 new UnfurlService({
                     lightdashConfig: this.context.lightdashConfig,
-                    encryptionService: this.getEncryptionService(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     shareModel: this.models.getShareModel(),
-                    s3Client: this.clients.s3Client,
+                    s3Client: this.clients.getS3Client(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                 }),
@@ -572,7 +557,7 @@ export class ServiceRepository
                     openIdIdentityModel: this.models.getOpenIdIdentityModel(),
                     passwordResetLinkModel:
                         this.models.getPasswordResetLinkModel(),
-                    emailClient: this.clients.emailClient,
+                    emailClient: this.clients.getEmailClient(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     organizationModel: this.models.getOrganizationModel(),
@@ -598,7 +583,7 @@ export class ServiceRepository
                     validationModel: this.models.getValidationModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
-                    schedulerClient: this.clients.schedulerClient,
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

@@ -375,10 +375,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }, {});
     }
 
-    getFieldQuoteChar() {
-        return '"';
-    }
-
     getStringQuoteChar() {
         return "'";
     }

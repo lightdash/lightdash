@@ -43,6 +43,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { BaseService } from '../BaseService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type SavedChartServiceArguments = {
@@ -58,7 +59,7 @@ type SavedChartServiceArguments = {
     dashboardModel: DashboardModel;
 };
 
-export class SavedChartService {
+export class SavedChartService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -80,6 +81,7 @@ export class SavedChartService {
     private readonly dashboardModel: DashboardModel;
 
     constructor(args: SavedChartServiceArguments) {
+        super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.savedChartModel = args.savedChartModel;

@@ -15,18 +15,21 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
     Box,
+    Checkbox,
     Group,
+    SegmentedControl,
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconTrash } from '@tabler/icons-react';
+import {
+    IconLayoutAlignLeft,
+    IconLayoutAlignRight,
+    IconLayoutAlignTop,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -38,8 +41,20 @@ import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
+import { AccordionControl } from '../../common/AccordionControl';
+import { Config } from '../../common/Config';
 
-type Props = {
+type UpdateReferenceLineProps = {
+    value?: string;
+    field?: Field | TableCalculation | CompiledDimension | CustomDimension;
+    label: string | undefined;
+    lineColor: string;
+    dynamicValue?: 'average';
+    labelPosition: 'start' | 'middle' | 'end';
+    lineId: string;
+};
+
+export type ReferenceLineProps = {
     isOpen: boolean;
     addNewItem: (index: string) => void;
     removeItem: (index: string) => void;
@@ -47,13 +62,7 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     referenceLine: ReferenceLineField;
     startOfWeek: WeekDay | undefined;
-    updateReferenceLine: (
-        value: string,
-        field: Field | TableCalculation | CompiledDimension | CustomDimension,
-        label: string | undefined,
-        lineColor: string,
-        lineId: string,
-    ) => void;
+    updateReferenceLine: (updateProps: UpdateReferenceLineProps) => void;
     removeReferenceLine: (lineId: string) => void;
     isDefaultOpen: boolean;
 };
@@ -67,6 +76,7 @@ type ReferenceLineValueProps = {
         | undefined;
     value: string | undefined;
     startOfWeek: WeekDay | undefined;
+    disabled?: boolean;
     onChange: (value: string) => void;
 };
 
@@ -74,6 +84,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     field,
     value,
     startOfWeek,
+    disabled,
     onChange,
 }) => {
     if (isCustomDimension(field)) return <></>;
@@ -88,6 +99,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.WEEK:
                     return (
                         <FilterWeekPicker
+                            disabled={disabled}
                             size="xs"
                             value={parsedDate}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -107,6 +119,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.MONTH:
                     return (
                         <FilterMonthAndYearPicker
+                            disabled={disabled}
                             size="xs"
                             value={parsedDate}
                             onChange={(dateValue: Date) => {
@@ -124,6 +137,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.YEAR:
                     return (
                         <FilterYearPicker
+                            disabled={disabled}
                             size="xs"
                             value={parsedDate}
                             onChange={(dateValue: Date) => {
@@ -141,6 +155,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
             return (
                 <FilterDatePicker
+                    disabled={disabled}
                     size="xs"
                     value={parsedDate}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
@@ -154,8 +169,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
     return (
         <TextInput
+            disabled={!isNumericItem(field) || disabled}
             size="xs"
-            disabled={!isNumericItem(field)}
             title={
                 isNumericItem(field)
                     ? ''
@@ -165,12 +180,12 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
             onChange={(e) => {
                 onChange(e.target.value);
             }}
-            placeholder="Add value"
+            placeholder="Line value"
         />
     );
 };
 
-export const ReferenceLine: FC<Props> = ({
+export const ReferenceLine: FC<ReferenceLineProps> = ({
     index,
     items,
     isOpen,
@@ -213,16 +228,19 @@ export const ReferenceLine: FC<Props> = ({
     }, [referenceLine]);
 
     const [value, setValue] = useState<string | undefined>(
-        referenceLine.data[markLineKey],
+        referenceLine.data[markLineKey] || referenceLine.data.type,
     );
 
     const [label, setLabel] = useState<string | undefined>(
-        referenceLine.data.label?.formatter,
+        referenceLine.data.name,
     );
 
     const [lineColor, setLineColor] = useState<string>(
         referenceLine.data.lineStyle?.color || '#000',
     );
+    const [labelPosition, setLabelPosition] = useState<
+        'start' | 'middle' | 'end'
+    >(referenceLine.data.label?.position || 'end');
 
     const selectedFieldDefault = useMemo(() => {
         if (markLineKey === undefined) return;
@@ -240,70 +258,74 @@ export const ReferenceLine: FC<Props> = ({
         | undefined
     >(selectedFieldDefault);
 
+    const [useAverage, setUseAverage] = useState<boolean>(false);
+
+    const lineId =
+        referenceLine.data.uuid ||
+        referenceLine.data.value ||
+        referenceLine.data.name ||
+        '';
+
+    const currentLineConfig: UpdateReferenceLineProps = useMemo(
+        () => ({
+            value,
+            field: selectedField,
+            label,
+            lineColor,
+            dynamicValue: useAverage ? 'average' : undefined,
+            labelPosition,
+            lineId,
+        }),
+        [
+            value,
+            selectedField,
+            label,
+            lineColor,
+            useAverage,
+            labelPosition,
+            lineId,
+        ],
+    );
+
+    const isNumericField = selectedField && isNumericItem(selectedField);
+
+    const averageAvailable = isNumericField && markLineKey === 'yAxis';
     const controlLabel = `Line ${index}`;
     const accordionValue = `${index}`;
 
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const onControlClick = useCallback(
+        () =>
+            isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
+        [isOpen, removeItem, addNewItem, accordionValue],
+    );
+
+    const onColorChange = useCallback(
+        (color: string) => {
+            setLineColor(color);
+            if (selectedField !== undefined)
+                updateReferenceLine({
+                    ...currentLineConfig,
+                    lineColor: color,
+                });
+        },
+        [selectedField, updateReferenceLine, currentLineConfig],
+    );
 
     return (
         <Accordion.Item value={accordionValue}>
-            <Accordion.Control
-                onClick={() =>
-                    isOpen
-                        ? removeItem(accordionValue)
-                        : addNewItem(accordionValue)
+            <AccordionControl
+                label={controlLabel}
+                onControlClick={onControlClick}
+                onRemove={() => removeReferenceLine(lineId)}
+                extraControlElements={
+                    <ColorSelector
+                        color={lineColor}
+                        swatches={colorPalette}
+                        onColorChange={(c) => onColorChange(c)}
+                    />
                 }
-                ref={ref}
-            >
-                <Group spacing="xs" position="apart">
-                    <Group spacing="xs">
-                        <Box onClick={(e) => e.stopPropagation()}>
-                            <ColorSelector
-                                color={lineColor}
-                                swatches={colorPalette}
-                                onColorChange={(color) => {
-                                    setLineColor(color);
-                                    if (
-                                        value !== undefined &&
-                                        selectedField !== undefined
-                                    )
-                                        updateReferenceLine(
-                                            value,
-                                            selectedField,
-                                            label,
-                                            color,
-                                            referenceLine.data.value ||
-                                                referenceLine.data.name,
-                                        );
-                                }}
-                            />
-                        </Box>
-                        <Text fw={500} size="xs">
-                            {controlLabel}
-                        </Text>
-                        <Tooltip
-                            variant="xs"
-                            label="Remove reference line"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                onClick={() =>
-                                    removeReferenceLine(
-                                        referenceLine.data.value ||
-                                            referenceLine.data.name,
-                                    )
-                                }
-                                sx={{
-                                    visibility: hovered ? 'visible' : 'hidden',
-                                }}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                </Group>
-            </Accordion.Control>
+            />
+
             <Accordion.Panel>
                 <Stack
                     bg={'gray.0'}
@@ -319,17 +341,13 @@ export const ReferenceLine: FC<Props> = ({
                         placeholder="Search field..."
                         onChange={(newField) => {
                             setSelectedField(newField);
-
-                            if (value !== undefined && newField !== undefined)
-                                updateReferenceLine(
-                                    value,
-                                    newField,
-                                    label,
-                                    lineColor,
-                                    referenceLine.data.value ||
-                                        referenceLine.data.name,
-                                );
+                            if (newField !== undefined)
+                                updateReferenceLine({
+                                    ...currentLineConfig,
+                                    field: newField,
+                                });
                         }}
+                        hasGrouping
                     />
 
                     <Group noWrap grow align="baseline">
@@ -337,44 +355,105 @@ export const ReferenceLine: FC<Props> = ({
                             <Text fz="xs" fw={500}>
                                 Value
                             </Text>
+
                             <ReferenceLineValue
                                 field={selectedField}
                                 startOfWeek={startOfWeek}
                                 value={value}
+                                disabled={useAverage && averageAvailable}
                                 onChange={(newValue: string) => {
                                     setValue(newValue);
                                     if (selectedField !== undefined)
-                                        updateReferenceLine(
-                                            newValue,
-                                            selectedField,
-                                            label,
-                                            lineColor,
-                                            referenceLine.data.value ||
-                                                referenceLine.data.name,
-                                        );
+                                        updateReferenceLine({
+                                            ...currentLineConfig,
+                                            value: newValue,
+                                        });
                                 }}
                             />
                         </Box>
                         <TextInput
                             label="Label"
-                            disabled={!value}
+                            // disabled={!value}
                             value={label}
-                            placeholder={value ?? 'Untitled'}
+                            placeholder={
+                                useAverage && averageAvailable
+                                    ? value ?? 'Average'
+                                    : value ?? ''
+                            }
                             onChange={(e) => {
                                 setLabel(e.target.value);
                             }}
-                            onBlur={() => {
-                                if (value && selectedField)
-                                    updateReferenceLine(
-                                        value,
-                                        selectedField,
-                                        label,
-                                        lineColor,
-                                        referenceLine.data.value ||
-                                            referenceLine.data.name,
-                                    );
+                            onBlur={(newValue) => {
+                                setLabel(newValue.target.value);
+                                if (selectedField)
+                                    updateReferenceLine({
+                                        ...currentLineConfig,
+                                        label: newValue.target.value,
+                                    });
                             }}
                         />
+                    </Group>
+                    <Group noWrap position="apart">
+                        <Checkbox
+                            label="Use series average"
+                            disabled={!averageAvailable}
+                            checked={useAverage && averageAvailable}
+                            onChange={(newState) => {
+                                setUseAverage(newState.target.checked);
+                                if (selectedField !== undefined) {
+                                    updateReferenceLine({
+                                        ...currentLineConfig,
+                                        dynamicValue: newState.target.checked
+                                            ? 'average'
+                                            : undefined,
+                                    });
+                                }
+                            }}
+                        />
+                        <Group noWrap>
+                            <Config.Label>Position</Config.Label>
+                            <SegmentedControl
+                                size="xs"
+                                id="label-position"
+                                value={labelPosition}
+                                onChange={(
+                                    newPosition: 'start' | 'middle' | 'end',
+                                ) => {
+                                    setLabelPosition(newPosition);
+
+                                    updateReferenceLine({
+                                        ...currentLineConfig,
+                                        labelPosition: newPosition,
+                                    });
+                                }}
+                                data={[
+                                    {
+                                        value: 'start',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignLeft}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        value: 'middle',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignTop}
+                                            />
+                                        ),
+                                    },
+                                    {
+                                        value: 'end',
+                                        label: (
+                                            <MantineIcon
+                                                icon={IconLayoutAlignRight}
+                                            />
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </Group>
                     </Group>
                 </Stack>
             </Accordion.Panel>

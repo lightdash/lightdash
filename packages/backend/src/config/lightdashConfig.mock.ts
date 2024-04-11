@@ -6,6 +6,7 @@ export const lightdashConfigMock: LightdashConfig = {
     auth: {
         enableGroupSync: false,
         disablePasswordAuthentication: false,
+        enableOidcLinking: false,
         google: {
             loginPath: '',
             oauth2ClientId: undefined,
@@ -42,6 +43,20 @@ export const lightdashConfigMock: LightdashConfig = {
             privateKeyFilePath: undefined,
             privateKeyFile: undefined,
             openIdConnectMetadataEndpoint: undefined,
+        },
+        oidc: {
+            authMethod: undefined,
+            authSigningAlg: undefined,
+            callbackPath: '',
+            loginPath: '',
+            clientId: undefined,
+            clientSecret: undefined,
+            metadataDocumentEndpoint: undefined,
+            privateKeyFile: undefined,
+            privateKeyFilePath: undefined,
+            scopes: undefined,
+            x509PublicKeyCert: undefined,
+            x509PublicKeyCertPath: undefined,
         },
     },
     chart: { versionHistory: { daysLimit: 0 } },

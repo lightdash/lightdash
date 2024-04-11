@@ -21,10 +21,6 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         this.startOfWeek = credentials.startOfWeek;
     }
 
-    getFieldQuoteChar(): string {
-        throw new Error('Warehouse method not implemented.');
-    }
-
     getAdapterType(): SupportedDbtAdapter {
         throw new Error('Warehouse method not implemented.');
     }

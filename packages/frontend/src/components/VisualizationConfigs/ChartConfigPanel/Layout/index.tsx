@@ -24,9 +24,9 @@ import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
+import { AddButton } from '../../common/AddButton';
+import { Config } from '../../common/Config';
 import { MAX_PIVOTS } from '../../TableConfigPanel/GeneralSettings';
-import { AddButton } from '../common/AddButton';
-import { Config } from '../common/Config';
 
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
@@ -198,6 +198,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     }}
                                 />
                             }
+                            hasGrouping
                         />
                     )}
                 </Config.Section>
@@ -246,6 +247,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                         />
                                     )
                                 }
+                                hasGrouping
                             />
                         );
                     })}
@@ -338,6 +340,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                                     />
                                                 )
                                             }
+                                            hasGrouping
                                         />
                                     </Group>
                                 );

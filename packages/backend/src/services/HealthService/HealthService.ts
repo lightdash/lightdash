@@ -1,14 +1,18 @@
 import {
+    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
+    SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { VERSION } from '../../version';
+import { BaseService } from '../BaseService';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -16,7 +20,7 @@ type HealthServiceArguments = {
     migrationModel: MigrationModel;
 };
 
-export class HealthService {
+export class HealthService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly organizationModel: OrganizationModel;
@@ -28,12 +32,15 @@ export class HealthService {
         migrationModel,
         lightdashConfig,
     }: HealthServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
     }
 
-    async getHealthState(isAuthenticated: boolean): Promise<HealthState> {
+    async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
+        const isAuthenticated: boolean = !!user?.userUuid;
+
         const { isComplete, currentVersion } =
             await this.migrationModel.getMigrationStatus();
 
@@ -97,6 +104,10 @@ export class HealthService {
                     loginPath: this.lightdashConfig.auth.azuread.loginPath,
                     enabled: !!this.lightdashConfig.auth.azuread.oauth2ClientId,
                 },
+                oidc: {
+                    loginPath: this.lightdashConfig.auth.oidc.loginPath,
+                    enabled: !!this.lightdashConfig.auth.oidc.clientId,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
@@ -105,10 +116,22 @@ export class HealthService {
             hasDbtSemanticLayer:
                 !!process.env.DBT_CLOUD_ENVIRONMENT_ID &&
                 !!process.env.DBT_CLOUD_BEARER_TOKEN,
-            hasGroups: this.lightdashConfig.groups.enabled,
+            hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
         };
+    }
+
+    private async hasGroups(user: SessionUser | undefined): Promise<boolean> {
+        return (
+            this.lightdashConfig.groups.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : false)
+        );
     }
 
     private hasSlackConfig(): boolean {

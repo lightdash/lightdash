@@ -25,8 +25,8 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
-import { EditableText } from '../common/EditableText';
-import { GrabIcon } from '../common/GrabIcon';
+import { EditableText } from '../../common/EditableText';
+import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {

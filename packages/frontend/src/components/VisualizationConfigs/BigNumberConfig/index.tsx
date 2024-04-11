@@ -8,7 +8,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
-import BigNumberConfigTabs from './BigNumberConfigTabs';
+import { ConfigTabs } from './BigNumberConfigTabs';
 
 const BigNumberConfig: React.FC = () => {
     const { visualizationConfig } = useVisualizationContext();
@@ -33,7 +33,7 @@ const BigNumberConfig: React.FC = () => {
 
             <Popover.Dropdown>
                 <Box w={320}>
-                    <BigNumberConfigTabs />
+                    <ConfigTabs />
                 </Box>
             </Popover.Dropdown>
         </Popover>

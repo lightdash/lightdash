@@ -38,6 +38,7 @@ import {
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
+import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -58,6 +59,7 @@ import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
 import { wrapOtelSpan } from '../utils';
+import { BaseService } from './BaseService';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -77,7 +79,7 @@ type UserServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };
 
-export class UserService {
+export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -129,6 +131,7 @@ export class UserService {
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
     }: UserServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
@@ -254,7 +257,7 @@ export class UserService {
         }
 
         if (inviteLink.email.toLowerCase() !== userEmail.toLowerCase()) {
-            Logger.error(
+            this.logger.error(
                 `User accepted invite with wrong email ${userEmail} when the invited email was ${inviteLink.email}`,
             );
             throw new AuthorizationError(
@@ -439,7 +442,7 @@ export class UserService {
 
     async loginWithOpenId(
         openIdUser: OpenIdUser,
-        sessionUser: SessionUser | undefined,
+        authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken?: string,
     ): Promise<SessionUser> {
@@ -478,7 +481,7 @@ export class UserService {
                     inviteLink.email.toLowerCase() !==
                         loginUser.email.toLowerCase()
                 ) {
-                    Logger.error(
+                    this.logger.error(
                         `User accepted invite with wrong email ${loginUser.email} when the invited email was ${inviteLink.email}`,
                     );
                     throw new AuthorizationError(
@@ -517,39 +520,38 @@ export class UserService {
             return loginUser;
         }
 
-        // User already logged in? Link openid identity to logged-in user
-        if (sessionUser?.userId) {
-            await this.openIdIdentityModel.createIdentity({
-                userId: sessionUser.userId,
-                issuer: openIdUser.openId.issuer,
-                subject: openIdUser.openId.subject,
-                email: openIdUser.openId.email,
-                issuerType: openIdUser.openId.issuerType,
+        // Link the new openid identity to an existing user if they already have another OIDC with the same email
+        if (!authenticatedUser && this.lightdashConfig.auth.enableOidcLinking) {
+            const identities =
+                await this.openIdIdentityModel.findIdentitiesByEmail(
+                    openIdUser.openId.email,
+                );
+            const identitiesUsers = uniq(
+                identities.map((identity) => identity.userUuid),
+            );
+            if (identitiesUsers.length > 1) {
+                Logger.warn(
+                    `Multiple openid identities found with the same email ${openIdUser.openId.email}`,
+                );
+            } else if (identitiesUsers.length === 1) {
+                const sessionUser = await this.userModel.findSessionUserByUUID(
+                    identitiesUsers[0],
+                );
+                return this.linkOpenIdIdentityToUser(
+                    sessionUser,
+                    openIdUser,
+                    refreshToken,
+                );
+            }
+        }
+
+        // Link openid identity to currently logged in user
+        if (authenticatedUser) {
+            return this.linkOpenIdIdentityToUser(
+                authenticatedUser,
+                openIdUser,
                 refreshToken,
-            });
-            await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
-            this.analytics.track({
-                userId: sessionUser.userUuid,
-                event: 'user.identity_linked',
-                properties: {
-                    loginProvider: 'google',
-                },
-            });
-
-            if (
-                this.lightdashConfig.groups.enabled === true &&
-                this.lightdashConfig.auth.enableGroupSync === true &&
-                Array.isArray(openIdUser.openId.groups) &&
-                openIdUser.openId.groups.length &&
-                sessionUser.organizationUuid
-            )
-                await this.tryAddUserToGroups({
-                    userUuid: sessionUser.userUuid,
-                    groups: openIdUser.openId.groups,
-                    organizationUuid: sessionUser.organizationUuid,
-                });
-
-            return sessionUser;
+            );
         }
 
         // Create user
@@ -588,6 +590,45 @@ export class UserService {
         }
         const user = await this.registerUser(openIdUser);
         return this.userModel.findSessionUserByUUID(user.userUuid);
+    }
+
+    private async linkOpenIdIdentityToUser(
+        sessionUser: SessionUser,
+        openIdUser: OpenIdUser,
+        refreshToken?: string,
+    ): Promise<SessionUser> {
+        await this.openIdIdentityModel.createIdentity({
+            userId: sessionUser.userId,
+            issuer: openIdUser.openId.issuer,
+            subject: openIdUser.openId.subject,
+            email: openIdUser.openId.email,
+            issuerType: openIdUser.openId.issuerType,
+            refreshToken,
+        });
+        await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
+        this.analytics.track({
+            userId: sessionUser.userUuid,
+            event: 'user.identity_linked',
+            properties: {
+                loginProvider: 'google',
+            },
+        });
+
+        if (
+            this.lightdashConfig.groups.enabled &&
+            this.lightdashConfig.auth.enableGroupSync &&
+            Array.isArray(openIdUser.openId.groups) &&
+            openIdUser.openId.groups.length &&
+            sessionUser.organizationUuid
+        ) {
+            await this.tryAddUserToGroups({
+                userUuid: sessionUser.userUuid,
+                groups: openIdUser.openId.groups,
+                organizationUuid: sessionUser.organizationUuid,
+            });
+        }
+
+        return sessionUser;
     }
 
     async completeUserSetup(
@@ -1195,6 +1236,7 @@ export class UserService {
             case OpenIdIdentityIssuerType.OKTA:
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
+            case OpenIdIdentityIssuerType.GENERIC_OIDC:
                 return true;
             default:
                 assertUnreachable(
@@ -1293,6 +1335,8 @@ export class UserService {
                     return this.lightdashConfig.auth.okta.loginPath;
                 case OpenIdIdentityIssuerType.ONELOGIN:
                     return this.lightdashConfig.auth.oneLogin.loginPath;
+                case OpenIdIdentityIssuerType.GENERIC_OIDC:
+                    return this.lightdashConfig.auth.oidc.loginPath;
                 default:
                     assertUnreachable(
                         issuer,
@@ -1311,11 +1355,17 @@ export class UserService {
                 OpenIdIdentityIssuerType.OKTA,
             this.lightdashConfig.auth.oneLogin?.oauth2ClientId !== undefined &&
                 OpenIdIdentityIssuerType.ONELOGIN,
+            this.lightdashConfig.auth.oidc.clientId !== undefined &&
+                OpenIdIdentityIssuerType.GENERIC_OIDC,
         ].filter(Boolean) as OpenIdIdentityIssuerType[];
 
-        const openIdIssuer = await this.userModel.getOpenIdIssuer(email);
-        // First it checks for existing SSO logins
-        if (openIdIssuer !== null && openIdIssuer !== undefined) {
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        // First it checks for existing enabled SSO logins
+        const activeIssuers = openIdIssuers.filter((issuer) =>
+            enabledOpenIdIssuers.includes(issuer),
+        );
+        if (activeIssuers.length === 1) {
+            const openIdIssuer = activeIssuers[0];
             return {
                 showOptions: [openIdIssuer],
                 forceRedirect: true,

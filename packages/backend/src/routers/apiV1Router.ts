@@ -32,7 +32,7 @@ apiV1Router.get('/livez', async (req, res, next) => {
 apiV1Router.get('/health', async (req, res, next) => {
     req.services
         .getHealthService()
-        .getHealthState(!!req.user?.userUuid)
+        .getHealthState(req.user)
         .then((state) =>
             res.json({
                 status: 'ok',
@@ -86,6 +86,27 @@ apiV1Router.get(
 
 apiV1Router.get(lightdashConfig.auth.azuread.callbackPath, (req, res, next) =>
     passport.authenticate('azuread', {
+        failureRedirect: '/api/v1/oauth/failure',
+        successRedirect: getSuccessURLWithReturnTo(req),
+        failureFlash: true,
+    })(req, res, next),
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.oidc.loginPath,
+    storeOIDCRedirect,
+    passport.authenticate(
+        'oidc',
+        lightdashConfig.auth.oidc.scopes
+            ? {
+                  scope: lightdashConfig.auth.oidc.scopes,
+              }
+            : {},
+    ),
+);
+
+apiV1Router.get(lightdashConfig.auth.oidc.callbackPath, (req, res, next) =>
+    passport.authenticate('oidc', {
         failureRedirect: '/api/v1/oauth/failure',
         successRedirect: getSuccessURLWithReturnTo(req),
         failureFlash: true,

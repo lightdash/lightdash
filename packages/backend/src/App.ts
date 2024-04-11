@@ -5,7 +5,6 @@ import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
-import cookieParser from 'cookie-parser';
 import express, {
     Express,
     NextFunction,
@@ -22,21 +21,19 @@ import path from 'path';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { S3Client } from './clients/Aws/s3';
-import { S3CacheClient } from './clients/Aws/S3CacheClient';
-import { ClientManifest } from './clients/clients';
-import DbtCloudGraphqlClient from './clients/dbtCloud/DbtCloudGraphqlClient';
-import EmailClient from './clients/EmailClient/EmailClient';
-import { GoogleDriveClient } from './clients/Google/GoogleDriveClient';
+import {
+    ClientProviderMap,
+    ClientRepository,
+} from './clients/ClientRepository';
 import { SlackBot } from './clients/Slack/Slackbot';
-import { SlackClient } from './clients/Slack/SlackClient';
-import { buildJwtKeySet } from './config/jwtKeySet';
 import { LightdashConfig } from './config/parseConfig';
 import {
     apiKeyPassportStrategy,
     createAzureAdPassportStrategy,
+    createGenericOidcPassportStrategy,
     googlePassportStrategy,
     isAzureAdPassportStrategyAvailableToUse,
+    isGenericOidcPassportStrategyAvailableToUse,
     isOktaPassportStrategyAvailableToUse,
     localPassportStrategy,
     oneLoginPassportStrategy,
@@ -51,13 +48,13 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
-import { SchedulerClient } from './scheduler/SchedulerClient';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
+import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
 
 // We need to override this interface to have our user typing
@@ -70,6 +67,10 @@ declare global {
          */
         interface Request {
             services: ServiceRepository;
+            /**
+             * @deprecated Clients should be used inside services. This will be removed soon.
+             */
+            clients: ClientRepository;
         }
 
         interface User extends SessionUser {}
@@ -86,7 +87,9 @@ type AppArguments = {
         production: Knex.Config<Knex.PgConnectionConfig>;
         development: Knex.Config<Knex.PgConnectionConfig>;
     };
+    clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
+    utilProviders?: UtilProviderMap;
 };
 
 export default class App {
@@ -104,7 +107,9 @@ export default class App {
 
     private schedulerWorker: SchedulerWorker | undefined;
 
-    private readonly clients: ClientManifest;
+    private readonly clients: ClientRepository;
+
+    private readonly utils: UtilRepository;
 
     private readonly models: ModelRepository;
 
@@ -132,36 +137,25 @@ export default class App {
                 ? args.knexConfig.production
                 : args.knexConfig.development,
         );
+        this.utils = new UtilRepository({
+            utilProviders: args.utilProviders,
+            lightdashConfig: this.lightdashConfig,
+        });
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
             database: this.database,
+            utils: this.utils,
         });
-        this.clients = {
-            dbtCloudGraphqlClient: new DbtCloudGraphqlClient(),
-            emailClient: new EmailClient({
+        this.clients = new ClientRepository({
+            clientProviders: args.clientProviders,
+            context: new OperationContext({
+                operationId: 'App#ctor',
+                lightdashAnalytics: this.analytics,
                 lightdashConfig: this.lightdashConfig,
             }),
-            googleDriveClient: new GoogleDriveClient({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            s3CacheClient: new S3CacheClient({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            s3Client: new S3Client({
-                lightdashConfig: this.lightdashConfig,
-            }),
-            schedulerClient: new SchedulerClient({
-                lightdashConfig: this.lightdashConfig,
-                analytics: this.analytics,
-                schedulerModel: this.models.getSchedulerModel(),
-            }),
-            slackClient: new SlackClient({
-                slackAuthenticationModel:
-                    this.models.getSlackAuthenticationModel(),
-                lightdashConfig: this.lightdashConfig,
-            }),
-        };
+            models: this.models,
+        });
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -211,7 +205,6 @@ export default class App {
 
         expressApp.use(express.json());
         expressApp.use(express.urlencoded({ extended: false }));
-        expressApp.use(cookieParser());
 
         expressApp.use(
             expressSession({
@@ -256,6 +249,7 @@ export default class App {
          */
         expressApp.use((req, res, next) => {
             req.services = this.serviceRepository;
+            req.clients = this.clients;
             next();
         });
 
@@ -380,6 +374,9 @@ export default class App {
         if (isAzureAdPassportStrategyAvailableToUse) {
             passport.use('azuread', await createAzureAdPassportStrategy());
         }
+        if (isGenericOidcPassportStrategyAvailableToUse) {
+            passport.use('oidc', await createGenericOidcPassportStrategy());
+        }
 
         passport.serializeUser((user, done) => {
             // On login (user changes), user.userUuid is written to the session store in the `sess.passport.data` field
@@ -488,7 +485,13 @@ export default class App {
                     this.serviceRepository.getValidationService(),
                 userService: this.serviceRepository.getUserService(),
             },
-            ...this.clients,
+            ...{
+                emailClient: this.clients.getEmailClient(),
+                googleDriveClient: this.clients.getGoogleDriveClient(),
+                s3Client: this.clients.getS3Client(),
+                schedulerClient: this.clients.getSchedulerClient(),
+                slackClient: this.clients.getSlackClient(),
+            },
         });
 
         this.schedulerWorker.run().catch((e) => {

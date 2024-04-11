@@ -1,6 +1,7 @@
 import {
     fieldId as getFieldId,
     isField,
+    isNumericItem,
     type CompiledDimension,
     type CustomDimension,
     type Field,
@@ -8,39 +9,20 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
-import { AddButton } from '../common/AddButton';
-import { Config } from '../common/Config';
-import { ReferenceLine } from './ReferenceLine';
+import { AddButton } from '../../common/AddButton';
+import { Config } from '../../common/Config';
+import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
+import { ReferenceLine, type ReferenceLineProps } from './ReferenceLine';
 
 type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
     projectUuid: string;
-};
-
-const useControlledAccordion = (defaultOpenItems = []) => {
-    const [openItems, setOpenItems] = useState<string[]>(defaultOpenItems);
-
-    const handleAccordionChange = useCallback((itemValues: string[]) => {
-        setOpenItems(itemValues);
-    }, []);
-
-    const addNewItem = useCallback((index: string) => {
-        setOpenItems((prevOpenItems) => [...prevOpenItems, index]);
-    }, []);
-
-    const removeItem = useCallback((index: string) => {
-        setOpenItems((prevOpenItems) =>
-            prevOpenItems.filter((item) => item !== index),
-        );
-    }, []);
-
-    return { openItems, handleAccordionChange, addNewItem, removeItem };
 };
 
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
@@ -56,70 +38,90 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
         () => project.data?.warehouseConnection?.startOfWeek,
         [project],
     );
-    const updateReferenceLine = useCallback(
-        (
-            updateValue: string,
-            updateField:
-                | Field
-                | TableCalculation
-                | CompiledDimension
-                | CustomDimension,
-            updateLabel: string | undefined,
-            updateColor: string,
-            lineId: string,
-        ) => {
-            if (!isCartesianChart) return;
+    const updateReferenceLine: ReferenceLineProps['updateReferenceLine'] =
+        useCallback(
+            ({
+                value,
+                field,
+                label,
+                lineColor,
+                dynamicValue,
+                labelPosition,
+                lineId,
+            }) => {
+                if (!isCartesianChart) return;
 
-            const {
-                dirtyEchartsConfig,
-                dirtyLayout,
-                referenceLines,
-                setReferenceLines,
-            } = visualizationConfig.chartConfig;
+                const {
+                    dirtyEchartsConfig,
+                    dirtyLayout,
+                    referenceLines,
+                    setReferenceLines,
+                } = visualizationConfig.chartConfig;
 
-            if (updateValue && updateField) {
-                const fieldId = isField(updateField)
-                    ? getFieldId(updateField)
-                    : updateField.name;
+                if (field) {
+                    const fieldId = isField(field)
+                        ? getFieldId(field)
+                        : field.name;
 
-                if (dirtyEchartsConfig?.series) {
-                    const selectedSeries = dirtyEchartsConfig?.series.find(
-                        (serie: Series) =>
-                            (dirtyLayout?.xField === fieldId
-                                ? serie.encode.xRef
-                                : serie.encode.yRef
-                            ).field === fieldId,
-                    );
-                    if (selectedSeries === undefined) return;
+                    const isNumericField = field && isNumericItem(field);
+                    const useAverage =
+                        dynamicValue === 'average' && isNumericField;
 
-                    const dataWithAxis = {
-                        name: updateLabel || 'Reference line',
-                        value: lineId,
-                        lineStyle: { color: updateColor },
-                        label: updateLabel ? { formatter: updateLabel } : {},
-                        xAxis: undefined,
-                        yAxis: undefined,
-                        [dirtyLayout?.xField === fieldId ? 'xAxis' : 'yAxis']:
-                            updateValue,
-                    };
+                    if (dirtyEchartsConfig?.series) {
+                        const selectedSeries = dirtyEchartsConfig?.series.find(
+                            (serie: Series) =>
+                                (dirtyLayout?.xField === fieldId
+                                    ? serie.encode.xRef
+                                    : serie.encode.yRef
+                                ).field === fieldId,
+                        );
 
-                    const updatedReferenceLines: ReferenceLineField[] =
-                        referenceLines.map((line) => {
-                            // Check both .value and .name for backwards compatibility
-                            if (
-                                line.data.value === lineId ||
-                                line.data.name === lineId
-                            )
-                                return { fieldId: fieldId, data: dataWithAxis };
-                            else return line;
-                        });
+                        if (selectedSeries === undefined) return;
 
-                    setReferenceLines(updatedReferenceLines);
+                        const dataWithAxis = {
+                            name: label,
+                            type: useAverage ? 'average' : undefined,
+                            uuid: lineId,
+                            lineStyle: { color: lineColor },
+                            label: {
+                                position: labelPosition || 'end',
+                                formatter: label
+                                    ? `${label}${useAverage ? ': {c}' : ''}`
+                                    : undefined,
+                            },
+                            xAxis:
+                                dirtyLayout?.xField === fieldId
+                                    ? value || ''
+                                    : undefined,
+                            yAxis:
+                                dirtyLayout?.xField === fieldId
+                                    ? undefined
+                                    : useAverage
+                                    ? undefined
+                                    : value || '',
+                        };
+
+                        const updatedReferenceLines: ReferenceLineField[] =
+                            referenceLines.map((line) => {
+                                // Check uuid, .value and .name for backwards compatibility
+                                if (
+                                    line.data.uuid === lineId ||
+                                    line.data.value === lineId ||
+                                    line.data.name === lineId
+                                )
+                                    return {
+                                        fieldId: fieldId,
+                                        data: dataWithAxis,
+                                    };
+                                else return line;
+                            });
+
+                        setReferenceLines(updatedReferenceLines);
+                    }
                 }
-            }
-        },
-        [isCartesianChart, visualizationConfig],
-    );
+            },
+            [isCartesianChart, visualizationConfig],
+        );
 
     const addReferenceLine = useCallback(() => {
         if (!isCartesianChart) return;
@@ -128,8 +130,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
         const newReferenceLine: ReferenceLineField = {
             data: {
-                name: 'Reference line',
-                value: uuidv4(),
+                uuid: uuidv4(),
             },
         };
         setReferenceLines((prev) => {
@@ -160,6 +161,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                         data:
                             serie.markLine?.data.filter(
                                 (data) =>
+                                    data.uuid !== markLineId &&
                                     data.value !== markLineId &&
                                     data.name !== markLineId,
                             ) || [],
@@ -172,6 +174,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
             setReferenceLines(
                 referenceLines.filter(
                     (line) =>
+                        line.data.uuid !== markLineId &&
                         line.data.value !== markLineId &&
                         line.data.name !== markLineId,
                 ),
@@ -215,7 +218,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                 isOpen={openItems.includes(`${index + 1}`)}
                                 addNewItem={addNewItem}
                                 removeItem={removeItem}
-                                key={line.data.value}
+                                key={line.data.uuid}
                                 index={index + 1}
                                 isDefaultOpen={referenceLines.length <= 1}
                                 items={items}
@@ -223,6 +226,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                 referenceLine={line}
                                 updateReferenceLine={updateReferenceLine}
                                 removeReferenceLine={removeReferenceLine}
+                                data-testid={line.data.uuid}
                             />
                         ))}
                     </Accordion>

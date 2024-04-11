@@ -20,10 +20,8 @@ jobs:
             - name: Install packages
               run: yarn install --frozen-lockfile
             - name: Run dangerjs
-              # Ensure the dangerjs check only runs on pull requests, while allowing
-              # us to reuse the remainder of the setup for this workflow:
               if: github.event_name == 'pull_request'
-              run: yarn danger ci --use-github-checks
+              run: yarn danger-ci-lint
               env:
                   GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
             - name: Lint all packages

@@ -3,6 +3,7 @@ export enum OpenIdIdentityIssuerType {
     OKTA = 'okta',
     ONELOGIN = 'oneLogin',
     AZUREAD = 'azuread',
+    GENERIC_OIDC = 'oidc',
 }
 
 export type CreateOpenIdIdentity = {
@@ -19,7 +20,8 @@ export type UpdateOpenIdentity = Pick<
     'subject' | 'issuer' | 'email' | 'issuerType' | 'refreshToken'
 >;
 
-export type OpenIdIdentity = CreateOpenIdIdentity & {
+export type OpenIdIdentity = Omit<CreateOpenIdIdentity, 'userId'> & {
+    userUuid: string;
     createdAt: Date;
 };
 
