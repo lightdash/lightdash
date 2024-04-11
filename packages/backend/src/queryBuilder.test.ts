@@ -440,6 +440,36 @@ describe('replaceUserAttributes', () => {
             ),
         ).toEqual('${lightdash.foo.test} > 1');
     });
+
+    it('should replace `email` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.email} = "mock@lightdash.com"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'mock@lightdash.com\' = "mock@lightdash.com")');
+    });
+
+    it('should replace `first_name` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.first_name} = "Mock"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'Mock\' = "Mock")');
+    });
+
+    it('should replace `last_name` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.last_name} = "User"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'User\' = "User")');
+    });
 });
 
 describe('assertValidDimensionRequiredAttribute', () => {
