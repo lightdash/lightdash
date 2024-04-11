@@ -154,6 +154,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
         try {
             if (this.connectionOptions.warehouse) {
+                // eslint-disable-next-line no-console
                 console.debug(
                     `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
                 );
