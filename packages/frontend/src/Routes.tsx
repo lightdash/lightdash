@@ -17,6 +17,7 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
+import ExperimentalSqlRunner from './pages/ExperimentalSqlRunner';
 import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
@@ -203,6 +204,11 @@ const Routes: FC = () => {
                                         <TrackPage name={PageName.SQL_RUNNER}>
                                             <SqlRunner />
                                         </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/experimental">
+                                        <NavBar />
+                                        <ExperimentalSqlRunner />
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/dbtsemanticlayer">
