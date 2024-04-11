@@ -131,6 +131,7 @@ describe('Date tests', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
+        cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
         cy.contains('1 active filter');
@@ -138,7 +139,7 @@ describe('Date tests', () => {
         cy.contains('2020-08-11 22:58:00'); // Filter in localtime //Timezone sensitive
         cy.contains('11 Aug 2020 22:58:00'); // Filter in UTC
 
-        cy.contains('2020-08-11, 22:58:00:000 (+02:00)'); // Data in results
+        cy.contains('2020-08-11, 22:58:00:000 (+00:00)'); // Data in results // Timezone sensitive
 
         cy.findByTestId('SQL-card-expand').click();
         cy.contains(`("events".timestamp_tz) = ('2020-08-11 22:58:00')`); // SQL
@@ -154,6 +155,7 @@ describe('Date tests', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
+        cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
         cy.findByTestId('Filters-card-expand').click();
@@ -209,6 +211,7 @@ describe('Date tests', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
+        cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
         cy.findByTestId('Filters-card-expand').click();
@@ -217,7 +220,7 @@ describe('Date tests', () => {
 
         // Filter by raw
         cy.get('tbody > :nth-child(1) > :nth-child(2)').click();
-        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+02:00)').click();
+        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             '2020-08-11 23:44:00', // Timezone sensitive
         );
@@ -229,7 +232,7 @@ describe('Date tests', () => {
         // Filter by Milisecond
         // FIXME: selecting a different cell is not working
         cy.get('tbody > :nth-child(1) > :nth-child(3)').click();
-        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+02:00)').click();
+        cy.contains('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             '2020-08-11 23:44:00', // Timezone sensitive
         );
@@ -240,7 +243,7 @@ describe('Date tests', () => {
 
         // Filter by Second
         cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
-        cy.contains('Filter by 2020-08-11, 23:44:00 (+02:00)').click();
+        cy.contains('Filter by 2020-08-11, 23:44:00 (+00:00)').click(); // Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             '2020-08-11 23:44:00', // Timezone sensitive
         );
@@ -250,7 +253,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
         // Filter by Minute
         cy.get('tbody > :nth-child(1) > :nth-child(5)').click();
-        cy.contains('Filter by 2020-08-11, 23:44 (+02:00)').click();
+        cy.contains('Filter by 2020-08-11, 23:44 (+00:00)').click(); // Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             '2020-08-11 23:44:00', // Timezone sensitive
         );
@@ -261,7 +264,7 @@ describe('Date tests', () => {
 
         // Filter by Hour
         cy.get('tbody > :nth-child(1) > :nth-child(6)').click();
-        cy.contains('Filter by 2020-08-11, 23 (+02:00)').click();
+        cy.contains('Filter by 2020-08-11, 23 (+00:00)').click(); // Timezone sensitive
         cy.get('.mantine-DateTimePicker-input').contains(
             '2020-08-11 23:00:00', // Timezone sensitive
         );

@@ -5,7 +5,7 @@ describe('Settings - Profile', () => {
         cy.login();
     });
 
-    after(() => {
+    before(() => {
         // Reset to default values
         cy.request({
             url: 'api/v1/user/me',
