@@ -154,6 +154,7 @@ export const replaceUserAttributes = (
     const intrinsicUserAttributeRegex =
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
 
+    // Replace user attributes in the SQL filter
     const replacedSqlFilter = replaceAttributes(
         userAttributeRegex,
         sqlFilter,
@@ -162,6 +163,7 @@ export const replaceUserAttributes = (
         filter,
     );
 
+    // Replace intrinsic user attributes in the SQL filter
     return replaceAttributes(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
