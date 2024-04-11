@@ -45,15 +45,57 @@ export type UpdateSpace = {
     isPrivate: boolean;
 };
 
-export type SpaceShare = {
+// export type SpaceShare = {
+//     userUuid: string;
+//     firstName: string;
+//     lastName: string;
+//     email: string;
+//     role: SpaceMemberRole;
+//     hasDirectAccess: boolean;
+//     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
+//     inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+// }
+
+export const isDirectUserAccess = (
+    access: SpaceShare | undefined,
+): access is DirectUserAccess => !!access && access.type === 'user';
+export const isDirectGroupAccess = (
+    access: SpaceShare | undefined,
+): access is DirectGroupAccess => !!access && access.type === 'group';
+export const isInheritedAccess = (
+    access: SpaceShare | undefined,
+): access is DirectUserAccess => !!access && access.type === 'inherited';
+
+export type SpaceShare = DirectUserAccess | DirectGroupAccess | InheritedAccess;
+
+export type DirectUserAccess = {
     userUuid: string;
     firstName: string;
     lastName: string;
     email: string;
     role: SpaceMemberRole;
-    hasDirectAccess: boolean;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
     inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+    type: 'user';
+};
+
+export type DirectGroupAccess = {
+    userUuid: string;
+    groupUuid: string;
+    groupName: string;
+    role: SpaceMemberRole;
+    type: 'group';
+};
+
+export type InheritedAccess = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: SpaceMemberRole;
+    inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
+    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+    type: 'inherited';
 };
 
 export enum SpaceMemberRole {

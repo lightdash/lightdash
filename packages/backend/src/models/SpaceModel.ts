@@ -792,6 +792,7 @@ export class SpaceModel {
                         hasDirectAccess: !!user_with_direct_access,
                         inheritedRole: highestRole.role,
                         inheritedFrom: highestRole.type,
+                        type: 'user',
                     },
                 ];
             },

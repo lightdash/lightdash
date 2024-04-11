@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    isDirectGroupAccess,
+    isDirectUserAccess,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -79,7 +81,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             );
         });
         const spacesSharedWithMe = spacesUserCanCreateIn.filter((space) => {
-            return user.data && space.userAccess?.hasDirectAccess;
+            return (
+                user.data &&
+                (isDirectUserAccess(space.userAccess) ||
+                    isDirectGroupAccess(space.userAccess))
+            );
         });
         const spacesAdminsCanSee = spacesUserCanCreateIn.filter((space) => {
             return (

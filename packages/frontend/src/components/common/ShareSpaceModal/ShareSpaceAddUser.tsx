@@ -1,4 +1,9 @@
-import { OrganizationMemberRole, type Space } from '@lightdash/common';
+import {
+    isDirectGroupAccess,
+    isDirectUserAccess,
+    OrganizationMemberRole,
+    type Space,
+} from '@lightdash/common';
 import {
     Avatar,
     Badge,
@@ -131,11 +136,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
             if (!user) return null;
 
-            const hasDirectAccess = !!(space.access || []).find(
+            const spaceAccess = (space.access || []).find(
                 (access) => access.userUuid === userUuid,
-            )?.hasDirectAccess;
+            );
 
-            if (hasDirectAccess) return null;
+            const hasDirectAccess =
+                isDirectUserAccess(spaceAccess) ||
+                isDirectGroupAccess(spaceAccess);
+
+            if (!hasDirectAccess) return null;
 
             return {
                 value: userUuid,
