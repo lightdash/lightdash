@@ -14,7 +14,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useMemo, useTransition, type FC } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -99,6 +99,8 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = ({
 };
 
 const VisualizationCardOptions: FC = memo(() => {
+    const [, startTransition] = useTransition();
+
     const { health } = useApp();
     const customVizEnabled = useFeatureFlagEnabled(
         FeatureFlags.CustomVisualizationsEnabled,
@@ -143,12 +145,14 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Bar chart',
                 chartKind: ChartKind.VERTICAL_BAR,
                 onClick: () => {
-                    setCartesianType({
-                        type: CartesianSeriesType.BAR,
-                        flipAxes: false,
-                        hasAreaStyle: false,
+                    startTransition(() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.BAR,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
+                        setChartType(ChartType.CARTESIAN);
                     });
-                    setChartType(ChartType.CARTESIAN);
                 },
                 selected: !!(
                     isChartTypeTheSameForAllSeries &&
@@ -161,13 +165,15 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Horizontal bar chart',
                 chartKind: ChartKind.HORIZONTAL_BAR,
                 onClick: () => {
-                    setCartesianType({
-                        type: CartesianSeriesType.BAR,
-                        flipAxes: true,
-                        hasAreaStyle: false,
+                    startTransition(() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.BAR,
+                            flipAxes: true,
+                            hasAreaStyle: false,
+                        });
+                        if (!pivotDimensions) setStacking(false);
+                        setChartType(ChartType.CARTESIAN);
                     });
-                    if (!pivotDimensions) setStacking(false);
-                    setChartType(ChartType.CARTESIAN);
                 },
                 selected: !!(
                     isChartTypeTheSameForAllSeries &&
@@ -180,13 +186,15 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Line chart',
                 chartKind: ChartKind.LINE,
                 onClick: () => {
-                    setCartesianType({
-                        type: CartesianSeriesType.LINE,
-                        flipAxes: false,
-                        hasAreaStyle: false,
+                    startTransition(() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.LINE,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
+                        setStacking(false);
+                        setChartType(ChartType.CARTESIAN);
                     });
-                    setStacking(false);
-                    setChartType(ChartType.CARTESIAN);
                 },
                 selected: !!(
                     isChartTypeTheSameForAllSeries &&
@@ -198,13 +206,15 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Area chart',
                 chartKind: ChartKind.AREA,
                 onClick: () => {
-                    setCartesianType({
-                        type: CartesianSeriesType.LINE,
-                        flipAxes: false,
-                        hasAreaStyle: true,
+                    startTransition(() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.LINE,
+                            flipAxes: false,
+                            hasAreaStyle: true,
+                        });
+                        setStacking(true);
+                        setChartType(ChartType.CARTESIAN);
                     });
-                    setStacking(true);
-                    setChartType(ChartType.CARTESIAN);
                 },
                 selected: !!(
                     isChartTypeTheSameForAllSeries &&
@@ -216,13 +226,15 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Scatter plot',
                 chartKind: ChartKind.SCATTER,
                 onClick: () => {
-                    setCartesianType({
-                        type: CartesianSeriesType.SCATTER,
-                        flipAxes: false,
-                        hasAreaStyle: false,
+                    startTransition(() => {
+                        setCartesianType({
+                            type: CartesianSeriesType.SCATTER,
+                            flipAxes: false,
+                            hasAreaStyle: false,
+                        });
+                        setStacking(false);
+                        setChartType(ChartType.CARTESIAN);
                     });
-                    setStacking(false);
-                    setChartType(ChartType.CARTESIAN);
                 },
                 selected: !!(
                     isChartTypeTheSameForAllSeries &&
@@ -253,10 +265,12 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Pie chart',
                 chartKind: ChartKind.PIE,
                 onClick: () => {
-                    setPivotDimensions(undefined);
-                    setStacking(undefined);
-                    setCartesianType(undefined);
-                    setChartType(ChartType.PIE);
+                    startTransition(() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.PIE);
+                    });
                 },
                 selected: isPieVisualizationConfig(visualizationConfig),
             },
@@ -264,10 +278,12 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Table',
                 chartKind: ChartKind.TABLE,
                 onClick: () => {
-                    setPivotDimensions(undefined);
-                    setStacking(undefined);
-                    setCartesianType(undefined);
-                    setChartType(ChartType.TABLE);
+                    startTransition(() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.TABLE);
+                    });
                 },
                 selected: isTableVisualizationConfig(visualizationConfig),
             },
@@ -275,10 +291,12 @@ const VisualizationCardOptions: FC = memo(() => {
                 label: 'Big number',
                 chartKind: ChartKind.BIG_NUMBER,
                 onClick: () => {
-                    setPivotDimensions(undefined);
-                    setStacking(undefined);
-                    setCartesianType(undefined);
-                    setChartType(ChartType.BIG_NUMBER);
+                    startTransition(() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.BIG_NUMBER);
+                    });
                 },
                 selected: isBigNumberVisualizationConfig(visualizationConfig),
             },
@@ -289,10 +307,12 @@ const VisualizationCardOptions: FC = memo(() => {
                 chartKind: ChartKind.CUSTOM,
                 disabled: !isCustomConfigEnabled,
                 onClick: () => {
-                    setPivotDimensions(undefined);
-                    setStacking(undefined);
-                    setCartesianType(undefined);
-                    setChartType(ChartType.CUSTOM);
+                    startTransition(() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.CUSTOM);
+                    });
                 },
                 selected: isCustomVisualizationConfig(visualizationConfig),
             },
