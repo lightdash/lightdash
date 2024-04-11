@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DashboardTileTypes,
+    FeatureFlags,
     isDashboardScheduler,
 } from '@lightdash/common';
 import { useMemo, type FC } from 'react';
@@ -19,6 +20,7 @@ import {
 } from './Dashboard';
 
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
+import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -28,6 +30,9 @@ const MinimalDashboard: FC = () => {
     const schedulerUuid = useSearchParams('schedulerUuid');
     const sendNowchedulerFilters = useSearchParams('sendNowchedulerFilters');
     const dateZoom = useDateZoomGranularitySearch();
+    const stackVerticallyOnSmallestBreakpoint = useFeatureFlagEnabled(
+        FeatureFlags.DashboardMobileVerticalStack,
+    );
 
     const {
         data: dashboard,
@@ -82,7 +87,9 @@ const MinimalDashboard: FC = () => {
             dateZoom={dateZoom}
         >
             <ResponsiveGridLayout
-                {...getResponsiveGridLayoutProps(false)}
+                {...getResponsiveGridLayoutProps({
+                    stackVerticallyOnSmallestBreakpoint,
+                })}
                 layouts={layouts}
             >
                 {dashboard.tiles.map((tile) => (

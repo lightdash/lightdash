@@ -262,10 +262,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }, {});
     }
 
-    getFieldQuoteChar() {
-        return '`';
-    }
-
     getStringQuoteChar() {
         return "'";
     }

@@ -7,7 +7,6 @@ import {
     DimensionType,
     Explore,
     FieldType,
-    LightdashMode,
     MetricFilterRule,
     MetricType,
     OrderFieldsByStrategy,
@@ -18,139 +17,8 @@ import {
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectTable } from '../../database/entities/projects';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-
-export const lightdashConfigMock: LightdashConfig = {
-    mode: LightdashMode.DEFAULT,
-    version: '1.0',
-    lightdashSecret: 'secret',
-    secureCookies: true,
-    cookiesMaxAgeHours: undefined,
-    trustProxy: true,
-    rudder: {
-        writeKey: '',
-        dataPlaneUrl: '',
-    },
-    sentry: {
-        dsn: '',
-        release: '',
-        environment: '',
-    },
-    auth: {
-        disablePasswordAuthentication: false,
-        enableGroupSync: false,
-        google: {
-            oauth2ClientId: undefined,
-            oauth2ClientSecret: undefined,
-            loginPath: '',
-            callbackPath: '',
-            googleDriveApiKey: undefined,
-            enabled: false,
-        },
-        okta: {
-            loginPath: '',
-            callbackPath: '',
-            oauth2ClientSecret: undefined,
-            oauth2ClientId: undefined,
-            oauth2Issuer: undefined,
-            authorizationServerId: undefined,
-            extraScopes: undefined,
-            oktaDomain: undefined,
-        },
-        oneLogin: {
-            loginPath: '',
-            callbackPath: '',
-            oauth2ClientSecret: undefined,
-            oauth2ClientId: undefined,
-            oauth2Issuer: undefined,
-        },
-        azuread: {
-            loginPath: '',
-            callbackPath: '',
-            oauth2ClientSecret: undefined,
-            oauth2ClientId: undefined,
-            oauth2TenantId: '',
-            openIdConnectMetadataEndpoint: undefined,
-            privateKeyFile: undefined,
-            privateKeyFilePath: undefined,
-            x509PublicKeyCert: undefined,
-            x509PublicKeyCertPath: undefined,
-        },
-        oidc: {
-            authMethod: undefined,
-            authSigningAlg: undefined,
-            callbackPath: '',
-            loginPath: '',
-            clientId: undefined,
-            clientSecret: undefined,
-            metadataDocumentEndpoint: undefined,
-            privateKeyFile: undefined,
-            privateKeyFilePath: undefined,
-            scopes: undefined,
-            x509PublicKeyCert: undefined,
-            x509PublicKeyCertPath: undefined,
-        },
-    },
-    posthog: {
-        projectApiKey: '',
-        apiHost: '',
-    },
-    intercom: {
-        appId: '',
-        apiBase: '',
-    },
-    smtp: undefined,
-    siteUrl: '',
-    staticIp: '',
-    database: {
-        connectionUri: undefined,
-        maxConnections: undefined,
-        minConnections: undefined,
-    },
-    allowMultiOrgs: false,
-    maxPayloadSize: '5mb',
-    query: {
-        maxLimit: 5000,
-        csvCellsLimit: 100000,
-    },
-    scheduler: {
-        enabled: false,
-        concurrency: 1,
-        jobTimeout: 1,
-    },
-    logging: {
-        level: 'info',
-        format: 'pretty',
-        outputs: ['console'],
-        consoleFormat: undefined,
-        consoleLevel: undefined,
-        fileFormat: undefined,
-        filePath: '',
-        fileLevel: undefined,
-    },
-    chart: {
-        versionHistory: { daysLimit: 3 },
-    },
-    customVisualizations: {
-        enabled: false,
-    },
-    pivotTable: {
-        maxColumnLimit: 60,
-    },
-    resultsCache: {
-        enabled: false,
-        cacheStateTimeSeconds: 86400,
-        s3: {},
-    },
-    groups: {
-        enabled: false,
-    },
-    extendedUsageAnalytics: {
-        enabled: false,
-    },
-};
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
     type: DbtProjectType.DBT_CLOUD_IDE,

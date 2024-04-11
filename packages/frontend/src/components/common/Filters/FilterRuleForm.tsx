@@ -7,7 +7,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Text } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Select } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -70,74 +70,67 @@ const FilterRuleForm: FC<Props> = ({
         [activeField, fields, filterRule, onChange],
     );
 
+    if (!activeField) {
+        return null;
+    }
+
     return (
         <Group noWrap align="start" spacing="xs">
-            {activeField ? (
-                <>
-                    <FieldSelect
-                        size="xs"
-                        disabled={!isEditMode}
-                        withinPortal={popoverProps?.withinPortal}
-                        onDropdownOpen={popoverProps?.onOpen}
-                        onDropdownClose={popoverProps?.onClose}
-                        hasGrouping
-                        item={activeField}
-                        items={fields}
-                        onChange={(field) => {
-                            if (!field) return;
-                            onFieldChange(getFieldId(field));
-                        }}
-                    />
+            <FieldSelect
+                size="xs"
+                disabled={!isEditMode}
+                withinPortal={popoverProps?.withinPortal}
+                onDropdownOpen={popoverProps?.onOpen}
+                onDropdownClose={popoverProps?.onClose}
+                hasGrouping
+                item={activeField}
+                items={fields}
+                onChange={(field) => {
+                    if (!field) return;
+                    onFieldChange(getFieldId(field));
+                }}
+            />
+            <Select
+                size="xs"
+                w="150px"
+                sx={{ flexShrink: 0 }}
+                withinPortal={popoverProps?.withinPortal}
+                onDropdownOpen={popoverProps?.onOpen}
+                onDropdownClose={popoverProps?.onClose}
+                disabled={!isEditMode}
+                value={filterRule.operator}
+                data={filterOperatorOptions}
+                onChange={(value) => {
+                    if (!value) return;
 
-                    <Select
-                        size="xs"
-                        w="150px"
-                        sx={{ flexShrink: 0 }}
-                        withinPortal={popoverProps?.withinPortal}
-                        onDropdownOpen={popoverProps?.onOpen}
-                        onDropdownClose={popoverProps?.onClose}
-                        disabled={!isEditMode}
-                        value={filterRule.operator}
-                        data={filterOperatorOptions}
-                        onChange={(value) => {
-                            if (!value) return;
+                    onChange(
+                        getFilterRuleWithDefaultValue(
+                            activeField,
+                            {
+                                ...filterRule,
+                                operator: value as FilterRule['operator'],
+                            },
+                            (filterRule.values?.length || 0) > 0
+                                ? filterRule.values
+                                : [1],
+                        ),
+                    );
+                }}
+            />
 
-                            onChange(
-                                getFilterRuleWithDefaultValue(
-                                    activeField,
-                                    {
-                                        ...filterRule,
-                                        operator:
-                                            value as FilterRule['operator'],
-                                    },
-                                    (filterRule.values?.length || 0) > 0
-                                        ? filterRule.values
-                                        : [1],
-                                ),
-                            );
-                        }}
-                    />
-
-                    <FilterInputComponent
-                        filterType={filterType}
-                        field={activeField}
-                        rule={filterRule}
-                        onChange={onChange}
-                        disabled={!isEditMode}
-                        popoverProps={popoverProps}
-                    />
-                </>
-            ) : (
-                <Text color="dimmed">
-                    Tried to reference field with unknown id:{' '}
-                    {filterRule.target.fieldId}
-                </Text>
-            )}
+            <FilterInputComponent
+                filterType={filterType}
+                field={activeField}
+                rule={filterRule}
+                onChange={onChange}
+                disabled={!isEditMode}
+                popoverProps={popoverProps}
+            />
 
             {isEditMode &&
                 (!onConvertToGroup ? (
                     <ActionIcon onClick={onDelete}>
-                        <MantineIcon icon={IconX} size="lg" />
+                        <MantineIcon icon={IconX} size="sm" />
                     </ActionIcon>
                 ) : (
                     <Menu

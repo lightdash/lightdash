@@ -157,6 +157,22 @@ models:
 
 A full join returns all rows when there is a match in either the left or right table records. Non-matching rows will have `NULL` for columns of the table that lacks a match. For example, if you have a `users` table and a `subscriptions` table, a full join would return all users and all subscriptions, and the subscription information for users who have a subscription.
 
+## Always join a table
+
+If you need a table to always be joined, you can set the `always` field to `true`.
+
+```yaml
+models:
+  - name: messages
+    meta:
+      joins:
+        - join: users
+          sql_on: ${messages.sent_by} = ${users.user_id}
+          always: true
+```
+
+This will make sure that even when you don't select any of the fields from the joined table it will still be joined in the query.
+
 ## Only select a subset of fields from a join
 
 Use the `fields` tag to select a subset of fields from a join. This is useful if you want to join a model but only a

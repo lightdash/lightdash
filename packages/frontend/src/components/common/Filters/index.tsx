@@ -19,10 +19,12 @@ import {
     Box,
     Button,
     Divider,
+    Group,
     Stack,
+    Text,
     Tooltip,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
@@ -62,17 +64,22 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     }, [fieldsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
-    const filterRulesPerFieldType = getFilterRulesByFieldType(
-        fields,
-        totalFilterRules,
+    const {
+        valid: validFilterRulesPerType,
+        invalid: invalidFilterRulesPerType,
+    } = getFilterRulesByFieldType(fields, totalFilterRules);
+
+    const hasInvalidFilterRules = Object.values(invalidFilterRulesPerType).some(
+        (arr) => arr.length > 0,
     );
+
     const showSimplifiedForm: boolean =
-        filterRulesPerFieldType.dimensions.length <= 1 &&
-        filterRulesPerFieldType.metrics.length <= 1 &&
+        validFilterRulesPerType.dimensions.length <= 1 &&
+        validFilterRulesPerType.metrics.length <= 1 &&
         !hasNestedGroups(filters);
     const showMandatoryAndOperator: boolean =
-        filterRulesPerFieldType.dimensions.length >= 1 &&
-        filterRulesPerFieldType.metrics.length >= 1;
+        validFilterRulesPerType.dimensions.length >= 1 &&
+        validFilterRulesPerType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
@@ -86,7 +93,10 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
     const updateFieldRules = useCallback(
         (filterRules: FilterRule[]) => {
-            const result = getFilterRulesByFieldType(fields, filterRules);
+            const { valid: result } = getFilterRulesByFieldType(
+                fields,
+                filterRules,
+            );
 
             setFilters(
                 {
@@ -121,8 +131,9 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         },
         [fields, filters, setFilters],
     );
+
     return (
-        <Stack pos="relative" m="sm" style={{ flexGrow: 1 }}>
+        <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
             {totalFilterRules.length >= 1 &&
                 (showSimplifiedForm ? (
                     <SimplifiedFilterGroupForm
@@ -143,7 +154,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         />
 
                         {filters.dimensions &&
-                            filterRulesPerFieldType.dimensions.length >= 1 && (
+                            validFilterRulesPerType.dimensions.length >= 1 && (
                                 <FilterGroupForm
                                     allowConvertToGroup
                                     hideLine
@@ -188,7 +199,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         )}
 
                         {filters.metrics &&
-                            filterRulesPerFieldType.metrics.length >= 1 && (
+                            validFilterRulesPerType.metrics.length >= 1 && (
                                 <FilterGroupForm
                                     allowConvertToGroup
                                     hideLine
@@ -218,7 +229,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 />
                             )}
                         {filters.tableCalculations &&
-                            filterRulesPerFieldType.tableCalculations.length >=
+                            validFilterRulesPerType.tableCalculations.length >=
                                 1 && (
                                 <FilterGroupForm
                                     allowConvertToGroup
@@ -250,6 +261,52 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             )}
                     </>
                 ))}
+
+            {hasInvalidFilterRules &&
+                Object.entries(invalidFilterRulesPerType).map(
+                    ([type, rules], index) => (
+                        <Stack
+                            key={type + index}
+                            ml={showSimplifiedForm ? 'none' : 'xl'}
+                            spacing="two"
+                            align="flex-start"
+                        >
+                            {rules.map((rule) => (
+                                <Group
+                                    key={rule.id}
+                                    spacing="xs"
+                                    pl="xs"
+                                    sx={(theme) => ({
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                        borderRadius: theme.radius.sm,
+                                    })}
+                                >
+                                    <MantineIcon icon={IconAlertCircle} />
+                                    <Text color="dimmed" fz="xs">
+                                        Tried to reference field with unknown
+                                        id:{' '}
+                                        <Text span fw={500} c="gray.7">
+                                            {rule.target.fieldId}
+                                        </Text>
+                                    </Text>
+                                    <ActionIcon
+                                        onClick={() =>
+                                            updateFieldRules(
+                                                getTotalFilterRules(
+                                                    filters,
+                                                ).filter(
+                                                    ({ id }) => id !== rule.id,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        <MantineIcon icon={IconX} size="sm" />
+                                    </ActionIcon>
+                                </Group>
+                            ))}
+                        </Stack>
+                    ),
+                )}
 
             {isEditMode ? (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>

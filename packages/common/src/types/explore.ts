@@ -20,11 +20,12 @@ export type ExploreJoin = {
     label?: string; // Optional UI label override for the underlying table
     hidden?: boolean;
     fields?: string[]; // Optional list of fields to include from the joined table
+    always?: boolean; // Optional flag to always join the table
 };
 
 export type CompiledExploreJoin = Pick<
     ExploreJoin,
-    'table' | 'sqlOn' | 'type' | 'hidden'
+    'table' | 'sqlOn' | 'type' | 'hidden' | 'always'
 > & {
     compiledSqlOn: string; // Sql on clause with template variables resolved
 };

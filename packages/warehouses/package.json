@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.1064.3",
+    "version": "0.1067.1",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
     "dependencies": {
         "@databricks/sql": "1.8.1",
         "@google-cloud/bigquery": "^5.9.1",
-        "@lightdash/common": "^0.1064.3",
+        "@lightdash/common": "^0.1067.1",
         "lodash": "^4.17.21",
         "pg": "^8.11.3",
         "pg-cursor": "^2.10.0",
