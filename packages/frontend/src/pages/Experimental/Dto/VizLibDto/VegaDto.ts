@@ -1,6 +1,7 @@
+import { type CartesianConfig } from '../../types';
 import { VizLibDto } from './VizLibDto';
 
-export class VegaDto extends VizLibDto {
+export class VegaDto extends VizLibDto<CartesianConfig> {
     static type = 'vega' as const;
 
     static supportedVizTypes = ['bar'];

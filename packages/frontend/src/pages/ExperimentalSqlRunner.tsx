@@ -85,7 +85,7 @@ const ExperimentalSqlRunner = () => {
                         </Tabs.List>
 
                         <Tabs.Panel value="ui" pt="xs">
-                            {vizDto && (
+                            {vizDto ? (
                                 <>
                                     <VizConfig
                                         vizDto={vizDto}
@@ -96,6 +96,8 @@ const ExperimentalSqlRunner = () => {
                                         onChange={setVizConf}
                                     />
                                 </>
+                            ) : (
+                                <div>Query source is required</div>
                             )}
                         </Tabs.Panel>
 
@@ -132,11 +134,13 @@ const ExperimentalSqlRunner = () => {
                         </Tabs.List>
 
                         <Tabs.Panel value="ui" pt="xs">
-                            {vizDto && (
+                            {vizDto ? (
                                 <VizLibSelect
                                     vizDto={vizDto}
                                     onChange={setVizConf}
                                 />
+                            ) : (
+                                <div>Viz configuration is required</div>
                             )}
                             <Flex sx={{ flex: 1, height: '300px' }}>
                                 {vizLibDto && <VizLib vizLibDto={vizLibDto} />}

@@ -7,23 +7,25 @@ export interface VizConfigDtoArguments {
     sourceDto: QuerySourceDto;
 }
 
-export abstract class VizConfigDto {
+export abstract class VizConfigDto<
+    T extends VizConfiguration = VizConfiguration,
+> {
     static vizType: string;
 
     protected readonly sourceDto: QuerySourceDto;
 
-    protected readonly vizConfig: VizConfiguration;
+    protected readonly vizConfig: T;
 
     constructor(args: VizConfigDtoArguments) {
         this.sourceDto = args.sourceDto;
         this.vizConfig = this.validVizConfig(args.vizConfig);
     }
 
-    private validVizConfig(value: VizConfiguration) {
+    private validVizConfig(value: VizConfiguration): T {
         return {
             ...value,
             libType: this.validateLibType(value),
-        };
+        } as T;
     }
 
     private validateLibType(value: VizConfiguration) {

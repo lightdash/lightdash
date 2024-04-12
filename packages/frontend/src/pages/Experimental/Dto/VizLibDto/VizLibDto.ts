@@ -1,21 +1,23 @@
-import { type CartesianConfig } from '../../types';
+import { type VizConfiguration } from '../../types';
 import { type QuerySourceDto } from '../QuerySourceDto/QuerySourceDto';
 
-export interface VizLibDtoArguments {
-    vizConfig?: CartesianConfig;
+export interface VizLibDtoArguments<
+    V extends VizConfiguration = VizConfiguration,
+> {
+    vizConfig?: V;
     sourceDto: QuerySourceDto;
 }
 
-export abstract class VizLibDto {
+export abstract class VizLibDto<V extends VizConfiguration = VizConfiguration> {
     static type: string;
 
     static supportedVizTypes: string[];
 
     protected readonly sourceDto: QuerySourceDto;
 
-    protected readonly vizConfig?: CartesianConfig;
+    protected readonly vizConfig?: V;
 
-    constructor(args: VizLibDtoArguments) {
+    constructor(args: VizLibDtoArguments<V>) {
         this.sourceDto = args.sourceDto;
         this.vizConfig = args.vizConfig;
     }

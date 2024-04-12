@@ -1,6 +1,9 @@
+import { type CartesianConfig } from '../../types';
 import { VizConfigDto } from './VizConfigDto';
 
-export abstract class CartiseanConfigDto extends VizConfigDto {
+export abstract class CartiseanConfigDto<
+    T extends CartesianConfig = CartesianConfig,
+> extends VizConfigDto<T> {
     public getXAxisOptions() {
         return this.sourceDto.getFieldOptions();
     }

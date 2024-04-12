@@ -6,9 +6,10 @@ import {
     type Series,
 } from '@lightdash/common';
 import type { EChartSeries } from '../../../../hooks/echarts/useEchartsCartesianConfig';
+import { type CartesianConfig } from '../../types';
 import { VizLibDto } from './VizLibDto';
 
-export class EchartsDto extends VizLibDto {
+export class EchartsDto extends VizLibDto<CartesianConfig> {
     static type = 'echarts' as const;
 
     static supportedVizTypes = ['bar', 'line'];
