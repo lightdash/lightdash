@@ -10,7 +10,7 @@ const EchartsViz = ({ echartsDto }: { echartsDto: EchartsDto }) => {
     return (
         <EChartsReact
             style={{
-                minHeight: 'inherit',
+                minHeight: 300,
                 height: '100%',
                 width: '100%',
             }}

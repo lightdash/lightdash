@@ -19,7 +19,9 @@ const ExperimentalSqlRunner = () => {
         useSqlQueryMutation();
     const { isLoading: isLoadingExploreMutation, mutateAsync: exploreMutate } =
         useQueryResults();
-    const [vizConf, setVizConf] = useState<VizConfiguration>();
+    const [vizConf, setVizConf] = useState<VizConfiguration>({
+        libType: 'echarts',
+    });
     const [sourceDto, setSourceDto] = useState<QuerySourceDto>();
 
     const handleSqlRunnerSubmit = useCallback(async () => {
