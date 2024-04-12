@@ -70,6 +70,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'message'
           | 'updated_at'
           | 'cron'
+          | 'timezone'
           | 'format'
           | 'options'
           | 'filters'

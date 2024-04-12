@@ -593,7 +593,6 @@ const SchedulerForm: FC<Props> = ({
                                     timeZone={
                                         <TimezoneSelect
                                             disabled={disabled}
-                                            name="timezone"
                                             {...form.getInputProps('timezone')}
                                         />
                                     }

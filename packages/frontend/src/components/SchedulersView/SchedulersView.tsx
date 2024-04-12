@@ -232,7 +232,10 @@ const Schedulers: FC<SchedulersProps> = ({
                 cell: (item) => {
                     return (
                         <Text fz="xs" color="gray.6">
-                            {getHumanReadableCronExpression(item.cron)}
+                            {getHumanReadableCronExpression(
+                                item.cron,
+                                item.timezone,
+                            )}
                         </Text>
                     );
                 },

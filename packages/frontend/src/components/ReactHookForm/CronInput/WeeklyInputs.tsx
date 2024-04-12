@@ -1,5 +1,5 @@
 import { Group, Input } from '@mantine/core';
-import React, { type FC } from 'react';
+import React, { type FC, type ReactNode } from 'react';
 import { getWeeklyCronExpression, parseCronExpression } from './cronInputUtils';
 import TimePicker from './TimePicker';
 import WeekDaySelect from './WeekDaySelect';
@@ -7,7 +7,7 @@ import WeekDaySelect from './WeekDaySelect';
 const WeeklyInputs: FC<{
     disabled?: boolean;
     cronExpression: string;
-    timeZone: string;
+    timeZone: ReactNode;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange, timeZone: Timezone }) => {
     const { minutes, hours, weekDay } = parseCronExpression(cronExpression);

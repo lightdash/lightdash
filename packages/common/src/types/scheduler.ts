@@ -201,6 +201,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'name'
     | 'message'
     | 'cron'
+    | 'timezone'
     | 'format'
     | 'options'
     | 'thresholds'

@@ -1,5 +1,11 @@
 import { Group } from '@mantine/core';
-import React, { useCallback, useEffect, useState, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import {
     Controller,
     useFormContext,
@@ -30,6 +36,7 @@ export const CronInternalInputs: FC<
             [x: string]: any;
         };
         onBlur?: () => void;
+        timeZone?: ReactNode;
     } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
 > = ({ value, disabled, onChange, name, error, errors, timeZone }) => {
     const [frequency, setFrequency] = useState<Frequency>(

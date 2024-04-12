@@ -1,5 +1,5 @@
 import { Group, Input, NumberInput } from '@mantine/core';
-import React, { type FC } from 'react';
+import React, { type FC, type ReactNode } from 'react';
 import {
     getMonthlyCronExpression,
     parseCronExpression,
@@ -9,7 +9,7 @@ import TimePicker from './TimePicker';
 const MonthlyInputs: FC<{
     disabled?: boolean;
     cronExpression: string;
-    timeZone: string;
+    timeZone: ReactNode;
     onChange: (value: string) => void;
 }> = ({ disabled, cronExpression, onChange, timeZone: Timezone }) => {
     const { minutes, hours, day } = parseCronExpression(cronExpression);

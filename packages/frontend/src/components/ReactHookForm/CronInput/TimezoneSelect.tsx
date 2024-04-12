@@ -1,12 +1,13 @@
 import { Select } from '@mantine/core';
+import * as moment from 'moment-timezone';
 import React, { type FC } from 'react';
 
 const TimezoneSelect: FC<{
     disabled?: boolean;
-    value: number;
-    onChange: (value: number) => void;
+    value?: string;
+    onChange: (value: string) => void;
 }> = ({ disabled, value, onChange }) => {
-    const timezones: string[] = Intl.supportedValuesOf('timeZone');
+    const timezones: string[] = moment.tz.names();
     timezones.push('UTC');
 
     return (
@@ -16,7 +17,7 @@ const TimezoneSelect: FC<{
             disabled={disabled}
             withinPortal
             w={190}
-            onChange={(val) => {
+            onChange={(val: string) => {
                 onChange(val);
             }}
         />
