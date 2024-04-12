@@ -2069,12 +2069,26 @@ export class ProjectService extends BaseService {
                         warehouseClient.credentials.type,
                     );
 
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const metricQueryWithTimezone = {
+                        ...metricQuery,
+                        timezone: isTimezoneEnabled
+                            ? metricQuery.timezone
+                            : undefined,
+                    };
+
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery,
+                            metricQuery: metricQueryWithTimezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -3595,10 +3609,22 @@ export class ProjectService extends BaseService {
             explore.warehouse,
         );
 
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const metricQueryWithTimezone = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             organizationUuid,
             warehouseClient,
         );

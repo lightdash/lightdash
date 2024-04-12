@@ -187,9 +187,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(tags)}';`,
                 );
             }
+            const timezoneQuery = timezone || 'UTC';
+            console.debug(
+                `Setting Snowflake session timezone to ${timezoneQuery}`,
+            );
             await this.executeStatement(
                 connection,
-                "ALTER SESSION SET TIMEZONE = 'UTC'",
+                `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
             );
 
             /**
