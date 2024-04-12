@@ -11,12 +11,10 @@ import { VizLibDto } from './VizLibDto';
 export class EchartsDto extends VizLibDto {
     static type = 'echarts' as const;
 
+    static supportedVizTypes = ['bar', 'line'];
+
     public getType() {
         return EchartsDto.type;
-    }
-
-    public getVizOptions() {
-        return ['bar', 'line'];
     }
 
     public getConfig() {

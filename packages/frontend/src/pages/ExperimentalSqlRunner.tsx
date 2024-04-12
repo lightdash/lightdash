@@ -4,31 +4,38 @@ import { useMemo, useState } from 'react';
 import Page from '../components/common/Page/Page';
 import QueryConfig from './Experimental/components/Query';
 import VizConfig from './Experimental/components/VizConfig';
+import ConfigForm from './Experimental/components/VizConfig/ConfigForm';
+import VizLibSelect from './Experimental/components/VizConfig/VizLibSelect';
 import VizLib from './Experimental/components/VizLib';
 import { type QuerySourceDto } from './Experimental/Dto/QuerySourceDto/QuerySourceDto';
-import { VizConfigDto } from './Experimental/Dto/VizConfigDto/VizConfigDto';
+import VizConfigDtoFactory from './Experimental/Dto/VizConfigDto';
+import VizLibDtoFactory from './Experimental/Dto/VizLibDto';
 import { type VizConfiguration } from './Experimental/types';
 
 const ExperimentalSqlRunner = () => {
     const [vizConf, setVizConf] = useState<VizConfiguration>({
         libType: 'echarts',
+        vizType: 'bar',
     });
     const [sourceDto, setSourceDto] = useState<QuerySourceDto>();
 
     const vizDto = useMemo(() => {
         if (sourceDto) {
-            return new VizConfigDto({
+            return VizConfigDtoFactory.createVizConfigDto({
                 vizConfig: vizConf,
-                sourceDto: sourceDto,
+                sourceDto,
             });
         }
     }, [sourceDto, vizConf]);
 
     const vizLibDto = useMemo(() => {
-        if (vizDto) {
-            return vizDto.getVizLib();
+        if (sourceDto && vizDto) {
+            return VizLibDtoFactory.createVizLibDto({
+                vizConfig: vizDto.getVizConfig(),
+                sourceDto,
+            });
         }
-    }, [vizDto]);
+    }, [sourceDto, vizDto]);
 
     return (
         <Page title="SQL Runner" withFullHeight withPaddedContent>
@@ -79,15 +86,16 @@ const ExperimentalSqlRunner = () => {
 
                         <Tabs.Panel value="ui" pt="xs">
                             {vizDto && (
-                                <VizConfig
-                                    value={vizConf}
-                                    onChange={setVizConf}
-                                    libOptions={vizDto.getVizLibOptions()}
-                                    vizOptions={vizDto.getVizOptions()}
-                                    xAxisOptions={vizDto.getXAxisOptions()}
-                                    yAxisOptions={vizDto.getYAxisOptions()}
-                                    pivotOptions={vizDto.getPivotOptions()}
-                                />
+                                <>
+                                    <VizConfig
+                                        vizDto={vizDto}
+                                        onChange={setVizConf}
+                                    />
+                                    <ConfigForm
+                                        vizDto={vizDto}
+                                        onChange={setVizConf}
+                                    />
+                                </>
                             )}
                         </Tabs.Panel>
 
@@ -120,6 +128,12 @@ const ExperimentalSqlRunner = () => {
                         </Tabs.List>
 
                         <Tabs.Panel value="ui" pt="xs">
+                            {vizDto && (
+                                <VizLibSelect
+                                    vizDto={vizDto}
+                                    onChange={setVizConf}
+                                />
+                            )}
                             <Flex sx={{ flex: 1, height: '300px' }}>
                                 {vizLibDto && <VizLib vizLibDto={vizLibDto} />}
                             </Flex>

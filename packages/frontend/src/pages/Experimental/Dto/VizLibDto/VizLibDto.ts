@@ -1,17 +1,19 @@
-import { type VizConfiguration } from '../../types';
+import { type CartesianConfig } from '../../types';
 import { type QuerySourceDto } from '../QuerySourceDto/QuerySourceDto';
 
 export interface VizLibDtoArguments {
-    vizConfig?: VizConfiguration;
+    vizConfig?: CartesianConfig;
     sourceDto: QuerySourceDto;
 }
 
 export abstract class VizLibDto {
     static type: string;
 
+    static supportedVizTypes: string[];
+
     protected readonly sourceDto: QuerySourceDto;
 
-    protected readonly vizConfig?: VizConfiguration;
+    protected readonly vizConfig?: CartesianConfig;
 
     constructor(args: VizLibDtoArguments) {
         this.sourceDto = args.sourceDto;
@@ -19,8 +21,6 @@ export abstract class VizLibDto {
     }
 
     abstract getType(): string;
-
-    abstract getVizOptions(): string[];
 
     abstract getConfig(): unknown;
 }

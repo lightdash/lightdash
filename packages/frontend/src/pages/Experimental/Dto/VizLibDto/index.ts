@@ -3,18 +3,24 @@ import { VegaDto } from './VegaDto';
 import { type VizLibDto, type VizLibDtoArguments } from './VizLibDto';
 
 export default class VizLibDtoFactory {
-    static listVizLibs(): string[] {
-        return [EchartsDto.type, VegaDto.type];
+    static vizLibs = [EchartsDto, VegaDto];
+
+    static listVizLibs(vizType: string): string[] {
+        return VizLibDtoFactory.vizLibs
+            .filter((c) => c.supportedVizTypes.includes(vizType))
+            .map((c) => c.type);
     }
 
-    static createVizLibDto(type: string, args: VizLibDtoArguments): VizLibDto {
-        switch (type) {
+    static createVizLibDto(args: VizLibDtoArguments): VizLibDto {
+        switch (args.vizConfig?.libType) {
             case EchartsDto.type:
                 return new EchartsDto(args);
             case VegaDto.type:
                 return new VegaDto(args);
             default:
-                throw new Error(`Unsupported viz library: ${type}`);
+                throw new Error(
+                    `Unsupported viz library: ${args.vizConfig?.libType}`,
+                );
         }
     }
 }

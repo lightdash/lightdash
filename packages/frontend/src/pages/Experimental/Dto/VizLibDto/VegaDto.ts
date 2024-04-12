@@ -3,12 +3,10 @@ import { VizLibDto } from './VizLibDto';
 export class VegaDto extends VizLibDto {
     static type = 'vega' as const;
 
+    static supportedVizTypes = ['bar', 'line'];
+
     public getType() {
         return VegaDto.type;
-    }
-
-    public getVizOptions() {
-        return ['bar', 'line'];
     }
 
     public getConfig() {
