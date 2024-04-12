@@ -81,9 +81,9 @@ export const getResponsiveGridLayoutProps = ({
     enableAnimation?: boolean;
 
     /**
-     * If enabled, we effectively disable horizontal stacking and switch to
-     * a simple vertical stack on the smallest breakpoint -- this means each
-     * tile is basically shown on a vertical list on mobile.
+     * If enabled, we set the grid on the smallest breakpoint to have a single
+     * column, which makes it behave like a simple vertical stack on mobile
+     * viewports.
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
 } = {}) => ({
