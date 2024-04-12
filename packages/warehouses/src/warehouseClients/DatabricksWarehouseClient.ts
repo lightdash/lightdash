@@ -240,6 +240,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         }
 
         try {
+            if (timezone) {
+                console.debug(`Setting databricks timezone to ${timezone}`);
+                await session.executeStatement(`SET TIME ZONE '${timezone}'`, {
+                    runAsync: false,
+                });
+            }
             query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
             });
