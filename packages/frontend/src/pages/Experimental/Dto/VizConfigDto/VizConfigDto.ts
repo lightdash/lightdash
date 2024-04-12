@@ -14,7 +14,7 @@ export abstract class VizConfigDto<
 
     protected readonly sourceDto: QuerySourceDto;
 
-    protected readonly vizConfig: T;
+    protected vizConfig: T;
 
     constructor(args: VizConfigDtoArguments) {
         this.sourceDto = args.sourceDto;

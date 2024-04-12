@@ -6,7 +6,13 @@ export class TableConfigDto extends VizConfigDto<TableConfig> {
 
     constructor(args: VizConfigDtoArguments) {
         super(args);
-        this.vizConfig.columns = this.getColumns();
+        // convert to table config
+        const validTableConfig: TableConfig = {
+            vizType: this.vizConfig.vizType,
+            libType: this.vizConfig.libType,
+            columns: this.getColumns(),
+        };
+        this.vizConfig = validTableConfig;
     }
 
     private getColumns(): Array<string> {
