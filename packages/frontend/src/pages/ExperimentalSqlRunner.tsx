@@ -1,58 +1,19 @@
-import { Box, Button, Group, ScrollArea, Stack, Title } from '@mantine/core';
+import { Flex, ScrollArea, Stack, Tabs, Title } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { IconPlayerPlay, IconSql } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
-import MantineIcon from '../components/common/MantineIcon';
+import { useMemo, useState } from 'react';
 import Page from '../components/common/Page/Page';
-import { useQueryResults } from '../hooks/useQueryResults';
-import { useSqlQueryMutation } from '../hooks/useSqlQuery';
+import QueryConfig from './Experimental/components/Query';
 import VizConfig from './Experimental/components/VizConfig';
 import VizLib from './Experimental/components/VizLib';
-import { ExplorerDto } from './Experimental/Dto/QuerySourceDto/ExplorerSourceDto';
 import { type QuerySourceDto } from './Experimental/Dto/QuerySourceDto/QuerySourceDto';
-import { SqlRunnerDto } from './Experimental/Dto/QuerySourceDto/SqlRunnerDto';
 import { VizConfigDto } from './Experimental/Dto/VizConfigDto/VizConfigDto';
 import { type VizConfiguration } from './Experimental/types';
 
 const ExperimentalSqlRunner = () => {
-    const { isLoading: isLoadingSqlMutation, mutateAsync: sqlQueryMutate } =
-        useSqlQueryMutation();
-    const { isLoading: isLoadingExploreMutation, mutateAsync: exploreMutate } =
-        useQueryResults();
     const [vizConf, setVizConf] = useState<VizConfiguration>({
         libType: 'echarts',
     });
     const [sourceDto, setSourceDto] = useState<QuerySourceDto>();
-
-    const handleSqlRunnerSubmit = useCallback(async () => {
-        const data = await sqlQueryMutate(
-            'SELECT\n' +
-                '  "orders".status AS "orders_status",\n' +
-                '  DATE_TRUNC(\'WEEK\', "orders".order_date) AS "orders_order_date_week",\n' +
-                '  AVG("orders".amount) AS "orders_average_order_size"\n' +
-                'FROM "postgres"."jaffle"."orders" AS "orders"\n' +
-                '\n' +
-                '\n' +
-                'GROUP BY 1,2\n' +
-                'ORDER BY "orders_status"\n' +
-                'LIMIT 25',
-        );
-        setSourceDto(new SqlRunnerDto({ data }));
-    }, [sqlQueryMutate]);
-
-    const handleExplorerSubmit = useCallback(async () => {
-        const data = await exploreMutate('orders', {
-            limit: 25,
-            sorts: [],
-            filters: {},
-            exploreName: 'orders',
-            dimensions: ['orders_status', 'orders_order_date_week'],
-            metrics: ['orders_average_order_size'],
-            tableCalculations: [],
-            customDimensions: [],
-        });
-        setSourceDto(new ExplorerDto({ data }));
-    }, [exploreMutate]);
 
     const vizDto = useMemo(() => {
         if (sourceDto) {
@@ -74,58 +35,66 @@ const ExperimentalSqlRunner = () => {
             <Stack spacing={'xl'}>
                 <Stack>
                     <Title order={2}>Query</Title>
-                    <Group>
-                        <Button
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconSql} />}
-                            onClick={handleSqlRunnerSubmit}
-                            loading={isLoadingSqlMutation}
-                        >
-                            Run SQL runner query
-                        </Button>
-                        <Button
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                            onClick={handleExplorerSubmit}
-                            loading={isLoadingExploreMutation}
-                        >
-                            Run Explorer query
-                        </Button>
-                    </Group>
+                    <Tabs defaultValue="ui">
+                        <Tabs.List>
+                            <Tabs.Tab value="ui">UI</Tabs.Tab>
+                            <Tabs.Tab value="json">Debug</Tabs.Tab>
+                        </Tabs.List>
 
-                    {sourceDto && (
-                        <ScrollArea.Autosize
-                            mah={200}
-                            w={'100%'}
-                            mx="auto"
-                            placeholder={'json'}
-                        >
-                            <Prism
-                                colorScheme="light"
-                                withLineNumbers
-                                language="json"
-                            >
-                                {JSON.stringify(sourceDto.getData(), null, 2)}
-                            </Prism>
-                        </ScrollArea.Autosize>
-                    )}
+                        <Tabs.Panel value="ui" pt="xs">
+                            <QueryConfig onSourceDtoChange={setSourceDto} />
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="json" pt="xs">
+                            {sourceDto && (
+                                <ScrollArea.Autosize
+                                    mah={500}
+                                    w={'100%'}
+                                    mx="auto"
+                                    placeholder={'json'}
+                                >
+                                    <Prism
+                                        colorScheme="light"
+                                        withLineNumbers
+                                        language="json"
+                                    >
+                                        {JSON.stringify(
+                                            sourceDto.getData(),
+                                            null,
+                                            2,
+                                        )}
+                                    </Prism>
+                                </ScrollArea.Autosize>
+                            )}
+                        </Tabs.Panel>
+                    </Tabs>
                 </Stack>
                 <Stack>
                     <Title order={2}>Viz configuration</Title>
-                    {vizDto && (
-                        <>
-                            <VizConfig
-                                value={vizConf}
-                                onChange={setVizConf}
-                                libOptions={vizDto.getVizLibOptions()}
-                                vizOptions={vizDto.getVizOptions()}
-                                xAxisOptions={vizDto.getXAxisOptions()}
-                                yAxisOptions={vizDto.getYAxisOptions()}
-                                pivotOptions={vizDto.getPivotOptions()}
-                            />
+                    <Tabs defaultValue="ui">
+                        <Tabs.List>
+                            <Tabs.Tab value="ui">UI</Tabs.Tab>
+                            <Tabs.Tab value="json">Debug</Tabs.Tab>
+                        </Tabs.List>
+
+                        <Tabs.Panel value="ui" pt="xs">
+                            {vizDto && (
+                                <VizConfig
+                                    value={vizConf}
+                                    onChange={setVizConf}
+                                    libOptions={vizDto.getVizLibOptions()}
+                                    vizOptions={vizDto.getVizOptions()}
+                                    xAxisOptions={vizDto.getXAxisOptions()}
+                                    yAxisOptions={vizDto.getYAxisOptions()}
+                                    pivotOptions={vizDto.getPivotOptions()}
+                                />
+                            )}
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="json" pt="xs">
                             {vizConf && (
                                 <ScrollArea.Autosize
-                                    mah={200}
+                                    mah={500}
                                     w={'100%'}
                                     mx="auto"
                                     placeholder={'json'}
@@ -139,30 +108,46 @@ const ExperimentalSqlRunner = () => {
                                     </Prism>
                                 </ScrollArea.Autosize>
                             )}
-                        </>
-                    )}
+                        </Tabs.Panel>
+                    </Tabs>
                 </Stack>
                 <Stack>
                     <Title order={2}>Viz library</Title>
-                    <Box sx={{ flex: 1, height: '100%' }}>
-                        {vizLibDto && <VizLib vizLibDto={vizLibDto} />}
-                    </Box>
-                    {vizLibDto && (
-                        <ScrollArea.Autosize
-                            mah={200}
-                            w={'100%'}
-                            mx="auto"
-                            placeholder={'json'}
-                        >
-                            <Prism
-                                colorScheme="light"
-                                withLineNumbers
-                                language="json"
-                            >
-                                {JSON.stringify(vizLibDto.getConfig(), null, 2)}
-                            </Prism>
-                        </ScrollArea.Autosize>
-                    )}
+                    <Tabs defaultValue="ui">
+                        <Tabs.List>
+                            <Tabs.Tab value="ui">UI</Tabs.Tab>
+                            <Tabs.Tab value="json">Debug</Tabs.Tab>
+                        </Tabs.List>
+
+                        <Tabs.Panel value="ui" pt="xs">
+                            <Flex sx={{ flex: 1, height: '300px' }}>
+                                {vizLibDto && <VizLib vizLibDto={vizLibDto} />}
+                            </Flex>
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="json" pt="xs">
+                            {vizLibDto && (
+                                <ScrollArea.Autosize
+                                    mah={500}
+                                    w={'100%'}
+                                    mx="auto"
+                                    placeholder={'json'}
+                                >
+                                    <Prism
+                                        colorScheme="light"
+                                        withLineNumbers
+                                        language="json"
+                                    >
+                                        {JSON.stringify(
+                                            vizLibDto.getConfig(),
+                                            null,
+                                            2,
+                                        )}
+                                    </Prism>
+                                </ScrollArea.Autosize>
+                            )}
+                        </Tabs.Panel>
+                    </Tabs>
                 </Stack>
             </Stack>
         </Page>
