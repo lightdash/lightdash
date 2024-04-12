@@ -424,7 +424,7 @@ export const getFilterRulesByFieldType = (
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
     fields: Field[],
-) => {
+): Filters => {
     const items = getItemsFromFilterGroup(filterGroup);
     return items.reduce<Filters>((accumulator, item) => {
         if (isFilterRule(item)) {
@@ -435,6 +435,7 @@ export const getFiltersFromGroup = (
             if (fieldInRule) {
                 if (isDimension(fieldInRule)) {
                     accumulator.dimensions = {
+                        id: uuidv4(),
                         ...accumulator.dimensions,
                         [getFilterGroupItemsPropertyName(filterGroup)]: [
                             ...getItemsFromFilterGroup(accumulator.dimensions),
@@ -443,6 +444,7 @@ export const getFiltersFromGroup = (
                     } as FilterGroup;
                 } else if (isTableCalculationField(fieldInRule)) {
                     accumulator.tableCalculations = {
+                        id: uuidv4(),
                         ...accumulator.tableCalculations,
                         [getFilterGroupItemsPropertyName(filterGroup)]: [
                             ...getItemsFromFilterGroup(
@@ -453,6 +455,7 @@ export const getFiltersFromGroup = (
                     } as FilterGroup;
                 } else {
                     accumulator.metrics = {
+                        id: uuidv4(),
                         ...accumulator.metrics,
                         [getFilterGroupItemsPropertyName(filterGroup)]: [
                             ...getItemsFromFilterGroup(accumulator.metrics),
@@ -468,6 +471,7 @@ export const getFiltersFromGroup = (
 
             if (filters.dimensions) {
                 accumulator.dimensions = {
+                    id: uuidv4(),
                     ...accumulator.dimensions,
                     [getFilterGroupItemsPropertyName(accumulator.dimensions)]: [
                         ...getItemsFromFilterGroup(accumulator.dimensions),
@@ -478,6 +482,7 @@ export const getFiltersFromGroup = (
 
             if (filters.metrics) {
                 accumulator.metrics = {
+                    id: uuidv4(),
                     ...accumulator.metrics,
                     [getFilterGroupItemsPropertyName(accumulator.metrics)]: [
                         ...getItemsFromFilterGroup(accumulator.metrics),
@@ -488,6 +493,7 @@ export const getFiltersFromGroup = (
 
             if (filters.tableCalculations) {
                 accumulator.tableCalculations = {
+                    id: uuidv4(),
                     ...accumulator.tableCalculations,
                     [getFilterGroupItemsPropertyName(
                         accumulator.tableCalculations,

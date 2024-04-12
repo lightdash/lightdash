@@ -5,17 +5,13 @@ import {
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
-    isDimension,
     isField,
     isFilterableField,
-    isMetric,
-    isTableCalculationField,
-    type AndFilterGroup,
-    type FilterableDimension,
+    isOrFilterGroup,
     type FilterGroup,
     type FilterRule,
     type Filters,
-    type Metric,
+    type OrFilterGroup,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -48,21 +44,8 @@ type Props = {
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const [fields] = useMemo<
-        [
-            FieldWithSuggestions[],
-            FilterableDimension[],
-            Metric[],
-            FieldWithSuggestions[],
-        ]
-    >(() => {
-        const allFields = Object.values(fieldsMap);
-        return [
-            allFields,
-            allFields.filter(isDimension),
-            allFields.filter(isMetric),
-            allFields.filter(isTableCalculationField),
-        ];
+    const fields = useMemo<FieldWithSuggestions[]>(() => {
+        return Object.values(fieldsMap);
     }, [fieldsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
@@ -138,36 +121,70 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         [fields, setFilters],
     );
 
-    const andRootFilterGroups = useMemo(() => {
-        const dimensionAndGroup =
+    const andRootFilterGroupItems = useMemo(() => {
+        const dimensionAndGroupItems =
             filters.dimensions && isAndFilterGroup(filters.dimensions)
                 ? filters.dimensions.and
                 : [];
-        const metricAndGroup =
+        const metricAndGroupItems =
             filters.metrics && isAndFilterGroup(filters.metrics)
                 ? filters.metrics.and
                 : [];
-        const tableCalculationAndGroup =
+        const tableCalculationAndGroupItems =
             filters.tableCalculations &&
             isAndFilterGroup(filters.tableCalculations)
                 ? filters.tableCalculations.and
                 : [];
 
-        const and = [
-            ...dimensionAndGroup,
-            ...metricAndGroup,
-            ...tableCalculationAndGroup,
+        return [
+            ...dimensionAndGroupItems,
+            ...metricAndGroupItems,
+            ...tableCalculationAndGroupItems,
         ];
+    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
 
-        if (and.length === 0) {
-            return;
+    const orRootFilterGroups = useMemo(() => {
+        const groups: OrFilterGroup[] = [];
+
+        if (filters.dimensions && isOrFilterGroup(filters.dimensions)) {
+            groups.push(filters.dimensions);
         }
 
+        if (filters.metrics && isOrFilterGroup(filters.metrics)) {
+            groups.push(filters.metrics);
+        }
+
+        if (
+            filters.tableCalculations &&
+            isOrFilterGroup(filters.tableCalculations)
+        ) {
+            groups.push(filters.tableCalculations);
+        }
+
+        return groups;
+    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
+
+    const rootFilterGroup: FilterGroup = useMemo(() => {
+        // If there are no ORs, we can just return the ANDs as the root group
+        if (orRootFilterGroups.length === 0) {
+            return {
+                id: uuidv4(),
+                and: andRootFilterGroupItems,
+            };
+        }
+
+        // If there are ORs, we need to wrap the ORs - one per type - in an AND and keep the ANDs in the root group
         return {
             id: uuidv4(),
-            and,
-        } as AndFilterGroup;
-    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
+            and: [
+                ...andRootFilterGroupItems,
+                {
+                    id: uuidv4(),
+                    or: orRootFilterGroups,
+                },
+            ],
+        };
+    }, [andRootFilterGroupItems, orRootFilterGroups]);
 
     return (
         <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
@@ -190,126 +207,18 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             style={{ zIndex: 1 }}
                         />
 
-                        {andRootFilterGroups && (
+                        {rootFilterGroup && (
                             <FilterGroupForm
                                 hideLine
                                 hideButtons
-                                filterGroup={andRootFilterGroups}
+                                filterGroup={rootFilterGroup}
                                 fields={fields}
                                 isEditMode={isEditMode}
                                 onChange={updateFiltersFromGroup}
                                 onDelete={() => setFilters({}, true)}
-                                conditionLabel={''}
                                 allowConvertToGroup
                             />
                         )}
-
-                        {/* {filters.dimensions &&
-                            validFilterRulesPerType.dimensions.length >= 1 && (
-                                <FilterGroupForm
-                                    allowConvertToGroup
-                                    hideLine
-                                    hideButtons
-                                    conditionLabel="dimension"
-                                    filterGroup={filters.dimensions}
-                                    fields={dimensions}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                dimensions: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                dimensions: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
-                            )}
-
-                        {showMandatoryAndOperator && (
-                            <Box
-                                bg="white"
-                                pos="relative"
-                                style={{ zIndex: 2 }}
-                            >
-                                <Tooltip label="You can only use the 'and' operator when combining metrics & dimensions">
-                                    <Badge variant="light" color="gray">
-                                        and
-                                    </Badge>
-                                </Tooltip>
-                            </Box>
-                        )}
-
-                        {filters.metrics &&
-                            validFilterRulesPerType.metrics.length >= 1 && (
-                                <FilterGroupForm
-                                    allowConvertToGroup
-                                    hideLine
-                                    hideButtons
-                                    conditionLabel="metric"
-                                    filterGroup={filters.metrics}
-                                    fields={metrics}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                metrics: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
-                            )}
-                        {filters.tableCalculations &&
-                            validFilterRulesPerType.tableCalculations.length >=
-                                1 && (
-                                <FilterGroupForm
-                                    allowConvertToGroup
-                                    hideLine
-                                    hideButtons
-                                    conditionLabel="table calculation"
-                                    filterGroup={filters.tableCalculations}
-                                    fields={tableCalculations}
-                                    isEditMode={isEditMode}
-                                    onChange={(value) =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                tableCalculations: value,
-                                            },
-                                            false,
-                                        )
-                                    }
-                                    onDelete={() =>
-                                        setFilters(
-                                            {
-                                                ...filters,
-                                                tableCalculations: undefined,
-                                            },
-                                            true,
-                                        )
-                                    }
-                                />
-                            )} */}
                     </>
                 ))}
 
