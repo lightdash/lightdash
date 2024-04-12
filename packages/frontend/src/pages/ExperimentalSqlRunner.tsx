@@ -1,359 +1,18 @@
-import {
-    CartesianSeriesType,
-    getResultValueArray,
-    getSeriesId,
-    hashFieldReference,
-    type ApiQueryResults,
-    type ApiSqlQueryResults,
-    type ResultRow,
-    type Series,
-} from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    MultiSelect,
-    ScrollArea,
-    Select,
-    Stack,
-    Title,
-} from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { Box, Button, Group, ScrollArea, Stack, Title } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconPlayerPlay, IconSql } from '@tabler/icons-react';
-import EChartsReact from 'echarts-for-react';
 import { useCallback, useMemo, useState } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { type EChartSeries } from '../hooks/echarts/useEchartsCartesianConfig';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSqlQueryMutation } from '../hooks/useSqlQuery';
-
-type VizConfigArguments = {
-    value: VizConfiguration | undefined;
-    onChange: (value: VizConfiguration) => void;
-    libOptions: string[];
-    vizOptions: string[];
-    xAxisOptions: string[];
-    yAxisOptions: string[];
-    pivotOptions: string[];
-};
-const VizConfig = ({
-    value,
-    onChange,
-    libOptions,
-    vizOptions,
-    xAxisOptions,
-    yAxisOptions,
-    pivotOptions,
-}: VizConfigArguments) => {
-    const form = useForm({
-        initialValues: value,
-    });
-    return (
-        <form onSubmit={form.onSubmit(onChange)}>
-            <Group>
-                <Select
-                    label="Your favorite framework/library"
-                    placeholder="Pick one"
-                    data={libOptions}
-                    {...form.getInputProps('libType')}
-                />
-                <Select
-                    label="Your favorite type of chart"
-                    placeholder="Pick one"
-                    data={vizOptions}
-                    {...form.getInputProps('vizType')}
-                />
-                <Select
-                    label="X axis"
-                    placeholder="Pick one"
-                    data={xAxisOptions}
-                    {...form.getInputProps('xField')}
-                />
-                <MultiSelect
-                    label="Y axis"
-                    placeholder="Pick one"
-                    data={yAxisOptions}
-                    {...form.getInputProps('yFields')}
-                />
-                <MultiSelect
-                    label="Pivot fields"
-                    placeholder="Pick one"
-                    data={pivotOptions}
-                    {...form.getInputProps('pivotFields')}
-                />
-                <Button type="submit" sx={{ alignSelf: 'flex-end' }}>
-                    Apply
-                </Button>
-            </Group>
-        </form>
-    );
-};
-
-const Viz = ({ config }: { config: any }) => {
-    return (
-        <EChartsReact
-            style={{
-                minHeight: 'inherit',
-                height: '100%',
-                width: '100%',
-            }}
-            option={config}
-            notMerge
-        />
-    );
-};
-
-interface SourceDto {
-    type: string;
-
-    getData: () => unknown;
-
-    getRows: () => ResultRow[];
-
-    getFieldOptions(): string[];
-
-    getPivotOptions(): string[];
-}
-
-type VizConfiguration = {
-    libType: string;
-    vizType: string;
-    xField: string;
-    yFields: string[];
-    pivotFields: string[];
-};
-
-type ExplorerDtoArguments = {
-    data: ApiQueryResults;
-};
-
-class ExplorerDto implements SourceDto {
-    public type = 'explorer' as const;
-
-    private readonly data: ApiQueryResults;
-
-    constructor(args: ExplorerDtoArguments) {
-        this.data = args.data;
-    }
-
-    public getData() {
-        return this.data;
-    }
-
-    public getFieldOptions() {
-        return [
-            ...this.data.metricQuery.dimensions,
-            ...this.data.metricQuery.metrics,
-        ];
-    }
-
-    public getPivotOptions() {
-        return this.data.metricQuery.dimensions;
-    }
-
-    public getRows() {
-        return this.data.rows;
-    }
-}
-
-type SqlRunnerDtoArguments = {
-    data: ApiSqlQueryResults;
-};
-
-class SqlRunnerDto implements SourceDto {
-    public type = 'sql_runner' as const;
-
-    private readonly data: ApiSqlQueryResults;
-
-    constructor(args: SqlRunnerDtoArguments) {
-        this.data = args.data;
-    }
-
-    public getData() {
-        return this.data;
-    }
-
-    public getFieldOptions() {
-        return Object.keys(this.data.fields);
-    }
-
-    public getPivotOptions() {
-        return Object.keys(this.data.fields);
-    }
-
-    public getRows(): ResultRow[] {
-        return (this.data.rows || []).map((row) =>
-            Object.keys(row).reduce<ResultRow>((acc, columnName) => {
-                const raw = row[columnName];
-                return {
-                    ...acc,
-                    [columnName]: {
-                        value: {
-                            raw,
-                            formatted: `${raw}`,
-                        },
-                    },
-                };
-            }, {}),
-        );
-    }
-}
-
-interface VizLibDto {
-    type: 'echarts' | 'table';
-
-    getVizOptions(): string[];
-
-    getConfig(): unknown;
-
-    getXAxisOptions(): string[];
-
-    getYAxisOptions(): string[];
-
-    getPivotOptions(): string[];
-}
-
-interface EchartsArguments {
-    vizConfig?: VizConfiguration;
-    sourceDto: SourceDto;
-}
-
-class EchartsDto implements VizLibDto {
-    public type = 'echarts' as const;
-
-    private readonly sourceDto: SourceDto;
-
-    private readonly vizConfig?: VizConfiguration;
-
-    constructor(args: EchartsArguments) {
-        this.sourceDto = args.sourceDto;
-        this.vizConfig = args.vizConfig;
-    }
-
-    public getVizOptions() {
-        return ['bar', 'line'];
-    }
-
-    public getConfig() {
-        const config = {
-            xAxis: this.getXAxis(),
-            yAxis: this.getYAxis(),
-            useUTC: true,
-            series: this.getSeries(),
-            dataset: this.getDataSet(),
-        };
-        return config;
-    }
-
-    public getXAxisOptions() {
-        return this.sourceDto.getFieldOptions();
-    }
-
-    public getYAxisOptions() {
-        return this.sourceDto.getFieldOptions();
-    }
-
-    public getPivotOptions() {
-        return this.sourceDto.getPivotOptions();
-    }
-
-    private getXAxis() {
-        return {
-            type: 'category',
-            name: this.vizConfig?.xField,
-            nameLocation: 'center',
-            nameTextStyle: {
-                fontWeight: 'bold',
-            },
-        };
-    }
-
-    private getYAxis() {
-        return {
-            type: 'value',
-            name: this.vizConfig?.yFields[0],
-            nameLocation: 'center',
-            nameTextStyle: {
-                fontWeight: 'bold',
-            },
-        };
-    }
-
-    private getSeries() {
-        const xField = this.vizConfig?.xField;
-        const yFields = this.vizConfig?.yFields;
-        const vizType = this.vizConfig?.vizType ?? CartesianSeriesType.BAR;
-
-        if (!xField) {
-            return [];
-        }
-
-        // generate series
-        const expectedSeriesMap = (yFields || []).reduce<
-            Record<string, Series>
-        >((sum, yField) => {
-            const series: Series = {
-                type: vizType as CartesianSeriesType,
-                encode: {
-                    xRef: { field: xField },
-                    yRef: { field: yField },
-                },
-            };
-            return { ...sum, [getSeriesId(series)]: series };
-        }, {});
-
-        // convert to echarts series
-        return Object.values(expectedSeriesMap).map<EChartSeries>((series) => {
-            const xFieldHash = hashFieldReference(series.encode.xRef);
-            const yFieldHash = hashFieldReference(series.encode.yRef);
-
-            return this.getSimpleSeries({
-                series,
-                yFieldHash,
-                xFieldHash,
-            });
-        });
-    }
-
-    private getSimpleSeries({
-        series,
-        yFieldHash,
-        xFieldHash,
-    }: {
-        series: Series;
-        yFieldHash: string;
-        xFieldHash: string;
-    }) {
-        return {
-            ...series,
-            xAxisIndex: undefined,
-            yAxisIndex: series.yAxisIndex,
-            emphasis: {
-                focus: 'series',
-            },
-            connectNulls: true,
-            encode: {
-                ...series.encode,
-                x: xFieldHash,
-                y: yFieldHash,
-                tooltip: [yFieldHash],
-                seriesName: yFieldHash,
-            },
-            labelLayout: {
-                hideOverlap: true,
-            },
-        };
-    }
-
-    private getDataSet() {
-        return {
-            id: 'lightdash-results',
-            source: getResultValueArray(this.sourceDto.getRows(), true),
-        };
-    }
-}
+import VizConfig from './Experimental/components/VizConfig';
+import VizLib from './Experimental/components/VizLib';
+import { ExplorerDto } from './Experimental/Dto/QuerySourceDto/ExplorerSourceDto';
+import { type QuerySourceDto } from './Experimental/Dto/QuerySourceDto/QuerySourceDto';
+import { SqlRunnerDto } from './Experimental/Dto/QuerySourceDto/SqlRunnerDto';
+import { VizConfigDto } from './Experimental/Dto/VizConfigDto/VizConfigDto';
+import { type VizConfiguration } from './Experimental/types';
 
 const ExperimentalSqlRunner = () => {
     const { isLoading: isLoadingSqlMutation, mutateAsync: sqlQueryMutate } =
@@ -361,7 +20,7 @@ const ExperimentalSqlRunner = () => {
     const { isLoading: isLoadingExploreMutation, mutateAsync: exploreMutate } =
         useQueryResults();
     const [vizConf, setVizConf] = useState<VizConfiguration>();
-    const [sourceDto, setSourceDto] = useState<SourceDto>();
+    const [sourceDto, setSourceDto] = useState<QuerySourceDto>();
 
     const handleSqlRunnerSubmit = useCallback(async () => {
         const data = await sqlQueryMutate(
@@ -395,12 +54,18 @@ const ExperimentalSqlRunner = () => {
 
     const vizDto = useMemo(() => {
         if (sourceDto) {
-            return new EchartsDto({
+            return new VizConfigDto({
                 vizConfig: vizConf,
                 sourceDto: sourceDto,
             });
         }
     }, [sourceDto, vizConf]);
+
+    const vizLibDto = useMemo(() => {
+        if (vizDto) {
+            return vizDto.getVizLib();
+        }
+    }, [vizDto]);
 
     return (
         <Page title="SQL Runner" withFullHeight withPaddedContent>
@@ -450,7 +115,7 @@ const ExperimentalSqlRunner = () => {
                             <VizConfig
                                 value={vizConf}
                                 onChange={setVizConf}
-                                libOptions={['echarts']}
+                                libOptions={vizDto.getVizLibOptions()}
                                 vizOptions={vizDto.getVizOptions()}
                                 xAxisOptions={vizDto.getXAxisOptions()}
                                 yAxisOptions={vizDto.getYAxisOptions()}
@@ -478,9 +143,9 @@ const ExperimentalSqlRunner = () => {
                 <Stack>
                     <Title order={2}>Viz library</Title>
                     <Box sx={{ flex: 1, height: '100%' }}>
-                        {vizDto && <Viz config={vizDto.getConfig()} />}
+                        {vizLibDto && <VizLib vizLibDto={vizLibDto} />}
                     </Box>
-                    {vizDto && (
+                    {vizLibDto && (
                         <ScrollArea.Autosize
                             mah={200}
                             w={'100%'}
@@ -492,7 +157,7 @@ const ExperimentalSqlRunner = () => {
                                 withLineNumbers
                                 language="json"
                             >
-                                {JSON.stringify(vizDto.getConfig(), null, 2)}
+                                {JSON.stringify(vizLibDto.getConfig(), null, 2)}
                             </Prism>
                         </ScrollArea.Autosize>
                     )}
