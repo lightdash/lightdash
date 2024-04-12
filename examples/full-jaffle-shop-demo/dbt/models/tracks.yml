@@ -1,0 +1,64 @@
+version: 2
+models:
+  - name: tracks
+    columns:
+      - name: user_id
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: id
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: timestamp
+        description: ""
+        meta:
+          dimension:
+            label: Timestamp
+            type: timestamp
+            time_intervals:
+              - RAW
+              - MILLISECOND
+              - SECOND
+              - MINUTE
+              - HOUR
+              - DAY
+              - DAY_OF_WEEK_INDEX
+              - DAY_OF_WEEK_NAME
+              - DAY_OF_MONTH_NUM
+              - DAY_OF_YEAR_NUM
+              - WEEK
+              - WEEK_NUM
+              - MONTH
+              - MONTH_NUM
+              - MONTH_NAME
+              - QUARTER
+              - QUARTER_NUM
+              - QUARTER_NAME
+              - YEAR
+              - YEAR_NUM
+              - HOUR_OF_DAY_NUM
+              - MINUTE_OF_HOUR_NUM
+      - name: event
+        description: ""
+        meta:
+          dimension:
+            type: string
+          metrics: 
+            unique_event_count:
+              type: count_distinct
+            event_count:
+              type: count
+
+      - name: event_text
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: context_app_version
+        description: ""
+        meta:
+          dimension:
+            type: string
