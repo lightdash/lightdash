@@ -153,7 +153,7 @@ export class GoogleDriveClient {
             ],
             ['Update frequency:', updateFrequency],
             ['Time of last sync:', new Date().toLocaleString()],
-            ['Report URL:', reportUrl || ''],
+            ...(reportUrl ? [['Report URL:', reportUrl]] : []),
             ...tabsUpdated,
         ];
 
