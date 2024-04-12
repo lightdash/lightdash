@@ -167,7 +167,7 @@ const FilterGroupForm: FC<Props> = ({
                                         ? () =>
                                               onChangeItem(index, {
                                                   id: uuidv4(),
-                                                  and: [item],
+                                                  or: [item],
                                               })
                                         : undefined
                                 }

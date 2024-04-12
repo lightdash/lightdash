@@ -1,28 +1,30 @@
 import {
     addFilterRule,
     getFilterRulesByFieldType,
+    getFiltersFromGroup,
     getTotalFilterRules,
     hasNestedGroups,
+    isAndFilterGroup,
     isDimension,
     isField,
     isFilterableField,
     isMetric,
     isTableCalculationField,
+    type AndFilterGroup,
     type FilterableDimension,
+    type FilterGroup,
     type FilterRule,
     type Filters,
     type Metric,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Divider,
     Group,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
@@ -46,7 +48,7 @@ type Props = {
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const { fieldsMap } = useFiltersContext();
     const [isOpen, toggleFieldInput] = useToggle(false);
-    const [fields, dimensions, metrics, tableCalculations] = useMemo<
+    const [fields] = useMemo<
         [
             FieldWithSuggestions[],
             FilterableDimension[],
@@ -77,9 +79,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         validFilterRulesPerType.dimensions.length <= 1 &&
         validFilterRulesPerType.metrics.length <= 1 &&
         !hasNestedGroups(filters);
-    const showMandatoryAndOperator: boolean =
-        validFilterRulesPerType.dimensions.length >= 1 &&
-        validFilterRulesPerType.metrics.length >= 1;
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
@@ -132,6 +131,44 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         [fields, filters, setFilters],
     );
 
+    const updateFiltersFromGroup = useCallback(
+        (filterGroup: FilterGroup) => {
+            setFilters(getFiltersFromGroup(filterGroup, fields), false);
+        },
+        [fields, setFilters],
+    );
+
+    const andRootFilterGroups = useMemo(() => {
+        const dimensionAndGroup =
+            filters.dimensions && isAndFilterGroup(filters.dimensions)
+                ? filters.dimensions.and
+                : [];
+        const metricAndGroup =
+            filters.metrics && isAndFilterGroup(filters.metrics)
+                ? filters.metrics.and
+                : [];
+        const tableCalculationAndGroup =
+            filters.tableCalculations &&
+            isAndFilterGroup(filters.tableCalculations)
+                ? filters.tableCalculations.and
+                : [];
+
+        const and = [
+            ...dimensionAndGroup,
+            ...metricAndGroup,
+            ...tableCalculationAndGroup,
+        ];
+
+        if (and.length === 0) {
+            return;
+        }
+
+        return {
+            id: uuidv4(),
+            and,
+        } as AndFilterGroup;
+    }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
+
     return (
         <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
             {totalFilterRules.length >= 1 &&
@@ -153,7 +190,21 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             style={{ zIndex: 1 }}
                         />
 
-                        {filters.dimensions &&
+                        {andRootFilterGroups && (
+                            <FilterGroupForm
+                                hideLine
+                                hideButtons
+                                filterGroup={andRootFilterGroups}
+                                fields={fields}
+                                isEditMode={isEditMode}
+                                onChange={updateFiltersFromGroup}
+                                onDelete={() => setFilters({}, true)}
+                                conditionLabel={''}
+                                allowConvertToGroup
+                            />
+                        )}
+
+                        {/* {filters.dimensions &&
                             validFilterRulesPerType.dimensions.length >= 1 && (
                                 <FilterGroupForm
                                     allowConvertToGroup
@@ -258,7 +309,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                         )
                                     }
                                 />
-                            )}
+                            )} */}
                     </>
                 ))}
 

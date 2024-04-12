@@ -421,6 +421,90 @@ export const getFilterRulesByFieldType = (
         },
     );
 
+export const getFiltersFromGroup = (
+    filterGroup: FilterGroup,
+    fields: Field[],
+) => {
+    const items = getItemsFromFilterGroup(filterGroup);
+    return items.reduce<Filters>((accumulator, item) => {
+        if (isFilterRule(item)) {
+            const fieldInRule = fields.find(
+                (field) => fieldId(field) === item.target.fieldId,
+            );
+
+            if (fieldInRule) {
+                if (isDimension(fieldInRule)) {
+                    accumulator.dimensions = {
+                        ...accumulator.dimensions,
+                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                            ...getItemsFromFilterGroup(accumulator.dimensions),
+                            item,
+                        ],
+                    } as FilterGroup;
+                } else if (isTableCalculationField(fieldInRule)) {
+                    accumulator.tableCalculations = {
+                        ...accumulator.tableCalculations,
+                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                            ...getItemsFromFilterGroup(
+                                accumulator.tableCalculations,
+                            ),
+                            item,
+                        ],
+                    } as FilterGroup;
+                } else {
+                    accumulator.metrics = {
+                        ...accumulator.metrics,
+                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                            ...getItemsFromFilterGroup(accumulator.metrics),
+                            item,
+                        ],
+                    } as FilterGroup;
+                }
+            }
+        }
+
+        if (isFilterGroup(item)) {
+            const filters = getFiltersFromGroup(item, fields);
+
+            if (filters.dimensions) {
+                accumulator.dimensions = {
+                    ...accumulator.dimensions,
+                    [getFilterGroupItemsPropertyName(accumulator.dimensions)]: [
+                        ...getItemsFromFilterGroup(accumulator.dimensions),
+                        filters.dimensions,
+                    ],
+                } as FilterGroup;
+            }
+
+            if (filters.metrics) {
+                accumulator.metrics = {
+                    ...accumulator.metrics,
+                    [getFilterGroupItemsPropertyName(accumulator.metrics)]: [
+                        ...getItemsFromFilterGroup(accumulator.metrics),
+                        filters.metrics,
+                    ],
+                } as FilterGroup;
+            }
+
+            if (filters.tableCalculations) {
+                accumulator.tableCalculations = {
+                    ...accumulator.tableCalculations,
+                    [getFilterGroupItemsPropertyName(
+                        accumulator.tableCalculations,
+                    )]: [
+                        ...getItemsFromFilterGroup(
+                            accumulator.tableCalculations,
+                        ),
+                        filters.tableCalculations,
+                    ],
+                } as FilterGroup;
+            }
+        }
+
+        return accumulator;
+    }, {} as Filters);
+};
+
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
