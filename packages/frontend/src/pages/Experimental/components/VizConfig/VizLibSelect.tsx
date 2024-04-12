@@ -1,5 +1,6 @@
 import { Button, Group, Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useEffect } from 'react';
 import { type VizConfigDto } from '../../Dto/VizConfigDto/VizConfigDto';
 import VizLibDtoFactory from '../../Dto/VizLibDto';
 import { type VizConfiguration } from '../../types';
@@ -12,6 +13,11 @@ const VizLibSelect = ({ vizDto, onChange }: VizConfigArguments) => {
     const form = useForm({
         initialValues: vizDto.getVizConfig(),
     });
+    useEffect(() => {
+        form.setInitialValues(vizDto.getVizConfig());
+        form.setValues(vizDto.getVizConfig());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vizDto]);
     return (
         <form
             onSubmit={form.onSubmit((values) =>

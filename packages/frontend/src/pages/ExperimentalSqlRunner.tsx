@@ -100,7 +100,7 @@ const ExperimentalSqlRunner = () => {
                         </Tabs.Panel>
 
                         <Tabs.Panel value="json" pt="xs">
-                            {vizConf && (
+                            {vizDto && (
                                 <ScrollArea.Autosize
                                     mah={500}
                                     w={'100%'}
@@ -112,7 +112,11 @@ const ExperimentalSqlRunner = () => {
                                         withLineNumbers
                                         language="json"
                                     >
-                                        {JSON.stringify(vizConf, null, 2)}
+                                        {JSON.stringify(
+                                            vizDto.getVizConfig(),
+                                            null,
+                                            2,
+                                        )}
                                     </Prism>
                                 </ScrollArea.Autosize>
                             )}
