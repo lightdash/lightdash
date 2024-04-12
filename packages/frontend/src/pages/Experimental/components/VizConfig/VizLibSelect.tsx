@@ -1,6 +1,4 @@
-import { Button, Group, Select } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { useEffect } from 'react';
+import { Button, Group } from '@mantine/core';
 import { type VizConfigDto } from '../../Dto/VizConfigDto/VizConfigDto';
 import VizLibDtoFactory from '../../Dto/VizLibDto';
 import { type VizConfiguration } from '../../types';
@@ -10,34 +8,27 @@ type VizConfigArguments = {
     onChange: (value: VizConfiguration) => void;
 };
 const VizLibSelect = ({ vizDto, onChange }: VizConfigArguments) => {
-    const form = useForm({
-        initialValues: vizDto.getVizConfig(),
-    });
-    useEffect(() => {
-        form.setInitialValues(vizDto.getVizConfig());
-        form.setValues(vizDto.getVizConfig());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [vizDto]);
     return (
-        <form
-            onSubmit={form.onSubmit((values) =>
-                onChange({ ...vizDto.getVizConfig(), libType: values.libType }),
+        <Group>
+            {VizLibDtoFactory.listVizLibs(vizDto.getVizConfig().vizType).map(
+                (lib) => (
+                    <Button
+                        key={lib}
+                        variant={
+                            lib === vizDto.getVizConfig().libType
+                                ? 'filled'
+                                : 'outline'
+                        }
+                        size="xs"
+                        onClick={() =>
+                            onChange({ ...vizDto.getVizConfig(), libType: lib })
+                        }
+                    >
+                        {lib}
+                    </Button>
+                ),
             )}
-        >
-            <Group>
-                <Select
-                    label="Your favorite framework/library"
-                    placeholder="Pick one"
-                    data={VizLibDtoFactory.listVizLibs(
-                        vizDto.getVizConfig().vizType,
-                    )}
-                    {...form.getInputProps('libType')}
-                />
-                <Button type="submit" sx={{ alignSelf: 'flex-end' }}>
-                    Apply
-                </Button>
-            </Group>
-        </form>
+        </Group>
     );
 };
 

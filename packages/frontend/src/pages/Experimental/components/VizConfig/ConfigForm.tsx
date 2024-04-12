@@ -1,4 +1,4 @@
-import { Button, Group } from '@mantine/core';
+import { Group } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type CartiseanConfigDto } from '../../Dto/VizConfigDto/CartiseanConfigDto';
 import { type VizConfigDto } from '../../Dto/VizConfigDto/VizConfigDto';
@@ -31,9 +31,6 @@ const ConfigForm = ({ vizDto, onChange }: VizConfigArguments) => {
                         form={form}
                     />
                 )}
-                <Button type="submit" sx={{ alignSelf: 'flex-end' }}>
-                    Apply
-                </Button>
             </Group>
         </form>
     );

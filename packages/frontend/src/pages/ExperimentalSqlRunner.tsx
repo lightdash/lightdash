@@ -49,7 +49,10 @@ const ExperimentalSqlRunner = () => {
                         </Tabs.List>
 
                         <Tabs.Panel value="ui" pt="xs">
-                            <QueryConfig onSourceDtoChange={setSourceDto} />
+                            <QueryConfig
+                                sourceDto={sourceDto}
+                                onSourceDtoChange={setSourceDto}
+                            />
                         </Tabs.Panel>
 
                         <Tabs.Panel value="json" pt="xs">

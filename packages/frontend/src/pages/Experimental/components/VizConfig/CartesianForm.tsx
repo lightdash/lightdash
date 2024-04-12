@@ -1,4 +1,4 @@
-import { Group, MultiSelect, Select } from '@mantine/core';
+import { Button, Group, MultiSelect, Select } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form/lib/types';
 import { type CartiseanConfigDto } from '../../Dto/VizConfigDto/CartiseanConfigDto';
 
@@ -29,6 +29,9 @@ const CartiseanConfig = ({ form, vizDto }: VizConfigArguments) => {
                     {...form.getInputProps('pivotFields')}
                 />
             )}
+            <Button type="submit" sx={{ alignSelf: 'flex-end' }}>
+                Apply
+            </Button>
         </Group>
     );
 };

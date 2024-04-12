@@ -9,8 +9,10 @@ import { type QuerySourceDto } from '../../Dto/QuerySourceDto/QuerySourceDto';
 import { SqlRunnerDto } from '../../Dto/QuerySourceDto/SqlRunnerDto';
 
 const QueryConfig = ({
+    sourceDto,
     onSourceDtoChange,
 }: {
+    sourceDto?: QuerySourceDto;
     onSourceDtoChange: (value: QuerySourceDto) => void;
 }) => {
     const { isLoading: isLoadingSqlMutation, mutateAsync: sqlQueryMutate } =
@@ -55,6 +57,9 @@ const QueryConfig = ({
                 leftIcon={<MantineIcon icon={IconSql} />}
                 onClick={handleSqlRunnerSubmit}
                 loading={isLoadingSqlMutation}
+                variant={
+                    sourceDto?.type === 'sql_runner' ? 'filled' : 'outline'
+                }
             >
                 Run SQL runner query
             </Button>
@@ -63,6 +68,7 @@ const QueryConfig = ({
                 leftIcon={<MantineIcon icon={IconPlayerPlay} />}
                 onClick={handleExplorerSubmit}
                 loading={isLoadingExploreMutation}
+                variant={sourceDto?.type === 'explorer' ? 'filled' : 'outline'}
             >
                 Run Explorer query
             </Button>
