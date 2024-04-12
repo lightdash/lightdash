@@ -1,3 +1,10 @@
+# [0.1068.0](https://github.com/lightdash/lightdash/compare/0.1067.2...0.1068.0) (2024-04-12)
+
+
+### Features
+
+* add report URL to charts' google syncs ([#9749](https://github.com/lightdash/lightdash/issues/9749)) ([072c726](https://github.com/lightdash/lightdash/commit/072c7266a364559c669367928009d07ac0389f2c))
+
 ## [0.1067.2](https://github.com/lightdash/lightdash/compare/0.1067.1...0.1067.2) (2024-04-11)
 
 
