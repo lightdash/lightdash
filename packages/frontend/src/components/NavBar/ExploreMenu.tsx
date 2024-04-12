@@ -8,6 +8,7 @@ import {
     IconSquareRoundedPlus,
     IconTable,
     IconTerminal2,
+    IconWand,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useHistory } from 'react-router-dom';
@@ -63,6 +64,13 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     </Menu.Target>
 
                     <Menu.Dropdown>
+                        <LargeMenuItem
+                            component={Link}
+                            title="Experimental"
+                            description="Build from everywhere"
+                            to={`/projects/${projectUuid}/experimental`}
+                            icon={IconWand}
+                        />
                         <LargeMenuItem
                             component={Link}
                             title="Query from tables"
