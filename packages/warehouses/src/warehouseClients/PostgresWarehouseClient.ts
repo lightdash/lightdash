@@ -163,7 +163,11 @@ export class PostgresClient<
         );
     }
 
-    async runQuery(sql: string, tags?: Record<string, string>) {
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         let pool: pg.Pool | undefined;
         return new Promise<{
             fields: Record<string, { type: DimensionType }>;
@@ -206,46 +210,57 @@ export class PostgresClient<
                     done();
                 });
 
-                // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
-                //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-                const stream = client.query(
-                    new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                const sessionTimezone = timezone || 'UTC';
+                console.debug(
+                    `Setting postgres session timezone ${sessionTimezone}`,
                 );
-                const rows: any[] = [];
-                let fields: QueryResult<any>['fields'] = [];
-                // release the client when the stream is finished
-                stream.on('end', () => {
-                    done();
-                    resolve({
-                        rows,
-                        fields: this.convertQueryResultFields(fields),
-                    });
-                });
-                stream.on('error', (err2) => {
-                    reject(err2);
-                    done();
-                });
-                stream
-                    .pipe(
-                        new Writable({
-                            objectMode: true,
-                            write(
-                                chunk: {
-                                    row: any;
-                                    fields: QueryResult<any>['fields'];
-                                },
-                                encoding,
-                                callback,
-                            ) {
-                                rows.push(chunk.row);
-                                fields = chunk.fields;
-                                callback();
-                            },
-                        }),
-                    )
-                    .on('error', (err2) => {
-                        reject(err2);
-                        done();
+                client
+                    .query(`SET timezone TO '${sessionTimezone}';`)
+                    .then(() => {
+                        // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
+                        //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
+                        const stream = client.query(
+                            new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                        );
+                        const rows: any[] = [];
+                        let fields: QueryResult<any>['fields'] = [];
+                        // release the client when the stream is finished
+                        stream.on('end', () => {
+                            done();
+                            resolve({
+                                rows,
+                                fields: this.convertQueryResultFields(fields),
+                            });
+                        });
+                        stream.on('error', (err2) => {
+                            reject(err2);
+                            done();
+                        });
+                        stream
+                            .pipe(
+                                new Writable({
+                                    objectMode: true,
+                                    write(
+                                        chunk: {
+                                            row: any;
+                                            fields: QueryResult<any>['fields'];
+                                        },
+                                        encoding,
+                                        callback,
+                                    ) {
+                                        rows.push(chunk.row);
+                                        fields = chunk.fields;
+                                        callback();
+                                    },
+                                }),
+                            )
+                            .on('error', (err2) => {
+                                reject(err2);
+                                done();
+                            });
+                    })
+                    .catch((sessionError) => {
+                        reject(sessionError);
                     });
             });
         })

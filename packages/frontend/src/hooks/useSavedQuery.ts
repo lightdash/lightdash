@@ -16,6 +16,7 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import { useHistory, useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
@@ -92,6 +93,7 @@ const addVersionSavedQuery = async ({
         metricQuery: {
             ...payload.metricQuery,
             filters: convertDateFilters(payload.metricQuery.filters),
+            timezone: dayjs.tz.guess(),
         },
     };
     return lightdashApi<SavedChart>({

@@ -151,7 +151,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
-    async runQuery(sqlText: string, tags?: Record<string, string>) {
+    async runQuery(
+        sqlText: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);

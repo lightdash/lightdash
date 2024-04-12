@@ -226,7 +226,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         };
     }
 
-    async runQuery(sql: string, tags?: Record<string, string>) {
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         const { session, close } = await this.getSession();
         let query: IOperation | null = null;
 

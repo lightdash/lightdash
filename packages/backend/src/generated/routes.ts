@@ -1010,6 +1010,7 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                timezone: { dataType: 'string' },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'CustomDimension' },
@@ -3382,6 +3383,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                timezone: { dataType: 'string' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {

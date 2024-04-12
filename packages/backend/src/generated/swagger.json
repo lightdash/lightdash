@@ -1045,6 +1045,9 @@
                         "required": ["hasADateDimension"],
                         "type": "object"
                     },
+                    "timezone": {
+                        "type": "string"
+                    },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
@@ -3724,6 +3727,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "timezone": {
+                        "type": "string"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -6741,7 +6747,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1066.0",
+        "version": "0.1067.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

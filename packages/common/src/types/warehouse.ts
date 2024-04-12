@@ -27,6 +27,7 @@ export interface WarehouseClient {
     runQuery(
         sql: string,
         tags?: Record<string, string>,
+        timezone?: string,
     ): Promise<{
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, any>[];
