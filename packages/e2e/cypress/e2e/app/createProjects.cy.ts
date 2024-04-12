@@ -226,7 +226,7 @@ const defaultRowValues = [
     '3',
     'Q3',
     '2020',
-    '2,020',
+    '2020',
     '23',
     '44',
 ];
@@ -519,7 +519,7 @@ describe('Create projects', () => {
                 '3',
                 'Q3',
                 '2020',
-                '2,020',
+                '2020',
                 '7',
                 '58',
             ];
@@ -568,7 +568,7 @@ describe('Create projects', () => {
                 '3',
                 'Q3',
                 '2020',
-                '2,020',
+                '2020',
             ];
 
             testTimeIntervalsResults(projectUuid, trinoRowValues);
@@ -610,7 +610,7 @@ describe('Create projects', () => {
                 '3',
                 'Q3',
                 '2020',
-                '2,020',
+                '2020',
             ];
 
             testTimeIntervalsResults(projectUuid, databricksRowValues);
@@ -654,7 +654,7 @@ describe('Create projects', () => {
                 '3',
                 'Q3',
                 '2020',
-                '2,020',
+                '2020',
                 '7',
                 '58',
             ];
