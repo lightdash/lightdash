@@ -173,6 +173,16 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             };
         }
 
+        if (
+            orRootFilterGroups.length > 0 &&
+            andRootFilterGroupItems.length === 0
+        ) {
+            return {
+                id: uuidv4(),
+                and: orRootFilterGroups,
+            };
+        }
+
         // If there are ORs, we need to wrap the ORs - one per type - in an AND and keep the ANDs in the root group
         return {
             id: uuidv4(),

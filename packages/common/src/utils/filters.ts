@@ -22,6 +22,7 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
+    isOrFilterGroup,
     UnitOfTime,
     type AndFilterGroup,
     type DashboardFieldTarget,
@@ -421,11 +422,48 @@ export const getFilterRulesByFieldType = (
         },
     );
 
+const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
+    const items = getItemsFromFilterGroup(filterGroup);
+
+    return {
+        id: filterGroup.id,
+        [getFilterGroupItemsPropertyName(filterGroup)]: items.reduce<
+            FilterGroupItem[]
+        >((acc, item) => {
+            if (isFilterGroup(item)) {
+                const flatGroup = flattenFilterGroup(item);
+
+                // If the current group is an and group and the parent group is an and group as well, we can flatten it
+                if (
+                    isAndFilterGroup(flatGroup) &&
+                    isAndFilterGroup(filterGroup)
+                ) {
+                    return [...acc, ...flatGroup.and];
+                }
+
+                // If the current group is an or group and the parent group is an or group as well, we can flatten it
+                if (
+                    isOrFilterGroup(flatGroup) &&
+                    isOrFilterGroup(filterGroup)
+                ) {
+                    return [...acc, ...flatGroup.or];
+                }
+
+                // If the parent group type doesn't match the current group type, we can't flatten it
+                return [...acc, flatGroup];
+            }
+
+            return [...acc, item];
+        }, []),
+    } as FilterGroup;
+};
+
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
     fields: Field[],
 ): Filters => {
-    const items = getItemsFromFilterGroup(filterGroup);
+    const flatFilterGroup = flattenFilterGroup(filterGroup);
+    const items = getItemsFromFilterGroup(flatFilterGroup);
     return items.reduce<Filters>((accumulator, item) => {
         if (isFilterRule(item)) {
             const fieldInRule = fields.find(
@@ -437,7 +475,7 @@ export const getFiltersFromGroup = (
                     accumulator.dimensions = {
                         id: uuidv4(),
                         ...accumulator.dimensions,
-                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                             ...getItemsFromFilterGroup(accumulator.dimensions),
                             item,
                         ],
@@ -446,7 +484,7 @@ export const getFiltersFromGroup = (
                     accumulator.tableCalculations = {
                         id: uuidv4(),
                         ...accumulator.tableCalculations,
-                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                             ...getItemsFromFilterGroup(
                                 accumulator.tableCalculations,
                             ),
@@ -457,7 +495,7 @@ export const getFiltersFromGroup = (
                     accumulator.metrics = {
                         id: uuidv4(),
                         ...accumulator.metrics,
-                        [getFilterGroupItemsPropertyName(filterGroup)]: [
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                             ...getItemsFromFilterGroup(accumulator.metrics),
                             item,
                         ],

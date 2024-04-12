@@ -25,13 +25,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
@@ -150,10 +144,6 @@ const FilterGroupForm: FC<Props> = ({
         },
         [filterGroup, items, onChange],
     );
-
-    useEffect(() => {
-        console.log('filterGroupChanged', { filterGroup });
-    }, [filterGroup]);
 
     return (
         <Stack pos="relative" spacing="sm" mb="xxs">
