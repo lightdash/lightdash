@@ -165,7 +165,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     }, [filters.dimensions, filters.metrics, filters.tableCalculations]);
 
     const rootFilterGroup: FilterGroup = useMemo(() => {
-        // If there are no ORs, we can just return the ANDs as the root group
+        // If there are no ORs, we can just return the AND group items as a new root group
         if (orRootFilterGroups.length === 0) {
             return {
                 id: uuidv4(),
@@ -173,6 +173,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             };
         }
 
+        // If there are only ORs, we can just return them as a new root group wraped in an AND
         if (
             orRootFilterGroups.length > 0 &&
             andRootFilterGroupItems.length === 0
@@ -183,7 +184,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             };
         }
 
-        // If there are ORs, we need to wrap the ORs - one per type - in an AND and keep the ANDs in the root group
+        // If there are both ANDs and ORs, we need to wrap the ORs in an AND and keep the AND items as is
         return {
             id: uuidv4(),
             and: [
