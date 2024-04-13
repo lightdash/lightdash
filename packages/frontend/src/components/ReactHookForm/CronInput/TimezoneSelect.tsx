@@ -8,7 +8,6 @@ const TimezoneSelect: FC<{
     onChange: (value: string) => void;
 }> = ({ disabled, value, onChange }) => {
     const timezones: string[] = moment.tz.names();
-    timezones.push('UTC');
 
     return (
         <Select
