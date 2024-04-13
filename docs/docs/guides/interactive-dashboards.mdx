@@ -1,11 +1,11 @@
 import CrossFilteringImage from './assets/cross-filtering.png';
 import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
 import UnderlyingChart from './assets/underlying-chart-data.png';
-import DrillByActionMenu from './assets/drill-by-action-menu.png';
-import DrillByModal from './assets/drill-by-modal.png';
-import DrillBySourceExample from './assets/drill-by-source-example.png';
 import DateZoomBeforeAndAfter from './assets/date-zoom-before-and-after.png';
 import DateZoomIndicator from './assets/date-zoom-indicator.png';
+import DrillIntoDashboardChart from './assets/drill-into-dashboard-chart.png';
+import DrillIntoModal from './assets/drill-into-modal.png';
+import DrillIntoResultDay from './assets/drill-into-result-day.png';
 
 # Interacting with your dashboards
 
@@ -88,37 +88,37 @@ If you have more than one date dimension in your results, date drill will be app
 
 Also, you're only temporarily changing the dates in the tiles on your dashboard. So, if you refresh the dashboard, the tiles that you affected using Date Zoom will go back to how they looked before.
 
-## Drill into a metric in a chart or your results table using `drill by`
+## Drill into a metric in a chart or your results table using `drill into`
 
-You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill by` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill by` only works for metrics, not for dimensions or table calculations.
+You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill into` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill into` only works for metrics, not for dimensions or table calculations.
 
-### Here's an example of drill by
+### Here's an example of drill into
 
-I have a chart with the total number of page views (a metric) over time. You can see, there's a spike in October, so I want to drill into that data point and see where this traffic is coming from...
+I have a chart with sales stats (a metric) per partner, per month. As you can see, there's a high spike in sales for one of the partners in the month of May. I want to understand why this spike happened.
 
-To do this, I click on the data point in my chart, then click `drill by` in the action menu:
+To do this, I click on the data point in my chart, then click `drill into` in the action menu:
 
 <img
-  src={DrillByActionMenu}
+  src={DrillIntoDashboardChart}
   width="629"
   height="305"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-I then select the dimension I want to segment my metric by (or "drill by"). In this example, I'm interested in grouping the total page views by the `source` so I can figure out where this traffic is coming from.
+I then select the dimension I want to segment my metric by (or "drill into"). In this example, I'm interested to see what shipping country the sales were coming from, so I select `Shipping Country`:
 
 <img
-  src={DrillByModal}
+  src={DrillIntoModal}
   width="416"
   height="344"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Source`. Now I can uncover where this spike in web traffic was coming from 👀
+Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Shipping Country`. Now I can uncover where this spike in sales is coming from 👀
 
 <img
-  src={DrillBySourceExample}
-  width="1006"
+  src={DrillIntoResultDay}
+  width="600"
   height="247"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
