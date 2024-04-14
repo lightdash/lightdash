@@ -20,6 +20,7 @@ import {
     SessionUser,
     SortField,
     Space,
+    TimeZone,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -71,7 +72,7 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
-    timezone: string | undefined;
+    timezone: TimeZone | undefined;
 };
 
 const createSavedChartVersionField = async (
