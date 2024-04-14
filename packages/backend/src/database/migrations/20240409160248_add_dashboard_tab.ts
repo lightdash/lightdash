@@ -1,4 +1,3 @@
-import { file } from 'googleapis/build/src/apis/file';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,14 +7,6 @@ const dashboardVersionTable = 'dashboard_versions';
 const DashboardTilesTableName = 'dashboard_tiles';
 const DashboardTileTabUuidColumnName = 'tab_uuid';
 
-type DbTabs = {
-    uuid: string;
-    name: string;
-    is_default: boolean;
-    dashboard_id: number;
-    dashboard_version_id: number;
-};
-
 export async function up(knex: Knex): Promise<void> {
     // create dashboard tab table
     if (!(await knex.schema.hasTable(tableName))) {
@@ -23,6 +14,7 @@ export async function up(knex: Knex): Promise<void> {
             tableBuilder.string('name').notNullable();
             tableBuilder.uuid('uuid').notNullable().defaultTo(uuidv4());
             tableBuilder.boolean('is_default');
+            tableBuilder.integer('order');
             tableBuilder
                 .integer('dashboard_id')
                 .notNullable()
@@ -43,7 +35,7 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('updated_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
-            tableBuilder.unique([
+            tableBuilder.primary([
                 'uuid',
                 'dashboard_id',
                 'dashboard_version_id',
@@ -66,50 +58,6 @@ export async function up(knex: Knex): Promise<void> {
                 },
             );
         }
-
-        // create a default tab for each dashboard
-        const latestDashboardsVersions = await knex(dashboardTable)
-            .leftJoin(
-                dashboardVersionTable,
-                `${dashboardTable}.dashboard_id`,
-                `${dashboardVersionTable}.dashboard_id`,
-            )
-            .groupBy(`${dashboardTable}.dashboard_id`)
-            .select<
-                {
-                    dashboard_id: number;
-                    latest_dashboard_version_id: number;
-                }[]
-            >([
-                `${dashboardTable}.dashboard_id`,
-                knex.raw(
-                    `MAX(${dashboardVersionTable}.dashboard_version_id) as latest_dashboard_version_id`,
-                ),
-            ]);
-
-        const defaultTabsPrmises = latestDashboardsVersions.map(
-            async (version) => {
-                const tabUuid = uuidv4();
-                await knex(tableName).insert({
-                    name: 'Default',
-                    uuid: tabUuid,
-                    is_default: true,
-                    dashboard_id: version.dashboard_id,
-                    dashboard_version_id: version.latest_dashboard_version_id,
-                });
-
-                await knex(DashboardTilesTableName)
-                    .update({
-                        tab_uuid: tabUuid,
-                    })
-                    .where(
-                        'dashboard_version_id',
-                        version.latest_dashboard_version_id,
-                    );
-            },
-        );
-
-        await Promise.all(defaultTabsPrmises);
     }
 }
 export async function down(knex: Knex): Promise<void> {

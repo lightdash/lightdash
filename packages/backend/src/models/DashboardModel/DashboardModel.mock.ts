@@ -35,11 +35,10 @@ const tileWithoutId: CreateDashboardChartTile = {
     properties: {
         savedChartUuid: '123',
     },
+    tabUuid: undefined,
 };
 const tileWithId: DashboardChartTile = {
     uuid: '2a93d63d-ca81-421c-b88b-1124a2f02407',
-    // TODO: remove
-    tabUuid: 'tabUuid2',
     ...tileWithoutId,
 };
 
@@ -52,6 +51,7 @@ export const createDashboard: CreateDashboard = {
         metrics: [],
         tableCalculations: [],
     },
+    tabs: [],
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -66,6 +66,7 @@ export const addDashboardVersion: DashboardVersionedFields = {
         metrics: [],
         tableCalculations: [],
     },
+    tabs: [],
 };
 
 export const addDashboardVersionWithAllTiles: DashboardVersionedFields = {
@@ -198,6 +199,7 @@ export const dashboardTileEntry: DashboardTileTable['base'] = {
     y_offset: 5,
     height: 10,
     width: 10,
+    tab_uuid: undefined,
 };
 
 export const dashboardTileWithSavedChartEntry = {
@@ -293,6 +295,7 @@ export const expectedDashboard: DashboardDAO = {
     pinnedListOrder: 0,
     views: 1,
     firstViewedAt: new Date(1),
+    tabs: [],
 };
 
 export const expectedAllDashboards: DashboardBasicDetails[] = [

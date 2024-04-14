@@ -41,21 +41,28 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
         'Dashboard',
     );
 
+    const dashboardEmptyStateTitle = () => {
+        switch (emptyContainerType) {
+            case 'dashboard':
+                return userCanCreateDashboard
+                    ? 'Start building your dashboard!'
+                    : 'Dashboard is empty.';
+            case 'tab':
+                return userCanCreateDashboard
+                    ? 'Add tiles to this tab'
+                    : 'Tab is empty';
+            default:
+                return 'Dashboard is empty.';
+        }
+    };
+
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div style={{ padding: '50px 0' }}>
                 {hasSavedCharts ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}
-                        title={
-                            userCanCreateDashboard
-                                ? emptyContainerType === 'dashboard'
-                                    ? 'Start building your dashboard!'
-                                    : 'Add tiles to this tab'
-                                : emptyContainerType === 'dashboard'
-                                ? 'Dashboard is empty.'
-                                : 'Tab is empty'
-                        }
+                        title={dashboardEmptyStateTitle()}
                         action={
                             userCanCreateDashboard && isEditMode ? (
                                 <AddTileButton onAddTiles={onAddTiles} />

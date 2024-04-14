@@ -218,8 +218,8 @@ const Dashboard: FC = () => {
     );
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const tabs = useDashboardContext((c) => c.tabs);
-    const setTabs = useDashboardContext((c) => c.setTabs);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -256,14 +256,14 @@ const Dashboard: FC = () => {
     // tabs state
     const [addingTab, setAddingTab] = useState<boolean>(false);
     const [isEditingTabs, setEditingTabs] = useState<boolean>(false);
-    const [activeTab, setActiveTab] = useState<DashboardTab>();
+    const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
+    const [defaultTab, setDefaultTab] = useState<DashboardTab | undefined>(() =>
+        dashboardTabs.find((t) => t.isDefault),
+    );
 
-    const defaultTabUuid = useMemo(() => {
-        if (tabs && tabs.length > 0) {
-            return tabs[0].uuid;
-        }
-        return undefined;
-    }, [tabs]);
+    const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
+    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
 
     const layouts = useMemo(
         () => ({
@@ -280,13 +280,19 @@ const Dashboard: FC = () => {
         if (dashboardTiles) return;
 
         setDashboardTiles(dashboard?.tiles ?? []);
-        setTabs(dashboard?.tabs ?? []);
+        setDashboardTabs(dashboard?.tabs ?? []);
+        setActiveTab(
+            () =>
+                dashboard?.tabs.find((tab) => tab.isDefault) ??
+                dashboard?.tabs[0],
+        );
     }, [
         isDashboardLoading,
         dashboard,
         dashboardTiles,
         setDashboardTiles,
-        setTabs,
+        setDashboardTabs,
+        setActiveTab,
     ]);
 
     useEffect(() => {
@@ -419,10 +425,10 @@ const Dashboard: FC = () => {
     const handleAddTiles = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
             let newTiles = tiles;
-            if (activeTab?.uuid) {
+            if (tabsEnabled) {
                 newTiles = tiles.map((tile: DashboardTile) => ({
                     ...tile,
-                    tabUuid: activeTab?.uuid,
+                    tabUuid: activeTab ? activeTab.uuid : defaultTab?.uuid,
                 }));
                 setHaveTabsChanged(true);
             }
@@ -432,7 +438,14 @@ const Dashboard: FC = () => {
 
             setHaveTilesChanged(true);
         },
-        [activeTab, setDashboardTiles, setHaveTilesChanged, setHaveTabsChanged],
+        [
+            activeTab,
+            defaultTab,
+            tabsEnabled,
+            setDashboardTiles,
+            setHaveTilesChanged,
+            setHaveTabsChanged,
+        ],
     );
 
     const handleDeleteTile = useCallback(
@@ -493,7 +506,7 @@ const Dashboard: FC = () => {
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
-        setTabs(dashboard?.tabs || []);
+        setDashboardTabs(dashboard?.tabs || []);
         history.replace(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
         );
@@ -508,7 +521,7 @@ const Dashboard: FC = () => {
         setDashboardFilters,
         setHaveTilesChanged,
         setHaveTabsChanged,
-        setTabs,
+        setDashboardTabs,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -610,20 +623,43 @@ const Dashboard: FC = () => {
         }
     });
 
-    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
-
-    const currentTabHasTiles = sortedTiles?.some((tile) => {
+    const isActiveTile = (tile: DashboardTile) => {
+        const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
+        const defaultTabOrFirstTabActived =
+            activeTab?.uuid === defaultTab?.uuid ||
+            activeTab?.uuid === sortedTabs?.[0]?.uuid;
+        const tileHasStaleTabReference =
+            !dashboardTabs?.some((tab) => tab.uuid === tile.tabUuid) &&
+            defaultTabOrFirstTabActived; // tile des not belong to any tab and display it on default tab
         return (
-            tile.tabUuid === activeTab?.uuid ||
-            (!tile.tabUuid && activeTab?.uuid === defaultTabUuid) ||
-            (tile.tabUuid && !tabs.find((t) => t.uuid === tile.tabUuid))
+            !tabsEnabled || tileBelongsToActiveTab || tileHasStaleTabReference
         );
-    });
+    };
+
+    const currentTabHasTiles = sortedTiles?.some((tile) => isActiveTile(tile));
 
     const handleAddTab = (name: string) => {
         if (name) {
-            const newTab = { uuid: uuid4(), name: name };
-            setTabs((currentTabs) => [...currentTabs, newTab]);
+            const newTabs = dashboardTabs ? [...dashboardTabs] : [];
+            if (!dashboardTabs?.length) {
+                const firstTab = {
+                    name: 'Default',
+                    uuid: uuid4(),
+                    isDefault: true,
+                    order: 0,
+                };
+                setDefaultTab(firstTab);
+                newTabs.push(firstTab);
+            }
+            const lastOrd = newTabs.sort((a, b) => b.order - a.order)[0].order;
+            const newTab = {
+                name: name,
+                uuid: uuid4(),
+                isDefault: false,
+                order: lastOrd + 1,
+            };
+            newTabs.push(newTab);
+            setDashboardTabs(newTabs);
             setActiveTab(newTab);
             setHaveTabsChanged(true);
         }
@@ -632,8 +668,8 @@ const Dashboard: FC = () => {
 
     const handleEditTab = (name: string, changedTabUuid: string) => {
         if (name && changedTabUuid) {
-            setTabs((currentTabs) => {
-                const newTabs: DashboardTab[] = currentTabs.map((tab) => {
+            setDashboardTabs((currentTabs) => {
+                const newTabs: DashboardTab[] = currentTabs?.map((tab) => {
                     if (tab.uuid === changedTabUuid) {
                         return { ...tab, name };
                     }
@@ -646,13 +682,13 @@ const Dashboard: FC = () => {
     };
 
     const handleDeleteTab = (tabUuid: string) => {
-        setTabs((currentTabs) => {
-            const newTabs: DashboardTab[] = currentTabs.filter(
+        setDashboardTabs((currentTabs) => {
+            const newTabs: DashboardTab[] = currentTabs?.filter(
                 (tab) => tab.uuid !== tabUuid,
             );
             return newTabs;
         });
-        setActiveTab(tabs[0]);
+        setActiveTab(defaultTab ? defaultTab : dashboardTabs?.[0]);
         setHaveTabsChanged(true);
     };
 
@@ -734,7 +770,7 @@ const Dashboard: FC = () => {
                                     ],
                                 },
                                 name: dashboard.name,
-                                tabs: tabs,
+                                tabs: dashboardTabs,
                             })
                         }
                         onCancel={handleCancel}
@@ -754,7 +790,7 @@ const Dashboard: FC = () => {
                 <Tabs
                     value={activeTab?.uuid}
                     onTabChange={(e) => {
-                        const tab = tabs.find((t) => t.uuid === e);
+                        const tab = dashboardTabs?.find((t) => t.uuid === e);
                         setActiveTab(tab);
                     }}
                 >
@@ -764,7 +800,8 @@ const Dashboard: FC = () => {
                         position="apart"
                         spacing="xs"
                         style={
-                            (tabs && tabs.length > 0) || isEditMode
+                            (dashboardTabs && dashboardTabs.length > 0) ||
+                            isEditMode
                                 ? {
                                       background: 'white',
                                       padding: 5,
@@ -774,11 +811,11 @@ const Dashboard: FC = () => {
                         }
                     >
                         <Group>
-                            {tabs && tabs.length > 0 && (
+                            {dashboardTabs && dashboardTabs.length > 0 && (
                                 <Group spacing="xs">
                                     {isEditingTabs && isEditMode ? (
                                         <>
-                                            {tabs.map((tab, idx) => {
+                                            {sortedTabs?.map((tab, idx) => {
                                                 return (
                                                     <Group
                                                         key={idx}
@@ -790,6 +827,7 @@ const Dashboard: FC = () => {
                                                             defaultValue={
                                                                 tab.name
                                                             }
+                                                            value={tab.name}
                                                             onBlur={(e) =>
                                                                 handleEditTab(
                                                                     e.target
@@ -821,7 +859,7 @@ const Dashboard: FC = () => {
                                         </>
                                     ) : (
                                         <Tabs.List>
-                                            {tabs.map((tab, idx) => {
+                                            {sortedTabs?.map((tab, idx) => {
                                                 return (
                                                     <Tabs.Tab
                                                         key={idx}
@@ -848,7 +886,7 @@ const Dashboard: FC = () => {
                                             }
                                         />
                                     )}
-                                    {tabs.length === 0 ? (
+                                    {sortedTabs?.length === 0 ? (
                                         <Button
                                             compact
                                             variant="light"
@@ -873,24 +911,32 @@ const Dashboard: FC = () => {
                                 </Group>
                             )}
                         </Group>
-                        {tabs && tabs.length > 0 && isEditMode && (
-                            <Button
-                                compact
-                                variant="subtle"
-                                disabled={addingTab}
-                                leftIcon={
-                                    <MantineIcon
-                                        icon={
-                                            isEditingTabs ? IconCheck : IconEdit
-                                        }
-                                    />
-                                }
-                                onClick={() => setEditingTabs((old) => !old)}
-                                sx={{ justifySelf: 'end' }}
-                            >
-                                {isEditingTabs ? 'Done editing' : `Edit tabs`}
-                            </Button>
-                        )}
+                        {dashboardTabs &&
+                            dashboardTabs.length > 0 &&
+                            isEditMode && (
+                                <Button
+                                    compact
+                                    variant="subtle"
+                                    disabled={addingTab}
+                                    leftIcon={
+                                        <MantineIcon
+                                            icon={
+                                                isEditingTabs
+                                                    ? IconCheck
+                                                    : IconEdit
+                                            }
+                                        />
+                                    }
+                                    onClick={() =>
+                                        setEditingTabs((old) => !old)
+                                    }
+                                    sx={{ justifySelf: 'end' }}
+                                >
+                                    {isEditingTabs
+                                        ? 'Done editing'
+                                        : `Edit tabs`}
+                                </Button>
+                            )}
                     </Group>
                     <ResponsiveGridLayout
                         {...getResponsiveGridLayoutProps()}
@@ -901,17 +947,11 @@ const Dashboard: FC = () => {
                         onResizeStop={handleUpdateTiles}
                         onWidthChange={(cw) => setGridWidth(cw)}
                         layouts={layouts}
-                        key={activeTab?.uuid ?? defaultTabUuid}
+                        key={activeTab?.uuid ?? defaultTab?.uuid}
                     >
                         {sortedTiles?.map((tile, idx) => {
-                            // TODO: refactor this
                             if (
-                                !activeTab || // If no active tab
-                                tile.tabUuid === activeTab?.uuid || // Or the tile uuid matches the active tab
-                                (!tile.tabUuid && // Or the tile has no tab and the active tab is the default tab
-                                    activeTab?.uuid === defaultTabUuid) ||
-                                (tile.tabUuid && // Or the tile has an ID that doesn't exist
-                                    !tabs.find((t) => t.uuid === tile.tabUuid))
+                                isActiveTile(tile) // If tile belongs to active tab
                             ) {
                                 return (
                                     <div key={tile.uuid}>
@@ -930,7 +970,7 @@ const Dashboard: FC = () => {
                                                 tile={tile}
                                                 onDelete={handleDeleteTile}
                                                 onEdit={handleEditTiles}
-                                                tabs={tabs}
+                                                tabs={dashboardTabs}
                                                 onAddTiles={handleAddTiles}
                                             />
                                         </TrackSection>
@@ -950,7 +990,9 @@ const Dashboard: FC = () => {
                         <EmptyStateNoTiles
                             onAddTiles={handleAddTiles}
                             emptyContainerType={
-                                tabs && tabs.length ? 'tab' : 'dashboard'
+                                dashboardTabs && dashboardTabs.length
+                                    ? 'tab'
+                                    : 'dashboard'
                             }
                             isEditMode={isEditMode}
                         />

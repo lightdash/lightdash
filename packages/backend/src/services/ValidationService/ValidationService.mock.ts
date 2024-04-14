@@ -214,6 +214,7 @@ export const dashboard: Dashboard = {
     pinnedListOrder: null,
     isPrivate: false,
     access: [],
+    tabs: [],
 };
 
 export const explore: Explore = {

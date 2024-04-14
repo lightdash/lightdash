@@ -20,7 +20,7 @@ type CreateDashboardTileBase = {
     y: number;
     h: number;
     w: number;
-    tabUuid?: string;
+    tabUuid: string | undefined;
 };
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;
@@ -98,6 +98,8 @@ export const isDashboardChartTileType = (
 export type DashboardTab = {
     uuid: string;
     name: string;
+    isDefault: boolean;
+    order: number;
 };
 
 export type DashboardDAO = Omit<Dashboard, 'isPrivate' | 'access'>;

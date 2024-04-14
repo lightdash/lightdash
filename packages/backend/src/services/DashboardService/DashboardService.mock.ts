@@ -107,6 +107,7 @@ export const dashboard: Dashboard = {
     firstViewedAt: new Date(1),
     isPrivate: false,
     access: [],
+    tabs: [],
 };
 
 export const chart: SavedChart = {
@@ -168,6 +169,7 @@ const createTile: CreateDashboardChartTile = {
         savedChartUuid: '123',
         title: 'title 123',
     },
+    tabUuid: undefined,
 };
 
 const createTileWithId: CreateDashboardChartTile = {
@@ -184,6 +186,7 @@ export const createDashboard: CreateDashboard = {
         metrics: [],
         tableCalculations: [],
     },
+    tabs: [],
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -203,6 +206,7 @@ export const updateDashboardTiles: UpdateDashboard = {
         metrics: [],
         tableCalculations: [],
     },
+    tabs: [],
 };
 
 export const updateDashboardTilesWithIds: UpdateDashboard = {

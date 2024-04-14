@@ -346,7 +346,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 className="non-draggable"
                 opened={isMovingTabs}
                 onConfirm={(newTile) => {
-                    onEdit(newTile);
+                    onEdit(newTile as T);
                     setIsMovingTabs(false);
                 }}
                 tabs={tabs}

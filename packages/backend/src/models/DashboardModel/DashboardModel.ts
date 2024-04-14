@@ -136,6 +136,8 @@ export class DashboardModel {
                 name: tab.name,
                 uuid: tab.uuid,
                 dashboard_id: dashboardId,
+                is_default: tab.isDefault,
+                order: tab.order,
             });
         });
 
@@ -591,7 +593,8 @@ export class DashboardModel {
             .select<DashboardTab[]>(
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
-                `${DashboardTabsTableName}.dashboard_id`,
+                `${DashboardTabsTableName}.is_default`,
+                `${DashboardTabsTableName}.order`,
             )
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
