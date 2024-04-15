@@ -49,9 +49,11 @@ import {
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
+    getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
     hasIntersection,
+    IntrinsicUserAttributes,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -931,6 +933,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<[CompiledQuery, CompiledQuery]> {
@@ -1016,6 +1019,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1045,6 +1049,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
@@ -1065,6 +1070,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1143,10 +1149,14 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1891,6 +1901,9 @@ export class ProjectService extends BaseService {
                             },
                         );
 
+                    const intrinsicUserAttributes =
+                        getIntrinsicUserAttributes(user);
+
                     /**
                      * Note: most of this is temporary while testing out in-memory table calculations,
                      * so that we can more cleanly handle the feature-flagged behavior fork below.
@@ -1906,6 +1919,7 @@ export class ProjectService extends BaseService {
                         metricQueryWithLimit,
                         explore,
                         warehouseClient,
+                        intrinsicUserAttributes,
                         userAttributes,
                         granularity,
                     ] as const;
@@ -2244,10 +2258,14 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3536,6 +3554,8 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -3550,6 +3570,7 @@ export class ProjectService extends BaseService {
             totalQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3966,7 +3987,7 @@ export class ProjectService extends BaseService {
                     chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
-            console.log('metrics', metrics);
+
             return metrics;
         }, []);
     }
