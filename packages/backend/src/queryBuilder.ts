@@ -558,7 +558,9 @@ export const buildQuery = ({
         limit,
         additionalMetrics,
         customDimensions,
+        timezone,
     } = compiledMetricQuery;
+
     const baseTable = explore.tables[explore.baseTable].sqlTable;
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
@@ -796,6 +798,7 @@ export const buildQuery = ({
                 `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
             );
         }
+
         return renderFilterRuleSql(
             filter,
             field,
@@ -804,6 +807,7 @@ export const buildQuery = ({
             escapeStringQuoteChar,
             startOfWeek,
             adapterType,
+            timezone,
         );
     };
 
@@ -852,6 +856,7 @@ export const buildQuery = ({
     );
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
+
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 
