@@ -59,7 +59,7 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group spacing="xs">
-                {!showLimitWarning && (
+                {showLimitWarning && (
                     <Tooltip
                         width={400}
                         label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
