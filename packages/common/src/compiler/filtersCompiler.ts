@@ -398,7 +398,7 @@ export const renderFilterRuleSql = (
         case DimensionType.DATE:
         case MetricType.DATE: {
             return renderDateFilterSql(
-                convertBigqueryTimezone(fieldSql),
+                fieldSql,
                 filterRule,
                 adapterType,
                 undefined,
