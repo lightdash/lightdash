@@ -790,7 +790,7 @@ const Dashboard: FC = () => {
                 <Tabs
                     value={activeTab?.uuid}
                     onTabChange={(e) => {
-                        const tab = dashboardTabs?.find((t) => t.uuid === e);
+                        const tab = sortedTabs?.find((t) => t.uuid === e);
                         setActiveTab(tab);
                     }}
                 >
@@ -800,8 +800,7 @@ const Dashboard: FC = () => {
                         position="apart"
                         spacing="xs"
                         style={
-                            (dashboardTabs && dashboardTabs.length > 0) ||
-                            isEditMode
+                            (sortedTabs && sortedTabs.length > 0) || isEditMode
                                 ? {
                                       background: 'white',
                                       padding: 5,
@@ -811,7 +810,7 @@ const Dashboard: FC = () => {
                         }
                     >
                         <Group>
-                            {dashboardTabs && dashboardTabs.length > 0 && (
+                            {sortedTabs && sortedTabs.length > 0 && (
                                 <Group spacing="xs">
                                     {isEditingTabs && isEditMode ? (
                                         <>
@@ -824,10 +823,9 @@ const Dashboard: FC = () => {
                                                         <TextInput
                                                             key={idx}
                                                             size="xs"
-                                                            defaultValue={
+                                                            placeholder={
                                                                 tab.name
                                                             }
-                                                            value={tab.name}
                                                             onBlur={(e) =>
                                                                 handleEditTab(
                                                                     e.target
@@ -911,32 +909,24 @@ const Dashboard: FC = () => {
                                 </Group>
                             )}
                         </Group>
-                        {dashboardTabs &&
-                            dashboardTabs.length > 0 &&
-                            isEditMode && (
-                                <Button
-                                    compact
-                                    variant="subtle"
-                                    disabled={addingTab}
-                                    leftIcon={
-                                        <MantineIcon
-                                            icon={
-                                                isEditingTabs
-                                                    ? IconCheck
-                                                    : IconEdit
-                                            }
-                                        />
-                                    }
-                                    onClick={() =>
-                                        setEditingTabs((old) => !old)
-                                    }
-                                    sx={{ justifySelf: 'end' }}
-                                >
-                                    {isEditingTabs
-                                        ? 'Done editing'
-                                        : `Edit tabs`}
-                                </Button>
-                            )}
+                        {sortedTabs && sortedTabs.length > 0 && isEditMode && (
+                            <Button
+                                compact
+                                variant="subtle"
+                                disabled={addingTab}
+                                leftIcon={
+                                    <MantineIcon
+                                        icon={
+                                            isEditingTabs ? IconCheck : IconEdit
+                                        }
+                                    />
+                                }
+                                onClick={() => setEditingTabs((old) => !old)}
+                                sx={{ justifySelf: 'end' }}
+                            >
+                                {isEditingTabs ? 'Done editing' : `Edit tabs`}
+                            </Button>
+                        )}
                     </Group>
                     <ResponsiveGridLayout
                         {...getResponsiveGridLayoutProps()}

@@ -100,10 +100,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         chartName: chart?.name ?? '',
                     },
                     type: DashboardTileTypes.SAVED_CHART,
-                    tabUuid: (
-                        dashboard?.tabs.find((t) => t.isDefault) ??
-                        dashboard?.tabs?.[0]
-                    )?.uuid,
+                    tabUuid: undefined,
                     ...defaultTileSize,
                 };
             }),
