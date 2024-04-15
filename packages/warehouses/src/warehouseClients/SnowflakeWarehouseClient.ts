@@ -151,7 +151,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
-    async runQuery(sqlText: string, tags?: Record<string, string>) {
+    async runQuery(
+        sqlText: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -183,9 +187,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(tags)}';`,
                 );
             }
+            const timezoneQuery = timezone || 'UTC';
+            console.debug(
+                `Setting Snowflake session timezone to ${timezoneQuery}`,
+            );
             await this.executeStatement(
                 connection,
-                "ALTER SESSION SET TIMEZONE = 'UTC'",
+                `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
             );
 
             /**

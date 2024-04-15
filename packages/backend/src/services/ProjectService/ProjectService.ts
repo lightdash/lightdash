@@ -1668,9 +1668,12 @@ export class ProjectService extends BaseService {
             {},
             async (span) => {
                 // TODO: put this hash function in a util somewhere
+                const queryHashKey = metricQuery.timezone
+                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
-                    .update(`${projectUuid}.${query}`)
+                    .update(queryHashKey)
                     .digest('hex');
 
                 span.setAttribute('queryHash', queryHash);
@@ -1721,7 +1724,9 @@ export class ProjectService extends BaseService {
                     }
                 }
 
-                this.logger.debug(`Run query against warehouse warehouse`);
+                this.logger.debug(
+                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
+                );
                 const warehouseResults = await wrapOtelSpan(
                     'runWarehouseQuery',
                     {
@@ -1731,7 +1736,12 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () => warehouseClient.runQuery(query, queryTags),
+                    async () =>
+                        warehouseClient.runQuery(
+                            query,
+                            queryTags,
+                            metricQuery.timezone,
+                        ),
                 );
 
                 /**
@@ -2059,12 +2069,26 @@ export class ProjectService extends BaseService {
                         warehouseClient.credentials.type,
                     );
 
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const metricQueryWithTimezone = {
+                        ...metricQuery,
+                        timezone: isTimezoneEnabled
+                            ? metricQuery.timezone
+                            : undefined,
+                    };
+
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery,
+                            metricQuery: metricQueryWithTimezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -3585,10 +3609,22 @@ export class ProjectService extends BaseService {
             explore.warehouse,
         );
 
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const metricQueryWithTimezone = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             organizationUuid,
             warehouseClient,
         );

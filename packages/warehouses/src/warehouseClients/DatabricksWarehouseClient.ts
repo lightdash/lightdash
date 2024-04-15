@@ -226,7 +226,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         };
     }
 
-    async runQuery(sql: string, tags?: Record<string, string>) {
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         const { session, close } = await this.getSession();
         let query: IOperation | null = null;
 
@@ -236,6 +240,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         }
 
         try {
+            if (timezone) {
+                console.debug(`Setting databricks timezone to ${timezone}`);
+                await session.executeStatement(`SET TIME ZONE '${timezone}'`, {
+                    runAsync: false,
+                });
+            }
             query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
             });
