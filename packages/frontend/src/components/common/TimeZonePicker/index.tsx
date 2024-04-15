@@ -39,7 +39,7 @@ const TimeZonePicker: FC<TimeZonePickerProps> = ({ onChange, ...rest }) => {
     return (
         <Select
             variant="filled"
-            w={150}
+            maw={190}
             size="xs"
             placeholder="Select timezone"
             value={selectedTimeZone}
