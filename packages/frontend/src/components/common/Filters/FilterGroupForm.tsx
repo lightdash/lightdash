@@ -72,7 +72,6 @@ const FilterGroupForm: FC<Props> = ({
         }
 
         // If the group is an OR group, we can only use fields that are of the same type
-        // TODO: check if there's a better way to do this
         const filters = getFiltersFromGroup(filterGroup, fields);
         if (filters.dimensions) {
             setConditionLabel('dimension');
