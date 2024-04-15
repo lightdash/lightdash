@@ -5,7 +5,6 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 
-import dayjs from 'dayjs';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 
@@ -48,7 +47,7 @@ export const downloadCsv = async ({
             columnOrder,
             hiddenFields,
             chartName,
-            timezone: dayjs.tz.guess(),
+            timezone: query.timezone ?? undefined,
         }),
     });
 };
