@@ -114,3 +114,17 @@ export type ApiGetLoginOptionsResponse = {
     status: 'ok';
     results: LoginOptions;
 };
+
+export type IntrinsicUserAttributes = {
+    email: string;
+    first_name: string;
+    last_name: string;
+};
+
+export const getIntrinsicUserAttributes = (
+    user: LightdashUser,
+): IntrinsicUserAttributes => ({
+    email: user.email ?? '',
+    first_name: user.firstName,
+    last_name: user.lastName,
+});
