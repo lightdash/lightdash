@@ -1,3 +1,10 @@
+# [0.1069.0](https://github.com/lightdash/lightdash/compare/0.1068.0...0.1069.0) (2024-04-15)
+
+
+### Features
+
+* add timezone on warehouse session ([#9741](https://github.com/lightdash/lightdash/issues/9741)) ([23e29ac](https://github.com/lightdash/lightdash/commit/23e29acf847f8b444856405572f1519ca6e31554))
+
 # [0.1068.0](https://github.com/lightdash/lightdash/compare/0.1067.2...0.1068.0) (2024-04-12)
 
 
