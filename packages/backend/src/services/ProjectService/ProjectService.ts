@@ -1143,8 +1143,20 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const timezoneMetricQuery = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
         const compiledQuery = await ProjectService._compileQuery(
-            metricQuery,
+            timezoneMetricQuery,
             explore,
             warehouseClient,
             userAttributes,
@@ -1901,9 +1913,21 @@ export class ProjectService extends BaseService {
                     let tableCalculationsCompiledQuery:
                         | undefined
                         | CompiledQuery;
-
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const timezoneMetricQuery = {
+                        ...metricQueryWithLimit,
+                        timezone: isTimezoneEnabled
+                            ? metricQueryWithLimit.timezone
+                            : undefined,
+                    };
                     const compileQueryArgs = [
-                        metricQueryWithLimit,
+                        timezoneMetricQuery,
                         explore,
                         warehouseClient,
                         userAttributes,
@@ -2069,13 +2093,6 @@ export class ProjectService extends BaseService {
                         warehouseClient.credentials.type,
                     );
 
-                    const isTimezoneEnabled = await isFeatureFlagEnabled(
-                        FeatureFlags.EnableUserTimezones,
-                        {
-                            userUuid: user.userUuid,
-                            organizationUuid,
-                        },
-                    );
                     const metricQueryWithTimezone = {
                         ...metricQuery,
                         timezone: isTimezoneEnabled

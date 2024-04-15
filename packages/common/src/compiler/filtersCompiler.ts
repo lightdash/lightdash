@@ -349,11 +349,25 @@ export const renderFilterRuleSql = (
     escapeStringQuoteChar: string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
+    timezone?: string, // TODO replacde with enum
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
 
+    const convertBigqueryTimezone = (originalFieldSql: string) => {
+        // Hack for Bigquery, convert timestamps to the right timezone before adding a filter
+        // Bigquery does not support set TIMEZONE in session like the rest of the warehouses
+        // and this SQL is generated in compile time, so we need to patch it here
+        if (timezone && adapterType === SupportedDbtAdapter.BIGQUERY) {
+            const timestampRegex = /TIMESTAMP_TRUNC\(([^,]+),/;
+            return originalFieldSql.replace(
+                timestampRegex,
+                `TIMESTAMP_TRUNC(DATE($1, '${timezone}'),`,
+            );
+        }
+        return originalFieldSql;
+    };
     const fieldType = field.type;
     const fieldSql = isMetric(field)
         ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
@@ -384,7 +398,7 @@ export const renderFilterRuleSql = (
         case DimensionType.DATE:
         case MetricType.DATE: {
             return renderDateFilterSql(
-                fieldSql,
+                convertBigqueryTimezone(fieldSql),
                 filterRule,
                 adapterType,
                 undefined,
@@ -394,7 +408,7 @@ export const renderFilterRuleSql = (
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP: {
             return renderDateFilterSql(
-                fieldSql,
+                convertBigqueryTimezone(fieldSql),
                 filterRule,
                 adapterType,
                 formatTimestampAsUTCWithNoTimezone,
