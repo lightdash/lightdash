@@ -22,7 +22,6 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
-    isOrFilterGroup,
     UnitOfTime,
     type AndFilterGroup,
     type DashboardFieldTarget,
@@ -433,7 +432,7 @@ const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
             if (isFilterGroup(item)) {
                 const flatGroup = flattenFilterGroup(item);
 
-                // If the current group is an and group and the parent group is an and group as well, we can flatten it
+                // If the current group is an AND group and the parent group is an AND group as well, we can flatten it's items
                 if (
                     isAndFilterGroup(flatGroup) &&
                     isAndFilterGroup(filterGroup)
@@ -441,15 +440,7 @@ const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
                     return [...acc, ...flatGroup.and];
                 }
 
-                // If the current group is an or group and the parent group is an or group as well, we can flatten it
-                if (
-                    isOrFilterGroup(flatGroup) &&
-                    isOrFilterGroup(filterGroup)
-                ) {
-                    return [...acc, ...flatGroup.or];
-                }
-
-                // If the parent group type doesn't match the current group type, we can't flatten it
+                // If the parent group type doesn't match the current group type or we're working with and OR group, we can't flatten it
                 return [...acc, flatGroup];
             }
 
