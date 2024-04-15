@@ -356,9 +356,10 @@ export const renderFilterRuleSql = (
     }
 
     const convertBigqueryTimezone = (originalFieldSql: string) => {
-        // Hack for Bigquery, convert timestamps to the right timezone before adding a filter
+        // On Bigquery we convert timestamps to the right timezone before adding the SQL filter
         // Bigquery does not support set TIMEZONE in session like the rest of the warehouses
-        // and this SQL is generated in compile time, so we need to patch it here
+        // and field.compiledSql is generated in compile time, so we need to patch it here
+        // Only timestamp type in Bigquery has timezone information.
         if (timezone && adapterType === SupportedDbtAdapter.BIGQUERY) {
             const timestampRegex = /TIMESTAMP_TRUNC\(([^,]+),/;
             return originalFieldSql.replace(
