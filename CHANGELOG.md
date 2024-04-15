@@ -1,3 +1,10 @@
+# [0.1070.0](https://github.com/lightdash/lightdash/compare/0.1069.0...0.1070.0) (2024-04-15)
+
+
+### Features
+
+* allow intrinsic user attributes ([#9727](https://github.com/lightdash/lightdash/issues/9727)) ([21e3cef](https://github.com/lightdash/lightdash/commit/21e3cef6680f2d8fe25b1ee2ccda4c6112921a3e))
+
 # [0.1069.0](https://github.com/lightdash/lightdash/compare/0.1068.0...0.1069.0) (2024-04-15)
 
 
