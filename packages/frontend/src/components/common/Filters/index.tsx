@@ -173,27 +173,21 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             };
         }
 
-        // If there are only ORs, we can just return them as a new root group wraped in an AND
-        if (
-            orRootFilterGroups.length > 0 &&
-            andRootFilterGroupItems.length === 0
-        ) {
-            return {
-                id: uuidv4(),
-                and: orRootFilterGroups,
-            };
+        // If there are no ANDs, we can just return the OR groups as a new root group
+        if (andRootFilterGroupItems.length === 0) {
+            // If there's only one OR group, we can just return it as the root group
+            return orRootFilterGroups.length === 1
+                ? orRootFilterGroups[0]
+                : {
+                      id: uuidv4(),
+                      and: orRootFilterGroups,
+                  };
         }
 
-        // If there are both ANDs and ORs, we need to wrap the ORs in an AND and keep the AND items as is
+        // If there are both ANDs and ORs, we need to create a new root group that contains both
         return {
             id: uuidv4(),
-            and: [
-                ...andRootFilterGroupItems,
-                {
-                    id: uuidv4(),
-                    or: orRootFilterGroups,
-                },
-            ],
+            and: [...andRootFilterGroupItems, ...orRootFilterGroups],
         };
     }, [andRootFilterGroupItems, orRootFilterGroups]);
 
