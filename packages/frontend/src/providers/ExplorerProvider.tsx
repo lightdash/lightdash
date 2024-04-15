@@ -9,7 +9,6 @@ import {
     lightdashVariablePattern,
     removeEmptyProperties,
     removeFieldFromFilterGroup,
-    TimeZone,
     toggleArrayValue,
     updateFieldIdInFilters,
     type AdditionalMetric,
@@ -29,6 +28,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
     type TableChartConfig,
+    type TimeZone,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -334,7 +334,7 @@ const defaultState: ExplorerReduceState = {
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
-            timezone: TimeZone.UTC,
+            timezone: undefined,
         },
         pivotConfig: undefined,
         tableConfig: {

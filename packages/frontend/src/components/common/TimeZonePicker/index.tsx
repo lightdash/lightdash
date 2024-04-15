@@ -41,7 +41,8 @@ const TimeZonePicker: FC<TimeZonePickerProps> = ({ onChange, ...rest }) => {
             variant="filled"
             w={150}
             size="xs"
-            value={selectedTimeZone || TimeZone.UTC}
+            placeholder="Select timezone"
+            value={selectedTimeZone}
             data={timeZoneOptions}
             onChange={setTimeZone}
             {...rest}
