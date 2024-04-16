@@ -156,6 +156,7 @@ const Dashboard: FC = () => {
 
     // tabs state
     const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
+    const [addingTab, setAddingTab] = useState<boolean>(false);
 
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
@@ -343,6 +344,17 @@ const Dashboard: FC = () => {
         },
         [setDashboardTiles, setHaveTilesChanged],
     );
+
+    const handleBatchDeleteTiles = (
+        tilesToDelete: IDashboard['tiles'][number][],
+    ) => {
+        setDashboardTiles((currentDashboardTiles) =>
+            currentDashboardTiles?.filter(
+                (tile) => !tilesToDelete.includes(tile),
+            ),
+        );
+        setHaveTilesChanged(true);
+    };
 
     const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
@@ -582,6 +594,7 @@ const Dashboard: FC = () => {
                         onDuplicate={duplicateModalHandlers.open}
                         onDelete={deleteModalHandlers.open}
                         onExport={exportDashboardModalHandlers.open}
+                        setAddingTab={setAddingTab}
                     />
                 }
             >
@@ -597,14 +610,17 @@ const Dashboard: FC = () => {
                         hasRequiredDashboardFiltersToSet
                     }
                     isLazyLoadEnabled={isLazyLoadEnabled}
+                    addingTab={addingTab}
                     dashboardTiles={dashboardTiles}
                     handleAddTiles={handleAddTiles}
                     handleUpdateTiles={handleUpdateTiles}
                     handleDeleteTile={handleDeleteTile}
+                    handleBatchDeleteTiles={handleBatchDeleteTiles}
                     handleEditTile={handleEditTiles}
                     setGridWidth={setGridWidth}
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
+                    setAddingTab={setAddingTab}
                 />
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal

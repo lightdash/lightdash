@@ -5,17 +5,9 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Tabs,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Menu, Tabs } from '@mantine/core';
 import { useProfiler } from '@sentry/react';
-import { IconCheck, IconEdit, IconPlus, IconX } from '@tabler/icons-react';
+import { IconPencil, IconPlus } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useIntersection } from 'react-use';
@@ -34,6 +26,9 @@ import LoomTile from '../DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../DashboardTiles/DashboardMarkdownTile';
 import EmptyStateNoTiles from '../DashboardTiles/EmptyStateNoTiles';
 import TileBase from '../DashboardTiles/TileBase';
+import { TabAddModal } from './AddTabModal';
+import { TabDeleteModal } from './DeleteTabModal';
+import { TabEditModal } from './EditTabModal';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -102,16 +97,19 @@ const GridTile: FC<
 type DashboardTabsProps = {
     isEditMode: boolean;
     hasRequiredDashboardFiltersToSet: boolean;
+    addingTab: boolean;
     isLazyLoadEnabled: boolean;
     dashboardTiles: DashboardTile[] | undefined;
     activeTab: DashboardTab | undefined;
     handleAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
     handleUpdateTiles: (layout: Layout[]) => Promise<void>;
     handleDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
+    handleBatchDeleteTiles: (tile: IDashboard['tiles'][number][]) => void;
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
     setActiveTab: (
         value: React.SetStateAction<DashboardTab | undefined>,
     ) => void;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
 };
 
@@ -119,14 +117,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     isEditMode,
     hasRequiredDashboardFiltersToSet,
     isLazyLoadEnabled,
+    addingTab,
     dashboardTiles,
     activeTab,
     setActiveTab,
     handleAddTiles,
     handleUpdateTiles,
     handleDeleteTile,
+    handleBatchDeleteTiles,
     handleEditTile,
     setGridWidth,
+    setAddingTab,
 }) => {
     const layouts = useMemo(
         () => ({
@@ -143,8 +144,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 
     // tabs state
-    const [addingTab, setAddingTab] = useState<boolean>(false);
-    const [isEditingTabs, setEditingTabs] = useState<boolean>(false);
+    const [isEditingTab, setEditingTab] = useState<boolean>(false);
+    const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
 
     const defaultTab = dashboardTabs?.[0];
     const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
@@ -215,6 +216,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 return newTabs;
             });
             setHaveTabsChanged(true);
+            setEditingTab(false);
         }
     };
 
@@ -227,6 +229,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         });
         setActiveTab(defaultTab ? defaultTab : dashboardTabs?.[0]);
         setHaveTabsChanged(true);
+        setDeletingTab(false);
+
+        if (dashboardTabs.length === 0) {
+            console.log('Do nothing, keep all tiles');
+        } else {
+            const tilesToDelete = dashboardTiles?.filter(
+                (tile) => tile.tabUuid == tabUuid,
+            );
+            if (tilesToDelete) {
+                handleBatchDeleteTiles(tilesToDelete);
+            }
+        }
     };
 
     return (
@@ -257,44 +271,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 <Group>
                     {sortedTabs && sortedTabs.length > 0 && (
                         <Group spacing="xs">
-                            {isEditingTabs && isEditMode ? (
-                                <>
-                                    {sortedTabs?.map((tab, idx) => {
-                                        return (
-                                            <Group key={idx} spacing="xxs">
-                                                <TextInput
-                                                    key={idx}
-                                                    size="xs"
-                                                    placeholder={tab.name}
-                                                    onBlur={(e) =>
-                                                        handleEditTab(
-                                                            e.target.value,
-                                                            tab.uuid,
-                                                        )
-                                                    }
-                                                />
-                                                <Tooltip
-                                                    label="Delete tab - Contents will move to the first tab"
-                                                    multiline
-                                                >
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        onClick={() =>
-                                                            handleDeleteTab(
-                                                                tab.uuid,
-                                                            )
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconX}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
-                                        );
-                                    })}
-                                </>
-                            ) : (
+                            {
                                 <Tabs.List>
                                     {sortedTabs?.map((tab, idx) => {
                                         return (
@@ -303,63 +280,76 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 value={tab.uuid}
                                                 mx="md"
                                             >
-                                                {tab.name}
+                                                <Group>
+                                                    {tab.name}
+                                                    {tab === activeTab &&
+                                                    isEditMode ? (
+                                                        <Menu
+                                                            position="bottom"
+                                                            withArrow
+                                                            withinPortal
+                                                            shadow="md"
+                                                            width={200}
+                                                        >
+                                                            <Menu.Target>
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    size="xs"
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconPencil
+                                                                        }
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Menu.Target>
+                                                            <Menu.Dropdown>
+                                                                <Menu.Item
+                                                                    onClick={() =>
+                                                                        setEditingTab(
+                                                                            true,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Rename Tab
+                                                                </Menu.Item>
+                                                                <Menu.Item
+                                                                    onClick={() =>
+                                                                        setDeletingTab(
+                                                                            true,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Remove Tab
+                                                                </Menu.Item>
+                                                            </Menu.Dropdown>
+                                                        </Menu>
+                                                    ) : null}
+                                                </Group>
                                             </Tabs.Tab>
                                         );
                                     })}
                                 </Tabs.List>
-                            )}
+                            }
                         </Group>
                     )}
                     {isEditMode && (
                         <Group>
-                            {addingTab && (
-                                <TextInput
-                                    autoFocus
-                                    size="xs"
-                                    placeholder="Tab name"
-                                    onBlur={(e) => handleAddTab(e.target.value)}
-                                />
-                            )}
                             {sortedTabs?.length === 0 ? (
+                                <div />
+                            ) : (
                                 <Button
-                                    compact
-                                    variant="light"
-                                    disabled={addingTab}
+                                    size="xs"
+                                    variant="default"
                                     leftIcon={<MantineIcon icon={IconPlus} />}
                                     onClick={() => setAddingTab(true)}
                                 >
-                                    Add tab
+                                    Add new tab
                                 </Button>
-                            ) : (
-                                <ActionIcon
-                                    onClick={() => setAddingTab(true)}
-                                    color="blue"
-                                    variant="subtle"
-                                    disabled={addingTab}
-                                >
-                                    <MantineIcon icon={IconPlus} />
-                                </ActionIcon>
                             )}
                         </Group>
                     )}
                 </Group>
-                {sortedTabs && sortedTabs.length > 0 && isEditMode && (
-                    <Button
-                        compact
-                        variant="subtle"
-                        disabled={addingTab}
-                        leftIcon={
-                            <MantineIcon
-                                icon={isEditingTabs ? IconCheck : IconEdit}
-                            />
-                        }
-                        onClick={() => setEditingTabs((old) => !old)}
-                        sx={{ justifySelf: 'end' }}
-                    >
-                        {isEditingTabs ? 'Done editing' : `Edit tabs`}
-                    </Button>
-                )}
             </Group>
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps()}
@@ -413,8 +403,33 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             : 'dashboard'
                     }
                     isEditMode={isEditMode}
+                    setAddingTab={setAddingTab}
                 />
             )}
+            <TabAddModal
+                onClose={() => setAddingTab(false)}
+                opened={addingTab}
+                onConfirm={(name) => {
+                    handleAddTab(name);
+                }}
+            />
+            <TabEditModal
+                tab={activeTab}
+                onClose={() => setEditingTab(false)}
+                opened={isEditingTab}
+                onConfirm={(name, uuid) => {
+                    handleEditTab(name, uuid);
+                }}
+            />
+            <TabDeleteModal
+                tab={activeTab}
+                dashboardTiles={dashboardTiles}
+                onClose={() => setDeletingTab(false)}
+                opened={isDeletingTab}
+                onDeleteTab={(uuid) => {
+                    handleDeleteTab(uuid);
+                }}
+            />
         </Tabs>
     );
 };

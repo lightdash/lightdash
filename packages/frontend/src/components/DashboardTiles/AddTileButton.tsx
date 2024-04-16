@@ -11,6 +11,7 @@ import {
     IconChartBar,
     IconInfoCircle,
     IconMarkdown,
+    IconNewSection,
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
@@ -24,9 +25,10 @@ import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
 } & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
+const AddTileButton: FC<Props> = ({ onAddTiles, setAddingTab, disabled }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -116,6 +118,12 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                         icon={<MantineIcon icon={IconVideo} />}
                     >
                         Loom video
+                    </Menu.Item>
+                    <Menu.Item
+                        onClick={() => setAddingTab(true)}
+                        icon={<MantineIcon icon={IconNewSection} />}
+                    >
+                        Add tab
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>

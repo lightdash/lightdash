@@ -72,6 +72,7 @@ type DashboardHeaderProps = {
     onMoveToSpace: (spaceUuid: string) => void;
     onExport: () => void;
     onToggleFullscreen: () => void;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
 };
 
 const DashboardHeader = ({
@@ -91,6 +92,7 @@ const DashboardHeader = ({
     onMoveToSpace,
     onExport,
     onToggleFullscreen,
+    setAddingTab,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -231,6 +233,7 @@ const DashboardHeader = ({
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
+                        setAddingTab={setAddingTab}
                     />
                     <Tooltip
                         fz="xs"
