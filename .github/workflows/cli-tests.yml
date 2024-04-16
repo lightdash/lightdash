@@ -45,7 +45,7 @@ jobs:
 
   cli-tests:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: lightdash-large-runner
     needs: prepare-preview
     strategy:
       fail-fast: false
