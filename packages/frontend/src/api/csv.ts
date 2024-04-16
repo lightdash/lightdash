@@ -47,6 +47,7 @@ export const downloadCsv = async ({
             columnOrder,
             hiddenFields,
             chartName,
+            timezone: query.timezone ?? undefined,
         }),
     });
 };
