@@ -93,12 +93,20 @@ const TileFilterConfiguration: FC<Props> = ({
             const tileConfig = filterRule.tileTargets?.[tileUuid];
 
             let selectedField;
+            let invalidField: string | undefined;
             if (tileConfig !== false) {
                 selectedField = tileConfig?.fieldId
                     ? filters?.find(
                           (f) => tileConfig?.fieldId === getFieldId(f),
                       )
                     : filters?.find((f) => matchFieldExact(f)(field));
+
+                // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
+                invalidField =
+                    tileConfig?.fieldId !== undefined &&
+                    selectedField === undefined
+                        ? tileConfig?.fieldId
+                        : undefined;
             }
 
             const isFilterAvailable =
@@ -129,6 +137,7 @@ const TileFilterConfiguration: FC<Props> = ({
                 label: tileLabel,
                 checked: !!selectedField,
                 disabled: !isFilterAvailable,
+                invalidField,
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
@@ -178,9 +187,16 @@ const TileFilterConfiguration: FC<Props> = ({
                 {tileTargetList.map((value) => (
                     <Box key={value.key}>
                         <Tooltip
-                            label="No fields matching filter type"
+                            label={
+                                value.invalidField
+                                    ? `The selected field ${value.invalidField} is not valid`
+                                    : 'No fields matching filter type'
+                            }
                             position="left"
-                            disabled={!value.disabled}
+                            disabled={
+                                !value.disabled &&
+                                value.invalidField === undefined
+                            }
                         >
                             <Box>
                                 <Checkbox
@@ -195,7 +211,15 @@ const TileFilterConfiguration: FC<Props> = ({
                                                     value.tileChartKind,
                                                 )}
                                             />
-                                            {value.label}
+                                            <Text
+                                                color={
+                                                    value.invalidField
+                                                        ? 'red'
+                                                        : undefined
+                                                }
+                                            >
+                                                {value.label}
+                                            </Text>
                                         </Flex>
                                     }
                                     styles={{
