@@ -1,3 +1,10 @@
+## [0.1071.1](https://github.com/lightdash/lightdash/compare/0.1071.0...0.1071.1) (2024-04-16)
+
+
+### Bug Fixes
+
+* remove 1m + 30s dashboard refresh ([#9770](https://github.com/lightdash/lightdash/issues/9770)) ([009953f](https://github.com/lightdash/lightdash/commit/009953f9cd30b513019baa9937e124d471b7e3df))
+
 # [0.1071.0](https://github.com/lightdash/lightdash/compare/0.1070.3...0.1071.0) (2024-04-16)
 
 
