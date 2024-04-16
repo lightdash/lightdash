@@ -9,7 +9,6 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
@@ -83,7 +82,7 @@ const getQueryResults = async ({
     const timezoneFixQuery = query && {
         ...query,
         filters: convertDateFilters(query.filters),
-        timezone: dayjs.tz.guess(),
+        timezone: query.timezone ?? undefined,
     };
 
     return lightdashApi<ApiQueryResults>({
