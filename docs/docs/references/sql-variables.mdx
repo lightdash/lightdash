@@ -9,3 +9,9 @@ reusable
 - `${lightdash.attributes.my_attr_1}` - a user attribute called `my_attr_1`
   - (optional) `ld` as an alias for `lightdash`
   - (optional) `attribute` or `attr` as an alias for `attributes`
+- `${lightdash.user.<intrinsic_attribute>}` - reference an `intrinsic_attribute` of the current Lightdash user
+  - (optional) `ld` as an alias for `lightdash`
+  - available intrinsic user attributes:
+    - `email`
+    - `first_name`
+    - `last_name`

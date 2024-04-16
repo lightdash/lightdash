@@ -1,3 +1,24 @@
+## [0.1070.2](https://github.com/lightdash/lightdash/compare/0.1070.1...0.1070.2) (2024-04-15)
+
+
+### Bug Fixes
+
+* add timezone date conversion to bigquery ([#9755](https://github.com/lightdash/lightdash/issues/9755)) ([5f1a43b](https://github.com/lightdash/lightdash/commit/5f1a43bb1ed79811f44c417086419a23cc58c22c))
+
+## [0.1070.1](https://github.com/lightdash/lightdash/compare/0.1070.0...0.1070.1) (2024-04-15)
+
+
+### Bug Fixes
+
+* add max width on db filters ([#9752](https://github.com/lightdash/lightdash/issues/9752)) ([d0e926a](https://github.com/lightdash/lightdash/commit/d0e926a116c391f7849c356b7b642e478ac64c94))
+
+# [0.1070.0](https://github.com/lightdash/lightdash/compare/0.1069.0...0.1070.0) (2024-04-15)
+
+
+### Features
+
+* allow intrinsic user attributes ([#9727](https://github.com/lightdash/lightdash/issues/9727)) ([21e3cef](https://github.com/lightdash/lightdash/commit/21e3cef6680f2d8fe25b1ee2ccda4c6112921a3e))
+
 # [0.1069.0](https://github.com/lightdash/lightdash/compare/0.1068.0...0.1069.0) (2024-04-15)
 
 
