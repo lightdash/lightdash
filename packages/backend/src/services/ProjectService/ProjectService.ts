@@ -2081,6 +2081,7 @@ export class ProjectService extends BaseService {
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
+                            timezone: metricQuery.timezone,
                         },
                     });
 

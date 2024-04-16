@@ -185,6 +185,7 @@ type QueryExecutionEvent = BaseTrack & {
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
         dateZoomGranularity: string | null;
+        timezone?: string;
     };
 };
 
