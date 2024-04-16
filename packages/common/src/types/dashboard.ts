@@ -98,7 +98,6 @@ export const isDashboardChartTileType = (
 export type DashboardTab = {
     uuid: string;
     name: string;
-    isDefault: boolean;
     order: number;
 };
 

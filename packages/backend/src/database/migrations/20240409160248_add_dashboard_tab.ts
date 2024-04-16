@@ -13,7 +13,6 @@ export async function up(knex: Knex): Promise<void> {
         await knex.schema.createTable(tableName, (tableBuilder) => {
             tableBuilder.string('name').notNullable();
             tableBuilder.uuid('uuid').notNullable().defaultTo(uuidv4());
-            tableBuilder.boolean('is_default');
             tableBuilder.integer('order');
             tableBuilder
                 .integer('dashboard_id')
