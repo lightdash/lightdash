@@ -1,3 +1,10 @@
+# [0.1071.0](https://github.com/lightdash/lightdash/compare/0.1070.3...0.1071.0) (2024-04-16)
+
+
+### Features
+
+* add timezone picker to the explores page ([#9753](https://github.com/lightdash/lightdash/issues/9753)) ([dd28fb2](https://github.com/lightdash/lightdash/commit/dd28fb2bb66689b856208e295ba8b105d1d8d93e))
+
 ## [0.1070.3](https://github.com/lightdash/lightdash/compare/0.1070.2...0.1070.3) (2024-04-16)
 
 
