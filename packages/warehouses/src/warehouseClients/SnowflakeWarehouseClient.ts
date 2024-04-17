@@ -197,14 +197,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             );
 
             /**
-             * For now we only force this to false, if the boolean is explicitly set.
+             * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
+             * between Snowflake <> Lightdash
              */
-            if (this.quotedIdentifiersIgnoreCase === false) {
-                await this.executeStatement(
-                    connection,
-                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`,
-                );
-            }
+            console.debug(
+                'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
+            );
+            await this.executeStatement(
+                connection,
+                `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
+            );
 
             const result = await this.executeStreamStatement(
                 connection,
