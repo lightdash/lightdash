@@ -41,7 +41,6 @@ export const useCompiledSql = () => {
         tableCalculations,
         additionalMetrics,
         customDimensions,
-        timezone,
     } = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery,
     );
@@ -57,15 +56,8 @@ export const useCompiledSql = () => {
         tableCalculations,
         additionalMetrics,
         customDimensions,
-        timezone,
     };
-    const queryKey = [
-        'compiledQuery',
-        tableId,
-        metricQuery,
-        projectUuid,
-        timezone,
-    ];
+    const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
         queryKey,
