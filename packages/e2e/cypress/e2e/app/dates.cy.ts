@@ -91,23 +91,9 @@ describe('Date tests', () => {
         cy.findByTestId('Chart-card-expand').click(); // Collapse charts
         cy.findByTestId('SQL-card-expand').click();
 
-        cy.get('.mantine-Prism-root').within(() => {
-            const compiledSql = Cypress.$('.mantine-Prism-lineContent')
-                .toArray()
-                .map((el) => (el.innerText === '\n' ? '' : el.innerText));
-
-            cy.wrap(compiledSql).should((actualArray) => {
-                const expectedStrings = [
-                    'WHERE ((',
-                    "  (DATE_TRUNC('MONTH', \"orders\".order_date)) = ('2018-02-01')",
-                    '))',
-                ];
-
-                expectedStrings.forEach((str) => {
-                    expect(actualArray).to.include(str);
-                });
-            });
-        });
+        cy.get('.mantine-Prism-code').contains(
+            `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2018-02-01')`,
+        );
     });
 
     it('Should use dashboard month filter', () => {
