@@ -180,17 +180,6 @@ const Dashboard: FC = () => {
     ]);
 
     useEffect(() => {
-        // set new active tab if the current active tab is deleted
-        if (
-            activeTab &&
-            dashboardTabs.length > 0 &&
-            !dashboardTabs.find((tab) => tab.uuid === activeTab.uuid)
-        ) {
-            setActiveTab(() => dashboardTabs[0]);
-        }
-    }, [activeTab, dashboardTabs]);
-
-    useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles === undefined) return;
 

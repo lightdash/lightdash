@@ -227,6 +227,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             );
             return newTabs;
         });
+        if (activeTab?.uuid === tabUuid) {
+            setActiveTab(
+                dashboardTabs.filter((tab) => tab.uuid !== tabUuid)?.[0],
+            );
+        }
         setHaveTabsChanged(true);
         setDeletingTab(false);
 
