@@ -47,17 +47,7 @@ const azureAdPrivateKeyJksStrategy = async (): Promise<
     });
 
     /**
-     * Azure expects the key's identifier (kid) to be the same value as the
-     * certificate SHA-1 thumbprint, base64-encoded, for purposes of key
-     * matching.
-     *
-     * Confusingly, it may also complain about the x5t and x5c claims, but we
-     * can ignore it here and simply override whatever value we have from the
-     * underlying private key, and node-openid-client will know to include it
-     * as part of the jwt header.
-     *
-     * buildJwtKeySet handles this part of the process, so we're left with
-     * building a jwks:
+     * Use our key to build a key set, as required by openid-client
      */
     const jwks = {
         keys: [jwk],
