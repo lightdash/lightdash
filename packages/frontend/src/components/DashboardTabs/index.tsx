@@ -227,7 +227,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             );
             return newTabs;
         });
-        setActiveTab(defaultTab ? defaultTab : dashboardTabs?.[0]);
         setHaveTabsChanged(true);
         setDeletingTab(false);
 
