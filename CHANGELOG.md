@@ -1,3 +1,10 @@
+## [0.1072.2](https://github.com/lightdash/lightdash/compare/0.1072.1...0.1072.2) (2024-04-17)
+
+
+### Bug Fixes
+
+* fix unstable profile test ([#9798](https://github.com/lightdash/lightdash/issues/9798)) ([8320333](https://github.com/lightdash/lightdash/commit/83203336c3a795d794afef3c2193fa2d69e0307a))
+
 ## [0.1072.1](https://github.com/lightdash/lightdash/compare/0.1072.0...0.1072.1) (2024-04-17)
 
 
