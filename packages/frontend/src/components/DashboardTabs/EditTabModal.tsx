@@ -4,16 +4,15 @@ import {
     Group,
     Modal,
     Stack,
-    Text,
     TextInput,
     Title,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 
 type AddProps = ModalProps & {
-    tab: DashboardTab | undefined;
+    tab: DashboardTab;
     onConfirm: (tabName: string, tabUuid: string) => void;
 };
 
@@ -23,30 +22,15 @@ export const TabEditModal: FC<AddProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const [_, setErrorMessage] = useState<string>();
-
-    const getValidators = () => {
-        const tabNameValidator = {
-            newTabName: (value: string | undefined) =>
-                !value || !value.length ? 'Required field' : null,
-        };
-        return tabNameValidator;
-    };
-
-    const form = useForm<{ newTabName: string }>({
-        validate: getValidators(),
-        validateInputOnChange: ['newTabName'],
-    });
+    const form = useForm<{ newTabName: string }>();
 
     const handleConfirm = form.onSubmit(({ ...tabProps }) => {
-        onConfirm(tabProps.newTabName, tab?.uuid ? tab.uuid : '');
+        onConfirm(tabProps.newTabName, tab.uuid);
         form.reset();
-        setErrorMessage('');
     });
 
     const handleClose = () => {
         form.reset();
-        setErrorMessage('');
         onClose?.();
     };
 
@@ -63,9 +47,10 @@ export const TabEditModal: FC<AddProps> = ({
         >
             <form onSubmit={handleConfirm}>
                 <Stack spacing="lg" pt="sm">
-                    <Text>New tab name</Text>
                     <TextInput
-                        placeholder={tab?.name}
+                        label="Tab name"
+                        placeholder="Name your tab"
+                        required
                         {...form.getInputProps('newTabName')}
                     ></TextInput>
                     <Group position="right" mt="sm">

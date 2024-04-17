@@ -413,23 +413,27 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     handleAddTab(name);
                 }}
             />
-            <TabEditModal
-                tab={activeTab}
-                onClose={() => setEditingTab(false)}
-                opened={isEditingTab}
-                onConfirm={(name, uuid) => {
-                    handleEditTab(name, uuid);
-                }}
-            />
-            <TabDeleteModal
-                tab={activeTab}
-                dashboardTiles={dashboardTiles}
-                onClose={() => setDeletingTab(false)}
-                opened={isDeletingTab}
-                onDeleteTab={(uuid) => {
-                    handleDeleteTab(uuid);
-                }}
-            />
+            {activeTab && (
+                <>
+                    <TabEditModal
+                        tab={activeTab}
+                        onClose={() => setEditingTab(false)}
+                        opened={isEditingTab}
+                        onConfirm={(name, uuid) => {
+                            handleEditTab(name, uuid);
+                        }}
+                    />
+                    <TabDeleteModal
+                        tab={activeTab}
+                        dashboardTiles={dashboardTiles}
+                        onClose={() => setDeletingTab(false)}
+                        opened={isDeletingTab}
+                        onDeleteTab={(uuid) => {
+                            handleDeleteTab(uuid);
+                        }}
+                    />
+                </>
+            )}
         </Tabs>
     );
 };

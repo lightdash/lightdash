@@ -8,10 +8,10 @@ import {
     Title,
     type ModalProps,
 } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 
 type AddProps = ModalProps & {
-    tab: DashboardTab | undefined;
+    tab: DashboardTab;
     dashboardTiles: DashboardTile[] | undefined;
     onDeleteTab: (tabUuid: string) => void;
 };
@@ -23,10 +23,7 @@ export const TabDeleteModal: FC<AddProps> = ({
     onDeleteTab: handleDeleteTab,
     ...modalProps
 }) => {
-    const [_, setErrorMessage] = useState<string>();
-
     const handleClose = () => {
-        setErrorMessage('');
         onClose?.();
     };
 
@@ -35,12 +32,10 @@ export const TabDeleteModal: FC<AddProps> = ({
         handleDeleteTab(uuid);
     };
 
-    const getNumberOfTiles = (uuid: string | undefined) => {
-        const numberOfTiles = dashboardTiles?.filter(
-            (tile) => tile.tabUuid == uuid,
-        )?.length;
-        return numberOfTiles ? numberOfTiles : 0;
-    };
+    const numberOfTiles = useMemo(() => {
+        return (dashboardTiles || []).filter((tile) => tile.tabUuid == tab.uuid)
+            ?.length;
+    }, [tab.uuid, dashboardTiles]);
 
     return (
         <Modal
@@ -55,11 +50,10 @@ export const TabDeleteModal: FC<AddProps> = ({
         >
             <Stack spacing="lg" pt="sm">
                 <Text>
-                    Are you sure you want to delete tab {tab?.name}?
+                    Are you sure you want to delete tab {tab.name}?
                     <br />
-                    This action will permanently delete{' '}
-                    {getNumberOfTiles(tab?.uuid)} tiles once you save your
-                    dashboard changes.
+                    This action will permanently delete {numberOfTiles} tiles
+                    once you save your dashboard changes.
                 </Text>
                 <Group position="right" mt="sm">
                     <Button variant="outline" onClick={handleClose}>
@@ -69,7 +63,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                     <Button
                         type="submit"
                         color="red"
-                        onClick={() => handleSubmit(tab?.uuid ? tab.uuid : '')}
+                        onClick={() => handleSubmit(tab.uuid)}
                     >
                         Delete
                     </Button>
