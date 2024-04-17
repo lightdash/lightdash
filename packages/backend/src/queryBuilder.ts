@@ -3,6 +3,7 @@ import {
     BinType,
     CompiledDimension,
     CompiledMetricQuery,
+    convertBigqueryTimezone,
     CustomDimension,
     DbtModelJoinType,
     Explore,
@@ -580,6 +581,12 @@ export const buildQuery = ({
             dimension,
             userAttributes,
             `dimension: "${field}"`,
+        );
+        const convertedDimension = convertBigqueryTimezone(
+            dimension,
+            adapterType,
+            dimension.compiledSql,
+            timezone,
         );
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
