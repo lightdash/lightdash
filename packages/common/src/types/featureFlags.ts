@@ -42,4 +42,7 @@ export enum FeatureFlags {
 
     /** */
     LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
+
+    /** Enable dashboard tabs */
+    DashboardTabs = 'dashboard_tabs',
 }

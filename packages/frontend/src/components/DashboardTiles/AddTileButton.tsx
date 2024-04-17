@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -15,6 +19,7 @@ import {
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -32,7 +37,9 @@ const AddTileButton: FC<Props> = ({ onAddTiles, setAddingTab, disabled }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
-
+    const isDashboardTabsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTabs,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
@@ -119,12 +126,14 @@ const AddTileButton: FC<Props> = ({ onAddTiles, setAddingTab, disabled }) => {
                     >
                         Loom video
                     </Menu.Item>
-                    <Menu.Item
-                        onClick={() => setAddingTab(true)}
-                        icon={<MantineIcon icon={IconNewSection} />}
-                    >
-                        Add tab
-                    </Menu.Item>
+                    {isDashboardTabsEnabled && (
+                        <Menu.Item
+                            onClick={() => setAddingTab(true)}
+                            icon={<MantineIcon icon={IconNewSection} />}
+                        >
+                            Add tab
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
 
