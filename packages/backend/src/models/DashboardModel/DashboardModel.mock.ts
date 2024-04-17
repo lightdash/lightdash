@@ -275,8 +275,7 @@ export const expectedDashboard: DashboardDAO = {
             y: dashboardTileEntry.y_offset,
             h: dashboardTileEntry.height,
             w: dashboardTileEntry.width,
-            // TODO: remove
-            tabUuid: 'tabUuid',
+            tabUuid: undefined,
         } as DashboardMarkdownTile,
     ],
     filters: {
