@@ -1,3 +1,10 @@
+## [0.1072.1](https://github.com/lightdash/lightdash/compare/0.1072.0...0.1072.1) (2024-04-17)
+
+
+### Bug Fixes
+
+* add timezone to compile sql ([#9784](https://github.com/lightdash/lightdash/issues/9784)) ([78b8756](https://github.com/lightdash/lightdash/commit/78b8756042293028a4cb851e7017ec1044ca2ae5))
+
 # [0.1072.0](https://github.com/lightdash/lightdash/compare/0.1071.2...0.1072.0) (2024-04-17)
 
 
