@@ -14,7 +14,6 @@ import {
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
 import { type DateGranularity } from './timeFrames';
-import { type TimeZone } from './timezone';
 
 export interface AdditionalMetric {
     label?: string;
@@ -145,5 +144,5 @@ export type MetricQueryRequest = {
     customDimensions?: CustomDimension[];
     granularity?: DateGranularity;
     metadata?: MetricQuery['metadata'];
-    timezone?: TimeZone;
+    timezone?: string;
 };
