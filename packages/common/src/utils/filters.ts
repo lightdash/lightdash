@@ -519,7 +519,7 @@ export const getFiltersFromGroup = (
                 accumulator.dimensions = {
                     id: uuidv4(),
                     ...accumulator.dimensions,
-                    [getFilterGroupItemsPropertyName(accumulator.dimensions)]: [
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.dimensions),
                         filters.dimensions,
                     ],
@@ -530,7 +530,7 @@ export const getFiltersFromGroup = (
                 accumulator.metrics = {
                     id: uuidv4(),
                     ...accumulator.metrics,
-                    [getFilterGroupItemsPropertyName(accumulator.metrics)]: [
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(accumulator.metrics),
                         filters.metrics,
                     ],
@@ -541,9 +541,7 @@ export const getFiltersFromGroup = (
                 accumulator.tableCalculations = {
                     id: uuidv4(),
                     ...accumulator.tableCalculations,
-                    [getFilterGroupItemsPropertyName(
-                        accumulator.tableCalculations,
-                    )]: [
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
                         ...getItemsFromFilterGroup(
                             accumulator.tableCalculations,
                         ),
