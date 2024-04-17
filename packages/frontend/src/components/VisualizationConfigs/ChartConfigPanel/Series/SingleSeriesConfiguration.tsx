@@ -1,6 +1,7 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
+    ChartType,
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
@@ -58,7 +59,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
-    const { colorPalette, getSeriesColor, setMetadata, metadata } =
+    const { visualizationConfig, colorPalette, getSeriesColor } =
         useVisualizationContext();
     const { hovered, ref } = useHover();
 
@@ -101,10 +102,17 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                         '.',
                                     );
 
-                                setMetadata({
-                                    ...metadata,
-                                    [serieId]: { color },
-                                });
+                                if (
+                                    visualizationConfig.chartType ===
+                                    ChartType.CARTESIAN
+                                ) {
+                                    const { updateMetadata } =
+                                        visualizationConfig.chartConfig;
+
+                                    updateMetadata({
+                                        [serieId]: { color },
+                                    });
+                                }
                             }}
                         />
                     )}

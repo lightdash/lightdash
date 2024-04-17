@@ -81,7 +81,6 @@ type VisualizationContext = {
         metadata?: Record<string, SeriesMetadata>,
     ) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
-    setMetadata: (metadata: Record<string, SeriesMetadata>) => void;
     colorPalette: string[];
 };
 
@@ -279,24 +278,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         },
         [calculateSeriesColorAssignment, fallbackColors, chartConfig],
     );
-    const setMetadata = useCallback(
-        (metadata: Record<string, SeriesMetadata>) => {
-            if (!onChartConfigChange) return;
-            if (
-                chartConfig?.type === ChartType.CARTESIAN &&
-                chartConfig.config
-            ) {
-                onChartConfigChange({
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        ...chartConfig.config,
-                        metadata,
-                    },
-                });
-            }
-        },
-        [chartConfig, onChartConfigChange],
-    );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
         minimal,
@@ -315,7 +296,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         colorPalette,
         getGroupColor,
         getSeriesColor,
-        setMetadata,
     };
 
     switch (chartConfig.type) {
