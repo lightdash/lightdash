@@ -2,7 +2,6 @@ import { type WeekDay } from '../utils/timeFrames';
 import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
-import { type TimeZone } from './timezone';
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
@@ -28,7 +27,7 @@ export interface WarehouseClient {
     runQuery(
         sql: string,
         tags?: Record<string, string>,
-        timezone?: TimeZone,
+        timezone?: string,
     ): Promise<{
         fields: Record<string, { type: DimensionType }>;
         rows: Record<string, any>[];

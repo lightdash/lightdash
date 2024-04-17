@@ -83,7 +83,7 @@ export type DbSavedChartVersion = {
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
     updated_by_user_uuid: string | undefined;
-    timezone: TimeZone | undefined;
+    timezone: string | undefined;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
