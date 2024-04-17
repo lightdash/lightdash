@@ -128,7 +128,6 @@ const TableRow: FC<TableRowProps> = ({
                                 <Button
                                     compact
                                     size="xs"
-                                    ff="Inter"
                                     variant="subtle"
                                     styles={(theme) => ({
                                         root: {
