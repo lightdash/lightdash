@@ -59,7 +59,13 @@ export const useCompiledSql = () => {
         customDimensions,
         timezone,
     };
-    const queryKey = ['compiledQuery', tableId, metricQuery, projectUuid];
+    const queryKey = [
+        'compiledQuery',
+        tableId,
+        metricQuery,
+        projectUuid,
+        timezone,
+    ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         enabled: tableId !== undefined,
         queryKey,
