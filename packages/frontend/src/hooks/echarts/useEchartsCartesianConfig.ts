@@ -1560,7 +1560,7 @@ const useEchartsCartesianConfig = (
 
                 const flipAxes = validCartesianConfig?.layout.flipAxes;
                 const getTooltipHeader = () => {
-                    if (flipAxes) {
+                    if (flipAxes && !('axisDim' in params[0])) {
                         // When flipping axes, the axisValueLabel is the value, not the serie name
                         return params[0].seriesName;
                     }
@@ -1582,21 +1582,18 @@ const useEchartsCartesianConfig = (
 
                         if (dimensionNames) {
                             let dim = '';
-                            let tooltipValue;
                             if (flipAxes) {
                                 // When flipping axes, the dimensionName is different
                                 dim = dimensionNames[1];
-                                tooltipValue = param.axisValueLabel;
                             } else {
                                 dim =
                                     encode?.y[0] !== undefined
                                         ? dimensionNames[encode?.y[0]]
                                         : '';
-                                tooltipValue = (
-                                    value as Record<string, unknown>
-                                )[dim];
                             }
-
+                            const tooltipValue = (
+                                value as Record<string, unknown>
+                            )[dim];
                             if (typeof value === 'object' && dim in value) {
                                 return `
                             <tr>
