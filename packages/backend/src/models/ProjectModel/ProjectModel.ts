@@ -62,14 +62,14 @@ import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
 import { wrapOtelSpan } from '../../utils';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import Transaction = Knex.Transaction;
 
 type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
-    encryptionService: EncryptionService;
+    encryptionUtil: EncryptionUtil;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -79,12 +79,12 @@ export class ProjectModel {
 
     private lightdashConfig: LightdashConfig;
 
-    private encryptionService: EncryptionService;
+    private encryptionUtil: EncryptionUtil;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
-        this.encryptionService = args.encryptionService;
+        this.encryptionUtil = args.encryptionUtil;
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -188,7 +188,7 @@ export class ProjectModel {
             }) => {
                 try {
                     const warehouseCredentials = JSON.parse(
-                        this.encryptionService.decrypt(encrypted_credentials),
+                        this.encryptionUtil.decrypt(encrypted_credentials),
                     ) as CreateWarehouseCredentials;
                     return {
                         name,
@@ -214,7 +214,7 @@ export class ProjectModel {
     ): Promise<void> {
         let encryptedCredentials: Buffer;
         try {
-            encryptedCredentials = this.encryptionService.encrypt(
+            encryptedCredentials = this.encryptionUtil.encrypt(
                 JSON.stringify(data),
             );
         } catch (e) {
@@ -257,7 +257,7 @@ export class ProjectModel {
         return this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
             try {
-                encryptedCredentials = this.encryptionService.encrypt(
+                encryptedCredentials = this.encryptionUtil.encrypt(
                     JSON.stringify(data.dbtConnection),
                 );
             } catch (e) {
@@ -305,7 +305,7 @@ export class ProjectModel {
         await this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
             try {
-                encryptedCredentials = this.encryptionService.encrypt(
+                encryptedCredentials = this.encryptionUtil.encrypt(
                     JSON.stringify(data.dbtConnection),
                 );
             } catch (e) {
@@ -425,7 +425,7 @@ export class ProjectModel {
                 let dbtSensitiveCredentials: DbtProjectConfig;
                 try {
                     dbtSensitiveCredentials = JSON.parse(
-                        this.encryptionService.decrypt(project.dbt_connection),
+                        this.encryptionUtil.decrypt(project.dbt_connection),
                     ) as DbtProjectConfig;
                 } catch (e) {
                     throw new UnexpectedServerError(
@@ -447,7 +447,7 @@ export class ProjectModel {
                 let sensitiveCredentials: CreateWarehouseCredentials;
                 try {
                     sensitiveCredentials = JSON.parse(
-                        this.encryptionService.decrypt(
+                        this.encryptionUtil.decrypt(
                             project.encrypted_credentials,
                         ),
                     ) as CreateWarehouseCredentials;
@@ -997,7 +997,7 @@ export class ProjectModel {
         if (row === undefined) {
             return undefined;
         }
-        const serviceToken = this.encryptionService.decrypt(row.service_token);
+        const serviceToken = this.encryptionUtil.decrypt(row.service_token);
         return {
             metricsJobId: row.metrics_job_id,
             serviceToken,
@@ -1016,7 +1016,7 @@ export class ProjectModel {
                 `Cannot find project with id '${projectUuid}'`,
             );
         }
-        const encryptedServiceToken = this.encryptionService.encrypt(
+        const encryptedServiceToken = this.encryptionUtil.encrypt(
             integration.serviceToken,
         );
         await this.database('dbt_cloud_integrations')
@@ -1058,7 +1058,7 @@ export class ProjectModel {
         }
         try {
             return JSON.parse(
-                this.encryptionService.decrypt(row.encrypted_credentials),
+                this.encryptionUtil.decrypt(row.encrypted_credentials),
             ) as CreateWarehouseCredentials;
         } catch (e) {
             throw new UnexpectedServerError(

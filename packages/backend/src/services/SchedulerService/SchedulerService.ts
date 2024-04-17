@@ -34,6 +34,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { BaseService } from '../BaseService';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -49,7 +50,7 @@ type SchedulerServiceArguments = {
     slackClient: SlackClient;
 };
 
-export class SchedulerService {
+export class SchedulerService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -76,6 +77,7 @@ export class SchedulerService {
         schedulerClient,
         slackClient,
     }: SchedulerServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;

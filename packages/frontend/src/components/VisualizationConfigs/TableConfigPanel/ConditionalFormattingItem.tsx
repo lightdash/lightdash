@@ -16,58 +16,55 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import {
-    ActionIcon,
+    Accordion,
+    Box,
     Button,
-    Collapse,
-    ColorInput,
+    Divider,
     Group,
-    Select,
-    SimpleGrid,
+    SegmentedControl,
     Stack,
-    Text,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconChevronUp,
-    IconPercentage,
-    IconPlus,
-    IconX,
-} from '@tabler/icons-react';
+import { IconPercentage, IconPlus } from '@tabler/icons-react';
 import produce from 'immer';
-import React, { useCallback, useMemo, useState, type FC } from 'react';
+import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FilterNumberInput from '../../common/Filters/FilterInputs/FilterNumberInput';
 import { FiltersProvider } from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
+import ColorSelector from '../ColorSelector';
+import { AccordionControl } from '../common/AccordionControl';
+import { Config } from '../common/Config';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
-interface ConditionalFormattingProps {
-    isDefaultOpen?: boolean;
+type Props = {
+    isOpen: boolean;
     colorPalette: string[];
     index: number;
     fields: FilterableItem[];
     value: ConditionalFormattingConfig;
     onChange: (newConfig: ConditionalFormattingConfig) => void;
     onRemove: () => void;
-}
-
-const ConditionalFormattingRuleLabels = {
-    [ConditionalFormattingConfigType.Single]: 'Single color',
-    [ConditionalFormattingConfigType.Range]: 'Color range',
+    addNewItem: (value: string) => void;
+    removeItem: (value: string) => void;
 };
 
-const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
-    isDefaultOpen = true,
+const ConditionalFormattingRuleLabels = {
+    [ConditionalFormattingConfigType.Single]: 'Single',
+    [ConditionalFormattingConfigType.Range]: 'Range',
+};
+
+export const ConditionalFormattingItem: FC<Props> = ({
     colorPalette,
     index: configIndex,
     fields,
+    isOpen,
     value,
     onChange,
     onRemove,
+    addNewItem,
+    removeItem,
 }) => {
     const [isAddingRule, setIsAddingRule] = useState(false);
-    const [isOpen, setIsOpen] = useState(isDefaultOpen);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
 
     const field = useMemo(
@@ -239,87 +236,89 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
         [handleChange, config],
     );
 
+    const controlLabel = `Rule ${configIndex}`;
+    const accordionValue = `${configIndex}`;
+
+    const onControlClick = useCallback(
+        () =>
+            isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
+        [isOpen, removeItem, addNewItem, accordionValue],
+    );
+
     return (
-        <FiltersProvider>
-            <Stack spacing="xs">
-                <Group noWrap position="apart">
-                    <Group spacing="xs">
-                        <ActionIcon
-                            onClick={() => setIsOpen(!isOpen)}
-                            size="sm"
-                        >
-                            <MantineIcon
-                                icon={isOpen ? IconChevronUp : IconChevronDown}
-                            />
-                        </ActionIcon>
+        <Accordion.Item value={accordionValue}>
+            <AccordionControl
+                label={controlLabel}
+                onControlClick={onControlClick}
+                onRemove={handleRemove}
+            />
 
-                        <Text fw={500}>Rule {configIndex + 1}</Text>
-                    </Group>
-
-                    <Tooltip label="Remove rule" position="left" withinPortal>
-                        <ActionIcon onClick={handleRemove} size="sm">
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Tooltip>
-                </Group>
-                <Collapse in={isOpen}>
-                    <Stack
-                        bg={'gray.0'}
-                        p="sm"
-                        spacing="sm"
-                        sx={(theme) => ({
-                            borderRadius: theme.radius.sm,
-                        })}
-                    >
+            <Accordion.Panel>
+                <Stack spacing="xs">
+                    <FiltersProvider>
                         <FieldSelect
                             label="Select field"
                             clearable
                             item={field}
                             items={fields}
                             onChange={handleChangeField}
+                            hasGrouping
                         />
 
-                        <Select
-                            label="Select type"
-                            value={getConditionalFormattingConfigType(config)}
-                            data={[
-                                {
-                                    value: ConditionalFormattingConfigType.Single,
-                                    label: ConditionalFormattingRuleLabels[
-                                        ConditionalFormattingConfigType.Single
-                                    ],
-                                },
-                                {
-                                    value: ConditionalFormattingConfigType.Range,
-                                    label: ConditionalFormattingRuleLabels[
-                                        ConditionalFormattingConfigType.Range
-                                    ],
-                                },
-                            ]}
-                            onChange={(
-                                newConfigType: ConditionalFormattingConfigType,
-                            ) => {
-                                handleConfigTypeChange(newConfigType);
-                            }}
-                        />
+                        <Group spacing="xs">
+                            <Config.Label>Color</Config.Label>
+
+                            <SegmentedControl
+                                data={[
+                                    {
+                                        value: ConditionalFormattingConfigType.Single,
+                                        label: ConditionalFormattingRuleLabels[
+                                            ConditionalFormattingConfigType
+                                                .Single
+                                        ],
+                                    },
+                                    {
+                                        value: ConditionalFormattingConfigType.Range,
+                                        label: ConditionalFormattingRuleLabels[
+                                            ConditionalFormattingConfigType
+                                                .Range
+                                        ],
+                                    },
+                                ]}
+                                value={getConditionalFormattingConfigType(
+                                    config,
+                                )}
+                                onChange={(
+                                    newConfigType: ConditionalFormattingConfigType,
+                                ) => {
+                                    handleConfigTypeChange(newConfigType);
+                                }}
+                            />
+
+                            {isConditionalFormattingConfigWithSingleColor(
+                                config,
+                            ) ? (
+                                <ColorSelector
+                                    color={config.color}
+                                    swatches={colorPalette}
+                                    onColorChange={handleChangeSingleColor}
+                                />
+                            ) : null}
+                        </Group>
 
                         {isConditionalFormattingConfigWithSingleColor(
                             config,
                         ) ? (
-                            <>
-                                <ColorInput
-                                    withinPortal={false}
-                                    withEyeDropper={false}
-                                    format="hex"
-                                    swatches={colorPalette}
-                                    swatchesPerRow={8}
-                                    label="Select color"
-                                    value={config.color}
-                                    onChange={handleChangeSingleColor}
-                                />
-
+                            <Box
+                                p="xs"
+                                sx={(theme) => ({
+                                    backgroundColor: theme.colors.gray[1],
+                                    border: `1px solid ${theme.colors.gray[4]}`,
+                                    borderRadius: theme.radius.sm,
+                                })}
+                            >
                                 {config.rules.map((rule, ruleIndex) => (
-                                    <React.Fragment key={ruleIndex}>
+                                    <Fragment key={ruleIndex}>
                                         <ConditionalFormattingRule
                                             isDefaultOpen={
                                                 config.rules.length === 1 ||
@@ -350,51 +349,54 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
 
                                         {ruleIndex !==
                                             config.rules.length - 1 && (
-                                            <Text fz="xs" fw={600}>
-                                                AND
-                                            </Text>
+                                            <Divider
+                                                mt="xs"
+                                                label={
+                                                    <Config.Label>
+                                                        AND
+                                                    </Config.Label>
+                                                }
+                                                labelPosition="center"
+                                            />
                                         )}
-                                    </React.Fragment>
+                                    </Fragment>
                                 ))}
-                            </>
+                            </Box>
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
-                            <SimpleGrid cols={2}>
-                                <ColorInput
-                                    withinPortal={false}
-                                    withEyeDropper={false}
-                                    format="hex"
-                                    swatches={colorPalette}
-                                    swatchesPerRow={8}
-                                    label="Start color"
-                                    value={config.color.start}
-                                    onChange={(newStartColor) =>
-                                        handleChangeColorRangeColor({
-                                            start: newStartColor,
-                                        })
-                                    }
-                                />
-
-                                <ColorInput
-                                    withinPortal={false}
-                                    withEyeDropper={false}
-                                    format="hex"
-                                    swatches={colorPalette}
-                                    swatchesPerRow={8}
-                                    label="End color"
-                                    value={config.color.end}
-                                    onChange={(newEndColor) =>
-                                        handleChangeColorRangeColor({
-                                            end: newEndColor,
-                                        })
-                                    }
-                                />
+                            <Group spacing="xs" noWrap grow>
+                                <Group>
+                                    <Stack spacing="one">
+                                        <Config.Label>Start</Config.Label>
+                                        <ColorSelector
+                                            color={config.color.start}
+                                            swatches={colorPalette}
+                                            onColorChange={(newStartColor) => {
+                                                handleChangeColorRangeColor({
+                                                    start: newStartColor,
+                                                });
+                                            }}
+                                        />
+                                    </Stack>
+                                    <Stack spacing="one">
+                                        <Config.Label>End</Config.Label>
+                                        <ColorSelector
+                                            color={config.color.end}
+                                            swatches={colorPalette}
+                                            onColorChange={(newEndColor) => {
+                                                handleChangeColorRangeColor({
+                                                    end: newEndColor,
+                                                });
+                                            }}
+                                        />
+                                    </Stack>
+                                </Group>
 
                                 {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
                                 {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
                                 <FilterNumberInput
-                                    label="Min value"
+                                    label="Min"
                                     icon={
                                         hasPercentageFormat(field) ? (
                                             <MantineIcon
@@ -402,7 +404,6 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                             />
                                         ) : null
                                     }
-                                    size="sm"
                                     value={config.rule.min}
                                     onChange={(newMin) => {
                                         if (newMin === null) return;
@@ -416,7 +417,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
                                 {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
                                 <FilterNumberInput
-                                    label="Max value"
+                                    label="Max"
                                     icon={
                                         hasPercentageFormat(field) ? (
                                             <MantineIcon
@@ -424,7 +425,6 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                             />
                                         ) : null
                                     }
-                                    size="sm"
                                     value={config.rule.max}
                                     onChange={(newMax) => {
                                         if (newMax === null) return;
@@ -434,7 +434,7 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                         });
                                     }}
                                 />
-                            </SimpleGrid>
+                            </Group>
                         ) : (
                             assertUnreachable(config, 'Unknown config type')
                         )}
@@ -444,7 +444,6 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                         ) ? (
                             <Button
                                 sx={{ alignSelf: 'start' }}
-                                size="xs"
                                 variant="subtle"
                                 leftIcon={<MantineIcon icon={IconPlus} />}
                                 onClick={handleAddRule}
@@ -452,10 +451,9 @@ const ConditionalFormatting: FC<ConditionalFormattingProps> = ({
                                 Add new condition
                             </Button>
                         ) : null}
-                    </Stack>
-                </Collapse>
-            </Stack>
-        </FiltersProvider>
+                    </FiltersProvider>
+                </Stack>
+            </Accordion.Panel>
+        </Accordion.Item>
     );
 };
-export default ConditionalFormatting;

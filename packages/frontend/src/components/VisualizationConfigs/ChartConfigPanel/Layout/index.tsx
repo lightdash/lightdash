@@ -198,6 +198,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     }}
                                 />
                             }
+                            hasGrouping
                         />
                     )}
                 </Config.Section>
@@ -246,6 +247,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                         />
                                     )
                                 }
+                                hasGrouping
                             />
                         );
                     })}
@@ -338,6 +340,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                                     />
                                                 )
                                             }
+                                            hasGrouping
                                         />
                                     </Group>
                                 );

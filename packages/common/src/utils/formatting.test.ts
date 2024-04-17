@@ -9,6 +9,7 @@ import {
     NumberSeparator,
     type CustomFormat,
 } from '../types/field';
+import { TimeFrames } from '../types/timeFrames';
 import {
     applyCustomFormat,
     currencies,
@@ -742,6 +743,16 @@ describe('Formatting', () => {
                     new Date('2021-03-10T00:00:00.000Z'),
                 ),
             ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        timeInterval: TimeFrames.YEAR_NUM,
+                        type: DimensionType.NUMBER,
+                    },
+                    2021,
+                ),
+            ).toEqual('2021');
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {

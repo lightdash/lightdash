@@ -9,14 +9,6 @@ import MantineIcon from '../MantineIcon';
 
 const REFRESH_INTERVAL_OPTIONS = [
     {
-        value: '0.5',
-        label: '30s',
-    },
-    {
-        value: '2',
-        label: '1m',
-    },
-    {
         value: '5',
         label: '5m',
     },

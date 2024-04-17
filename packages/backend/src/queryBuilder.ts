@@ -17,10 +17,12 @@ import {
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
+    getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getMetrics,
     getSqlForTruncatedDate,
+    IntrinsicUserAttributes,
     isAndFilterGroup,
     isFilterGroup,
     ItemsMap,
@@ -29,11 +31,11 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
-    TableCalculation,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
 } from '@lightdash/common';
+import { isArray } from 'lodash';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (
@@ -93,15 +95,14 @@ const getMetricFromId = (
     return metric;
 };
 
-export const replaceUserAttributes = (
+const replaceAttributes = (
+    regex: RegExp,
     sqlFilter: string,
-    userAttributes: UserAttributeValueMap,
-    stringQuoteChar: string = "'",
-    filter: string = 'sql_filter',
+    userAttributes: Record<string, string | string[]>,
+    stringQuoteChar: string,
+    filter: string,
 ): string => {
-    const userAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
-    const sqlAttributes = sqlFilter.match(userAttributeRegex);
+    const sqlAttributes = sqlFilter.match(regex);
 
     if (sqlAttributes === null || sqlAttributes.length === 0) {
         return sqlFilter;
@@ -109,9 +110,8 @@ export const replaceUserAttributes = (
 
     const replacedUserAttributesSql = sqlAttributes.reduce<string>(
         (acc, sqlAttribute) => {
-            const attribute = sqlAttribute.replace(userAttributeRegex, '$1');
-            const attributeValues: string[] | undefined =
-                userAttributes[attribute];
+            const attribute = sqlAttribute.replace(regex, '$1');
+            const attributeValues = userAttributes[attribute];
 
             if (attributeValues === undefined) {
                 throw new ForbiddenError(
@@ -124,21 +124,53 @@ export const replaceUserAttributes = (
                 );
             }
 
-            return acc.replace(
-                sqlAttribute,
-                attributeValues
-                    .map(
-                        (attributeValue) =>
-                            `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
-                    )
-                    .join(', '),
-            );
+            const valueString = isArray(attributeValues)
+                ? attributeValues
+                      .map(
+                          (attributeValue) =>
+                              `${stringQuoteChar}${attributeValue}${stringQuoteChar}`,
+                      )
+                      .join(', ')
+                : `${stringQuoteChar}${attributeValues}${stringQuoteChar}`;
+
+            return acc.replace(sqlAttribute, valueString);
         },
         sqlFilter,
     );
 
     // NOTE: Wrap the replaced user attributes in parentheses to avoid issues with AND/OR operators
     return `(${replacedUserAttributesSql})`;
+};
+
+export const replaceUserAttributes = (
+    sqlFilter: string,
+    intrinsicUserAttributes: IntrinsicUserAttributes,
+    userAttributes: UserAttributeValueMap,
+    stringQuoteChar: string = "'",
+    filter: string = 'sql_filter',
+): string => {
+    const userAttributeRegex =
+        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
+    const intrinsicUserAttributeRegex =
+        /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
+
+    // Replace user attributes in the SQL filter
+    const replacedSqlFilter = replaceAttributes(
+        userAttributeRegex,
+        sqlFilter,
+        userAttributes,
+        stringQuoteChar,
+        filter,
+    );
+
+    // Replace intrinsic user attributes in the SQL filter
+    return replaceAttributes(
+        intrinsicUserAttributeRegex,
+        replacedSqlFilter,
+        intrinsicUserAttributes,
+        stringQuoteChar,
+        filter,
+    );
 };
 
 export const assertValidDimensionRequiredAttribute = (
@@ -178,6 +210,7 @@ export type BuildQueryProps = {
     compiledMetricQuery: CompiledMetricQuery;
     warehouseClient: WarehouseClient;
     userAttributes?: UserAttributeValueMap;
+    intrinsicUserAttributes: IntrinsicUserAttributes;
 };
 
 const getJoinType = (type: DbtModelJoinType = 'left') => {
@@ -213,7 +246,7 @@ export const getCustomDimensionSql = ({
     const { customDimensions } = compiledMetricQuery;
     const startOfWeek = warehouseClient.getStartOfWeek();
 
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     if (customDimensions === undefined || customDimensions.length === 0)
         return undefined;
 
@@ -511,6 +544,7 @@ export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
+    intrinsicUserAttributes,
     userAttributes = {},
 }: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
@@ -524,9 +558,11 @@ export const buildQuery = ({
         limit,
         additionalMetrics,
         customDimensions,
+        timezone,
     } = compiledMetricQuery;
+
     const baseTable = explore.tables[explore.baseTable].sqlTable;
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const stringQuoteChar = warehouseClient.getStringQuoteChar();
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();
@@ -660,7 +696,7 @@ export const buildQuery = ({
     ]);
 
     const sqlJoins = explore.joinedTables
-        .filter((join) => joinedTables.has(join.table))
+        .filter((join) => joinedTables.has(join.table) || join.always)
         .map((join) => {
             const joinTable = explore.tables[join.table].sqlTable;
             const joinType = getJoinType(join.type);
@@ -668,6 +704,7 @@ export const buildQuery = ({
             const alias = join.table;
             const parsedSqlOn = replaceUserAttributes(
                 join.compiledSqlOn,
+                intrinsicUserAttributes,
                 userAttributes,
                 stringQuoteChar,
                 'sql_on',
@@ -761,6 +798,7 @@ export const buildQuery = ({
                 `Filter has a reference to an unknown ${fieldType}: ${filter.target.fieldId}`,
             );
         }
+
         return renderFilterRuleSql(
             filter,
             field,
@@ -769,6 +807,7 @@ export const buildQuery = ({
             escapeStringQuoteChar,
             startOfWeek,
             adapterType,
+            timezone,
         );
     };
 
@@ -804,6 +843,7 @@ export const buildQuery = ({
         ? [
               replaceUserAttributes(
                   baseTableSqlWhere,
+                  intrinsicUserAttributes,
                   userAttributes,
                   stringQuoteChar,
               ),
@@ -816,6 +856,7 @@ export const buildQuery = ({
     );
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
+
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';
 

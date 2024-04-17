@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
     CustomFormatType,
@@ -12,12 +13,15 @@ import {
     type CompactOrAlias,
     type CustomDimension,
     type CustomFormat,
+    type Dimension,
     type Field,
     type TableCalculation,
 } from '../types/field';
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+
+dayjs.extend(timezone);
 
 export const currencies = [
     'USD',
@@ -122,6 +126,19 @@ export function formatTimestamp(
 ): string {
     const momentDate = convertToUTC ? moment(value).utc() : moment(value);
     return momentDate.format(getTimeFormat(timeInterval));
+}
+
+export function getLocalTimeDisplay(
+    value: MomentInput,
+    showTimezone: boolean = true,
+): string {
+    // NOTE: Mixing dayjs and moment here is not great, but we're doing it here
+    // because we are using moment types in this file and the
+    // plumbing expects them. It should be ok here because we are not moment and dayjs
+    // together to operate on the date. Dayjs is only used for the
+    // Timezone string, which moment doesn't support.
+    const tzString = showTimezone ? `(${dayjs.tz.guess()})` : '';
+    return `${moment(value).format(`YYYY-MM-DD HH:mm`)} ${tzString}`;
 }
 
 export const parseDate = (
@@ -365,6 +382,7 @@ export function applyCustomFormat(
 export function formatItemValue(
     item:
         | Field
+        | Dimension
         | AdditionalMetric
         | TableCalculation
         | CustomDimension
@@ -410,6 +428,15 @@ export function formatItemValue(
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
                         );
+                    }
+                    break;
+                case DimensionType.NUMBER:
+                    if (
+                        isDimension(item) &&
+                        item.timeInterval &&
+                        item.timeInterval === TimeFrames.YEAR_NUM // Year number (e.g. 2021) is a number, but should be formatted as a string so there's no separator applied
+                    ) {
+                        return `${value}`;
                     }
                     break;
                 default:

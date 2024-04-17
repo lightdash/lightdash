@@ -12,21 +12,21 @@ import {
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
-import { EncryptionService } from '../../services/EncryptionService/EncryptionService';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 type UserWarehouseCredentialsModelArguments = {
     database: Knex;
-    encryptionService: EncryptionService;
+    encryptionUtil: EncryptionUtil;
 };
 
 export class UserWarehouseCredentialsModel {
     private readonly database: Knex;
 
-    private readonly encryptionService: EncryptionService;
+    private readonly encryptionUtil: EncryptionUtil;
 
     constructor(args: UserWarehouseCredentialsModelArguments) {
         this.database = args.database;
-        this.encryptionService = args.encryptionService;
+        this.encryptionUtil = args.encryptionUtil;
     }
 
     private convertToUserWarehouseCredentialsWithSecrets(
@@ -35,7 +35,7 @@ export class UserWarehouseCredentialsModel {
         let credentials: UserWarehouseCredentialsWithSecrets['credentials'];
         try {
             credentials = JSON.parse(
-                this.encryptionService.decrypt(data.encrypted_credentials),
+                this.encryptionUtil.decrypt(data.encrypted_credentials),
             ) as UpsertUserWarehouseCredentials['credentials'];
         } catch (e) {
             throw new UnexpectedServerError(
@@ -54,7 +54,7 @@ export class UserWarehouseCredentialsModel {
         let credentials: UserWarehouseCredentials['credentials'];
         try {
             const credentialsWithSecrets = JSON.parse(
-                this.encryptionService.decrypt(data.encrypted_credentials),
+                this.encryptionUtil.decrypt(data.encrypted_credentials),
             ) as UpsertUserWarehouseCredentials['credentials'];
 
             switch (credentialsWithSecrets.type) {
@@ -211,7 +211,7 @@ export class UserWarehouseCredentialsModel {
     ): Promise<string> {
         let encryptedCredentials: Buffer;
         try {
-            encryptedCredentials = this.encryptionService.encrypt(
+            encryptedCredentials = this.encryptionUtil.encrypt(
                 JSON.stringify(data.credentials),
             );
         } catch (e) {
@@ -239,7 +239,7 @@ export class UserWarehouseCredentialsModel {
     ): Promise<string> {
         let encryptedCredentials: Buffer;
         try {
-            encryptedCredentials = this.encryptionService.encrypt(
+            encryptedCredentials = this.encryptionUtil.encrypt(
                 JSON.stringify(data.credentials),
             );
         } catch (e) {

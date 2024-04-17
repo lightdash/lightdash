@@ -92,6 +92,7 @@ const addVersionSavedQuery = async ({
         metricQuery: {
             ...payload.metricQuery,
             filters: convertDateFilters(payload.metricQuery.filters),
+            timezone: payload.metricQuery.timezone ?? undefined,
         },
     };
     return lightdashApi<SavedChart>({

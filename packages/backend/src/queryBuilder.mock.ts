@@ -8,6 +8,7 @@ import {
     Explore,
     FieldType,
     FilterOperator,
+    IntrinsicUserAttributes,
     MetricType,
     SupportedDbtAdapter,
     WarehouseClient,
@@ -34,7 +35,6 @@ export const warehouseClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '"',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
     getMetricSql: (sql, metric) => {
@@ -50,7 +50,9 @@ export const warehouseClientMock: WarehouseClient = {
 };
 
 export const bigqueryClientMock: WarehouseClient = {
-    credentials: {} as CreateWarehouseCredentials,
+    credentials: {
+        type: WarehouseTypes.BIGQUERY,
+    } as CreateWarehouseCredentials,
     getCatalog: async () => ({
         default: {
             public: {
@@ -67,7 +69,6 @@ export const bigqueryClientMock: WarehouseClient = {
         }),
     test: () => Promise.resolve(),
     getStartOfWeek: () => undefined,
-    getFieldQuoteChar: () => '`',
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => '\\',
     getMetricSql: () => '',
@@ -1307,3 +1308,9 @@ SELECT * FROM table_calculations WHERE ((
 ))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
+
+export const INTRINSIC_USER_ATTRIBUTES: IntrinsicUserAttributes = {
+    email: 'mock@lightdash.com',
+    first_name: 'Mock',
+    last_name: 'User',
+};

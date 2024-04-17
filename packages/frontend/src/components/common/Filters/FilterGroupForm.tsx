@@ -148,7 +148,11 @@ const FilterGroupForm: FC<Props> = ({
                 </Text>
             </Group>
 
-            <Stack spacing="xs" pl={36} style={{ flexGrow: 1 }}>
+            <Stack
+                spacing="xs"
+                pl={36}
+                style={{ flexGrow: 1, overflowY: 'auto' }}
+            >
                 {items.map((item, index) => (
                     <React.Fragment key={item.id}>
                         {!isFilterGroup(item) ? (

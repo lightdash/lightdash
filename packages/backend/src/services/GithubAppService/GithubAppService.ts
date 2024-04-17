@@ -2,18 +2,20 @@ import { subject } from '@casl/ability';
 import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { UserModel } from '../../models/UserModel';
+import { BaseService } from '../BaseService';
 
 type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     userModel: UserModel;
 };
 
-export class GithubAppService {
+export class GithubAppService extends BaseService {
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
     private readonly userModel: UserModel;
 
     constructor(args: GithubAppServiceArguments) {
+        super();
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
         this.userModel = args.userModel;
     }

@@ -1285,10 +1285,14 @@ export default class SchedulerTask {
                 const refreshToken = await this.userService.getRefreshToken(
                     scheduler.createdBy,
                 );
+
+                const reportUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chart.uuid}/view?scheduler_uuid=${schedulerUuid}&isSync=true`;
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
                     getHumanReadableCronExpression(scheduler.cron),
+                    undefined,
+                    reportUrl,
                 );
 
                 await this.googleDriveClient.appendToSheet(

@@ -316,6 +316,7 @@ type AuthOidcConfig = {
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     enableGroupSync: boolean;
+    enableOidcLinking: boolean;
     google: AuthGoogleConfig;
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
@@ -426,6 +427,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
+            enableOidcLinking: process.env.AUTH_ENABLE_OIDC_LINKING === 'true',
             google: {
                 oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
                 oauth2ClientSecret:

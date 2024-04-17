@@ -375,7 +375,7 @@
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
             },
-            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_": {
+            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_": {
                 "properties": {
                     "table": {
                         "type": "string"
@@ -388,6 +388,9 @@
                     },
                     "hidden": {
                         "type": "boolean"
+                    },
+                    "always": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["table", "sqlOn"],
@@ -397,7 +400,7 @@
             "CompiledExploreJoin": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_"
+                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_"
                     },
                     {
                         "properties": {
@@ -1018,6 +1021,37 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "TimeZone": {
+                "enum": [
+                    "UTC",
+                    "Pacific/Pago_Pago",
+                    "Pacific/Honolulu",
+                    "America/Anchorage",
+                    "America/Los_Angeles",
+                    "America/Denver",
+                    "America/Chicago",
+                    "America/New_York",
+                    "America/Santo_Domingo",
+                    "America/Buenos_Aires",
+                    "America/Noronha",
+                    "Atlantic/Cape_Verde",
+                    "Europe/Paris",
+                    "Europe/Athens",
+                    "Europe/Moscow",
+                    "Asia/Dubai",
+                    "Asia/Karachi",
+                    "Asia/Dhaka",
+                    "Asia/Bangkok",
+                    "Asia/Shanghai",
+                    "Asia/Tokyo",
+                    "Australia/Sydney",
+                    "Pacific/Noumea",
+                    "Pacific/Auckland",
+                    "Pacific/Apia",
+                    "Pacific/Kiritimati"
+                ],
+                "type": "string"
+            },
             "Pick_CompiledDimension.label-or-name_": {
                 "properties": {
                     "name": {
@@ -1041,6 +1075,9 @@
                         },
                         "required": ["hasADateDimension"],
                         "type": "object"
+                    },
+                    "timezone": {
+                        "$ref": "#/components/schemas/TimeZone"
                     },
                     "customDimensions": {
                         "items": {
@@ -2851,6 +2888,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -3718,6 +3758,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "timezone": {
+                        "$ref": "#/components/schemas/TimeZone"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -6449,7 +6492,7 @@
                 "type": "object"
             },
             "OpenIdIdentityIssuerType": {
-                "enum": ["google", "okta", "oneLogin", "azuread"],
+                "enum": ["google", "okta", "oneLogin", "azuread", "oidc"],
                 "type": "string"
             },
             "LocalIssuerTypes": {
@@ -6735,7 +6778,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1052.0",
+        "version": "0.1069.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

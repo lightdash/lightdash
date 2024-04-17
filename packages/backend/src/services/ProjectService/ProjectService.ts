@@ -49,9 +49,11 @@ import {
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
+    getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
     hasIntersection,
+    IntrinsicUserAttributes,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -137,6 +139,7 @@ import {
     wrapOtelSpan,
     wrapSentryTransaction,
 } from '../../utils';
+import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -173,7 +176,7 @@ type ProjectServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
-export class ProjectService {
+export class ProjectService extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -223,6 +226,7 @@ export class ProjectService {
         userWarehouseCredentialsModel,
         schedulerClient,
     }: ProjectServiceArguments) {
+        super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -292,6 +296,24 @@ export class ProjectService {
                 throw new UnexpectedServerError(
                     'User warehouse credentials are not compatible',
                 );
+            }
+
+            /**
+             * Disable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
+             * this option is explicitly set via the credentials.
+             *
+             * This is temporary until the feature flag is rolled over globally.
+             */
+            if (
+                credentials.type === WarehouseTypes.SNOWFLAKE &&
+                typeof credentials.quotedIdentifiersIgnoreCase ===
+                    'undefined' &&
+                (await isFeatureFlagEnabled(
+                    FeatureFlags.DisableSnowflakeQuotedIdentifiersIgnoreCase,
+                    { userUuid },
+                ))
+            ) {
+                credentials.quotedIdentifiersIgnoreCase = false;
             }
         }
         return credentials;
@@ -428,7 +450,7 @@ export class ProjectService {
                 hasContentCopy = true;
             } catch (e) {
                 Sentry.captureException(e);
-                Logger.error(`Unable to copy content on preview ${e}`);
+                this.logger.error(`Unable to copy content on preview ${e}`);
             }
         }
 
@@ -551,7 +573,7 @@ export class ProjectService {
 
         await this.jobModel.create(job);
         doAsyncWork().catch((e) =>
-            Logger.error(`Error running background job: ${e}`),
+            this.logger.error(`Error running background job: ${e}`),
         );
         return {
             jobUuid: job.jobUuid,
@@ -758,7 +780,7 @@ export class ProjectService {
 
     private static async testProjectAdapter(
         data: UpdateProject,
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -911,6 +933,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<[CompiledQuery, CompiledQuery]> {
@@ -996,6 +1019,7 @@ export class ProjectService {
             explore: exploreWithOverride,
             compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1025,6 +1049,7 @@ export class ProjectService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
@@ -1045,6 +1070,7 @@ export class ProjectService {
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1123,10 +1149,25 @@ export class ProjectService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const timezoneMetricQuery = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const compiledQuery = await ProjectService._compileQuery(
-            metricQuery,
+            timezoneMetricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1648,9 +1689,12 @@ export class ProjectService {
             {},
             async (span) => {
                 // TODO: put this hash function in a util somewhere
+                const queryHashKey = metricQuery.timezone
+                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
-                    .update(`${projectUuid}.${query}`)
+                    .update(queryHashKey)
                     .digest('hex');
 
                 span.setAttribute('queryHash', queryHash);
@@ -1672,7 +1716,7 @@ export class ProjectService {
                                 .cacheStateTimeSeconds *
                                 1000
                     ) {
-                        Logger.debug(
+                        this.logger.debug(
                             `Getting data from cache, key: ${queryHash}`,
                         );
                         const cacheEntry = await this.s3CacheClient.getResults(
@@ -1692,13 +1736,18 @@ export class ProjectService {
                                     },
                                 };
                             } catch (e) {
-                                Logger.error('Error parsing cache results:', e);
+                                this.logger.error(
+                                    'Error parsing cache results:',
+                                    e,
+                                );
                             }
                         }
                     }
                 }
 
-                Logger.debug(`Run query against warehouse warehouse`);
+                this.logger.debug(
+                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
+                );
                 const warehouseResults = await wrapOtelSpan(
                     'runWarehouseQuery',
                     {
@@ -1708,7 +1757,12 @@ export class ProjectService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () => warehouseClient.runQuery(query, queryTags),
+                    async () =>
+                        warehouseClient.runQuery(
+                            query,
+                            queryTags,
+                            metricQuery.timezone,
+                        ),
                 );
 
                 /**
@@ -1740,7 +1794,9 @@ export class ProjectService {
                         : warehouseResults;
 
                 if (this.lightdashConfig.resultsCache?.enabled) {
-                    Logger.debug(`Writing data to cache with key ${queryHash}`);
+                    this.logger.debug(
+                        `Writing data to cache with key ${queryHash}`,
+                    );
                     const buffer = Buffer.from(
                         JSON.stringify(warehouseResultsWithTableCalculations),
                     );
@@ -1856,6 +1912,9 @@ export class ProjectService {
                             },
                         );
 
+                    const intrinsicUserAttributes =
+                        getIntrinsicUserAttributes(user);
+
                     /**
                      * Note: most of this is temporary while testing out in-memory table calculations,
                      * so that we can more cleanly handle the feature-flagged behavior fork below.
@@ -1866,11 +1925,24 @@ export class ProjectService {
                     let tableCalculationsCompiledQuery:
                         | undefined
                         | CompiledQuery;
-
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const timezoneMetricQuery = {
+                        ...metricQueryWithLimit,
+                        timezone: isTimezoneEnabled
+                            ? metricQueryWithLimit.timezone
+                            : undefined,
+                    };
                     const compileQueryArgs = [
-                        metricQueryWithLimit,
+                        timezoneMetricQuery,
                         explore,
                         warehouseClient,
+                        intrinsicUserAttributes,
                         userAttributes,
                         granularity,
                     ] as const;
@@ -2009,10 +2081,13 @@ export class ProjectService {
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
+                            timezone: metricQuery.timezone,
                         },
                     });
 
-                    Logger.debug(`Fetch query results from cache or warehouse`);
+                    this.logger.debug(
+                        `Fetch query results from cache or warehouse`,
+                    );
                     span.setAttribute('generatedSql', query);
 
                     /**
@@ -2032,12 +2107,19 @@ export class ProjectService {
                         warehouseClient.credentials.type,
                     );
 
+                    const metricQueryWithTimezone = {
+                        ...metricQuery,
+                        timezone: isTimezoneEnabled
+                            ? metricQuery.timezone
+                            : undefined,
+                    };
+
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery,
+                            metricQuery: metricQueryWithTimezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -2088,7 +2170,7 @@ export class ProjectService {
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
-        Logger.debug(`Run query against warehouse`);
+        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2193,14 +2275,18 @@ export class ProjectService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
-        Logger.debug(`Run query against warehouse`);
+        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2318,7 +2404,7 @@ export class ProjectService {
                                     );
                                 }
                             } catch (e) {
-                                Logger.error(
+                                this.logger.error(
                                     `Unable to reduce formattedFieldsCount. ${e}`,
                                 );
                             }
@@ -2527,7 +2613,7 @@ export class ProjectService {
         };
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => Logger.error(`Background job failed: ${e}`));
+            .catch((e) => this.logger.error(`Background job failed: ${e}`));
     }
 
     async getAllExploresSummary(
@@ -3436,7 +3522,7 @@ export class ProjectService {
         previewProjectUuid: string,
         user: SessionUser,
     ): Promise<void> {
-        Logger.info(
+        this.logger.info(
             `Copying content from project ${projectUuid} to preview project ${previewProjectUuid}`,
         );
         await wrapSentryTransaction<void>(
@@ -3485,6 +3571,8 @@ export class ProjectService {
                 userUuid: user.userUuid,
             });
 
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -3499,6 +3587,7 @@ export class ProjectService {
             totalQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3558,10 +3647,22 @@ export class ProjectService {
             explore.warehouse,
         );
 
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const metricQueryWithTimezone = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             organizationUuid,
             warehouseClient,
         );
@@ -3903,7 +4004,7 @@ export class ProjectService {
                     chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
-            console.log('metrics', metrics);
+
             return metrics;
         }, []);
     }

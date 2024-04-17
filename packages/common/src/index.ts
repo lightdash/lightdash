@@ -182,6 +182,7 @@ export * from './types/space';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
+export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
@@ -203,6 +204,7 @@ export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/warehouse';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

@@ -13,6 +13,7 @@ import {
     EXPLORE_BIGQUERY,
     EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_SQL_FILTER,
+    INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
     METRIC_QUERY_JOIN_CHAIN,
@@ -60,6 +61,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -70,6 +72,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_BIGQUERY,
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: bigqueryClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
@@ -80,6 +83,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
@@ -90,6 +94,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
@@ -100,6 +105,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
@@ -110,6 +116,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_JOIN_CHAIN,
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
@@ -120,6 +127,7 @@ describe('Query builder', () => {
                 explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
@@ -130,6 +138,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
@@ -140,6 +149,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
     });
@@ -151,6 +161,7 @@ describe('Query builder', () => {
                 compiledMetricQuery:
                     METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
@@ -161,6 +172,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
@@ -171,6 +183,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -181,6 +194,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
@@ -192,6 +206,7 @@ describe('Query builder', () => {
                 compiledMetricQuery:
                     METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
@@ -204,6 +219,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
@@ -214,6 +230,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
@@ -224,6 +241,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
@@ -234,6 +252,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
@@ -244,6 +263,7 @@ describe('Query builder', () => {
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
                 warehouseClient: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL);
     });
@@ -256,6 +276,7 @@ describe('Query builder', () => {
                     compiledMetricQuery: METRIC_QUERY,
                     warehouseClient: warehouseClientMock,
                     userAttributes: {},
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
                 }).query,
         ).toThrowError(ForbiddenError);
     });
@@ -269,6 +290,7 @@ describe('Query builder', () => {
                 userAttributes: {
                     country: ['EU'],
                 },
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
     });
@@ -276,32 +298,56 @@ describe('Query builder', () => {
 
 describe('replaceUserAttributes', () => {
     it('method with no user attribute should return same sqlFilter', async () => {
-        expect(replaceUserAttributes('${dimension} > 1', {})).toEqual(
-            '${dimension} > 1',
-        );
-        expect(replaceUserAttributes('${table.dimension} = 1', {})).toEqual(
-            '${table.dimension} = 1',
-        );
         expect(
-            replaceUserAttributes('${dimension} = ${TABLE}.dimension', {}),
+            replaceUserAttributes(
+                '${dimension} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('${dimension} > 1');
+        expect(
+            replaceUserAttributes(
+                '${table.dimension} = 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('${table.dimension} = 1');
+        expect(
+            replaceUserAttributes(
+                '${dimension} = ${TABLE}.dimension',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
         ).toEqual('${dimension} = ${TABLE}.dimension');
     });
 
     it('method with missing user attribute should throw error', async () => {
         expect(() =>
-            replaceUserAttributes('${lightdash.attribute.test} > 1', {}),
+            replaceUserAttributes(
+                '${lightdash.attribute.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
         ).toThrowError(ForbiddenError);
 
         expect(() =>
-            replaceUserAttributes('${ld.attr.test} > 1', {}),
+            replaceUserAttributes(
+                '${ld.attr.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
         ).toThrowError(ForbiddenError);
     });
 
     it('method with no user attribute value should throw error', async () => {
         expect(() =>
-            replaceUserAttributes('${lightdash.attribute.test} > 1', {
-                test: [],
-            }),
+            replaceUserAttributes(
+                '${lightdash.attribute.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {
+                    test: [],
+                },
+            ),
         ).toThrowError(ForbiddenError);
     });
 
@@ -311,20 +357,29 @@ describe('replaceUserAttributes', () => {
         expect(
             replaceUserAttributes(
                 '${lightdash.attribute.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
             ),
         ).toEqual(expected);
 
         expect(
-            replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
+            replaceUserAttributes(
+                '${ld.attr.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                userAttributes,
+            ),
         ).toEqual(expected);
     });
 
     it('method should replace sqlFilter with user attribute with multiple values', async () => {
         expect(
-            replaceUserAttributes("'1' IN (${lightdash.attribute.test})", {
-                test: ['1', '2'],
-            }),
+            replaceUserAttributes(
+                "'1' IN (${lightdash.attribute.test})",
+                INTRINSIC_USER_ATTRIBUTES,
+                {
+                    test: ['1', '2'],
+                },
+            ),
         ).toEqual("('1' IN ('1', '2'))");
     });
 
@@ -333,36 +388,87 @@ describe('replaceUserAttributes', () => {
         const sqlFilter =
             '${dimension} IS NOT NULL OR (${lightdash.attribute.test} > 1 AND ${lightdash.attribute.another} = 2)';
         const expected = "(${dimension} IS NOT NULL OR ('1' > 1 AND '2' = 2))";
-        expect(replaceUserAttributes(sqlFilter, userAttributes)).toEqual(
-            expected,
-        );
+        expect(
+            replaceUserAttributes(
+                sqlFilter,
+                INTRINSIC_USER_ATTRIBUTES,
+                userAttributes,
+            ),
+        ).toEqual(expected);
     });
 
     it('method should replace sqlFilter using short aliases', async () => {
         const userAttributes = { test: ['1'], another: ['2'] };
         const expected = "('1' > 1)";
         expect(
-            replaceUserAttributes('${ld.attribute.test} > 1', userAttributes),
+            replaceUserAttributes(
+                '${ld.attribute.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                userAttributes,
+            ),
         ).toEqual(expected);
         expect(
-            replaceUserAttributes('${lightdash.attr.test} > 1', userAttributes),
+            replaceUserAttributes(
+                '${lightdash.attr.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                userAttributes,
+            ),
         ).toEqual(expected);
         expect(
-            replaceUserAttributes('${ld.attr.test} > 1', userAttributes),
+            replaceUserAttributes(
+                '${ld.attr.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                userAttributes,
+            ),
         ).toEqual(expected);
 
         expect(
             replaceUserAttributes(
                 '${lightdash.attributes.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
                 userAttributes,
             ),
         ).toEqual(expected);
     });
 
     it('method should not replace any invalid attribute', async () => {
-        expect(replaceUserAttributes('${lightdash.foo.test} > 1', {})).toEqual(
-            '${lightdash.foo.test} > 1',
-        );
+        expect(
+            replaceUserAttributes(
+                '${lightdash.foo.test} > 1',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('${lightdash.foo.test} > 1');
+    });
+
+    it('should replace `email` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.email} = "mock@lightdash.com"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'mock@lightdash.com\' = "mock@lightdash.com")');
+    });
+
+    it('should replace `first_name` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.first_name} = "Mock"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'Mock\' = "Mock")');
+    });
+
+    it('should replace `last_name` intrinsic user attribute', async () => {
+        expect(
+            replaceUserAttributes(
+                '${lightdash.user.last_name} = "User"',
+                INTRINSIC_USER_ATTRIBUTES,
+                {},
+            ),
+        ).toEqual('(\'User\' = "User")');
     });
 });
 
@@ -515,6 +621,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -561,6 +668,7 @@ LIMIT 10`);
                 },
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS \`table1_dim1\`,
@@ -599,6 +707,7 @@ LIMIT 10`);
 
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -683,6 +792,7 @@ ELSE 2
 
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -735,6 +845,7 @@ LIMIT 10`);
                 },
                 warehouseClient: warehouseClientMock,
                 userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS "table1_dim1",
