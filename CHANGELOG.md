@@ -1,3 +1,16 @@
+# [0.1072.0](https://github.com/lightdash/lightdash/compare/0.1071.2...0.1072.0) (2024-04-17)
+
+
+### Bug Fixes
+
+* show invalid filter dashboard ([#9771](https://github.com/lightdash/lightdash/issues/9771)) ([3c5ca5e](https://github.com/lightdash/lightdash/commit/3c5ca5eb4c5577aeca491f76bc767e5fd9fa2ba7))
+* validation filter tile ([#9775](https://github.com/lightdash/lightdash/issues/9775)) ([c040942](https://github.com/lightdash/lightdash/commit/c0409422637420b96c7af575188a8232b5eb10a1))
+
+
+### Features
+
+* group dashboard tiles by tab ([#9722](https://github.com/lightdash/lightdash/issues/9722)) ([7b54197](https://github.com/lightdash/lightdash/commit/7b54197e3550c2decdfef1ebb772dd6334691b45))
+
 ## [0.1071.2](https://github.com/lightdash/lightdash/compare/0.1071.1...0.1071.2) (2024-04-17)
 
 
