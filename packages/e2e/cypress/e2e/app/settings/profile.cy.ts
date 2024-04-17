@@ -3,9 +3,19 @@ import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
 describe('Settings - Profile', () => {
     beforeEach(() => {
         cy.login();
-    });
 
-    after(() => {
+        // Reset to default values
+        cy.request({
+            url: 'api/v1/user/me',
+            method: 'PATCH',
+            body: {
+                firstName: SEED_ORG_1_ADMIN.first_name,
+                lastName: SEED_ORG_1_ADMIN.last_name,
+                email: SEED_ORG_1_ADMIN_EMAIL.email,
+            },
+        });
+    });
+    afterEach(() => {
         // Reset to default values
         cy.request({
             url: 'api/v1/user/me',

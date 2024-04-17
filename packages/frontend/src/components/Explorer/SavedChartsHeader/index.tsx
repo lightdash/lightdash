@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     type ApiError,
     type GitIntegrationConfiguration,
     type PullRequestCreated,
@@ -13,6 +14,7 @@ import {
     Group,
     Menu,
     Modal,
+    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -50,6 +52,7 @@ import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/compo
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
     useMoveChartMutation,
     useUpdateMutation,
@@ -159,6 +162,10 @@ const SavedChartsHeader: FC = () => {
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
+
+    const userTimeZonesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.EnableUserTimezones,
+    );
 
     const history = useHistory();
     const isEditMode = useExplorerContext(
@@ -454,7 +461,13 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
-
+                {userTimeZonesEnabled &&
+                    savedChart?.metricQuery.timezone &&
+                    !isEditMode && (
+                        <Text color="gray" mr="sm" fz="xs">
+                            {savedChart?.metricQuery.timezone}
+                        </Text>
+                    )}
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (

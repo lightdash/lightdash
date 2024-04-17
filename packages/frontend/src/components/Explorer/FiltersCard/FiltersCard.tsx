@@ -163,6 +163,9 @@ const FiltersCard: FC = memo(() => {
                 startOfWeek={
                     project.data?.warehouseConnection?.startOfWeek ?? undefined
                 }
+                popoverProps={{
+                    withinPortal: true,
+                }}
             >
                 <FiltersForm
                     isEditMode={isEditMode}

@@ -8,6 +8,7 @@ import {
     convertFieldRefToFieldId,
     Explore,
     ExploreCompiler,
+    getFieldQuoteChar,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
@@ -87,7 +88,7 @@ export const compileMetricQuery = ({
     metricQuery,
     warehouseClient,
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
-    const fieldQuoteChar = warehouseClient.getFieldQuoteChar();
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const compiledTableCalculations = metricQuery.tableCalculations.map(
         (tableCalculation) =>
             compileTableCalculation(

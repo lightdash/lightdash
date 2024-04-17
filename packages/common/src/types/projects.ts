@@ -152,6 +152,7 @@ export type CreateSnowflakeCredentials = {
     queryTag?: string;
     accessUrl?: string;
     startOfWeek?: WeekDay | null;
+    quotedIdentifiersIgnoreCase?: boolean;
 };
 export type SnowflakeCredentials = Omit<
     CreateSnowflakeCredentials,

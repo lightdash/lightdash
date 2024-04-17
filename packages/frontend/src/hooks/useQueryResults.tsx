@@ -82,6 +82,7 @@ const getQueryResults = async ({
     const timezoneFixQuery = query && {
         ...query,
         filters: convertDateFilters(query.filters),
+        timezone: query.timezone ?? undefined,
     };
 
     return lightdashApi<ApiQueryResults>({

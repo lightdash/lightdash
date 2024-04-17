@@ -8,9 +8,10 @@ import {
 } from 'knex-mock-client';
 
 import { deepEqual } from '@lightdash/common';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedChartModel } from './SavedChartModel';
-import { chartSummary, lightdashConfigMock } from './SavedChartModel.mock';
+import { chartSummary } from './SavedChartModel.mock';
 
 function queryMatcher(
     tableName: string,

@@ -109,6 +109,8 @@ const parseRows = (rows: Record<string, any>[]) => rows.map(parseRow);
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
     connectionOptions: ConnectionOptions;
 
+    quotedIdentifiersIgnoreCase?: boolean;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
         let decodedPrivateKey: string | Buffer | undefined =
@@ -128,6 +130,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             });
         }
 
+        if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
+            this.quotedIdentifiersIgnoreCase =
+                credentials.quotedIdentifiersIgnoreCase;
+        }
+
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
@@ -144,7 +151,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } as ConnectionOptions; // force type because accessUrl property is not recognised
     }
 
-    async runQuery(sqlText: string, tags?: Record<string, string>) {
+    async runQuery(
+        sqlText: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
@@ -154,6 +165,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
         try {
             if (this.connectionOptions.warehouse) {
+                // eslint-disable-next-line no-console
                 console.debug(
                     `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
                 );
@@ -175,10 +187,25 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(tags)}';`,
                 );
             }
+            const timezoneQuery = timezone || 'UTC';
+            console.debug(
+                `Setting Snowflake session timezone to ${timezoneQuery}`,
+            );
             await this.executeStatement(
                 connection,
-                "ALTER SESSION SET TIMEZONE = 'UTC'",
+                `ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`,
             );
+
+            /**
+             * For now we only force this to false, if the boolean is explicitly set.
+             */
+            if (this.quotedIdentifiersIgnoreCase === false) {
+                await this.executeStatement(
+                    connection,
+                    `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`,
+                );
+            }
+
             const result = await this.executeStreamStatement(
                 connection,
                 sqlText,
@@ -373,10 +400,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             }
             return acc;
         }, {});
-    }
-
-    getFieldQuoteChar() {
-        return '"';
     }
 
     getStringQuoteChar() {

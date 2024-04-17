@@ -49,9 +49,11 @@ import {
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
+    getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
     hasIntersection,
+    IntrinsicUserAttributes,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -294,6 +296,24 @@ export class ProjectService extends BaseService {
                 throw new UnexpectedServerError(
                     'User warehouse credentials are not compatible',
                 );
+            }
+
+            /**
+             * Disable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
+             * this option is explicitly set via the credentials.
+             *
+             * This is temporary until the feature flag is rolled over globally.
+             */
+            if (
+                credentials.type === WarehouseTypes.SNOWFLAKE &&
+                typeof credentials.quotedIdentifiersIgnoreCase ===
+                    'undefined' &&
+                (await isFeatureFlagEnabled(
+                    FeatureFlags.DisableSnowflakeQuotedIdentifiersIgnoreCase,
+                    { userUuid },
+                ))
+            ) {
+                credentials.quotedIdentifiersIgnoreCase = false;
             }
         }
         return credentials;
@@ -913,6 +933,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<[CompiledQuery, CompiledQuery]> {
@@ -998,6 +1019,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1027,6 +1049,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
@@ -1047,6 +1070,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1125,10 +1149,25 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const timezoneMetricQuery = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const compiledQuery = await ProjectService._compileQuery(
-            metricQuery,
+            timezoneMetricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1650,9 +1689,12 @@ export class ProjectService extends BaseService {
             {},
             async (span) => {
                 // TODO: put this hash function in a util somewhere
+                const queryHashKey = metricQuery.timezone
+                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
-                    .update(`${projectUuid}.${query}`)
+                    .update(queryHashKey)
                     .digest('hex');
 
                 span.setAttribute('queryHash', queryHash);
@@ -1703,7 +1745,9 @@ export class ProjectService extends BaseService {
                     }
                 }
 
-                this.logger.debug(`Run query against warehouse warehouse`);
+                this.logger.debug(
+                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
+                );
                 const warehouseResults = await wrapOtelSpan(
                     'runWarehouseQuery',
                     {
@@ -1713,7 +1757,12 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () => warehouseClient.runQuery(query, queryTags),
+                    async () =>
+                        warehouseClient.runQuery(
+                            query,
+                            queryTags,
+                            metricQuery.timezone,
+                        ),
                 );
 
                 /**
@@ -1863,6 +1912,9 @@ export class ProjectService extends BaseService {
                             },
                         );
 
+                    const intrinsicUserAttributes =
+                        getIntrinsicUserAttributes(user);
+
                     /**
                      * Note: most of this is temporary while testing out in-memory table calculations,
                      * so that we can more cleanly handle the feature-flagged behavior fork below.
@@ -1873,11 +1925,24 @@ export class ProjectService extends BaseService {
                     let tableCalculationsCompiledQuery:
                         | undefined
                         | CompiledQuery;
-
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const timezoneMetricQuery = {
+                        ...metricQueryWithLimit,
+                        timezone: isTimezoneEnabled
+                            ? metricQueryWithLimit.timezone
+                            : undefined,
+                    };
                     const compileQueryArgs = [
-                        metricQueryWithLimit,
+                        timezoneMetricQuery,
                         explore,
                         warehouseClient,
+                        intrinsicUserAttributes,
                         userAttributes,
                         granularity,
                     ] as const;
@@ -2016,6 +2081,7 @@ export class ProjectService extends BaseService {
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
+                            timezone: metricQuery.timezone,
                         },
                     });
 
@@ -2041,12 +2107,19 @@ export class ProjectService extends BaseService {
                         warehouseClient.credentials.type,
                     );
 
+                    const metricQueryWithTimezone = {
+                        ...metricQuery,
+                        timezone: isTimezoneEnabled
+                            ? metricQuery.timezone
+                            : undefined,
+                    };
+
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery,
+                            metricQuery: metricQueryWithTimezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -2202,10 +2275,14 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3494,6 +3571,8 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
+        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -3508,6 +3587,7 @@ export class ProjectService extends BaseService {
             totalQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3567,10 +3647,22 @@ export class ProjectService extends BaseService {
             explore.warehouse,
         );
 
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const metricQueryWithTimezone = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             organizationUuid,
             warehouseClient,
         );
@@ -3912,7 +4004,7 @@ export class ProjectService extends BaseService {
                     chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
-            console.log('metrics', metrics);
+
             return metrics;
         }, []);
     }

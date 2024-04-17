@@ -30,3 +30,6 @@ seeds:
     raw_plan:
       +column_types:
         metadata: jsonb
+    raw_tracks:
+      +column_types:
+        timestamp: timestamp

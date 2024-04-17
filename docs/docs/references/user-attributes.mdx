@@ -69,6 +69,12 @@ When referencing user attributes in SQL you can use the following [SQL variables
 - `${lightdash.attributes.my_attr_1}` - a user attribute called `my_attr_1`
   - (optional) `ld` as an alias for `lightdash`
   - (optional) `attribute` or `attr` as an alias for `attributes`
+- `${lightdash.user.<intrinsic_attribute>}` - reference an `intrinsic_attribute` of the current Lightdash user
+  - (optional) `ld` as an alias for `lightdash`
+  - available intrinsic user attributes:
+    - `email`
+    - `first_name`
+    - `last_name`
 
 ### Row filtering with `sql_filter`
 
@@ -138,6 +144,12 @@ columns:
           team_name: ['HR', 'C-Suite']
 ```
 
+:::info
+
+Column filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`, `first_name`, `last_name`.
+
+:::
+
 ### Table filtering with `required_attributes`
 
 You can use `user attributes` to limit some tables to some users.
@@ -154,6 +166,12 @@ models:
 ```
 
 Similar to [columns filtering](#column-filtering-with-required_attributes), you can add multiple attributes for a single table.
+
+:::info
+
+Table filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`, `first_name`, `last_name`.
+
+:::
 
 ### Filtering joins with `sql_on`
 

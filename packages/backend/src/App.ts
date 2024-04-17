@@ -5,7 +5,6 @@ import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
-import cookieParser from 'cookie-parser';
 import express, {
     Express,
     NextFunction,
@@ -206,7 +205,6 @@ export default class App {
 
         expressApp.use(express.json());
         expressApp.use(express.urlencoded({ extended: false }));
-        expressApp.use(cookieParser());
 
         expressApp.use(
             expressSession({

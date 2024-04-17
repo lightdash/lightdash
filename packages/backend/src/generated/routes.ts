@@ -407,7 +407,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_': {
+    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -416,6 +416,7 @@ const models: TsoaRoute.Models = {
                 sqlOn: { dataType: 'string', required: true },
                 type: { ref: 'DbtModelJoinType' },
                 hidden: { dataType: 'boolean' },
+                always: { dataType: 'boolean' },
             },
             validators: {},
         },
@@ -426,7 +427,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden_' },
+                {
+                    ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -981,6 +984,38 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TimeZone: {
+        dataType: 'refEnum',
+        enums: [
+            'UTC',
+            'Pacific/Pago_Pago',
+            'Pacific/Honolulu',
+            'America/Anchorage',
+            'America/Los_Angeles',
+            'America/Denver',
+            'America/Chicago',
+            'America/New_York',
+            'America/Santo_Domingo',
+            'America/Buenos_Aires',
+            'America/Noronha',
+            'Atlantic/Cape_Verde',
+            'Europe/Paris',
+            'Europe/Athens',
+            'Europe/Moscow',
+            'Asia/Dubai',
+            'Asia/Karachi',
+            'Asia/Dhaka',
+            'Asia/Bangkok',
+            'Asia/Shanghai',
+            'Asia/Tokyo',
+            'Australia/Sydney',
+            'Pacific/Noumea',
+            'Pacific/Auckland',
+            'Pacific/Apia',
+            'Pacific/Kiritimati',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CompiledDimension.label-or-name_': {
         dataType: 'refAlias',
         type: {
@@ -1007,6 +1042,7 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                timezone: { ref: 'TimeZone' },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'CustomDimension' },
@@ -2568,6 +2604,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                     },
+                    quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
                 },
                 validators: {},
             },
@@ -3378,6 +3415,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                timezone: { ref: 'TimeZone' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {

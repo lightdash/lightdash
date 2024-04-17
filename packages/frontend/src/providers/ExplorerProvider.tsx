@@ -28,6 +28,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
     type TableChartConfig,
+    type TimeZone,
 } from '@lightdash/common';
 import produce from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -73,6 +74,7 @@ export enum ActionType {
     REMOVE_SORT_FIELD,
     MOVE_SORT_FIELDS,
     SET_ROW_LIMIT,
+    SET_TIME_ZONE,
     SET_FILTERS,
     SET_COLUMN_ORDER,
     ADD_TABLE_CALCULATION,
@@ -130,6 +132,10 @@ type Action =
     | {
           type: ActionType.SET_ROW_LIMIT;
           payload: number;
+      }
+    | {
+          type: ActionType.SET_TIME_ZONE;
+          payload: TimeZone;
       }
     | {
           type: ActionType.SET_FILTERS;
@@ -267,6 +273,7 @@ export interface ExplorerContext {
         removeSortField: (fieldId: FieldId) => void;
         moveSortFields: (sourceIndex: number, destinationIndex: number) => void;
         setRowLimit: (limit: number) => void;
+        setTimeZone: (timezone: TimeZone) => void;
         setFilters: (
             filters: MetricQuery['filters'],
             syncPristineState: boolean,
@@ -327,6 +334,7 @@ const defaultState: ExplorerReduceState = {
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
+            timezone: undefined,
         },
         pivotConfig: undefined,
         tableConfig: {
@@ -770,6 +778,18 @@ function reducer(
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         limit: action.payload,
+                    },
+                },
+            };
+        }
+        case ActionType.SET_TIME_ZONE: {
+            return {
+                ...state,
+                unsavedChartVersion: {
+                    ...state.unsavedChartVersion,
+                    metricQuery: {
+                        ...state.unsavedChartVersion.metricQuery,
+                        timezone: action.payload,
                     },
                 },
             };
@@ -1443,6 +1463,16 @@ export const ExplorerProvider: FC<
         });
     }, []);
 
+    const setTimeZone = useCallback((timezone: TimeZone) => {
+        dispatch({
+            type: ActionType.SET_TIME_ZONE,
+            payload: timezone,
+            options: {
+                shouldFetchResults: true,
+            },
+        });
+    }, []);
+
     const setFilters = useCallback(
         (filters: MetricQuery['filters'], shouldFetchResults: boolean) => {
             dispatch({
@@ -1777,6 +1807,7 @@ export const ExplorerProvider: FC<
             moveSortFields,
             setFilters,
             setRowLimit,
+            setTimeZone,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,
@@ -1809,6 +1840,7 @@ export const ExplorerProvider: FC<
             moveSortFields,
             setFilters,
             setRowLimit,
+            setTimeZone,
             setColumnOrder,
             addAdditionalMetric,
             editAdditionalMetric,
