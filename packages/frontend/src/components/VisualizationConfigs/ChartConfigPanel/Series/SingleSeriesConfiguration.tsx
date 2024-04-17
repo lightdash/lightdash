@@ -110,6 +110,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                         visualizationConfig.chartConfig;
 
                                     updateMetadata({
+                                        ...visualizationConfig.chartConfig
+                                            .dirtyMetadata,
                                         [serieId]: { color },
                                     });
                                 }
