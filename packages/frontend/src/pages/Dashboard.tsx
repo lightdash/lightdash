@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     FeatureFlags,
     isDashboardChartTileType,
+    ResourceViewItemType,
     type Dashboard as IDashboard,
     type DashboardTab,
     type DashboardTile,
@@ -170,7 +171,7 @@ const Dashboard: FC = () => {
         return Boolean(
             pinnedItems?.some(
                 (item) =>
-                    item.type === 'dashboard' &&
+                    item.type === ResourceViewItemType.DASHBOARD &&
                     item.data.uuid === dashboardUuid,
             ),
         );
