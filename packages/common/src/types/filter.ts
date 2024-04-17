@@ -56,7 +56,7 @@ export type DashboardFieldTarget = {
     tableName: string;
 };
 
-type DashboardTileTarget = DashboardFieldTarget | false;
+export type DashboardTileTarget = DashboardFieldTarget | false;
 
 export type DashboardFilterRule<
     O = ConditionalOperator,
