@@ -252,104 +252,83 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 }
             }}
         >
-            <Group
-                w="100%"
-                noWrap
-                position="apart"
-                spacing="xs"
-                style={
-                    (sortedTabs && sortedTabs.length > 0) || isEditMode
-                        ? {
-                              background: 'white',
-                              padding: 5,
-                              borderRadius: 3,
-                          }
-                        : undefined
-                }
-            >
-                <Group>
-                    {sortedTabs && sortedTabs.length > 0 && (
-                        <Group spacing="xs">
-                            {
-                                <Tabs.List>
-                                    {sortedTabs?.map((tab, idx) => {
-                                        return (
-                                            <Tabs.Tab
-                                                key={idx}
-                                                value={tab.uuid}
-                                                mx="md"
+            {sortedTabs && sortedTabs?.length > 0 && (
+                <Group
+                    w="100%"
+                    noWrap
+                    position="apart"
+                    spacing="xs"
+                    style={
+                        (sortedTabs && sortedTabs.length > 0) || isEditMode
+                            ? {
+                                  background: 'white',
+                                  padding: 5,
+                                  borderRadius: 3,
+                              }
+                            : undefined
+                    }
+                >
+                    <Tabs.List>
+                        {sortedTabs?.map((tab, idx) => {
+                            return (
+                                <Tabs.Tab key={idx} value={tab.uuid} mx="md">
+                                    <Group>
+                                        {tab.name}
+                                        {tab === activeTab && isEditMode ? (
+                                            <Menu
+                                                position="bottom"
+                                                withArrow
+                                                withinPortal
+                                                shadow="md"
+                                                width={200}
                                             >
-                                                <Group>
-                                                    {tab.name}
-                                                    {tab === activeTab &&
-                                                    isEditMode ? (
-                                                        <Menu
-                                                            position="bottom"
-                                                            withArrow
-                                                            withinPortal
-                                                            shadow="md"
-                                                            width={200}
-                                                        >
-                                                            <Menu.Target>
-                                                                <ActionIcon
-                                                                    variant="subtle"
-                                                                    size="xs"
-                                                                >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconPencil
-                                                                        }
-                                                                    />
-                                                                </ActionIcon>
-                                                            </Menu.Target>
-                                                            <Menu.Dropdown>
-                                                                <Menu.Item
-                                                                    onClick={() =>
-                                                                        setEditingTab(
-                                                                            true,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Rename Tab
-                                                                </Menu.Item>
-                                                                <Menu.Item
-                                                                    onClick={() =>
-                                                                        setDeletingTab(
-                                                                            true,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Remove Tab
-                                                                </Menu.Item>
-                                                            </Menu.Dropdown>
-                                                        </Menu>
-                                                    ) : null}
-                                                </Group>
-                                            </Tabs.Tab>
-                                        );
-                                    })}
-                                </Tabs.List>
-                            }
-                        </Group>
-                    )}
+                                                <Menu.Target>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        size="xs"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconPencil}
+                                                        />
+                                                    </ActionIcon>
+                                                </Menu.Target>
+                                                <Menu.Dropdown>
+                                                    <Menu.Item
+                                                        onClick={() =>
+                                                            setEditingTab(true)
+                                                        }
+                                                    >
+                                                        Rename Tab
+                                                    </Menu.Item>
+                                                    <Menu.Item
+                                                        onClick={() =>
+                                                            setDeletingTab(true)
+                                                        }
+                                                    >
+                                                        Remove Tab
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        ) : null}
+                                    </Group>
+                                </Tabs.Tab>
+                            );
+                        })}
+                    </Tabs.List>
                     {isEditMode && (
                         <Group>
-                            {sortedTabs?.length === 0 ? (
-                                <div />
-                            ) : (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    leftIcon={<MantineIcon icon={IconPlus} />}
-                                    onClick={() => setAddingTab(true)}
-                                >
-                                    Add new tab
-                                </Button>
-                            )}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={() => setAddingTab(true)}
+                            >
+                                Add new tab
+                            </Button>
                         </Group>
                     )}
                 </Group>
-            </Group>
+            )}
             <ResponsiveGridLayout
                 {...getResponsiveGridLayoutProps()}
                 className={`react-grid-layout-dashboard ${
