@@ -174,11 +174,11 @@ jobs:
   timezone-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: lightdash-large-runner
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+      options: --user root
     strategy:
       fail-fast: false
       matrix:
