@@ -83,6 +83,7 @@ export const TileAddModal: FC<AddProps> = ({
             uuid: uuid4(),
             properties: properties as any,
             type,
+            tabUuid: undefined,
             ...defaultTileSize,
         });
         form.reset();

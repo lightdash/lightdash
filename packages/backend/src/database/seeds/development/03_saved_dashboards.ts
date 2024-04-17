@@ -60,6 +60,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.LOOM,
+        tabUuid: undefined,
         properties: {
             title: 'Tutorial: Creating your first metrics and dimensions',
             url: 'https://www.loom.com/share/6b8d3d5ccc644fa8bf68ffb754cbb783',
@@ -73,6 +74,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.MARKDOWN,
+        tabUuid: undefined,
         properties: {
             title: 'Welcome to Lightdash!',
             content: markdownSample,
@@ -86,6 +88,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 36,
         h: 3,
         type: DashboardTileTypes.MARKDOWN,
+        tabUuid: undefined,
         properties: {
             title: '💸 Revenue',
             content: markdownRevenue,
@@ -99,6 +102,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 24,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: undefined,
         properties: {
             savedChartUuid: getChartByName(
                 'How much revenue do we have per payment method?',
@@ -113,6 +117,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 12,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: undefined,
         properties: {
             savedChartUuid: getChartByName("What's our total revenue to date?")
                 .uuid,
@@ -126,6 +131,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: undefined,
         properties: {
             savedChartUuid: getChartByName(
                 'How many orders we have over time ?',
@@ -140,6 +146,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 18,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: undefined,
         properties: {
             savedChartUuid: getChartByName(
                 "What's the average spend per customer?",
@@ -154,6 +161,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 36,
         h: 9,
         type: DashboardTileTypes.SAVED_CHART,
+        tabUuid: undefined,
         properties: {
             savedChartUuid: getChartByName(
                 'Which customers have not recently ordered an item?',
@@ -168,6 +176,7 @@ export async function seed(knex: Knex): Promise<void> {
         w: 36,
         h: 3,
         type: DashboardTileTypes.MARKDOWN,
+        tabUuid: undefined,
         properties: {
             title: '📨 Orders',
             content: markdownOrders,
@@ -216,6 +225,7 @@ export async function seed(knex: Knex): Promise<void> {
                 metrics: [],
                 tableCalculations: [],
             },
+            tabs: [],
         },
         {
             userUuid: SEED_ORG_1_ADMIN.user_uuid,

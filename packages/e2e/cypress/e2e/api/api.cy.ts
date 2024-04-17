@@ -158,6 +158,7 @@ describe('Lightdash API', () => {
                             name: dashboard.name,
                             tiles: dashboard.tiles,
                             filters: dashboard.filters,
+                            tabs: dashboard.tabs,
                         },
                     }).then((resp) => {
                         expect(resp.status).to.eq(200);

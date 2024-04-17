@@ -10,6 +10,7 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import {
     DashboardsTableName,
+    DashboardTabsTableName,
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
@@ -104,11 +105,19 @@ describe('DashboardModel', () => {
                 loomTileEntry,
                 markdownTileEntry,
             ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
 
         const dashboard = await model.getById(expectedDashboard.uuid);
 
         expect(dashboard).toEqual(expectedDashboard);
-        expect(tracker.history.select).toHaveLength(3);
+        expect(tracker.history.select).toHaveLength(4);
     });
 
     test("should error if dashboard isn't found", async () => {
@@ -291,7 +300,14 @@ describe('DashboardModel', () => {
                 loomTileEntry,
                 markdownTileEntry,
             ]);
-
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
         await model.update(dashboardUuid, updateDashboard);
         expect(tracker.history.update).toHaveLength(1);
     });
@@ -326,6 +342,14 @@ describe('DashboardModel', () => {
                 loomTileEntry,
                 markdownTileEntry,
             ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
         tracker.on
             .delete(queryMatcher(DashboardsTableName, [dashboardUuid]))
             .response([]);

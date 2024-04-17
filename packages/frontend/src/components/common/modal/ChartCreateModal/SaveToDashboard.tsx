@@ -101,6 +101,7 @@ export const SaveToDashboard: FC<Props> = ({
             const newTile: CreateDashboardChartTile = {
                 uuid: uuid4(),
                 type: DashboardTileTypes.SAVED_CHART,
+                tabUuid: undefined,
                 properties: {
                     belongsToDashboard: true,
                     savedChartUuid: chart.uuid,

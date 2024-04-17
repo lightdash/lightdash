@@ -197,6 +197,8 @@ export const dashboard: Dashboard = {
             y: 0,
             w: 1,
             h: 1,
+            // TODO: remove
+            tabUuid: 'tabUuid',
         },
     ],
     filters: {
@@ -212,6 +214,7 @@ export const dashboard: Dashboard = {
     pinnedListOrder: null,
     isPrivate: false,
     access: [],
+    tabs: [],
 };
 
 export const explore: Explore = {

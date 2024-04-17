@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     isChartTile,
     type Dashboard,
+    type DashboardTab,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -16,12 +17,19 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
-import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
+import {
+    IconArrowAutofitContent,
+    IconDots,
+    IconEdit,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
+import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
+
 import {
     ButtonsWrapper,
     ChartContainer,
@@ -47,6 +55,7 @@ type Props<T> = {
     extraHeaderElement?: ReactNode;
     visibleHeaderElement?: ReactNode;
     minimal?: boolean;
+    tabs?: DashboardTab[];
     lockHeaderVisibility?: boolean;
 };
 
@@ -66,9 +75,12 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     visibleHeaderElement,
     titleHref,
     minimal = false,
+    tabs,
     lockHeaderVisibility = false,
 }: Props<T>) => {
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
+    const [isMovingTabs, setIsMovingTabs] = useState(false);
+
     const [
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
@@ -224,6 +236,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                     </Menu.Item>
                                                 ) : (
                                                     <>
+                                                        <Menu.Item
+                                                            icon={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconArrowAutofitContent
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                setIsMovingTabs(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Move to another tab
+                                                        </Menu.Item>
                                                         <Menu.Divider />
                                                         <Menu.Item
                                                             color="red"
@@ -313,6 +341,17 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     onDelete(tile);
                     setIsDeletingChartThatBelongsToDashboard(false);
                 }}
+            />
+            <MoveTileToTabModal
+                className="non-draggable"
+                opened={isMovingTabs}
+                onConfirm={(newTile) => {
+                    onEdit(newTile as T);
+                    setIsMovingTabs(false);
+                }}
+                tabs={tabs}
+                tile={tile}
+                onClose={() => setIsMovingTabs(false)}
             />
         </Card>
     );
