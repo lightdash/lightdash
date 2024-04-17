@@ -421,6 +421,11 @@ export const getFilterRulesByFieldType = (
         },
     );
 
+/**
+ * Takes a filter group and flattens it by merging nested AND groups into the parent group
+ * @param filterGroup - The filter group to flatten
+ * @returns Flattened filter group
+ */
 const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
     const items = getItemsFromFilterGroup(filterGroup);
 
@@ -449,18 +454,28 @@ const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
     } as FilterGroup;
 };
 
+/**
+ * Takes a filter group and build a filters object from it based on the field type
+ * @param filterGroup - The filter group to extract filters from
+ * @param fields - Fields to compare against the filter group items to determine types
+ * @returns Filters object with dimensions, metrics, and table calculations
+ */
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
     fields: Field[],
 ): Filters => {
     const flatFilterGroup = flattenFilterGroup(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
+
     return items.reduce<Filters>((accumulator, item) => {
         if (isFilterRule(item)) {
+            // when filter group item is a filter rule, we find the field it's targeting
             const fieldInRule = fields.find(
                 (field) => fieldId(field) === item.target.fieldId,
             );
 
+            // determine the type of the field and add the rule it to the correct filters object property
+            // always keep the parent filter group type (AND/OR) when adding the filter rules
             if (fieldInRule) {
                 if (isDimension(fieldInRule)) {
                     accumulator.dimensions = {
@@ -496,6 +511,8 @@ export const getFiltersFromGroup = (
         }
 
         if (isFilterGroup(item)) {
+            // when filter group item is a filter group, we need to recursively call this function to extract filters objects from the nested group
+            // then we add each field type filter group - from nested filters group - into the correct parent filters object property keeping the parent filter group type (AND/OR)
             const filters = getFiltersFromGroup(item, fields);
 
             if (filters.dimensions) {
