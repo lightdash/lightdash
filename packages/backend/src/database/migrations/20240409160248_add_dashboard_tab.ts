@@ -12,7 +12,11 @@ export async function up(knex: Knex): Promise<void> {
     if (!(await knex.schema.hasTable(tableName))) {
         await knex.schema.createTable(tableName, (tableBuilder) => {
             tableBuilder.string('name').notNullable();
-            tableBuilder.uuid('uuid').notNullable().defaultTo(uuidv4());
+            tableBuilder
+                .uuid('uuid')
+                .notNullable()
+                .primary()
+                .defaultTo(uuidv4());
             tableBuilder.integer('order');
             tableBuilder
                 .integer('dashboard_id')
@@ -34,11 +38,6 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('updated_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
-            tableBuilder.primary([
-                'uuid',
-                'dashboard_id',
-                'dashboard_version_id',
-            ]);
         });
 
         // add tab_uuid column which reference to the dashboard tab
@@ -53,7 +52,10 @@ export async function up(knex: Knex): Promise<void> {
                 (tableBuilder) => {
                     tableBuilder
                         .uuid(DashboardTileTabUuidColumnName)
-                        .nullable();
+                        .nullable()
+                        .references('uuid')
+                        .inTable(tableName)
+                        .onDelete('CASCADE');
                 },
             );
         }
