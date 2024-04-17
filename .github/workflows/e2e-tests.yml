@@ -107,7 +107,7 @@ jobs:
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+      options: --user root
     strategy:
       fail-fast: false
       matrix:
@@ -178,7 +178,7 @@ jobs:
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user 1001
+      options: --user root
     strategy:
       fail-fast: false
       matrix:
