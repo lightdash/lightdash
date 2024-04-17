@@ -1,3 +1,10 @@
+## [0.1072.3](https://github.com/lightdash/lightdash/compare/0.1072.2...0.1072.3) (2024-04-17)
+
+
+### Bug Fixes
+
+* force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE for snowflake ([#9781](https://github.com/lightdash/lightdash/issues/9781)) ([7d5df00](https://github.com/lightdash/lightdash/commit/7d5df00953fff7dd0aed972f0a6a9eda1d4defec))
+
 ## [0.1072.2](https://github.com/lightdash/lightdash/compare/0.1072.1...0.1072.2) (2024-04-17)
 
 
