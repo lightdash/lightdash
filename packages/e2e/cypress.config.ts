@@ -50,5 +50,6 @@ export default defineConfig({
     videoCompression: true,
 
     screenshotOnRunFailure: true,
-    numTestsKeptInMemory: 25, // default is 50
+    numTestsKeptInMemory: 5, // default is 50
+    experimentalMemoryManagement: true
 });
