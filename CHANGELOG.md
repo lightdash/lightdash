@@ -1,3 +1,11 @@
+## [0.1072.4](https://github.com/lightdash/lightdash/compare/0.1072.3...0.1072.4) (2024-04-18)
+
+
+### Bug Fixes
+
+* fix horizontal chart tooltip ([#9801](https://github.com/lightdash/lightdash/issues/9801)) ([7c36451](https://github.com/lightdash/lightdash/commit/7c36451a1ac31cdb69561d93987934f2d2e30602))
+* parse validation errors ([#9796](https://github.com/lightdash/lightdash/issues/9796)) ([c8414cb](https://github.com/lightdash/lightdash/commit/c8414cb5ee32aa0cf4fa647c6b61a17165d3de39))
+
 ## [0.1072.3](https://github.com/lightdash/lightdash/compare/0.1072.2...0.1072.3) (2024-04-17)
 
 
