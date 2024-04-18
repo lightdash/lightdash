@@ -1,3 +1,10 @@
+## [0.1072.5](https://github.com/lightdash/lightdash/compare/0.1072.4...0.1072.5) (2024-04-18)
+
+
+### Bug Fixes
+
+* remove first_name and last_name from intrinsic user attributes ([#9812](https://github.com/lightdash/lightdash/issues/9812)) ([0ea915b](https://github.com/lightdash/lightdash/commit/0ea915baffc909579e3e07ef4e7460bed66ea343))
+
 ## [0.1072.4](https://github.com/lightdash/lightdash/compare/0.1072.3...0.1072.4) (2024-04-18)
 
 
