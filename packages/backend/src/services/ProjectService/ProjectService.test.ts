@@ -104,7 +104,11 @@ describe('ProjectService', () => {
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
-        emailModel: {} as EmailModel,
+        emailModel: {
+            getPrimaryEmailStatus: (userUuid: string) => ({
+                isVerified: true,
+            }),
+        } as unknown as EmailModel,
         schedulerClient: {} as SchedulerClient,
     });
     afterEach(() => {

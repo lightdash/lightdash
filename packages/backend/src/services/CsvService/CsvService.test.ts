@@ -43,7 +43,11 @@ describe('Csv service', () => {
             sshKeyPairModel: {} as SshKeyPairModel,
             userAttributesModel: {} as UserAttributesModel,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
-            emailModel: {} as EmailModel,
+            emailModel: {
+                getPrimaryEmailStatus: (userUuid: string) => ({
+                    isVerified: true,
+                }),
+            } as unknown as EmailModel,
             schedulerClient: {} as SchedulerClient,
         }),
         s3Client: {} as S3Client,
