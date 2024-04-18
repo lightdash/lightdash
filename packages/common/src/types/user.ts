@@ -117,14 +117,10 @@ export type ApiGetLoginOptionsResponse = {
 
 export type IntrinsicUserAttributes = {
     email: string;
-    first_name: string;
-    last_name: string;
 };
 
 export const getIntrinsicUserAttributes = (
-    user: LightdashUser,
+    user: Pick<LightdashUser, 'email'>,
 ): IntrinsicUserAttributes => ({
     email: user.email ?? '',
-    first_name: user.firstName,
-    last_name: user.lastName,
 });
