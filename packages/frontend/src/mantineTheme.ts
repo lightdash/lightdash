@@ -153,19 +153,6 @@ export const getMantineThemeOverride = (overrides?: {
             fontWeight: 600,
         },
 
-        /**
-         * Markdown colors for dark mode. Does not account for syntax highlighting.
-         */
-        '[data-color-mode="dark"].wmde-markdown': {
-            '--color-canvas-default': theme.black,
-            '--color-canvas-subtle': theme.colors.dark[7],
-            '--color-border-default': theme.colors.dark[3],
-            '--color-border-muted': theme.colors.dark[3],
-            '--color-fg-default': theme.white,
-            '--color-fg-muted': theme.colors.dark[4],
-            '--color-fg-subtle': theme.colors.dark[2],
-        },
-
         '.react-draggable.react-draggable-dragging .tile-base': {
             border: `1px solid ${theme.colors.blue[5]}`,
         },
