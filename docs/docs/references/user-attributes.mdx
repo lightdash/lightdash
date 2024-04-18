@@ -73,8 +73,6 @@ When referencing user attributes in SQL you can use the following [SQL variables
   - (optional) `ld` as an alias for `lightdash`
   - available intrinsic user attributes:
     - `email`
-    - `first_name`
-    - `last_name`
 
 ### Row filtering with `sql_filter`
 
@@ -146,7 +144,7 @@ columns:
 
 :::info
 
-Column filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`, `first_name`, `last_name`.
+Column filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`.
 
 :::
 
@@ -169,7 +167,7 @@ Similar to [columns filtering](#column-filtering-with-required_attributes), you 
 
 :::info
 
-Table filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`, `first_name`, `last_name`.
+Table filtering using `required_attributes` does not take into account intrinsic attributes of a user - `email`.
 
 :::
 

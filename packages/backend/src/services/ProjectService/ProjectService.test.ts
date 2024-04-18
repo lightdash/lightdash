@@ -11,6 +11,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -103,6 +104,11 @@ describe('ProjectService', () => {
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        emailModel: {
+            getPrimaryEmailStatus: (userUuid: string) => ({
+                isVerified: true,
+            }),
+        } as unknown as EmailModel,
         schedulerClient: {} as SchedulerClient,
     });
     afterEach(() => {

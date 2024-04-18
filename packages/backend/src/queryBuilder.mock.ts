@@ -1311,6 +1311,4 @@ LIMIT 10`;
 
 export const INTRINSIC_USER_ATTRIBUTES: IntrinsicUserAttributes = {
     email: 'mock@lightdash.com',
-    first_name: 'Mock',
-    last_name: 'User',
 };
