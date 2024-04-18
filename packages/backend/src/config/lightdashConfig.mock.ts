@@ -115,4 +115,5 @@ export const lightdashConfigMock: LightdashConfig = {
         maxLimit: 5000,
         csvCellsLimit: 100000,
     },
+    disablePat: false,
 };
