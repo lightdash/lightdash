@@ -86,10 +86,11 @@ const Dashboard: FC = () => {
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
-    const { projectUuid, dashboardUuid, mode } = useParams<{
+    const { projectUuid, dashboardUuid, mode, tabUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
         mode?: string;
+        tabUuid?: string;
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
@@ -169,7 +170,11 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard?.tiles ?? []);
         setDashboardTabs(dashboard?.tabs ?? []);
-        setActiveTab(() => dashboard?.tabs[0]);
+        setActiveTab(
+            () =>
+                dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
+                dashboard?.tabs[0],
+        );
     }, [
         isDashboardLoading,
         dashboard,
@@ -177,6 +182,7 @@ const Dashboard: FC = () => {
         setDashboardTiles,
         setDashboardTabs,
         setActiveTab,
+        tabUuid,
     ]);
 
     useEffect(() => {
@@ -228,9 +234,15 @@ const Dashboard: FC = () => {
                 tableCalculations: [],
             });
             reset();
-            history.replace(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
-            );
+            if (dashboardTabs.length > 0) {
+                history.replace(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                );
+            } else {
+                history.replace(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+                );
+            }
         }
     }, [
         dashboardUuid,
@@ -241,6 +253,8 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        dashboardTabs,
+        activeTab,
     ]);
 
     const handleToggleFullscreen = useCallback(async () => {
@@ -402,9 +416,15 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard?.tabs || []);
-        history.replace(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
-        );
+        if (dashboardTabs.length > 0) {
+            history.replace(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+            );
+        } else {
+            history.replace(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+            );
+        }
     }, [
         dashboard,
         dashboardUuid,
@@ -417,6 +437,8 @@ const Dashboard: FC = () => {
         setHaveTilesChanged,
         setHaveTabsChanged,
         setDashboardTabs,
+        dashboardTabs,
+        activeTab,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
