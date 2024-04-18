@@ -412,6 +412,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );

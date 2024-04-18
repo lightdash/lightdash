@@ -8,6 +8,7 @@ import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -42,6 +43,11 @@ describe('Csv service', () => {
             sshKeyPairModel: {} as SshKeyPairModel,
             userAttributesModel: {} as UserAttributesModel,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+            emailModel: {
+                getPrimaryEmailStatus: (userUuid: string) => ({
+                    isVerified: true,
+                }),
+            } as unknown as EmailModel,
             schedulerClient: {} as SchedulerClient,
         }),
         s3Client: {} as S3Client,
