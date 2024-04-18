@@ -2,7 +2,7 @@ version: 2
 models:
   - name: users
     meta: 
-      sql_filter: 'customer_id = ${ld.attr.customer_id}'
+      sql_filter: 'customer_id = ${ld.attr.customer_id} OR first_name = ${ld.user.first_name}'
     columns:
       - name: customer_id
         description: This is a unique identifier for a customer
