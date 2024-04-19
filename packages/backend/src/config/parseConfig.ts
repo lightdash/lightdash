@@ -199,7 +199,6 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
-    disablePat: boolean;
 };
 
 export type SlackConfig = {
@@ -323,6 +322,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
+    disablePat: boolean;
 };
 
 export type SmtpConfig = {
@@ -425,6 +425,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
         },
         auth: {
+            disablePat: process.env.DISABLE_PAT === 'true',
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
@@ -626,7 +627,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
-        disablePat: process.env.DISABLE_PAT === 'true',
     };
 };
 
