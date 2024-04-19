@@ -314,7 +314,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
-    it.only('Should change dates on filters', () => {
+    it('Should change dates on filters', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
