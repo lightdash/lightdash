@@ -77,6 +77,31 @@ declare global {
     }
 }
 
+const schedulerWorkerFactory = (context: {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    serviceRepository: ServiceRepository;
+    models: ModelRepository;
+    clients: ClientRepository;
+    utils: UtilRepository;
+}) =>
+    new SchedulerWorker({
+        lightdashConfig: context.lightdashConfig,
+        analytics: context.analytics,
+        unfurlService: context.serviceRepository.getUnfurlService(),
+        csvService: context.serviceRepository.getCsvService(),
+        dashboardService: context.serviceRepository.getDashboardService(),
+        projectService: context.serviceRepository.getProjectService(),
+        schedulerService: context.serviceRepository.getSchedulerService(),
+        validationService: context.serviceRepository.getValidationService(),
+        userService: context.serviceRepository.getUserService(),
+        emailClient: context.clients.getEmailClient(),
+        googleDriveClient: context.clients.getGoogleDriveClient(),
+        s3Client: context.clients.getS3Client(),
+        schedulerClient: context.clients.getSchedulerClient(),
+        slackClient: context.clients.getSlackClient(),
+    });
+
 const slackBotFactory = (context: {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -104,6 +129,7 @@ type AppArguments = {
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
     slackBotFactory?: typeof slackBotFactory;
+    schedulerWorkerFactory?: typeof schedulerWorkerFactory;
 };
 
 export default class App {
@@ -130,6 +156,8 @@ export default class App {
     private readonly database: Knex;
 
     private readonly slackBotFactory: typeof slackBotFactory;
+
+    private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -183,6 +211,8 @@ export default class App {
             models: this.models,
         });
         this.slackBotFactory = args.slackBotFactory || slackBotFactory;
+        this.schedulerWorkerFactory =
+            args.schedulerWorkerFactory || schedulerWorkerFactory;
     }
 
     async start() {
@@ -489,27 +519,13 @@ export default class App {
     }
 
     private initSchedulerWorker() {
-        this.schedulerWorker = new SchedulerWorker({
+        this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            // TODO: Do not use serviceRepository singleton:
-            ...{
-                unfurlService: this.serviceRepository.getUnfurlService(),
-                csvService: this.serviceRepository.getCsvService(),
-                dashboardService: this.serviceRepository.getDashboardService(),
-                projectService: this.serviceRepository.getProjectService(),
-                schedulerService: this.serviceRepository.getSchedulerService(),
-                validationService:
-                    this.serviceRepository.getValidationService(),
-                userService: this.serviceRepository.getUserService(),
-            },
-            ...{
-                emailClient: this.clients.getEmailClient(),
-                googleDriveClient: this.clients.getGoogleDriveClient(),
-                s3Client: this.clients.getS3Client(),
-                schedulerClient: this.clients.getSchedulerClient(),
-                slackClient: this.clients.getSlackClient(),
-            },
+            serviceRepository: this.serviceRepository,
+            models: this.models,
+            clients: this.clients,
+            utils: this.utils,
         });
 
         this.schedulerWorker.run().catch((e) => {
