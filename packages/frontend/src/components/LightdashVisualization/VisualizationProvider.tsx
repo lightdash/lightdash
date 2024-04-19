@@ -78,7 +78,6 @@ type VisualizationContext = {
 
     getSeriesColor: (
         seriesLike: SeriesLike,
-        metadata?: Record<string, SeriesMetadata>,
     ) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
