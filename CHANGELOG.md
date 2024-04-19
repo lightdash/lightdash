@@ -1,3 +1,10 @@
+## [0.1073.2](https://github.com/lightdash/lightdash/compare/0.1073.1...0.1073.2) (2024-04-19)
+
+
+### Bug Fixes
+
+* Improve error cli message ([#9830](https://github.com/lightdash/lightdash/issues/9830)) ([603d9c4](https://github.com/lightdash/lightdash/commit/603d9c499317651f8319f947019b5f5c9530503c))
+
 ## [0.1073.1](https://github.com/lightdash/lightdash/compare/0.1073.0...0.1073.1) (2024-04-19)
 
 
