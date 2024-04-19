@@ -198,7 +198,9 @@ export default class App {
 
         const expressApp = await this.initExpress();
         this.initSentry(expressApp);
-        await this.initSlack();
+        this.initSlack().catch((e) => {
+            Logger.error('Error starting slack bot', e);
+        });
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
         }
