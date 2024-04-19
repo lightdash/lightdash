@@ -77,6 +77,19 @@ declare global {
     }
 }
 
+const slackBotFactory = (context: {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    serviceRepository: ServiceRepository;
+    models: ModelRepository;
+}) =>
+    new SlackBot({
+        lightdashConfig: context.lightdashConfig,
+        analytics: context.analytics,
+        slackAuthenticationModel: context.models.getSlackAuthenticationModel(),
+        unfurlService: context.serviceRepository.getUnfurlService(),
+    });
+
 type AppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
@@ -90,6 +103,7 @@ type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
+    slackBotFactory?: typeof slackBotFactory;
 };
 
 export default class App {
@@ -114,6 +128,8 @@ export default class App {
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
+
+    private readonly slackBotFactory: typeof slackBotFactory;
 
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -166,6 +182,7 @@ export default class App {
             clients: this.clients,
             models: this.models,
         });
+        this.slackBotFactory = args.slackBotFactory || slackBotFactory;
     }
 
     async start() {
@@ -181,7 +198,7 @@ export default class App {
 
         const expressApp = await this.initExpress();
         this.initSentry(expressApp);
-        this.initSlack();
+        await this.initSlack();
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
         }
@@ -404,15 +421,14 @@ export default class App {
         return expressApp;
     }
 
-    private initSlack() {
-        const slackBot = new SlackBot({
-            slackAuthenticationModel: this.models.getSlackAuthenticationModel(),
+    private async initSlack() {
+        const slackBot = this.slackBotFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-
-            // TODO: Do not use serviceRepository singleton here:
-            unfurlService: this.serviceRepository.getUnfurlService(),
+            serviceRepository: this.serviceRepository,
+            models: this.models,
         });
+        await slackBot.start();
     }
 
     private initSentry(expressApp: Express) {
