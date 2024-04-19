@@ -69,6 +69,7 @@ const loginWithPassword = async (url: string) => {
             'Content-Type': 'application/json',
         },
     });
+    GlobalState.debug(`> Login response status: ${response.status}`);
 
     switch (response.status) {
         case 200:
