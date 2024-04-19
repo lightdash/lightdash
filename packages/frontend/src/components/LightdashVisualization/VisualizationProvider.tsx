@@ -6,7 +6,6 @@ import {
     type ChartConfig,
     type DashboardFilters,
     type ItemsMap,
-    type SeriesMetadata,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
