@@ -1,3 +1,10 @@
+## [0.1072.7](https://github.com/lightdash/lightdash/compare/0.1072.6...0.1072.7) (2024-04-19)
+
+
+### Bug Fixes
+
+* disable pat lightashconfig ([#9813](https://github.com/lightdash/lightdash/issues/9813)) ([bd18aa3](https://github.com/lightdash/lightdash/commit/bd18aa3c445c22ea2b643a4c0ccb677cc573e47b)), closes [#9632](https://github.com/lightdash/lightdash/issues/9632)
+
 ## [0.1072.6](https://github.com/lightdash/lightdash/compare/0.1072.5...0.1072.6) (2024-04-19)
 
 
