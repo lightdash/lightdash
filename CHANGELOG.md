@@ -1,3 +1,11 @@
+## [0.1073.3](https://github.com/lightdash/lightdash/compare/0.1073.2...0.1073.3) (2024-04-19)
+
+
+### Bug Fixes
+
+* series color change ([#9681](https://github.com/lightdash/lightdash/issues/9681)) ([5854fa1](https://github.com/lightdash/lightdash/commit/5854fa1f11bed7def2db6bf082b21d8ee153a6e3))
+* toast was not showing for errors running query ([#9828](https://github.com/lightdash/lightdash/issues/9828)) ([a3d8649](https://github.com/lightdash/lightdash/commit/a3d8649bb3e5917d95329b0ab196a45af0c4d58e))
+
 ## [0.1073.2](https://github.com/lightdash/lightdash/compare/0.1073.1...0.1073.2) (2024-04-19)
 
 
