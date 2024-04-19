@@ -1,3 +1,10 @@
+## [0.1072.6](https://github.com/lightdash/lightdash/compare/0.1072.5...0.1072.6) (2024-04-19)
+
+
+### Bug Fixes
+
+* save chart in dashboard ([#9818](https://github.com/lightdash/lightdash/issues/9818)) ([38962c3](https://github.com/lightdash/lightdash/commit/38962c3a22bcca885edfd480f024577800324f9b)), closes [#9632](https://github.com/lightdash/lightdash/issues/9632)
+
 ## [0.1072.5](https://github.com/lightdash/lightdash/compare/0.1072.4...0.1072.5) (2024-04-18)
 
 
