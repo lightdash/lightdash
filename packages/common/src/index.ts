@@ -130,6 +130,7 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
+export * from './transformers';
 export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';

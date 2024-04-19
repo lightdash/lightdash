@@ -26,7 +26,7 @@
         "pegjs": "^0.10.0",
         "sanitize-html": "^2.12.1",
         "uuid": "^8.3.2",
-        "zod": "^3.22.3"
+        "zod": "^3.22.5"
     },
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json",
