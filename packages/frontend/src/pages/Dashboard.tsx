@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     FeatureFlags,
     isDashboardChartTileType,
+    ResourceViewItemType,
     type Dashboard as IDashboard,
     type DashboardTab,
     type DashboardTile,
@@ -33,6 +34,8 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { useDashboardPinningMutation } from '../hooks/pinning/useDashboardPinningMutation';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import useToaster from '../hooks/toaster/useToaster';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -154,6 +157,25 @@ const Dashboard: FC = () => {
     const [isExportDashboardModalOpen, exportDashboardModalHandlers] =
         useDisclosure();
     const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
+    const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        dashboard?.pinnedListUuid ?? undefined,
+    );
+
+    const handleDashboardPinning = useCallback(() => {
+        toggleDashboardPinning({ uuid: dashboardUuid });
+    }, [dashboardUuid, toggleDashboardPinning]);
+
+    const isPinned = useMemo(() => {
+        return Boolean(
+            pinnedItems?.some(
+                (item) =>
+                    item.type === ResourceViewItemType.DASHBOARD &&
+                    item.data.uuid === dashboardUuid,
+            ),
+        );
+    }, [dashboardUuid, pinnedItems]);
 
     // tabs state
     const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
@@ -582,6 +604,7 @@ const Dashboard: FC = () => {
                         isSaving={isSaving}
                         oldestCacheTime={oldestCacheTime}
                         isFullscreen={isFullscreen}
+                        isPinned={isPinned}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
@@ -617,6 +640,7 @@ const Dashboard: FC = () => {
                         onDelete={deleteModalHandlers.open}
                         onExport={exportDashboardModalHandlers.open}
                         setAddingTab={setAddingTab}
+                        onTogglePin={handleDashboardPinning}
                     />
                 }
             >

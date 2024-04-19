@@ -36,6 +36,8 @@ import {
     IconHistory,
     IconLayoutGridAdd,
     IconPencil,
+    IconPin,
+    IconPinnedOff,
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
@@ -154,7 +156,15 @@ const useCreatePullRequestForChartFieldsMutation = (
     );
 };
 
-const SavedChartsHeader: FC = () => {
+type SavedChartsHeaderProps = {
+    isPinned: boolean;
+    onTogglePin: () => void;
+};
+
+const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
+    isPinned,
+    onTogglePin,
+}) => {
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -339,6 +349,14 @@ const SavedChartsHeader: FC = () => {
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanPinChart = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
         }),
@@ -604,6 +622,27 @@ const SavedChartsHeader: FC = () => {
                                             Move to space
                                         </Menu.Item>
                                     )}
+
+                                {!chartBelongsToDashboard && userCanPinChart && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        icon={
+                                            isPinned ? (
+                                                <MantineIcon
+                                                    icon={IconPinnedOff}
+                                                />
+                                            ) : (
+                                                <MantineIcon icon={IconPin} />
+                                            )
+                                        }
+                                        onClick={onTogglePin}
+                                    >
+                                        {isPinned
+                                            ? 'Unpin from homepage'
+                                            : 'Pin to homepage'}
+                                    </Menu.Item>
+                                )}
 
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
