@@ -4,7 +4,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import useToaster from './toaster/useToaster';
 
-const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
+type opts = {
+    forbiddenToastTitle?: string;
+    forceToastOnForbidden?: boolean;
+};
+
+const useQueryError = ({
+    forbiddenToastTitle,
+    forceToastOnForbidden,
+}: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
     const { showToastError } = useToaster();
@@ -19,6 +27,13 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                     // This will be expected for some users like member
                     // So don't show the error popup there,
                     // we will handle this on pages showing a nice message
+
+                    if (forceToastOnForbidden) {
+                        showToastError({
+                            title: forbiddenToastTitle ?? 'Forbidden',
+                            subtitle: error.message,
+                        });
+                    }
                 } else if (statusCode === 401) {
                     await queryClient.invalidateQueries(['health']);
                 } else if (statusCode === 422) {
@@ -65,7 +80,13 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                 }
             }
         })();
-    }, [errorResponse, queryClient, showToastError]);
+    }, [
+        errorResponse,
+        forbiddenToastTitle,
+        forceToastOnForbidden,
+        queryClient,
+        showToastError,
+    ]);
     return setErrorResponse;
 };
 
