@@ -208,9 +208,9 @@ describe('Date tests', () => {
         cy.get('.mantine-YearPickerInput-input').contains('2018');
         cy.get('.mantine-Prism-code').contains(
             `(DATE_TRUNC('YEAR', "orders".order_date)) = ('2018-01-01')`,
-        ); */
+        ); 
         cy.get('.tabler-icon-x').click({ multiple: true });
-
+*/
         // Filter by month
         cy.get('tbody > :nth-child(1) > :nth-child(4)').click();
         cy.contains('Filter by 2018-04').click();
