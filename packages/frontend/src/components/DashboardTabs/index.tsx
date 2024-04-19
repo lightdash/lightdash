@@ -10,6 +10,7 @@ import { useProfiler } from '@sentry/react';
 import { IconPencil, IconPlus } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { useHistory } from 'react-router-dom';
 import { useIntersection } from 'react-use';
 import { v4 as uuid4 } from 'uuid';
 import {
@@ -139,6 +140,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [dashboardTiles, isEditMode],
     );
 
+    const history = useHistory();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -254,6 +258,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 const tab = sortedTabs?.find((t) => t.uuid === e);
                 if (tab) {
                     setActiveTab(tab);
+                }
+                if (!isEditMode) {
+                    history.replace(
+                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                    );
                 }
             }}
         >
