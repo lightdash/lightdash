@@ -1,3 +1,10 @@
+## [0.1072.8](https://github.com/lightdash/lightdash/compare/0.1072.7...0.1072.8) (2024-04-19)
+
+
+### Bug Fixes
+
+* null timezone compilequery ([#9823](https://github.com/lightdash/lightdash/issues/9823)) ([5cc6edf](https://github.com/lightdash/lightdash/commit/5cc6edfd3069ae86867a3d201fa282c1a320c019))
+
 ## [0.1072.7](https://github.com/lightdash/lightdash/compare/0.1072.6...0.1072.7) (2024-04-19)
 
 
