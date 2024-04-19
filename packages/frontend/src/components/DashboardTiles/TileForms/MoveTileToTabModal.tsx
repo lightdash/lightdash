@@ -60,10 +60,13 @@ const MoveTileToTabModal: FC<Props> = ({
                     <Select
                         label="Select tab to move this tile to"
                         value={selectedTabId}
-                        data={tabs.map((tab) => ({
-                            value: tab.uuid,
-                            label: tab.name,
-                        }))}
+                        placeholder="Pick a tab"
+                        data={tabs
+                            .filter((tab) => tab.uuid !== tile.tabUuid)
+                            .map((tab) => ({
+                                value: tab.uuid,
+                                label: tab.name,
+                            }))}
                         withinPortal
                         onChange={(value) => setSelectedTabId(value)}
                     />
@@ -76,7 +79,9 @@ const MoveTileToTabModal: FC<Props> = ({
                         Cancel
                     </Button>
 
-                    <Button onClick={handleConfirm}>Move</Button>
+                    <Button onClick={handleConfirm} disabled={!selectedTabId}>
+                        Move
+                    </Button>
                 </Group>
             </Stack>
         </Modal>

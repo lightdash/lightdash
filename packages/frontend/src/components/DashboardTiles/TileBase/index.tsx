@@ -236,22 +236,26 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                     </Menu.Item>
                                                 ) : (
                                                     <>
-                                                        <Menu.Item
-                                                            icon={
-                                                                <MantineIcon
+                                                        {tabs &&
+                                                            tabs.length > 1 && (
+                                                                <Menu.Item
                                                                     icon={
-                                                                        IconArrowAutofitContent
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconArrowAutofitContent
+                                                                            }
+                                                                        />
                                                                     }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setIsMovingTabs(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            Move to another tab
-                                                        </Menu.Item>
+                                                                    onClick={() =>
+                                                                        setIsMovingTabs(
+                                                                            true,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Move to
+                                                                    another tab
+                                                                </Menu.Item>
+                                                            )}
                                                         <Menu.Divider />
                                                         <Menu.Item
                                                             color="red"
