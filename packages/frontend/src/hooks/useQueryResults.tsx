@@ -103,7 +103,10 @@ export const useQueryResults = (props?: {
     dateZoomGranularity?: DateGranularity;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({
+        forceToastOnForbidden: true,
+        forbiddenToastTitle: 'Error running query',
+    });
 
     const fetchQuery =
         props?.isViewOnly === true ? getChartResults : getQueryResults;
