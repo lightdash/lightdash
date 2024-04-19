@@ -18,7 +18,6 @@ const useQueryError = ({
     const { showToastError } = useToaster();
     useEffect(() => {
         (async function doIfError() {
-            console.log({ errorResponse });
             const { error } = errorResponse || {};
 
             if (error) {
