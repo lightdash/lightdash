@@ -174,13 +174,14 @@ jobs:
   timezone-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: lightdash-large-runner
+    runs-on: ubuntu-latest
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
-      options: --user root
+      options: --user 1001
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         timezone: ['America/New_York', 'Europe/Madrid', 'Asia/Tokyo' ]
     name: Timezone (${{ matrix.timezone }})
