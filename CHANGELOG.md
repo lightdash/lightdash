@@ -1,3 +1,10 @@
+# [0.1073.0](https://github.com/lightdash/lightdash/compare/0.1072.8...0.1073.0) (2024-04-19)
+
+
+### Features
+
+* dashboard tabs url ([#9805](https://github.com/lightdash/lightdash/issues/9805)) ([e864bfe](https://github.com/lightdash/lightdash/commit/e864bfe16417bfa0646d7470e8dd3d5540b1c5e5))
+
 ## [0.1072.8](https://github.com/lightdash/lightdash/compare/0.1072.7...0.1072.8) (2024-04-19)
 
 
