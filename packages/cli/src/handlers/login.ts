@@ -69,6 +69,23 @@ const loginWithPassword = async (url: string) => {
             'Content-Type': 'application/json',
         },
     });
+
+    switch (response.status) {
+        case 200:
+            break;
+        case 401:
+            throw new AuthorizationError(
+                `Unable to authenticate: invalid email or password`,
+            );
+        default:
+            // This error doesn't return a valid JSON, so we use .text instead
+            throw new AuthorizationError(
+                `Unable to authenticate: (${
+                    response.status
+                }) ${await response.text()}\nIf you use single sign-on (SSO) in the browser, login with a personal access token.`,
+            );
+    }
+
     const loginBody = await response.json();
     const header = response.headers.get('set-cookie');
     if (header === null) {
