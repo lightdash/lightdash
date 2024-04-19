@@ -4,6 +4,7 @@ import { LightdashConfig } from './parseConfig';
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
+        disablePat: false,
         enableGroupSync: false,
         disablePasswordAuthentication: false,
         enableOidcLinking: false,

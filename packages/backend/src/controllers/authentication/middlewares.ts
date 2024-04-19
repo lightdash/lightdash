@@ -27,6 +27,10 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         next();
         return;
     }
+
+    if (lightdashConfig.auth.disablePat === true) {
+        throw new AuthorizationError('Personal access tokens are disabled');
+    }
     passport.authenticate('headerapikey', { session: false })(req, res, next);
 };
 
