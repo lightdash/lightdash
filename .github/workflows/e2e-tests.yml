@@ -63,7 +63,7 @@ jobs:
         run: yarn common-build
       # Run API tests
       - name: Cypress run
-        uses: cypress-io/github-action@v5
+        uses: cypress-io/github-action@v6
         with:
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/api/**/*
@@ -136,7 +136,7 @@ jobs:
           dir: "./packages/e2e/cypress/fixtures/"
       # Run E2E tests
       - name: Cypress run
-        uses: cypress-io/github-action@v5
+        uses: cypress-io/github-action@v6
         with:
           browser: chrome
           project: ./packages/e2e
@@ -208,7 +208,7 @@ jobs:
           dir: "./packages/e2e/cypress/fixtures/"
       # Run E2E tests
       - name: Cypress run
-        uses: cypress-io/github-action@v5
+        uses: cypress-io/github-action@v6
         with:
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/app/dates.cy.ts
