@@ -97,8 +97,10 @@ const FilterStringAutoComplete: FC<Props> = ({
                 .map((s) => s.trim())
                 .filter((s) => s.length > 0);
 
-            handleAddMultiple(clipboardDataArray);
-            handleResetSearch();
+            if (clipboardDataArray.length > 1) {
+                handleAddMultiple(clipboardDataArray);
+                handleResetSearch();
+            }
         },
         [handleAddMultiple, handleResetSearch],
     );
