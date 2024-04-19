@@ -63,7 +63,7 @@ interface ServiceManifest {
     userService: UserService;
     validationService: ValidationService;
 
-    /** An implementation signature for embedService is not available at this stage */
+    /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
     aiService: unknown;
 }
@@ -79,6 +79,7 @@ type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     repository: ServiceRepository;
     context: OperationContext;
     models: ModelRepository;
+    clients: ClientRepository;
 }) => T[keyof T];
 
 /**
@@ -616,6 +617,7 @@ export class ServiceRepository
                     repository: this,
                     context: this.context,
                     models: this.models,
+                    clients: this.clients,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();
