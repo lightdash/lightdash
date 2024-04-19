@@ -1,3 +1,10 @@
+# [0.1074.0](https://github.com/lightdash/lightdash/compare/0.1073.3...0.1074.0) (2024-04-19)
+
+
+### Features
+
+* allow pinning from chart and dashboard pages ([#9793](https://github.com/lightdash/lightdash/issues/9793)) ([740a220](https://github.com/lightdash/lightdash/commit/740a220e8ee92a437c61e4f97fd05512792d9449))
+
 ## [0.1073.3](https://github.com/lightdash/lightdash/compare/0.1073.2...0.1073.3) (2024-04-19)
 
 
