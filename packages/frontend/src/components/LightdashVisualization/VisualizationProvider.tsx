@@ -77,7 +77,6 @@ type VisualizationContext = {
 
     getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
-
     colorPalette: string[];
 };
 
@@ -253,6 +252,15 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
         (seriesLike: SeriesLike) => {
             if (seriesLike.color) return seriesLike.color;
 
+            // Check if color is stored in metadata
+            const serieId = calculateSeriesLikeIdentifier(seriesLike).join('.');
+            const metadata =
+                chartConfig.type === ChartType.CARTESIAN
+                    ? chartConfig.config?.metadata
+                    : undefined;
+            if (metadata && metadata?.[serieId]?.color)
+                return metadata?.[serieId].color;
+
             /**
              * If this series is grouped, figure out a shared color assignment from the series;
              * otherwise, pick a series color from the palette based on its order.
@@ -264,7 +272,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
-        [calculateSeriesColorAssignment, fallbackColors],
+        [calculateSeriesColorAssignment, fallbackColors, chartConfig],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
