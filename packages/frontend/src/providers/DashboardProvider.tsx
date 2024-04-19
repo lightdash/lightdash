@@ -61,6 +61,10 @@ type DashboardContext = {
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;
     haveTilesChanged: boolean;
     setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
+    haveTabsChanged: boolean;
+    setHaveTabsChanged: Dispatch<SetStateAction<boolean>>;
+    dashboardTabs: Dashboard['tabs'];
+    setDashboardTabs: Dispatch<SetStateAction<Dashboard['tabs']>>;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     allFilters: DashboardFilters;
@@ -175,8 +179,9 @@ export const DashboardProvider: React.FC<
     );
 
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
-
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
+    const [haveTabsChanged, setHaveTabsChanged] = useState<boolean>(false);
+    const [dashboardTabs, setDashboardTabs] = useState<Dashboard['tabs']>([]);
     const [dashboardTemporaryFilters, setDashboardTemporaryFilters] =
         useState<DashboardFilters>(emptyFilters);
     const [dashboardFilters, setDashboardFilters] =
@@ -617,6 +622,10 @@ export const DashboardProvider: React.FC<
         setDashboardTiles,
         haveTilesChanged,
         setHaveTilesChanged,
+        haveTabsChanged,
+        setHaveTabsChanged,
+        dashboardTabs,
+        setDashboardTabs,
         setDashboardTemporaryFilters,
         dashboardFilters,
         dashboardTemporaryFilters,

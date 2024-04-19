@@ -410,6 +410,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     y: 0,
                     h: props.tile.h,
                     w: props.tile.w,
+                    tabUuid: props.tile.tabUuid,
                 },
             ]);
             resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times

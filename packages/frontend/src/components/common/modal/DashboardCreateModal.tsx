@@ -133,6 +133,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                 description: data.dashboardDescription,
                 spaceUuid: newSpace?.uuid || data.spaceUuid,
                 tiles: [],
+                tabs: [], // add default tab
             });
             onConfirm?.(dashboard);
             form.reset();

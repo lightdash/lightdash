@@ -120,6 +120,7 @@ import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -172,6 +173,7 @@ type ProjectServiceArguments = {
     s3CacheClient: S3CacheClient;
     analyticsModel: AnalyticsModel;
     dashboardModel: DashboardModel;
+    emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     schedulerClient: SchedulerClient;
 };
@@ -207,6 +209,8 @@ export class ProjectService extends BaseService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    emailModel: EmailModel;
+
     schedulerClient: SchedulerClient;
 
     constructor({
@@ -224,6 +228,7 @@ export class ProjectService extends BaseService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        emailModel,
         schedulerClient,
     }: ProjectServiceArguments) {
         super();
@@ -242,6 +247,7 @@ export class ProjectService extends BaseService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
     }
 
@@ -296,24 +302,6 @@ export class ProjectService extends BaseService {
                 throw new UnexpectedServerError(
                     'User warehouse credentials are not compatible',
                 );
-            }
-
-            /**
-             * Disable QUOTED_IDENTIFIERS_IGNORE_CASE for Snowflake based on a feature flag, unless
-             * this option is explicitly set via the credentials.
-             *
-             * This is temporary until the feature flag is rolled over globally.
-             */
-            if (
-                credentials.type === WarehouseTypes.SNOWFLAKE &&
-                typeof credentials.quotedIdentifiersIgnoreCase ===
-                    'undefined' &&
-                (await isFeatureFlagEnabled(
-                    FeatureFlags.DisableSnowflakeQuotedIdentifiersIgnoreCase,
-                    { userUuid },
-                ))
-            ) {
-                credentials.quotedIdentifiersIgnoreCase = false;
             }
         }
         return credentials;
@@ -1161,7 +1149,13 @@ export class ProjectService extends BaseService {
             ...metricQuery,
             timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
         };
-        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
 
         const compiledQuery = await ProjectService._compileQuery(
             timezoneMetricQuery,
@@ -1912,8 +1906,13 @@ export class ProjectService extends BaseService {
                             },
                         );
 
-                    const intrinsicUserAttributes =
-                        getIntrinsicUserAttributes(user);
+                    const emailStatus =
+                        await this.emailModel.getPrimaryEmailStatus(
+                            user.userUuid,
+                        );
+                    const intrinsicUserAttributes = emailStatus.isVerified
+                        ? getIntrinsicUserAttributes(user)
+                        : {};
 
                     /**
                      * Note: most of this is temporary while testing out in-memory table calculations,
@@ -2276,7 +2275,12 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
 
         const { query } = await ProjectService._compileQuery(
             metricQuery,
@@ -3571,7 +3575,12 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-        const intrinsicUserAttributes = getIntrinsicUserAttributes(user);
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
 
         const totalQuery: MetricQuery = {
             ...metricQuery,

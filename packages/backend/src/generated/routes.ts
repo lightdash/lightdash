@@ -3378,12 +3378,44 @@ const models: TsoaRoute.Models = {
         enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TimeZone: {
+        dataType: 'refEnum',
+        enums: [
+            'UTC',
+            'Pacific/Pago_Pago',
+            'Pacific/Honolulu',
+            'America/Anchorage',
+            'America/Los_Angeles',
+            'America/Denver',
+            'America/Chicago',
+            'America/New_York',
+            'America/Santo_Domingo',
+            'America/Buenos_Aires',
+            'America/Noronha',
+            'Atlantic/Cape_Verde',
+            'Europe/Paris',
+            'Europe/Athens',
+            'Europe/Moscow',
+            'Asia/Dubai',
+            'Asia/Karachi',
+            'Asia/Dhaka',
+            'Asia/Bangkok',
+            'Asia/Shanghai',
+            'Asia/Tokyo',
+            'Australia/Sydney',
+            'Pacific/Noumea',
+            'Pacific/Auckland',
+            'Pacific/Apia',
+            'Pacific/Kiritimati',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQueryRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                timezone: { dataType: 'string' },
+                timezone: { ref: 'TimeZone' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {

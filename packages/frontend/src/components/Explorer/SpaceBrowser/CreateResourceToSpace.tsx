@@ -43,6 +43,7 @@ const CreateResourceToSpace: FC<Props> = ({ resourceType }) => {
                     name: DEFAULT_DASHBOARD_NAME,
                     tiles: [],
                     spaceUuid,
+                    tabs: [],
                 });
             default:
                 return assertUnreachable(

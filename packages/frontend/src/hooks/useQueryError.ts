@@ -1,4 +1,5 @@
 import { type ApiError } from '@lightdash/common';
+import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import useToaster from './toaster/useToaster';
@@ -10,6 +11,7 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
     useEffect(() => {
         (async function doIfError() {
             const { error } = errorResponse || {};
+
             if (error) {
                 const { statusCode } = error;
                 if (statusCode === 403) {
@@ -19,10 +21,47 @@ const useQueryError = (): Dispatch<SetStateAction<ApiError | undefined>> => {
                     // we will handle this on pages showing a nice message
                 } else if (statusCode === 401) {
                     await queryClient.invalidateQueries(['health']);
+                } else if (statusCode === 422) {
+                    // validation errors
+                    // Send sentry error
+                    captureException(error, {
+                        level: 'fatal',
+                        tags: { errorType: 'validationError' },
+                        extra: { data: error.data },
+                    });
+                    try {
+                        const validationData = error.data as unknown as Record<
+                            string,
+                            { message: string; value: string }
+                        >;
+                        const values: string[] = Object.values(
+                            validationData,
+                        ).map(({ value }) => value);
+                        const keys: string[] = Object.keys(validationData);
+                        showToastError({
+                            title: 'Validation error',
+                            subtitle: `Invalid field ${keys} with value ${values}. The team has been already notified, we'll fix it soon`,
+                        });
+                    } catch (parseError) {
+                        showToastError({
+                            title: 'Unknown validation error',
+                            subtitle: JSON.stringify(error),
+                        });
+                    }
                 } else {
                     const { message } = error;
-                    const [first, ...rest] = message.split('\n');
-                    showToastError({ title: first, subtitle: rest.join('\n') });
+                    if (message !== '') {
+                        const [first, ...rest] = message.split('\n');
+                        showToastError({
+                            title: first,
+                            subtitle: rest.join('\n'),
+                        });
+                    } else {
+                        showToastError({
+                            title: `An unknown error happened`,
+                            subtitle: JSON.stringify(error),
+                        });
+                    }
                 }
             }
         })();

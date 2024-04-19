@@ -58,6 +58,18 @@ const exportJwkPrivateKey = async (
  * Given a x509 public key certificate + private key pair, generates a JWT key set
  * for use with OIDC. This is intended for client assertion with `private_key_jwt`,
  * and may require adjusting for other purposes.
+ *
+ * -- Azure specific:
+ * Azure expects the key's identifier (kid) to be the same value as the
+ * certificate SHA-1 thumbprint, base64-encoded, for purposes of key
+ * matching.
+ *
+ * The Azure documentation is a bit inconsistent in this regard, but if
+ * we override whatever the `kid` claim is at this point, openid-client
+ * will know to include it as part of the jwt header.
+ *
+ * Azure claims reference:
+ * https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference
  */
 export async function buildJwtKeySet(
     params: Partial<{

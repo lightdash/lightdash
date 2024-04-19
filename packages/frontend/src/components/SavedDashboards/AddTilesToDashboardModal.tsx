@@ -130,6 +130,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     properties: {
                         savedChartUuid: savedChart.uuid,
                     },
+                    tabUuid: undefined,
                     ...getDefaultChartTileSize(savedChart.chartConfig?.type),
                 };
 
@@ -142,7 +143,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             {
                                 uuid: uuid4(),
                                 type: DashboardTileTypes.SAVED_CHART,
-
+                                tabUuid: undefined,
                                 properties: {
                                     savedChartUuid: savedChart.uuid,
                                 },
@@ -151,6 +152,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 ),
                             },
                         ],
+                        tabs: [],
                     });
                     onClose?.();
                 } else {

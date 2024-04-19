@@ -6,6 +6,8 @@ import {
     CreateDashboardValidation,
     CreateTableValidation,
     CreateValidation,
+    DashboardFilterRule,
+    DashboardTileTarget,
     Explore,
     ExploreError,
     fieldId as getFieldId,
@@ -472,6 +474,35 @@ export class ValidationService extends BaseService {
                     [],
                 );
 
+                const dashboardTileTargets = dashboardFilterRules.reduce<
+                    DashboardTileTarget[]
+                >((acc, t) => {
+                    if (t.tileTargets) {
+                        const targets = Object.values(t.tileTargets);
+                        return [...acc, ...targets];
+                    }
+                    return acc;
+                }, []);
+                const tileTargetErrors = dashboardTileTargets.reduce<
+                    CreateDashboardValidation[]
+                >(
+                    (acc, tileTarget) => {
+                        if (tileTarget) {
+                            return containsFieldId({
+                                acc,
+                                fieldIds: existingFieldIds,
+                                fieldId: tileTarget.fieldId,
+                                error: `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
+                                errorType: ValidationErrorType.Filter,
+                                fieldName: tileTarget.fieldId,
+                            });
+                        }
+                        return acc;
+                    },
+
+                    [],
+                );
+
                 const chartTiles = dashboard.tiles.filter(
                     isDashboardChartTileType,
                 );
@@ -495,7 +526,7 @@ export class ValidationService extends BaseService {
                     return acc;
                 }, []);
 
-                return [...filterErrors, ...chartErrors];
+                return [...filterErrors, ...tileTargetErrors, ...chartErrors];
             },
         );
 

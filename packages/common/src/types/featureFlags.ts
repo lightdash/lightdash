@@ -37,11 +37,11 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /** Collapse dashboard into a simple vertical stack on mobile */
-    DashboardMobileVerticalStack = 'dashboard-mobile-vertical-stack',
-
     /** */
     LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
+
+    /** Enable dashboard tabs */
+    DashboardTabs = 'dashboard_tabs',
 
     /**
      * Disable https://docs.snowflake.com/en/sql-reference/parameters#label-quoted-identifiers-ignore-case

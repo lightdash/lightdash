@@ -40,6 +40,7 @@ const chartMock: CreateSavedChart = {
 const dashboardMock: CreateDashboard = {
     name: 'Create dashboard via API',
     tiles: [],
+    tabs: [],
 };
 
 const createDashboard = (
@@ -94,11 +95,13 @@ const createChartAndUpdateDashboard = (
             expect(newChart.dashboardUuid).to.eq(body.dashboardUuid);
             return updateDashboard(body.dashboardUuid, {
                 ...dashboard,
+                tabs: [],
                 tiles: [
                     ...(dashboard && isDashboardVersionedFields(dashboard)
                         ? dashboard.tiles
                         : []),
                     {
+                        tabUuid: undefined,
                         type: DashboardTileTypes.SAVED_CHART,
                         x: 0,
                         y: 0,
@@ -161,6 +164,7 @@ describe('Lightdash dashboard', () => {
                     },
                     {
                         tiles: updatedDashboard.tiles,
+                        tabs: [],
                     },
                 ).then(({ chart: newChart2, dashboard: updatedDashboard2 }) => {
                     expect(updatedDashboard2.tiles.length).to.eq(2);

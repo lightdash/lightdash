@@ -182,6 +182,7 @@ export * from './types/space';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
+export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';

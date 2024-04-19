@@ -25,6 +25,7 @@ const dashboardBody = {
     name: 'private dashboard',
     description: '',
     tiles: [],
+    tabs: [],
 };
 
 const createPrivateChart = (

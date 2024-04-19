@@ -9,6 +9,7 @@ import {
     MetricFilterRule,
     MetricType,
     NumberSeparator,
+    TimeZone,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 

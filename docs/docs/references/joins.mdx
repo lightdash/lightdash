@@ -271,21 +271,29 @@ Using just the `hidden` tag in the join and changing nothing else will remove th
 />
 .
 
-### Hiding joined tables/helper tables from the "Tables" list
+### Hiding joined tables/helper tables from the main "Tables" list
 
-Sometimes, you need to use an intermediate model to join two models together, and you don't want it to appear as a table to explore on its own in the list of Tables.
+Sometimes, you might want to use a model as a join, but you don't want it to appear as a table to explore on its own in the list of Tables. You can use labels in your dbt project to help manage these tables and the `table configuration` settings in your Lightdash project.
 
-To do this, you'll need to
+#### Step 1: Add tags to your models
 
-### Managing hidden joined tables using tags
+Models that are used in joins still need to be compiled in Lightdash. So, we suggest using some labels to tag the models that need to compiled in Lightdash with `lightdash`. Then, tag the models that you want users to explore with `lightdash-explore`.
 
-Sometimes, you need to use an intermediate model to join two models together, and you don't want it to appear as a table to explore on its own in the list of Tables.
+For example, `map_users_organizations` in our example below is a table we want to use as a join, but we don't want it to appear as a table on its own that can be explored. So, in the `dbt_project.yml` file, we'll add the `tag: lightdash`, but we won't add the tag `lightdash-explore`
 
-But, models that are used in joins still need to be compiled in Lightdash. So, we suggest using some labels in your dbt models to help manage these "helper" join tables.
+```yaml
+models:
+  - name: users
+    meta:
+    joins:
+      - join: map_users_organizations
+        sql_on: users.user_id = map_users_organizations.user_id
+        hidden: true
+      - join: organizations
+        sql_on: organizations.organization_id = map_users_organizations.organization_id
+```
 
-Tag the models that need to compiled in Lightdash with `lightdash` (e.g. `map_users_organizations` in our example above is a helper join table, but we don't want it to appear as a table on its own that can be explored). Then, tag the models that you want users to explore with `lightdash-explore`.
-
-For example:
+Here we add our model tags in the `dbt_project.yml` file:
 
 ```yaml
 models:
@@ -300,6 +308,8 @@ models:
 ```
 
 When deploying lightdash via the CLI or using GitHub actions, you should use the dbt selector `-s lightdash` to make sure you don't compile unnecessary models.
+
+#### Step 2: Update your Tables Configuration in the Lightdash app
 
 In the Lightdash app, under the `project settings` --> `tables configuration`, you can filter by `lightdash-explore` so all the intermediary joins are hidden and users have a small and curated list of models then can explore from.
 
