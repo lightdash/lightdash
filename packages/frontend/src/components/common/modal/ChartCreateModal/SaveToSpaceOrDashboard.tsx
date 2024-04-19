@@ -5,6 +5,7 @@ import {
     type CreateSavedChartVersion,
     type DashboardBasicDetails,
     type DashboardChartTile,
+    type DashboardVersionedFields,
     type SavedChart,
     type SpaceSummary,
 } from '@lightdash/common';
@@ -312,15 +313,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                     },
                     ...getDefaultChartTileSize(savedData.chartConfig?.type),
                 };
-                await updateDashboard({
-                    name: values.dashboardName
-                        ? values.dashboardName
-                        : 'untitled',
+                const updateFields: DashboardVersionedFields = {
                     filters: selectedDashboard.filters,
                     tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
                         newTile,
                     ]),
-                });
+                    tabs: [],
+                };
+                await updateDashboard(updateFields);
             }
 
             /**

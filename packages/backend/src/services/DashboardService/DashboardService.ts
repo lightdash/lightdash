@@ -532,7 +532,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
-                    tabs: dashboard.tabs,
+                    tabs: dashboard.tabs || [],
                 },
                 user,
                 existingDashboardDao.projectUuid,
