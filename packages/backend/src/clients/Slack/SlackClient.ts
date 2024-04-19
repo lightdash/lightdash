@@ -1,7 +1,11 @@
 import { SlackChannel, SlackSettings } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, Block, LogLevel } from '@slack/bolt';
-import { ConversationsListResponse, UsersListResponse } from '@slack/web-api';
+import {
+    ChatPostMessageArguments,
+    ConversationsListResponse,
+    UsersListResponse,
+} from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
@@ -189,28 +193,25 @@ export class SlackClient {
         }
     }
 
-    async postMessage(message: {
-        organizationUuid: string;
-        text: string;
-        channel: string;
-        blocks?: Block[];
-    }): Promise<void> {
+    async postMessage(
+        message: {
+            organizationUuid: string;
+        } & ChatPostMessageArguments,
+    ) {
         if (this.slackApp === undefined) {
             throw new Error('Slack app is not configured');
         }
 
-        const { organizationUuid, text, channel, blocks } = message;
+        const { organizationUuid, ...slackMessageArgs } = message;
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             );
 
-        await this.slackApp.client.chat
+        return this.slackApp.client.chat
             .postMessage({
                 token: installation?.token,
-                channel,
-                text,
-                blocks,
+                ...slackMessageArgs,
             })
             .catch((e: any) => {
                 Logger.error(
