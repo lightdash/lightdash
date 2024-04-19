@@ -57,7 +57,7 @@ export const useCompiledSql = () => {
         tableCalculations,
         additionalMetrics,
         customDimensions,
-        timezone,
+        timezone: timezone ?? undefined,
     };
     const queryKey = [
         'compiledQuery',
