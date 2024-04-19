@@ -1,3 +1,10 @@
+## [0.1073.1](https://github.com/lightdash/lightdash/compare/0.1073.0...0.1073.1) (2024-04-19)
+
+
+### Bug Fixes
+
+* only show option to move tab when there are multiple tabs available ([#9831](https://github.com/lightdash/lightdash/issues/9831)) ([103f394](https://github.com/lightdash/lightdash/commit/103f3943b350d4cac543b7af9fbf510f755a453b))
+
 # [0.1073.0](https://github.com/lightdash/lightdash/compare/0.1072.8...0.1073.0) (2024-04-19)
 
 
