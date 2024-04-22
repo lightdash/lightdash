@@ -1,3 +1,10 @@
+## [0.1074.3](https://github.com/lightdash/lightdash/compare/0.1074.2...0.1074.3) (2024-04-22)
+
+
+### Bug Fixes
+
+* no results email ([#9839](https://github.com/lightdash/lightdash/issues/9839)) ([a93f25e](https://github.com/lightdash/lightdash/commit/a93f25e00ef03d52af308b731e38234f5f6b072f))
+
 ## [0.1074.2](https://github.com/lightdash/lightdash/compare/0.1074.1...0.1074.2) (2024-04-22)
 
 
