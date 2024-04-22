@@ -1451,7 +1451,10 @@ const useEchartsCartesianConfig = (
                 : getResultValueArray(rows, true);
         try {
             if (!itemsMap) return results;
-            const xFieldId = validCartesianConfig?.layout?.xField;
+            const xFieldId = validCartesianConfig?.layout.flipAxes
+                ? validCartesianConfig?.layout?.yField?.[0]
+                : validCartesianConfig?.layout?.xField;
+
             if (xFieldId === undefined) return results;
             const { min, max } = axes.xAxis[0];
 
@@ -1535,11 +1538,13 @@ const useEchartsCartesianConfig = (
         }
     }, [
         validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.yField,
         validCartesianConfig?.eChartsConfig?.series,
         rows,
         itemsMap,
+        axes,
         resultsData?.metricQuery.sorts,
-        axes.xAxis,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
