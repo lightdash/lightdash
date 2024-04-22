@@ -146,11 +146,13 @@ models:
         meta:
           dimension: 
             colors: 
+              # Hex colors are supported in both chart config and echarts
               "placed": "#e6fa0f"
-              "completed": "#558B2F"
-              "shipped": "#29B6F6" 
-              "return_pending": "#FF6F00"
-              "returned": "#E91E63"
+              "completed": "#00FF00"
+              # Rgb/rgba/name colors are not supported in chart config, but supported in echarts
+              "shipped": "rgba(47, 119, 150, 0.7)" 
+              "return_pending": "orange"
+              "returned": "rgb(247, 32, 32)"
         tests:
           - accepted_values:
               values:
