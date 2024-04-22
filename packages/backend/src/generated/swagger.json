@@ -3725,41 +3725,10 @@
                 "enum": ["Day", "Week", "Month", "Quarter", "Year"],
                 "type": "string"
             },
-            "TimeZone": {
-                "enum": [
-                    "UTC",
-                    "Pacific/Pago_Pago",
-                    "Pacific/Honolulu",
-                    "America/Anchorage",
-                    "America/Los_Angeles",
-                    "America/Denver",
-                    "America/Chicago",
-                    "America/New_York",
-                    "America/Santo_Domingo",
-                    "America/Buenos_Aires",
-                    "America/Noronha",
-                    "Atlantic/Cape_Verde",
-                    "Europe/Paris",
-                    "Europe/Athens",
-                    "Europe/Moscow",
-                    "Asia/Dubai",
-                    "Asia/Karachi",
-                    "Asia/Dhaka",
-                    "Asia/Bangkok",
-                    "Asia/Shanghai",
-                    "Asia/Tokyo",
-                    "Australia/Sydney",
-                    "Pacific/Noumea",
-                    "Pacific/Auckland",
-                    "Pacific/Apia",
-                    "Pacific/Kiritimati"
-                ],
-                "type": "string"
-            },
             "MetricQueryRequest": {
                 "properties": {
                     "timezone": {
-                        "$ref": "#/components/schemas/TimeZone"
+                        "type": "string"
                     },
                     "metadata": {
                         "properties": {
@@ -4467,8 +4436,16 @@
             "EChartsConfig": {
                 "$ref": "#/components/schemas/Partial_CompleteEChartsConfig_"
             },
+            "Record_string.SeriesMetadata_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "CartesianChart": {
                 "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
                     "eChartsConfig": {
                         "$ref": "#/components/schemas/EChartsConfig"
                     },
@@ -4542,6 +4519,9 @@
             },
             "PieChart": {
                 "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
                     "legendPosition": {
                         "$ref": "#/components/schemas/PieChartLegendPosition"
                     },
@@ -6778,7 +6758,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1071.1",
+        "version": "0.1074.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
