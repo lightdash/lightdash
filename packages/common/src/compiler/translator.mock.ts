@@ -242,6 +242,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
             format: undefined,
             group: undefined,
             groupLabel: undefined,
+            colors: undefined,
             hidden: false,
             index: 0,
             label: 'My column name',
@@ -319,6 +320,7 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 round: undefined,
                 compact: undefined,
                 groupLabel: undefined,
+                colors: undefined,
                 index: 0,
             },
         },
@@ -536,6 +538,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         num_participating_athletes: {
@@ -556,6 +559,7 @@ export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
 
             index: 1,
         },
@@ -646,6 +650,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_raw: {
@@ -666,6 +671,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_day: {
@@ -686,6 +692,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_week: {
@@ -707,6 +714,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_month: {
@@ -728,6 +736,8 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
+
             index: 0,
         },
         user_created_quarter: {
@@ -737,6 +747,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             format: undefined,
             group: 'user_created',
             groupLabel: undefined,
+            colors: undefined,
             hidden: false,
             label: 'User created quarter',
             name: 'user_created_quarter',
@@ -769,6 +780,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY: Omi
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
     },
@@ -798,6 +810,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_raw: {
@@ -818,6 +831,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_day: {
@@ -841,6 +855,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_week: {
@@ -861,6 +876,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_month: {
@@ -881,6 +897,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_quarter: {
@@ -890,6 +907,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             format: undefined,
             group: 'user_created',
             groupLabel: undefined,
+            colors: undefined,
             hidden: false,
             label: 'User created quarter',
             name: 'user_created_quarter',
@@ -922,6 +940,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE: Om
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
     },
@@ -964,6 +983,7 @@ export const LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
     },
@@ -1000,6 +1020,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         user_created_year: {
@@ -1020,6 +1041,7 @@ export const LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
     },
@@ -1121,6 +1143,7 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
         },
         version: {
@@ -1141,6 +1164,7 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
             isAdditionalDimension: true,
         },
@@ -1162,6 +1186,7 @@ export const LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS: Omit<
             round: undefined,
             compact: undefined,
             groupLabel: undefined,
+            colors: undefined,
             index: 0,
             isAdditionalDimension: true,
         },
