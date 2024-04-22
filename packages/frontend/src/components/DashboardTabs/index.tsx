@@ -325,8 +325,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 )
                                                             }
                                                         >
-                                                            Remove Tab
-                                                            Components
+                                                            Remove Tabs
+                                                            Component
                                                         </Menu.Item>
                                                     ) : (
                                                         <Menu.Item
