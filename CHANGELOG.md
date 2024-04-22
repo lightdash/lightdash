@@ -1,3 +1,10 @@
+## [0.1074.2](https://github.com/lightdash/lightdash/compare/0.1074.1...0.1074.2) (2024-04-22)
+
+
+### Bug Fixes
+
+* wrong chart icon in pinned list ([#9838](https://github.com/lightdash/lightdash/issues/9838)) ([0a775f3](https://github.com/lightdash/lightdash/commit/0a775f398b417346902bd594d5df50e6a19a3c19))
+
 ## [0.1074.1](https://github.com/lightdash/lightdash/compare/0.1074.0...0.1074.1) (2024-04-22)
 
 
