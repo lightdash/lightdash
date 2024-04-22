@@ -249,6 +249,7 @@ export interface Dimension extends Field {
     requiredAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     isAdditionalDimension?: boolean;
+    colors?: Record<string, string>;
 }
 
 export const isTableCalculationField = (

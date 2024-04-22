@@ -2,10 +2,12 @@ import {
     assertUnreachable,
     ChartType,
     getCustomDimensionId,
+    isDimension,
     type ApiQueryResults,
     type ChartConfig,
     type DashboardFilters,
     type ItemsMap,
+    type PivotValue,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
@@ -261,6 +263,29 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
             if (metadata && metadata?.[serieId]?.color)
                 return metadata?.[serieId].color;
 
+            /** Check if color is set in the dimension metadata */
+
+            let pivot: PivotValue | undefined;
+            if ('pivotReference' in seriesLike && seriesLike.pivotReference) {
+                pivot = seriesLike.pivotReference.pivotValues?.[0];
+            } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
+                pivot = seriesLike.encode.yRef.pivotValues?.[0];
+            }
+            if (itemsMap && pivot) {
+                const { field, value } = pivot;
+                const dimension = itemsMap[field];
+                if (
+                    dimension &&
+                    isDimension(dimension) &&
+                    typeof value === 'string'
+                ) {
+                    const colors = dimension.colors;
+                    if (colors && colors[value]) {
+                        return colors[value];
+                    }
+                }
+            }
+
             /**
              * If this series is grouped, figure out a shared color assignment from the series;
              * otherwise, pick a series color from the palette based on its order.
@@ -272,7 +297,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
-        [calculateSeriesColorAssignment, fallbackColors, chartConfig],
+        [calculateSeriesColorAssignment, fallbackColors, chartConfig, itemsMap],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {
