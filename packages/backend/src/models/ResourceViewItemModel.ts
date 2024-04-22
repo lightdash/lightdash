@@ -95,7 +95,7 @@ const getCharts = async (
             updatedAt: row.updated_at,
             views: row.views,
             firstViewedAt: row.first_viewed_at,
-            chartType: row.chart_kind,
+            chartKind: row.chart_kind,
             updatedByUser: row.updated_by_user_uuid && {
                 userUuid: row.updated_by_user_uuid,
                 firstName: row.updated_by_user_first_name,
