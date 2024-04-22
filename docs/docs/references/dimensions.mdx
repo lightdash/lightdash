@@ -1,4 +1,5 @@
 import ClickableDimension from './assets/clickable-dimension-link.jpg';
+import ClickableDimension from './assets/pie-chart-color.png';
 
 # Dimensions reference doc
 
@@ -100,6 +101,7 @@ All the properties you can customize:
 | group_label                                 | No       | string                                                                                                                                            | If you set this property, the dimension will be grouped in the sidebar with other dimensions with the same group label.                                                                                                                                    |
 | [urls](#urls)                               | No       | Array of { url, label }                                                                                                                           | Adding urls to a dimension allows your users to click dimension values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
 | [required_attributes](#required-attributes) | No       | Object with { user_attribute, value }                                                                                                             | Limits access to users with those attributes                                                                                                                                                                                                               |
+| [colors](#colors)                           | No       | Object with { value, color }                                                                                                                      | Color for the values in the chart                                                                                                                                                                                                                          |
 
 ## Type
 
@@ -366,6 +368,46 @@ it is possible to write custom SQL to bypass this filter, for example:
 :::info
 
 Scheduler deliveries will run against the user who created the scheduled delivery, be careful when sharing required attributes with other users.
+
+:::
+
+## Colors
+
+You can predefine colors for your string type dimensions, these colors will be used instead of your default organization colors for the right value when you use
+a grouped bar chart or a pie chart.
+
+```
+  - name: status
+    description: "{{ doc(\"orders_status\") }}"
+    meta:
+      dimension:
+        colors:
+          "placed": "#e6fa0f"
+          "completed": "#558B2F"
+          "shipped": "#29B6F6"
+          "return_pending": "#FF6F00"
+          "returned": "#E91E63"
+```
+
+<img
+  src={PieChartColor}
+  width="583"
+  height="274"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+:::info
+
+We recommend using #HEX colors, other color types like rgba,rgba or color name (eg: orange) are also supported on charts, but they are not yet supported on the chart config.
+
+:::
+
+:::info
+
+You can manually override these dimension colors by going into the chart config and
+manually picking a color for that serie.
+
+These colors will also take precedence over the organization color palette.
 
 :::
 
