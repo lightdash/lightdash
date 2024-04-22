@@ -88,4 +88,5 @@ export type Table = TableBase & {
     metrics: { [fieldName: string]: Metric }; //
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
     source?: Source;
+    aliases?: string[]; // Optional list of aliases for the table
 };
