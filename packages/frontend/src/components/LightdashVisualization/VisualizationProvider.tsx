@@ -239,12 +239,23 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     /**
      * Gets a shared color for a given group name.
+     * Used in pie charts
      */
     const getGroupColor = useCallback(
         (groupPrefix: string, identifier: string) => {
+            if (itemsMap) {
+                const dimension = itemsMap[groupPrefix];
+                if (dimension && isDimension(dimension)) {
+                    const colors = dimension.colors;
+                    if (colors && colors[identifier]) {
+                        return colors[identifier];
+                    }
+                }
+            }
+
             return calculateKeyColorAssignment(groupPrefix, identifier);
         },
-        [calculateKeyColorAssignment],
+        [calculateKeyColorAssignment, itemsMap],
     );
 
     /**
