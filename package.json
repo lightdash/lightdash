@@ -9,6 +9,9 @@
             "packages/*"
         ]
     },
+    "resolutions": {
+        "zod": "3.22.5"
+    },
     "dependencies": {
         "concurrently": "^8.2.0",
         "npm-run-all2": "^6.0.6"
@@ -96,7 +99,7 @@
         "fix-format": "run-s common-fix-format backend-fix-format frontend-fix-format e2e-fix-format cli-fix-format",
         "test": "run-s common-test warehouses-test cli-test backend-test frontend-test",
         "dev": "concurrently -n \"common,warehouses,backend,frontend\" --prefix-colors \"bgWhite.bold,bgGreenBright.bold,bgMagenta.bold,bgBlue.bold\" \"yarn:common-dev\" \"yarn:warehouses-dev\" \"yarn:backend-dev\" \"yarn:frontend-dev\"",
-        "build": "run-s common-build warehouses-build frontend-build backend-build",
+        "build": "run-s common-build warehouses-build backend-build frontend-build",
         "build-published-packages": "run-s common-build warehouses-build cli-build",
         "start": "run-p backend-start",
         "prepare": "husky install",

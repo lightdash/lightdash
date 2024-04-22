@@ -37,7 +37,7 @@ const notifySlackError = async (
         );
 };
 
-type SlackBotArguments = {
+export type SlackBotArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
