@@ -59,8 +59,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     );
 
     const showSimplifiedForm: boolean =
-        validFilterRulesPerType.dimensions.length <= 1 &&
-        validFilterRulesPerType.metrics.length <= 1 &&
+        Object.values(validFilterRulesPerType).flat().length < 2 &&
         !hasNestedGroups(filters);
 
     const addFieldRule = useCallback(
