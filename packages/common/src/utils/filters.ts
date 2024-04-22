@@ -422,11 +422,11 @@ export const getFilterRulesByFieldType = (
     );
 
 /**
- * Takes a filter group and flattens it by merging nested AND groups into the parent group
+ * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
  * @param filterGroup - The filter group to flatten
  * @returns Flattened filter group
  */
-const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
+const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
     const items = getItemsFromFilterGroup(filterGroup);
 
     return {
@@ -435,17 +435,17 @@ const flattenFilterGroup = (filterGroup: FilterGroup): FilterGroup => {
             FilterGroupItem[]
         >((acc, item) => {
             if (isFilterGroup(item)) {
-                const flatGroup = flattenFilterGroup(item);
+                const flatGroup = flattenSameFilterGroupType(item);
 
-                // If the current group is an AND group and the parent group is an AND group as well, we can flatten it's items
+                // If the parent group is the same type as the current group, we merge the current group items into the parent group
                 if (
-                    isAndFilterGroup(flatGroup) &&
-                    isAndFilterGroup(filterGroup)
+                    getFilterGroupItemsPropertyName(flatGroup) ===
+                    getFilterGroupItemsPropertyName(filterGroup)
                 ) {
-                    return [...acc, ...flatGroup.and];
+                    return [...acc, ...getItemsFromFilterGroup(flatGroup)];
                 }
 
-                // If the parent group type doesn't match the current group type or we're working with and OR group, we can't flatten it
+                // If the parent group is not the same type as the current group, we just add the current group as an item
                 return [...acc, flatGroup];
             }
 
@@ -464,7 +464,7 @@ export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
     fields: Field[],
 ): Filters => {
-    const flatFilterGroup = flattenFilterGroup(filterGroup);
+    const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
 
     return items.reduce<Filters>((accumulator, item) => {
