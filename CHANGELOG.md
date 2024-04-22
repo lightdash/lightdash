@@ -1,3 +1,10 @@
+## [0.1074.1](https://github.com/lightdash/lightdash/compare/0.1074.0...0.1074.1) (2024-04-22)
+
+
+### Bug Fixes
+
+* filter adding value after paste instead of searching ([#9816](https://github.com/lightdash/lightdash/issues/9816)) ([29c9467](https://github.com/lightdash/lightdash/commit/29c9467230d9a7b902999dcbcfb39ac897846558))
+
 # [0.1074.0](https://github.com/lightdash/lightdash/compare/0.1073.3...0.1074.0) (2024-04-19)
 
 
