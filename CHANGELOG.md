@@ -1,3 +1,10 @@
+# [0.1075.0](https://github.com/lightdash/lightdash/compare/0.1074.3...0.1075.0) (2024-04-23)
+
+
+### Features
+
+* dimension color chart ([#9847](https://github.com/lightdash/lightdash/issues/9847)) ([f1fdf69](https://github.com/lightdash/lightdash/commit/f1fdf691e87e00c978ec0b3db82c9a1ee1b5a535))
+
 ## [0.1074.3](https://github.com/lightdash/lightdash/compare/0.1074.2...0.1074.3) (2024-04-22)
 
 
