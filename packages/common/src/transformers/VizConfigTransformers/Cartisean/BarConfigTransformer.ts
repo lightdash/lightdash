@@ -4,7 +4,7 @@ import {
     cartesianVizConfigSchema,
 } from './AbstractCartiseanConfigTransformer';
 
-const barVizConfigSchema = cartesianVizConfigSchema.extend({
+export const barVizConfigSchema = cartesianVizConfigSchema.extend({
     type: z.literal('bar'),
 });
 

@@ -16,7 +16,7 @@ const axisSchema = z.object({
     label: z.string(),
     sort: z.enum(['asc', 'desc']).optional(),
     position: z.enum(['left', 'right']).optional(),
-    gridLines: z.boolean(),
+    gridLines: z.boolean().optional(),
     axisTicks: z.array(axisTickSchema),
 });
 

@@ -15,11 +15,11 @@
     },
     "devDependencies": {},
     "dependencies": {
+        "@lightdash/common": "^0.1075.0",
         "@testing-library/cypress": "^9.0.0",
         "cypress": "^13.7.2",
         "cypress-file-upload": "^5.0.8",
         "cypress-split": "^1.18.1",
-        "node-fetch": "^2.6.1",
-        "@lightdash/common": "^0.1075.0"
+        "node-fetch": "^2.6.1"
     }
 }

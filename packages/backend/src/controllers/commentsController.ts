@@ -1,9 +1,10 @@
-import { ApiErrorPayload, Comment } from '@lightdash/common';
 import {
     ApiCreateComment,
+    ApiErrorPayload,
     ApiGetComments,
     ApiResolveComment,
-} from '@lightdash/common/src/types/api/comments';
+    Comment,
+} from '@lightdash/common';
 import {
     Body,
     Delete,
