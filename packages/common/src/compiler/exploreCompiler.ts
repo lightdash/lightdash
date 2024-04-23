@@ -73,6 +73,24 @@ export type UncompiledExplore = {
     joinAliases?: Record<string, Record<string, string>>;
 };
 
+const getReferencedTable = (
+    refTable: string,
+    tables: Record<string, Table>,
+    currentTable: string,
+    joinAliases?: Record<string, Record<string, string>>,
+) =>
+    Object.values(tables).find((table) => {
+        const nameMatch =
+            table.name === refTable || table.originalName === refTable;
+        if (nameMatch) return true;
+
+        if (!joinAliases?.[currentTable]) return false;
+        // Check if this `refTable` is an alias in its join
+        return Object.entries(joinAliases[currentTable]).some(
+            ([alias, joinTable]) =>
+                alias === refTable && joinTable === table.name,
+        );
+    });
 export class ExploreCompiler {
     private readonly warehouseClient: WarehouseClient;
 
@@ -294,7 +312,13 @@ export class ExploreCompiler {
                 dimReference,
                 metric.table,
             );
-            const isValidReference = !!tables[refTable]?.dimensions[refName];
+            const referencedTable = getReferencedTable(
+                refTable,
+                tables,
+                metric.table,
+                joinAliases,
+            );
+            const isValidReference = !!referencedTable?.dimensions[refName];
             if (!isValidReference) {
                 throw new CompileError(
                     `"show_underlying_values" for metric "${metric.name}" has a reference to an unknown dimension: ${dimReference} in table "${metric.table}"`,
@@ -510,18 +534,12 @@ export class ExploreCompiler {
         const { refTable, refName } = getParsedReference(ref, currentTable);
 
         /** Resolve the table reference through its original name, or via an alias: */
-        const referencedTable = Object.values(tables).find((table) => {
-            const nameMatch =
-                table.name === refTable || table.originalName === refTable;
-            if (nameMatch) return true;
-
-            if (!joinAliases?.[currentTable]) return false;
-            // Check if this `refTable` is an alias in its join
-            return Object.entries(joinAliases[currentTable]).some(
-                ([alias, joinTable]) =>
-                    alias === refTable && joinTable === table.name,
-            );
-        });
+        const referencedTable = getReferencedTable(
+            refTable,
+            tables,
+            currentTable,
+            joinAliases,
+        );
 
         const referencedDimension = referencedTable?.dimensions[refName];
 
