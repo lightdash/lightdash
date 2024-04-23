@@ -1,3 +1,10 @@
+## [0.1075.4](https://github.com/lightdash/lightdash/compare/0.1075.3...0.1075.4) (2024-04-23)
+
+
+### Bug Fixes
+
+* min max range on horizontal bar chart ([#9844](https://github.com/lightdash/lightdash/issues/9844)) ([28558f4](https://github.com/lightdash/lightdash/commit/28558f4c9c3f3e59ca398c29750c2223bec039c1))
+
 ## [0.1075.3](https://github.com/lightdash/lightdash/compare/0.1075.2...0.1075.3) (2024-04-23)
 
 
