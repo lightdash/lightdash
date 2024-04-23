@@ -6,6 +6,7 @@ import {
     fieldId,
     isMetric,
     MetricType,
+    TableCalculationType,
     type CompiledField,
     type CompiledTableCalculation,
 } from '../types/field';
@@ -315,10 +316,39 @@ export const renderTableCalculationFilterRuleSql = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
 ): string => {
     if (!field) return '1=1';
 
     const fieldSql = `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`;
+
+    // First we default to field.type
+    // otherwise, we check the custom format for backwards compatibility
+    switch (field.type) {
+        case TableCalculationType.STRING:
+            return renderStringFilterSql(
+                fieldSql,
+                filterRule,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
+        case TableCalculationType.DATE:
+        case TableCalculationType.TIMESTAMP:
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                adapterType,
+                undefined,
+                startOfWeek,
+            );
+        case TableCalculationType.NUMBER:
+            return renderNumberFilterSql(fieldSql, filterRule);
+        case TableCalculationType.BOOLEAN:
+            return renderBooleanFilterSql(fieldSql, filterRule);
+        default:
+        // Try with format.type for backwards compatibility
+    }
 
     switch (field.format?.type) {
         case CustomFormatType.DEFAULT:

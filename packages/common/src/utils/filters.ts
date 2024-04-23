@@ -2,7 +2,6 @@ import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    CustomFormatType,
     DimensionType,
     fieldId,
     isDimension,
@@ -144,13 +143,6 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case MetricType.BOOLEAN:
         case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
-        case CustomFormatType.DEFAULT:
-        case CustomFormatType.ID:
-            return FilterType.STRING;
-        case CustomFormatType.CURRENCY:
-        case CustomFormatType.PERCENT:
-        case CustomFormatType.NUMBER:
-            return FilterType.NUMBER;
         default: {
             return assertUnreachable(
                 type,

@@ -62,11 +62,12 @@ const getFieldIcon = (
         return 'citation';
     }
     if (
-        isField(field) &&
-        (isDimension(field) || isMetric(field) || isTableCalculation(field))
+        (isField(field) && (isDimension(field) || isMetric(field))) ||
+        isTableCalculation(field)
     ) {
-        return getItemIconName(field.type);
+        if (field.type) return getItemIconName(field.type);
     }
+
     return getItemIcon(field);
 };
 
@@ -87,7 +88,6 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
             size,
             color: iconColor,
         };
-
         switch (getFieldIcon(item)) {
             case 'citation':
                 return <MantineIcon icon={IconAbc} {...props} />;

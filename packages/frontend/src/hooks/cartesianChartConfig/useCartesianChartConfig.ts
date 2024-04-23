@@ -833,7 +833,6 @@ const useCartesianChartConfig = ({
         },
         [],
     );
-
     return {
         validConfig,
         dirtyChartType,

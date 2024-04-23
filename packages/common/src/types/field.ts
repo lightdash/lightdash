@@ -146,7 +146,7 @@ export type TableCalculationMetadata = {
 
 export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
-    type: CustomFormatType;
+    type: TableCalculationType;
     index?: number;
     name: string;
     displayName: string;
@@ -159,7 +159,7 @@ export const isTableCalculation = (
     item
         ? !('binType' in item) &&
           !!item.sql &&
-          !('type' in item) &&
+          !('description' in item) &&
           !('tableName' in item)
         : false;
 

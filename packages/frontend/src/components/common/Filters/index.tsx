@@ -131,7 +131,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
         },
         [fields, filters, setFilters],
     );
-
     return (
         <Stack spacing="xs" pos="relative" m="sm" style={{ flexGrow: 1 }}>
             {totalFilterRules.length >= 1 &&
