@@ -1,3 +1,10 @@
+## [0.1075.1](https://github.com/lightdash/lightdash/compare/0.1075.0...0.1075.1) (2024-04-23)
+
+
+### Bug Fixes
+
+* fix joined table with aliases in metric ([#9842](https://github.com/lightdash/lightdash/issues/9842)) ([25aef88](https://github.com/lightdash/lightdash/commit/25aef88cd29ccc985144c5157702ec9b6b898221))
+
 # [0.1075.0](https://github.com/lightdash/lightdash/compare/0.1074.3...0.1075.0) (2024-04-23)
 
 
