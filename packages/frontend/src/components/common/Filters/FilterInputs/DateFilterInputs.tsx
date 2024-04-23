@@ -213,7 +213,11 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                     value={
                         rule.values
                             ? parseDate(
-                                  formatDate(rule.values[0], TimeFrames.DAY),
+                                  formatDate(
+                                      rule.values[0],
+                                      TimeFrames.DAY,
+                                      true,
+                                  ),
                                   TimeFrames.DAY,
                               )
                             : null
