@@ -104,17 +104,12 @@ export const filterableDimensionsOnly = (
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
 export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
-    if (isTableCalculation(item) && item.type === undefined) {
-        return FilterType.NUMBER;
-    }
-
     const { type } = item;
 
     if (type === undefined) {
         // Type check for TableCalculationType
         return FilterType.NUMBER;
     }
-
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
