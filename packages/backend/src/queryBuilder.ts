@@ -424,7 +424,7 @@ export const getCustomDimensionSql = ({
                     ];
 
                     if (isSorted) {
-                        const sortWhens = Array.from(
+                        const sortBinWhens = Array.from(
                             Array(customDimension.binNumber).keys(),
                         ).map((i) => {
                             if (i !== customDimension.binNumber! - 1) {
@@ -436,6 +436,11 @@ export const getCustomDimensionSql = ({
                             }
                             return `ELSE ${i}`;
                         });
+
+                        const sortWhens = [
+                            `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.binNumber}`,
+                            ...sortBinWhens,
+                        ];
 
                         return [
                             ...acc,
@@ -508,8 +513,8 @@ export const getCustomDimensionSql = ({
                         AS ${customDimensionName}`;
 
                     if (isSorted) {
-                        const sortedWhens = customDimension.customRange.map(
-                            (range, i) => {
+                        const sortedRangeWhens =
+                            customDimension.customRange.map((range, i) => {
                                 if (range.from === undefined) {
                                     return `WHEN ${dimension.compiledSql} < ${range.to} THEN ${i}`;
                                 }
@@ -518,8 +523,12 @@ export const getCustomDimensionSql = ({
                                 }
 
                                 return `WHEN ${dimension.compiledSql} >= ${range.from} AND ${dimension.compiledSql} < ${range.to} THEN ${i}`;
-                            },
-                        );
+                            });
+
+                        const sortedWhens = [
+                            `WHEN ${dimension.compiledSql} IS NULL THEN ${customDimension.customRange.length}`,
+                            ...sortedRangeWhens,
+                        ];
 
                         return [
                             ...acc,
