@@ -142,7 +142,6 @@ export class ExploreCompiler {
                     [join.alias || join.table]: {
                         ...tables[join.table],
                         originalName: tables[join.table].name,
-                        aliases: undefined,
                         name: joinTableName,
                         label: joinTableLabel,
                         hidden: join.hidden,
