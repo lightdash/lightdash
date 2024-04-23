@@ -92,7 +92,7 @@
         "uuid": "^8.3.2",
         "vega": "^5.26.0",
         "vega-lite": "^5.16.1",
-        "zod": "^3.22.5"
+        "zod": "^3.23.3"
     },
     "devDependencies": {
         "@testing-library/jest-dom": "^6.4.0",

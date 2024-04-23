@@ -9,9 +9,6 @@
             "packages/*"
         ]
     },
-    "resolutions": {
-        "zod": "3.22.5"
-    },
     "dependencies": {
         "concurrently": "^8.2.0",
         "npm-run-all2": "^6.0.6"
