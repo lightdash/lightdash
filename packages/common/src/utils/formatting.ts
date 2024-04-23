@@ -99,7 +99,7 @@ const getTimeFormat = (
             timeFormat = 'HH:mm:ss:SSS';
             break;
     }
-    return `YYYY-MM-DD, ${timeFormat} (Z)`;
+    return `YYYY-MM-DD, ${timeFormat} Z`;
 };
 
 // TODO: To rename to isDayJsInput once we remove moment usage
