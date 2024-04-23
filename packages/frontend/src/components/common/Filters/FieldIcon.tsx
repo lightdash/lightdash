@@ -6,7 +6,9 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     MetricType,
+    TableCalculationType,
     type AdditionalMetric,
     type CustomDimension,
     type Field,
@@ -24,17 +26,29 @@ import {
 import { forwardRef } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
-const getItemIconName = (type: DimensionType | MetricType) => {
+const getItemIconName = (
+    type: DimensionType | MetricType | TableCalculationType,
+) => {
     switch (type) {
-        case DimensionType.STRING || MetricType.STRING:
+        case DimensionType.STRING:
+        case MetricType.STRING:
+        case TableCalculationType.STRING:
             return 'citation';
-        case DimensionType.NUMBER || MetricType.NUMBER:
+        case DimensionType.NUMBER:
+        case MetricType.NUMBER:
+        case TableCalculationType.NUMBER:
             return 'numerical';
-        case DimensionType.DATE || MetricType.DATE:
+        case DimensionType.DATE:
+        case MetricType.DATE:
+        case TableCalculationType.DATE:
             return 'calendar';
-        case DimensionType.BOOLEAN || MetricType.BOOLEAN:
+        case DimensionType.BOOLEAN:
+        case MetricType.BOOLEAN:
+        case TableCalculationType.BOOLEAN:
             return 'segmented-control';
-        case DimensionType.TIMESTAMP || MetricType.TIMESTAMP:
+        case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP:
+        case TableCalculationType.TIMESTAMP:
             return 'time';
         default:
             return 'numerical';
@@ -47,7 +61,10 @@ const getFieldIcon = (
     if (isCustomDimension(field)) {
         return 'citation';
     }
-    if (isField(field) && (isDimension(field) || isMetric(field))) {
+    if (
+        isField(field) &&
+        (isDimension(field) || isMetric(field) || isTableCalculation(field))
+    ) {
         return getItemIconName(field.type);
     }
     return getItemIcon(field);

@@ -123,12 +123,20 @@ export enum CustomFormatType {
     ID = 'id',
 }
 
+export enum TableCalculationType {
+    NUMBER = 'number',
+    STRING = 'string',
+    DATE = 'date',
+    TIMESTAMP = 'timestamp',
+    BOOLEAN = 'boolean',
+}
 export type TableCalculation = {
     index?: number;
     name: string;
     displayName: string;
     sql: string;
     format?: CustomFormat;
+    type?: TableCalculationType;
 };
 
 export type TableCalculationMetadata = {

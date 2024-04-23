@@ -10,6 +10,7 @@ import {
     isTableCalculation,
     MetricType,
     NumberSeparator,
+    TableCalculationType,
     type CompactOrAlias,
     type CustomDimension,
     type CustomFormat,
@@ -396,14 +397,17 @@ export function formatItemValue(
     if (item) {
         if ('type' in item) {
             switch (item.type) {
+                case TableCalculationType.STRING:
                 case DimensionType.STRING:
                 case MetricType.STRING:
                     return `${value}`;
                 case DimensionType.BOOLEAN:
                 case MetricType.BOOLEAN:
+                case TableCalculationType.BOOLEAN:
                     return formatBoolean(value);
                 case DimensionType.DATE:
                 case MetricType.DATE:
+                case TableCalculationType.DATE:
                     return isMomentInput(value)
                         ? formatDate(
                               value,
@@ -413,6 +417,7 @@ export function formatItemValue(
                         : 'NaT';
                 case DimensionType.TIMESTAMP:
                 case MetricType.TIMESTAMP:
+                case TableCalculationType.TIMESTAMP:
                     return isMomentInput(value)
                         ? formatTimestamp(
                               value,
@@ -431,6 +436,7 @@ export function formatItemValue(
                     }
                     break;
                 case DimensionType.NUMBER:
+                case TableCalculationType.NUMBER:
                     if (
                         isDimension(item) &&
                         item.timeInterval &&
