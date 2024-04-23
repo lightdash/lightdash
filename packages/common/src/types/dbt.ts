@@ -99,6 +99,7 @@ type DbtColumnLightdashDimension = {
     compact?: CompactOrAlias;
     format?: Format;
     group_label?: string;
+    colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
 };
