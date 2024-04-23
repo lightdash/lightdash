@@ -346,6 +346,7 @@ export const getCustomDimensionSql = ({
                 );
             const quoteChar = warehouseClient.getStringQuoteChar();
             const dash = `${quoteChar} - ${quoteChar}`;
+
             switch (customDimension.binType) {
                 case BinType.FIXED_WIDTH:
                     if (!customDimension.binWidth) {
@@ -395,7 +396,7 @@ export const getCustomDimensionSql = ({
                     const to = (i: number) =>
                         `${cte}.min_id + ${binWidth} * ${i + 1}`;
 
-                    const whens = Array.from(
+                    const binWhens = Array.from(
                         Array(customDimension.binNumber).keys(),
                     ).map((i) => {
                         if (i !== customDimension.binNumber! - 1) {
@@ -415,6 +416,12 @@ export const getCustomDimensionSql = ({
                             `${cte}.max_id`,
                         )}`;
                     });
+
+                    // Add a NULL case for when the dimension is NULL, returning null as the value so it get's correctly formated with the symbol ∅
+                    const whens = [
+                        `WHEN ${dimension.compiledSql} IS NULL THEN NULL`,
+                        ...binWhens,
+                    ];
 
                     if (isSorted) {
                         const sortWhens = Array.from(
@@ -458,7 +465,7 @@ export const getCustomDimensionSql = ({
                         );
                     }
 
-                    const rangeWhens = customDimension.customRange.map(
+                    const binRangeWhens = customDimension.customRange.map(
                         (range) => {
                             if (range.from === undefined) {
                                 // First range
@@ -488,6 +495,12 @@ export const getCustomDimensionSql = ({
                             )}`;
                         },
                     );
+
+                    // Add a NULL case for when the dimension is NULL, returning null as the value so it get's correctly formated with the symbol ∅
+                    const rangeWhens = [
+                        `WHEN ${dimension.compiledSql} IS NULL THEN NULL`,
+                        ...binRangeWhens,
+                    ];
 
                     const customRangeSql = `CASE
                         ${rangeWhens.join('\n')}
