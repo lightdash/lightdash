@@ -442,7 +442,7 @@ export class CsvService extends BaseService {
                 path: '#no-results',
                 filename: `${chart.name} (empty)`,
                 localPath: '',
-                truncated: true,
+                truncated: false,
             };
 
         const itemMap = getItemMap(

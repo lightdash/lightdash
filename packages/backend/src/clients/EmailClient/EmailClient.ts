@@ -256,6 +256,7 @@ export default class EmailClient {
                 url,
                 csvUrl,
                 truncated: attachment.truncated,
+                noResults: attachment.path === '#no-results',
                 maxCells: this.lightdashConfig.query.csvCellsLimit,
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
