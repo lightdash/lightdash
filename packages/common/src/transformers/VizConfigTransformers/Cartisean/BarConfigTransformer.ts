@@ -5,7 +5,7 @@ import {
 } from './AbstractCartiseanConfigTransformer';
 
 export const barVizConfigSchema = cartesianVizConfigSchema.extend({
-    type: z.literal('bar'),
+    type: z.literal('bar').describe("Type of the series, default to 'bar'"),
 });
 
 export type BarVizConfig = z.infer<typeof barVizConfigSchema>;
