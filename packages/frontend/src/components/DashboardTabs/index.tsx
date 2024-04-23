@@ -192,6 +192,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     order: 0,
                 };
                 newTabs.push(firstTab);
+                dashboardTiles?.forEach((tile) => {
+                    tile.tabUuid = firstTab.uuid; // move all tiles to default tab
+                });
             }
             const lastOrd = newTabs.sort((a, b) => b.order - a.order)[0].order;
             const newTab = {
@@ -239,15 +242,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setHaveTabsChanged(true);
         setDeletingTab(false);
 
-        if (dashboardTabs.length === 0) {
-            console.log('Do nothing, keep all tiles');
-        } else {
-            const tilesToDelete = dashboardTiles?.filter(
-                (tile) => tile.tabUuid == tabUuid,
-            );
-            if (tilesToDelete) {
-                handleBatchDeleteTiles(tilesToDelete);
-            }
+        if (dashboardTabs.length === 1) {
+            return; // keep all tiles if its the last tab
+        }
+
+        const tilesToDelete = dashboardTiles?.filter(
+            (tile) => tile.tabUuid == tabUuid,
+        );
+        if (tilesToDelete) {
+            handleBatchDeleteTiles(tilesToDelete);
         }
     };
 
@@ -314,13 +317,28 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     >
                                                         Rename Tab
                                                     </Menu.Item>
-                                                    <Menu.Item
-                                                        onClick={() =>
-                                                            setDeletingTab(true)
-                                                        }
-                                                    >
-                                                        Remove Tab
-                                                    </Menu.Item>
+                                                    {sortedTabs.length === 1 ? (
+                                                        <Menu.Item
+                                                            onClick={() =>
+                                                                handleDeleteTab(
+                                                                    tab.uuid,
+                                                                )
+                                                            }
+                                                        >
+                                                            Remove Tabs
+                                                            Component
+                                                        </Menu.Item>
+                                                    ) : (
+                                                        <Menu.Item
+                                                            onClick={() =>
+                                                                setDeletingTab(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Remove Tab
+                                                        </Menu.Item>
+                                                    )}
                                                 </Menu.Dropdown>
                                             </Menu>
                                         ) : null}
@@ -419,7 +437,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         tab={activeTab}
                         dashboardTiles={dashboardTiles}
                         onClose={() => setDeletingTab(false)}
-                        opened={isDeletingTab}
+                        opened={isDeletingTab && dashboardTabs?.length > 1}
                         onDeleteTab={(uuid) => {
                             handleDeleteTab(uuid);
                         }}
