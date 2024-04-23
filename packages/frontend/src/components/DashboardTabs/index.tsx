@@ -437,7 +437,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         tab={activeTab}
                         dashboardTiles={dashboardTiles}
                         onClose={() => setDeletingTab(false)}
-                        opened={isDeletingTab && dashboardTabs.length > 1}
+                        opened={isDeletingTab && dashboardTabs?.length > 1}
                         onDeleteTab={(uuid) => {
                             handleDeleteTab(uuid);
                         }}
