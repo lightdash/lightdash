@@ -742,7 +742,7 @@ describe('Formatting', () => {
                     },
                     new Date('2021-03-10T00:00:00.000Z'),
                 ),
-            ).toEqual('2021-03-10, 00:00:00:000 +00:00');
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
             expect(
                 formatItemValue(
                     {
@@ -784,13 +784,13 @@ describe('Formatting', () => {
                     { ...metric, type: MetricType.MIN },
                     new Date('2021-03-10T00:00:00.000Z'),
                 ),
-            ).toEqual('2021-03-10, 00:00:00:000 +00:00');
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
             expect(
                 formatItemValue(
                     { ...metric, type: MetricType.MAX },
                     new Date('2021-03-10T00:00:00.000Z'),
                 ),
-            ).toEqual('2021-03-10, 00:00:00:000 +00:00');
+            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
             expect(
                 formatItemValue(
                     {
