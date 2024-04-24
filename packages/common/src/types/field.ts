@@ -160,6 +160,7 @@ export const isTableCalculation = (
         ? !('binType' in item) &&
           !!item.sql &&
           !('description' in item) &&
+          !('tableLabel' in item) &&
           !('tableName' in item)
         : false;
 

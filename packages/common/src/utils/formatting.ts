@@ -201,7 +201,6 @@ export function formatNumberValue(
 ): string {
     const options = getFormatNumberOptions(value, format);
     const separator = format?.separator || NumberSeparator.DEFAULT;
-
     switch (separator) {
         case NumberSeparator.COMMA_PERIOD:
             return value.toLocaleString('en-US', options);
@@ -436,7 +435,6 @@ export function formatItemValue(
                     }
                     break;
                 case DimensionType.NUMBER:
-                case TableCalculationType.NUMBER:
                     if (
                         isDimension(item) &&
                         item.timeInterval &&
