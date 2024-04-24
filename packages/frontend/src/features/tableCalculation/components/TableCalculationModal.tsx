@@ -62,7 +62,7 @@ const TableCalculationModal: FC<Props> = ({
         initialValues: {
             name: tableCalculation?.displayName || '',
             sql: tableCalculation?.sql || '',
-            type: tableCalculation?.type,
+            type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
                 type:
                     tableCalculation?.format?.type || CustomFormatType.DEFAULT,
@@ -181,21 +181,14 @@ const TableCalculationModal: FC<Props> = ({
                         <Select
                             label={'Result type'}
                             id="download-type"
-                            defaultValue={'default'}
-                            value={
-                                form.getInputProps('type').value ?? 'default'
-                            }
+                            {...form.getInputProps('type')}
                             onChange={(value) => {
                                 const tcType = Object.values(
                                     TableCalculationType,
                                 ).find((type) => type === value);
-                                //can be undefined if 'default' is selected
-                                form.setFieldValue(`type`, tcType);
+                                if (tcType) form.setFieldValue(`type`, tcType);
                             }}
-                            data={[
-                                'default',
-                                ...Object.values(TableCalculationType),
-                            ]}
+                            data={Object.values(TableCalculationType)}
                         ></Select>
                     </Tooltip>
                     <Group position="apart">
