@@ -1,3 +1,10 @@
+## [0.1076.2](https://github.com/lightdash/lightdash/compare/0.1076.1...0.1076.2) (2024-04-24)
+
+
+### Bug Fixes
+
+* date ranger picker value not rendered to UTC in sql ([#9860](https://github.com/lightdash/lightdash/issues/9860)) ([3013867](https://github.com/lightdash/lightdash/commit/3013867ddcaaa3c9d80c7b7c23577e2dc307d107))
+
 ## [0.1076.1](https://github.com/lightdash/lightdash/compare/0.1076.0...0.1076.1) (2024-04-24)
 
 
