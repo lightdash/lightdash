@@ -168,25 +168,6 @@ export class SchedulerService extends BaseService {
                 spaceUuid,
             );
 
-            // TODO: Debugging info on access. Remove after closing #9880
-            console.log(
-                user.ability.relevantRuleFor(
-                    'view',
-                    subject('Dashboard', {
-                        organizationUuid,
-                        projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: spaceAccess,
-                    }),
-                ),
-                {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access: spaceAccess,
-                },
-            );
-
             if (
                 user.ability.cannot(
                     'view',
