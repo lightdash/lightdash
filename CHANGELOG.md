@@ -1,3 +1,24 @@
+## [0.1075.4](https://github.com/lightdash/lightdash/compare/0.1075.3...0.1075.4) (2024-04-23)
+
+
+### Bug Fixes
+
+* min max range on horizontal bar chart ([#9844](https://github.com/lightdash/lightdash/issues/9844)) ([28558f4](https://github.com/lightdash/lightdash/commit/28558f4c9c3f3e59ca398c29750c2223bec039c1))
+
+## [0.1075.3](https://github.com/lightdash/lightdash/compare/0.1075.2...0.1075.3) (2024-04-23)
+
+
+### Bug Fixes
+
+* remove type separation in filters ([#9743](https://github.com/lightdash/lightdash/issues/9743)) ([b6f09cc](https://github.com/lightdash/lightdash/commit/b6f09cc0603f34415b00ebfc692b8f0c33df4aef))
+
+## [0.1075.2](https://github.com/lightdash/lightdash/compare/0.1075.1...0.1075.2) (2024-04-23)
+
+
+### Bug Fixes
+
+* Delete last tab should not delete tiles ([#9848](https://github.com/lightdash/lightdash/issues/9848)) ([b80d799](https://github.com/lightdash/lightdash/commit/b80d799d1d3c74d1fb31cf88d7a0d2e275a72384))
+
 ## [0.1075.1](https://github.com/lightdash/lightdash/compare/0.1075.0...0.1075.1) (2024-04-23)
 
 
