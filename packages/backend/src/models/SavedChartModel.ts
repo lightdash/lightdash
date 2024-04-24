@@ -207,6 +207,7 @@ const createSavedChartVersion = async (
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === tableCalculation.name,
                     ),
+                    type: tableCalculation.type,
                 }),
             );
         });
@@ -685,6 +686,7 @@ export class SavedChartModel {
                     'calculation_raw_sql',
                     'order',
                     'format',
+                    'type',
                 ])
                 .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -819,6 +821,7 @@ export class SavedChartModel {
                             displayName: tableCalculation.display_name,
                             sql: tableCalculation.calculation_raw_sql,
                             format: tableCalculation.format || undefined,
+                            type: tableCalculation.type || undefined,
                         }),
                     ),
                     additionalMetrics,

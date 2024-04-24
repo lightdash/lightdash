@@ -2,14 +2,13 @@ import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    CustomFormatType,
     DimensionType,
     fieldId,
     isDimension,
     isFilterableDimension,
-    isTableCalculation,
     isTableCalculationField,
     MetricType,
+    TableCalculationType,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -104,15 +103,16 @@ export const filterableDimensionsOnly = (
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
 export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
-    if (isTableCalculation(item)) {
-        return FilterType.NUMBER;
-    }
-
     const { type } = item;
 
+    if (type === undefined) {
+        // Type check for TableCalculationType
+        return FilterType.NUMBER;
+    }
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
+        case TableCalculationType.STRING:
             return FilterType.STRING;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
@@ -124,22 +124,19 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX:
+        case TableCalculationType.NUMBER:
             return FilterType.NUMBER;
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP:
         case DimensionType.DATE:
         case MetricType.DATE:
+        case TableCalculationType.DATE:
+        case TableCalculationType.TIMESTAMP:
             return FilterType.DATE;
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
+        case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
-        case CustomFormatType.DEFAULT:
-        case CustomFormatType.ID:
-            return FilterType.STRING;
-        case CustomFormatType.CURRENCY:
-        case CustomFormatType.PERCENT:
-        case CustomFormatType.NUMBER:
-            return FilterType.NUMBER;
         default: {
             return assertUnreachable(
                 type,

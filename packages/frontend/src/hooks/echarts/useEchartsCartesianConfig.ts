@@ -19,6 +19,7 @@ import {
     isTableCalculation,
     isTimeInterval,
     MetricType,
+    TableCalculationType,
     timeFrameConfigs,
     TimeFrames,
     type ApiQueryResults,
@@ -78,8 +79,9 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
 
 const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomDimension(item)) return 'category';
-    if (item && isField(item)) {
+    if (item && (isField(item) || isTableCalculation(item))) {
         switch (item.type) {
+            case TableCalculationType.NUMBER:
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
             case MetricType.PERCENTILE:
@@ -96,6 +98,8 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.TIMESTAMP:
             case DimensionType.DATE:
             case MetricType.DATE:
+            case TableCalculationType.DATE:
+            case TableCalculationType.TIMESTAMP:
                 return 'time';
             default: {
                 return 'category';
@@ -899,7 +903,11 @@ const getEchartAxes = ({
                     },
                 },
             };
-        } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
+        } else if (
+            axisItem !== undefined &&
+            isTableCalculation(axisItem) &&
+            axisItem.type === undefined
+        ) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(axisItem, value);

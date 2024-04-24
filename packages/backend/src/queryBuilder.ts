@@ -802,6 +802,8 @@ export const buildQuery = ({
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeStringQuoteChar,
+                adapterType,
+                startOfWeek,
             );
         }
 

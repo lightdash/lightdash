@@ -1,12 +1,12 @@
 import {
     convertAdditionalMetric,
-    CustomFormatType,
     DimensionType,
     fieldId,
     FieldType,
     getResultValueArray,
     getVisibleFields,
     isFilterableField,
+    TableCalculationType,
     type AdditionalMetric,
     type ApiQueryResults,
     type Explore,
@@ -58,9 +58,7 @@ export const useFieldsWithSuggestions = ({
                 >((acc, cal) => {
                     const tableCalculationFilters: TableCalculationField = {
                         fieldType: FieldType.TABLE_CALCULATION,
-                        type: cal.format?.type
-                            ? cal.format.type
-                            : CustomFormatType.DEFAULT,
+                        type: cal.type || TableCalculationType.NUMBER,
                         table: 'table_calculation',
                         label: cal.name,
                         tableLabel: 'Table Calculation',
