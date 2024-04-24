@@ -215,6 +215,15 @@ export class DashboardService extends BaseService {
             access: spaceAccess,
         };
 
+        // TODO: Debugging info on access. Remove after closing #9880
+        console.log(
+            user.ability.relevantRuleFor(
+                'view',
+                subject('Dashboard', dashboard),
+            ),
+            dashboard,
+        );
+
         if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",

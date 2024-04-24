@@ -163,9 +163,28 @@ export class SchedulerService extends BaseService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.dashboardModel.getById(scheduler.dashboardUuid);
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = this.spaceModel.getUserSpaceAccess(
+            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 spaceUuid,
+            );
+
+            // TODO: Debugging info on access. Remove after closing #9880
+            console.log(
+                user.ability.relevantRuleFor(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access: spaceAccess,
+                    }),
+                ),
+                {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access: spaceAccess,
+                },
             );
 
             if (
