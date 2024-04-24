@@ -6,20 +6,24 @@ export async function up(knex: Knex): Promise<void> {
             LOWER(
                 ${slug}
             ),
-            '[^a-z0-9/]+', '-', 'g'
+            '[^a-z0-9]+', '-', 'g'
         )`;
     // This will populate slugs only for charts in spaces, not charts in dashboards
 
     await knex.raw(`
         UPDATE saved_queries sq
-        SET slug = ${sanitizeSlug(`'charts/' || s."name" || '/' || sq.name`)}
+        SET slug = 'charts/' || ${sanitizeSlug(
+            `s."name"`,
+        )} || '/' || ${sanitizeSlug(`sq."name"`)} 
         FROM spaces s
         WHERE sq.space_id = s.space_id
         AND sq.space_id IS NOT NULL;
   `);
     await knex.raw(`
     UPDATE dashboards d
-    SET slug =  ${sanitizeSlug(`'dashboards/' || s."name" || '/' || d.name`)}
+    SET slug =  'dashboards/' || ${sanitizeSlug(
+        `s."name"`,
+    )} || '/' || ${sanitizeSlug(`d."name"`)} 
        
     FROM spaces s
     WHERE d.space_id = s.space_id
@@ -27,7 +31,7 @@ export async function up(knex: Knex): Promise<void> {
   `);
     await knex.raw(`
   UPDATE spaces s
-  SET slug = ${sanitizeSlug(`'spaces/' || s."name" `)}
+  SET slug = 'spaces/' || ${sanitizeSlug(`s."name" `)}
 `);
 }
 

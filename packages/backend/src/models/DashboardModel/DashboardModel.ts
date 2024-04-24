@@ -11,6 +11,7 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    generateSlug,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     LightdashUser,
     NotFoundError,
@@ -731,6 +732,11 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
+                    slug: generateSlug(
+                        'dashboards',
+                        dashboard.name,
+                        space.name,
+                    ),
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
