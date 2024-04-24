@@ -4,7 +4,9 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     MetricType,
+    TableCalculationType,
     type CustomDimension,
     type Field,
     type TableCalculation,
@@ -60,6 +62,33 @@ export const getSortLabel = (
     item: Field | TableCalculation | CustomDimension,
     direction: SortDirection,
 ) => {
+    if (isTableCalculation(item) && item.type !== undefined) {
+        switch (item.type) {
+            case TableCalculationType.NUMBER:
+                return direction === SortDirection.ASC
+                    ? NumericSortLabels.ASC
+                    : NumericSortLabels.DESC;
+            case TableCalculationType.STRING:
+                return direction === SortDirection.ASC
+                    ? StringSortLabels.ASC
+                    : StringSortLabels.DESC;
+            case TableCalculationType.TIMESTAMP:
+            case TableCalculationType.DATE:
+                return direction === SortDirection.ASC
+                    ? DateSortLabels.ASC
+                    : DateSortLabels.DESC;
+            case TableCalculationType.BOOLEAN:
+                return direction === SortDirection.ASC
+                    ? BooleanSortLabels.ASC
+                    : BooleanSortLabels.DESC;
+            default:
+                return assertUnreachable(
+                    item.type,
+                    'Unexpected dimension type when getting sort label',
+                );
+        }
+    }
+
     if (!isField(item)) {
         return direction === SortDirection.ASC
             ? NumericSortLabels.ASC
