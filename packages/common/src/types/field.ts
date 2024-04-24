@@ -154,13 +154,12 @@ export interface TableCalculationField extends Field {
 }
 
 export const isTableCalculation = (
-    item: Item | AdditionalMetric,
+    item: Item | AdditionalMetric | TableCalculationField,
 ): item is TableCalculation =>
     item
         ? !('binType' in item) &&
           !!item.sql &&
           !('description' in item) &&
-          !('tableLabel' in item) &&
           !('tableName' in item)
         : false;
 
