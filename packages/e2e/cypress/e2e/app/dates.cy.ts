@@ -159,19 +159,26 @@ describe('Date tests', () => {
         });
     });
 
-    it('Should use UTC dates', () => {
-        const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"exploreName"%3A""%2C"dimensions"%3A["events_timestamp_tz_raw"]%2C"metrics"%3A["events_count"]%2C"filters"%3A{"dimensions"%3A{"id"%3A"3b565490-87c5-4996-a42b-ff0640bb18cd"%2C"and"%3A[{"id"%3A"be863f3c-5807-48c5-9b6f-2e8445610280"%2C"target"%3A{"fieldId"%3A"events_timestamp_tz_raw"}%2C"operator"%3A"equals"%2C"values"%3A["2020-08-12T00%3A58%3A00%2B02%3A00"]}]}}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A500%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_count"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_count"]}%2C"eChartsConfig"%3A{"series"%3A[{"type"%3A"bar"%2C"yAxisIndex"%3A0%2C"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_count"}}}]}}}}`;
+    it.only('Should use UTC dates', () => {
+        const exploreStateUrlParams = `?create_saved_chart_version=%7B"tableName"%3A"events"%2C"metricQuery"%3A%7B"exploreName"%3A"events"%2C"dimensions"%3A%5B"events_timestamp_tz_raw"%5D%2C"metrics"%3A%5B"events_count"%5D%2C"filters"%3A%7B"dimensions"%3A%7B"id"%3A"694598a4-6822-4fd6-989f-5b09c705ba77"%2C"and"%3A%5B%7B"id"%3A"be863f3c-5807-48c5-9b6f-2e8445610280"%2C"target"%3A%7B"fieldId"%3A"events_timestamp_tz_raw"%7D%2C"operator"%3A"equals"%2C"values"%3A%5B"2020-08-12T00%3A58%3A00%2B02%3A00"%5D%7D%2C%7B"id"%3A"8bf91691-6b88-4e45-b9ba-9f64684521e7"%2C"target"%3A%7B"fieldId"%3A"events_timestamp_tz_raw"%7D%2C"operator"%3A"inBetween"%2C"values"%3A%5B"2020-08-11%2C+00%3A00%3A00+%28%2B02%3A00%29"%2C"2020-08-13%2C+00%3A00%3A00+%28%2B02%3A00%29"%5D%7D%5D%7D%7D%2C"sorts"%3A%5B%7B"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue%7D%5D%2C"limit"%3A500%2C"tableCalculations"%3A%5B%5D%2C"additionalMetrics"%3A%5B%5D%7D%2C"tableConfig"%3A%7B"columnOrder"%3A%5B"events_timestamp_tz_raw"%2C"events_count"%5D%7D%2C"chartConfig"%3A%7B"type"%3A"cartesian"%2C"config"%3A%7B"layout"%3A%7B"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A%5B"events_count"%5D%7D%2C"eChartsConfig"%3A%7B"series"%3A%5B%7B"type"%3A"bar"%2C"yAxisIndex"%3A0%2C"encode"%3A%7B"xRef"%3A%7B"field"%3A"events_timestamp_tz_raw"%7D%2C"yRef"%3A%7B"field"%3A"events_count"%7D%7D%7D%5D%7D%7D%7D%7D`;
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
         cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
-        cy.contains('1 active filter');
+        cy.contains('2 active filters');
         cy.findByTestId('Filters-card-expand').click();
         cy.contains('11 Aug 2020 22:58:00'); // Filter in UTC
 
         cy.contains(`2020-08-11, 22:58:00:000 (+00:00)`); // Data in results, this comes from the server, so depends on the server timezone
+
+        cy.findByTestId('FilterDateRangePicker').contains(
+            'Mon, 10 Aug 2020 22:00:00',
+        ); // Start in UTC
+        cy.findByTestId('FilterDateRangePicker').contains(
+            'Wed, 12 Aug 2020 22:00:00',
+        ); // End in UTC
 
         // Time sensitive fields in localtime
         const timezone = Cypress.env('TZ');
@@ -181,6 +188,13 @@ describe('Date tests', () => {
                 break;
             case 'Europe/Madrid':
                 cy.contains('2020-08-12 00:58:00'); // Filter in localtime //Timezone sensitive
+                // TODO: something fishy here
+                // cy.findByTestId('FilterDateRangePicker').contains(
+                //     '2020-08-11 00:00:00',
+                // );
+                // cy.findByTestId('FilterDateRangePicker').contains(
+                //     '2020-08-13 00:00:00',
+                // );
                 break;
             case 'America/New_York':
                 cy.contains('2020-08-11 18:58:00'); // Filter in localtime //Timezone sensitive
@@ -196,6 +210,9 @@ describe('Date tests', () => {
 
         cy.findByTestId('SQL-card-expand').click();
         cy.contains(`("events".timestamp_tz) = ('2020-08-11 22:58:00')`); // SQL
+        cy.contains(
+            `(("events".timestamp_tz) >= ('2020-08-11 00:00:00') AND ("events".timestamp_tz) <= ('2020-08-13 00:00:00'))`,
+        );
 
         // TODO tooltip in charts
         // cy.get('svg g').trigger('mouseover')

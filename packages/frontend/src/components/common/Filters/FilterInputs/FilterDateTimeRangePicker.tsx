@@ -25,7 +25,13 @@ const FilterDateTimeRangePicker: FC<Props> = ({
     const [date2, setDate2] = useState(value?.[1] ?? null);
 
     return (
-        <Group noWrap align="start" w="100%" spacing="xs">
+        <Group
+            noWrap
+            align="start"
+            w="100%"
+            spacing="xs"
+            data-testid="FilterDateRangePicker"
+        >
             <FilterDateTimePicker
                 size="xs"
                 withSeconds

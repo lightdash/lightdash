@@ -32,7 +32,13 @@ const FilterDateTimePicker: FC<Props> = ({
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
 
     return (
-        <Group noWrap spacing="xs" align="start" w="100%">
+        <Group
+            noWrap
+            spacing="xs"
+            align="start"
+            w="100%"
+            data-testid="FilterDateTimePicker"
+        >
             {/* // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
             // @ts-ignore */}
             <DateTimePicker
