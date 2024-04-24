@@ -666,6 +666,7 @@ const findAndOverrideChartFilter = (
     return identicalDashboardFilter
         ? {
               ...item,
+              id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
           }
         : item;
@@ -689,16 +690,47 @@ export const overrideChartFilter = (
               ),
           };
 
+const getDeduplicatedFilterRules = (
+    filterRules: FilterRule[],
+    filterGroup?: FilterGroup,
+): FilterRule[] => {
+    const groupFilterRules = getFilterRulesFromGroup(filterGroup);
+    return filterRules.filter(
+        (rule) =>
+            !groupFilterRules.some((groupRule) => groupRule.id === rule.id),
+    );
+};
+
 const overrideFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
-): FilterGroup => ({
-    id: uuidv4(),
-    and: [
-        ...(filterGroup ? [overrideChartFilter(filterGroup, filterRules)] : []),
-        ...filterRules,
-    ],
-});
+): FilterGroup => {
+    if (!filterGroup) {
+        return {
+            id: uuidv4(),
+            and: filterRules,
+        };
+    }
+
+    const overriddenGroup = overrideChartFilter(filterGroup, filterRules);
+
+    // deduplicate the dashboard filter rules from the ones used when overriding the chart filterGroup
+    const deduplicatedRules = getDeduplicatedFilterRules(
+        filterRules,
+        overriddenGroup,
+    );
+
+    // if it's AND group we don't need to sub-group the rules - all can be in the same group
+    // if it's OR group we need to sub-group the rules
+    const overridenGroupItems = isAndFilterGroup(overriddenGroup)
+        ? overriddenGroup.and
+        : [overriddenGroup];
+
+    return {
+        id: uuidv4(),
+        and: [...overridenGroupItems, ...deduplicatedRules],
+    };
+};
 
 const combineFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
