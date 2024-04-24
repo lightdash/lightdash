@@ -1,3 +1,10 @@
+## [0.1076.1](https://github.com/lightdash/lightdash/compare/0.1076.0...0.1076.1) (2024-04-24)
+
+
+### Bug Fixes
+
+* add await to scheduler access calculation ([#9881](https://github.com/lightdash/lightdash/issues/9881)) ([a7441e2](https://github.com/lightdash/lightdash/commit/a7441e258e53fc340709bfb0c44335a7cbf52cf9))
+
 # [0.1076.0](https://github.com/lightdash/lightdash/compare/0.1075.6...0.1076.0) (2024-04-24)
 
 
