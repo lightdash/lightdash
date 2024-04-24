@@ -1,3 +1,10 @@
+# [0.1076.0](https://github.com/lightdash/lightdash/compare/0.1075.6...0.1076.0) (2024-04-24)
+
+
+### Features
+
+* select table calculation type ([#9862](https://github.com/lightdash/lightdash/issues/9862)) ([fcff1e7](https://github.com/lightdash/lightdash/commit/fcff1e7f4f99a04bf4a5d6f2a0aca8b7ff624efa))
+
 ## [0.1075.6](https://github.com/lightdash/lightdash/compare/0.1075.5...0.1075.6) (2024-04-24)
 
 
