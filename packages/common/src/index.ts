@@ -775,12 +775,12 @@ export type UpdateProject = Omit<
 
 export const getResultValueArray = (
     rows: ResultRow[],
-    onlyRaw: boolean = false,
+    preferRaw: boolean = false,
 ): Record<string, unknown>[] =>
     rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
-            const value = onlyRaw
-                ? row[key]?.value.raw
+            const value = preferRaw
+                ? row[key]?.value.raw ?? row[key]?.value.formatted
                 : row[key]?.value.formatted || row[key]?.value.raw;
 
             return { ...acc, [key]: value };
