@@ -1,3 +1,10 @@
+## [0.1075.5](https://github.com/lightdash/lightdash/compare/0.1075.4...0.1075.5) (2024-04-24)
+
+
+### Bug Fixes
+
+* fix tabs for create dashboard api ([#9864](https://github.com/lightdash/lightdash/issues/9864)) ([95c3d76](https://github.com/lightdash/lightdash/commit/95c3d768177ce3e6aac233d4a138f2d5d90ff550))
+
 ## [0.1075.4](https://github.com/lightdash/lightdash/compare/0.1075.3...0.1075.4) (2024-04-23)
 
 
