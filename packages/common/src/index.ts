@@ -779,9 +779,12 @@ export const getResultValueArray = (
 ): Record<string, unknown>[] =>
     rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
-            const value = preferRaw
-                ? row[key]?.value.raw ?? row[key]?.value.formatted
-                : row[key]?.value.formatted || row[key]?.value.raw;
+            const rawWithFallback =
+                row[key]?.value.raw ?? row[key]?.value.formatted; // using nulish coalescing operator to handle null and undefined only
+            const formattedWithFallback =
+                row[key]?.value.formatted || row[key]?.value.raw;
+
+            const value = preferRaw ? rawWithFallback : formattedWithFallback;
 
             return { ...acc, [key]: value };
         }, {}),
