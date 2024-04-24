@@ -1,3 +1,10 @@
+## [0.1075.6](https://github.com/lightdash/lightdash/compare/0.1075.5...0.1075.6) (2024-04-24)
+
+
+### Bug Fixes
+
+* add NULL as an extra bin ([#9866](https://github.com/lightdash/lightdash/issues/9866)) ([bf852bc](https://github.com/lightdash/lightdash/commit/bf852bc7092c76f83734b181534af2d13f0d0d83))
+
 ## [0.1075.5](https://github.com/lightdash/lightdash/compare/0.1075.4...0.1075.5) (2024-04-24)
 
 
