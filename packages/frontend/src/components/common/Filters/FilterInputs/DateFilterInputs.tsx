@@ -2,12 +2,10 @@ import {
     DimensionType,
     FilterOperator,
     formatDate,
-    formatTimestamp,
     isDimension,
     isField,
     isFilterRule,
     parseDate,
-    parseTimestamp,
     TimeFrames,
     type ConditionalRule,
     type DateFilterRule,
@@ -303,20 +301,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                         value={
                             rule.values && rule.values[0] && rule.values[1]
                                 ? [
-                                      parseTimestamp(
-                                          formatTimestamp(
-                                              rule.values[0],
-                                              TimeFrames.SECOND,
-                                          ),
-                                          TimeFrames.SECOND,
-                                      ),
-                                      parseTimestamp(
-                                          formatTimestamp(
-                                              rule.values[1],
-                                              TimeFrames.SECOND,
-                                          ),
-                                          TimeFrames.SECOND,
-                                      ),
+                                      dayjs(rule.values[0]).toDate(),
+                                      dayjs(rule.values[1]).toDate(),
                                   ]
                                 : null
                         }
@@ -326,14 +312,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                                 ...rule,
                                 values: value
                                     ? [
-                                          formatTimestamp(
-                                              value[0],
-                                              TimeFrames.SECOND,
-                                          ),
-                                          formatTimestamp(
-                                              value[1],
-                                              TimeFrames.SECOND,
-                                          ),
+                                          dayjs(value[0]).format(),
+                                          dayjs(value[1]).format(),
                                       ]
                                     : [],
                             });
