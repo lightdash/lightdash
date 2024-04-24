@@ -163,7 +163,7 @@ export class SchedulerService extends BaseService {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.dashboardModel.getById(scheduler.dashboardUuid);
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = this.spaceModel.getUserSpaceAccess(
+            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 spaceUuid,
             );
