@@ -20,23 +20,26 @@ describe('TableTransformer', () => {
         });
 
         expect(vizLib.getConfig()).toEqual({
-            columns: {
-                orders_status: {
+            columns: [
+                {
+                    fieldId: 'orders_status',
                     frozen: false,
+                    visible: true,
                     name: 'Orders Status',
-                    visible: true,
                 },
-                orders_order_date_week: {
+                {
+                    fieldId: 'orders_order_date_week',
                     frozen: false,
+                    visible: true,
                     name: 'Orders Order Date Week',
-                    visible: true,
                 },
-                orders_average_order_size: {
+                {
+                    fieldId: 'orders_average_order_size',
                     frozen: false,
-                    name: 'Orders Average Order Size',
                     visible: true,
+                    name: 'Orders Average Order Size',
                 },
-            },
+            ],
             rows: [
                 {
                     orders_average_order_size: {
