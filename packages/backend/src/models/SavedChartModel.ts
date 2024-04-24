@@ -314,6 +314,7 @@ export const createSavedChart = async (
                 ...baseChart,
                 dashboard_uuid: null,
                 space_id: spaceId,
+                // TODO add slugs here, we need to get the space name from the spaceUuid first
             };
         }
         const [newSavedChart] = await trx(SavedChartsTableName)
