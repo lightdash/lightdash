@@ -845,11 +845,17 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationType: {
+        dataType: 'refEnum',
+        enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: { ref: 'TableCalculationType' },
                 format: { ref: 'CustomFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
@@ -2906,7 +2912,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 dbtVersion: { ref: 'SupportedDbtVersions', required: true },
-                copiedFromProjectUuid: { dataType: 'string' },
+                upstreamProjectUuid: { dataType: 'string' },
                 pinnedListUuid: { dataType: 'string' },
                 warehouseConnection: { ref: 'WarehouseCredentials' },
                 dbtConnection: { ref: 'DbtProjectConfig', required: true },

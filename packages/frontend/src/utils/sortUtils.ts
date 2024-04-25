@@ -4,7 +4,9 @@ import {
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     MetricType,
+    TableCalculationType,
     type CustomDimension,
     type Field,
     type TableCalculation,
@@ -60,6 +62,38 @@ export const getSortLabel = (
     item: Field | TableCalculation | CustomDimension,
     direction: SortDirection,
 ) => {
+    if (isTableCalculation(item)) {
+        const type = item.type;
+        if (type === undefined)
+            return direction === SortDirection.ASC
+                ? NumericSortLabels.ASC
+                : NumericSortLabels.DESC;
+        switch (type) {
+            case TableCalculationType.NUMBER:
+                return direction === SortDirection.ASC
+                    ? NumericSortLabels.ASC
+                    : NumericSortLabels.DESC;
+            case TableCalculationType.STRING:
+                return direction === SortDirection.ASC
+                    ? StringSortLabels.ASC
+                    : StringSortLabels.DESC;
+            case TableCalculationType.TIMESTAMP:
+            case TableCalculationType.DATE:
+                return direction === SortDirection.ASC
+                    ? DateSortLabels.ASC
+                    : DateSortLabels.DESC;
+            case TableCalculationType.BOOLEAN:
+                return direction === SortDirection.ASC
+                    ? BooleanSortLabels.ASC
+                    : BooleanSortLabels.DESC;
+            default:
+                return assertUnreachable(
+                    type,
+                    'Unexpected dimension type when getting sort label',
+                );
+        }
+    }
+
     if (!isField(item)) {
         return direction === SortDirection.ASC
             ? NumericSortLabels.ASC
@@ -67,7 +101,8 @@ export const getSortLabel = (
     }
 
     if (isDimension(item)) {
-        switch (item.type) {
+        const type = item.type;
+        switch (type) {
             case DimensionType.NUMBER:
                 return direction === SortDirection.ASC
                     ? NumericSortLabels.ASC
@@ -87,12 +122,13 @@ export const getSortLabel = (
                     : BooleanSortLabels.DESC;
             default:
                 return assertUnreachable(
-                    item.type,
+                    type,
                     'Unexpected dimension type when getting sort label',
                 );
         }
     } else if (isMetric(item)) {
-        switch (item.type) {
+        const type = item.type;
+        switch (type) {
             case MetricType.PERCENTILE:
             case MetricType.MEDIAN:
             case MetricType.AVERAGE:
@@ -120,7 +156,7 @@ export const getSortLabel = (
                     : BooleanSortLabels.DESC;
             default:
                 return assertUnreachable(
-                    item.type,
+                    type,
                     'Unexpected metric type when getting sort label',
                 );
         }

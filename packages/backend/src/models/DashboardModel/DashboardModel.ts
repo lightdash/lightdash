@@ -736,6 +736,7 @@ export class DashboardModel {
 
             await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
                 ...dashboard,
+                tabs: dashboard.tabs || [],
                 updatedByUser: user,
             });
 
@@ -821,6 +822,7 @@ export class DashboardModel {
         await this.database.transaction(async (trx) => {
             await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
                 ...version,
+                tabs: version.tabs || [],
                 updatedByUser: user,
             });
         });

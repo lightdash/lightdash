@@ -38,7 +38,11 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
-                    throw new Error('Not implemented');
+                    // This can happen if a filter was added using an old table calculation without type, as we default to number
+                    console.warn(
+                        `Unexpected operator ${type} for number filter type. If you are using a table calculation, please update its result type to string.`,
+                    );
+                    return '';
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }

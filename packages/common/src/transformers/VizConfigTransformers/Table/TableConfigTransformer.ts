@@ -5,21 +5,50 @@ import {
     type VizConfigTransformerArguments,
 } from '../AbstractVizConfigTransformer';
 
-const columnSchema = z.object({
-    visible: z.boolean().optional(),
-    name: z.string().optional(),
-    frozen: z.boolean().optional(),
-});
-
 export const tableConfigSchema = vizConfigSchema.extend({
-    type: z.literal('table'),
-    showColumnCalculation: z.boolean().optional(),
-    showRowCalculation: z.boolean().optional(),
-    showTableNames: z.boolean().optional(),
-    hideRowNumbers: z.boolean().optional(),
-    showResultsTotal: z.boolean().optional(),
-    showSubtotals: z.boolean().optional(),
-    columns: z.record(z.string(), columnSchema),
+    type: z.literal('table').describe("Type of the viz. defaults to 'table'"),
+    columns: z
+        .array(
+            z
+                .object({
+                    fieldId: z.string().describe('Field ID'),
+                    visible: z
+                        .boolean()
+                        .optional()
+                        .describe('Column visibility. Optional'),
+                    frozen: z
+                        .boolean()
+                        .optional()
+                        .describe('Column frozen. Optional'),
+                    name: z.string().optional().describe('Column name'),
+                })
+                .describe('Column configuration'),
+        )
+        .min(1)
+        .describe(
+            'Columns configuration. This is a must to have property and should have at least one column',
+        ),
+    showColumnCalculation: z
+        .boolean()
+        .optional()
+        .describe('Show column calculation. Optional'),
+    showRowCalculation: z
+        .boolean()
+        .optional()
+        .describe('Show row calculation. Optional'),
+    showTableNames: z
+        .boolean()
+        .optional()
+        .describe('Show table names. Optional'),
+    hideRowNumbers: z
+        .boolean()
+        .optional()
+        .describe('Hide row numbers. Optional'),
+    showResultsTotal: z
+        .boolean()
+        .optional()
+        .describe('Show results total. Optional'),
+    showSubtotals: z.boolean().optional().describe('Show subtotals. Optional'),
 });
 
 export type TableConfig = z.infer<typeof tableConfigSchema>;
@@ -55,19 +84,19 @@ export class TableConfigTransformer<
      * @param currentColumns
      * @private
      */
-    private getColumns(
-        currentColumns?: TableConfig['columns'],
-    ): TableConfig['columns'] {
+    private getColumns(currentColumns?: TableConfig['columns']) {
         return this.resultsTransformer
             .getFieldOptions()
-            .reduce<TableConfig['columns']>((acc, field) => {
-                acc[field] = {
-                    visible: true,
-                    name: field,
-                    frozen: false,
-                    ...(currentColumns ?? {})[field],
-                };
-                return acc;
-            }, {});
+            .map<TableConfig['columns'][number]>(
+                (fieldId) =>
+                    currentColumns?.find(
+                        (column) => column.fieldId === fieldId,
+                    ) ?? {
+                        fieldId,
+                        visible: true,
+                        frozen: false,
+                        name: fieldId,
+                    },
+            );
     }
 }

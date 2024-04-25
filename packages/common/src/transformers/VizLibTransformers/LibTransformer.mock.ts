@@ -72,7 +72,6 @@ export const barVizConfig: BarVizConfig = {
         fieldId: 'orders_status',
         label: 'Orders Status',
         sort: 'asc',
-        position: 'left',
         gridLines: true,
         axisTicks: [],
     },
@@ -92,26 +91,30 @@ export const barVizConfig: BarVizConfig = {
 
 export const TableVizConfig: TableConfig = {
     type: 'table',
+    columns: [
+        {
+            fieldId: 'orders_status',
+            visible: true,
+            frozen: false,
+            name: 'Orders Status',
+        },
+        {
+            fieldId: 'orders_order_date_week',
+            visible: true,
+            frozen: false,
+            name: 'Orders Order Date Week',
+        },
+        {
+            fieldId: 'orders_average_order_size',
+            visible: true,
+            frozen: false,
+            name: 'Orders Average Order Size',
+        },
+    ],
     showColumnCalculation: false,
     showRowCalculation: false,
     showTableNames: false,
     hideRowNumbers: true,
     showResultsTotal: false,
-    columns: {
-        orders_status: {
-            visible: true,
-            name: 'Orders Status',
-            frozen: false,
-        },
-        orders_order_date_week: {
-            visible: true,
-            name: 'Orders Order Date Week',
-            frozen: false,
-        },
-        orders_average_order_size: {
-            visible: true,
-            name: 'Orders Average Order Size',
-            frozen: false,
-        },
-    },
+    showSubtotals: false,
 };
