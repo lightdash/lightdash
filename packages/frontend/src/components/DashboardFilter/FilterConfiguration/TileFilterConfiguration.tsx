@@ -5,10 +5,12 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
     type DashboardFilterRule,
+    type DashboardTab,
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
 import {
+    Accordion,
     Box,
     Checkbox,
     Flex,
@@ -26,6 +28,8 @@ import { getChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     tiles: DashboardTile[];
+    tabs: DashboardTab[];
+    activeTabUuid: string | undefined;
     availableTileFilters: Record<string, Field[] | undefined>;
     field: Field;
     filterRule: DashboardFilterRule;
@@ -36,6 +40,8 @@ type Props = {
 
 const TileFilterConfiguration: FC<Props> = ({
     tiles,
+    tabs,
+    activeTabUuid,
     field,
     filterRule,
     availableTileFilters,
@@ -86,6 +92,7 @@ const TileFilterConfiguration: FC<Props> = ({
     const tileTargetList = useMemo(() => {
         return sortedTileWithFilters.map(([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
+            const tabUuidFromTile = tile?.tabUuid
 
             // tileConfig overrides the default filter state for a tile
             // if it is a field, we use that field for the filter.
@@ -97,14 +104,14 @@ const TileFilterConfiguration: FC<Props> = ({
             if (tileConfig !== false) {
                 selectedField = tileConfig?.fieldId
                     ? filters?.find(
-                          (f) => tileConfig?.fieldId === getFieldId(f),
-                      )
+                        (f) => tileConfig?.fieldId === getFieldId(f),
+                    )
                     : filters?.find((f) => matchFieldExact(f)(field));
 
                 // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                 invalidField =
                     tileConfig?.fieldId !== undefined &&
-                    selectedField === undefined
+                        selectedField === undefined
                         ? tileConfig?.fieldId
                         : undefined;
             }
@@ -141,11 +148,12 @@ const TileFilterConfiguration: FC<Props> = ({
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
-                        tileChartKind:
-                            tile.properties.lastVersionChartKind ?? undefined,
-                    }),
+                    tileChartKind:
+                        tile.properties.lastVersionChartKind ?? undefined,
+                }),
                 sortedFilters,
                 selectedField,
+                tabUuid: tabUuidFromTile,
             };
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
@@ -154,120 +162,145 @@ const TileFilterConfiguration: FC<Props> = ({
     const isIndeterminate =
         !isAllChecked && tileTargetList.some(({ checked }) => checked);
 
-    return (
-        <Stack spacing="lg">
-            <Checkbox
-                size="xs"
-                checked={isAllChecked}
-                indeterminate={isIndeterminate}
-                label={
-                    <Text fw={500}>
-                        Select all{' '}
-                        {isIndeterminate
-                            ? ` (${
-                                  tileTargetList.filter((v) => v.checked).length
-                              } charts selected)`
-                            : ''}
-                    </Text>
-                }
-                styles={{
-                    label: {
-                        paddingLeft: theme.spacing.xs,
-                    },
-                }}
-                onChange={() => {
-                    if (isIndeterminate) {
-                        onToggleAll(false);
-                    } else {
-                        onToggleAll(!isAllChecked);
-                    }
-                }}
-            />
-            <Stack spacing="md">
-                {tileTargetList.map((value) => (
-                    <Box key={value.key}>
-                        <Tooltip
-                            label={
-                                value.invalidField
-                                    ? `The selected field ${value.invalidField} is not valid`
-                                    : 'No fields matching filter type'
-                            }
-                            position="left"
-                            disabled={
-                                !value.disabled &&
-                                value.invalidField === undefined
-                            }
-                        >
-                            <Box>
-                                <Checkbox
-                                    size="xs"
-                                    fw={500}
-                                    disabled={value.disabled}
-                                    label={
-                                        <Flex align="center" gap="xxs">
-                                            <MantineIcon
-                                                color="blue.8"
-                                                icon={getChartIcon(
-                                                    value.tileChartKind,
-                                                )}
-                                            />
-                                            <Text
-                                                color={
-                                                    value.invalidField
-                                                        ? 'red'
-                                                        : undefined
-                                                }
-                                            >
-                                                {value.label}
-                                            </Text>
-                                        </Flex>
-                                    }
-                                    styles={{
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    }}
-                                    checked={value.checked}
-                                    onChange={(event) => {
-                                        onChange(
-                                            event.currentTarget.checked
-                                                ? FilterActions.ADD
-                                                : FilterActions.REMOVE,
-                                            value.tileUuid,
-                                        );
-                                    }}
-                                />
-                            </Box>
-                        </Tooltip>
+    const filteredTileTargetList = (tabUUid: string) => {
+        return tileTargetList.filter((v) => v.tabUuid === tabUUid)
+    }
 
-                        {value.sortedFilters && (
-                            <Box
-                                ml="xl"
-                                mt="sm"
-                                display={!value.checked ? 'none' : 'auto'}
+    const StackSubComponent = ({ tileList }: { tileList: any[] }) => {
+        return (
+            <Stack spacing="lg">
+                <Checkbox
+                    size="xs"
+                    checked={isAllChecked}
+                    indeterminate={isIndeterminate}
+                    label={
+                        <Text fw={500}>
+                            Select all{' '}
+                            {isIndeterminate
+                                ? ` (${tileList.filter((v) => v.checked).length
+                                } charts selected)`
+                                : ''}
+                        </Text>
+                    }
+                    styles={{
+                        label: {
+                            paddingLeft: theme.spacing.xs,
+                        },
+                    }}
+                    onChange={() => {
+                        if (isIndeterminate) {
+                            onToggleAll(false);
+                        } else {
+                            onToggleAll(!isAllChecked);
+                        }
+                    }}
+                />
+                <Stack spacing="md">
+                    {tileList.map((value) => (
+                        <Box key={value.key}>
+                            <Tooltip
+                                label={
+                                    value.invalidField
+                                        ? `The selected field ${value.invalidField} is not valid`
+                                        : 'No fields matching filter type'
+                                }
+                                position="left"
+                                disabled={
+                                    !value.disabled &&
+                                    value.invalidField === undefined
+                                }
                             >
-                                <FieldSelect
-                                    size="xs"
-                                    disabled={!value.checked}
-                                    item={value.selectedField}
-                                    items={value.sortedFilters}
-                                    withinPortal={popoverProps?.withinPortal}
-                                    onDropdownOpen={popoverProps?.onOpen}
-                                    onDropdownClose={popoverProps?.onClose}
-                                    onChange={(newField) => {
-                                        onChange(
-                                            FilterActions.ADD,
-                                            value.tileUuid,
-                                            newField,
-                                        );
-                                    }}
-                                />
-                            </Box>
-                        )}
-                    </Box>
-                ))}
+                                <Box>
+                                    <Checkbox
+                                        size="xs"
+                                        fw={500}
+                                        disabled={value.disabled}
+                                        label={
+                                            <Flex align="center" gap="xxs">
+                                                <MantineIcon
+                                                    color="blue.8"
+                                                    icon={getChartIcon(
+                                                        value.tileChartKind,
+                                                    )}
+                                                />
+                                                <Text
+                                                    color={
+                                                        value.invalidField
+                                                            ? 'red'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {value.label}
+                                                </Text>
+                                            </Flex>
+                                        }
+                                        styles={{
+                                            label: {
+                                                paddingLeft: theme.spacing.xs,
+                                            },
+                                        }}
+                                        checked={value.checked}
+                                        onChange={(event) => {
+                                            onChange(
+                                                event.currentTarget.checked
+                                                    ? FilterActions.ADD
+                                                    : FilterActions.REMOVE,
+                                                value.tileUuid,
+                                            );
+                                        }}
+                                    />
+                                </Box>
+                            </Tooltip>
+
+                            {value.sortedFilters && (
+                                <Box
+                                    ml="xl"
+                                    mt="sm"
+                                    display={!value.checked ? 'none' : 'auto'}
+                                >
+                                    <FieldSelect
+                                        size="xs"
+                                        disabled={!value.checked}
+                                        item={value.selectedField}
+                                        items={value.sortedFilters}
+                                        withinPortal={popoverProps?.withinPortal}
+                                        onDropdownOpen={popoverProps?.onOpen}
+                                        onDropdownClose={popoverProps?.onClose}
+                                        onChange={(newField) => {
+                                            onChange(
+                                                FilterActions.ADD,
+                                                value.tileUuid,
+                                                newField,
+                                            );
+                                        }}
+                                    />
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
+                </Stack>
             </Stack>
-        </Stack>
+        )
+    };
+
+    return (
+        tabs.length > 0 ? (
+            <Accordion
+                defaultValue={activeTabUuid}
+                variant="contained"
+            >
+                {tabs.map((tab, index) => (
+                    <Accordion.Item key={index} value={tab.uuid}>
+                        <Accordion.Control>{tab.name}</Accordion.Control>
+                        <Accordion.Panel>
+                            <StackSubComponent tileList={filteredTileTargetList(tab.uuid)} />
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                ))}
+            </Accordion>
+        ) : (
+            <StackSubComponent tileList={tileTargetList} />
+        )
     );
 };
 

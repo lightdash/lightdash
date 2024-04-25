@@ -9,6 +9,7 @@ import {
     matchFieldExact,
     type DashboardFilterRule,
     type DashboardTile,
+    type DashboardTab,
     type Field,
     type FilterableField,
 } from '@lightdash/common';
@@ -53,6 +54,8 @@ export enum FilterActions {
 
 interface Props {
     tiles: DashboardTile[];
+    tabs: DashboardTab[];
+    activeTabUuid: string | undefined;
     field?: FilterableField;
     fields?: FilterableField[];
     availableTileFilters: Record<string, FilterableField[] | undefined>;
@@ -81,6 +84,8 @@ const FilterConfiguration: FC<Props> = ({
     isCreatingNew = false,
     isTemporary = false,
     tiles,
+    tabs,
+    activeTabUuid,
     field,
     fields,
     availableTileFilters,
@@ -323,6 +328,8 @@ const FilterConfiguration: FC<Props> = ({
                     <Tabs.Panel value={FilterTabs.TILES} w={500}>
                         <TileFilterConfiguration
                             field={selectedField}
+                            tabs={tabs}
+                            activeTabUuid={activeTabUuid}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}

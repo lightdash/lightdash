@@ -30,6 +30,7 @@ type Props = {
     field?: FilterableField;
     filterRule?: DashboardFilterRule;
     openPopoverId: string | undefined;
+    activeTabUuid?: string | undefined
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
     onSave?: (value: DashboardFilterRule) => void;
@@ -44,6 +45,7 @@ const Filter: FC<Props> = ({
     field,
     filterRule,
     openPopoverId,
+    activeTabUuid,
     onPopoverOpen,
     onPopoverClose,
     onSave,
@@ -54,6 +56,7 @@ const Filter: FC<Props> = ({
 
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
@@ -297,6 +300,8 @@ const Filter: FC<Props> = ({
                         field={field}
                         fields={allFilterableFields || []}
                         tiles={dashboardTiles}
+                        tabs={dashboardTabs}
+                        activeTabUuid={activeTabUuid}
                         originalFilterRule={originalFilterRule}
                         availableTileFilters={filterableFieldsByTileUuid}
                         defaultFilterRule={defaultFilterRule}

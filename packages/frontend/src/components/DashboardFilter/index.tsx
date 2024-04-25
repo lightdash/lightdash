@@ -16,9 +16,10 @@ import Filter from './Filter';
 
 interface Props {
     isEditMode: boolean;
+    activeTabUuid: string | undefined;
 }
 
-const DashboardFilter: FC<Props> = ({ isEditMode }) => {
+const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();
@@ -79,6 +80,7 @@ const DashboardFilter: FC<Props> = ({ isEditMode }) => {
                     isCreatingNew
                     isEditMode={isEditMode}
                     openPopoverId={openPopoverId}
+                    activeTabUuid={activeTabUuid}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
                     onSave={handleSaveNew}
