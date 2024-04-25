@@ -419,7 +419,7 @@ const Dashboard: FC = () => {
                         (t) =>
                             isDashboardChartTileType(t) &&
                             t.properties.savedChartUuid ===
-                            tile.properties.savedChartUuid,
+                                tile.properties.savedChartUuid,
                     ) === undefined;
 
                 if (isChartNew) {
@@ -581,7 +581,7 @@ const Dashboard: FC = () => {
                         <Button
                             color="red"
                             onClick={() => {
-                                history.block(() => { });
+                                history.block(() => {});
                                 if (blockedNavigationLocation)
                                     history.push(blockedNavigationLocation);
                             }}
@@ -648,7 +648,8 @@ const Dashboard: FC = () => {
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter
                             isEditMode={isEditMode}
-                            activeTabUuid={activeTab?.uuid} />
+                            activeTabUuid={activeTab?.uuid}
+                        />
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
