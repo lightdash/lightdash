@@ -406,16 +406,16 @@ export class ProjectService extends BaseService {
                 dbtConnectionType: createProject.dbtConnection.type,
                 isPreview: createProject.type === ProjectType.PREVIEW,
                 method,
-                copiedFromProjectUuid: data.copiedFromProjectUuid,
+                copiedFromProjectUuid: data.upstreamProjectUuid,
             },
         });
 
         let hasContentCopy = false;
 
-        if (data.copiedFromProjectUuid) {
+        if (data.upstreamProjectUuid) {
             try {
                 const { organizationUuid } = await this.projectModel.getSummary(
-                    data.copiedFromProjectUuid,
+                    data.upstreamProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
@@ -423,14 +423,14 @@ export class ProjectService extends BaseService {
                         'create',
                         subject('Project', {
                             organizationUuid,
-                            projectUuid: data.copiedFromProjectUuid,
+                            projectUuid: data.upstreamProjectUuid,
                         }),
                     )
                 ) {
                     throw new ForbiddenError();
                 }
                 await this.copyContentOnPreview(
-                    data.copiedFromProjectUuid,
+                    data.upstreamProjectUuid,
                     projectUuid,
                     user,
                 );
