@@ -327,8 +327,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 e.stopPropagation();
                                                             }}
                                                         >
-                                                            Remove Tabs
-                                                            Component
+                                                            {sortedTabs.length ===
+                                                            1
+                                                                ? 'Remove Tabs Component'
+                                                                : 'Remove Tab'}
                                                         </Menu.Item>
                                                     ) : (
                                                         <Menu.Item
