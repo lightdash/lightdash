@@ -8,6 +8,7 @@ import {
     CreateSavedChartVersion,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
+    generateSlug,
     getChartKind,
     getChartType,
     getCustomDimensionId,
@@ -300,21 +301,37 @@ export const createSavedChart = async (
                 space_id: null,
             };
         } else {
-            const spaceId = spaceUuid
-                ? await SpaceModel.getSpaceId(trx, spaceUuid)
-                : (
-                      await SpaceModel.getFirstAccessibleSpace(
-                          trx,
-                          projectUuid,
-                          userUuid,
-                      )
-                  ).space_id;
+            const getSpaceIdAndName = async () => {
+                if (spaceUuid) {
+                    const space = await SpaceModel.getSpaceIdAndName(
+                        trx,
+                        spaceUuid,
+                    );
+                    if (space === undefined)
+                        throw Error(`Missing space with uuid ${spaceUuid}`);
+                    return {
+                        spaceId: space.spaceId,
+                        name: space.name,
+                    };
+                }
+                const firstSpace = await SpaceModel.getFirstAccessibleSpace(
+                    trx,
+                    projectUuid,
+                    userUuid,
+                );
+                return {
+                    spaceId: firstSpace.space_id,
+                    name: firstSpace.name,
+                };
+            };
+            const { spaceId, name: spaceName } = await getSpaceIdAndName();
+
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
                 ...baseChart,
                 dashboard_uuid: null,
                 space_id: spaceId,
-                // TODO add slugs here, we need to get the space name from the spaceUuid first
+                slug: generateSlug('charts', name, spaceName),
             };
         }
         const [newSavedChart] = await trx(SavedChartsTableName)
@@ -513,10 +530,12 @@ export class SavedChartModel {
             .update({
                 name: data.name,
                 description: data.description,
-                space_id: await SpaceModel.getSpaceId(
-                    this.database,
-                    data.spaceUuid,
-                ),
+                space_id: (
+                    await SpaceModel.getSpaceIdAndName(
+                        this.database,
+                        data.spaceUuid,
+                    )
+                )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
             .where('saved_query_uuid', savedChartUuid);
@@ -532,10 +551,12 @@ export class SavedChartModel {
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: await SpaceModel.getSpaceId(
-                            trx,
-                            savedChart.spaceUuid,
-                        ),
+                        space_id: (
+                            await SpaceModel.getSpaceIdAndName(
+                                trx,
+                                savedChart.spaceUuid,
+                            )
+                        )?.spaceId,
                     })
                     .where('saved_query_uuid', savedChart.uuid),
             );

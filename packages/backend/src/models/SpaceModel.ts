@@ -3,6 +3,7 @@ import {
     ChartType,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
+    generateSlug,
     getHighestProjectRole,
     GroupRole,
     NotFoundError,
@@ -74,13 +75,13 @@ export class SpaceModel {
         this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
     }
 
-    static async getSpaceId(db: Knex, spaceUuid: string | undefined) {
+    static async getSpaceIdAndName(db: Knex, spaceUuid: string | undefined) {
         if (spaceUuid === undefined) return undefined;
 
         const [space] = await db('spaces')
-            .select('space_id')
+            .select(['space_id', 'name'])
             .where('space_uuid', spaceUuid);
-        return space.space_id;
+        return { spaceId: space.space_id, name: space.name };
     }
 
     static async getFirstAccessibleSpace(
@@ -1068,6 +1069,7 @@ export class SpaceModel {
                 is_private: isPrivate,
                 name,
                 created_by_user_id: userId,
+                slug: generateSlug('spaces', name),
             })
             .returning('*');
 

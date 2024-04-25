@@ -757,10 +757,12 @@ export class DashboardModel {
     ): Promise<DashboardDAO> {
         const withSpaceId = dashboard.spaceUuid
             ? {
-                  space_id: await SpaceModel.getSpaceId(
-                      this.database,
-                      dashboard.spaceUuid,
-                  ),
+                  space_id: (
+                      await SpaceModel.getSpaceIdAndName(
+                          this.database,
+                          dashboard.spaceUuid,
+                      )
+                  )?.spaceId,
               }
             : {};
         await this.database(DashboardsTableName)
@@ -782,10 +784,12 @@ export class DashboardModel {
                 dashboards.map(async (dashboard) => {
                     const withSpaceId = dashboard.spaceUuid
                         ? {
-                              space_id: await SpaceModel.getSpaceId(
-                                  this.database,
-                                  dashboard.spaceUuid,
-                              ),
+                              space_id: (
+                                  await SpaceModel.getSpaceIdAndName(
+                                      this.database,
+                                      dashboard.spaceUuid,
+                                  )
+                              )?.spaceId,
                           }
                         : {};
                     await trx(DashboardsTableName)
