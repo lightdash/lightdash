@@ -79,6 +79,7 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
 
 const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomDimension(item)) return 'category';
+    if (item && isTableCalculation(item) && !item.type) return 'value';
     if (item && (isField(item) || isTableCalculation(item))) {
         switch (item.type) {
             case TableCalculationType.NUMBER:

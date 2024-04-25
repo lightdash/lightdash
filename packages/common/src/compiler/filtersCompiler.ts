@@ -347,7 +347,7 @@ export const renderTableCalculationFilterRuleSql = (
         case TableCalculationType.BOOLEAN:
             return renderBooleanFilterSql(fieldSql, filterRule);
         default:
-        // Try with format.type for backwards compatibility
+        // Do nothing here. This will try with format.type for backwards compatibility
     }
 
     switch (field.format?.type) {
