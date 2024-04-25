@@ -1,3 +1,10 @@
+## [0.1076.4](https://github.com/lightdash/lightdash/compare/0.1076.3...0.1076.4) (2024-04-25)
+
+
+### Bug Fixes
+
+* fix foreign key constraint error when delete last tab ([#9865](https://github.com/lightdash/lightdash/issues/9865)) ([8265e7d](https://github.com/lightdash/lightdash/commit/8265e7d94205842ca4943923eb5b2d1ba43c547c))
+
 ## [0.1076.3](https://github.com/lightdash/lightdash/compare/0.1076.2...0.1076.3) (2024-04-25)
 
 
