@@ -60,7 +60,7 @@ const useDashboardStorage = () => {
     }, []);
 
     const getDashboardActiveTabUuid = useCallback(() => {
-        return sessionStorage.getItem('activeTabUuid') ?? '';
+        return sessionStorage.getItem('activeTabUuid') ?? undefined;
     }, []);
 
     const clearDashboardStorage = useCallback(() => {
@@ -102,7 +102,9 @@ const useDashboardStorage = () => {
                 'hasDashboardChanges',
                 JSON.stringify(haveTilesChanged || haveFiltersChanged),
             );
-            sessionStorage.setItem('activeTabUuid', activeTabUuid ?? '');
+            if (activeTabUuid) {
+                sessionStorage.setItem('activeTabUuid', activeTabUuid);
+            }
             // Trigger storage event to update NavBar
             window.dispatchEvent(new Event('storage'));
         },
