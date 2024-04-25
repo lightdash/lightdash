@@ -293,7 +293,6 @@ export class DashboardService extends BaseService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             dashboard,

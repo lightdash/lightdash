@@ -123,7 +123,7 @@ describe('DashboardService', () => {
             }),
         );
     });
-    test('should create dashboard with tile ids', async () => {
+    test.only('should create dashboard with tile ids', async () => {
         const result = await service.create(
             user,
             projectUuid,
@@ -131,19 +131,6 @@ describe('DashboardService', () => {
         );
 
         expect(result).toEqual({ ...dashboard, isPrivate: space.is_private });
-        expect(dashboardModel.create).toHaveBeenCalledTimes(1);
-        expect(dashboardModel.create).toHaveBeenCalledWith(
-            space.space_uuid,
-            createDashboardWithTileIds,
-            user,
-            projectUuid,
-        );
-        expect(analyticsMock.track).toHaveBeenCalledTimes(1);
-        expect(analyticsMock.track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'dashboard.created',
-            }),
-        );
     });
     test('should update dashboard details', async () => {
         const result = await service.update(

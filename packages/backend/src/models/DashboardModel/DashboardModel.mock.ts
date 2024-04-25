@@ -52,6 +52,7 @@ export const createDashboard: CreateDashboard = {
         tableCalculations: [],
     },
     tabs: [],
+    slug: 'dashboards/space-name/my-new-dashboard',
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {

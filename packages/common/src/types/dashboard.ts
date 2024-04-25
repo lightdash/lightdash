@@ -84,6 +84,7 @@ export type CreateDashboard = {
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
     tabs: DashboardTab[];
+    slug?: string;
 };
 
 export type DashboardTile =

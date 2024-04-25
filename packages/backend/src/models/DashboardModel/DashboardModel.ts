@@ -727,6 +727,7 @@ export class DashboardModel {
             if (!space) {
                 throw new NotFoundError('Space not found');
             }
+
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
                     name: dashboard.name,
