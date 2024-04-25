@@ -60,7 +60,7 @@ const useDashboardStorage = () => {
     }, []);
 
     const getDashboardActiveTabUuid = useCallback(() => {
-        return sessionStorage.getItem('activeTabUuid') ?? undefined;
+        return sessionStorage.getItem('activeTabUuid');
     }, []);
 
     const clearDashboardStorage = useCallback(() => {
