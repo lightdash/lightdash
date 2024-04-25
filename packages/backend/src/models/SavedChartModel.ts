@@ -537,6 +537,7 @@ export class SavedChartModel {
                     )
                 )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
+                slug: data.slug,
             })
             .where('saved_query_uuid', savedChartUuid);
         return this.get(savedChartUuid);

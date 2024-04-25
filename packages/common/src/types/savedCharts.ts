@@ -322,6 +322,7 @@ export type SavedChart = {
     colorPalette: string[];
     isPrivate: boolean;
     access: SpaceShare[];
+    slug?: string;
 };
 
 type CreateChartBase = Pick<
@@ -370,7 +371,7 @@ export type CreateSavedChartVersion = Omit<
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
-    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'slug'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
