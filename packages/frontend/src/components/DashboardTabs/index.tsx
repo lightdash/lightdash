@@ -320,16 +320,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     >
                                                         Rename Tab
                                                     </Menu.Item>
-                                                    {sortedTabs.length === 1 ? (
+                                                    {sortedTabs.length === 1 ||
+                                                    !currentTabHasTiles ? (
                                                         <Menu.Item
-                                                            onClick={() =>
+                                                            onClick={(e) => {
                                                                 handleDeleteTab(
                                                                     tab.uuid,
-                                                                )
-                                                            }
+                                                                );
+                                                                e.stopPropagation();
+                                                            }}
                                                         >
-                                                            Remove Tabs
-                                                            Component
+                                                            {sortedTabs.length ===
+                                                            1
+                                                                ? 'Remove Tabs Component'
+                                                                : 'Remove Tab'}
                                                         </Menu.Item>
                                                     ) : (
                                                         <Menu.Item
@@ -417,6 +421,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     }
                     isEditMode={isEditMode}
                     setAddingTab={setAddingTab}
+                    activeTabUuid={activeTab?.uuid}
                 />
             )}
             <TabAddModal

@@ -1,14 +1,22 @@
-import { type DashboardTab, type DashboardTile } from '@lightdash/common';
+import {
+    isChartTile,
+    type DashboardChartTile,
+    type DashboardTab,
+    type DashboardTile,
+} from '@lightdash/common';
 import {
     Button,
     Group,
+    List,
     Modal,
     Stack,
     Text,
     Title,
     type ModalProps,
 } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import MantineIcon from '../common/MantineIcon';
 
 type AddProps = ModalProps & {
     tab: DashboardTab;
@@ -32,15 +40,25 @@ export const TabDeleteModal: FC<AddProps> = ({
         handleDeleteTab(uuid);
     };
 
-    const numberOfTiles = useMemo(() => {
-        return (dashboardTiles || []).filter((tile) => tile.tabUuid == tab.uuid)
-            ?.length;
-    }, [tab.uuid, dashboardTiles]);
+    const isNewSavedChart = (tile: DashboardTile) => {
+        return isChartTile(tile) && tile.properties.belongsToDashboard;
+    };
+
+    const tilesToDelete = useMemo(
+        () => (dashboardTiles || []).filter((tile) => tile.tabUuid == tab.uuid),
+        [tab.uuid, dashboardTiles],
+    );
+
+    const newSavedCharts = useMemo(
+        () => tilesToDelete.filter(isNewSavedChart) as DashboardChartTile[],
+        [tilesToDelete],
+    );
 
     return (
         <Modal
             title={
                 <Group spacing="xs">
+                    <MantineIcon icon={IconTrash} color="red" size="lg" />
                     <Title order={4}>Remove tab</Title>
                 </Group>
             }
@@ -50,11 +68,25 @@ export const TabDeleteModal: FC<AddProps> = ({
         >
             <Stack spacing="lg" pt="sm">
                 <Text>
-                    Are you sure you want to delete tab {tab.name}?
+                    Are you sure you want to remove tab <b>"{tab.name}"</b> and{' '}
+                    <b>{tilesToDelete?.length}</b> tiles from this dashboard?
                     <br />
-                    This action will permanently delete {numberOfTiles} tiles
-                    once you save your dashboard changes.
+                    {newSavedCharts.length > 0 && (
+                        <Text>
+                            <br />
+                            Once you save changes to your dashboard, this action
+                            will also permanently delete the following charts
+                            that were created from within it:
+                        </Text>
+                    )}
                 </Text>
+                <List>
+                    {newSavedCharts.map((tile) => (
+                        <List.Item key={tile.uuid}>
+                            <Text>{tile.properties.chartName}</Text>
+                        </List.Item>
+                    ))}
+                </List>
                 <Group position="right" mt="sm">
                     <Button variant="outline" onClick={handleClose}>
                         Cancel
@@ -65,7 +97,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                         color="red"
                         onClick={() => handleSubmit(tab.uuid)}
                     >
-                        Delete
+                        Remove
                     </Button>
                 </Group>
             </Stack>
