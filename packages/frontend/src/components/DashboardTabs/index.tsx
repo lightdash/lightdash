@@ -243,6 +243,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setDeletingTab(false);
 
         if (dashboardTabs.length === 1) {
+            dashboardTiles?.forEach((tile) => {
+                tile.tabUuid = undefined; // set tab uuid back to null to avoid foreign key constraint error
+            });
             return; // keep all tiles if its the last tab
         }
 

@@ -68,7 +68,7 @@ export const dashboardFilterWithSameTargetButDifferentOperator: FilterRule[] = [
     },
 ];
 
-export const metricQueryWithFilters: MetricQuery = {
+export const metricQueryWithAndFilters: MetricQuery = {
     exploreName: 'test',
     limit: 501,
     dimensions: ['a_dim1'],
@@ -79,6 +79,30 @@ export const metricQueryWithFilters: MetricQuery = {
         dimensions: {
             id: 'root',
             and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'a_dim1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+            ],
+        },
+    },
+};
+
+export const metricQueryWithOrFilters: MetricQuery = {
+    exploreName: 'test',
+    limit: 501,
+    dimensions: ['a_dim1'],
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            or: [
                 {
                     id: '1',
                     target: {
@@ -163,10 +187,42 @@ export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
         dimensions: {
             and: [
                 {
+                    id: '4',
+                    target: {
+                        fieldId: 'a_dim1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['1', '2', '3'],
+                },
+            ],
+            id: 'uuid',
+        },
+        metrics: {
+            and: [],
+            id: 'uuid',
+        },
+        tableCalculations: {
+            and: [],
+            id: 'uuid',
+        },
+    },
+};
+
+export const expectedChartWithOverrideDashboardORFilters: MetricQuery = {
+    exploreName: 'test',
+    dimensions: ['a_dim1'],
+    limit: 501,
+    metrics: [],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            and: [
+                {
                     id: 'root',
-                    and: [
+                    or: [
                         {
-                            id: '1',
+                            id: '4',
                             target: {
                                 fieldId: 'a_dim1',
                             },
@@ -174,12 +230,6 @@ export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
                             values: ['1', '2', '3'],
                         },
                     ],
-                },
-                {
-                    id: '4',
-                    target: { fieldId: 'a_dim1' },
-                    operator: ConditionalOperator.EQUALS,
-                    values: ['1', '2', '3'],
                 },
             ],
             id: 'uuid',

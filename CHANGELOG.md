@@ -1,3 +1,24 @@
+## [0.1076.5](https://github.com/lightdash/lightdash/compare/0.1076.4...0.1076.5) (2024-04-26)
+
+
+### Bug Fixes
+
+* remove duplicated rules ([#9876](https://github.com/lightdash/lightdash/issues/9876)) ([fe79ee7](https://github.com/lightdash/lightdash/commit/fe79ee7b16d115aec7d54f812fa45a9eb1a8b1b0))
+
+## [0.1076.4](https://github.com/lightdash/lightdash/compare/0.1076.3...0.1076.4) (2024-04-25)
+
+
+### Bug Fixes
+
+* fix foreign key constraint error when delete last tab ([#9865](https://github.com/lightdash/lightdash/issues/9865)) ([8265e7d](https://github.com/lightdash/lightdash/commit/8265e7d94205842ca4943923eb5b2d1ba43c547c))
+
+## [0.1076.3](https://github.com/lightdash/lightdash/compare/0.1076.2...0.1076.3) (2024-04-25)
+
+
+### Bug Fixes
+
+* incorrect default table calc type ([#9888](https://github.com/lightdash/lightdash/issues/9888)) ([3ddaa89](https://github.com/lightdash/lightdash/commit/3ddaa894664cc5992f97c78e5f0685c7b5afde55))
+
 ## [0.1076.2](https://github.com/lightdash/lightdash/compare/0.1076.1...0.1076.2) (2024-04-24)
 
 
