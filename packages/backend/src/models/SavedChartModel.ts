@@ -885,6 +885,7 @@ export class SavedChartModel {
     async find(filters: {
         projectUuid?: string;
         spaceUuids?: string[];
+        slug?: string;
     }): Promise<ChartSummary[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -902,6 +903,9 @@ export class SavedChartModel {
                 void query
                     .whereNotNull(`${SavedChartsTableName}.space_id`)
                     .whereIn('spaces.space_uuid', filters.spaceUuids);
+            }
+            if (filters.slug) {
+                void query.where('saved_queries.slug', filters.slug);
             }
             const chartSummaries = await query;
             return chartSummaries.map((chart) => ({

@@ -4019,4 +4019,54 @@ export class ProjectService extends BaseService {
             return metrics;
         }, []);
     }
+
+    async promoteChart(user: SessionUser, chartUuid: string) {
+        const { organizationUuid, projectUuid, spaceUuid } =
+            await this.savedChartModel.get(chartUuid, undefined);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            space.uuid,
+        );
+        if (
+            user.ability.cannot(
+                'promote',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You must have the right role and space permissions to promote this chart',
+            );
+        }
+
+        const { upstreamProjectUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (!upstreamProjectUuid)
+            throw new Error('This chart does not have an upstream project');
+
+        const slug = `/charts/${chartUuid}`; // TODO replace with chart.slug
+        if (!slug)
+            throw new Error('This chart does not have a valid identifier');
+
+        const existingUpstreamCharts = await this.savedChartModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug,
+        });
+
+        if (existingUpstreamCharts.length === 0) {
+            // We create a new chart
+        } else if (existingUpstreamCharts.length === 1) {
+            // We override existing chart details
+        } else {
+            throw new Error(
+                `There are multiple charts with the same identifier ${slug}`,
+            );
+        }
+    }
 }

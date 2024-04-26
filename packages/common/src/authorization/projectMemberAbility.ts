@@ -146,6 +146,16 @@ export const projectMemberAbilities: Record<
         can('manage', 'Validation', {
             projectUuid: member.projectUuid,
         });
+
+        can('promote', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

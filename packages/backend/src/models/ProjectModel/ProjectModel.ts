@@ -472,12 +472,19 @@ export class ProjectModel {
                 'organizations.organization_id',
             )
             .select<
-                Pick<DbProject, 'name' | 'project_uuid' | 'project_type'> &
+                Pick<
+                    DbProject,
+                    | 'name'
+                    | 'project_uuid'
+                    | 'project_type'
+                    | 'copied_from_project_uuid'
+                > &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
                 `${ProjectTableName}.name`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.copied_from_project_uuid`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();
@@ -491,6 +498,7 @@ export class ProjectModel {
             projectUuid: project.project_uuid,
             name: project.name,
             type: project.project_type,
+            upstreamProjectUuid: project.copied_from_project_uuid || undefined,
         };
     }
 
