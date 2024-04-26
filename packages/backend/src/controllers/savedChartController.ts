@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
+    ApiPromoteChartResponse,
     ApiSuccessEmpty,
     DateGranularity,
     SortField,
@@ -229,6 +230,29 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: totalResult,
+        };
+    }
+
+    /**
+     * Promote chart to its upstream project
+     * @param chartUuid chartUuid for the chart to run
+     * @param body
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/promote')
+    @OperationId('promoteChart')
+    async promoteChart(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPromoteChartResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .promoteChart(req.user!, chartUuid),
         };
     }
 }

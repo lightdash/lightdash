@@ -21,6 +21,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateSavedChart,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -91,6 +92,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
+    UpdatedByUser,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -4021,7 +4023,7 @@ export class ProjectService extends BaseService {
     }
 
     async promoteChart(user: SessionUser, chartUuid: string) {
-        const { organizationUuid, projectUuid, spaceUuid } =
+        const { organizationUuid, projectUuid, spaceUuid, ...promotedChart } =
             await this.savedChartModel.get(chartUuid, undefined);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -4061,12 +4063,38 @@ export class ProjectService extends BaseService {
 
         if (existingUpstreamCharts.length === 0) {
             // We create a new chart
-        } else if (existingUpstreamCharts.length === 1) {
-            // We override existing chart details
-        } else {
-            throw new Error(
-                `There are multiple charts with the same identifier ${slug}`,
+            const newChartData: CreateSavedChart & {
+                updatedByUser: UpdatedByUser;
+            } = {
+                ...promotedChart,
+                dashboardUuid: promotedChart.dashboardUuid || undefined,
+                updatedByUser: promotedChart.updatedByUser!,
+            };
+            const newChart = await this.savedChartModel.create(
+                upstreamProjectUuid,
+                user.userUuid,
+                newChartData,
             );
+            return newChart;
         }
+        if (existingUpstreamCharts.length === 1) {
+            // We override existing chart details
+            const upstreamChart = existingUpstreamCharts[0];
+            const updatedChart = await this.savedChartModel.createVersion(
+                upstreamChart.uuid,
+                {
+                    tableName: promotedChart.tableName,
+                    metricQuery: promotedChart.metricQuery,
+                    chartConfig: promotedChart.chartConfig,
+                    tableConfig: promotedChart.tableConfig,
+                },
+                user,
+            );
+            return updatedChart;
+        }
+        // Multiple charts with the same slug
+        throw new Error(
+            `There are multiple charts with the same identifier ${slug}`,
+        );
     }
 }

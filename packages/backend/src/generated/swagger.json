@@ -4946,6 +4946,135 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "organizationUuid",
+                    "uuid",
+                    "updatedAt",
+                    "projectUuid",
+                    "spaceUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "spaceName",
+                    "dashboardUuid",
+                    "dashboardName",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SavedChart.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SavedChartDAO": {
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
+            },
+            "ApiPromoteChartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedChartDAO"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SchedulerFormat": {
                 "enum": ["csv", "image", "gsheets"],
                 "type": "string"
@@ -6765,7 +6894,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1076.2",
+        "version": "0.1076.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10373,6 +10502,47 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/saved/{chartUuid}/promote": {
+            "post": {
+                "operationId": "promoteChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote chart to its upstream project",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {
