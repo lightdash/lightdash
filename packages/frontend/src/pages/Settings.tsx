@@ -8,6 +8,7 @@ import {
     IconCloudSearch,
     IconDatabase,
     IconDatabaseCog,
+    IconDatabaseExport,
     IconKey,
     IconLock,
     IconPalette,
@@ -419,6 +420,26 @@ const Settings: FC = () => {
                                             icon={
                                                 <MantineIcon
                                                     icon={IconChecklist}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
+                                    {user.ability?.can(
+                                        'promote',
+                                        subject('SavedChart', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Data ops"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/dataOps`}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabaseExport}
                                                 />
                                             }
                                         />

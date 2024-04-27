@@ -1,0 +1,73 @@
+import { Button, Flex, Select, Text, Title } from '@mantine/core';
+import { useState, type FC } from 'react';
+import { useProject } from '../../hooks/useProject';
+import { useProjects } from '../../hooks/useProjects';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import { useUpdateMutation } from './hooks/useUpstreamProject';
+
+export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const { data: projects } = useProjects();
+    const { data: currentProject } = useProject(projectUuid);
+    const { mutateAsync: updateMutation } = useUpdateMutation(projectUuid);
+    const [selectedProject, setSelectedProject] = useState<string | undefined>(
+        currentProject?.upstreamProjectUuid,
+    );
+    return (
+        <>
+            <Text color="dimmed">
+                Perform data operations between on this project
+            </Text>
+
+            <SettingsGridCard>
+                <div>
+                    <Title order={4}>Promote content</Title>
+                    <Text c="gray.6" fz="xs">
+                        Developers and admins on this organization can copy
+                        conent from this project into the selected upstream
+                        project, overriding its defailts or creating new content
+                        if it is new.
+                    </Text>
+                </div>
+                <div>
+                    <Select
+                        value={selectedProject}
+                        clearable
+                        data={
+                            projects?.map((project) => ({
+                                label: project.name,
+                                value: project.projectUuid,
+                                disabled: project.projectUuid === projectUuid,
+                                selected:
+                                    project.projectUuid ===
+                                    currentProject?.upstreamProjectUuid,
+                            })) || []
+                        }
+                        label="Upstream project"
+                        onChange={(value) => {
+                            setSelectedProject(value || undefined);
+                        }}
+                    />
+                    <Flex justify="flex-end" gap="sm" mt="sm">
+                        <Button
+                            type="submit"
+                            display="block"
+                            disabled={
+                                selectedProject ===
+                                currentProject?.upstreamProjectUuid
+                            }
+                            onClick={async () => {
+                                if (currentProject) {
+                                    await updateMutation({
+                                        upstreamProjectUuid: selectedProject,
+                                    });
+                                }
+                            }}
+                        >
+                            Update
+                        </Button>
+                    </Flex>
+                </div>
+            </SettingsGridCard>
+        </>
+    );
+};

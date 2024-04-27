@@ -434,6 +434,9 @@ export type UpdateProjectMember = {
     role: ProjectMemberRole;
 };
 
+export type UpdateMetadata = {
+    upstreamProjectUuid?: string;
+};
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];

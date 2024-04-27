@@ -23,6 +23,7 @@ import {
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
+    UpdateMetadata,
     UpdateProject,
     WarehouseCredentials,
     WarehouseTypes,
@@ -353,6 +354,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
             | {
                   name: string;
@@ -363,6 +365,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
         )[];
         return wrapOtelSpan(
@@ -408,6 +411,9 @@ export class ProjectModel {
                         this.database
                             .ref('dbt_version')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('copied_from_project_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -440,6 +446,7 @@ export class ProjectModel {
                     dbtConnection: dbtSensitiveCredentials,
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
+                    upstreamProjectUuid: project.copied_from_project_uuid,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -529,6 +536,7 @@ export class ProjectModel {
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
+            upstreamProjectUuid: project.upstreamProjectUuid,
         };
     }
 
@@ -939,6 +947,17 @@ export class ProjectModel {
             `,
             { projectUuid, userUuid, role },
         );
+    }
+
+    async updateMetadata(
+        projectUuid: string,
+        data: UpdateMetadata,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                copied_from_project_uuid: data.upstreamProjectUuid,
+            })
+            .where('project_uuid', projectUuid);
     }
 
     async deleteProjectAccess(

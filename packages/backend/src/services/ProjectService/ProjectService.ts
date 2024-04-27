@@ -93,6 +93,7 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     UpdatedByUser,
+    UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
     UserAttributeValueMap,
@@ -362,7 +363,6 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-
         return project;
     }
 
@@ -3201,6 +3201,29 @@ export class ProjectService extends BaseService {
             userUuid,
             data.role,
         );
+    }
+
+    async updateMetadata(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateMetadata,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateMetadata(projectUuid, data);
     }
 
     async deleteProjectAccess(
