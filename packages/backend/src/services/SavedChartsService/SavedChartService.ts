@@ -384,18 +384,9 @@ export class SavedChartService extends BaseService {
             );
         }
 
-        // If the chart is being moved from a dashboard to a space, we need to create a new slug.
-        const isMovedToSpace = dashboardUuid && data.spaceUuid;
-        const updateData = isMovedToSpace
-            ? {
-                  ...data,
-                  slug: generateSlug(data.name || name),
-              }
-            : data;
-
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
-            updateData,
+            data,
         );
         this.analytics.track({
             event: 'saved_chart.updated',

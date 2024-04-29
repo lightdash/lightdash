@@ -372,7 +372,7 @@ export type CreateSavedChartVersion = Omit<
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
-    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'slug'>
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
