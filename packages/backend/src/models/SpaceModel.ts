@@ -358,7 +358,7 @@ export class SpaceModel {
                         .whereRaw(
                             `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
                         ),
-                    slug: 'spaces.slug',
+                    // slug: 'spaces.slug', //TODO enable after slug
                 });
             if (filters.projectUuid) {
                 void query.where('projects.project_uuid', filters.projectUuid);

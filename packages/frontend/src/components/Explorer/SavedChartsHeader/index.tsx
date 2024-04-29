@@ -30,6 +30,7 @@ import {
     IconCirclesRelation,
     IconCodePlus,
     IconCopy,
+    IconDatabaseExport,
     IconDots,
     IconFolder,
     IconFolders,
@@ -55,6 +56,8 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
+import { usePromoteMutation } from '../../../hooks/usePromoteChart';
 import {
     useMoveChartMutation,
     useUpdateMutation,
@@ -176,7 +179,9 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const userTimeZonesEnabled = useFeatureFlagEnabled(
         FeatureFlags.EnableUserTimezones,
     );
+    const { data: project } = useProject(projectUuid);
 
+    const { mutate: promoteChart } = usePromoteMutation();
     const history = useHistory();
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
@@ -337,6 +342,10 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const userCanManageChart =
         savedChart &&
         user.data?.ability?.can('manage', subject('SavedChart', savedChart));
+
+    const userCanPromoteChart =
+        savedChart &&
+        user.data?.ability?.can('promote', subject('SavedChart', savedChart));
 
     const userCanManageExplore = user.data?.ability.can(
         'manage',
@@ -795,6 +804,39 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                     >
                                         Version history
                                     </Menu.Item>
+                                )}
+                                {userCanPromoteChart && (
+                                    <Tooltip
+                                        label="You must enable first an upstram project in settings > Data ops"
+                                        disabled={
+                                            project?.upstreamProjectUuid !==
+                                            undefined
+                                        }
+                                        withinPortal
+                                    >
+                                        <div>
+                                            <Menu.Item
+                                                disabled={
+                                                    project?.upstreamProjectUuid ===
+                                                    undefined
+                                                }
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconDatabaseExport
+                                                        }
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    promoteChart(
+                                                        savedChart?.uuid,
+                                                    )
+                                                }
+                                            >
+                                                Promote chart
+                                            </Menu.Item>
+                                        </div>
+                                    </Tooltip>
                                 )}
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>

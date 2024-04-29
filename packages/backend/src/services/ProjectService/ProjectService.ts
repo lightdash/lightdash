@@ -4080,17 +4080,17 @@ export class ProjectService extends BaseService {
                 );
             }
         };
-        const {
-            organizationUuid,
-            projectUuid,
-            spaceUuid,
-            dashboardUuid,
-            ...promotedChart
-        } = await this.savedChartModel.get(chartUuid, undefined);
 
-        if (dashboardUuid !== undefined)
+        const promotedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+        );
+        const { organizationUuid, projectUuid } = promotedChart;
+        if (promotedChart.dashboardUuid)
             throw new Error(`We can't promote charts within dashboards`);
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(
+            promotedChart.spaceUuid,
+        );
 
         await checkPermissions(
             organizationUuid,
@@ -4107,10 +4107,10 @@ export class ProjectService extends BaseService {
             throw new Error('This chart does not have an upstream project');
 
         const slug = `/charts/${chartUuid}`; // TODO replace with chart.slug
-        if (!slug)
+        if (!slug) {
             // We could create a new slug here on the fly if needed
             throw new Error('This chart does not have a valid identifier');
-
+        }
         const existingUpstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
             slug,
@@ -4172,6 +4172,7 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
                 user.userUuid,
                 newChartData,
+                // TODO let's make sure we're using the same slug here
             );
             return newChart;
         }

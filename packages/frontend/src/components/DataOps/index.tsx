@@ -1,3 +1,4 @@
+import { ProjectType } from '@lightdash/common';
 import { Button, Flex, Select, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useProject } from '../../hooks/useProject';
@@ -33,14 +34,20 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         value={selectedProject}
                         clearable
                         data={
-                            projects?.map((project) => ({
-                                label: project.name,
-                                value: project.projectUuid,
-                                disabled: project.projectUuid === projectUuid,
-                                selected:
-                                    project.projectUuid ===
-                                    currentProject?.upstreamProjectUuid,
-                            })) || []
+                            projects
+                                ?.filter(
+                                    (project) =>
+                                        project.type === ProjectType.DEFAULT,
+                                ) //Filter preview projects
+                                .map((project) => ({
+                                    label: project.name,
+                                    value: project.projectUuid,
+                                    disabled:
+                                        project.projectUuid === projectUuid,
+                                    selected:
+                                        project.projectUuid ===
+                                        currentProject?.upstreamProjectUuid,
+                                })) || []
                         }
                         label="Upstream project"
                         onChange={(value) => {

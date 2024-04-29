@@ -536,7 +536,7 @@ export class ProjectModel {
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
-            upstreamProjectUuid: project.upstreamProjectUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid || undefined,
         };
     }
 
