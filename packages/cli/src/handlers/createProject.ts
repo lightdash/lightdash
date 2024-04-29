@@ -73,7 +73,7 @@ type CreateProjectOptions = {
     profile: string | undefined;
     type: ProjectType;
     startOfWeek?: number;
-    copiedFromProjectUuid?: string;
+    upstreamProjectUuid?: string;
 };
 export const createProject = async (
     options: CreateProjectOptions,
@@ -135,7 +135,7 @@ export const createProject = async (
             type: DbtProjectType.NONE,
             target: targetName,
         },
-        copiedFromProjectUuid: options.copiedFromProjectUuid,
+        upstreamProjectUuid: options.upstreamProjectUuid,
         dbtVersion,
     };
 

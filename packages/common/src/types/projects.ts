@@ -293,7 +293,7 @@ export type Project = {
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
     pinnedListUuid?: string;
-    copiedFromProjectUuid?: string;
+    upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
 };
 

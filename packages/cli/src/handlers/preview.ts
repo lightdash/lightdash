@@ -139,7 +139,7 @@ export const previewHandler = async (
             ...options,
             name,
             type: ProjectType.PREVIEW,
-            copiedFromProjectUuid: config.context?.project,
+            upstreamProjectUuid: config.context?.project,
         });
 
         project = results?.project;
@@ -322,7 +322,7 @@ export const startPreviewHandler = async (
             ...options,
             name: projectName,
             type: ProjectType.PREVIEW,
-            copiedFromProjectUuid: config.context?.project,
+            upstreamProjectUuid: config.context?.project,
         });
 
         const project = results?.project;

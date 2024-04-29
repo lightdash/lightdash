@@ -832,8 +832,15 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "TableCalculationType": {
+                "enum": ["number", "string", "date", "timestamp", "boolean"],
+                "type": "string"
+            },
             "TableCalculation": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationType"
+                    },
                     "format": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
@@ -3223,7 +3230,7 @@
                     "dbtVersion": {
                         "$ref": "#/components/schemas/SupportedDbtVersions"
                     },
-                    "copiedFromProjectUuid": {
+                    "upstreamProjectUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -6766,7 +6773,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1075.5",
+        "version": "0.1076.6",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -59,6 +59,10 @@ const useDashboardStorage = () => {
         );
     }, []);
 
+    const getDashboardActiveTabUuid = useCallback(() => {
+        return sessionStorage.getItem('activeTabUuid');
+    }, []);
+
     const clearDashboardStorage = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
@@ -77,6 +81,7 @@ const useDashboardStorage = () => {
             haveFiltersChanged: boolean,
             dashboardUuid?: string,
             dashboardName?: string,
+            activeTabUuid?: string,
         ) => {
             sessionStorage.setItem('fromDashboard', dashboardName ?? '');
             sessionStorage.setItem('dashboardUuid', dashboardUuid ?? '');
@@ -97,6 +102,9 @@ const useDashboardStorage = () => {
                 'hasDashboardChanges',
                 JSON.stringify(haveTilesChanged || haveFiltersChanged),
             );
+            if (activeTabUuid) {
+                sessionStorage.setItem('activeTabUuid', activeTabUuid);
+            }
             // Trigger storage event to update NavBar
             window.dispatchEvent(new Event('storage'));
         },
@@ -132,6 +140,7 @@ const useDashboardStorage = () => {
         getHasDashboardChanges,
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
+        getDashboardActiveTabUuid,
     };
 };
 

@@ -31,9 +31,15 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    activeTabUuid?: string;
 } & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<Props> = ({ onAddTiles, setAddingTab, disabled }) => {
+const AddTileButton: FC<Props> = ({
+    onAddTiles,
+    setAddingTab,
+    disabled,
+    activeTabUuid,
+}) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -95,6 +101,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, setAddingTab, disabled }) => {
                                 haveFiltersChanged,
                                 dashboard?.uuid,
                                 dashboard?.name,
+                                activeTabUuid,
                             );
                             history.push(`/projects/${projectUuid}/tables`);
                         }}

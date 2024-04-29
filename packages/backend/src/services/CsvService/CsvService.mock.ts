@@ -21,6 +21,7 @@ export const metricQuery: MetricQuery = {
 export const itemMap: ItemsMap = {
     column_number: {
         name: 'column_number',
+        description: undefined,
         table: 'table',
         hidden: false,
         fieldType: FieldType.DIMENSION,
@@ -33,11 +34,13 @@ export const itemMap: ItemsMap = {
     column_string: {
         // like a table calculation
         name: 'column_string',
+        description: undefined,
         displayName: 'column string',
         sql: 'md5(random()::text)',
     },
     column_date: {
         name: 'column_date',
+        description: undefined,
         type: 'date',
         hidden: false,
         table: 'table',

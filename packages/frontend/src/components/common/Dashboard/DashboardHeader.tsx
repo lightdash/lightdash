@@ -67,6 +67,7 @@ type DashboardHeaderProps = {
     isFullscreen: boolean;
     isPinned: boolean;
     oldestCacheTime?: Date;
+    activeTabUuid?: string;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -89,6 +90,7 @@ const DashboardHeader = ({
     isFullscreen,
     isPinned,
     oldestCacheTime,
+    activeTabUuid,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -248,6 +250,7 @@ const DashboardHeader = ({
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
                         setAddingTab={setAddingTab}
+                        activeTabUuid={activeTabUuid}
                     />
                     <Tooltip
                         fz="xs"
