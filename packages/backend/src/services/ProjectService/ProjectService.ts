@@ -85,6 +85,7 @@ import {
     SessionUser,
     snakeCaseName,
     SortField,
+    Space,
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
@@ -4046,37 +4047,68 @@ export class ProjectService extends BaseService {
     }
 
     async promoteChart(user: SessionUser, chartUuid: string) {
-        const { organizationUuid, projectUuid, spaceUuid, ...promotedChart } =
-            await this.savedChartModel.get(chartUuid, undefined);
+        const checkPermissions = async (
+            organizationUuid: string,
+            projectUuid: string,
+            spaceSummary?: Omit<SpaceSummary, 'userAccess'>,
+            context: string = '',
+        ) => {
+            // If space is undefined, we only check the org/project access, we will create the chart in a new accessible space
+            const userDontHaveAccess = spaceSummary
+                ? user.ability.cannot(
+                      'promote',
+                      subject('SavedChart', {
+                          organizationUuid,
+                          projectUuid,
+                          isPrivate: spaceSummary.isPrivate,
+                          access: await this.spaceModel.getUserSpaceAccess(
+                              user.userUuid,
+                              spaceSummary.uuid,
+                          ),
+                      }),
+                  )
+                : user.ability.cannot(
+                      'promote',
+                      subject('SavedChart', {
+                          organizationUuid,
+                          projectUuid,
+                      }),
+                  );
+            if (userDontHaveAccess) {
+                throw new ForbiddenError(
+                    `You must have the right permission on ${context} to promote this chart`,
+                );
+            }
+        };
+        const {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            dashboardUuid,
+            ...promotedChart
+        } = await this.savedChartModel.get(chartUuid, undefined);
+
+        if (dashboardUuid !== undefined)
+            throw new Error(`We can't promote charts within dashboards`);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
-            space.uuid,
+
+        await checkPermissions(
+            organizationUuid,
+            projectUuid,
+            space,
+            'this chart and project',
         );
-        if (
-            user.ability.cannot(
-                'promote',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    isPrivate: space.isPrivate,
-                    access,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You must have the right role and space permissions to promote this chart',
-            );
-        }
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
         if (!upstreamProjectUuid)
             throw new Error('This chart does not have an upstream project');
 
         const slug = `/charts/${chartUuid}`; // TODO replace with chart.slug
         if (!slug)
+            // We could create a new slug here on the fly if needed
             throw new Error('This chart does not have a valid identifier');
 
         const existingUpstreamCharts = await this.savedChartModel.find({
@@ -4085,12 +4117,55 @@ export class ProjectService extends BaseService {
         });
 
         if (existingUpstreamCharts.length === 0) {
-            // We create a new chart
+            // There are no chart with the same slug, we create the chart, and the space if needed
+            // We only check the org/project access, we will create a new space if needed
+            await checkPermissions(
+                organizationUuid,
+                upstreamProjectUuid,
+                undefined,
+                'the upstream project',
+            );
+
+            let newSpaceUuid: string;
+            const existingSpace = await this.spaceModel.find({
+                projectUuid: upstreamProjectUuid,
+                slug: space.slug,
+            });
+            if (existingSpace.length === 1) {
+                // We have an existing space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    existingSpace[0],
+                    'the upstream space and project',
+                );
+                newSpaceUuid = existingSpace[0].uuid;
+            } else {
+                // We have 0 or more than 1 space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    undefined,
+                    'the upstream project',
+                );
+                // We create a new space
+                const newSpace = await this.spaceModel.createSpace(
+                    upstreamProjectUuid,
+                    space.name,
+                    user.userId,
+                    space.isPrivate,
+                );
+                newSpaceUuid = newSpace.uuid;
+                // TODO set right private permissions after creation
+            }
+
+            // Create new chart
             const newChartData: CreateSavedChart & {
                 updatedByUser: UpdatedByUser;
             } = {
                 ...promotedChart,
-                dashboardUuid: promotedChart.dashboardUuid || undefined,
+                dashboardUuid: undefined, // We don't copy charts within dashboards
+                spaceUuid: newSpaceUuid,
                 updatedByUser: promotedChart.updatedByUser!,
             };
             const newChart = await this.savedChartModel.create(
@@ -4103,6 +4178,16 @@ export class ProjectService extends BaseService {
         if (existingUpstreamCharts.length === 1) {
             // We override existing chart details
             const upstreamChart = existingUpstreamCharts[0];
+            const upstreamSpace = await this.spaceModel.getSpaceSummary(
+                upstreamChart.spaceUuid,
+            );
+
+            await checkPermissions(
+                organizationUuid,
+                upstreamProjectUuid,
+                upstreamSpace,
+                'the upstream chart and project',
+            );
             const updatedChart = await this.savedChartModel.createVersion(
                 upstreamChart.uuid,
                 {

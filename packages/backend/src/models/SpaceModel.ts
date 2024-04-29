@@ -286,6 +286,7 @@ export class SpaceModel {
     async find(filters: {
         projectUuid?: string;
         spaceUuid?: string;
+        slug?: string;
     }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -357,12 +358,16 @@ export class SpaceModel {
                         .whereRaw(
                             `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
                         ),
+                    slug: 'spaces.slug',
                 });
             if (filters.projectUuid) {
                 void query.where('projects.project_uuid', filters.projectUuid);
             }
             if (filters.spaceUuid) {
                 void query.where('spaces.space_uuid', filters.spaceUuid);
+            }
+            if (filters.slug) {
+                void query.where('spaces.slug', filters.slug);
             }
             return await query;
         } finally {

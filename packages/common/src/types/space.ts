@@ -16,6 +16,7 @@ export type Space = {
     access: SpaceShare[];
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    slug?: string;
 };
 
 export type SpaceSummary = Pick<
@@ -27,6 +28,7 @@ export type SpaceSummary = Pick<
     | 'isPrivate'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
+    | 'slug'
 > & {
     userAccess: SpaceShare | undefined;
     access: string[];
