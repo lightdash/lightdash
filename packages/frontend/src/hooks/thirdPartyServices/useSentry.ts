@@ -1,6 +1,5 @@
 import { type HealthState, type LightdashUser } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
-import { Integrations } from '@sentry/tracing';
 import { useEffect, useState } from 'react';
 
 const useSentry = (
@@ -15,7 +14,10 @@ const useSentry = (
                 dsn: sentryConfig.dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
-                integrations: [new Integrations.BrowserTracing()],
+                integrations: [
+                    Sentry.browserTracingIntegration(),
+                    Sentry.replayIntegration(),
+                ],
                 tracesSampleRate: 0.2,
             });
             setIsSentryLoaded(true);

@@ -40,7 +40,6 @@
         "@mantine/tiptap": "6.0.21",
         "@monaco-editor/react": "^4.6.0",
         "@sentry/react": "^7.112.2",
-        "@sentry/tracing": "^7.112.2",
         "@shopify/react-web-worker": "^5.0.13",
         "@tabler/icons-react": "^2.32.0",
         "@tanstack/react-query": "^4.36.1",
