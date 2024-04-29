@@ -18,7 +18,7 @@ const useSentry = (
                     Sentry.browserTracingIntegration(),
                     Sentry.replayIntegration(),
                 ],
-                tracesSampleRate: 0.2,
+                tracesSampleRate: 0.5,
             });
             setIsSentryLoaded(true);
         }
