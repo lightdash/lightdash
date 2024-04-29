@@ -20,15 +20,14 @@ const ErrorState: FC<{
         }
         try {
             const description = (
-                <Text maw={400}>
-                    <span>{error.message}</span>
-                    <br />
+                <>
+                    <Text maw={400}>{error.message}</Text>
                     {error.id && (
-                        <span>
+                        <Text maw={400} weight="bold">
                             Please contact support with the error ID: {error.id}
-                        </span>
+                        </Text>
                     )}
-                </Text>
+                </>
             );
             switch (error.name) {
                 case 'ForbiddenError':
