@@ -4776,6 +4776,9 @@
             },
             "SavedChart": {
                 "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
                     "access": {
                         "items": {
                             "$ref": "#/components/schemas/SpaceShare"
@@ -4871,6 +4874,7 @@
                     }
                 },
                 "required": [
+                    "slug",
                     "access",
                     "isPrivate",
                     "colorPalette",
@@ -5767,6 +5771,9 @@
             },
             "Space": {
                 "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
@@ -5811,6 +5818,7 @@
                     }
                 },
                 "required": [
+                    "slug",
                     "pinnedListOrder",
                     "pinnedListUuid",
                     "access",
@@ -6758,7 +6766,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1074.2",
+        "version": "0.1075.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -4329,6 +4329,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 access: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SpaceShare' },
@@ -5158,6 +5159,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
                     subSchemas: [
