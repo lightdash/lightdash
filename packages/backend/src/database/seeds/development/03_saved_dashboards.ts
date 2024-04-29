@@ -4,8 +4,10 @@ import {
     CreateDashboardMarkdownTile,
     DashboardTileTypes,
     FilterOperator,
+    generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    SEED_SPACE,
     SpaceQuery,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -40,7 +42,11 @@ export async function seed(knex: Knex): Promise<void> {
         database: knex,
     });
 
-    const { queries, uuid: spaceUuid } = await spaceModel.getSpaceWithQueries(
+    const {
+        queries,
+        uuid: spaceUuid,
+        name: spaceName,
+    } = await spaceModel.getSpaceWithQueries(
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
     );
@@ -226,6 +232,11 @@ export async function seed(knex: Knex): Promise<void> {
                 tableCalculations: [],
             },
             tabs: [],
+            slug: generateSlug(
+                'dashboards',
+                SEED_SPACE.name,
+                'Jaffle dashboard',
+            ),
         },
         {
             userUuid: SEED_ORG_1_ADMIN.user_uuid,

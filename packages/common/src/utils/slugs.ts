@@ -13,9 +13,11 @@ export const generateSlug = (
     if (type === 'spaces') {
         return `spaces/${sanitizeSlug(name)}`;
     }
+    if (!spaceName && type === 'charts') {
+        // Charts in dashboards don't need a space name
+        return `${type}/${sanitizeSlug(name)}`;
+    }
     if (!spaceName)
-        throw new Error(
-            'Space name is required for dashboards and charts slugs',
-        );
+        throw new Error('Space name is required for dashboards slugs');
     return `${type}/${sanitizeSlug(spaceName)}/${sanitizeSlug(name)}`;
 };

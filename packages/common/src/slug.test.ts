@@ -1,7 +1,6 @@
 import { generateSlug } from './utils/slugs';
 
 describe('Slug', () => {
-    // TODO mock some timezones
     test('should generate space slugs', async () => {
         expect(generateSlug('spaces', 'my space name')).toEqual(
             'spaces/my-space-name',
@@ -50,7 +49,15 @@ describe('Slug', () => {
             'charts/a-space-name-with-special-chars-and-slashes/a-chart-name-with-special-chars-and-slashes',
         );
     });
-
+    test('should generate chart in dashboard slugs', async () => {
+        expect(
+            generateSlug(
+                'charts',
+                'my-chart-name',
+                undefined, // chart without space
+            ),
+        ).toEqual('charts/my-chart-name');
+    });
     test('should generate dashboard slugs', async () => {
         expect(() =>
             generateSlug(

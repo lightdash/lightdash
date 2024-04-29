@@ -84,7 +84,7 @@ export type CreateDashboard = {
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
     tabs: DashboardTab[];
-    slug?: string;
+    slug: string;
 };
 
 export type DashboardTile =
@@ -124,6 +124,7 @@ export type Dashboard = {
     tabs: DashboardTab[];
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
+    slug: string;
 };
 
 export enum DashboardSummaryTone {

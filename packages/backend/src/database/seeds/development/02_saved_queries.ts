@@ -3,8 +3,10 @@ import {
     CartesianSeriesType,
     ChartType,
     ConditionalOperator,
+    generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    SEED_SPACE,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -30,6 +32,11 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                'How much revenue do we have per payment method?',
+                SEED_SPACE.name,
+            ),
             name: 'How much revenue do we have per payment method?',
             description:
                 'Total revenue received via coupons, gift cards, bank transfers, and credit cards',
@@ -101,6 +108,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `What's our total revenue to date?`,
+                SEED_SPACE.name,
+            ),
+
             name: `What's our total revenue to date?`,
             description: `A single number showing the sum of all historical revenue`,
             tableName: 'payments',
@@ -145,6 +158,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `How many orders we have over time ?`,
+                SEED_SPACE.name,
+            ),
+
             name: 'How many orders we have over time ?',
             description:
                 'Time series of orders received per day and total orders over time',
@@ -218,6 +237,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `What's the average spend per customer?`,
+                SEED_SPACE.name,
+            ),
+
             name: "What's the average spend per customer?",
             description: 'Average order size for each customer id',
             tableName: 'orders',
@@ -270,6 +295,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `Which customers have not recently ordered an item?`,
+                SEED_SPACE.name,
+            ),
+
             name: 'Which customers have not recently ordered an item?',
             description:
                 'A table of the 20 customers that least recently placed an order with us',
@@ -316,6 +347,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `How many orders did we get on February?`,
+                SEED_SPACE.name,
+            ),
+
             name: 'How many orders did we get on February?',
             description:
                 'A single value of the total number of orders received in February',
@@ -371,6 +408,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `How much revenue do we have per payment method each month?`,
+                SEED_SPACE.name,
+            ),
+
             name: 'How much revenue do we have per payment method each month?',
             description: 'A pivot table sample',
             tableName: 'payments',
@@ -435,6 +478,12 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'charts',
+                `How many users were created each month ?`,
+                SEED_SPACE.name,
+            ),
+
             name: 'How many users were created each month ?',
             description: 'A pivot table sample',
             tableName: 'customers',
@@ -487,7 +536,13 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            name: 'How do payment methods vary across different amount ranges?"',
+            slug: generateSlug(
+                'charts',
+                `How do payment methods vary across different amount ranges?`,
+                SEED_SPACE.name,
+            ),
+
+            name: 'How do payment methods vary across different amount ranges?',
             description: 'Payment range by amount',
             tableName: 'payments',
             metricQuery: {

@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    Comment,
     CreateDashboard,
     DashboardBasicDetails,
     DashboardChartTile,
@@ -11,7 +10,6 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
-    generateSlug,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     LightdashUser,
     NotFoundError,
@@ -66,7 +64,7 @@ import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
-    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description'
+    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description' | 'slug'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
@@ -460,6 +458,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.created_at`,
                 `${UserTableName}.user_uuid`,
@@ -710,6 +709,7 @@ export class DashboardModel {
                 firstName: dashboard.first_name,
                 lastName: dashboard.last_name,
             },
+            slug: dashboard.slug,
         };
     }
 
@@ -733,11 +733,7 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
-                    slug: generateSlug(
-                        'dashboards',
-                        dashboard.name,
-                        space.name,
-                    ),
+                    slug: dashboard.slug,
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 

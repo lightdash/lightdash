@@ -7,6 +7,7 @@ import {
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
+    generateSlug,
     hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
@@ -256,7 +257,7 @@ export class DashboardService extends BaseService {
     async create(
         user: SessionUser,
         projectUuid: string,
-        dashboard: CreateDashboard,
+        dashboard: Omit<CreateDashboard, 'slug'>,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
             const space = await this.spaceModel.getFirstAccessibleSpace(
@@ -267,6 +268,7 @@ export class DashboardService extends BaseService {
                 organizationUuid: space.organization_uuid,
                 uuid: space.space_uuid,
                 isPrivate: space.is_private,
+                name: space.name,
             };
         };
         const space = dashboard.spaceUuid
@@ -293,9 +295,13 @@ export class DashboardService extends BaseService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        const createDashboard = {
+            ...dashboard,
+            slug: generateSlug('dashboards', dashboard.name, space.name),
+        };
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
-            dashboard,
+            createDashboard,
             user,
             projectUuid,
         );
@@ -346,6 +352,7 @@ export class DashboardService extends BaseService {
             ...dashboard,
             description: data.dashboardDesc,
             name: data.dashboardName,
+            slug: generateSlug('dashboards', dashboard.name, space.name),
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -379,6 +386,11 @@ export class DashboardService extends BaseService {
                                         firstName: user.firstName,
                                         lastName: user.lastName,
                                     },
+                                    slug: generateSlug(
+                                        'charts',
+                                        chartInDashboard.name,
+                                        space.name,
+                                    ),
                                 },
                             );
                         this.analytics.track({

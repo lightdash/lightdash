@@ -8,7 +8,6 @@ import {
     CreateSavedChartVersion,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
-    generateSlug,
     getChartKind,
     getChartType,
     getCustomDimensionId,
@@ -282,6 +281,7 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
         dashboardUuid,
+        slug,
     }: CreateSavedChart & { updatedByUser: UpdatedByUser },
 ): Promise<string> =>
     db.transaction(async (trx) => {
@@ -293,6 +293,7 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
+            slug,
         };
         if (dashboardUuid) {
             chart = {
@@ -331,7 +332,6 @@ export const createSavedChart = async (
                 ...baseChart,
                 dashboard_uuid: null,
                 space_id: spaceId,
-                slug: generateSlug('charts', name, spaceName),
             };
         }
         const [newSavedChart] = await trx(SavedChartsTableName)
@@ -344,6 +344,7 @@ export const createSavedChart = async (
             tableConfig,
             pivotConfig,
             updatedByUser,
+            slug,
         });
         return newSavedChart.saved_query_uuid;
     });
@@ -642,6 +643,7 @@ export class SavedChartModel {
                         spaceName: string;
                         dashboardName: string | null;
                         chart_colors: string[] | null;
+                        slug: string;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -650,6 +652,7 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
                     `${SavedChartsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.slug`,
                     `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
@@ -872,6 +875,7 @@ export class SavedChartModel {
                 dashboardUuid: savedQuery.dashboard_uuid,
                 dashboardName: savedQuery.dashboardName,
                 colorPalette: savedQuery.chart_colors ?? ECHARTS_DEFAULT_COLORS,
+                slug: savedQuery.slug,
             };
         } finally {
             span?.finish();

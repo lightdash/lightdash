@@ -19,7 +19,7 @@ export type DbDashboard = {
     search_vector: string;
     space_id: number;
     created_at: Date;
-    slug?: string;
+    slug: string;
 };
 
 type DbDashboardVersion = {

@@ -3,7 +3,6 @@ import {
     ChartType,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
-    generateSlug,
     getHighestProjectRole,
     GroupRole,
     NotFoundError,
@@ -281,6 +280,7 @@ export class SpaceModel {
             projectUuid,
             dashboards: [],
             access: [],
+            slug: space.slug,
         };
     }
 
@@ -420,6 +420,7 @@ export class SpaceModel {
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
+            slug: row.slug,
         };
     }
 
@@ -1050,6 +1051,7 @@ export class SpaceModel {
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
             access: await this._getSpaceAccess(space.uuid),
+            slug: space.slug,
         };
     }
 
@@ -1058,6 +1060,7 @@ export class SpaceModel {
         name: string,
         userId: number,
         isPrivate: boolean,
+        slug: string,
     ): Promise<Space> {
         const [project] = await this.database('projects')
             .select('project_id')
@@ -1069,7 +1072,7 @@ export class SpaceModel {
                 is_private: isPrivate,
                 name,
                 created_by_user_id: userId,
-                slug: generateSlug('spaces', name),
+                slug,
             })
             .returning('*');
 
@@ -1084,6 +1087,7 @@ export class SpaceModel {
             access: [],
             pinnedListUuid: null,
             pinnedListOrder: null,
+            slug: space.slug,
         };
     }
 

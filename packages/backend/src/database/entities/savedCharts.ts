@@ -71,7 +71,7 @@ export type DbSavedChart = {
     last_version_updated_at: Date;
     last_version_updated_by_user_uuid: string | undefined;
     search_vector: string;
-    slug?: string; // can be undefined if the chart is in a dashboard
+    slug: string;
 };
 
 export type DbSavedChartVersion = {
