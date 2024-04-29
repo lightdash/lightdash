@@ -56,11 +56,9 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 currentProject?.upstreamProjectUuid
                             }
                             onClick={async () => {
-                                if (currentProject) {
-                                    await updateMutation({
-                                        upstreamProjectUuid: selectedProject,
-                                    });
-                                }
+                                await updateMutation({
+                                    upstreamProjectUuid: selectedProject,
+                                });
                             }}
                         >
                             Update

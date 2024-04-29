@@ -430,7 +430,7 @@ export class ProjectController extends BaseController {
 
     /**
      * Update project metadata like upstreamProjectUuid
-     * not for updating warehouse or credentials
+     * we don't trigger a compile, so not for updating warehouse or credentials
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -442,7 +442,6 @@ export class ProjectController extends BaseController {
     @OperationId('updateProjectMetadata')
     async updateProjectMetadata(
         @Path() projectUuid: string,
-        @Path() userUuid: string,
         @Body() body: UpdateMetadata,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
