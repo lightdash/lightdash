@@ -18,7 +18,14 @@ const useSentry = (
                     Sentry.browserTracingIntegration(),
                     Sentry.replayIntegration(),
                 ],
-                tracesSampleRate: 0.5,
+                tracesSampler(samplingContext) {
+                    // TODO: verify if this is the right way to sample errors
+                    if (samplingContext.transactionContext?.name === 'error') {
+                        return 1.0;
+                    }
+                    return 0.5;
+                },
+                replaysOnErrorSampleRate: 1.0,
             });
             setIsSentryLoaded(true);
         }
