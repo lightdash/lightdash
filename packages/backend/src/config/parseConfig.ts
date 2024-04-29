@@ -1,4 +1,9 @@
-import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
+import {
+    isLightdashMode,
+    LightdashMode,
+    ParseError,
+    SentryConfig,
+} from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { type ClientAuthMethod } from 'openid-client';
@@ -224,17 +229,6 @@ export type S3Config = {
 export type IntercomConfig = {
     appId: string;
     apiBase: string;
-};
-
-export type SentryConfig = {
-    backend: {
-        dsn: string;
-    };
-    frontend: {
-        dsn: string;
-    };
-    release: string;
-    environment: string;
 };
 
 export type RudderConfig = {

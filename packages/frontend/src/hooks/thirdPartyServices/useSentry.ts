@@ -9,9 +9,9 @@ const useSentry = (
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
 
     useEffect(() => {
-        if (sentryConfig && !isSentryLoaded && sentryConfig.dsn) {
+        if (sentryConfig && !isSentryLoaded && sentryConfig.frontend.dsn) {
             Sentry.init({
-                dsn: sentryConfig.dsn,
+                dsn: sentryConfig.frontend.dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [

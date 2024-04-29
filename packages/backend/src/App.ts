@@ -466,7 +466,7 @@ export default class App {
     private initSentry(expressApp: Express) {
         Sentry.init({
             release: VERSION,
-            dsn: this.lightdashConfig.sentry.dsn,
+            dsn: this.lightdashConfig.sentry.backend.dsn,
             environment:
                 this.environment === 'development'
                     ? 'development'
