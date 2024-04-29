@@ -52,7 +52,7 @@ export const createDashboard: CreateDashboard = {
         tableCalculations: [],
     },
     tabs: [],
-    slug: 'dashboards/space-name/my-new-dashboard',
+    slug: 'my-new-dashboard',
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -124,7 +124,7 @@ export const projectEntry: Pick<
 export const spaceEntry: SpaceTable['base'] = {
     space_id: 0,
     space_uuid: '123',
-    slug: 'spaces/space-name',
+    slug: 'space-name',
 
     name: 'space name',
     is_private: false,
@@ -138,7 +138,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_uuid: '123',
     space_id: 0,
     name: 'chart name',
-    slug: 'charts/space-name/chart-name',
+    slug: 'chart-name',
 
     description: 'My description',
     created_at: new Date(),
@@ -153,7 +153,7 @@ export const dashboardEntry: DashboardTable['base'] = {
     dashboard_id: 0,
     dashboard_uuid: 'my_dashboard_uuid',
     name: 'name',
-    slug: 'dashboards/space-name/name',
+    slug: 'name',
 
     description: 'description',
     space_id: 0,
@@ -186,7 +186,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     dashboard_id: dashboardEntry.dashboard_id,
     dashboard_uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
-    slug: `dashboards/space-name/${dashboardEntry.name}`,
+    slug: `name`,
 
     description: dashboardEntry.description,
     dashboard_version_id: dashboardVersionEntry.dashboard_version_id,
@@ -243,7 +243,7 @@ export const expectedDashboard: DashboardDAO = {
     dashboardVersionId: dashboardVersionEntry.dashboard_version_id,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
-    slug: `dashboards/space-name/${dashboardEntry.name}`,
+    slug: `name`,
 
     description: dashboardEntry.description,
     updatedAt: dashboardVersionEntry.created_at,

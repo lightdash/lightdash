@@ -232,11 +232,7 @@ export async function seed(knex: Knex): Promise<void> {
                 tableCalculations: [],
             },
             tabs: [],
-            slug: generateSlug(
-                'dashboards',
-                SEED_SPACE.name,
-                'Jaffle dashboard',
-            ),
+            slug: generateSlug('Jaffle dashboard'),
         },
         {
             userUuid: SEED_ORG_1_ADMIN.user_uuid,

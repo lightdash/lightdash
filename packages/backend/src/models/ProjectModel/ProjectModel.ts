@@ -296,7 +296,7 @@ export class ProjectModel {
                 project_id: project.project_id,
                 name: 'Shared',
                 is_private: false,
-                slug: generateSlug('spaces', 'Shared'),
+                slug: generateSlug('Shared'),
             });
 
             return project.project_uuid;

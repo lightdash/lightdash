@@ -11,9 +11,7 @@ export async function up(knex: Knex): Promise<void> {
     // Charts in spaces
     await knex.raw(`
         UPDATE saved_queries sq
-        SET slug = 'charts/' || ${sanitizeSlug(
-            `s."name"`,
-        )} || '/' || ${sanitizeSlug(`sq."name"`)} 
+        SET slug = ${sanitizeSlug(`sq."name"`)} 
         FROM spaces s
         WHERE sq.space_id = s.space_id
         AND sq.space_id IS NOT NULL;
@@ -21,14 +19,12 @@ export async function up(knex: Knex): Promise<void> {
     // Charts in dashboards
     await knex.raw(`
         UPDATE saved_queries sq
-        SET slug = 'charts/' || ${sanitizeSlug(`sq."name"`)} 
+        SET slug = ${sanitizeSlug(`sq."name"`)} 
         WHERE sq.dashboard_uuid IS NOT NULL;
     `);
     await knex.raw(`
     UPDATE dashboards d
-    SET slug =  'dashboards/' || ${sanitizeSlug(
-        `s."name"`,
-    )} || '/' || ${sanitizeSlug(`d."name"`)} 
+    SET slug =  ${sanitizeSlug(`d."name"`)} 
        
     FROM spaces s
     WHERE d.space_id = s.space_id
@@ -36,7 +32,7 @@ export async function up(knex: Knex): Promise<void> {
   `);
     await knex.raw(`
   UPDATE spaces s
-  SET slug = 'spaces/' || ${sanitizeSlug(`s."name" `)}
+  SET slug = ${sanitizeSlug(`s."name" `)}
 `);
 }
 

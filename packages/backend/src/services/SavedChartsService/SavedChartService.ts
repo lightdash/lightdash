@@ -389,7 +389,7 @@ export class SavedChartService extends BaseService {
         const updateData = isMovedToSpace
             ? {
                   ...data,
-                  slug: generateSlug('charts', data.name || name, space.name),
+                  slug: generateSlug(data.name || name),
               }
             : data;
 
@@ -656,7 +656,6 @@ export class SavedChartService extends BaseService {
         );
         let isPrivate = false;
         let access: SpaceShare[] = [];
-        let slug: string = '';
         if (savedChart.spaceUuid) {
             const space = await this.spaceModel.getSpaceSummary(
                 savedChart.spaceUuid,
@@ -666,7 +665,6 @@ export class SavedChartService extends BaseService {
                 user.userUuid,
                 savedChart.spaceUuid,
             );
-            slug = generateSlug('charts', savedChart.name, space.name);
         } else if (savedChart.dashboardUuid) {
             const dashboard = await this.dashboardModel.getById(
                 savedChart.dashboardUuid,
@@ -679,7 +677,6 @@ export class SavedChartService extends BaseService {
                 user.userUuid,
                 dashboard.spaceUuid,
             );
-            slug = generateSlug('charts', savedChart.name); // Charts within dashboards don't have space in slug
         }
 
         if (
@@ -701,7 +698,7 @@ export class SavedChartService extends BaseService {
             user.userUuid,
             {
                 ...savedChart,
-                slug,
+                slug: generateSlug(savedChart.name),
                 updatedByUser: user,
             },
         );
@@ -761,7 +758,7 @@ export class SavedChartService extends BaseService {
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
-            slug: generateSlug('charts', data.chartName, space.name),
+            slug: generateSlug(data.chartName),
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {

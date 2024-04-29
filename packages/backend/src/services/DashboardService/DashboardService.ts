@@ -297,7 +297,7 @@ export class DashboardService extends BaseService {
         }
         const createDashboard = {
             ...dashboard,
-            slug: generateSlug('dashboards', dashboard.name, space.name),
+            slug: generateSlug(dashboard.name),
         };
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
@@ -352,7 +352,7 @@ export class DashboardService extends BaseService {
             ...dashboard,
             description: data.dashboardDesc,
             name: data.dashboardName,
-            slug: generateSlug('dashboards', dashboard.name, space.name),
+            slug: generateSlug(dashboard.name),
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -386,11 +386,7 @@ export class DashboardService extends BaseService {
                                         firstName: user.firstName,
                                         lastName: user.lastName,
                                     },
-                                    slug: generateSlug(
-                                        'charts',
-                                        chartInDashboard.name,
-                                        space.name,
-                                    ),
+                                    slug: generateSlug(chartInDashboard.name),
                                 },
                             );
                         this.analytics.track({

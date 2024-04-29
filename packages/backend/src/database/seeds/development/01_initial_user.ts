@@ -163,7 +163,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_SPACE,
             is_private: false,
             project_id: projectId,
-            slug: generateSlug('spaces', SEED_SPACE.name),
+            slug: generateSlug(SEED_SPACE.name),
         })
         .returning(['space_id', 'space_uuid']);
 

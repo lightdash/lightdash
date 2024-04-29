@@ -33,9 +33,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
         {
             slug: generateSlug(
-                'charts',
                 'How much revenue do we have per payment method?',
-                SEED_SPACE.name,
             ),
             name: 'How much revenue do we have per payment method?',
             description:
@@ -108,11 +106,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            slug: generateSlug(
-                'charts',
-                `What's our total revenue to date?`,
-                SEED_SPACE.name,
-            ),
+            slug: generateSlug(`What's our total revenue to date?`),
 
             name: `What's our total revenue to date?`,
             description: `A single number showing the sum of all historical revenue`,
@@ -158,11 +152,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            slug: generateSlug(
-                'charts',
-                `How many orders we have over time ?`,
-                SEED_SPACE.name,
-            ),
+            slug: generateSlug(`How many orders we have over time ?`),
 
             name: 'How many orders we have over time ?',
             description:
@@ -237,11 +227,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            slug: generateSlug(
-                'charts',
-                `What's the average spend per customer?`,
-                SEED_SPACE.name,
-            ),
+            slug: generateSlug(`What's the average spend per customer?`),
 
             name: "What's the average spend per customer?",
             description: 'Average order size for each customer id',
@@ -296,9 +282,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
         {
             slug: generateSlug(
-                'charts',
                 `Which customers have not recently ordered an item?`,
-                SEED_SPACE.name,
             ),
 
             name: 'Which customers have not recently ordered an item?',
@@ -347,11 +331,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            slug: generateSlug(
-                'charts',
-                `How many orders did we get on February?`,
-                SEED_SPACE.name,
-            ),
+            slug: generateSlug(`How many orders did we get on February?`),
 
             name: 'How many orders did we get on February?',
             description:
@@ -409,9 +389,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
         {
             slug: generateSlug(
-                'charts',
                 `How much revenue do we have per payment method each month?`,
-                SEED_SPACE.name,
             ),
 
             name: 'How much revenue do we have per payment method each month?',
@@ -478,11 +456,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            slug: generateSlug(
-                'charts',
-                `How many users were created each month ?`,
-                SEED_SPACE.name,
-            ),
+            slug: generateSlug(`How many users were created each month ?`),
 
             name: 'How many users were created each month ?',
             description: 'A pivot table sample',
@@ -537,9 +511,7 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_ORG_1_ADMIN.user_uuid,
         {
             slug: generateSlug(
-                'charts',
                 `How do payment methods vary across different amount ranges?`,
-                SEED_SPACE.name,
             ),
 
             name: 'How do payment methods vary across different amount ranges?',
