@@ -227,7 +227,12 @@ export type IntercomConfig = {
 };
 
 export type SentryConfig = {
-    dsn: string;
+    backend: {
+        dsn: string;
+    };
+    frontend: {
+        dsn: string;
+    };
     release: string;
     environment: string;
 };
@@ -406,7 +411,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 'https://analytics.lightdash.com',
         },
         sentry: {
-            dsn: process.env.SENTRY_DSN || '',
+            backend: {
+                dsn: process.env.SENTRY_BE_DSN || '',
+            },
+            frontend: {
+                dsn: process.env.SENTRY_FE_DSN || '',
+            },
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
