@@ -18,7 +18,12 @@ export default function mockHealthResponse(
             writeKey: '',
         },
         sentry: {
-            dsn: '',
+            backend: {
+                dsn: '',
+            },
+            frontend: {
+                dsn: '',
+            },
             release: '',
             environment: '',
         },
