@@ -406,10 +406,10 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         sentry: {
             backend: {
-                dsn: process.env.SENTRY_BE_DSN || '',
+                dsn: process.env.SENTRY_BE_DSN || process.env.SENTRY_DSN || '',
             },
             frontend: {
-                dsn: process.env.SENTRY_FE_DSN || '',
+                dsn: process.env.SENTRY_FE_DSN || process.env.SENTRY_DSN || '',
             },
             release: VERSION,
             environment:
