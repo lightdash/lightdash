@@ -1,3 +1,10 @@
+# [0.1077.0](https://github.com/lightdash/lightdash/compare/0.1076.6...0.1077.0) (2024-04-29)
+
+
+### Features
+
+* configure separate react sentry project ([#9910](https://github.com/lightdash/lightdash/issues/9910)) ([ab4c244](https://github.com/lightdash/lightdash/commit/ab4c244f27ca1950aae4b8b346cd02457414d4cc))
+
 ## [0.1076.6](https://github.com/lightdash/lightdash/compare/0.1076.5...0.1076.6) (2024-04-26)
 
 
