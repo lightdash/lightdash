@@ -1368,6 +1368,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "sakce",
+      "name": "Jovan Sakovic",
+      "avatar_url": "https://avatars.githubusercontent.com/u/49978945?v=4",
+      "profile": "https://github.com/sakce",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
