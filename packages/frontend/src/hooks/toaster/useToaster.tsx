@@ -155,8 +155,9 @@ const useToaster = () => {
                 <p>
                     <span>{props.apiError.message}</span>
                     <br />
-                    <span style={{ fontSize: '8px' }}>
-                        Error ID: {props.apiError.id}
+                    <span style={{ fontWeight: 'bold' }}>
+                        Please contact support with the error ID:{' '}
+                        {props.apiError.id}
                     </span>
                 </p>
             ) : (

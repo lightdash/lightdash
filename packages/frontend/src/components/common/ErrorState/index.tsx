@@ -1,6 +1,7 @@
-import { type LightdashError } from '@lightdash/common';
+import { type ApiErrorDetail } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import { useMemo, type ComponentProps, type FC } from 'react';
+import React, { useMemo, type ComponentProps, type FC } from 'react';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
 const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
@@ -10,7 +11,7 @@ const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
 };
 
 const ErrorState: FC<{
-    error?: LightdashError | null;
+    error?: ApiErrorDetail | null;
     hasMarginTop?: boolean;
 }> = ({ error, hasMarginTop = true }) => {
     const props = useMemo<ComponentProps<typeof SuboptimalState>>(() => {
@@ -18,30 +19,40 @@ const ErrorState: FC<{
             return DEFAULT_ERROR_PROPS;
         }
         try {
+            const description = (
+                <Text maw={400}>
+                    <span>{error.message}</span>
+                    <br />
+                    {error.id && (
+                        <span>
+                            Please contact support with the error ID: {error.id}
+                        </span>
+                    )}
+                </Text>
+            );
             switch (error.name) {
                 case 'ForbiddenError':
                     return {
                         icon: IconLock,
                         title: 'You need access',
-                        description: error.message,
+                        description,
                     };
                 case 'AuthorizationError':
                     return {
                         icon: IconLock,
-
                         title: 'Authorization error',
-                        description: error.message,
+                        description,
                     };
                 case 'NotExistsError':
                     return {
                         icon: IconAlertCircle,
                         title: 'Not found',
-                        description: error.message,
+                        description,
                     };
                 default:
                     return {
                         ...DEFAULT_ERROR_PROPS,
-                        description: error.message,
+                        description,
                     };
             }
         } catch {
