@@ -694,7 +694,7 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: SentryConfig;
+    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

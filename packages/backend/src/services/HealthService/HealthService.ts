@@ -68,7 +68,11 @@ export class HealthService extends BaseService {
             requiresOrgRegistration,
             latest: { version: getDockerHubVersion() },
             rudder: this.lightdashConfig.rudder,
-            sentry: this.lightdashConfig.sentry,
+            sentry: {
+                frontend: this.lightdashConfig.sentry.frontend,
+                environment: this.lightdashConfig.sentry.environment,
+                release: this.lightdashConfig.sentry.release,
+            },
             intercom: this.lightdashConfig.intercom,
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
