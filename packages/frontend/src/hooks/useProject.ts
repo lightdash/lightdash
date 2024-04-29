@@ -47,7 +47,7 @@ export const useProject = (id: string | undefined) => {
 export const useUpdateMutation = (id: string) => {
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
         (data) => updateProject(id, data),
         {
@@ -61,10 +61,10 @@ export const useUpdateMutation = (id: string) => {
                 await queryClient.invalidateQueries(['queryResults']);
                 await queryClient.invalidateQueries(['status']);
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update project`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -73,7 +73,7 @@ export const useUpdateMutation = (id: string) => {
 
 export const useCreateMutation = () => {
     const { setActiveJobId } = useActiveJob();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {
@@ -82,10 +82,10 @@ export const useCreateMutation = () => {
             onSuccess: (data) => {
                 setActiveJobId(data.jobUuid);
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create project`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

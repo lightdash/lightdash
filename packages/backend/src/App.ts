@@ -396,6 +396,10 @@ export default class App {
                         name: errorResponse.name,
                         message: errorResponse.message,
                         data: errorResponse.data,
+                        id:
+                            errorResponse.statusCode === 500
+                                ? Sentry.lastEventId()
+                                : undefined,
                     },
                 });
             },

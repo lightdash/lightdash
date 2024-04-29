@@ -12,7 +12,7 @@ const updateOrgQuery = async (data: UpdateOrganization) =>
 
 export const useOrganizationUpdateMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateOrganization>(updateOrgQuery, {
         mutationKey: ['organization_update'],
         onSuccess: async () => {
@@ -21,10 +21,10 @@ export const useOrganizationUpdateMutation = () => {
                 title: 'Success! Organization was updated',
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: 'Failed to update organization',
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

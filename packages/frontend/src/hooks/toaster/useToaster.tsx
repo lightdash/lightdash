@@ -1,3 +1,4 @@
+import type { ApiErrorDetail } from '@lightdash/common';
 import { Button, Stack, type ButtonProps } from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import { type PolymorphicComponentProps } from '@mantine/utils';
@@ -8,7 +9,7 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -17,7 +18,7 @@ type NotificationData = Omit<
     'message' | 'key'
 > & {
     key?: string;
-    subtitle?: string | JSX.Element;
+    subtitle?: string | ReactNode;
     action?: PolymorphicComponentProps<'button', ButtonProps> & {
         icon?: Icon;
     };
@@ -68,7 +69,14 @@ const useToaster = () => {
                                     }}
                                 />
                             ) : (
-                                subtitle
+                                <div
+                                    style={{
+                                        color: toastColor ? 'white' : undefined,
+                                        fontSize: '12px',
+                                    }}
+                                >
+                                    {subtitle}
+                                </div>
                             )}
 
                             {action && (
@@ -136,6 +144,38 @@ const useToaster = () => {
         [showToast],
     );
 
+    const showToastApiError = useCallback(
+        (
+            props: Omit<NotificationData, 'subtitle'> & {
+                apiError: ApiErrorDetail;
+            },
+        ) => {
+            let title: ReactNode | undefined = props.title ?? 'Error';
+            let subtitle: ReactNode = props.apiError.id ? (
+                <p>
+                    <span>{props.apiError.message}</span>
+                    <br />
+                    <span style={{ fontSize: '8px' }}>
+                        Error ID: {props.apiError.id}
+                    </span>
+                </p>
+            ) : (
+                props.apiError.message
+            );
+
+            showToast({
+                color: 'red',
+                bg: 'red',
+                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
+                autoClose: 60000,
+                title,
+                subtitle,
+                ...props,
+            });
+        },
+        [showToast],
+    );
+
     const showToastInfo = useCallback(
         (props: NotificationData) => {
             showToast({
@@ -172,6 +212,7 @@ const useToaster = () => {
 
     return {
         showToastSuccess,
+        showToastApiError,
         showToastError,
         showToastInfo,
         showToastPrimary,

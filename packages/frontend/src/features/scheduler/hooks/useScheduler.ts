@@ -95,7 +95,12 @@ export const pollJobStatus = async (jobId: string) => {
 
 export const useSendNowScheduler = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastInfo, showToastSuccess } = useToaster();
+    const {
+        showToastError,
+        showToastInfo,
+        showToastSuccess,
+        showToastApiError,
+    } = useToaster();
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -114,10 +119,10 @@ export const useSendNowScheduler = () => {
         {
             mutationKey: ['sendNowScheduler'],
             onSuccess: () => {},
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Failed to process job',
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -184,7 +189,7 @@ export const useSendNowScheduler = () => {
                     );
                 }
             },
-            onError: async (error: { error: Error }) => {
+            onError: async ({ error }) => {
                 showToastError({
                     title: 'Error polling job status',
                     subtitle: error?.error?.message,

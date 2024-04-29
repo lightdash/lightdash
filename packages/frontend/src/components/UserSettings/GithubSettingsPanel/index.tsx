@@ -42,7 +42,7 @@ const deleteGithubInstallation = async () =>
     });
 
 const useDeleteGithubInstallationMutation = () => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<null, ApiError>(
         ['delete_github_installation'],
@@ -56,10 +56,10 @@ const useDeleteGithubInstallationMutation = () => {
                         'You have successfully deleted your GitHub integration.',
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Failed to delete GitHub integration',
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
