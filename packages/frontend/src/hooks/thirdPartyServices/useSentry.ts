@@ -19,10 +19,10 @@ const useSentry = (
                     Sentry.replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {
-                    // TODO: verify if this is the right way to sample errors
-                    if (samplingContext.transactionContext?.name === 'error') {
-                        return 1.0;
+                    if (samplingContext.parentSampled !== undefined) {
+                        return samplingContext.parentSampled;
                     }
+
                     return 0.5;
                 },
                 replaysOnErrorSampleRate: 1.0,
