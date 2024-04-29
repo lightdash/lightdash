@@ -56,7 +56,7 @@ export const chart: SavedChart = {
     dashboardUuid: null,
     dashboardName: null,
     name: 'Test chart',
-    slug: 'charts/space-name/test-chat',
+    slug: 'test-chart',
     tableName: 'table',
     updatedAt: new Date('2021-01-01'),
     updatedByUser: {
@@ -184,7 +184,7 @@ export const dashboard: Dashboard = {
     dashboardVersionId: 1,
     uuid: 'dashboardUuid',
     name: 'test dashboard',
-    slug: 'dashboards/space-name/test-dashboard',
+    slug: 'test-dashboard',
     updatedAt: new Date(),
     tiles: [
         {

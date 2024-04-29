@@ -123,7 +123,7 @@ describe('DashboardService', () => {
             }),
         );
     });
-    test.only('should create dashboard with tile ids', async () => {
+    test('should create dashboard with tile ids', async () => {
         const result = await service.create(
             user,
             projectUuid,

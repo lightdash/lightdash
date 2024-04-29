@@ -46,7 +46,7 @@ export const space: SpaceTable['base'] = {
     space_id: 0,
     space_uuid: '123',
     name: 'space name',
-    slug: 'spaces/space-name',
+    slug: 'space-name',
     is_private: true,
     created_at: new Date(),
     project_id: 0,
@@ -58,7 +58,7 @@ export const publicSpace: Space = {
     isPrivate: false,
     organizationUuid: 'organizationUuid',
     uuid: 'spaceUuid',
-    slug: 'spaces/public-space',
+    slug: 'public-space',
     queries: [],
     projectUuid: 'projectUuid',
     dashboards: [],
@@ -77,7 +77,7 @@ export const dashboard: Dashboard = {
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
-    slug: 'dashboards/space-name/name',
+    slug: 'name',
 
     dashboardVersionId: 1,
     description: 'description',
@@ -118,7 +118,7 @@ export const chart: SavedChart = {
     uuid: 'chart_uuid',
     projectUuid: dashboard.projectUuid,
     name: 'chart name',
-    slug: 'charts/space-name/chart-name',
+    slug: 'chart-name',
 
     tableName: 'table_name',
     metricQuery: {
@@ -185,7 +185,7 @@ const createTileWithId: CreateDashboardChartTile = {
 
 export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
-    slug: 'dashboards/space-name/my-new-dashboard',
+    slug: 'my-new-dashboard',
     description: 'description',
     tiles: [createTile],
     filters: {
