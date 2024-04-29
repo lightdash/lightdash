@@ -38,7 +38,13 @@ export const BaseResponse = {
     intercom: undefined,
     posthog: undefined,
     rudder: undefined,
-    sentry: undefined,
+    sentry: {
+        frontend: {
+            dsn: 'frontend-dsn.sentry.io',
+        },
+        environment: 'environment',
+        release: '1234',
+    },
     hasSlack: false,
     hasHeadlessBrowser: false,
     query: undefined,
@@ -77,6 +83,16 @@ export const Config = {
     },
     extendedUsageAnalytics: {
         enabled: false,
+    },
+    sentry: {
+        backend: {
+            dsn: 'backend-dsn.sentry.io',
+        },
+        frontend: {
+            dsn: 'frontend-dsn.sentry.io',
+        },
+        environment: 'environment',
+        release: '1234',
     },
 } as LightdashConfig; // TODO: Refactor this to be a mock of the actual configuration, rather than a partial that might contain incorrect properties.
 
