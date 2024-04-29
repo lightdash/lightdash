@@ -8,8 +8,7 @@ export async function up(knex: Knex): Promise<void> {
             ),
             '[^a-z0-9]+', '-', 'g'
         )`;
-    // This will populate slugs only for charts in spaces, not charts in dashboards
-
+    // Charts in spaces
     await knex.raw(`
         UPDATE saved_queries sq
         SET slug = 'charts/' || ${sanitizeSlug(
@@ -19,6 +18,12 @@ export async function up(knex: Knex): Promise<void> {
         WHERE sq.space_id = s.space_id
         AND sq.space_id IS NOT NULL;
   `);
+    // Charts in dashboards
+    await knex.raw(`
+        UPDATE saved_queries sq
+        SET slug = 'charts/' || ${sanitizeSlug(`sq."name"`)} 
+        WHERE sq.dashboard_uuid IS NOT NULL;
+    `);
     await knex.raw(`
     UPDATE dashboards d
     SET slug =  'dashboards/' || ${sanitizeSlug(
