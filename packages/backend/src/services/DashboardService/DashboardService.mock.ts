@@ -185,7 +185,6 @@ const createTileWithId: CreateDashboardChartTile = {
 
 export const createDashboard: CreateDashboard = {
     name: 'my new dashboard',
-    slug: 'my-new-dashboard',
     description: 'description',
     tiles: [createTile],
     filters: {
@@ -194,6 +193,11 @@ export const createDashboard: CreateDashboard = {
         tableCalculations: [],
     },
     tabs: [],
+};
+
+export const createDashboardWithSlug = {
+    ...createDashboard,
+    slug: 'my-new-dashboard',
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {

@@ -283,7 +283,7 @@ export const createSavedChart = async (
         spaceUuid,
         dashboardUuid,
         slug,
-    }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+    }: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
@@ -345,7 +345,6 @@ export const createSavedChart = async (
             tableConfig,
             pivotConfig,
             updatedByUser,
-            slug,
         });
         return newSavedChart.saved_query_uuid;
     });
@@ -483,7 +482,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        data: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        data: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,

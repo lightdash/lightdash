@@ -334,7 +334,6 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
-    | 'slug'
 >;
 
 export type CreateChartInSpace = CreateChartBase & {
@@ -367,6 +366,7 @@ export type CreateSavedChartVersion = Omit<
     | 'colorPalette'
     | 'isPrivate'
     | 'access'
+    | 'slug'
 > &
     // For Charts created within a dashboard
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;

@@ -42,7 +42,7 @@ const tileWithId: DashboardChartTile = {
     ...tileWithoutId,
 };
 
-export const createDashboard: CreateDashboard = {
+export const createDashboard: CreateDashboard & { slug: string } = {
     name: 'my new dashboard',
     description: 'description',
     tiles: [tileWithoutId],
