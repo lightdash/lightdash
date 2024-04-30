@@ -1082,13 +1082,21 @@ const getEchartAxes = ({
                             getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
                 min:
-                    xAxisConfiguration?.[0]?.min ||
-                    referenceLineMinX ||
-                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                    bottomAxisType === 'value'
+                        ? xAxisConfiguration?.[0]?.min ||
+                          referenceLineMinX ||
+                          maybeGetAxisDefaultMinValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    xAxisConfiguration?.[0]?.max ||
-                    referenceLineMaxX ||
-                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
+                    bottomAxisType === 'value'
+                        ? xAxisConfiguration?.[0]?.max ||
+                          referenceLineMaxX ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 nameLocation: 'center',
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -1122,11 +1130,19 @@ const getEchartAxes = ({
                       })
                     : undefined,
                 min:
-                    xAxisConfiguration?.[1]?.min ||
-                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                    topAxisType === 'value'
+                        ? xAxisConfiguration?.[1]?.min ||
+                          maybeGetAxisDefaultMinValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    xAxisConfiguration?.[1]?.max ||
-                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
+                    topAxisType === 'value'
+                        ? xAxisConfiguration?.[1]?.max ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
@@ -1160,13 +1176,21 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
                 min:
-                    yAxisConfiguration?.[0]?.min ||
-                    referenceLineMinLeftY ||
-                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                    leftAxisType === 'value'
+                        ? yAxisConfiguration?.[0]?.min ||
+                          referenceLineMinLeftY ||
+                          maybeGetAxisDefaultMinValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    yAxisConfiguration?.[0]?.max ||
-                    referenceLineMaxLeftY ||
-                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
+                    leftAxisType === 'value'
+                        ? yAxisConfiguration?.[0]?.max ||
+                          referenceLineMaxLeftY ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1197,13 +1221,21 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
                 min:
-                    yAxisConfiguration?.[1]?.min ||
-                    referenceLineMinRightY ||
-                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                    rightAxisType === 'value'
+                        ? yAxisConfiguration?.[1]?.min ||
+                          referenceLineMinRightY ||
+                          maybeGetAxisDefaultMinValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    yAxisConfiguration?.[1]?.max ||
-                    referenceLineMaxRightY ||
-                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
+                    rightAxisType === 'value'
+                        ? yAxisConfiguration?.[1]?.max ||
+                          referenceLineMaxRightY ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
