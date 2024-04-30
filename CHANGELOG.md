@@ -1,3 +1,10 @@
+# [0.1080.0](https://github.com/lightdash/lightdash/compare/0.1079.3...0.1080.0) (2024-04-30)
+
+
+### Features
+
+* error boundary ([#9925](https://github.com/lightdash/lightdash/issues/9925)) ([a090c82](https://github.com/lightdash/lightdash/commit/a090c82fadd96cea33ebf0815881ccd61fe3ff36))
+
 ## [0.1079.3](https://github.com/lightdash/lightdash/compare/0.1079.2...0.1079.3) (2024-04-30)
 
 
