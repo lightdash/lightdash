@@ -1,6 +1,7 @@
 import {
     CustomFormatType,
     NumberSeparator,
+    TableCalculationType,
     type CustomFormat,
     type TableCalculation,
 } from '@lightdash/common';
@@ -9,9 +10,11 @@ import {
     Button,
     Group,
     Modal,
+    Select,
     Stack,
     Tabs,
     TextInput,
+    Tooltip,
     useMantineTheme,
     type ModalProps,
 } from '@mantine/core';
@@ -36,6 +39,7 @@ type TableCalculationFormInputs = {
     name: string;
     sql: string;
     format: CustomFormat;
+    type?: TableCalculationType;
 };
 
 const TableCalculationModal: FC<Props> = ({
@@ -58,6 +62,7 @@ const TableCalculationModal: FC<Props> = ({
         initialValues: {
             name: tableCalculation?.displayName || '',
             sql: tableCalculation?.sql || '',
+            type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
                 type:
                     tableCalculation?.format?.type || CustomFormatType.DEFAULT,
@@ -81,6 +86,7 @@ const TableCalculationModal: FC<Props> = ({
                 displayName: name,
                 sql,
                 format: data.format,
+                type: data.type,
             });
         } catch (e) {
             showToastError({
@@ -129,6 +135,7 @@ const TableCalculationModal: FC<Props> = ({
                         data-testid="table-calculation-name-input"
                         {...form.getInputProps('name')}
                     />
+
                     <Tabs
                         defaultValue="sqlEditor"
                         color="indigo"
@@ -161,7 +168,29 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         </Tabs.Panel>
                     </Tabs>
-
+                    <Tooltip
+                        position="bottom"
+                        withArrow
+                        multiline
+                        maw={400}
+                        withinPortal
+                        label={
+                            'Manually select the type of the result of this SQL table calculation, this will help us to treat this field correctly in filters or results.'
+                        }
+                    >
+                        <Select
+                            label={'Result type'}
+                            id="download-type"
+                            {...form.getInputProps('type')}
+                            onChange={(value) => {
+                                const tcType = Object.values(
+                                    TableCalculationType,
+                                ).find((type) => type === value);
+                                if (tcType) form.setFieldValue(`type`, tcType);
+                            }}
+                            data={Object.values(TableCalculationType)}
+                        ></Select>
+                    </Tooltip>
                     <Group position="apart">
                         <ActionIcon
                             variant="outline"

@@ -110,6 +110,7 @@ export class RunViewChartQueryController extends BaseController {
             tableCalculations: body.tableCalculations,
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
+            timezone: body.timezone,
         };
         const results: ApiQueryResults = await this.services
             .getProjectService()

@@ -845,11 +845,17 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableCalculationType: {
+        dataType: 'refEnum',
+        enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: { ref: 'TableCalculationType' },
                 format: { ref: 'CustomFormat' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
@@ -1010,6 +1016,7 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                timezone: { dataType: 'string' },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refObject', ref: 'CustomDimension' },
@@ -2571,6 +2578,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                     },
+                    quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
                 },
                 validators: {},
             },
@@ -2904,7 +2912,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 dbtVersion: { ref: 'SupportedDbtVersions', required: true },
-                copiedFromProjectUuid: { dataType: 'string' },
+                upstreamProjectUuid: { dataType: 'string' },
                 pinnedListUuid: { dataType: 'string' },
                 warehouseConnection: { ref: 'WarehouseCredentials' },
                 dbtConnection: { ref: 'DbtProjectConfig', required: true },
@@ -3381,6 +3389,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                timezone: { dataType: 'string' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -3998,11 +4007,21 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Partial_CompleteEChartsConfig_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.SeriesMetadata_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metadata: { ref: 'Record_string.SeriesMetadata_' },
                 eChartsConfig: { ref: 'EChartsConfig', required: true },
                 layout: { ref: 'CartesianChartLayout', required: true },
             },
@@ -4094,6 +4113,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metadata: { ref: 'Record_string.SeriesMetadata_' },
                 legendPosition: { ref: 'PieChartLegendPosition' },
                 showLegend: { dataType: 'boolean' },
                 groupSortOverrides: {

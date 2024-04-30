@@ -4,6 +4,7 @@ import { LightdashConfig } from './parseConfig';
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
+        disablePat: false,
         enableGroupSync: false,
         disablePasswordAuthentication: false,
         enableOidcLinking: false,
@@ -95,7 +96,12 @@ export const lightdashConfigMock: LightdashConfig = {
     scheduler: { concurrency: 0, enabled: false, jobTimeout: 0 },
     secureCookies: false,
     sentry: {
-        dsn: '',
+        backend: {
+            dsn: '',
+        },
+        frontend: {
+            dsn: '',
+        },
         release: '',
         environment: '',
     },

@@ -9,6 +9,8 @@ import {
     MetricFilterRule,
     MetricType,
     NumberSeparator,
+    TableCalculationType,
+    TimeZone,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -82,6 +84,7 @@ export type DbSavedChartVersion = {
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
     updated_by_user_uuid: string | undefined;
+    timezone: string | undefined;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -99,6 +102,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'pivot_dimensions'
     | 'chart_config'
     | 'updated_by_user_uuid'
+    | 'timezone'
 >;
 
 type DbSavedChartVersionField = {
@@ -149,6 +153,7 @@ export type DbSavedChartTableCalculation = {
     calculation_raw_sql: string;
     saved_queries_version_id: number;
     format?: CustomFormat;
+    type?: TableCalculationType;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<

@@ -169,13 +169,21 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         };
     }
 
-    async runQuery(sql: string, tags?: Record<string, string>) {
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
         try {
             let alteredQuery = sql;
             if (tags) {
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+            }
+            if (timezone) {
+                console.debug(`Setting Trino timezone to ${timezone}`);
+                await session.query(`SET TIME ZONE '${timezone}'`);
             }
             query = await session.query(sql);
 

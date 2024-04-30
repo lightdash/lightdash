@@ -2,12 +2,18 @@ import {
     createFilterRuleFromField,
     FilterGroupOperator,
     getFilterGroupItemsPropertyName,
+    getFiltersFromGroup,
     getItemsFromFilterGroup,
     isAndFilterGroup,
+    isDimension,
     isFilterGroup,
+    isMetric,
+    isTableCalculationField,
+    type FilterableDimension,
     type FilterableField,
     type FilterGroup,
     type FilterRule,
+    type Metric,
 } from '@lightdash/common';
 import {
     Box,
@@ -19,16 +25,16 @@ import {
     Text,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import React, { useCallback, type FC } from 'react';
+import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
+import { type FieldWithSuggestions } from './FiltersProvider';
 
 type Props = {
     hideButtons?: boolean;
     hideLine?: boolean;
     allowConvertToGroup?: boolean;
-    conditionLabel: string;
     fields: FilterableField[];
     filterGroup: FilterGroup;
     isEditMode: boolean;
@@ -40,7 +46,6 @@ const FilterGroupForm: FC<Props> = ({
     hideButtons,
     hideLine,
     allowConvertToGroup,
-    conditionLabel,
     fields,
     filterGroup,
     isEditMode,
@@ -48,6 +53,43 @@ const FilterGroupForm: FC<Props> = ({
     onDelete,
 }) => {
     const items = getItemsFromFilterGroup(filterGroup);
+    const [conditionLabel, setConditionLabel] = useState('');
+
+    const [dimensions, metrics, tableCalculations] = useMemo<
+        [FilterableDimension[], Metric[], FieldWithSuggestions[]]
+    >(() => {
+        return [
+            fields.filter(isDimension),
+            fields.filter(isMetric),
+            fields.filter(isTableCalculationField),
+        ];
+    }, [fields]);
+
+    const availableFieldsForGroupRules = useMemo<FilterableField[]>(() => {
+        // If the group is an AND group, we can use all fields
+        if (isAndFilterGroup(filterGroup)) {
+            return [...dimensions, ...metrics, ...tableCalculations];
+        }
+
+        // If the group is an OR group, we can only use fields that are of the same type
+        const filters = getFiltersFromGroup(filterGroup, fields);
+        if (filters.dimensions) {
+            setConditionLabel('dimension');
+            return dimensions;
+        }
+
+        if (filters.metrics) {
+            setConditionLabel('metric');
+            return metrics;
+        }
+
+        if (filters.tableCalculations) {
+            setConditionLabel('table calculation');
+            return tableCalculations;
+        }
+
+        return [];
+    }, [dimensions, fields, filterGroup, metrics, tableCalculations]);
 
     const onDeleteItem = useCallback(
         (index: number) => {
@@ -81,16 +123,16 @@ const FilterGroupForm: FC<Props> = ({
     );
 
     const onAddFilterRule = useCallback(() => {
-        if (fields.length > 0) {
+        if (availableFieldsForGroupRules.length > 0) {
             onChange({
                 ...filterGroup,
                 [getFilterGroupItemsPropertyName(filterGroup)]: [
                     ...items,
-                    createFilterRuleFromField(fields[0]),
+                    createFilterRuleFromField(availableFieldsForGroupRules[0]),
                 ],
             });
         }
-    }, [fields, filterGroup, items, onChange]);
+    }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
 
     const onChangeOperator = useCallback(
         (value: FilterGroupOperator) => {
@@ -158,7 +200,7 @@ const FilterGroupForm: FC<Props> = ({
                         {!isFilterGroup(item) ? (
                             <FilterRuleForm
                                 filterRule={item}
-                                fields={fields}
+                                fields={availableFieldsForGroupRules}
                                 isEditMode={isEditMode}
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
@@ -167,7 +209,7 @@ const FilterGroupForm: FC<Props> = ({
                                         ? () =>
                                               onChangeItem(index, {
                                                   id: uuidv4(),
-                                                  and: [item],
+                                                  or: [item],
                                               })
                                         : undefined
                                 }
@@ -177,8 +219,7 @@ const FilterGroupForm: FC<Props> = ({
                                 allowConvertToGroup={false}
                                 isEditMode={isEditMode}
                                 filterGroup={item}
-                                conditionLabel={conditionLabel}
-                                fields={fields}
+                                fields={availableFieldsForGroupRules}
                                 onChange={(value) => onChangeItem(index, value)}
                                 onDelete={() => onDeleteItem(index)}
                             />
@@ -187,18 +228,20 @@ const FilterGroupForm: FC<Props> = ({
                 ))}
             </Stack>
 
-            {isEditMode && !hideButtons && fields.length > 0 && (
-                <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
-                    <Button
-                        variant="outline"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={onAddFilterRule}
-                    >
-                        Add group rule
-                    </Button>
-                </Box>
-            )}
+            {isEditMode &&
+                !hideButtons &&
+                availableFieldsForGroupRules.length > 0 && (
+                    <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
+                        <Button
+                            variant="outline"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            onClick={onAddFilterRule}
+                        >
+                            Add group rule
+                        </Button>
+                    </Box>
+                )}
         </Stack>
     );
 };

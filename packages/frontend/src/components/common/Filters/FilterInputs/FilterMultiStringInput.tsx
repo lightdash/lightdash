@@ -66,8 +66,13 @@ const FilterMultiStringInput: FC<Props> = ({
                 .map((s) => s.trim())
                 .filter((s) => s.length > 0);
 
-            handleAddMultiple(clipboardDataArray);
-            handleResetSearch();
+            // if clipboard data is comma separated or new line separated and has more than 1 value
+            // we add all of them to the values list and reset search
+            // when there's only 1 value in the clipboard, we let the default behavior of the input handle it
+            if (clipboardDataArray.length > 1) {
+                handleAddMultiple(clipboardDataArray);
+                handleResetSearch();
+            }
         },
         [handleAddMultiple, handleResetSearch],
     );

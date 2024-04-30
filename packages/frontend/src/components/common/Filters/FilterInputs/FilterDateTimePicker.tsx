@@ -32,12 +32,12 @@ const FilterDateTimePicker: FC<Props> = ({
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
 
     return (
-        <Group noWrap spacing="xs" align="start">
+        <Group noWrap spacing="xs" align="start" w="100%">
             {/* // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
             // @ts-ignore */}
             <DateTimePicker
-                w="100%"
                 size="xs"
+                w="100%"
                 miw={185}
                 valueFormat={displayFormat}
                 {...rest}
@@ -56,7 +56,12 @@ const FilterDateTimePicker: FC<Props> = ({
                 }
             />
             {showTimezone && (
-                <Text size="xs" color="dimmed" mt={7}>
+                <Text
+                    size="xs"
+                    color="dimmed"
+                    mt={7}
+                    sx={{ whiteSpace: 'nowrap' }}
+                >
                     {dayjs.tz.guess()}
                 </Text>
             )}

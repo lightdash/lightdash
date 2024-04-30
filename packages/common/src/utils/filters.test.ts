@@ -11,7 +11,9 @@ import {
     dashboardFilterWithSameTargetButDifferentOperator,
     expectedChartWithMergedDashboardFilters,
     expectedChartWithOverrideDashboardFilters,
-    metricQueryWithFilters,
+    expectedChartWithOverrideDashboardORFilters,
+    metricQueryWithAndFilters,
+    metricQueryWithOrFilters,
 } from './filters.mock';
 
 jest.mock('uuid', () => ({
@@ -21,19 +23,27 @@ jest.mock('uuid', () => ({
 describe('addDashboardFiltersToMetricQuery', () => {
     test('should merge the chart filters with dashboard filters', async () => {
         const result = addDashboardFiltersToMetricQuery(
-            metricQueryWithFilters,
+            metricQueryWithAndFilters,
             dashboardFilters,
             false,
         );
         expect(result).toEqual(expectedChartWithMergedDashboardFilters);
     });
-    test('should override the chart filters with dashboard filters', async () => {
+    test('should override the chart AND filter group with dashboard filters', async () => {
         const result = addDashboardFiltersToMetricQuery(
-            metricQueryWithFilters,
+            metricQueryWithAndFilters,
             dashboardFilters,
             true,
         );
         expect(result).toEqual(expectedChartWithOverrideDashboardFilters);
+    });
+    test('should override the chart OR filter group with dashboard filters', async () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithOrFilters,
+            dashboardFilters,
+            true,
+        );
+        expect(result).toEqual(expectedChartWithOverrideDashboardORFilters);
     });
 });
 describe('overrideChartFilter', () => {
@@ -46,7 +56,7 @@ describe('overrideChartFilter', () => {
             id: 'fillter-group-1',
             and: [
                 {
-                    id: '1',
+                    id: '5',
                     target: { fieldId: 'field-1' },
                     values: ['1', '2', '3'],
                     disabled: false,
@@ -72,7 +82,7 @@ describe('overrideChartFilter', () => {
             id: 'fillter-group-1',
             or: [
                 {
-                    id: '3',
+                    id: '5',
                     target: { fieldId: 'field-1' },
                     values: ['1', '2', '3'],
                     disabled: false,

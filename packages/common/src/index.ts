@@ -130,6 +130,7 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
+export * from './transformers';
 export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';
@@ -182,6 +183,7 @@ export * from './types/space';
 export * from './types/SshKeyPair';
 export * from './types/table';
 export * from './types/timeFrames';
+export * from './types/timezone';
 export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
@@ -665,6 +667,17 @@ export enum LightdashInstallType {
     UNKNOWN = 'unknown',
 }
 
+export type SentryConfig = {
+    backend: {
+        dsn: string;
+    };
+    frontend: {
+        dsn: string;
+    };
+    release: string;
+    environment: string;
+};
+
 export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
@@ -681,11 +694,7 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: {
-        dsn: string;
-        environment: string;
-        release: string;
-    };
+    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {
@@ -773,13 +782,16 @@ export type UpdateProject = Omit<
 
 export const getResultValueArray = (
     rows: ResultRow[],
-    onlyRaw: boolean = false,
+    preferRaw: boolean = false,
 ): Record<string, unknown>[] =>
     rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
-            const value = onlyRaw
-                ? row[key]?.value.raw
-                : row[key]?.value.formatted || row[key]?.value.raw;
+            const rawWithFallback =
+                row[key]?.value.raw ?? row[key]?.value.formatted; // using nulish coalescing operator to handle null and undefined only
+            const formattedWithFallback =
+                row[key]?.value.formatted || row[key]?.value.raw;
+
+            const value = preferRaw ? rawWithFallback : formattedWithFallback;
 
             return { ...acc, [key]: value };
         }, {}),

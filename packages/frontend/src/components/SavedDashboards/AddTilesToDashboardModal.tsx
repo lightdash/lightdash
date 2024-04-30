@@ -130,6 +130,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     properties: {
                         savedChartUuid: savedChart.uuid,
                     },
+                    tabUuid: undefined,
                     ...getDefaultChartTileSize(savedChart.chartConfig?.type),
                 };
 
@@ -142,7 +143,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             {
                                 uuid: uuid4(),
                                 type: DashboardTileTypes.SAVED_CHART,
-
+                                tabUuid: undefined,
                                 properties: {
                                     savedChartUuid: savedChart.uuid,
                                 },
@@ -151,18 +152,26 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 ),
                             },
                         ],
+                        tabs: [],
                     });
                     onClose?.();
                 } else {
                     if (!selectedDashboard) {
                         throw new Error('Expected dashboard');
                     }
+                    const firstTab = selectedDashboard.tabs?.[0];
                     await updateDashboard({
                         name: selectedDashboard.name,
                         filters: selectedDashboard.filters,
                         tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
-                            newTile,
+                            firstTab
+                                ? {
+                                      ...newTile,
+                                      tabUuid: firstTab.uuid,
+                                  }
+                                : newTile, // TODO: add to first tab by default, need ux to allow user select tab
                         ]),
+                        tabs: selectedDashboard.tabs,
                     });
                     onClose?.();
                 }

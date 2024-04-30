@@ -1,6 +1,7 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
+    ChartType,
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
@@ -22,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/VisualizationProvider';
 import ColorSelector from '../../ColorSelector';
@@ -57,8 +59,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
     toggleIsOpen,
     dragHandleProps,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationContext();
+    const { visualizationConfig, colorPalette, getSeriesColor } =
+        useVisualizationContext();
     const { hovered, ref } = useHover();
+
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
@@ -93,6 +97,24 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     ...series,
                                     color,
                                 });
+                                const serieId =
+                                    calculateSeriesLikeIdentifier(series).join(
+                                        '.',
+                                    );
+
+                                if (
+                                    visualizationConfig.chartType ===
+                                    ChartType.CARTESIAN
+                                ) {
+                                    const { updateMetadata } =
+                                        visualizationConfig.chartConfig;
+
+                                    updateMetadata({
+                                        ...visualizationConfig.chartConfig
+                                            .dirtyMetadata,
+                                        [serieId]: { color },
+                                    });
+                                }
                             }}
                         />
                     )}

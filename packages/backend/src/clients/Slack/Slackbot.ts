@@ -37,7 +37,7 @@ const notifySlackError = async (
         );
 };
 
-type SlackBotArguments = {
+export type SlackBotArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -63,8 +63,6 @@ export class SlackBot {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.unfurlService = unfurlService;
-
-        void this.start();
     }
 
     async start() {
@@ -99,7 +97,7 @@ export class SlackBot {
                     appToken: this.lightdashConfig.slack.appToken,
                 });
 
-                app.event('link_shared', (m) => this.unfurlSlackUrls(m));
+                this.addEventListeners(app);
 
                 await app.start();
             } catch (e: unknown) {
@@ -108,6 +106,10 @@ export class SlackBot {
         } else {
             Logger.warn(`Missing "SLACK_APP_TOKEN", Slack App will not run`);
         }
+    }
+
+    protected addEventListeners(app: App) {
+        app.event('link_shared', (m) => this.unfurlSlackUrls(m));
     }
 
     private async sendUnfurl(

@@ -17,10 +17,10 @@ import {
     OrganizationProject,
     ParameterError,
     SessionUser,
+    UpdateAllowedEmailDomains,
     UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
-import { UpdateAllowedEmailDomains } from '@lightdash/common/src/types/organization';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';

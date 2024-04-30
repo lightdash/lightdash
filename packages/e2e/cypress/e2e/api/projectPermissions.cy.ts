@@ -319,6 +319,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
                             name: dashboard.name,
                             tiles: dashboard.tiles,
                             filters: dashboard.filters,
+                            tabs: dashboard.tabs,
                         },
                     }).then((resp) => {
                         expect(resp.status).to.eq(200);
@@ -639,6 +640,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
                             name: dashboard.name,
                             tiles: dashboard.tiles,
                             filters: dashboard.filters,
+                            tabs: dashboard.tabs,
                         },
                     }).then((resp) => {
                         expect(resp.status).to.eq(200);
@@ -971,6 +973,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
                             metrics: [],
                             tableCalculations: [],
                         },
+                        tabs: [],
                     },
                     failOnStatusCode: false,
                 }).then((resp) => {
@@ -1229,6 +1232,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
                             metrics: [],
                             tableCalculations: [],
                         },
+                        tabs: [],
                     },
                     failOnStatusCode: false,
                 }).then((resp) => {

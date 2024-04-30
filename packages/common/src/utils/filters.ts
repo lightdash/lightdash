@@ -2,14 +2,13 @@ import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    CustomFormatType,
     DimensionType,
     fieldId,
     isDimension,
     isFilterableDimension,
-    isTableCalculation,
     isTableCalculationField,
     MetricType,
+    TableCalculationType,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -104,15 +103,16 @@ export const filterableDimensionsOnly = (
 ): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
 export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
-    if (isTableCalculation(item)) {
-        return FilterType.NUMBER;
-    }
-
     const { type } = item;
 
+    if (type === undefined) {
+        // Type check for TableCalculationType
+        return FilterType.NUMBER;
+    }
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
+        case TableCalculationType.STRING:
             return FilterType.STRING;
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
@@ -124,22 +124,19 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX:
+        case TableCalculationType.NUMBER:
             return FilterType.NUMBER;
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP:
         case DimensionType.DATE:
         case MetricType.DATE:
+        case TableCalculationType.DATE:
+        case TableCalculationType.TIMESTAMP:
             return FilterType.DATE;
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN:
+        case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
-        case CustomFormatType.DEFAULT:
-        case CustomFormatType.ID:
-            return FilterType.STRING;
-        case CustomFormatType.CURRENCY:
-        case CustomFormatType.PERCENT:
-        case CustomFormatType.NUMBER:
-            return FilterType.NUMBER;
         default: {
             return assertUnreachable(
                 type,
@@ -421,6 +418,140 @@ export const getFilterRulesByFieldType = (
         },
     );
 
+/**
+ * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
+ * @param filterGroup - The filter group to flatten
+ * @returns Flattened filter group
+ */
+const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
+    const items = getItemsFromFilterGroup(filterGroup);
+
+    return {
+        id: filterGroup.id,
+        [getFilterGroupItemsPropertyName(filterGroup)]: items.reduce<
+            FilterGroupItem[]
+        >((acc, item) => {
+            if (isFilterGroup(item)) {
+                const flatGroup = flattenSameFilterGroupType(item);
+
+                // If the parent group is the same type as the current group, we merge the current group items into the parent group
+                if (
+                    getFilterGroupItemsPropertyName(flatGroup) ===
+                    getFilterGroupItemsPropertyName(filterGroup)
+                ) {
+                    return [...acc, ...getItemsFromFilterGroup(flatGroup)];
+                }
+
+                // If the parent group is not the same type as the current group, we just add the current group as an item
+                return [...acc, flatGroup];
+            }
+
+            return [...acc, item];
+        }, []),
+    } as FilterGroup;
+};
+
+/**
+ * Takes a filter group and build a filters object from it based on the field type
+ * @param filterGroup - The filter group to extract filters from
+ * @param fields - Fields to compare against the filter group items to determine types
+ * @returns Filters object with dimensions, metrics, and table calculations
+ */
+export const getFiltersFromGroup = (
+    filterGroup: FilterGroup,
+    fields: Field[],
+): Filters => {
+    const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
+    const items = getItemsFromFilterGroup(flatFilterGroup);
+
+    return items.reduce<Filters>((accumulator, item) => {
+        if (isFilterRule(item)) {
+            // when filter group item is a filter rule, we find the field it's targeting
+            const fieldInRule = fields.find(
+                (field) => fieldId(field) === item.target.fieldId,
+            );
+
+            // determine the type of the field and add the rule it to the correct filters object property
+            // always keep the parent filter group type (AND/OR) when adding the filter rules
+            if (fieldInRule) {
+                if (isDimension(fieldInRule)) {
+                    accumulator.dimensions = {
+                        id: uuidv4(),
+                        ...accumulator.dimensions,
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                            ...getItemsFromFilterGroup(accumulator.dimensions),
+                            item,
+                        ],
+                    } as FilterGroup;
+                } else if (isTableCalculationField(fieldInRule)) {
+                    accumulator.tableCalculations = {
+                        id: uuidv4(),
+                        ...accumulator.tableCalculations,
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                            ...getItemsFromFilterGroup(
+                                accumulator.tableCalculations,
+                            ),
+                            item,
+                        ],
+                    } as FilterGroup;
+                } else {
+                    accumulator.metrics = {
+                        id: uuidv4(),
+                        ...accumulator.metrics,
+                        [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                            ...getItemsFromFilterGroup(accumulator.metrics),
+                            item,
+                        ],
+                    } as FilterGroup;
+                }
+            }
+        }
+
+        if (isFilterGroup(item)) {
+            // when filter group item is a filter group, we need to recursively call this function to extract filters objects from the nested group
+            // then we add each field type filter group - from nested filters group - into the correct parent filters object property keeping the parent filter group type (AND/OR)
+            const filters = getFiltersFromGroup(item, fields);
+
+            if (filters.dimensions) {
+                accumulator.dimensions = {
+                    id: uuidv4(),
+                    ...accumulator.dimensions,
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                        ...getItemsFromFilterGroup(accumulator.dimensions),
+                        filters.dimensions,
+                    ],
+                } as FilterGroup;
+            }
+
+            if (filters.metrics) {
+                accumulator.metrics = {
+                    id: uuidv4(),
+                    ...accumulator.metrics,
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                        ...getItemsFromFilterGroup(accumulator.metrics),
+                        filters.metrics,
+                    ],
+                } as FilterGroup;
+            }
+
+            if (filters.tableCalculations) {
+                accumulator.tableCalculations = {
+                    id: uuidv4(),
+                    ...accumulator.tableCalculations,
+                    [getFilterGroupItemsPropertyName(flatFilterGroup)]: [
+                        ...getItemsFromFilterGroup(
+                            accumulator.tableCalculations,
+                        ),
+                        filters.tableCalculations,
+                    ],
+                } as FilterGroup;
+            }
+        }
+
+        return accumulator;
+    }, {} as Filters);
+};
+
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
@@ -532,6 +663,7 @@ const findAndOverrideChartFilter = (
     return identicalDashboardFilter
         ? {
               ...item,
+              id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
           }
         : item;
@@ -555,16 +687,47 @@ export const overrideChartFilter = (
               ),
           };
 
+const getDeduplicatedFilterRules = (
+    filterRules: FilterRule[],
+    filterGroup?: FilterGroup,
+): FilterRule[] => {
+    const groupFilterRules = getFilterRulesFromGroup(filterGroup);
+    return filterRules.filter(
+        (rule) =>
+            !groupFilterRules.some((groupRule) => groupRule.id === rule.id),
+    );
+};
+
 const overrideFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
-): FilterGroup => ({
-    id: uuidv4(),
-    and: [
-        ...(filterGroup ? [overrideChartFilter(filterGroup, filterRules)] : []),
-        ...filterRules,
-    ],
-});
+): FilterGroup => {
+    if (!filterGroup) {
+        return {
+            id: uuidv4(),
+            and: filterRules,
+        };
+    }
+
+    const overriddenGroup = overrideChartFilter(filterGroup, filterRules);
+
+    // deduplicate the dashboard filter rules from the ones used when overriding the chart filterGroup
+    const deduplicatedRules = getDeduplicatedFilterRules(
+        filterRules,
+        overriddenGroup,
+    );
+
+    // if it's AND group we don't need to sub-group the rules - all can be in the same group
+    // if it's OR group we need to sub-group the rules
+    const overridenGroupItems = isAndFilterGroup(overriddenGroup)
+        ? overriddenGroup.and
+        : [overriddenGroup];
+
+    return {
+        id: uuidv4(),
+        and: [...overridenGroupItems, ...deduplicatedRules],
+    };
+};
 
 const combineFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,

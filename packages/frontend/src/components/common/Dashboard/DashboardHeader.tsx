@@ -25,6 +25,8 @@ import {
     IconFolders,
     IconInfoCircle,
     IconPencil,
+    IconPin,
+    IconPinnedOff,
     IconPlus,
     IconSend,
     IconTrash,
@@ -63,7 +65,9 @@ type DashboardHeaderProps = {
     isEditMode: boolean;
     isSaving: boolean;
     isFullscreen: boolean;
+    isPinned: boolean;
     oldestCacheTime?: Date;
+    activeTabUuid?: string;
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
@@ -72,6 +76,8 @@ type DashboardHeaderProps = {
     onMoveToSpace: (spaceUuid: string) => void;
     onExport: () => void;
     onToggleFullscreen: () => void;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    onTogglePin: () => void;
 };
 
 const DashboardHeader = ({
@@ -82,7 +88,9 @@ const DashboardHeader = ({
     isEditMode,
     isSaving,
     isFullscreen,
+    isPinned,
     oldestCacheTime,
+    activeTabUuid,
     onAddTiles,
     onCancel,
     onSaveDashboard,
@@ -91,6 +99,8 @@ const DashboardHeader = ({
     onMoveToSpace,
     onExport,
     onToggleFullscreen,
+    setAddingTab,
+    onTogglePin,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -134,6 +144,14 @@ const DashboardHeader = ({
     const userCanExportData = user.data?.ability.can(
         'manage',
         subject('ExportCsv', { organizationUuid, projectUuid }),
+    );
+
+    const userCanPinDashboard = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', {
+            organizationUuid,
+            projectUuid,
+        }),
     );
 
     return (
@@ -231,6 +249,8 @@ const DashboardHeader = ({
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
+                        setAddingTab={setAddingTab}
+                        activeTabUuid={activeTabUuid}
                     />
                     <Tooltip
                         fz="xs"
@@ -469,6 +489,27 @@ const DashboardHeader = ({
                                             </Menu>
                                         </Menu.Item>
                                     </>
+                                )}
+
+                                {userCanPinDashboard && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        icon={
+                                            isPinned ? (
+                                                <MantineIcon
+                                                    icon={IconPinnedOff}
+                                                />
+                                            ) : (
+                                                <MantineIcon icon={IconPin} />
+                                            )
+                                        }
+                                        onClick={onTogglePin}
+                                    >
+                                        {isPinned
+                                            ? 'Unpin from homepage'
+                                            : 'Pin to homepage'}
+                                    </Menu.Item>
                                 )}
 
                                 {!!userCanCreateDeliveries && (

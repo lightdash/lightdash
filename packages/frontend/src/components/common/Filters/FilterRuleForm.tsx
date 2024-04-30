@@ -7,7 +7,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Select } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Select } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import FieldSelect from '../FieldSelect';
@@ -75,14 +75,7 @@ const FilterRuleForm: FC<Props> = ({
     }
 
     return (
-        <div
-            style={{
-                display: 'inline-flex',
-                alignItems: 'start',
-                gap: 10,
-                flex: 1,
-            }}
-        >
+        <Group noWrap align="start" spacing="xs">
             <FieldSelect
                 size="xs"
                 disabled={!isEditMode}
@@ -97,7 +90,6 @@ const FilterRuleForm: FC<Props> = ({
                     onFieldChange(getFieldId(field));
                 }}
             />
-
             <Select
                 size="xs"
                 w="150px"
@@ -166,7 +158,7 @@ const FilterRuleForm: FC<Props> = ({
                         </Menu.Dropdown>
                     </Menu>
                 ))}
-        </div>
+        </Group>
     );
 };
 

@@ -9,6 +9,7 @@ import {
 
 export const dimension: Dimension = {
     fieldType: FieldType.DIMENSION,
+    description: undefined,
     type: DimensionType.STRING,
     name: 'name',
     label: 'label',

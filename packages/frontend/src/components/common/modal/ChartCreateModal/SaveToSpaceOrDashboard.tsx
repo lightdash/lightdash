@@ -5,6 +5,7 @@ import {
     type CreateSavedChartVersion,
     type DashboardBasicDetails,
     type DashboardChartTile,
+    type DashboardVersionedFields,
     type SavedChart,
     type SpaceSummary,
 } from '@lightdash/common';
@@ -304,6 +305,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                 const newTile: DashboardChartTile = {
                     uuid: uuid4(),
                     type: DashboardTileTypes.SAVED_CHART,
+                    tabUuid: undefined,
                     properties: {
                         belongsToDashboard: true,
                         savedChartUuid: savedQuery.uuid,
@@ -311,13 +313,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                     },
                     ...getDefaultChartTileSize(savedData.chartConfig?.type),
                 };
-                await updateDashboard({
-                    name: values.dashboardName,
+                const updateFields: DashboardVersionedFields = {
                     filters: selectedDashboard.filters,
                     tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
                         newTile,
                     ]),
-                });
+                    tabs: [],
+                };
+                await updateDashboard(updateFields);
             }
 
             /**

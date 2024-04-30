@@ -1,4 +1,4 @@
-import { ParseError } from '@lightdash/common';
+import { ParseError, SentryConfig } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
     getIntegerFromEnvironmentVariable,
@@ -46,8 +46,13 @@ test('Should parse rudder config from env', () => {
 });
 
 test('Should use default sentry configuration if no environment vars', () => {
-    const expected = {
-        dsn: '',
+    const expected: SentryConfig = {
+        backend: {
+            dsn: '',
+        },
+        frontend: {
+            dsn: '',
+        },
         release: VERSION,
         environment: BASIC_CONFIG.mode,
     };
@@ -55,12 +60,18 @@ test('Should use default sentry configuration if no environment vars', () => {
 });
 
 test('Should parse sentry config from env', () => {
-    const expected = {
-        dsn: 'mydsn.sentry.io',
+    const expected: SentryConfig = {
+        backend: {
+            dsn: 'mydsnbackend.sentry.io',
+        },
+        frontend: {
+            dsn: 'mydsnfrontend.sentry.io',
+        },
         release: VERSION,
         environment: 'development',
     };
-    process.env.SENTRY_DSN = 'mydsn.sentry.io';
+    process.env.SENTRY_BE_DSN = 'mydsnbackend.sentry.io';
+    process.env.SENTRY_FE_DSN = 'mydsnfrontend.sentry.io';
     process.env.NODE_ENV = 'development';
     expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
 });

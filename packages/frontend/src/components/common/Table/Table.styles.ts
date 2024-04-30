@@ -28,6 +28,10 @@ export const TableContainer = styled.div<TableContainerProps>`
     flex-direction: column;
     min-width: 100%;
     overflow: hidden;
+
+    font-family: 'Inter', sans-serif;
+    font-feature-settings: 'tnum';
+
     padding: ${({ $padding = 0 }) => `${$padding}px`};
 
     ${({ $shouldExpand }) =>
@@ -149,7 +153,6 @@ export const TableFooter = styled.div`
 
 const FontSyles = `
     font-size: 13px;
-    font-family: Inter, sans-serif;
 `;
 
 const CellStyles = css<{ $isNaN: boolean }>`

@@ -1,0 +1,20 @@
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+#### Create dashboard
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards
+Content-Type: application/json
+
+{ 
+"description":"",
+"name": "dashboard test",
+"spaceUuid": "c219601e-034d-44a3-b0cd-853d7a8bf31f",
+"tiles": []
+}

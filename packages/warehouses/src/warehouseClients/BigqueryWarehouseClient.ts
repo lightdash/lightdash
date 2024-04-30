@@ -125,7 +125,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async runQuery(query: string, tags?: Record<string, string>) {
+    async runQuery(
+        query: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
         try {
             const rows: Record<string, any>[] = [];
 

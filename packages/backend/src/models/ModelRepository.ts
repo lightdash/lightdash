@@ -76,6 +76,7 @@ export type ModelManifest = {
     validationModel: ValidationModel;
 
     /** An implementation signature for these models are not available at this stage */
+    aiModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
 };
@@ -440,6 +441,10 @@ export class ModelRepository
             'validationModel',
             () => new ValidationModel({ database: this.database }),
         );
+    }
+
+    public getAiModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiModel');
     }
 
     public getEmbedModel<ModelImplT>(): ModelImplT {

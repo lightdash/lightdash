@@ -131,6 +131,7 @@ export class GoogleDriveClient {
         fileId: string,
         updateFrequency: string,
         tabs?: string[],
+        reportUrl?: string,
     ) {
         if (!this.isEnabled) {
             throw new Error('Google Drive is not enabled');
@@ -152,6 +153,7 @@ export class GoogleDriveClient {
             ],
             ['Update frequency:', updateFrequency],
             ['Time of last sync:', new Date().toLocaleString()],
+            ...(reportUrl ? [['Report URL:', reportUrl]] : []),
             ...tabsUpdated,
         ];
 

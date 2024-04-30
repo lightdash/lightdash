@@ -1,3 +1,325 @@
+# [0.1077.0](https://github.com/lightdash/lightdash/compare/0.1076.6...0.1077.0) (2024-04-29)
+
+
+### Features
+
+* configure separate react sentry project ([#9910](https://github.com/lightdash/lightdash/issues/9910)) ([ab4c244](https://github.com/lightdash/lightdash/commit/ab4c244f27ca1950aae4b8b346cd02457414d4cc))
+
+## [0.1076.6](https://github.com/lightdash/lightdash/compare/0.1076.5...0.1076.6) (2024-04-26)
+
+
+### Bug Fixes
+
+* fix foreign constriant error when add chart to dashboard ([#9892](https://github.com/lightdash/lightdash/issues/9892)) ([60987e0](https://github.com/lightdash/lightdash/commit/60987e05a58f839050e0955c4319aa7aa794d960))
+* The tab delete modal should be more explicit about which tiles/c… ([#9878](https://github.com/lightdash/lightdash/issues/9878)) ([1187081](https://github.com/lightdash/lightdash/commit/1187081bf27368ad34c6660f6d5f7785de37e72c))
+
+## [0.1076.5](https://github.com/lightdash/lightdash/compare/0.1076.4...0.1076.5) (2024-04-26)
+
+
+### Bug Fixes
+
+* remove duplicated rules ([#9876](https://github.com/lightdash/lightdash/issues/9876)) ([fe79ee7](https://github.com/lightdash/lightdash/commit/fe79ee7b16d115aec7d54f812fa45a9eb1a8b1b0))
+
+## [0.1076.4](https://github.com/lightdash/lightdash/compare/0.1076.3...0.1076.4) (2024-04-25)
+
+
+### Bug Fixes
+
+* fix foreign key constraint error when delete last tab ([#9865](https://github.com/lightdash/lightdash/issues/9865)) ([8265e7d](https://github.com/lightdash/lightdash/commit/8265e7d94205842ca4943923eb5b2d1ba43c547c))
+
+## [0.1076.3](https://github.com/lightdash/lightdash/compare/0.1076.2...0.1076.3) (2024-04-25)
+
+
+### Bug Fixes
+
+* incorrect default table calc type ([#9888](https://github.com/lightdash/lightdash/issues/9888)) ([3ddaa89](https://github.com/lightdash/lightdash/commit/3ddaa894664cc5992f97c78e5f0685c7b5afde55))
+
+## [0.1076.2](https://github.com/lightdash/lightdash/compare/0.1076.1...0.1076.2) (2024-04-24)
+
+
+### Bug Fixes
+
+* date ranger picker value not rendered to UTC in sql ([#9860](https://github.com/lightdash/lightdash/issues/9860)) ([3013867](https://github.com/lightdash/lightdash/commit/3013867ddcaaa3c9d80c7b7c23577e2dc307d107))
+
+## [0.1076.1](https://github.com/lightdash/lightdash/compare/0.1076.0...0.1076.1) (2024-04-24)
+
+
+### Bug Fixes
+
+* add await to scheduler access calculation ([#9881](https://github.com/lightdash/lightdash/issues/9881)) ([a7441e2](https://github.com/lightdash/lightdash/commit/a7441e258e53fc340709bfb0c44335a7cbf52cf9))
+
+# [0.1076.0](https://github.com/lightdash/lightdash/compare/0.1075.6...0.1076.0) (2024-04-24)
+
+
+### Features
+
+* select table calculation type ([#9862](https://github.com/lightdash/lightdash/issues/9862)) ([fcff1e7](https://github.com/lightdash/lightdash/commit/fcff1e7f4f99a04bf4a5d6f2a0aca8b7ff624efa))
+
+## [0.1075.6](https://github.com/lightdash/lightdash/compare/0.1075.5...0.1075.6) (2024-04-24)
+
+
+### Bug Fixes
+
+* add NULL as an extra bin ([#9866](https://github.com/lightdash/lightdash/issues/9866)) ([bf852bc](https://github.com/lightdash/lightdash/commit/bf852bc7092c76f83734b181534af2d13f0d0d83))
+
+## [0.1075.5](https://github.com/lightdash/lightdash/compare/0.1075.4...0.1075.5) (2024-04-24)
+
+
+### Bug Fixes
+
+* fix tabs for create dashboard api ([#9864](https://github.com/lightdash/lightdash/issues/9864)) ([95c3d76](https://github.com/lightdash/lightdash/commit/95c3d768177ce3e6aac233d4a138f2d5d90ff550))
+
+## [0.1075.4](https://github.com/lightdash/lightdash/compare/0.1075.3...0.1075.4) (2024-04-23)
+
+
+### Bug Fixes
+
+* min max range on horizontal bar chart ([#9844](https://github.com/lightdash/lightdash/issues/9844)) ([28558f4](https://github.com/lightdash/lightdash/commit/28558f4c9c3f3e59ca398c29750c2223bec039c1))
+
+## [0.1075.3](https://github.com/lightdash/lightdash/compare/0.1075.2...0.1075.3) (2024-04-23)
+
+
+### Bug Fixes
+
+* remove type separation in filters ([#9743](https://github.com/lightdash/lightdash/issues/9743)) ([b6f09cc](https://github.com/lightdash/lightdash/commit/b6f09cc0603f34415b00ebfc692b8f0c33df4aef))
+
+## [0.1075.2](https://github.com/lightdash/lightdash/compare/0.1075.1...0.1075.2) (2024-04-23)
+
+
+### Bug Fixes
+
+* Delete last tab should not delete tiles ([#9848](https://github.com/lightdash/lightdash/issues/9848)) ([b80d799](https://github.com/lightdash/lightdash/commit/b80d799d1d3c74d1fb31cf88d7a0d2e275a72384))
+
+## [0.1075.1](https://github.com/lightdash/lightdash/compare/0.1075.0...0.1075.1) (2024-04-23)
+
+
+### Bug Fixes
+
+* fix joined table with aliases in metric ([#9842](https://github.com/lightdash/lightdash/issues/9842)) ([25aef88](https://github.com/lightdash/lightdash/commit/25aef88cd29ccc985144c5157702ec9b6b898221))
+
+# [0.1075.0](https://github.com/lightdash/lightdash/compare/0.1074.3...0.1075.0) (2024-04-23)
+
+
+### Features
+
+* dimension color chart ([#9847](https://github.com/lightdash/lightdash/issues/9847)) ([f1fdf69](https://github.com/lightdash/lightdash/commit/f1fdf691e87e00c978ec0b3db82c9a1ee1b5a535))
+
+## [0.1074.3](https://github.com/lightdash/lightdash/compare/0.1074.2...0.1074.3) (2024-04-22)
+
+
+### Bug Fixes
+
+* no results email ([#9839](https://github.com/lightdash/lightdash/issues/9839)) ([a93f25e](https://github.com/lightdash/lightdash/commit/a93f25e00ef03d52af308b731e38234f5f6b072f))
+
+## [0.1074.2](https://github.com/lightdash/lightdash/compare/0.1074.1...0.1074.2) (2024-04-22)
+
+
+### Bug Fixes
+
+* wrong chart icon in pinned list ([#9838](https://github.com/lightdash/lightdash/issues/9838)) ([0a775f3](https://github.com/lightdash/lightdash/commit/0a775f398b417346902bd594d5df50e6a19a3c19))
+
+## [0.1074.1](https://github.com/lightdash/lightdash/compare/0.1074.0...0.1074.1) (2024-04-22)
+
+
+### Bug Fixes
+
+* filter adding value after paste instead of searching ([#9816](https://github.com/lightdash/lightdash/issues/9816)) ([29c9467](https://github.com/lightdash/lightdash/commit/29c9467230d9a7b902999dcbcfb39ac897846558))
+
+# [0.1074.0](https://github.com/lightdash/lightdash/compare/0.1073.3...0.1074.0) (2024-04-19)
+
+
+### Features
+
+* allow pinning from chart and dashboard pages ([#9793](https://github.com/lightdash/lightdash/issues/9793)) ([740a220](https://github.com/lightdash/lightdash/commit/740a220e8ee92a437c61e4f97fd05512792d9449))
+
+## [0.1073.3](https://github.com/lightdash/lightdash/compare/0.1073.2...0.1073.3) (2024-04-19)
+
+
+### Bug Fixes
+
+* series color change ([#9681](https://github.com/lightdash/lightdash/issues/9681)) ([5854fa1](https://github.com/lightdash/lightdash/commit/5854fa1f11bed7def2db6bf082b21d8ee153a6e3))
+* toast was not showing for errors running query ([#9828](https://github.com/lightdash/lightdash/issues/9828)) ([a3d8649](https://github.com/lightdash/lightdash/commit/a3d8649bb3e5917d95329b0ab196a45af0c4d58e))
+
+## [0.1073.2](https://github.com/lightdash/lightdash/compare/0.1073.1...0.1073.2) (2024-04-19)
+
+
+### Bug Fixes
+
+* Improve error cli message ([#9830](https://github.com/lightdash/lightdash/issues/9830)) ([603d9c4](https://github.com/lightdash/lightdash/commit/603d9c499317651f8319f947019b5f5c9530503c))
+
+## [0.1073.1](https://github.com/lightdash/lightdash/compare/0.1073.0...0.1073.1) (2024-04-19)
+
+
+### Bug Fixes
+
+* only show option to move tab when there are multiple tabs available ([#9831](https://github.com/lightdash/lightdash/issues/9831)) ([103f394](https://github.com/lightdash/lightdash/commit/103f3943b350d4cac543b7af9fbf510f755a453b))
+
+# [0.1073.0](https://github.com/lightdash/lightdash/compare/0.1072.8...0.1073.0) (2024-04-19)
+
+
+### Features
+
+* dashboard tabs url ([#9805](https://github.com/lightdash/lightdash/issues/9805)) ([e864bfe](https://github.com/lightdash/lightdash/commit/e864bfe16417bfa0646d7470e8dd3d5540b1c5e5))
+
+## [0.1072.8](https://github.com/lightdash/lightdash/compare/0.1072.7...0.1072.8) (2024-04-19)
+
+
+### Bug Fixes
+
+* null timezone compilequery ([#9823](https://github.com/lightdash/lightdash/issues/9823)) ([5cc6edf](https://github.com/lightdash/lightdash/commit/5cc6edfd3069ae86867a3d201fa282c1a320c019))
+
+## [0.1072.7](https://github.com/lightdash/lightdash/compare/0.1072.6...0.1072.7) (2024-04-19)
+
+
+### Bug Fixes
+
+* disable pat lightashconfig ([#9813](https://github.com/lightdash/lightdash/issues/9813)) ([bd18aa3](https://github.com/lightdash/lightdash/commit/bd18aa3c445c22ea2b643a4c0ccb677cc573e47b)), closes [#9632](https://github.com/lightdash/lightdash/issues/9632)
+
+## [0.1072.6](https://github.com/lightdash/lightdash/compare/0.1072.5...0.1072.6) (2024-04-19)
+
+
+### Bug Fixes
+
+* save chart in dashboard ([#9818](https://github.com/lightdash/lightdash/issues/9818)) ([38962c3](https://github.com/lightdash/lightdash/commit/38962c3a22bcca885edfd480f024577800324f9b)), closes [#9632](https://github.com/lightdash/lightdash/issues/9632)
+
+## [0.1072.5](https://github.com/lightdash/lightdash/compare/0.1072.4...0.1072.5) (2024-04-18)
+
+
+### Bug Fixes
+
+* remove first_name and last_name from intrinsic user attributes ([#9812](https://github.com/lightdash/lightdash/issues/9812)) ([0ea915b](https://github.com/lightdash/lightdash/commit/0ea915baffc909579e3e07ef4e7460bed66ea343))
+
+## [0.1072.4](https://github.com/lightdash/lightdash/compare/0.1072.3...0.1072.4) (2024-04-18)
+
+
+### Bug Fixes
+
+* fix horizontal chart tooltip ([#9801](https://github.com/lightdash/lightdash/issues/9801)) ([7c36451](https://github.com/lightdash/lightdash/commit/7c36451a1ac31cdb69561d93987934f2d2e30602))
+* parse validation errors ([#9796](https://github.com/lightdash/lightdash/issues/9796)) ([c8414cb](https://github.com/lightdash/lightdash/commit/c8414cb5ee32aa0cf4fa647c6b61a17165d3de39))
+
+## [0.1072.3](https://github.com/lightdash/lightdash/compare/0.1072.2...0.1072.3) (2024-04-17)
+
+
+### Bug Fixes
+
+* force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE for snowflake ([#9781](https://github.com/lightdash/lightdash/issues/9781)) ([7d5df00](https://github.com/lightdash/lightdash/commit/7d5df00953fff7dd0aed972f0a6a9eda1d4defec))
+
+## [0.1072.2](https://github.com/lightdash/lightdash/compare/0.1072.1...0.1072.2) (2024-04-17)
+
+
+### Bug Fixes
+
+* fix unstable profile test ([#9798](https://github.com/lightdash/lightdash/issues/9798)) ([8320333](https://github.com/lightdash/lightdash/commit/83203336c3a795d794afef3c2193fa2d69e0307a))
+
+## [0.1072.1](https://github.com/lightdash/lightdash/compare/0.1072.0...0.1072.1) (2024-04-17)
+
+
+### Bug Fixes
+
+* add timezone to compile sql ([#9784](https://github.com/lightdash/lightdash/issues/9784)) ([78b8756](https://github.com/lightdash/lightdash/commit/78b8756042293028a4cb851e7017ec1044ca2ae5))
+
+# [0.1072.0](https://github.com/lightdash/lightdash/compare/0.1071.2...0.1072.0) (2024-04-17)
+
+
+### Bug Fixes
+
+* show invalid filter dashboard ([#9771](https://github.com/lightdash/lightdash/issues/9771)) ([3c5ca5e](https://github.com/lightdash/lightdash/commit/3c5ca5eb4c5577aeca491f76bc767e5fd9fa2ba7))
+* validation filter tile ([#9775](https://github.com/lightdash/lightdash/issues/9775)) ([c040942](https://github.com/lightdash/lightdash/commit/c0409422637420b96c7af575188a8232b5eb10a1))
+
+
+### Features
+
+* group dashboard tiles by tab ([#9722](https://github.com/lightdash/lightdash/issues/9722)) ([7b54197](https://github.com/lightdash/lightdash/commit/7b54197e3550c2decdfef1ebb772dd6334691b45))
+
+## [0.1071.2](https://github.com/lightdash/lightdash/compare/0.1071.1...0.1071.2) (2024-04-17)
+
+
+### Bug Fixes
+
+* results table font options ([#9780](https://github.com/lightdash/lightdash/issues/9780)) ([5feb91b](https://github.com/lightdash/lightdash/commit/5feb91ba9498a4f78811b88c575b9bf7fed1e5f2))
+
+## [0.1071.1](https://github.com/lightdash/lightdash/compare/0.1071.0...0.1071.1) (2024-04-16)
+
+
+### Bug Fixes
+
+* remove 1m + 30s dashboard refresh ([#9770](https://github.com/lightdash/lightdash/issues/9770)) ([009953f](https://github.com/lightdash/lightdash/commit/009953f9cd30b513019baa9937e124d471b7e3df))
+
+# [0.1071.0](https://github.com/lightdash/lightdash/compare/0.1070.3...0.1071.0) (2024-04-16)
+
+
+### Features
+
+* add timezone picker to the explores page ([#9753](https://github.com/lightdash/lightdash/issues/9753)) ([dd28fb2](https://github.com/lightdash/lightdash/commit/dd28fb2bb66689b856208e295ba8b105d1d8d93e))
+
+## [0.1070.3](https://github.com/lightdash/lightdash/compare/0.1070.2...0.1070.3) (2024-04-16)
+
+
+### Bug Fixes
+
+* add timezone to csv export ([#9762](https://github.com/lightdash/lightdash/issues/9762)) ([24f6c12](https://github.com/lightdash/lightdash/commit/24f6c12c324f6cf0aa5d4867e43a9b85db7776a9))
+
+## [0.1070.2](https://github.com/lightdash/lightdash/compare/0.1070.1...0.1070.2) (2024-04-15)
+
+
+### Bug Fixes
+
+* add timezone date conversion to bigquery ([#9755](https://github.com/lightdash/lightdash/issues/9755)) ([5f1a43b](https://github.com/lightdash/lightdash/commit/5f1a43bb1ed79811f44c417086419a23cc58c22c))
+
+## [0.1070.1](https://github.com/lightdash/lightdash/compare/0.1070.0...0.1070.1) (2024-04-15)
+
+
+### Bug Fixes
+
+* add max width on db filters ([#9752](https://github.com/lightdash/lightdash/issues/9752)) ([d0e926a](https://github.com/lightdash/lightdash/commit/d0e926a116c391f7849c356b7b642e478ac64c94))
+
+# [0.1070.0](https://github.com/lightdash/lightdash/compare/0.1069.0...0.1070.0) (2024-04-15)
+
+
+### Features
+
+* allow intrinsic user attributes ([#9727](https://github.com/lightdash/lightdash/issues/9727)) ([21e3cef](https://github.com/lightdash/lightdash/commit/21e3cef6680f2d8fe25b1ee2ccda4c6112921a3e))
+
+# [0.1069.0](https://github.com/lightdash/lightdash/compare/0.1068.0...0.1069.0) (2024-04-15)
+
+
+### Features
+
+* add timezone on warehouse session ([#9741](https://github.com/lightdash/lightdash/issues/9741)) ([23e29ac](https://github.com/lightdash/lightdash/commit/23e29acf847f8b444856405572f1519ca6e31554))
+
+# [0.1068.0](https://github.com/lightdash/lightdash/compare/0.1067.2...0.1068.0) (2024-04-12)
+
+
+### Features
+
+* add report URL to charts' google syncs ([#9749](https://github.com/lightdash/lightdash/issues/9749)) ([072c726](https://github.com/lightdash/lightdash/commit/072c7266a364559c669367928009d07ac0389f2c))
+
+## [0.1067.2](https://github.com/lightdash/lightdash/compare/0.1067.1...0.1067.2) (2024-04-11)
+
+
+### Bug Fixes
+
+* improve time filter layout ([#9701](https://github.com/lightdash/lightdash/issues/9701)) ([02c1589](https://github.com/lightdash/lightdash/commit/02c15899114f0eed7bd578cceae2b01ada4112c4))
+
+## [0.1067.1](https://github.com/lightdash/lightdash/compare/0.1067.0...0.1067.1) (2024-04-11)
+
+
+### Bug Fixes
+
+* add withinPortal to FiltersProvider in card ([#9735](https://github.com/lightdash/lightdash/issues/9735)) ([3a5de7e](https://github.com/lightdash/lightdash/commit/3a5de7eb5911eae3b3452321ecb9ac6f523399c5))
+
+# [0.1067.0](https://github.com/lightdash/lightdash/compare/0.1066.0...0.1067.0) (2024-04-11)
+
+
+### Bug Fixes
+
+* improve color assignment for charts with multiple groups ([#9716](https://github.com/lightdash/lightdash/issues/9716)) ([ac8e15e](https://github.com/lightdash/lightdash/commit/ac8e15e6f07df574436c66ded13b37ea955e3f9b))
+
+
+### Features
+
+* Set `QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE` for Snowflake via feature flag ([#9730](https://github.com/lightdash/lightdash/issues/9730)) ([6d0e705](https://github.com/lightdash/lightdash/commit/6d0e7052d07db64e6db0774c083bfb4377e81feb))
+
 # [0.1066.0](https://github.com/lightdash/lightdash/compare/0.1065.1...0.1066.0) (2024-04-10)
 
 

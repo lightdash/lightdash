@@ -6,6 +6,7 @@ import {
     fieldId,
     isMetric,
     MetricType,
+    TableCalculationType,
     type CompiledField,
     type CompiledTableCalculation,
 } from '../types/field';
@@ -315,10 +316,39 @@ export const renderTableCalculationFilterRuleSql = (
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
 ): string => {
     if (!field) return '1=1';
 
     const fieldSql = `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`;
+
+    // First we default to field.type
+    // otherwise, we check the custom format for backwards compatibility
+    switch (field.type) {
+        case TableCalculationType.STRING:
+            return renderStringFilterSql(
+                fieldSql,
+                filterRule,
+                stringQuoteChar,
+                escapeStringQuoteChar,
+            );
+        case TableCalculationType.DATE:
+        case TableCalculationType.TIMESTAMP:
+            return renderDateFilterSql(
+                fieldSql,
+                filterRule,
+                adapterType,
+                undefined,
+                startOfWeek,
+            );
+        case TableCalculationType.NUMBER:
+            return renderNumberFilterSql(fieldSql, filterRule);
+        case TableCalculationType.BOOLEAN:
+            return renderBooleanFilterSql(fieldSql, filterRule);
+        default:
+        // Do nothing here. This will try with format.type for backwards compatibility
+    }
 
     switch (field.format?.type) {
         case CustomFormatType.DEFAULT:
@@ -349,11 +379,26 @@ export const renderFilterRuleSql = (
     escapeStringQuoteChar: string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
+    timezone?: string, // TODO replacde with enum
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
 
+    const convertBigqueryTimezone = (originalFieldSql: string) => {
+        // On Bigquery we convert timestamps to the right timezone before adding the SQL filter
+        // Bigquery does not support set TIMEZONE in session like the rest of the warehouses
+        // and field.compiledSql is generated in compile time, so we need to patch it here
+        // Only timestamp type in Bigquery has timezone information.
+        if (timezone && adapterType === SupportedDbtAdapter.BIGQUERY) {
+            const timestampRegex = /TIMESTAMP_TRUNC\(([^,]+),/;
+            return originalFieldSql.replace(
+                timestampRegex,
+                `TIMESTAMP_TRUNC(DATE($1, '${timezone}'),`,
+            );
+        }
+        return originalFieldSql;
+    };
     const fieldType = field.type;
     const fieldSql = isMetric(field)
         ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
@@ -394,7 +439,7 @@ export const renderFilterRuleSql = (
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP: {
             return renderDateFilterSql(
-                fieldSql,
+                convertBigqueryTimezone(fieldSql),
                 filterRule,
                 adapterType,
                 formatTimestampAsUTCWithNoTimezone,

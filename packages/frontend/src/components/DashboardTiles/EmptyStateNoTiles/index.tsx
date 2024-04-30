@@ -5,7 +5,7 @@ import {
     IconLayoutDashboard,
     IconPlayerPlay,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { SetStateAction, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
@@ -20,12 +20,18 @@ import AddTileButton from '../AddTileButton';
 
 interface SavedChartsAvailableProps {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    emptyContainerType?: 'dashboard' | 'tab';
     isEditMode: boolean;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    activeTabUuid?: string;
 }
 
 const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     onAddTiles,
+    emptyContainerType = 'dashboard',
     isEditMode,
+    setAddingTab,
+    activeTabUuid,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
@@ -39,20 +45,35 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
         'Dashboard',
     );
 
+    const dashboardEmptyStateTitle = () => {
+        switch (emptyContainerType) {
+            case 'dashboard':
+                return userCanCreateDashboard
+                    ? 'Start building your dashboard!'
+                    : 'Dashboard is empty.';
+            case 'tab':
+                return userCanCreateDashboard
+                    ? 'Add tiles to this tab'
+                    : 'Tab is empty';
+            default:
+                return 'Dashboard is empty.';
+        }
+    };
+
     return (
         <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
             <div style={{ padding: '50px 0' }}>
                 {hasSavedCharts ? (
                     <SuboptimalState
                         icon={IconLayoutDashboard}
-                        title={
-                            userCanCreateDashboard
-                                ? 'Start building your dashboard!'
-                                : 'Dashboard is empty.'
-                        }
+                        title={dashboardEmptyStateTitle()}
                         action={
                             userCanCreateDashboard && isEditMode ? (
-                                <AddTileButton onAddTiles={onAddTiles} />
+                                <AddTileButton
+                                    onAddTiles={onAddTiles}
+                                    setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
+                                />
                             ) : undefined
                         }
                     />

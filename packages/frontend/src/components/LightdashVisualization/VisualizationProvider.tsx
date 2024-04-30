@@ -2,10 +2,12 @@ import {
     assertUnreachable,
     ChartType,
     getCustomDimensionId,
+    isDimension,
     type ApiQueryResults,
     type ChartConfig,
     type DashboardFilters,
     type ItemsMap,
+    type PivotValue,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import type EChartsReact from 'echarts-for-react';
@@ -77,7 +79,6 @@ type VisualizationContext = {
 
     getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
-
     colorPalette: string[];
 };
 
@@ -238,12 +239,23 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     /**
      * Gets a shared color for a given group name.
+     * Used in pie charts
      */
     const getGroupColor = useCallback(
         (groupPrefix: string, identifier: string) => {
+            if (itemsMap) {
+                const dimension = itemsMap[groupPrefix];
+                if (dimension && isDimension(dimension)) {
+                    const colors = dimension.colors;
+                    if (colors && colors[identifier]) {
+                        return colors[identifier];
+                    }
+                }
+            }
+
             return calculateKeyColorAssignment(groupPrefix, identifier);
         },
-        [calculateKeyColorAssignment],
+        [calculateKeyColorAssignment, itemsMap],
     );
 
     /**
@@ -252,6 +264,38 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     const getSeriesColor = useCallback(
         (seriesLike: SeriesLike) => {
             if (seriesLike.color) return seriesLike.color;
+
+            // Check if color is stored in metadata
+            const serieId = calculateSeriesLikeIdentifier(seriesLike).join('.');
+            const metadata =
+                chartConfig.type === ChartType.CARTESIAN
+                    ? chartConfig.config?.metadata
+                    : undefined;
+            if (metadata && metadata?.[serieId]?.color)
+                return metadata?.[serieId].color;
+
+            /** Check if color is set in the dimension metadata */
+
+            let pivot: PivotValue | undefined;
+            if ('pivotReference' in seriesLike && seriesLike.pivotReference) {
+                pivot = seriesLike.pivotReference.pivotValues?.[0];
+            } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
+                pivot = seriesLike.encode.yRef.pivotValues?.[0];
+            }
+            if (itemsMap && pivot) {
+                const { field, value } = pivot;
+                const dimension = itemsMap[field];
+                if (
+                    dimension &&
+                    isDimension(dimension) &&
+                    typeof value === 'string'
+                ) {
+                    const colors = dimension.colors;
+                    if (colors && colors[value]) {
+                        return colors[value];
+                    }
+                }
+            }
 
             /**
              * If this series is grouped, figure out a shared color assignment from the series;
@@ -264,7 +308,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                       calculateSeriesLikeIdentifier(seriesLike).join('|')
                   ];
         },
-        [calculateSeriesColorAssignment, fallbackColors],
+        [calculateSeriesColorAssignment, fallbackColors, chartConfig, itemsMap],
     );
 
     const value: Omit<VisualizationContext, 'visualizationConfig'> = {

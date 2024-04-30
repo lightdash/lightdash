@@ -1,42 +1,30 @@
 import {
-    assertUnreachable,
     DashboardTileTypes,
     FeatureFlags,
     isDashboardChartTileType,
+    ResourceViewItemType,
     type Dashboard as IDashboard,
+    type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
-import React, {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { type Layout } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
-import { useIntersection } from 'react-use';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
-import { LockedDashboardModal } from '../components/common/modal/LockedDashboardModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardFilter from '../components/DashboardFilter';
-import ChartTile from '../components/DashboardTiles/DashboardChartTile';
-import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
-import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
-import EmptyStateNoTiles from '../components/DashboardTiles/EmptyStateNoTiles';
-import TileBase from '../components/DashboardTiles/TileBase/index';
+import DashboardTabs from '../components/DashboardTabs';
 import { useDashboardCommentsCheck } from '../features/comments';
 import { DateZoom } from '../features/dateZoom';
 import {
@@ -46,8 +34,9 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { useDashboardPinningMutation } from '../hooks/pinning/useDashboardPinningMutation';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import useToaster from '../hooks/toaster/useToaster';
-import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import { deleteSavedQuery } from '../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
@@ -55,9 +44,7 @@ import {
     DashboardProvider,
     useDashboardContext,
 } from '../providers/DashboardProvider';
-import { TrackSection } from '../providers/TrackingProvider';
 import '../styles/react-grid.css';
-import { SectionName } from '../types/Events';
 
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
@@ -81,9 +68,9 @@ export const getResponsiveGridLayoutProps = ({
     enableAnimation?: boolean;
 
     /**
-     * If enabled, we effectively disable horizontal stacking and switch to
-     * a simple vertical stack on the smallest breakpoint -- this means each
-     * tile is basically shown on a vertical list on mobile.
+     * If enabled, we set the grid on the smallest breakpoint to have a single
+     * column, which makes it behave like a simple vertical stack on mobile
+     * viewports.
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
 } = {}) => ({
@@ -95,69 +82,6 @@ export const getResponsiveGridLayoutProps = ({
     rowHeight: 50,
 });
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-const GridTile: FC<
-    Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > & {
-        isLazyLoadEnabled: boolean;
-        index: number;
-        onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
-        locked: boolean;
-    }
-> = memo((props) => {
-    const { tile, isLazyLoadEnabled, index } = props;
-    useProfiler(`Dashboard-${tile.type}`);
-    const [isTiledViewed, setIsTiledViewed] = useState(false);
-    const ref = useRef(null);
-    const intersection = useIntersection(ref, {
-        root: null,
-        threshold: 0.3,
-    });
-    useEffect(() => {
-        if (intersection?.isIntersecting) {
-            setIsTiledViewed(true);
-        }
-    }, [intersection]);
-
-    if (isLazyLoadEnabled && !isTiledViewed) {
-        setTimeout(() => {
-            setIsTiledViewed(true);
-            // Prefetch tile sequentially, even if it's not in view
-        }, index * 1000);
-        return (
-            <Box ref={ref} h="100%">
-                <TileBase isLoading {...props} title={''} />
-            </Box>
-        );
-    }
-
-    if (props.locked) {
-        return (
-            <Box ref={ref} h="100%">
-                <TileBase isLoading={false} title={''} {...props} />
-            </Box>
-        );
-    }
-
-    switch (tile.type) {
-        case DashboardTileTypes.SAVED_CHART:
-            return <ChartTile {...props} tile={tile} />;
-        case DashboardTileTypes.MARKDOWN:
-            return <MarkdownTile {...props} tile={tile} />;
-        case DashboardTileTypes.LOOM:
-            return <LoomTile {...props} tile={tile} />;
-        default: {
-            return assertUnreachable(
-                tile,
-                `Dashboard tile type "${props.tile.type}" not recognised`,
-            );
-        }
-    }
-});
-
 const Dashboard: FC = () => {
     const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
         FeatureFlags.LazyLoadDashboardTiles,
@@ -165,10 +89,11 @@ const Dashboard: FC = () => {
     const isLazyLoadEnabled =
         !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
-    const { projectUuid, dashboardUuid, mode } = useParams<{
+    const { projectUuid, dashboardUuid, mode, tabUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
         mode?: string;
+        tabUuid?: string;
     }>();
     const { data: spaces } = useSpaceSummaries(projectUuid);
 
@@ -196,6 +121,10 @@ const Dashboard: FC = () => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
+    const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
+    const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -228,23 +157,55 @@ const Dashboard: FC = () => {
     const [isExportDashboardModalOpen, exportDashboardModalHandlers] =
         useDisclosure();
     const [isSaveWarningModalOpen, saveWarningModalHandlers] = useDisclosure();
-
-    const layouts = useMemo(
-        () => ({
-            lg:
-                dashboardTiles?.map<Layout>((tile) =>
-                    getReactGridLayoutConfig(tile, isEditMode),
-                ) ?? [],
-        }),
-        [dashboardTiles, isEditMode],
+    const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        dashboard?.pinnedListUuid ?? undefined,
     );
+
+    const handleDashboardPinning = useCallback(() => {
+        toggleDashboardPinning({ uuid: dashboardUuid });
+    }, [dashboardUuid, toggleDashboardPinning]);
+
+    const isPinned = useMemo(() => {
+        return Boolean(
+            pinnedItems?.some(
+                (item) =>
+                    item.type === ResourceViewItemType.DASHBOARD &&
+                    item.data.uuid === dashboardUuid,
+            ),
+        );
+    }, [dashboardUuid, pinnedItems]);
+
+    // tabs state
+    const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
+    const [addingTab, setAddingTab] = useState<boolean>(false);
+
+    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
+
+    const defaultTab = dashboardTabs?.[0];
 
     useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles) return;
 
         setDashboardTiles(dashboard?.tiles ?? []);
-    }, [isDashboardLoading, dashboard, dashboardTiles, setDashboardTiles]);
+        setDashboardTabs(dashboard?.tabs ?? []);
+        setActiveTab(
+            () =>
+                dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
+                dashboard?.tabs[0],
+        );
+    }, [
+        isDashboardLoading,
+        dashboard,
+        dashboardTiles,
+        setDashboardTiles,
+        setDashboardTabs,
+        setActiveTab,
+        tabUuid,
+    ]);
 
     useEffect(() => {
         if (isDashboardLoading) return;
@@ -295,9 +256,15 @@ const Dashboard: FC = () => {
                 tableCalculations: [],
             });
             reset();
-            history.replace(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
-            );
+            if (dashboardTabs.length > 0) {
+                history.replace(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                );
+            } else {
+                history.replace(
+                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+                );
+            }
         }
     }, [
         dashboardUuid,
@@ -308,6 +275,8 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        dashboardTabs,
+        activeTab,
     ]);
 
     const handleToggleFullscreen = useCallback(async () => {
@@ -375,13 +344,28 @@ const Dashboard: FC = () => {
 
     const handleAddTiles = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
+            let newTiles = tiles;
+            if (tabsEnabled) {
+                newTiles = tiles.map((tile: DashboardTile) => ({
+                    ...tile,
+                    tabUuid: activeTab ? activeTab.uuid : defaultTab?.uuid,
+                }));
+                setHaveTabsChanged(true);
+            }
             setDashboardTiles((currentDashboardTiles) =>
-                appendNewTilesToBottom(currentDashboardTiles, tiles),
+                appendNewTilesToBottom(currentDashboardTiles, newTiles),
             );
 
             setHaveTilesChanged(true);
         },
-        [setDashboardTiles, setHaveTilesChanged],
+        [
+            activeTab,
+            defaultTab,
+            tabsEnabled,
+            setDashboardTiles,
+            setHaveTilesChanged,
+            setHaveTabsChanged,
+        ],
     );
 
     const handleDeleteTile = useCallback(
@@ -396,6 +380,17 @@ const Dashboard: FC = () => {
         },
         [setDashboardTiles, setHaveTilesChanged],
     );
+
+    const handleBatchDeleteTiles = (
+        tilesToDelete: IDashboard['tiles'][number][],
+    ) => {
+        setDashboardTiles((currentDashboardTiles) =>
+            currentDashboardTiles?.filter(
+                (tile) => !tilesToDelete.includes(tile),
+            ),
+        );
+        setHaveTilesChanged(true);
+    };
 
     const handleEditTiles = useCallback(
         (updatedTile: IDashboard['tiles'][number]) => {
@@ -441,9 +436,17 @@ const Dashboard: FC = () => {
         setHaveTilesChanged(false);
         if (dashboard) setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
-        history.replace(
-            `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
-        );
+        setHaveTabsChanged(false);
+        setDashboardTabs(dashboard?.tabs || []);
+        if (dashboardTabs.length > 0) {
+            history.replace(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+            );
+        } else {
+            history.replace(
+                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/`,
+            );
+        }
     }, [
         dashboard,
         dashboardUuid,
@@ -454,6 +457,10 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setDashboardFilters,
         setHaveTilesChanged,
+        setHaveTabsChanged,
+        setDashboardTabs,
+        dashboardTabs,
+        activeTab,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -487,7 +494,10 @@ const Dashboard: FC = () => {
 
     useEffect(() => {
         // Check if in edit mode and changes have been made
-        if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+        if (
+            isEditMode &&
+            (haveTilesChanged || haveFiltersChanged || haveTabsChanged)
+        ) {
             // Define the navigation block function
             const navigationBlockFunction = (prompt: { pathname: string }) => {
                 // Check if the user is navigating away from the current dashboard
@@ -525,6 +535,7 @@ const Dashboard: FC = () => {
         haveFiltersChanged,
         projectUuid,
         dashboardUuid,
+        haveTabsChanged,
     ]);
 
     if (dashboardError) {
@@ -540,18 +551,6 @@ const Dashboard: FC = () => {
     const dashboardChartTiles = dashboardTiles?.filter(
         (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
     );
-
-    const sortedTiles = dashboardTiles?.sort((a, b) => {
-        if (a.y === b.y) {
-            // If 'y' is the same, sort by 'x'
-            return a.x - b.x;
-        } else {
-            // Otherwise, sort by 'y'
-            return a.y - b.y;
-        }
-    });
-
-    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
 
     return (
         <>
@@ -605,11 +604,14 @@ const Dashboard: FC = () => {
                         isSaving={isSaving}
                         oldestCacheTime={oldestCacheTime}
                         isFullscreen={isFullscreen}
+                        isPinned={isPinned}
+                        activeTabUuid={activeTab?.uuid}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
                             haveFiltersChanged ||
-                            hasTemporaryFilters
+                            hasTemporaryFilters ||
+                            haveTabsChanged
                         }
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() =>
@@ -630,6 +632,7 @@ const Dashboard: FC = () => {
                                     ],
                                 },
                                 name: dashboard.name,
+                                tabs: dashboardTabs,
                             })
                         }
                         onCancel={handleCancel}
@@ -637,6 +640,8 @@ const Dashboard: FC = () => {
                         onDuplicate={duplicateModalHandlers.open}
                         onDelete={deleteModalHandlers.open}
                         onExport={exportDashboardModalHandlers.open}
+                        setAddingTab={setAddingTab}
+                        onTogglePin={handleDashboardPinning}
                     />
                 }
             >
@@ -646,55 +651,24 @@ const Dashboard: FC = () => {
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
-                <ResponsiveGridLayout
-                    {...getResponsiveGridLayoutProps({
-                        enableAnimation: true,
-
-                        /**
-                         * We never enable this on non-minimal view, to avoid breaking things for users
-                         * on smaller devices or placing Lightdash in a corner of their display.
-                         */
-                        stackVerticallyOnSmallestBreakpoint: false,
-                    })}
-                    className={`react-grid-layout-dashboard ${
-                        hasRequiredDashboardFiltersToSet ? 'locked' : ''
-                    }`}
-                    onDragStop={handleUpdateTiles}
-                    onResizeStop={handleUpdateTiles}
-                    onWidthChange={(cw) => setGridWidth(cw)}
-                    layouts={layouts}
-                >
-                    {sortedTiles?.map((tile, idx) => (
-                        <div key={tile.uuid}>
-                            <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                <GridTile
-                                    locked={hasRequiredDashboardFiltersToSet}
-                                    isLazyLoadEnabled={
-                                        isLazyLoadEnabled ?? true
-                                    }
-                                    index={idx}
-                                    isEditMode={isEditMode}
-                                    tile={tile}
-                                    onDelete={handleDeleteTile}
-                                    onEdit={handleEditTiles}
-                                    onAddTiles={handleAddTiles}
-                                />
-                            </TrackSection>
-                        </div>
-                    ))}
-                </ResponsiveGridLayout>
-
-                <LockedDashboardModal
-                    opened={
-                        hasRequiredDashboardFiltersToSet && !!hasDashboardTiles
+                <DashboardTabs
+                    isEditMode={isEditMode}
+                    hasRequiredDashboardFiltersToSet={
+                        hasRequiredDashboardFiltersToSet
                     }
+                    isLazyLoadEnabled={isLazyLoadEnabled}
+                    addingTab={addingTab}
+                    dashboardTiles={dashboardTiles}
+                    handleAddTiles={handleAddTiles}
+                    handleUpdateTiles={handleUpdateTiles}
+                    handleDeleteTile={handleDeleteTile}
+                    handleBatchDeleteTiles={handleBatchDeleteTiles}
+                    handleEditTile={handleEditTiles}
+                    setGridWidth={setGridWidth}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    setAddingTab={setAddingTab}
                 />
-                {!hasDashboardTiles && (
-                    <EmptyStateNoTiles
-                        onAddTiles={handleAddTiles}
-                        isEditMode={isEditMode}
-                    />
-                )}
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened

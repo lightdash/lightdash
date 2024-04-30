@@ -19,6 +19,7 @@ import {
     isTableCalculation,
     isTimeInterval,
     MetricType,
+    TableCalculationType,
     timeFrameConfigs,
     TimeFrames,
     type ApiQueryResults,
@@ -78,8 +79,10 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
 
 const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomDimension(item)) return 'category';
-    if (item && isField(item)) {
+    if (item && isTableCalculation(item) && !item.type) return 'value';
+    if (item && (isField(item) || isTableCalculation(item))) {
         switch (item.type) {
+            case TableCalculationType.NUMBER:
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
             case MetricType.PERCENTILE:
@@ -96,6 +99,8 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.TIMESTAMP:
             case DimensionType.DATE:
             case MetricType.DATE:
+            case TableCalculationType.DATE:
+            case TableCalculationType.TIMESTAMP:
                 return 'time';
             default: {
                 return 'category';
@@ -899,7 +904,11 @@ const getEchartAxes = ({
                     },
                 },
             };
-        } else if (axisItem !== undefined && isTableCalculation(axisItem)) {
+        } else if (
+            axisItem !== undefined &&
+            isTableCalculation(axisItem) &&
+            axisItem.type === undefined
+        ) {
             axisConfig.axisLabel = {
                 formatter: (value: any) => {
                     return formatItemValue(axisItem, value);
@@ -1451,7 +1460,10 @@ const useEchartsCartesianConfig = (
                 : getResultValueArray(rows, true);
         try {
             if (!itemsMap) return results;
-            const xFieldId = validCartesianConfig?.layout?.xField;
+            const xFieldId = validCartesianConfig?.layout.flipAxes
+                ? validCartesianConfig?.layout?.yField?.[0]
+                : validCartesianConfig?.layout?.xField;
+
             if (xFieldId === undefined) return results;
             const { min, max } = axes.xAxis[0];
 
@@ -1468,12 +1480,8 @@ const useEchartsCartesianConfig = (
                           min === undefined ||
                           typeof min !== 'string' ||
                           value > min;
-                      const isLessThan =
-                          max === undefined ||
-                          typeof max !== 'string' ||
-                          value < max;
 
-                      return isGreaterThan && isLessThan;
+                      return isGreaterThan;
                   })
                 : results;
 
@@ -1535,11 +1543,13 @@ const useEchartsCartesianConfig = (
         }
     }, [
         validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.yField,
         validCartesianConfig?.eChartsConfig?.series,
         rows,
         itemsMap,
+        axes,
         resultsData?.metricQuery.sorts,
-        axes.xAxis,
     ]);
 
     const tooltip = useMemo<TooltipOption>(
@@ -1558,7 +1568,19 @@ const useEchartsCartesianConfig = (
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
 
+                const flipAxes = validCartesianConfig?.layout.flipAxes;
+                const getTooltipHeader = () => {
+                    if (flipAxes && !('axisDim' in params[0])) {
+                        // When flipping axes, the axisValueLabel is the value, not the serie name
+                        return params[0].seriesName;
+                    }
+                    return params[0].axisValueLabel;
+                };
+                // When flipping axes, we get all series in the chart
                 const tooltipRows = params
+                    .filter((param) =>
+                        flipAxes ? param.name === param.seriesName : true,
+                    )
                     .map((param) => {
                         const {
                             marker,
@@ -1569,18 +1591,26 @@ const useEchartsCartesianConfig = (
                         } = param;
 
                         if (dimensionNames) {
-                            const dim =
-                                encode?.y[0] !== undefined
-                                    ? dimensionNames[encode?.y[0]]
-                                    : '';
-
+                            let dim = '';
+                            if (flipAxes) {
+                                // When flipping axes, the dimensionName is different
+                                dim = dimensionNames[1];
+                            } else {
+                                dim =
+                                    encode?.y[0] !== undefined
+                                        ? dimensionNames[encode?.y[0]]
+                                        : '';
+                            }
+                            const tooltipValue = (
+                                value as Record<string, unknown>
+                            )[dim];
                             if (typeof value === 'object' && dim in value) {
                                 return `
                             <tr>
                                 <td>${marker}</td>
                                 <td>${seriesName}</td>
                                 <td style="text-align: right;"><b>${getFormattedValue(
-                                    (value as Record<string, unknown>)[dim],
+                                    tooltipValue,
                                     dim.split('.')[0],
                                     itemsMap,
                                 )}</b></td>
@@ -1598,7 +1628,7 @@ const useEchartsCartesianConfig = (
                     if (isTableCalculation(field)) {
                         const tooltipHeader = formatItemValue(
                             field,
-                            params[0].axisValueLabel,
+                            getTooltipHeader(),
                         );
 
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
@@ -1610,7 +1640,7 @@ const useEchartsCartesianConfig = (
 
                     if (hasFormat) {
                         const tooltipHeader = getFormattedValue(
-                            params[0].axisValueLabel,
+                            getTooltipHeader(),
                             dimensionId,
                             itemsMap,
                         );
@@ -1618,10 +1648,10 @@ const useEchartsCartesianConfig = (
                         return `${tooltipHeader}<br/><table>${tooltipRows}</table>`;
                     }
                 }
-                return `${params[0].axisValueLabel}<br/><table>${tooltipRows}</table>`;
+                return `${getTooltipHeader()}<br/><table>${tooltipRows}</table>`;
             },
         }),
-        [itemsMap],
+        [itemsMap, validCartesianConfig?.layout.flipAxes],
     );
 
     const eChartsOptions = useMemo(

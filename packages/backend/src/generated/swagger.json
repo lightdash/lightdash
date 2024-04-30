@@ -832,8 +832,15 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "TableCalculationType": {
+                "enum": ["number", "string", "date", "timestamp", "boolean"],
+                "type": "string"
+            },
             "TableCalculation": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationType"
+                    },
                     "format": {
                         "$ref": "#/components/schemas/CustomFormat"
                     },
@@ -1044,6 +1051,9 @@
                         },
                         "required": ["hasADateDimension"],
                         "type": "object"
+                    },
+                    "timezone": {
+                        "type": "string"
                     },
                     "customDimensions": {
                         "items": {
@@ -2854,6 +2864,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -3217,7 +3230,7 @@
                     "dbtVersion": {
                         "$ref": "#/components/schemas/SupportedDbtVersions"
                     },
-                    "copiedFromProjectUuid": {
+                    "upstreamProjectUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -3721,6 +3734,9 @@
             },
             "MetricQueryRequest": {
                 "properties": {
+                    "timezone": {
+                        "type": "string"
+                    },
                     "metadata": {
                         "properties": {
                             "hasADateDimension": {
@@ -4427,8 +4443,16 @@
             "EChartsConfig": {
                 "$ref": "#/components/schemas/Partial_CompleteEChartsConfig_"
             },
+            "Record_string.SeriesMetadata_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "CartesianChart": {
                 "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
                     "eChartsConfig": {
                         "$ref": "#/components/schemas/EChartsConfig"
                     },
@@ -4502,6 +4526,9 @@
             },
             "PieChart": {
                 "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
                     "legendPosition": {
                         "$ref": "#/components/schemas/PieChartLegendPosition"
                     },
@@ -6750,7 +6777,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1064.5",
+        "version": "0.1076.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -192,7 +192,7 @@ export const useColumns = (): TableColumn[] => {
                     {
                         id: fieldId,
                         header: () => (
-                            <Group ff="Inter" spacing="two">
+                            <Group spacing="two">
                                 <Tooltip
                                     withinPortal
                                     label="This field was not found in the dbt project."

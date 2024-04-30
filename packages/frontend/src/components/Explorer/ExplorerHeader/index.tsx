@@ -7,6 +7,7 @@ import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAc
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
+import TimeZonePicker from '../../common/TimeZonePicker';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
@@ -81,6 +82,8 @@ const ExplorerHeader: FC = memo(() => {
                         </Badge>
                     </Tooltip>
                 )}
+
+                <TimeZonePicker />
 
                 <RefreshButton size="xs" />
 

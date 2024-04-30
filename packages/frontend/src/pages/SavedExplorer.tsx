@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 
-import { useEffect } from 'react';
+import { ResourceViewItemType } from '@lightdash/common';
+import { useCallback, useEffect, useMemo } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -8,6 +9,8 @@ import Explorer from '../components/Explorer';
 import ExplorePanel from '../components/Explorer/ExplorePanel';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
+import { useChartPinningMutation } from '../hooks/pinning/useChartPinningMutation';
+import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import {
@@ -16,7 +19,7 @@ import {
 } from '../providers/ExplorerProvider';
 
 const SavedExplorer = () => {
-    const { savedQueryUuid, mode } = useParams<{
+    const { savedQueryUuid, mode, projectUuid } = useParams<{
         savedQueryUuid: string;
         projectUuid: string;
         mode?: string;
@@ -34,6 +37,26 @@ const SavedExplorer = () => {
         chartUuid: savedQueryUuid,
         isViewOnly: !isEditMode,
     });
+
+    const { mutate: togglePinChart } = useChartPinningMutation();
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        data?.pinnedListUuid ?? undefined,
+    );
+
+    const handleChartPinning = useCallback(() => {
+        togglePinChart({ uuid: savedQueryUuid });
+    }, [savedQueryUuid, togglePinChart]);
+
+    const isPinned = useMemo(() => {
+        return Boolean(
+            pinnedItems?.some(
+                (item) =>
+                    item.type === ResourceViewItemType.CHART &&
+                    item.data.uuid === data?.uuid,
+            ),
+        );
+    }, [data?.uuid, pinnedItems]);
 
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
@@ -88,7 +111,12 @@ const SavedExplorer = () => {
         >
             <Page
                 title={data?.name}
-                header={<SavedChartsHeader />}
+                header={
+                    <SavedChartsHeader
+                        onTogglePin={handleChartPinning}
+                        isPinned={isPinned}
+                    />
+                }
                 sidebar={<ExplorePanel />}
                 isSidebarOpen={isEditMode}
                 withFullHeight

@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -11,9 +15,11 @@ import {
     IconChartBar,
     IconInfoCircle,
     IconMarkdown,
+    IconNewSection,
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
@@ -24,13 +30,22 @@ import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    activeTabUuid?: string;
 } & Pick<ButtonProps, 'disabled'>;
 
-const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
+const AddTileButton: FC<Props> = ({
+    onAddTiles,
+    setAddingTab,
+    disabled,
+    activeTabUuid,
+}) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
-
+    const isDashboardTabsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTabs,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
@@ -86,6 +101,7 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                                 haveFiltersChanged,
                                 dashboard?.uuid,
                                 dashboard?.name,
+                                activeTabUuid,
                             );
                             history.push(`/projects/${projectUuid}/tables`);
                         }}
@@ -117,6 +133,14 @@ const AddTileButton: FC<Props> = ({ onAddTiles, disabled }) => {
                     >
                         Loom video
                     </Menu.Item>
+                    {isDashboardTabsEnabled && (
+                        <Menu.Item
+                            onClick={() => setAddingTab(true)}
+                            icon={<MantineIcon icon={IconNewSection} />}
+                        >
+                            Add tab
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
 

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     type ApiError,
     type GitIntegrationConfiguration,
     type PullRequestCreated,
@@ -13,6 +14,7 @@ import {
     Group,
     Menu,
     Modal,
+    Text,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -34,6 +36,8 @@ import {
     IconHistory,
     IconLayoutGridAdd,
     IconPencil,
+    IconPin,
+    IconPinnedOff,
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
@@ -50,6 +54,7 @@ import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/compo
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import {
     useMoveChartMutation,
     useUpdateMutation,
@@ -151,7 +156,15 @@ const useCreatePullRequestForChartFieldsMutation = (
     );
 };
 
-const SavedChartsHeader: FC = () => {
+type SavedChartsHeaderProps = {
+    isPinned: boolean;
+    onTogglePin: () => void;
+};
+
+const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
+    isPinned,
+    onTogglePin,
+}) => {
     const { search } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -159,6 +172,10 @@ const SavedChartsHeader: FC = () => {
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
     const spaceUuid = useSearchParams('fromSpace');
+
+    const userTimeZonesEnabled = useFeatureFlagEnabled(
+        FeatureFlags.EnableUserTimezones,
+    );
 
     const history = useHistory();
     const isEditMode = useExplorerContext(
@@ -337,6 +354,14 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
+    const userCanPinChart = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     const handleGoBackClick = () => {
         if (hasUnsavedChanges && isEditMode) {
             history.block((prompt) => {
@@ -454,7 +479,13 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </PageTitleAndDetailsContainer>
-
+                {userTimeZonesEnabled &&
+                    savedChart?.metricQuery.timezone &&
+                    !isEditMode && (
+                        <Text color="gray" mr="sm" fz="xs">
+                            {savedChart?.metricQuery.timezone}
+                        </Text>
+                    )}
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
@@ -591,6 +622,27 @@ const SavedChartsHeader: FC = () => {
                                             Move to space
                                         </Menu.Item>
                                     )}
+
+                                {!chartBelongsToDashboard && userCanPinChart && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        icon={
+                                            isPinned ? (
+                                                <MantineIcon
+                                                    icon={IconPinnedOff}
+                                                />
+                                            ) : (
+                                                <MantineIcon icon={IconPin} />
+                                            )
+                                        }
+                                        onClick={onTogglePin}
+                                    >
+                                        {isPinned
+                                            ? 'Unpin from homepage'
+                                            : 'Pin to homepage'}
+                                    </Menu.Item>
+                                )}
 
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (

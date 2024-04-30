@@ -77,6 +77,44 @@ declare global {
     }
 }
 
+const schedulerWorkerFactory = (context: {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    serviceRepository: ServiceRepository;
+    models: ModelRepository;
+    clients: ClientRepository;
+    utils: UtilRepository;
+}) =>
+    new SchedulerWorker({
+        lightdashConfig: context.lightdashConfig,
+        analytics: context.analytics,
+        unfurlService: context.serviceRepository.getUnfurlService(),
+        csvService: context.serviceRepository.getCsvService(),
+        dashboardService: context.serviceRepository.getDashboardService(),
+        projectService: context.serviceRepository.getProjectService(),
+        schedulerService: context.serviceRepository.getSchedulerService(),
+        validationService: context.serviceRepository.getValidationService(),
+        userService: context.serviceRepository.getUserService(),
+        emailClient: context.clients.getEmailClient(),
+        googleDriveClient: context.clients.getGoogleDriveClient(),
+        s3Client: context.clients.getS3Client(),
+        schedulerClient: context.clients.getSchedulerClient(),
+        slackClient: context.clients.getSlackClient(),
+    });
+
+const slackBotFactory = (context: {
+    lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
+    serviceRepository: ServiceRepository;
+    models: ModelRepository;
+}) =>
+    new SlackBot({
+        lightdashConfig: context.lightdashConfig,
+        analytics: context.analytics,
+        slackAuthenticationModel: context.models.getSlackAuthenticationModel(),
+        unfurlService: context.serviceRepository.getUnfurlService(),
+    });
+
 type AppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
@@ -90,6 +128,8 @@ type AppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
+    slackBotFactory?: typeof slackBotFactory;
+    schedulerWorkerFactory?: typeof schedulerWorkerFactory;
 };
 
 export default class App {
@@ -114,6 +154,10 @@ export default class App {
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
+
+    private readonly slackBotFactory: typeof slackBotFactory;
+
+    private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -166,6 +210,9 @@ export default class App {
             clients: this.clients,
             models: this.models,
         });
+        this.slackBotFactory = args.slackBotFactory || slackBotFactory;
+        this.schedulerWorkerFactory =
+            args.schedulerWorkerFactory || schedulerWorkerFactory;
     }
 
     async start() {
@@ -181,7 +228,9 @@ export default class App {
 
         const expressApp = await this.initExpress();
         this.initSentry(expressApp);
-        this.initSlack();
+        this.initSlack().catch((e) => {
+            Logger.error('Error starting slack bot', e);
+        });
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
         }
@@ -404,21 +453,20 @@ export default class App {
         return expressApp;
     }
 
-    private initSlack() {
-        const slackBot = new SlackBot({
-            slackAuthenticationModel: this.models.getSlackAuthenticationModel(),
+    private async initSlack() {
+        const slackBot = this.slackBotFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-
-            // TODO: Do not use serviceRepository singleton here:
-            unfurlService: this.serviceRepository.getUnfurlService(),
+            serviceRepository: this.serviceRepository,
+            models: this.models,
         });
+        await slackBot.start();
     }
 
     private initSentry(expressApp: Express) {
         Sentry.init({
             release: VERSION,
-            dsn: this.lightdashConfig.sentry.dsn,
+            dsn: this.lightdashConfig.sentry.backend.dsn,
             environment:
                 this.environment === 'development'
                     ? 'development'
@@ -471,27 +519,13 @@ export default class App {
     }
 
     private initSchedulerWorker() {
-        this.schedulerWorker = new SchedulerWorker({
+        this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
-            // TODO: Do not use serviceRepository singleton:
-            ...{
-                unfurlService: this.serviceRepository.getUnfurlService(),
-                csvService: this.serviceRepository.getCsvService(),
-                dashboardService: this.serviceRepository.getDashboardService(),
-                projectService: this.serviceRepository.getProjectService(),
-                schedulerService: this.serviceRepository.getSchedulerService(),
-                validationService:
-                    this.serviceRepository.getValidationService(),
-                userService: this.serviceRepository.getUserService(),
-            },
-            ...{
-                emailClient: this.clients.getEmailClient(),
-                googleDriveClient: this.clients.getGoogleDriveClient(),
-                s3Client: this.clients.getS3Client(),
-                schedulerClient: this.clients.getSchedulerClient(),
-                slackClient: this.clients.getSlackClient(),
-            },
+            serviceRepository: this.serviceRepository,
+            models: this.models,
+            clients: this.clients,
+            utils: this.utils,
         });
 
         this.schedulerWorker.run().catch((e) => {

@@ -752,7 +752,7 @@ So, in Lightdash, I'd add a new environment variable and put `key` as `DBT_USER`
 This is used to access your repo.
 See the [instructions for creating a personal access token here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
 
-Select `read_repository` scope when you're creating the token.
+Select `read_repository` scope when you're creating the token. The token, if using a **project access token**, or the user, when using a **personal access token**, needs to have permission to download the code. Normally this would be the `Reporter` role.
 
 #### Repository
 

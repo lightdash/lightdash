@@ -49,9 +49,11 @@ import {
     getDimensions,
     getFields,
     getFilterRulesFromGroup,
+    getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
     hasIntersection,
+    IntrinsicUserAttributes,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -118,6 +120,7 @@ import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -170,6 +173,7 @@ type ProjectServiceArguments = {
     s3CacheClient: S3CacheClient;
     analyticsModel: AnalyticsModel;
     dashboardModel: DashboardModel;
+    emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     schedulerClient: SchedulerClient;
 };
@@ -205,6 +209,8 @@ export class ProjectService extends BaseService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    emailModel: EmailModel;
+
     schedulerClient: SchedulerClient;
 
     constructor({
@@ -222,6 +228,7 @@ export class ProjectService extends BaseService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        emailModel,
         schedulerClient,
     }: ProjectServiceArguments) {
         super();
@@ -240,6 +247,7 @@ export class ProjectService extends BaseService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
     }
 
@@ -398,16 +406,16 @@ export class ProjectService extends BaseService {
                 dbtConnectionType: createProject.dbtConnection.type,
                 isPreview: createProject.type === ProjectType.PREVIEW,
                 method,
-                copiedFromProjectUuid: data.copiedFromProjectUuid,
+                copiedFromProjectUuid: data.upstreamProjectUuid,
             },
         });
 
         let hasContentCopy = false;
 
-        if (data.copiedFromProjectUuid) {
+        if (data.upstreamProjectUuid) {
             try {
                 const { organizationUuid } = await this.projectModel.getSummary(
-                    data.copiedFromProjectUuid,
+                    data.upstreamProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
@@ -415,14 +423,14 @@ export class ProjectService extends BaseService {
                         'create',
                         subject('Project', {
                             organizationUuid,
-                            projectUuid: data.copiedFromProjectUuid,
+                            projectUuid: data.upstreamProjectUuid,
                         }),
                     )
                 ) {
                     throw new ForbiddenError();
                 }
                 await this.copyContentOnPreview(
-                    data.copiedFromProjectUuid,
+                    data.upstreamProjectUuid,
                     projectUuid,
                     user,
                 );
@@ -913,6 +921,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<[CompiledQuery, CompiledQuery]> {
@@ -974,6 +983,8 @@ export class ProjectService extends BaseService {
                 '"',
                 "'",
                 '\\',
+                warehouseClient.getAdapterType(),
+                warehouseClient.getStartOfWeek(),
             );
         });
 
@@ -998,6 +1009,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1027,6 +1039,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
@@ -1047,6 +1060,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         });
 
@@ -1125,10 +1139,31 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const timezoneMetricQuery = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
         const compiledQuery = await ProjectService._compileQuery(
-            metricQuery,
+            timezoneMetricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
         await sshTunnel.disconnect();
@@ -1650,9 +1685,12 @@ export class ProjectService extends BaseService {
             {},
             async (span) => {
                 // TODO: put this hash function in a util somewhere
+                const queryHashKey = metricQuery.timezone
+                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
-                    .update(`${projectUuid}.${query}`)
+                    .update(queryHashKey)
                     .digest('hex');
 
                 span.setAttribute('queryHash', queryHash);
@@ -1703,7 +1741,9 @@ export class ProjectService extends BaseService {
                     }
                 }
 
-                this.logger.debug(`Run query against warehouse warehouse`);
+                this.logger.debug(
+                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
+                );
                 const warehouseResults = await wrapOtelSpan(
                     'runWarehouseQuery',
                     {
@@ -1713,7 +1753,12 @@ export class ProjectService extends BaseService {
                         metricQuery: JSON.stringify(metricQuery),
                         type: warehouseClient.credentials.type,
                     },
-                    async () => warehouseClient.runQuery(query, queryTags),
+                    async () =>
+                        warehouseClient.runQuery(
+                            query,
+                            queryTags,
+                            metricQuery.timezone,
+                        ),
                 );
 
                 /**
@@ -1863,6 +1908,14 @@ export class ProjectService extends BaseService {
                             },
                         );
 
+                    const emailStatus =
+                        await this.emailModel.getPrimaryEmailStatus(
+                            user.userUuid,
+                        );
+                    const intrinsicUserAttributes = emailStatus.isVerified
+                        ? getIntrinsicUserAttributes(user)
+                        : {};
+
                     /**
                      * Note: most of this is temporary while testing out in-memory table calculations,
                      * so that we can more cleanly handle the feature-flagged behavior fork below.
@@ -1873,11 +1926,24 @@ export class ProjectService extends BaseService {
                     let tableCalculationsCompiledQuery:
                         | undefined
                         | CompiledQuery;
-
+                    const isTimezoneEnabled = await isFeatureFlagEnabled(
+                        FeatureFlags.EnableUserTimezones,
+                        {
+                            userUuid: user.userUuid,
+                            organizationUuid,
+                        },
+                    );
+                    const timezoneMetricQuery = {
+                        ...metricQueryWithLimit,
+                        timezone: isTimezoneEnabled
+                            ? metricQueryWithLimit.timezone
+                            : undefined,
+                    };
                     const compileQueryArgs = [
-                        metricQueryWithLimit,
+                        timezoneMetricQuery,
                         explore,
                         warehouseClient,
+                        intrinsicUserAttributes,
                         userAttributes,
                         granularity,
                     ] as const;
@@ -2016,6 +2082,7 @@ export class ProjectService extends BaseService {
                             context,
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
+                            timezone: metricQuery.timezone,
                         },
                     });
 
@@ -2041,12 +2108,19 @@ export class ProjectService extends BaseService {
                         warehouseClient.credentials.type,
                     );
 
+                    const metricQueryWithTimezone = {
+                        ...metricQuery,
+                        timezone: isTimezoneEnabled
+                            ? metricQuery.timezone
+                            : undefined,
+                    };
+
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery,
+                            metricQuery: metricQueryWithTimezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -2202,10 +2276,19 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3494,6 +3577,13 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const intrinsicUserAttributes = emailStatus.isVerified
+            ? getIntrinsicUserAttributes(user)
+            : {};
+
         const totalQuery: MetricQuery = {
             ...metricQuery,
             limit: 1,
@@ -3508,6 +3598,7 @@ export class ProjectService extends BaseService {
             totalQuery,
             explore,
             warehouseClient,
+            intrinsicUserAttributes,
             userAttributes,
         );
 
@@ -3567,10 +3658,22 @@ export class ProjectService extends BaseService {
             explore.warehouse,
         );
 
+        const isTimezoneEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.EnableUserTimezones,
+            {
+                userUuid: user.userUuid,
+                organizationUuid,
+            },
+        );
+        const metricQueryWithTimezone = {
+            ...metricQuery,
+            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
+        };
+
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             organizationUuid,
             warehouseClient,
         );
@@ -3912,7 +4015,7 @@ export class ProjectService extends BaseService {
                     chartUrl: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
                 })),
             ];
-            console.log('metrics', metrics);
+
             return metrics;
         }, []);
     }

@@ -412,6 +412,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
+                    tabs: [], // todo copy tabs over
                 },
                 user,
                 projectUuid,
@@ -531,6 +532,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: dashboard.tiles,
                     filters: dashboard.filters,
+                    tabs: dashboard.tabs || [],
                 },
                 user,
                 existingDashboardDao.projectUuid,
