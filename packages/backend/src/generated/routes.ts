@@ -3110,7 +3110,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_':
+    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -3137,6 +3137,7 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     isPrivate: { dataType: 'boolean', required: true },
+                    slug: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
@@ -3188,7 +3189,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_',
+                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -4344,6 +4345,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 access: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SpaceShare' },
@@ -4507,6 +4509,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                slug: { dataType: 'string', required: true },
                 tableName: { dataType: 'string', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 pivotConfig: {
@@ -5278,6 +5281,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 pinnedListOrder: {
                     dataType: 'union',
                     subSchemas: [

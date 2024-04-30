@@ -322,6 +322,7 @@ export type SavedChart = {
     colorPalette: string[];
     isPrivate: boolean;
     access: SpaceShare[];
+    slug: string;
 };
 
 type CreateChartBase = Pick<
@@ -333,6 +334,7 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
+    | 'slug'
 >;
 
 export type CreateChartInSpace = CreateChartBase & {

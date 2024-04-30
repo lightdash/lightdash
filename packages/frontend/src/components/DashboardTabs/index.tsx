@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Menu, Tabs } from '@mantine/core';
 import { useProfiler } from '@sentry/react';
-import { IconPencil, IconPlus } from '@tabler/icons-react';
+import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useHistory } from 'react-router-dom';
@@ -186,7 +186,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             const newTabs = dashboardTabs ? [...dashboardTabs] : [];
             if (!dashboardTabs?.length) {
                 const firstTab = {
-                    name: 'Default',
+                    name: 'Tab 1',
                     uuid: uuid4(),
                     isDefault: true,
                     order: 0,
@@ -271,6 +271,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     );
                 }
             }}
+            style={{
+                paddingTop: 5,
+            }}
         >
             {sortedTabs && sortedTabs?.length > 0 && (
                 <Group
@@ -291,10 +294,23 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     <Tabs.List>
                         {sortedTabs?.map((tab, idx) => {
                             return (
-                                <Tabs.Tab key={idx} value={tab.uuid} mx="md">
-                                    <Group>
+                                <Tabs.Tab
+                                    key={idx}
+                                    value={tab.uuid}
+                                    mx="md"
+                                    style={{
+                                        marginLeft: 0,
+                                        marginRight: 0,
+                                    }}
+                                >
+                                    <Group
+                                        style={{
+                                            paddingLeft: 16,
+                                            paddingRight: 16,
+                                        }}
+                                    >
                                         {tab.name}
-                                        {tab === activeTab && isEditMode ? (
+                                        {isEditMode ? (
                                             <Menu
                                                 position="bottom"
                                                 withArrow
@@ -308,7 +324,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                         size="xs"
                                                     >
                                                         <MantineIcon
-                                                            icon={IconPencil}
+                                                            icon={IconDots}
                                                         />
                                                     </ActionIcon>
                                                 </Menu.Target>
@@ -317,19 +333,34 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                         onClick={() =>
                                                             setEditingTab(true)
                                                         }
+                                                        icon={
+                                                            <IconPencil
+                                                                size={14}
+                                                            />
+                                                        }
                                                     >
                                                         Rename Tab
                                                     </Menu.Item>
-                                                    {sortedTabs.length === 1 ? (
+                                                    {sortedTabs.length === 1 ||
+                                                    !currentTabHasTiles ? (
                                                         <Menu.Item
-                                                            onClick={() =>
+                                                            onClick={(e) => {
                                                                 handleDeleteTab(
                                                                     tab.uuid,
-                                                                )
+                                                                );
+                                                                e.stopPropagation();
+                                                            }}
+                                                            color="red"
+                                                            icon={
+                                                                <IconTrash
+                                                                    size={14}
+                                                                />
                                                             }
                                                         >
-                                                            Remove Tabs
-                                                            Component
+                                                            {sortedTabs.length ===
+                                                            1
+                                                                ? 'Remove Tabs Component'
+                                                                : 'Remove Tab'}
                                                         </Menu.Item>
                                                     ) : (
                                                         <Menu.Item
@@ -337,6 +368,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 setDeletingTab(
                                                                     true,
                                                                 )
+                                                            }
+                                                            color="red"
+                                                            icon={
+                                                                <IconTrash
+                                                                    size={14}
+                                                                />
                                                             }
                                                         >
                                                             Remove Tab
@@ -349,19 +386,22 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 </Tabs.Tab>
                             );
                         })}
+                        {isEditMode && (
+                            <Group>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    leftIcon={<MantineIcon icon={IconPlus} />}
+                                    onClick={() => setAddingTab(true)}
+                                    style={{
+                                        borderWidth: 0,
+                                    }}
+                                >
+                                    Add
+                                </Button>
+                            </Group>
+                        )}
                     </Tabs.List>
-                    {isEditMode && (
-                        <Group>
-                            <Button
-                                size="xs"
-                                variant="default"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
-                                onClick={() => setAddingTab(true)}
-                            >
-                                Add new tab
-                            </Button>
-                        </Group>
-                    )}
                 </Group>
             )}
             <ResponsiveGridLayout
@@ -417,6 +457,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     }
                     isEditMode={isEditMode}
                     setAddingTab={setAddingTab}
+                    activeTabUuid={activeTab?.uuid}
                 />
             )}
             <TabAddModal

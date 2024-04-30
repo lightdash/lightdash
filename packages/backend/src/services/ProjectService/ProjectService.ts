@@ -4106,7 +4106,7 @@ export class ProjectService extends BaseService {
         if (!upstreamProjectUuid)
             throw new Error('This chart does not have an upstream project');
 
-        const slug = `/charts/${chartUuid}`; // TODO replace with chart.slug
+        const { slug } = promotedChart;
         if (!slug) {
             // We could create a new slug here on the fly if needed
             throw new Error('This chart does not have a valid identifier');
@@ -4154,6 +4154,7 @@ export class ProjectService extends BaseService {
                     space.name,
                     user.userId,
                     space.isPrivate,
+                    space.slug,
                 );
                 newSpaceUuid = newSpace.uuid;
                 // TODO set right private permissions after creation
@@ -4167,12 +4168,12 @@ export class ProjectService extends BaseService {
                 dashboardUuid: undefined, // We don't copy charts within dashboards
                 spaceUuid: newSpaceUuid,
                 updatedByUser: promotedChart.updatedByUser!,
+                slug: promotedChart.slug,
             };
             const newChart = await this.savedChartModel.create(
                 upstreamProjectUuid,
                 user.userUuid,
                 newChartData,
-                // TODO let's make sure we're using the same slug here
             );
             return newChart;
         }
@@ -4196,6 +4197,7 @@ export class ProjectService extends BaseService {
                     metricQuery: promotedChart.metricQuery,
                     chartConfig: promotedChart.chartConfig,
                     tableConfig: promotedChart.tableConfig,
+                    slug: promotedChart.slug,
                 },
                 user,
             );

@@ -11,6 +11,7 @@ import {
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
+    generateSlug,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -353,8 +354,13 @@ export class SavedChartService extends BaseService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid, dashboardUuid } =
-            await this.savedChartModel.getSummary(savedChartUuid);
+        const {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            dashboardUuid,
+            name,
+        } = await this.savedChartModel.getSummary(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -683,6 +689,7 @@ export class SavedChartService extends BaseService {
             user.userUuid,
             {
                 ...savedChart,
+                slug: generateSlug(savedChart.name),
                 updatedByUser: user,
             },
         );
@@ -742,6 +749,7 @@ export class SavedChartService extends BaseService {
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
+            slug: generateSlug(data.chartName),
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {

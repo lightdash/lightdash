@@ -1,4 +1,5 @@
 import { type ApiError, type SavedChart } from '@lightdash/common';
+import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
@@ -18,10 +19,18 @@ export const usePromoteMutation = () => {
         {
             mutationKey: ['promote_chart'],
             onSuccess: (data) => {
-                console.debug(data);
                 showToastSuccess({
                     title: `Success! Chart was promoted.`,
-                    //TODO show link to promoted chart
+                    action: {
+                        children: 'Open chart',
+                        icon: IconArrowRight,
+                        onClick: () => {
+                            window.open(
+                                `/projects/${data.projectUuid}/saved/${data.uuid}`,
+                                '_blank',
+                            );
+                        },
+                    },
                 });
             },
             onError: (error) => {
