@@ -150,8 +150,8 @@ const useToaster = () => {
                 apiError: ApiErrorDetail;
             },
         ) => {
-            let title: ReactNode | undefined = props.title ?? 'Error';
-            let subtitle: ReactNode = props.apiError.id ? (
+            const title: ReactNode | undefined = props.title ?? 'Error';
+            const subtitle: ReactNode = props.apiError.id ? (
                 <p>
                     <span>{props.apiError.message}</span>
                     <br />
