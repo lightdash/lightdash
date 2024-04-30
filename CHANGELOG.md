@@ -1,3 +1,10 @@
+# [0.1078.0](https://github.com/lightdash/lightdash/compare/0.1077.2...0.1078.0) (2024-04-30)
+
+
+### Features
+
+* show error ID for unexpected errors ([#9921](https://github.com/lightdash/lightdash/issues/9921)) ([b9c874d](https://github.com/lightdash/lightdash/commit/b9c874d7c6497203920fbf1823e79b9edbbeadd2))
+
 ## [0.1077.2](https://github.com/lightdash/lightdash/compare/0.1077.1...0.1077.2) (2024-04-30)
 
 
