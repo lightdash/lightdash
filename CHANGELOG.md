@@ -1,3 +1,11 @@
+## [0.1081.2](https://github.com/lightdash/lightdash/compare/0.1081.1...0.1081.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* get filters object from combined filters group, this will always flatten and get rid of any unecessary nesting ([#9874](https://github.com/lightdash/lightdash/issues/9874)) ([1e5bc64](https://github.com/lightdash/lightdash/commit/1e5bc64753f42922977b32852e7c084ea1fff799))
+* only apply min/max for numeric axis ([#9941](https://github.com/lightdash/lightdash/issues/9941)) ([d44c2b6](https://github.com/lightdash/lightdash/commit/d44c2b62580b8d2d68c47a6769b00b4027f2b609))
+
 ## [0.1081.1](https://github.com/lightdash/lightdash/compare/0.1081.0...0.1081.1) (2024-04-30)
 
 
