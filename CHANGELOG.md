@@ -1,3 +1,10 @@
+## [0.1079.3](https://github.com/lightdash/lightdash/compare/0.1079.2...0.1079.3) (2024-04-30)
+
+
+### Bug Fixes
+
+* missing formatting in model level metrics ([#9926](https://github.com/lightdash/lightdash/issues/9926)) ([bf655de](https://github.com/lightdash/lightdash/commit/bf655ded653b7c038c34930c00287b4d0683c4db))
+
 ## [0.1079.2](https://github.com/lightdash/lightdash/compare/0.1079.1...0.1079.2) (2024-04-30)
 
 
