@@ -1,3 +1,10 @@
+## [0.1081.1](https://github.com/lightdash/lightdash/compare/0.1081.0...0.1081.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* use github ci token ([#9940](https://github.com/lightdash/lightdash/issues/9940)) ([610acaa](https://github.com/lightdash/lightdash/commit/610acaa033aac00a8be44a739cb309736441bc63))
+
 # [0.1081.0](https://github.com/lightdash/lightdash/compare/0.1080.0...0.1081.0) (2024-04-30)
 
 
