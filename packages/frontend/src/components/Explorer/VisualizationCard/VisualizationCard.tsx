@@ -6,7 +6,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { downloadCsv } from '../../../api/csv';
-import { ComponentErrorBoundary } from '../../../features/errorBoundary';
+import { ErrorBoundary } from '../../../features/errorBoundary';
 import { type EChartSeries } from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -159,7 +159,7 @@ const VisualizationCard: FC<{
     }
 
     return (
-        <ComponentErrorBoundary>
+        <ErrorBoundary>
             <VisualizationProvider
                 chartConfig={unsavedChartVersion.chartConfig}
                 initialPivotDimensions={
@@ -218,7 +218,7 @@ const VisualizationCard: FC<{
                     />
                 </CollapsableCard>
             </VisualizationProvider>
-        </ComponentErrorBoundary>
+        </ErrorBoundary>
     );
 });
 

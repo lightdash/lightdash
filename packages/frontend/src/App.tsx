@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
-import { PageErrorBoundary } from './features/errorBoundary';
+import { ErrorBoundary } from './features/errorBoundary';
 import { ChartColorMappingContextProvider } from './hooks/useChartColorConfig';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
@@ -40,7 +40,7 @@ const App = () => (
                         <ThirdPartyProvider
                             enabled={isMobile || !isMinimalPage}
                         >
-                            <PageErrorBoundary>
+                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
                                 <TrackingProvider
                                     enabled={isMobile || !isMinimalPage}
                                 >
@@ -58,7 +58,7 @@ const App = () => (
                                         </ActiveJobProvider>
                                     </AbilityContext.Provider>
                                 </TrackingProvider>
-                            </PageErrorBoundary>
+                            </ErrorBoundary>
                         </ThirdPartyProvider>
                     </AppProvider>
                 </Router>

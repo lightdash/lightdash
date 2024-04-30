@@ -1,2 +1,1 @@
-export { ComponentErrorBoundary } from './components/ComponentErrorBoundary';
-export { PageErrorBoundary } from './components/PageErrorBoundary';
+export { ErrorBoundary } from './components/ErrorBoundary';

@@ -3,7 +3,7 @@ import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
-import { PageErrorBoundary } from '../../../features/errorBoundary';
+import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -195,14 +195,18 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             <Box className={classes.root}>
                 {sidebar ? (
                     <Sidebar isOpen={isSidebarOpen}>
-                        <PageErrorBoundary>{sidebar}</PageErrorBoundary>
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            {sidebar}
+                        </ErrorBoundary>
                         {withSidebarFooter ? <AboutFooter minimal /> : null}
                     </Sidebar>
                 ) : null}
 
                 <Box component="main" className={classes.content}>
                     <TrackSection name={SectionName.PAGE_CONTENT}>
-                        <PageErrorBoundary>{children}</PageErrorBoundary>
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            {children}
+                        </ErrorBoundary>
                     </TrackSection>
                 </Box>
 
