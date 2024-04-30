@@ -57,7 +57,12 @@ jobs:
         if: steps.semantic.outputs.new_release_published == 'true'
         run: |
           curl -X POST \
-            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d '{"event_type": "sentry-release", "client_payload": {"version": "${{ steps.semantic.outputs.new_release_version }}", "environment": "production"}}' \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.CI_GITHUB_TOKEN }}" \
+            -d '{
+                  "ref": "main",
+                  "inputs": {
+                    "version": "${{ steps.semantic.outputs.new_release_version }}",
+                  }
+                }' \
             https://api.github.com/repos/lightdash/lightdash/actions/workflows/create-sentry-release.yml/dispatches
