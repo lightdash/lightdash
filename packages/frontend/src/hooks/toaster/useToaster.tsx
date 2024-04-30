@@ -1,15 +1,26 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Button, Stack, type ButtonProps } from '@mantine/core';
+import {
+    ActionIcon,
+    Button,
+    CopyButton,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+    type ButtonProps,
+} from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import { type PolymorphicComponentProps } from '@mantine/utils';
 import {
     IconAlertTriangleFilled,
+    IconCheck,
     IconCircleCheckFilled,
+    IconCopy,
     IconInfoCircleFilled,
     type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useCallback, useRef, type ReactNode } from 'react';
+import React, { useCallback, useRef, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -152,14 +163,37 @@ const useToaster = () => {
         ) => {
             const title: ReactNode | undefined = props.title ?? 'Error';
             const subtitle: ReactNode = props.apiError.id ? (
-                <p>
-                    <span>{props.apiError.message}</span>
-                    <br />
-                    <span style={{ fontWeight: 'bold' }}>
-                        Please contact support with the error ID:{' '}
-                        {props.apiError.id}
-                    </span>
-                </p>
+                <>
+                    <Text mb={0}>{props.apiError.message}</Text>
+                    <Text mb={0} weight="bold">
+                        Please contact support with the error ID:
+                    </Text>
+                    <Group>
+                        <Text mb={0} weight="bold">
+                            {props.apiError.id}
+                        </Text>
+                        <CopyButton value={props.apiError.id}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy error ID'}
+                                    withArrow
+                                    position="right"
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        onClick={copy}
+                                        variant={'transparent'}
+                                    >
+                                        <MantineIcon
+                                            color={'white'}
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    </Group>
+                </>
             ) : (
                 props.apiError.message
             );
