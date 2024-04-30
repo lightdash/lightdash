@@ -495,7 +495,10 @@ export default class App {
                 ) {
                     return 0.0;
                 }
-                return 0.2;
+                if (context.parentSampled !== undefined) {
+                    return context.parentSampled;
+                }
+                return 0.5;
             },
             beforeBreadcrumb(breadcrumb) {
                 if (
