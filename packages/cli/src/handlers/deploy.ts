@@ -102,6 +102,8 @@ const createNewProject = async (
         projectName = options.create;
     }
 
+    projectName = projectName.trim();
+
     // Create the project
     console.error('');
     const spinner = GlobalState.startSpinner(
