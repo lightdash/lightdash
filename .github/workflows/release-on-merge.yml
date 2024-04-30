@@ -58,7 +58,7 @@ jobs:
         run: |
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.CI_GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
             -d '{
                   "ref": "main",
                   "inputs": {

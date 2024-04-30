@@ -1,16 +1,19 @@
 name: Create Sentry release
 on:
-    repository_dispatch:
-        types: [sentry-release]
+    workflow_dispatch:
+        inputs:
+            version:
+                required: true
+                description: 'Release version number'
 
 jobs:
     create-sentry-release:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-            - uses: actions/setup-node@v3
+            - uses: actions/setup-node@v4
               with:
                   node-version: '20'
                   cache: 'yarn'
@@ -27,6 +30,6 @@ jobs:
                   SENTRY_ORG: lightdash
                   SENTRY_PROJECT: lightdash-frontend
               with:
-                  environment: ${{ github.event.client_payload.environment }}
-                  version: ${{ github.event.client_payload.version }}
+                  version: ${{ github.event.inputs.version }}
+                  environment: 'cloud-beta'
                   sourcemaps: './packages/frontend/build/assets/'
