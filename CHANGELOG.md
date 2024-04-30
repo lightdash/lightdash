@@ -1,3 +1,10 @@
+## [0.1077.2](https://github.com/lightdash/lightdash/compare/0.1077.1...0.1077.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* keep identical filter settings if they exist when overriding ([#9928](https://github.com/lightdash/lightdash/issues/9928)) ([b1c0a64](https://github.com/lightdash/lightdash/commit/b1c0a64fcbd153f8fd04b63d18a401bed6909356))
+
 ## [0.1077.1](https://github.com/lightdash/lightdash/compare/0.1077.0...0.1077.1) (2024-04-30)
 
 
