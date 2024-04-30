@@ -1,3 +1,11 @@
+# [0.1081.0](https://github.com/lightdash/lightdash/compare/0.1080.0...0.1081.0) (2024-04-30)
+
+
+### Features
+
+* enable inp ([#9935](https://github.com/lightdash/lightdash/issues/9935)) ([9ac617a](https://github.com/lightdash/lightdash/commit/9ac617aacfde71f6d75074a8189dd11ccde580a8))
+* improve sentry config on backend ([#9933](https://github.com/lightdash/lightdash/issues/9933)) ([dd4879d](https://github.com/lightdash/lightdash/commit/dd4879d25b46827198fd5c03666064c2ca560fd9))
+
 # [0.1080.0](https://github.com/lightdash/lightdash/compare/0.1079.3...0.1080.0) (2024-04-30)
 
 
