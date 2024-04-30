@@ -37,7 +37,7 @@ export const usePasswordResetLink = (code: string) =>
     });
 
 export const usePasswordResetLinkMutation = () => {
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, CreatePasswordResetLink>(
         sendPasswordResetLinkQuery,
         {
@@ -47,10 +47,10 @@ export const usePasswordResetLinkMutation = () => {
                     title: 'Password recovery email sent successfully',
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to send password recovery email`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -58,7 +58,7 @@ export const usePasswordResetLinkMutation = () => {
 };
 
 export const usePasswordResetMutation = () => {
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, PasswordReset>(resetPasswordQuery, {
         mutationKey: ['reset_password'],
         onSuccess: async () => {
@@ -66,10 +66,10 @@ export const usePasswordResetMutation = () => {
                 title: 'Password updated successfully',
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to reset password`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

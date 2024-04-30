@@ -638,11 +638,12 @@ export type ApiResponse<T extends ApiResults = ApiResults> = {
     results: T;
 };
 
-type ApiErrorDetail = {
+export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
     data: { [key: string]: string };
+    id?: string;
 };
 export type ApiError = {
     status: 'error';

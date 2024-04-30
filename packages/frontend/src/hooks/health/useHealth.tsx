@@ -24,23 +24,17 @@ const useHealth = (
         ...useQueryOptions,
     });
 
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
 
     useEffect(() => {
         if (health.error) {
-            const [first, ...rest] = health.error.error.message.split('\n');
-            showToastError({
-                key: first,
-                subtitle: (
-                    <div style={{ color: 'white' }}>
-                        <b>{first}</b>
-                        <p>{rest.join('\n')}</p>
-                    </div>
-                ),
+            showToastApiError({
+                key: 'health',
                 autoClose: false,
+                apiError: health.error.error,
             });
         }
-    }, [health, showToastError]);
+    }, [health, showToastApiError]);
 
     return health;
 };

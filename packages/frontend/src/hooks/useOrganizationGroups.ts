@@ -69,7 +69,7 @@ const createGroupQuery = async (data: CreateGroup) =>
 
 export const useGroupCreateMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Group, ApiError, CreateGroup>(
         (data) => createGroupQuery(data),
         {
@@ -82,10 +82,10 @@ export const useGroupCreateMutation = () => {
                     title: `Success! Group was created.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create group`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -106,7 +106,7 @@ const updateGroupQuery = async (
 
 export const useGroupUpdateMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Group,
         ApiError,
@@ -120,10 +120,10 @@ export const useGroupUpdateMutation = () => {
                 title: `Success! Group '${group.name}' was updated.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to update group`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -138,7 +138,7 @@ const deleteGroupQuery = async (data: Group) =>
 
 export const useGroupDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Group, ApiError, Group>(
         (data) => deleteGroupQuery(data),
         {
@@ -151,10 +151,10 @@ export const useGroupDeleteMutation = () => {
                     title: `Success! Group '${deletedGroup.name}' was deleted.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to delete group`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

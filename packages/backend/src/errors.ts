@@ -13,5 +13,6 @@ export const errorHandler = (error: Error): LightdashError => {
     if (error instanceof LightdashError) {
         return error;
     }
-    return new UnexpectedServerError(`${error}`);
+    // Return a generic error to avoid exposing internal details
+    return new UnexpectedServerError();
 };
