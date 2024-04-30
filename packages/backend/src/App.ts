@@ -1,7 +1,6 @@
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
-import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -477,7 +476,7 @@ export default class App {
                     : this.lightdashConfig.mode,
             integrations: [
                 new Sentry.Integrations.Http({ tracing: true }),
-                new Tracing.Integrations.Express({
+                new Sentry.Integrations.Express({
                     app: expressApp,
                 }),
             ],
