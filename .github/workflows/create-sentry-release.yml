@@ -10,6 +10,12 @@ jobs:
             - uses: actions/checkout@v3
               with:
                   fetch-depth: 0
+            - uses: actions/setup-node@v3
+              with:
+                  node-version: '20'
+                  cache: 'yarn'
+            - name: Install packages
+              run: yarn install --frozen-lockfile
             - name: Build
               run: yarn workspace frontend build
             - name: List output files - debugging
