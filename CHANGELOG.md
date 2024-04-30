@@ -1,3 +1,10 @@
+## [0.1079.1](https://github.com/lightdash/lightdash/compare/0.1079.0...0.1079.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* exclude snowflake info logs ([#9929](https://github.com/lightdash/lightdash/issues/9929)) ([dceb2b6](https://github.com/lightdash/lightdash/commit/dceb2b6f2558309392f2f91e4619c51bcdad48a3))
+
 # [0.1079.0](https://github.com/lightdash/lightdash/compare/0.1078.0...0.1079.0) (2024-04-30)
 
 
