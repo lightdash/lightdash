@@ -2,7 +2,7 @@ import { generateSlug } from './utils/slugs';
 
 describe('Slug', () => {
     test('should generate space slugs', async () => {
-        expect(generateSlug('my space name')).toEqual('spaces/my-space-name');
+        expect(generateSlug('my space name')).toEqual('my-space-name');
 
         expect(generateSlug('my space name')).toEqual('my-space-name');
 
