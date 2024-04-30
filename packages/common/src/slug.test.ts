@@ -18,9 +18,7 @@ describe('Slug', () => {
     test('should generate chart slugs', async () => {
         expect(
             generateSlug('a CHART_NAME.with!special?chars/and\\slashes'),
-        ).toEqual(
-            'a-space-name-with-special-chars-and-slashes/a-chart-name-with-special-chars-and-slashes',
-        );
+        ).toEqual('a-chart-name-with-special-chars-and-slashes');
     });
 
     test('should generate dashboard slugs', async () => {
