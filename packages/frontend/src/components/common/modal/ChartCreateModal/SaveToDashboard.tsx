@@ -76,6 +76,7 @@ export const SaveToDashboard: FC<Props> = ({
         clearIsEditingDashboardChart,
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
+        getDashboardActiveTabUuid,
     } = useDashboardStorage();
     const unsavedDashboardTiles = getUnsavedDashboardTiles();
     const form = useForm<FormValues>({
@@ -85,6 +86,8 @@ export const SaveToDashboard: FC<Props> = ({
         },
         validate: zodResolver(validationSchema),
     });
+
+    const activeTabUuid = getDashboardActiveTabUuid();
 
     const handleSaveChartInDashboard = useCallback(
         async (values: SaveToDashboardFormValues) => {
@@ -101,7 +104,7 @@ export const SaveToDashboard: FC<Props> = ({
             const newTile: CreateDashboardChartTile = {
                 uuid: uuid4(),
                 type: DashboardTileTypes.SAVED_CHART,
-                tabUuid: undefined,
+                tabUuid: activeTabUuid ?? undefined,
                 properties: {
                     belongsToDashboard: true,
                     savedChartUuid: chart.uuid,
@@ -132,6 +135,7 @@ export const SaveToDashboard: FC<Props> = ({
             projectUuid,
             showToastSuccess,
             dashboardName,
+            activeTabUuid,
         ],
     );
     return (

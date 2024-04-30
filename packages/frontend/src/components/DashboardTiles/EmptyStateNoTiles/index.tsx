@@ -23,6 +23,7 @@ interface SavedChartsAvailableProps {
     emptyContainerType?: 'dashboard' | 'tab';
     isEditMode: boolean;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    activeTabUuid?: string;
 }
 
 const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
@@ -30,6 +31,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
     emptyContainerType = 'dashboard',
     isEditMode,
     setAddingTab,
+    activeTabUuid,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
@@ -70,6 +72,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                                 <AddTileButton
                                     onAddTiles={onAddTiles}
                                     setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
                                 />
                             ) : undefined
                         }

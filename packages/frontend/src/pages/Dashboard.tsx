@@ -605,6 +605,7 @@ const Dashboard: FC = () => {
                         oldestCacheTime={oldestCacheTime}
                         isFullscreen={isFullscreen}
                         isPinned={isPinned}
+                        activeTabUuid={activeTab?.uuid}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
