@@ -4162,6 +4162,7 @@ export class ProjectService extends BaseService {
 
             // Create new chart
             const newChartData: CreateSavedChart & {
+                slug: string;
                 updatedByUser: UpdatedByUser;
             } = {
                 ...promotedChart,
@@ -4197,7 +4198,6 @@ export class ProjectService extends BaseService {
                     metricQuery: promotedChart.metricQuery,
                     chartConfig: promotedChart.chartConfig,
                     tableConfig: promotedChart.tableConfig,
-                    slug: promotedChart.slug,
                 },
                 user,
             );
