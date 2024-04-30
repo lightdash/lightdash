@@ -665,6 +665,11 @@ const findAndOverrideChartFilter = (
               ...item,
               id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
+              ...(identicalDashboardFilter.settings
+                  ? {
+                        settings: identicalDashboardFilter.settings,
+                    }
+                  : {}),
           }
         : item;
 };
