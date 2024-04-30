@@ -1,3 +1,10 @@
+# [0.1079.0](https://github.com/lightdash/lightdash/compare/0.1078.0...0.1079.0) (2024-04-30)
+
+
+### Features
+
+* create sentry release and publish sourcemaps ([#9920](https://github.com/lightdash/lightdash/issues/9920)) ([2b2b99b](https://github.com/lightdash/lightdash/commit/2b2b99bc9f04d739778aff4d4aacfa11dffc0b3f))
+
 # [0.1078.0](https://github.com/lightdash/lightdash/compare/0.1077.2...0.1078.0) (2024-04-30)
 
 
