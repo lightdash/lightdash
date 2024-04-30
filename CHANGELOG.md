@@ -1,3 +1,10 @@
+## [0.1079.2](https://github.com/lightdash/lightdash/compare/0.1079.1...0.1079.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* correct identation on sentry release dispatch ([#9932](https://github.com/lightdash/lightdash/issues/9932)) ([2798282](https://github.com/lightdash/lightdash/commit/2798282e8bc14f410a41c66ac77229726028d8cc))
+
 ## [0.1079.1](https://github.com/lightdash/lightdash/compare/0.1079.0...0.1079.1) (2024-04-30)
 
 
