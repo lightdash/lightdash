@@ -257,7 +257,7 @@ export class DashboardService extends BaseService {
     async create(
         user: SessionUser,
         projectUuid: string,
-        dashboard: Omit<CreateDashboard, 'slug'>,
+        dashboard: CreateDashboard,
     ): Promise<Dashboard> {
         const getFirstSpace = async () => {
             const space = await this.spaceModel.getFirstAccessibleSpace(

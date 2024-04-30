@@ -715,7 +715,7 @@ export class DashboardModel {
 
     async create(
         spaceUuid: string,
-        dashboard: CreateDashboard,
+        dashboard: CreateDashboard & { slug: string },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {
