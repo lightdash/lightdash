@@ -1,3 +1,10 @@
+## [0.1077.1](https://github.com/lightdash/lightdash/compare/0.1077.0...0.1077.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* trim project name whitespace on CLI handler ([#9663](https://github.com/lightdash/lightdash/issues/9663)) ([239ecef](https://github.com/lightdash/lightdash/commit/239ecefd2153b797cf09aca0bd181c7cdf70d1d9))
+
 # [0.1077.0](https://github.com/lightdash/lightdash/compare/0.1076.6...0.1077.0) (2024-04-29)
 
 
