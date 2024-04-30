@@ -53,3 +53,11 @@ jobs:
             -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
             -d '{"ref": "main", "inputs": {"lightdash-version": "${{ steps.semantic.outputs.new_release_version }}"}}' \
             https://api.github.com/repos/lightdash/helm-charts/action/workflows/increment-lightdash-app-version.yml/dispatches
+            - name: Trigger Sentry release
+            if: steps.semantic.outputs.new_release_published == 'true'
+            run: |
+                curl -X POST \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                -d '{"event_type": "sentry-release", "client_payload": {"version": "${{ steps.semantic.outputs.new_release_version }}", "environment": "production"}}' \
+                https://api.github.com/repos/lightdash/lightdash/actions/workflows/create-sentry-release.yml/dispatches

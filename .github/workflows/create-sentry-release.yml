@@ -1,0 +1,32 @@
+name: Create Sentry release
+on:
+    repository_dispatch:
+        types: [sentry-release]
+
+jobs:
+    create-sentry-release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - uses: actions/setup-node@v3
+              with:
+                  node-version: '20'
+                  cache: 'yarn'
+            - name: Install packages
+              run: yarn install --frozen-lockfile
+            - name: Build
+              run: yarn workspace frontend build
+            - name: List output files - debugging
+              run: ls -R ./packages/frontend/build/assets/
+            - name: Create Sentry release
+              uses: getsentry/action-release@v1
+              env:
+                  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+                  SENTRY_ORG: lightdash
+                  SENTRY_PROJECT: lightdash-frontend
+              with:
+                  environment: ${{ github.event.client_payload.environment }}
+                  version: ${{ github.event.client_payload.version }}
+                  sourcemaps: './packages/frontend/build/assets/'
