@@ -743,6 +743,7 @@ export class SavedChartService extends BaseService {
         }
         let duplicatedChart: CreateSavedChart & {
             updatedByUser: UpdatedByUser;
+            slug: string;
         };
         const base = {
             ...chart,
