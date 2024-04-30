@@ -4,11 +4,12 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
     IconCheck,
     IconChevronRight,
     IconCopy,
+    IconDatabaseExport,
     IconDots,
     IconEdit,
     IconFolders,
@@ -20,6 +21,8 @@ import {
 } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { useProject } from '../../../hooks/useProject';
+import { usePromoteMutation } from '../../../hooks/usePromoteChart';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../Authorization';
@@ -63,6 +66,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { user } = useApp();
     const location = useLocation();
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const isPinned = !!item.data.pinnedListUuid;
@@ -92,6 +96,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             [SpaceType.AdminContentView]: spacesAdminsCanSee,
         };
     }, [spaces, user.data]);
+
+    const { mutate: promoteChart } = usePromoteMutation();
+
+    const userCanPromoteChart = user.data?.ability?.can(
+        'promote',
+        subject('SavedChart', {
+            organizationUuid,
+            projectUuid,
+        }),
+    );
 
     switch (item.type) {
         case ResourceViewItemType.CHART: {
@@ -224,6 +238,33 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         Add to Dashboard
                     </Menu.Item>
                 )}
+                {userCanPromoteChart &&
+                    item.type === ResourceViewItemType.CHART && (
+                        <Tooltip
+                            label="You must enable first an upstram project in settings > Data ops"
+                            disabled={
+                                project?.upstreamProjectUuid !== undefined
+                            }
+                            withinPortal
+                        >
+                            <div>
+                                <Menu.Item
+                                    disabled={
+                                        project?.upstreamProjectUuid ===
+                                        undefined
+                                    }
+                                    icon={
+                                        <MantineIcon
+                                            icon={IconDatabaseExport}
+                                        />
+                                    }
+                                    onClick={() => promoteChart(item.data.uuid)}
+                                >
+                                    Promote chart
+                                </Menu.Item>
+                            </div>
+                        </Tooltip>
+                    )}
 
                 {user.data?.ability.can(
                     'manage',
