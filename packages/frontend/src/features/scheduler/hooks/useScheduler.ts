@@ -130,7 +130,10 @@ export const useSendNowScheduler = () => {
 
     const { data: sendNowData } = sendNowMutation;
 
-    const { data: scheduledDeliveryJobStatus } = useQuery(
+    const { data: scheduledDeliveryJobStatus } = useQuery<
+        ApiJobStatusResponse['results'] | undefined,
+        ApiError
+    >(
         ['jobStatus', sendNowData?.jobId],
         () => {
             if (!sendNowData?.jobId) return;
@@ -190,9 +193,9 @@ export const useSendNowScheduler = () => {
                 }
             },
             onError: async ({ error }) => {
-                showToastError({
+                showToastApiError({
                     title: 'Error polling job status',
-                    subtitle: error?.error?.message,
+                    apiError: error,
                 });
 
                 setTimeout(
