@@ -1,3 +1,10 @@
+# [0.1082.0](https://github.com/lightdash/lightdash/compare/0.1081.5...0.1082.0) (2024-05-01)
+
+
+### Features
+
+* new resource-slugs ([#9875](https://github.com/lightdash/lightdash/issues/9875)) ([8ab18df](https://github.com/lightdash/lightdash/commit/8ab18dfce2f89c8215f30c52176d844a17aad5d5))
+
 ## [0.1081.5](https://github.com/lightdash/lightdash/compare/0.1081.4...0.1081.5) (2024-05-01)
 
 
