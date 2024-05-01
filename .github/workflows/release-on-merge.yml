@@ -55,6 +55,8 @@ jobs:
             https://api.github.com/repos/lightdash/helm-charts/action/workflows/increment-lightdash-app-version.yml/dispatches
       - name: Trigger Sentry release
         if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           gh api --method POST \
             -H "Accept: application/vnd.github+json" \
