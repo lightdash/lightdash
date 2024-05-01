@@ -6,14 +6,14 @@ const spaces = 'spaces';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(chartsTable, (table) => {
-        table.string('slug').nullable().index();
+        table.text('slug').nullable().index();
     });
 
     await knex.schema.alterTable(dashboards, (table) => {
-        table.string('slug').nullable().index();
+        table.text('slug').nullable().index();
     });
     await knex.schema.alterTable(spaces, (table) => {
-        table.string('slug').nullable().index();
+        table.text('slug').nullable().index();
     });
 }
 
