@@ -123,6 +123,7 @@ export type Dashboard = {
     tabs: DashboardTab[];
     isPrivate: boolean | null;
     access: SpaceShare[] | null;
+    slug: string;
 };
 
 export enum DashboardSummaryTone {

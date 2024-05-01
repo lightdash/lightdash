@@ -203,6 +203,7 @@ export * from './utils/item';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';

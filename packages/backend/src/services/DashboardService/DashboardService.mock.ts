@@ -46,6 +46,7 @@ export const space: SpaceTable['base'] = {
     space_id: 0,
     space_uuid: '123',
     name: 'space name',
+    slug: 'space-name',
     is_private: true,
     created_at: new Date(),
     project_id: 0,
@@ -57,11 +58,12 @@ export const publicSpace: Space = {
     isPrivate: false,
     organizationUuid: 'organizationUuid',
     uuid: 'spaceUuid',
+    slug: 'public-space',
     queries: [],
     projectUuid: 'projectUuid',
     dashboards: [],
     access: [],
-    name: '',
+    name: 'public-space',
     pinnedListUuid: null,
     pinnedListOrder: null,
 };
@@ -75,6 +77,8 @@ export const dashboard: Dashboard = {
     projectUuid: 'projectUuid',
     uuid: 'uuid',
     name: 'name',
+    slug: 'name',
+
     dashboardVersionId: 1,
     description: 'description',
     updatedAt: new Date(),
@@ -114,6 +118,8 @@ export const chart: SavedChart = {
     uuid: 'chart_uuid',
     projectUuid: dashboard.projectUuid,
     name: 'chart name',
+    slug: 'chart-name',
+
     tableName: 'table_name',
     metricQuery: {
         exploreName: 'table_name',
@@ -187,6 +193,11 @@ export const createDashboard: CreateDashboard = {
         tableCalculations: [],
     },
     tabs: [],
+};
+
+export const createDashboardWithSlug = {
+    ...createDashboard,
+    slug: 'my-new-dashboard',
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {

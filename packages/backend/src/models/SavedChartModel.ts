@@ -282,7 +282,8 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
         dashboardUuid,
-    }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        slug,
+    }: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
@@ -293,6 +294,7 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
+            slug,
         };
         if (dashboardUuid) {
             chart = {
@@ -301,15 +303,31 @@ export const createSavedChart = async (
                 space_id: null,
             };
         } else {
-            const spaceId = spaceUuid
-                ? await SpaceModel.getSpaceId(trx, spaceUuid)
-                : (
-                      await SpaceModel.getFirstAccessibleSpace(
-                          trx,
-                          projectUuid,
-                          userUuid,
-                      )
-                  ).space_id;
+            const getSpaceIdAndName = async () => {
+                if (spaceUuid) {
+                    const space = await SpaceModel.getSpaceIdAndName(
+                        trx,
+                        spaceUuid,
+                    );
+                    if (space === undefined)
+                        throw Error(`Missing space with uuid ${spaceUuid}`);
+                    return {
+                        spaceId: space.spaceId,
+                        name: space.name,
+                    };
+                }
+                const firstSpace = await SpaceModel.getFirstAccessibleSpace(
+                    trx,
+                    projectUuid,
+                    userUuid,
+                );
+                return {
+                    spaceId: firstSpace.space_id,
+                    name: firstSpace.name,
+                };
+            };
+            const { spaceId, name: spaceName } = await getSpaceIdAndName();
+
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
                 ...baseChart,
@@ -464,7 +482,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        data: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        data: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
@@ -513,10 +531,12 @@ export class SavedChartModel {
             .update({
                 name: data.name,
                 description: data.description,
-                space_id: await SpaceModel.getSpaceId(
-                    this.database,
-                    data.spaceUuid,
-                ),
+                space_id: (
+                    await SpaceModel.getSpaceIdAndName(
+                        this.database,
+                        data.spaceUuid,
+                    )
+                )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
             .where('saved_query_uuid', savedChartUuid);
@@ -532,10 +552,12 @@ export class SavedChartModel {
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: await SpaceModel.getSpaceId(
-                            trx,
-                            savedChart.spaceUuid,
-                        ),
+                        space_id: (
+                            await SpaceModel.getSpaceIdAndName(
+                                trx,
+                                savedChart.spaceUuid,
+                            )
+                        )?.spaceId,
                     })
                     .where('saved_query_uuid', savedChart.uuid),
             );
@@ -620,6 +642,7 @@ export class SavedChartModel {
                         spaceName: string;
                         dashboardName: string | null;
                         chart_colors: string[] | null;
+                        slug: string;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -628,6 +651,7 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
                     `${SavedChartsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.slug`,
                     `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
@@ -852,6 +876,7 @@ export class SavedChartModel {
                 dashboardUuid: savedQuery.dashboard_uuid,
                 dashboardName: savedQuery.dashboardName,
                 colorPalette: savedQuery.chart_colors ?? ECHARTS_DEFAULT_COLORS,
+                slug: savedQuery.slug,
             };
         } finally {
             span?.finish();

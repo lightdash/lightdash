@@ -23,6 +23,7 @@ type InsertChartInSpace = Pick<
     | 'description'
     | 'last_version_chart_kind'
     | 'last_version_updated_by_user_uuid'
+    | 'slug'
 > & {
     space_id: number;
     dashboard_uuid: null;
@@ -54,6 +55,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'last_version_updated_at'
             | 'last_version_updated_by_user_uuid'
             | 'dashboard_uuid'
+            | 'slug'
         >
     >
 >;
@@ -70,6 +72,7 @@ export type DbSavedChart = {
     last_version_updated_at: Date;
     last_version_updated_by_user_uuid: string | undefined;
     search_vector: string;
+    slug: string;
 };
 
 export type DbSavedChartVersion = {

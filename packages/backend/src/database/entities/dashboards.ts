@@ -19,6 +19,7 @@ export type DbDashboard = {
     search_vector: string;
     space_id: number;
     created_at: Date;
+    slug: string;
 };
 
 type DbDashboardVersion = {
@@ -59,7 +60,7 @@ type DbDashboardTileChart = {
 
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
-    Pick<DbDashboard, 'name' | 'description' | 'space_id'>,
+    Pick<DbDashboard, 'name' | 'description' | 'space_id' | 'slug'>,
     Pick<DbDashboard, 'name' | 'description'>
 >;
 
