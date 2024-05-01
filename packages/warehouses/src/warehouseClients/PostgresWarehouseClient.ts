@@ -368,6 +368,8 @@ export class PostgresClient<
 
     getMetricSql(sql: string, metric: Metric) {
         switch (metric.type) {
+            case MetricType.AVERAGE:
+                return `AVG(${sql}::DOUBLE PRECISION)`;
             case MetricType.PERCENTILE:
                 return `PERCENTILE_CONT(${
                     (metric.percentile ?? 50) / 100
