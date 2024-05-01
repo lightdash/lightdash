@@ -34,8 +34,8 @@ You can promote charts from the `chart` in view mode or from any listing (like h
 
 <img
 src={PromoteViewChart}
-width="668"
-height="466"
+width="160"
+height="200"
 style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
@@ -56,8 +56,8 @@ Once the chart is promoted, you can click on the `success` banner to open a new 
 
 <img
 src={SucessMessage}
-width="668"
-height="466"
+width="455"
+height="94"
 style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
