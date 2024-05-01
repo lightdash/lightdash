@@ -130,6 +130,11 @@ export enum TableCalculationType {
     TIMESTAMP = 'timestamp',
     BOOLEAN = 'boolean',
 }
+
+// TODO: this type and the TableCalculationField type share
+// most of the same fields -- can we merge them. This mostly
+// needs to add fieldType: FieldType.TABLE_CALCULATION which
+// would make the type checking more robust
 export type TableCalculation = {
     index?: number;
     name: string;
@@ -144,6 +149,12 @@ export type TableCalculationMetadata = {
     name: string;
 };
 
+export enum FieldType {
+    METRIC = 'metric',
+    DIMENSION = 'dimension',
+    TABLE_CALCULATION = 'table_calculation',
+}
+
 export interface TableCalculationField extends Field {
     fieldType: FieldType.TABLE_CALCULATION;
     type: TableCalculationType;
@@ -153,6 +164,8 @@ export interface TableCalculationField extends Field {
     sql: string;
 }
 
+// This type check is a little fragile because it's based on
+// 'displayName'. Ideally these would all have fieldTypes.
 export const isTableCalculation = (
     item: Item | AdditionalMetric | TableCalculationField,
 ): item is TableCalculation =>
@@ -160,18 +173,13 @@ export const isTableCalculation = (
         ? !('binType' in item) &&
           !!item.sql &&
           !('description' in item) &&
-          !('tableName' in item)
+          !('tableName' in item) &&
+          'displayName' in item
         : false;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
-
-export enum FieldType {
-    METRIC = 'metric',
-    DIMENSION = 'dimension',
-    TABLE_CALCULATION = 'table_calculation',
-}
 
 export type FieldUrl = {
     url: string;

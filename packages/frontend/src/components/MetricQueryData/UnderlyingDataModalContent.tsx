@@ -6,6 +6,7 @@ import {
     FilterOperator,
     getDimensions,
     getFields,
+    getFiltersFromGroup,
     isDimension,
     isField,
     isMetric,
@@ -215,12 +216,14 @@ const UnderlyingDataModalContent: FC<Props> = () => {
             ...metricFilters,
         ];
 
-        const allFilters = {
-            dimensions: {
+        const allFilters = getFiltersFromGroup(
+            {
                 id: uuidv4(),
                 and: combinedFilters,
             },
-        };
+            fieldsInQuery,
+        );
+
         const showUnderlyingTable: string | undefined = isField(item)
             ? item.table
             : undefined;

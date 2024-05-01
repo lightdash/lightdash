@@ -14,7 +14,7 @@ const useExportToGoogleSheetStart = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
-    const { showToastError, showToastInfo } = useToaster();
+    const { showToastApiError, showToastInfo } = useToaster();
 
     return useMutation<ApiScheduledDownloadCsv | undefined, ApiError>(
         ['google-sheets-start'],
@@ -29,11 +29,11 @@ const useExportToGoogleSheetStart = ({
                     autoClose: false,
                 });
             },
-            onError: (error) => {
+            onError: ({ error }) => {
                 notifications.hide('exporting-gsheets');
-                showToastError({
+                showToastApiError({
                     title: `Unable to upload to Google Sheets`,
-                    subtitle: error?.error?.message,
+                    apiError: error,
                 });
             },
         },
@@ -45,7 +45,7 @@ export const useExportToGoogleSheet = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
 
     const exportToGoogleSheetStartMutation = useExportToGoogleSheetStart({
         getGsheetLink,
@@ -68,11 +68,12 @@ export const useExportToGoogleSheet = ({
                           "Couldn't create scheduler job for google sheets export",
                       ),
                   }),
-        retry: (failureCount) => {
+        retry: (failureCount, { error }) => {
             if (failureCount === 5) {
                 resetStartGoogleSheetExport();
-                showToastError({
+                showToastApiError({
                     title: 'Unable to export to Google Sheets',
+                    apiError: error,
                 });
                 return false;
             }

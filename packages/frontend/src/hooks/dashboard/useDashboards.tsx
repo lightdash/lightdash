@@ -85,7 +85,7 @@ const updateMultipleDashboard = async (
 
 export const useUpdateMultipleDashboard = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, UpdateMultipleDashboards[]>(
         (data) => updateMultipleDashboard(projectUuid, data),
         {
@@ -111,10 +111,10 @@ export const useUpdateMultipleDashboard = (projectUuid: string) => {
                     title: `Success! Dashboards were updated.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update dashboard`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

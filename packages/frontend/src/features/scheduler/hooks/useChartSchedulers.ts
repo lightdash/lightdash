@@ -32,7 +32,7 @@ const createChartScheduler = async (
 
 export const useChartSchedulerCreateMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SchedulerAndTargets,
         ApiError,
@@ -48,10 +48,10 @@ export const useChartSchedulerCreateMutation = () => {
                 title: `Success! Scheduled delivery was created.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to create scheduled delivery`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

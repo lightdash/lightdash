@@ -53,3 +53,14 @@ jobs:
             -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
             -d '{"ref": "main", "inputs": {"lightdash-version": "${{ steps.semantic.outputs.new_release_version }}"}}' \
             https://api.github.com/repos/lightdash/helm-charts/action/workflows/increment-lightdash-app-version.yml/dispatches
+      - name: Trigger Sentry release
+        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/lightdash/lightdash/actions/workflows/create-sentry-release.yml/dispatches \
+            -f "ref=main" \
+            -f "inputs[version]=${{ steps.semantic.outputs.new_release_version }}"
