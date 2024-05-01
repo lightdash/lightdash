@@ -4050,8 +4050,10 @@ export class ProjectService extends BaseService {
         const checkPermissions = async (
             organizationUuid: string,
             projectUuid: string,
-            spaceSummary?: Omit<SpaceSummary, 'userAccess'>,
-            context: string = '',
+            spaceSummary: Omit<SpaceSummary, 'userAccess'> | undefined,
+            context: string,
+            fromProjectUuid: string, // for analytics
+            toProjectUuid?: string, // for analytics
         ) => {
             // If space is undefined, we only check the org/project access, we will create the chart in a new accessible space
             const userDontHaveAccess = spaceSummary
@@ -4080,7 +4082,8 @@ export class ProjectService extends BaseService {
                     userId: user.userUuid,
                     properties: {
                         chartId: chartUuid,
-                        projectId: projectUuid,
+                        fromProjectId: fromProjectUuid,
+                        toProjectId: toProjectUuid,
                         organizationId: organizationUuid,
                         error: `Permission error on ${context}`,
                     },
@@ -4108,6 +4111,8 @@ export class ProjectService extends BaseService {
             projectUuid,
             space,
             'this chart and project',
+            projectUuid,
+            undefined,
         );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
@@ -4135,6 +4140,8 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
                 undefined,
                 'the upstream project',
+                projectUuid,
+                upstreamProjectUuid,
             );
 
             let newSpaceUuid: string;
@@ -4149,6 +4156,8 @@ export class ProjectService extends BaseService {
                     upstreamProjectUuid,
                     existingSpace[0],
                     'the upstream space and project',
+                    projectUuid,
+                    upstreamProjectUuid,
                 );
                 newSpaceUuid = existingSpace[0].uuid;
             } else {
@@ -4158,6 +4167,8 @@ export class ProjectService extends BaseService {
                     upstreamProjectUuid,
                     undefined,
                     'the upstream project',
+                    projectUuid,
+                    upstreamProjectUuid,
                 );
                 // We create a new space
                 const newSpace = await this.spaceModel.createSpace(
@@ -4193,7 +4204,8 @@ export class ProjectService extends BaseService {
                 userId: user.userUuid,
                 properties: {
                     chartId: chartUuid,
-                    projectId: projectUuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
                     organizationId: organizationUuid,
                     slug,
                     hasExistingContent: false,
@@ -4215,6 +4227,9 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
                 upstreamSpace,
                 'the upstream chart and project',
+
+                projectUuid,
+                upstreamProjectUuid,
             );
             const updatedChart = await this.savedChartModel.createVersion(
                 upstreamChart.uuid,
@@ -4231,7 +4246,8 @@ export class ProjectService extends BaseService {
                 userId: user.userUuid,
                 properties: {
                     chartId: chartUuid,
-                    projectId: projectUuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
                     organizationId: organizationUuid,
                     slug,
                     hasExistingContent: true,
@@ -4246,7 +4262,8 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 chartId: chartUuid,
-                projectId: projectUuid,
+                fromProjectId: projectUuid,
+                toProjectId: upstreamProjectUuid,
                 organizationId: organizationUuid,
                 slug,
                 error: `There are multiple charts with the same identifier`,

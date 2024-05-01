@@ -645,7 +645,8 @@ type PromoteContent = BaseTrack & {
     properties: {
         chartId?: string;
         // dashboardId?: string;  // Not implemented yet
-        projectId: string;
+        fromProjectId: string;
+        toProjectId?: string;
         organizationId: string;
         slug?: string;
         withNewSpace?: boolean;
