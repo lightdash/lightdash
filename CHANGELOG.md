@@ -1,3 +1,10 @@
+## [0.1081.3](https://github.com/lightdash/lightdash/compare/0.1081.2...0.1081.3) (2024-05-01)
+
+
+### Bug Fixes
+
+* use correct dispatch params to trigger sentry release workflow ([#9942](https://github.com/lightdash/lightdash/issues/9942)) ([1d35062](https://github.com/lightdash/lightdash/commit/1d35062822b08be632823b7f0ce17abfb2415887))
+
 ## [0.1081.2](https://github.com/lightdash/lightdash/compare/0.1081.1...0.1081.2) (2024-04-30)
 
 
