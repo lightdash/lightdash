@@ -1,3 +1,125 @@
+## [0.1081.4](https://github.com/lightdash/lightdash/compare/0.1081.3...0.1081.4) (2024-05-01)
+
+
+### Bug Fixes
+
+* use gh cli and build common before frontend ([#9944](https://github.com/lightdash/lightdash/issues/9944)) ([21ac23d](https://github.com/lightdash/lightdash/commit/21ac23daf00a14489bc39ce1395ecd62f799fddd))
+
+## [0.1081.3](https://github.com/lightdash/lightdash/compare/0.1081.2...0.1081.3) (2024-05-01)
+
+
+### Bug Fixes
+
+* use correct dispatch params to trigger sentry release workflow ([#9942](https://github.com/lightdash/lightdash/issues/9942)) ([1d35062](https://github.com/lightdash/lightdash/commit/1d35062822b08be632823b7f0ce17abfb2415887))
+
+## [0.1081.2](https://github.com/lightdash/lightdash/compare/0.1081.1...0.1081.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* get filters object from combined filters group, this will always flatten and get rid of any unecessary nesting ([#9874](https://github.com/lightdash/lightdash/issues/9874)) ([1e5bc64](https://github.com/lightdash/lightdash/commit/1e5bc64753f42922977b32852e7c084ea1fff799))
+* only apply min/max for numeric axis ([#9941](https://github.com/lightdash/lightdash/issues/9941)) ([d44c2b6](https://github.com/lightdash/lightdash/commit/d44c2b62580b8d2d68c47a6769b00b4027f2b609))
+
+## [0.1081.1](https://github.com/lightdash/lightdash/compare/0.1081.0...0.1081.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* use github ci token ([#9940](https://github.com/lightdash/lightdash/issues/9940)) ([610acaa](https://github.com/lightdash/lightdash/commit/610acaa033aac00a8be44a739cb309736441bc63))
+
+# [0.1081.0](https://github.com/lightdash/lightdash/compare/0.1080.0...0.1081.0) (2024-04-30)
+
+
+### Features
+
+* enable inp ([#9935](https://github.com/lightdash/lightdash/issues/9935)) ([9ac617a](https://github.com/lightdash/lightdash/commit/9ac617aacfde71f6d75074a8189dd11ccde580a8))
+* improve sentry config on backend ([#9933](https://github.com/lightdash/lightdash/issues/9933)) ([dd4879d](https://github.com/lightdash/lightdash/commit/dd4879d25b46827198fd5c03666064c2ca560fd9))
+
+# [0.1080.0](https://github.com/lightdash/lightdash/compare/0.1079.3...0.1080.0) (2024-04-30)
+
+
+### Features
+
+* error boundary ([#9925](https://github.com/lightdash/lightdash/issues/9925)) ([a090c82](https://github.com/lightdash/lightdash/commit/a090c82fadd96cea33ebf0815881ccd61fe3ff36))
+
+## [0.1079.3](https://github.com/lightdash/lightdash/compare/0.1079.2...0.1079.3) (2024-04-30)
+
+
+### Bug Fixes
+
+* missing formatting in model level metrics ([#9926](https://github.com/lightdash/lightdash/issues/9926)) ([bf655de](https://github.com/lightdash/lightdash/commit/bf655ded653b7c038c34930c00287b4d0683c4db))
+
+## [0.1079.2](https://github.com/lightdash/lightdash/compare/0.1079.1...0.1079.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* correct identation on sentry release dispatch ([#9932](https://github.com/lightdash/lightdash/issues/9932)) ([2798282](https://github.com/lightdash/lightdash/commit/2798282e8bc14f410a41c66ac77229726028d8cc))
+
+## [0.1079.1](https://github.com/lightdash/lightdash/compare/0.1079.0...0.1079.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* exclude snowflake info logs ([#9929](https://github.com/lightdash/lightdash/issues/9929)) ([dceb2b6](https://github.com/lightdash/lightdash/commit/dceb2b6f2558309392f2f91e4619c51bcdad48a3))
+
+# [0.1079.0](https://github.com/lightdash/lightdash/compare/0.1078.0...0.1079.0) (2024-04-30)
+
+
+### Features
+
+* create sentry release and publish sourcemaps ([#9920](https://github.com/lightdash/lightdash/issues/9920)) ([2b2b99b](https://github.com/lightdash/lightdash/commit/2b2b99bc9f04d739778aff4d4aacfa11dffc0b3f))
+
+# [0.1078.0](https://github.com/lightdash/lightdash/compare/0.1077.2...0.1078.0) (2024-04-30)
+
+
+### Features
+
+* show error ID for unexpected errors ([#9921](https://github.com/lightdash/lightdash/issues/9921)) ([b9c874d](https://github.com/lightdash/lightdash/commit/b9c874d7c6497203920fbf1823e79b9edbbeadd2))
+
+## [0.1077.2](https://github.com/lightdash/lightdash/compare/0.1077.1...0.1077.2) (2024-04-30)
+
+
+### Bug Fixes
+
+* keep identical filter settings if they exist when overriding ([#9928](https://github.com/lightdash/lightdash/issues/9928)) ([b1c0a64](https://github.com/lightdash/lightdash/commit/b1c0a64fcbd153f8fd04b63d18a401bed6909356))
+
+## [0.1077.1](https://github.com/lightdash/lightdash/compare/0.1077.0...0.1077.1) (2024-04-30)
+
+
+### Bug Fixes
+
+* trim project name whitespace on CLI handler ([#9663](https://github.com/lightdash/lightdash/issues/9663)) ([239ecef](https://github.com/lightdash/lightdash/commit/239ecefd2153b797cf09aca0bd181c7cdf70d1d9))
+
+# [0.1077.0](https://github.com/lightdash/lightdash/compare/0.1076.6...0.1077.0) (2024-04-29)
+
+
+### Features
+
+* configure separate react sentry project ([#9910](https://github.com/lightdash/lightdash/issues/9910)) ([ab4c244](https://github.com/lightdash/lightdash/commit/ab4c244f27ca1950aae4b8b346cd02457414d4cc))
+
+## [0.1076.6](https://github.com/lightdash/lightdash/compare/0.1076.5...0.1076.6) (2024-04-26)
+
+
+### Bug Fixes
+
+* fix foreign constriant error when add chart to dashboard ([#9892](https://github.com/lightdash/lightdash/issues/9892)) ([60987e0](https://github.com/lightdash/lightdash/commit/60987e05a58f839050e0955c4319aa7aa794d960))
+* The tab delete modal should be more explicit about which tiles/c… ([#9878](https://github.com/lightdash/lightdash/issues/9878)) ([1187081](https://github.com/lightdash/lightdash/commit/1187081bf27368ad34c6660f6d5f7785de37e72c))
+
+## [0.1076.5](https://github.com/lightdash/lightdash/compare/0.1076.4...0.1076.5) (2024-04-26)
+
+
+### Bug Fixes
+
+* remove duplicated rules ([#9876](https://github.com/lightdash/lightdash/issues/9876)) ([fe79ee7](https://github.com/lightdash/lightdash/commit/fe79ee7b16d115aec7d54f812fa45a9eb1a8b1b0))
+
+## [0.1076.4](https://github.com/lightdash/lightdash/compare/0.1076.3...0.1076.4) (2024-04-25)
+
+
+### Bug Fixes
+
+* fix foreign key constraint error when delete last tab ([#9865](https://github.com/lightdash/lightdash/issues/9865)) ([8265e7d](https://github.com/lightdash/lightdash/commit/8265e7d94205842ca4943923eb5b2d1ba43c547c))
+
 ## [0.1076.3](https://github.com/lightdash/lightdash/compare/0.1076.2...0.1076.3) (2024-04-25)
 
 

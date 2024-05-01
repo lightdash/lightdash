@@ -30,7 +30,7 @@ const createCustomMetricsPullRequest = async (
     });
 
 const useCreateCustomMetricsPullRequest = (projectUuid: string) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
         PullRequestCreated,
@@ -54,10 +54,10 @@ const useCreateCustomMetricsPullRequest = (projectUuid: string) => {
                 },
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to create pull request`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

@@ -1,7 +1,6 @@
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
-import * as Tracing from '@sentry/tracing';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -396,6 +395,10 @@ export default class App {
                         name: errorResponse.name,
                         message: errorResponse.message,
                         data: errorResponse.data,
+                        id:
+                            errorResponse.statusCode === 500
+                                ? Sentry.lastEventId()
+                                : undefined,
                     },
                 });
             },
@@ -466,14 +469,14 @@ export default class App {
     private initSentry(expressApp: Express) {
         Sentry.init({
             release: VERSION,
-            dsn: this.lightdashConfig.sentry.dsn,
+            dsn: this.lightdashConfig.sentry.backend.dsn,
             environment:
                 this.environment === 'development'
                     ? 'development'
                     : this.lightdashConfig.mode,
             integrations: [
                 new Sentry.Integrations.Http({ tracing: true }),
-                new Tracing.Integrations.Express({
+                new Sentry.Integrations.Express({
                     app: expressApp,
                 }),
             ],
@@ -491,7 +494,10 @@ export default class App {
                 ) {
                     return 0.0;
                 }
-                return 0.2;
+                if (context.parentSampled !== undefined) {
+                    return context.parentSampled;
+                }
+                return 0.5;
             },
             beforeBreadcrumb(breadcrumb) {
                 if (
