@@ -56,13 +56,9 @@ jobs:
       - name: Trigger Sentry release
         if: steps.semantic.outputs.new_release_published == 'true'
         run: |
-          curl -X POST \
+          gh api --method POST \
             -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
-            -d '{
-                  "ref": "main",
-                  "inputs": {
-                    "version": "${{ steps.semantic.outputs.new_release_version }}",
-                  }
-                }' \
-            https://api.github.com/repos/lightdash/lightdash/actions/workflows/create-sentry-release.yml/dispatches
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/lightdash/lightdash/actions/workflows/create-sentry-release.yml/dispatches \
+            -f "ref=main" \
+            -f "inputs[version]=${{ steps.semantic.outputs.new_release_version }}"
