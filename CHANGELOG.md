@@ -1,3 +1,10 @@
+## [0.1081.4](https://github.com/lightdash/lightdash/compare/0.1081.3...0.1081.4) (2024-05-01)
+
+
+### Bug Fixes
+
+* use gh cli and build common before frontend ([#9944](https://github.com/lightdash/lightdash/issues/9944)) ([21ac23d](https://github.com/lightdash/lightdash/commit/21ac23daf00a14489bc39ce1395ecd62f799fddd))
+
 ## [0.1081.3](https://github.com/lightdash/lightdash/compare/0.1081.2...0.1081.3) (2024-05-01)
 
 
