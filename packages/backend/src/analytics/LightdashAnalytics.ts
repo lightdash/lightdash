@@ -639,6 +639,21 @@ type DashboardView = BaseTrack & {
     };
 };
 
+type PromoteContent = BaseTrack & {
+    event: 'promote.executed' | 'promote.error';
+    userId: string;
+    properties: {
+        chartId?: string;
+        // dashboardId?: string;  // Not implemented yet
+        projectId: string;
+        organizationId: string;
+        slug?: string;
+        withNewSpace?: boolean;
+        hasExistingContent?: boolean;
+        error?: string;
+    };
+};
+
 type AnalyticsDashboardView = BaseTrack & {
     event: 'usage_analytics.dashboard_viewed';
     userId: string;
@@ -933,6 +948,7 @@ type TypedEvent =
     | ShareSlack
     | SavedChartView
     | DashboardView
+    | PromoteContent
     | AnalyticsDashboardView
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent

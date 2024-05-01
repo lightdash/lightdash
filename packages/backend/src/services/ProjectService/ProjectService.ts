@@ -4075,6 +4075,17 @@ export class ProjectService extends BaseService {
                       }),
                   );
             if (userDontHaveAccess) {
+                this.analytics.track({
+                    event: 'promote.error',
+                    userId: user.userUuid,
+                    properties: {
+                        chartId: chartUuid,
+                        projectId: projectUuid,
+                        organizationId: organizationUuid,
+                        error: `Permission error on ${context}`,
+                    },
+                });
+
                 throw new ForbiddenError(
                     `You must have the right permission on ${context} to promote this chart`,
                 );
@@ -4176,6 +4187,20 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 newChartData,
             );
+
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    chartId: chartUuid,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    slug,
+                    hasExistingContent: false,
+                    withNewSpace: existingSpace.length !== 1,
+                },
+            });
+
             return newChart;
         }
         if (existingUpstreamCharts.length === 1) {
@@ -4201,8 +4226,32 @@ export class ProjectService extends BaseService {
                 },
                 user,
             );
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    chartId: chartUuid,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    slug,
+                    hasExistingContent: true,
+                },
+            });
+
             return updatedChart;
         }
+
+        this.analytics.track({
+            event: 'promote.error',
+            userId: user.userUuid,
+            properties: {
+                chartId: chartUuid,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                slug,
+                error: `There are multiple charts with the same identifier`,
+            },
+        });
         // Multiple charts with the same slug
         throw new Error(
             `There are multiple charts with the same identifier ${slug}`,
