@@ -24,8 +24,8 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <Title order={4}>Promote content</Title>
                     <Text c="gray.6" fz="xs">
                         Developers and admins on this organization can copy
-                        conent from this project into the selected upstream
-                        project, overriding its defailts or creating new content
+                        content from this project into the selected upstream
+                        project, overriding its defaults or creating new content
                         if it is new.
                     </Text>
                 </div>
