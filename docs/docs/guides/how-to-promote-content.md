@@ -5,7 +5,7 @@ import SucessMessage from './assets/promote-success.png';
 
 # How to promote content
 
-Promoting content enables you to copy content from one project to another, this can also be used to replicate changes from one `development project` into a `production project`. This helps keep everything consistent and makes it easier to manage changes.
+Promoting content enables you to copy content from one project to another. It's especially useful when working with preview or development projects. You can promote charts created in your development projects to production, so it's easy to test and make changes without the fear of breaking things in production.
 
 ## How promoting works
 
