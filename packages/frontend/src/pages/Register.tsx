@@ -122,8 +122,12 @@ const Register: FC = () => {
         <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
+                    src={
+                        health.data?.siteLogoBlack
+                            ? health.data?.siteLogoBlack
+                            : LightdashLogo
+                    }
+                    alt={`${health.data?.siteName} logo`}
                     width={130}
                     mx="auto"
                     my="lg"

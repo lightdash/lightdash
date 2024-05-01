@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { ConnectMethod } from '../../../pages/CreateProject';
+import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -27,6 +28,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     onBack,
 }) => {
     const { track } = useTracking();
+    const { health } = useApp();
 
     return (
         <OnboardingWrapper>
@@ -124,7 +126,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                 w="fit-content"
                 target="_blank"
                 rel="noreferrer noopener"
-                href="https://docs.lightdash.com/get-started/setup-lightdash/get-project-lightdash-ready"
+                href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/get-project-lightdash-ready`}
                 onClick={() => {
                     track({
                         name: EventName.DOCUMENTATION_BUTTON_CLICKED,

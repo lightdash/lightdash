@@ -13,7 +13,7 @@ const runqueryBody: MetricQuery = {
     additionalMetrics: [],
 };
 const sqlQueryBody = { sql: 'select 1' };
-describe('Lightdash API', () => {
+describe('API', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -280,7 +280,7 @@ describe('Lightdash API', () => {
     });
 });
 
-describe('Lightdash API forbidden tests', () => {
+describe('API forbidden tests', () => {
     beforeEach(() => {
         cy.anotherLogin();
     });

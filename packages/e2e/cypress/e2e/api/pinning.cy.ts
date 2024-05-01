@@ -2,7 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
-describe('Lightdash pinning endpoints', () => {
+describe('Pinning endpoints', () => {
     beforeEach(() => {
         cy.login();
     });

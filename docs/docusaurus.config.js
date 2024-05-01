@@ -2,16 +2,16 @@
 const path = require('path');
 
 module.exports = {
-    title: 'Documentation | Lightdash',
+    title: `Documentation | Lightdash`,
     tagline:
-        'Documentation. Learn how to use Lightdash and setup the BI tool for the modern data stack.',
-    url: 'https://docs.lightdash.com',
+        `Documentation. Learn how to use Lightdash and setup the BI tool for the modern data stack.`,
+    url: `https://lightdash.com/helpdesk`,
     baseUrl: '/',
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
     favicon: 'img/favicon-32x32.png', // TODO update
-    organizationName: 'lightdash', // Usually your GitHub org/user name.
-    projectName: 'lightdash', // Usually your repo name.
+    organizationName: Lightdash, // Usually your GitHub org/user name.
+    projectName: Lightdash, // Usually your repo name.
     plugins: [
         [
             path.resolve(__dirname, 'docusaurus-rudderstack-plugin'),
@@ -79,9 +79,9 @@ module.exports = {
     ],
     themeConfig: {
         navbar: {
-            title: 'Lightdash',
+            title: `Lightdash`,
             logo: {
-                alt: 'lightdash logo',
+                alt: `Lightdash logo`,
                 src: 'img/logo.png',
             },
             items: [

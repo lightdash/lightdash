@@ -204,9 +204,9 @@ const SnowflakeForm: FC<{
                             label="Snowflake URL override"
                             description={
                                 <p>
-                                    Usually Lightdash would connect to a default
-                                    url: account.snowflakecomputing.com. If
-                                    you'd like to override this (e.g. for the
+                                    Usually the application would connect to a
+                                    default url: account.snowflakecomputing.com.
+                                    If you'd like to override this (e.g. for the
                                     dbt server) you can specify a full custom
                                     URL here.
                                 </p>

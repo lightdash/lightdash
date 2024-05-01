@@ -45,16 +45,16 @@ const HelpMenu: FC = () => {
 
                 <LargeMenuItem
                     component="a"
-                    href="https://docs.lightdash.com/"
+                    href={`${health.data?.siteHelpdeskUrl}`}
                     target="_blank"
                     title="View Docs"
-                    description="Learn how to deploy, use, contribute to Lightdash."
+                    description={`Learn how to deploy, use, contribute to ${health.data?.siteName}.`}
                     icon={IconBook}
                 />
 
                 <LargeMenuItem
                     component="a"
-                    href="https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
+                    href={`${health.data?.siteSlackCommunityUrl}`}
                     target="_blank"
                     title="Join Slack community"
                     description="Get advice share best practices with other users."
@@ -63,10 +63,10 @@ const HelpMenu: FC = () => {
 
                 <LargeMenuItem
                     component="a"
-                    href="https://github.com/lightdash/lightdash/issues/new/choose"
+                    href={`${health.data?.siteGithubUrl}/issues/new/choose`}
                     target="_blank"
-                    title="Feedback on Lightdash"
-                    description="Submit a feature request or bug report to improve Lightdash."
+                    title={`Feedback on ${health.data?.siteName}`}
+                    description={`Submit a feature request or bug report to improve ${health.data?.siteName}.`}
                     icon={IconMessageCircle2}
                 />
             </Menu.Dropdown>

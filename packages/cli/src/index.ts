@@ -59,97 +59,107 @@ function parseUseDbtListOption(value: string | undefined): boolean {
 
 program
     .version(VERSION)
-    .name(styles.title('⚡️lightdash'))
+    .name(styles.title(`⚡️${process.env.SITE_NAME}`))
     .description(
-        'Developer tools for dbt and Lightdash.\nSee https://docs.lightdash.com for more help and examples',
+        `Developer tools for dbt and ${process.env.SITE_NAME}.\nSee ${process.env.SITE_HELPDESK_URL} for more help and examples`,
     )
     .showHelpAfterError(
-        styles.bold('Run ⚡️lightdash help [command] for more information'),
+        styles.bold(
+            `Run ${process.env.SITE_NAME} help [command] for more information`,
+        ),
     )
     .addHelpText(
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
-            '-- generates .yml file for all dbt models',
-        )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
+            'generate',
+        )} ${styles.secondary('-- generates .yml file for all dbt models')}
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s mymodel ${styles.secondary(
             '-- generates .yml file for a single dbt model',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s model1 model2 ${styles.secondary(
             '-- generates .yml for multiple dbt models',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s tag:sales ${styles.secondary(
             '-- generates .yml for all dbt models tagged as sales',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s +mymodel ${styles.secondary(
             "-- generates .yml for mymodel and all it's parents",
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} --help ${styles.secondary(
             '-- shows detailed help for the "generate" command',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
+            'dbt run',
+        )} ${styles.secondary(
             '-- runs dbt for all models and updates .yml for all models',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'dbt run',
         )} -s model1 model2+ tag:dev ${styles.secondary(
             '-- runs dbt for models and generates .yml for affected models',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'dbt run',
         )} --help ${styles.secondary(
             '-- shows detailed help for the "dbt run" command',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold('compile')} ${styles.secondary(
-            '-- compiles Lightdash metrics and dimensions',
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
+            'compile',
+        )} ${styles.secondary(
+            `-- compiles ${process.env.SITE_NAME} metrics and dimensions`,
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold('deploy')} ${styles.secondary(
-            '-- compiles and deploys Lightdash metrics to active project',
+  ${styles.title('⚡')}️${process.env.SITE_NAME} ${styles.bold(
+            'deploy',
+        )} ${styles.secondary(
+            `-- compiles and deploys ${process.env.SITE_NAME} metrics to active project`,
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'login https://lightdash.domain.com',
-        )} ${styles.secondary('-- logs in to a Lightdash instance')}
+        )} ${styles.secondary(
+            `-- logs in to a ${process.env.SITE_NAME} instance`,
+        )}
 `,
     );
 
 // LOGIN
 program
     .command('login <url>')
-    .description('Logs in to a Lightdash instance')
+    .description(`Logs in to a ${process.env.SITE_NAME} instance`)
     .description(
-        'Logs in to a Lightdash instance.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples',
+        `Logs in to a ${process.env.SITE_NAME} instance.\n\n👀 See ${process.env.SITE_HELPDESK_URL}/guides/cli/cli-authentication for more help and examples`,
     )
     .addHelpText(
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}️${process.env.SITE_NAME} ${styles.bold(
             'login',
         )} https://app.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud US instance',
+            `-- Logs in to ${process.env.SITE_NAME} Cloud US instance`,
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'login',
         )} https://eu1.lightdash.cloud ${styles.secondary(
-            '-- Logs in to Lightdash Cloud EU instance',
+            `-- Logs in to ${process.env.SITE_NAME} Cloud EU instance`,
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'login',
         )} https://custom.lightdash.domain ${styles.secondary(
             '-- Logs in to a self-hosted instance at a custom domain',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'login',
         )} https://custom.lightdash.domain --token 12345 ${styles.secondary(
             '-- Logs in with a personal access token (useful for users that use SSO in the browser)',
@@ -168,7 +178,7 @@ const configProgram = program
 configProgram
     .command('set-project')
     .description(
-        'Choose project.\nSee https://docs.lightdash.com/guides/cli/cli-authentication#set-active-project for more help and examples',
+        `Choose project.\nSee ${process.env.SITE_HELPDESK_URL}/guides/cli/cli-authentication#set-active-project for more help and examples`,
     )
     .option('--verbose', undefined, false)
     .addOption(
@@ -194,25 +204,25 @@ dbtProgram
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
-            '-- run all models and generate .yml files',
-        )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
+            'dbt run',
+        )} ${styles.secondary('-- run all models and generate .yml files')}
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'dbt run',
         )} -s mymodel ${styles.secondary(
             '-- runs a single model and generates .yml',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'dbt run',
         )} -s model1 model2 ${styles.secondary(
             '-- runs multiple models and generates .yml',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'dbt run',
         )} -s tag:sales ${styles.secondary(
             '-- runs all models tagged as "sales" and generates .yml',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}️${process.env.SITE_NAME}tdash ${styles.bold(
             'dbt run',
         )} -s +mymodel ${styles.secondary(
             "-- runs mymodel and it's parents and generates .yml",
@@ -241,7 +251,7 @@ ${styles.bold('Examples:')}
     .option('--full-refresh')
     .option(
         '--exclude-meta',
-        'exclude Lightdash metadata from the generated .yml',
+        `exclude ${process.env.SITE_NAME} metadata from the generated .yml`,
         false,
     )
     .option('--verbose', undefined, false)
@@ -250,7 +260,7 @@ ${styles.bold('Examples:')}
 
 program
     .command('compile')
-    .description('Compiles Lightdash resources')
+    .description(`Compiles ${process.env.SITE_NAME} resources`)
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -422,7 +432,7 @@ program
 
 program
     .command('deploy')
-    .description('Compiles and deploys a Lightdash project')
+    .description(`Compiles and deploys a ${process.env.SITE_NAME} project`)
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -487,12 +497,14 @@ program
 
 program
     .command('refresh')
-    .description('Refreshes Lightdash project with remote repository')
+    .description(
+        `Refreshes ${process.env.SITE_NAME} project with remote repository`,
+    )
     .addHelpText(
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold('refresh')}
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold('refresh')}
 `,
     )
     .option('--verbose', undefined, false)
@@ -564,25 +576,25 @@ program
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
-            '-- generates .yml file for all dbt models',
-        )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
+            'generate',
+        )} ${styles.secondary('-- generates .yml file for all dbt models')}
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s mymodel ${styles.secondary(
             '-- generates .yml file for a single dbt model',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s model1 model2 ${styles.secondary(
             '-- generates .yml for multiple dbt models',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s tag:sales ${styles.secondary(
             '-- generates .yml for all dbt models tagged as sales',
         )}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate',
         )} -s +mymodel ${styles.secondary(
             "-- generates .yml for mymodel and all it's parents",
@@ -622,7 +634,7 @@ ${styles.bold('Examples:')}
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
         '--exclude-meta',
-        'exclude Lightdash metadata from the generated .yml',
+        `exclude ${process.env.SITE_NAME} metadata from the generated .yml`,
         false,
     )
     .option('--verbose', undefined, false)
@@ -632,16 +644,16 @@ ${styles.bold('Examples:')}
 program
     .command('generate-exposures')
     .description(
-        '[Experimental command] Generates a .yml file for Lightdash exposures',
+        `[Experimental command] Generates a .yml file for ${process.env.SITE_NAME} exposures`,
     )
     .addHelpText(
         'after',
         `
 ${styles.bold('Examples:')}
-  ${styles.title('⚡')}️lightdash ${styles.bold(
+  ${styles.title('⚡')}${process.env.SITE_NAME} ${styles.bold(
             'generate-exposures',
         )} ${styles.secondary(
-            '-- generates .yml file for all lightdash exposures',
+            `-- generates .yml file for all ${process.env.SITE_NAME} exposures`,
         )}
 `,
     )
@@ -662,7 +674,7 @@ const errorHandler = (err: Error) => {
     console.error(styles.error(err.message || 'Error had no message'));
     if (err.name === 'AuthorizationError') {
         console.error(
-            `Looks like you did not authenticate or the personal access token expired.\n\n👀 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples`,
+            `Looks like you did not authenticate or the personal access token expired.\n\n👀 See ${process.env.SITE_HELPDESK_URL}/guides/cli/cli-authentication for help and examples`,
         );
     } else if (!(err instanceof LightdashError)) {
         console.error(err);
@@ -671,7 +683,9 @@ const errorHandler = (err: Error) => {
         }
         console.error('\nReport this issue with 1-click:\n');
         console.error(
-            `  🐛 https://github.com/lightdash/lightdash/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
+            `  🐛 ${
+                process.env.SITE_GITHUB_URL
+            }/issues/new?assignees=&labels=🐛+bug&template=bug_report.md&title=${encodeURIComponent(
                 err.message,
             )}`,
         );
@@ -686,7 +700,7 @@ const errorHandler = (err: Error) => {
     if (nodeVersion.major !== OPTIMIZED_NODE_VERSION) {
         console.warn(
             styles.warning(
-                `⚠️ You are using Node.js version ${process.version}. Lightdash CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
+                `⚠️ You are using Node.js version ${process.version}. ${process.env.SITE_NAME} CLI is optimized for v${OPTIMIZED_NODE_VERSION} so you might experience issues.`,
             ),
         );
     }

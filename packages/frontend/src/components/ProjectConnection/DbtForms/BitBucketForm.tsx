@@ -92,8 +92,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 description={
                     <>
                         <p>
-                            This is the branch in your Bitbucket repo that
-                            Lightdash should sync to. e.g. <b>main</b>,{' '}
+                            This is the branch in your Bitbucket repo that the
+                            application should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
                         </p>
                         <p>

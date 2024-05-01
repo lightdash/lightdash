@@ -3913,8 +3913,8 @@ export class ProjectService extends BaseService {
                 name: `${user.firstName} ${user.lastName}`,
                 email: user.email || '',
             },
-            label: `Lightdash - ${projectSummary.name}`,
-            description: 'Lightdash project',
+            label: `${this.lightdashConfig.siteName} - ${projectSummary.name}`,
+            description: `${this.lightdashConfig.siteName} project`,
             url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/home`,
             dependsOn: uniq(
                 chartExposures.map(({ dependsOn }) => dependsOn).flat(),

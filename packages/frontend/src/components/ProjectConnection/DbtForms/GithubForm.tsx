@@ -2,6 +2,7 @@ import { DbtProjectType } from '@lightdash/common';
 import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { useApp } from '../../../providers/AppProvider';
 import {
     hasNoWhiteSpaces,
     isGitRepository,
@@ -13,6 +14,7 @@ import { useProjectFormContext } from '../ProjectFormProvider';
 const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const { savedProject } = useProjectFormContext();
     const { register } = useFormContext();
+    const { health: healthState } = useApp();
 
     const requireSecrets: boolean =
         savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
@@ -26,7 +28,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             This is used to access your repo.
                             <Anchor
                                 target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
+                                href={`${healthState.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#github`}
                                 rel="noreferrer"
                             >
                                 {' '}
@@ -77,8 +79,8 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <>
                             <p>
                                 This is the branch in your GitHub repo that
-                                Lightdash should sync to. e.g. <b>main</b>,{' '}
-                                <b>master</b> or <b>dev</b>
+                                should sync to. e.g. <b>main</b>, <b>master</b>{' '}
+                                or <b>dev</b>
                             </p>
                             <p>
                                 By default, we've set this to <b>main</b> but

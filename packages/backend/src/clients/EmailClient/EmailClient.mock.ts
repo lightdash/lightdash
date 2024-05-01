@@ -10,7 +10,17 @@ export const passwordResetLinkMock = {
 
 export const lightdashConfigWithNoSMTP: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
+    | 'smtp'
+    | 'siteUrl'
+    | 'query'
+    | 'siteName'
+    | 'siteGithubIcon'
+    | 'siteGithubUrl'
+    | 'siteLinkedinIcon'
+    | 'siteLinkedinUrl'
+    | 'siteTwitterIcon'
+    | 'siteTwitterUrl'
+    | 'siteHelpdeskUrl'
 > = {
     smtp: undefined,
     siteUrl: 'https://test.lightdash.cloud',
@@ -18,6 +28,14 @@ export const lightdashConfigWithNoSMTP: Pick<
         maxLimit: 100,
         csvCellsLimit: 100,
     },
+    siteName: 'Lightdash',
+    siteGithubIcon: '',
+    siteGithubUrl: '',
+    siteLinkedinIcon: '',
+    siteLinkedinUrl: '',
+    siteTwitterIcon: '',
+    siteTwitterUrl: '',
+    siteHelpdeskUrl: '',
 };
 
 const smtpBase: SmtpConfig = {
@@ -38,7 +56,17 @@ const smtpBase: SmtpConfig = {
 
 export const lightdashConfigWithBasicSMTP: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
+    | 'siteUrl'
+    | 'smtp'
+    | 'query'
+    | 'siteName'
+    | 'siteGithubIcon'
+    | 'siteGithubUrl'
+    | 'siteLinkedinIcon'
+    | 'siteLinkedinUrl'
+    | 'siteTwitterIcon'
+    | 'siteTwitterUrl'
+    | 'siteHelpdeskUrl'
 > = {
     smtp: {
         ...smtpBase,
@@ -48,11 +76,29 @@ export const lightdashConfigWithBasicSMTP: Pick<
         maxLimit: 100,
         csvCellsLimit: 100,
     },
+    siteName: 'Lightdash',
+    siteGithubIcon: '',
+    siteGithubUrl: '',
+    siteLinkedinIcon: '',
+    siteLinkedinUrl: '',
+    siteTwitterIcon: '',
+    siteTwitterUrl: '',
+    siteHelpdeskUrl: '',
 };
 
 export const lightdashConfigWithOauth2SMTP: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
+    | 'siteUrl'
+    | 'smtp'
+    | 'query'
+    | 'siteName'
+    | 'siteGithubIcon'
+    | 'siteGithubUrl'
+    | 'siteLinkedinIcon'
+    | 'siteLinkedinUrl'
+    | 'siteTwitterIcon'
+    | 'siteTwitterUrl'
+    | 'siteHelpdeskUrl'
 > = {
     smtp: {
         ...smtpBase,
@@ -67,11 +113,29 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         maxLimit: 100,
         csvCellsLimit: 100,
     },
+    siteName: 'Lightdash',
+    siteGithubIcon: '',
+    siteGithubUrl: '',
+    siteLinkedinIcon: '',
+    siteLinkedinUrl: '',
+    siteTwitterIcon: '',
+    siteTwitterUrl: '',
+    siteHelpdeskUrl: '',
 };
 
 export const lightdashConfigWithSecurePortSMTP: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
+    | 'smtp'
+    | 'siteUrl'
+    | 'query'
+    | 'siteName'
+    | 'siteGithubIcon'
+    | 'siteGithubUrl'
+    | 'siteLinkedinIcon'
+    | 'siteLinkedinUrl'
+    | 'siteTwitterIcon'
+    | 'siteTwitterUrl'
+    | 'siteHelpdeskUrl'
 > = {
     smtp: {
         ...smtpBase,
@@ -82,6 +146,14 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         maxLimit: 100,
         csvCellsLimit: 100,
     },
+    siteName: 'Lightdash',
+    siteGithubIcon: '',
+    siteGithubUrl: '',
+    siteLinkedinIcon: '',
+    siteLinkedinUrl: '',
+    siteTwitterIcon: '',
+    siteTwitterUrl: '',
+    siteHelpdeskUrl: '',
 };
 
 export const expectedTransporterArgs = [

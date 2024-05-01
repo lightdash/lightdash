@@ -10,6 +10,7 @@ import {
 import { useState, type FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import { useApp } from '../../../providers/AppProvider';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
 import Input from '../../ReactHookForm/Input';
@@ -20,6 +21,7 @@ import StartOfWeekSelect from './Inputs/StartOfWeekSelect';
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const { health } = useApp();
     return (
         <Input
             name="warehouse.dataset"
@@ -41,7 +43,7 @@ export const BigQuerySchemaInput: FC<{
                     .
                 </p>
             }
-            documentationUrl="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#data-set"
+            documentationUrl={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#data-set`}
             rules={{
                 required: 'Required field',
                 validate: {
@@ -59,6 +61,7 @@ const BigQueryForm: FC<{
     const { register } = useFormContext();
     const [temporaryFile, setTemporaryFile] = useState<File>();
     const { savedProject } = useProjectFormContext();
+    const { health } = useApp();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.BIGQUERY;
 
@@ -122,7 +125,7 @@ const BigQueryForm: FC<{
                                     This is the JSON key file. You can see{' '}
                                     <Anchor
                                         target="_blank"
-                                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
+                                        href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#key-file`}
                                         rel="noreferrer"
                                     >
                                         how to create a key here

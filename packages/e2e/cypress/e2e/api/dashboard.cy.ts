@@ -118,7 +118,7 @@ const createChartAndUpdateDashboard = (
             }));
         });
 
-describe('Lightdash dashboard', () => {
+describe('Dashboard', () => {
     const dashboardName = 'Dashboard with charts that belong to dashboard';
     before(() => {
         cy.login();

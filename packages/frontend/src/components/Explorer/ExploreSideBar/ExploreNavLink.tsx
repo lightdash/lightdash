@@ -7,6 +7,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import React from 'react';
+import { useApp } from '../../../providers/AppProvider';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 
@@ -22,6 +23,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     onClick,
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
+    const { health: healthState } = useApp();
 
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
@@ -57,7 +59,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                             showNoDimensionsIcon ? (
                                 <Anchor
                                     role="button"
-                                    href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                                    href={`${healthState.data?.siteHelpdeskUrl}/guides/how-to-create-dimensions`}
                                     target="_blank"
                                     rel="noreferrer"
                                 >

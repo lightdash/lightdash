@@ -41,5 +41,5 @@ process.on('SIGABRT', onExit);
 
 // Start the Lightdash server
 app.start().catch((e) => {
-    Logger.error('Error starting Lightdash', e);
+    Logger.error(`Error starting ${lightdashConfig.siteName}`, e);
 });

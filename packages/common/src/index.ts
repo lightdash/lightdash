@@ -744,6 +744,27 @@ export type HealthState = {
     hasDbtSemanticLayer: boolean;
     hasGroups: boolean;
     hasExtendedUsageAnalytics: boolean;
+    siteName: string;
+    siteLogo: string;
+    siteLogoAlt: string;
+    siteLogoDark: string;
+    siteLogoBlack: string;
+    siteLogoWhite: string;
+    siteTouchIconGrey: string;
+    siteTitleText: string;
+    siteFavicon: string;
+    siteTouchIcon: string;
+    siteGithubIcon: string;
+    siteGithubUrl: string;
+    siteLinkedinIcon: string;
+    siteLinkedinUrl: string;
+    siteTwitterIcon: string;
+    siteTwitterUrl: string;
+    siteHelpdeskUrl: string;
+    siteSlackCommunityUrl: string;
+    supportEmail: string;
+    sitePrivacyPolicyUrl: string;
+    siteTOSUrl: string;
 };
 
 export enum DBFieldTypes {

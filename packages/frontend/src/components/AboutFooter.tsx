@@ -8,6 +8,7 @@ import {
     Button,
     Divider,
     Group,
+    Image,
     Modal,
     Stack,
     Text,
@@ -36,7 +37,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     const { health: healthState } = useApp();
     const showUpdateBadge =
         healthState.data?.latest.version &&
-        healthState.data.version !== healthState.data.latest.version &&
+        healthState.data?.version !== healthState.data?.latest.version &&
         healthState.data?.mode === LightdashMode.DEFAULT;
 
     return (
@@ -56,12 +57,28 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         color="gray.7"
                         p="xs"
                         fw="500"
-                        leftIcon={<Logo />}
+                        leftIcon={
+                            healthState.data?.siteTouchIconGrey ? (
+                                <Image
+                                    src={healthState.data?.siteTouchIconGrey}
+                                    width={16}
+                                    height={16}
+                                    alt={
+                                        healthState.data?.siteTouchIconGrey
+                                            ? healthState.data
+                                                  ?.siteTouchIconGrey
+                                            : 'Touch Icon (Grey)'
+                                    }
+                                />
+                            ) : (
+                                <Logo />
+                            )
+                        }
                         loading={healthState.isInitialLoading}
                         onClick={() => setIsOpen(true)}
                     >
-                        {!minimal && 'Lightdash - '}
-                        {healthState.data && `v${healthState.data.version}`}
+                        {!minimal && `${healthState.data?.siteName} - `}
+                        {healthState.data && `v${healthState.data?.version}`}
                         {showUpdateBadge && (
                             <Badge
                                 variant="light"
@@ -76,7 +93,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 
                     {minimal ? (
                         <Anchor
-                            href="https://docs.lightdash.com/"
+                            href={`${healthState.data?.siteHelpdeskUrl}`}
                             target="_blank"
                         >
                             <ActionIcon color="gray.7" p="xs" size="lg">
@@ -89,7 +106,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         </Anchor>
                     ) : (
                         <MantineLinkButton
-                            href="https://docs.lightdash.com/"
+                            href={`${healthState.data?.siteHelpdeskUrl}`}
                             target="_blank"
                             leftIcon={
                                 <MantineIcon
@@ -127,7 +144,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                         <Title order={5} fw={500}>
                             <b>Version:</b>{' '}
                             {healthState.data
-                                ? `v${healthState.data.version}`
+                                ? `v${healthState.data?.version}`
                                 : 'n/a'}
                         </Title>
                         {showUpdateBadge && (
@@ -142,7 +159,7 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     available. Please follow the instructions in
                                     the{' '}
                                     <Anchor
-                                        href="https://docs.lightdash.com/self-host/update-lightdash"
+                                        href={`${healthState.data?.siteHelpdeskUrl}/self-host/update-lightdash`}
                                         target="_blank"
                                         rel="noreferrer"
                                         style={{
@@ -158,14 +175,14 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
 
                         <Group position="right">
                             <MantineLinkButton
-                                href="https://docs.lightdash.com/"
+                                href={`${healthState.data?.siteHelpdeskUrl}`}
                                 target="_blank"
                                 variant="default"
                             >
                                 Docs
                             </MantineLinkButton>
                             <MantineLinkButton
-                                href="https://github.com/lightdash/lightdash"
+                                href={`${healthState.data?.siteGithubUrl}`}
                                 target="_blank"
                                 variant="default"
                             >

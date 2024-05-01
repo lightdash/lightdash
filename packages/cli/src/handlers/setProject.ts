@@ -59,9 +59,7 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
                 `/projects/${selectedProject.projectUuid}/home`,
                 config.context.serverUrl,
             );
-        console.error(
-            `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
-        );
+        console.error(`\n  ✅️ Connected to project: ${projectUrl || ''}\n`);
     } else {
         throw new Error(`Project not found.`);
     }
@@ -83,9 +81,7 @@ export const setFirstProject = async () => {
             `/projects/${firstProject.name}/home`,
             config.context.serverUrl,
         );
-    console.error(
-        `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
-    );
+    console.error(`\n  ✅️ Connected to project: ${projectUrl || ''}\n`);
 };
 
 export const setProjectHandler = async (options: SetProjectOptions) => {

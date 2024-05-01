@@ -27,7 +27,7 @@ const RefreshDbtButton = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const { track } = useTracking();
-    const { user } = useApp();
+    const { user, health } = useApp();
 
     useEffect(() => {
         if (activeJob) {
@@ -82,13 +82,11 @@ const RefreshDbtButton = () => {
                         You're still connected to a dbt project created from the
                         CLI.
                         <br />
-                        To keep your Lightdash project in sync with your dbt
-                        project,
+                        To keep your {`${health.data?.siteName}`} project in
+                        sync with your dbt project,
                         <br /> you need to either{' '}
                         <Anchor
-                            href={
-                                'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
-                            }
+                            href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#2-import-a-dbt-project`}
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -96,9 +94,7 @@ const RefreshDbtButton = () => {
                         </Anchor>
                         , setup a{' '}
                         <Anchor
-                            href={
-                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
-                            }
+                            href={`${health.data?.siteHelpdeskUrl}/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action`}
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -107,9 +103,7 @@ const RefreshDbtButton = () => {
                         <br />
                         or, run{' '}
                         <Anchor
-                            href={
-                                'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
-                            }
+                            href={`${health.data?.siteHelpdeskUrl}/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash`}
                             target="_blank"
                             rel="noreferrer"
                         >
@@ -134,7 +128,7 @@ const RefreshDbtButton = () => {
         return (
             <Tooltip
                 withinPortal
-                label={`Developer previews are temporary Lightdash projects`}
+                label={`Developer previews are temporary ${health.data?.siteName} projects`}
             >
                 <Badge color="yellow" size="lg" radius="sm">
                     Developer preview
@@ -149,7 +143,7 @@ const RefreshDbtButton = () => {
             multiline
             w={320}
             position="bottom"
-            label="If you've updated your YAML files, you can sync your changes to Lightdash by clicking this button."
+            label={`If you've updated your YAML files, you can sync your changes to ${health.data?.siteName} by clicking this button.`}
         >
             <Button
                 size="xs"

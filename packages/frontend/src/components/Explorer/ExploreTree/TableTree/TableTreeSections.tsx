@@ -8,6 +8,7 @@ import {
 import { Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useApp } from '../../../../providers/AppProvider';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -35,6 +36,7 @@ const TableTreeSections: FC<Props> = ({
     selectedDimensions,
     onSelectedNodeChange,
 }) => {
+    const { health: healthState } = useApp();
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -157,7 +159,7 @@ const TableTreeSections: FC<Props> = ({
 
                     {hasMetrics ? null : (
                         <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-metrics"
+                            href={`${healthState.data?.siteHelpdeskUrl}/guides/how-to-create-metrics`}
                             tooltipProps={{
                                 label: (
                                     <>
@@ -201,7 +203,7 @@ const TableTreeSections: FC<Props> = ({
                     </Text>
 
                     <DocumentationHelpButton
-                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
+                        href={`${healthState.data?.siteHelpdeskUrl}/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"`}
                         tooltipProps={{
                             label: (
                                 <>
@@ -244,7 +246,7 @@ const TableTreeSections: FC<Props> = ({
                     </Text>
 
                     <DocumentationHelpButton
-                        href="https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view"
+                        href={`${healthState.data?.siteHelpdeskUrl}/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view`}
                         tooltipProps={{
                             label: (
                                 <>

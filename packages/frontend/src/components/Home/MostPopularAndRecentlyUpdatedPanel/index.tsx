@@ -97,7 +97,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                                   compact
                                   variant="subtle"
                                   target="_blank"
-                                  href="https://docs.lightdash.com/get-started/exploring-data/intro"
+                                  href={`${health.data?.siteHelpdeskUrl}/get-started/exploring-data/intro`}
                               >
                                   Learn
                               </MantineLinkButton>

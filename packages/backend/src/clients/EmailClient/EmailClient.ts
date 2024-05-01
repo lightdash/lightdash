@@ -22,11 +22,37 @@ export type AttachmentUrl = {
     truncated: boolean;
 };
 type EmailClientArguments = {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        | 'smtp'
+        | 'siteUrl'
+        | 'siteName'
+        | 'siteGithubIcon'
+        | 'siteGithubUrl'
+        | 'siteLinkedinIcon'
+        | 'siteLinkedinUrl'
+        | 'siteTwitterIcon'
+        | 'siteTwitterUrl'
+        | 'siteHelpdeskUrl'
+        | 'query'
+    >;
 };
 
 export default class EmailClient {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        | 'smtp'
+        | 'siteUrl'
+        | 'siteName'
+        | 'siteGithubIcon'
+        | 'siteGithubUrl'
+        | 'siteLinkedinIcon'
+        | 'siteLinkedinUrl'
+        | 'siteTwitterIcon'
+        | 'siteTwitterUrl'
+        | 'siteHelpdeskUrl'
+        | 'query'
+    >;
 
     transporter: nodemailer.Transporter | undefined;
 
@@ -118,6 +144,7 @@ export default class EmailClient {
             context: {
                 url: link.url,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
             },
             text: `Forgotten your password? No worries! Just click on the link below within the next 24 hours to create a new one: ${link.url}`,
         });
@@ -132,14 +159,22 @@ export default class EmailClient {
     ) {
         return this.sendEmail({
             to: invite.email,
-            subject: `You've been invited to join Lightdash`,
+            subject: `You've been invited to join ${this.lightdashConfig.siteName}!`,
             template: 'invitation',
             context: {
                 orgName: userThatInvited.organizationName,
                 inviteUrl: `${invite.inviteUrl}?from=email`,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
-            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
+            text: `Your teammates at ${userThatInvited.organizationName} are using ${this.lightdashConfig.siteName} to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
         });
     }
 
@@ -175,8 +210,16 @@ export default class EmailClient {
                 inviterName: `${userThatInvited.firstName} ${userThatInvited.lastName}`,
                 projectUrl,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
                 projectName,
                 roleAction,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
             text: `${userThatInvited.firstName} ${userThatInvited.lastName} has invited you to ${roleAction} this project: ${projectUrl}`,
         });
@@ -211,9 +254,17 @@ export default class EmailClient {
                 frequency,
                 url,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
                 schedulerUrl,
                 expirationDays,
                 deliveryType,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
             text: title,
             attachments: pdfFile
@@ -259,8 +310,16 @@ export default class EmailClient {
                 noResults: attachment.path === '#no-results',
                 maxCells: this.lightdashConfig.query.csvCellsLimit,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
                 schedulerUrl,
                 expirationDays,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
             text: title,
         });
@@ -304,8 +363,16 @@ export default class EmailClient {
                 maxCells: this.lightdashConfig.query.csvCellsLimit,
                 url,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
                 schedulerUrl,
                 expirationDays,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
             text: title,
         });
@@ -320,7 +387,7 @@ export default class EmailClient {
     }): Promise<void> {
         const subject = 'Verify your email address';
         const text = `
-        Verify your email address by entering the following passcode in Lightdash: ${passcode}
+        Verify your email address by entering the following passcode in ${this.lightdashConfig.siteName}: ${passcode}
             `;
         return this.sendEmail({
             to: recipient,
@@ -330,6 +397,14 @@ export default class EmailClient {
                 passcode,
                 title: subject,
                 host: this.lightdashConfig.siteUrl,
+                siteName: this.lightdashConfig.siteName,
+                githubIcon: this.lightdashConfig.siteGithubIcon,
+                githubUrl: this.lightdashConfig.siteGithubUrl,
+                linkedinIcon: this.lightdashConfig.siteLinkedinIcon,
+                linkedinUrl: this.lightdashConfig.siteLinkedinUrl,
+                twitterIcon: this.lightdashConfig.siteTwitterIcon,
+                twitterUrl: this.lightdashConfig.siteTwitterUrl,
+                helpdeskUrl: this.lightdashConfig.siteHelpdeskUrl,
             },
             text,
         });

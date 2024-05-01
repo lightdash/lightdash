@@ -26,7 +26,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 </p>
                 <p>
                     After your job finish you need to click the "refresh dbt"
-                    button in Lightdash to sync your project.
+                    button in your explore to sync your project.
                 </p>
             </Alert>
             <PasswordInput

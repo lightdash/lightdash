@@ -86,7 +86,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <>
                         <p>
                             This is the branch in your Azure DevOps repo that
-                            Lightdash should sync to. e.g. <b>main</b>,{' '}
+                            the application should sync to. e.g. <b>main</b>,{' '}
                             <b>master</b> or <b>dev</b>
                         </p>
                         <p>

@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet';
 import { ProjectType } from '@lightdash/common';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
+import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
@@ -142,7 +143,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
-
     withCenteredContent = false,
     withFitContent = false,
     withFixedContent = false,
@@ -158,6 +158,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         refetchOnMount: true,
     });
     const { data: projects } = useProjects();
+    const { health } = useApp();
     const isCurrentProjectPreview = !!projects?.find(
         (project) =>
             project.projectUuid === activeProjectUuid &&
@@ -185,7 +186,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
         <>
             {title ? (
                 <Helmet>
-                    <title>{title} - Lightdash</title>
+                    <title>
+                        {title} - {`${health.data?.siteName}`}
+                    </title>
                 </Helmet>
             ) : null}
 

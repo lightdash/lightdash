@@ -46,7 +46,7 @@ type Props = {
 
 const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
     const { track } = useTracking();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const ability = useAbilityContext();
     const [isListOpen, toggleList] = useToggle(false);
     const [search, setSearch] = useState('');
@@ -226,7 +226,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                             <Radio
                                 value={TableSelectionType.ALL}
                                 label="Show entire project"
-                                description="Show all of the models in your dbt project in Lightdash."
+                                description={`Show all of the models in your dbt project in ${health.data?.siteName}.`}
                                 disabled={disabled}
                             />
 

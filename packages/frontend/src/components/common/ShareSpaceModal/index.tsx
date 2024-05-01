@@ -34,7 +34,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const [selectedAccess, setSelectedAccess] = useState<AccessOption>(
         space.isPrivate ? SpaceAccessOptions[0] : SpaceAccessOptions[1],
     );
-    const { user: sessionUser } = useApp();
+    const { user: sessionUser, health: healthState } = useApp();
 
     const [isOpen, setIsOpen] = useState<boolean>(false);
 
@@ -122,7 +122,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                                 <>
                                     Learn more about permissions in our{' '}
                                     <Anchor
-                                        href="https://docs.lightdash.com/references/roles"
+                                        href={`${healthState.data?.siteHelpdeskUrl}/references/roles`}
                                         target="_blank"
                                         rel="noreferrer"
                                     >

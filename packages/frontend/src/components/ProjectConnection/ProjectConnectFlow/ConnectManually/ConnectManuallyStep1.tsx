@@ -2,6 +2,7 @@ import { Button, Stack, Text, Tooltip } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useApp } from '../../../../providers/AppProvider';
 import { useTracking } from '../../../../providers/TrackingProvider';
 import { EventName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
@@ -29,7 +30,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
     onForward,
 }) => {
     const { track } = useTracking();
-
+    const { health } = useApp();
     return (
         <OnboardingWrapper>
             <Button
@@ -68,7 +69,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                             <Button
                                 component="a"
                                 variant="outline"
-                                href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                                href={`${health.data?.siteHelpdeskUrl}/guides/how-to-create-dimensions`}
                                 target="_blank"
                                 rel="noreferrer noopener"
                                 rightIcon={

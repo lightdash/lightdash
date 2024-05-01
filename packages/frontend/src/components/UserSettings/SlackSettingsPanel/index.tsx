@@ -30,6 +30,7 @@ import {
     useSlackChannels,
     useUpdateSlackNotificationChannelMutation,
 } from '../../../hooks/slack/useSlack';
+import { useApp } from '../../../providers/AppProvider';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -46,6 +47,7 @@ const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGetSlack();
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
+    const { health } = useApp();
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
         useSlackChannels({
             enabled: isValidSlack,
@@ -100,10 +102,12 @@ const SlackSettingsPanel: FC = () => {
                     )}
 
                     <Text color="dimmed" fz="xs">
-                        Sharing in Slack allows you to unfurl Lightdash URLs and
-                        schedule deliveries to specific people or channels
-                        within your Slack workspace.{' '}
-                        <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
+                        Sharing in Slack allows you to unfurl{' '}
+                        {health.data?.siteName} URLs and schedule deliveries to
+                        specific people or channels within your Slack workspace.{' '}
+                        <Anchor
+                            href={`${health.data?.siteHelpdeskUrl}/guides/sharing-in-slack`}
+                        >
                             View docs
                         </Anchor>
                     </Text>

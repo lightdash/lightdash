@@ -14,8 +14,8 @@ const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
     return (
         <>
             <Text color="dimmed">
-                Lightdash curated dashboards that show usage and performance
-                information about your project.
+                Curated dashboards that show usage and performance information
+                about your project.
             </Text>
 
             <Card

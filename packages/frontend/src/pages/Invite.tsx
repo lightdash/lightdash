@@ -35,9 +35,14 @@ import LightdashLogo from '../svgs/lightdash-black.svg';
 interface WelcomeCardProps {
     email: string | undefined;
     setReadyToJoin: (isReady: boolean) => void;
+    siteName: string | undefined;
 }
 
-const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
+const WelcomeCard: FC<WelcomeCardProps> = ({
+    email,
+    setReadyToJoin,
+    siteName,
+}) => {
     const { data: org } = useOrganization();
 
     return (
@@ -59,7 +64,7 @@ const WelcomeCard: FC<WelcomeCardProps> = ({ email, setReadyToJoin }) => {
                     <Text color="gray.6" ta="center">
                         {`Your teammates ${
                             org?.name ? `at ${org.name}` : ''
-                        } are using Lightdash to discover
+                        } are using ${siteName} to discover
                     and share data insights. Click on the link below within the
                     next 72 hours to join your team and start exploring your
                     data!`}
@@ -209,8 +214,12 @@ const Invite: FC = () => {
         <Page title="Register" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
+                    src={
+                        health.data?.siteLogoBlack
+                            ? health.data?.siteLogoBlack
+                            : LightdashLogo
+                    }
+                    alt={`${health.data?.siteName} logo`}
                     width={130}
                     mx="auto"
                     my="lg"
@@ -236,14 +245,14 @@ const Invite: FC = () => {
                             <br />
                             our{' '}
                             <Anchor
-                                href="https://www.lightdash.com/privacy-policy"
+                                href={`${health.data?.sitePrivacyPolicyUrl}`}
                                 target="_blank"
                             >
                                 Privacy Policy
                             </Anchor>{' '}
                             and our{' '}
                             <Anchor
-                                href="https://www.lightdash.com/terms-of-service"
+                                href={`${health.data?.siteTOSUrl}`}
                                 target="_blank"
                             >
                                 Terms of Service.
@@ -254,6 +263,7 @@ const Invite: FC = () => {
                     <WelcomeCard
                         email={inviteLinkQuery.data?.email}
                         setReadyToJoin={setIsLinkFromEmail}
+                        siteName={health.data?.siteName}
                     />
                 )}
             </Stack>

@@ -9,7 +9,7 @@ import {
     userWithoutOrg,
 } from './index.mock';
 
-describe('Lightdash member permissions', () => {
+describe('Member permissions', () => {
     let ability = defineUserAbility(orgProfile, [projectProfile]);
     let conditions = defaultConditions;
     describe('when user not in an org', () => {

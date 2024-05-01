@@ -30,7 +30,7 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
                     Learn more about permissions in our{' '}
                     <Anchor
                         role="button"
-                        href="https://docs.lightdash.com/references/roles"
+                        href={`${health.data?.siteHelpdeskUrl}/references/roles`}
                         target="_blank"
                         rel="noreferrer"
                     >

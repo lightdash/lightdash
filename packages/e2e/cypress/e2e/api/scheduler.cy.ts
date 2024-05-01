@@ -31,7 +31,7 @@ const getUpdateSchedulerBody = (
     options: {},
 });
 
-describe('Lightdash scheduler endpoints', () => {
+describe('Scheduler endpoints', () => {
     beforeEach(() => {
         cy.login();
     });

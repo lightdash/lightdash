@@ -3,8 +3,8 @@
     "version": "0.1077.0",
     "private": true,
     "scripts": {
-        "start": "vite",
-        "build": "tsc --project tsconfig.build.json && NODE_OPTIONS=--max-old-space-size=8192 vite build",
+        "start": "VITE_SITE_NAME=${SITE_NAME:-\"Lightdash\"} VITE_SITE_NAME=${SITE_NAME:-\"Lightdash\"} VITE_TOUCH_ICON=${SITE_TOUCH_ICON:-\"/apple-touch-icon.png\"} VITE_FAVICON=${SITE_FAVICON:-\"/favicon.ico\"} vite",
+        "build": "tsc --project tsconfig.build.json && export VITE_SITE_NAME=${SITE_NAME:-\"Lightdash\"} VITE_SITE_NAME=${SITE_NAME:-\"Lightdash\"} VITE_TOUCH_ICON=${SITE_TOUCH_ICON:-\"/apple-touch-icon.png\"} VITE_FAVICON=${SITE_FAVICON:-\"/favicon.ico\"} && NODE_OPTIONS=--max-old-space-size=8192 vite build",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
@@ -62,6 +62,7 @@
         "dayjs": "^1.11.10",
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
+        "ejs": "^3.1.10",
         "fuse.js": "^6.5.3",
         "immer": "^9.0.15",
         "jspdf": "^2.5.1",

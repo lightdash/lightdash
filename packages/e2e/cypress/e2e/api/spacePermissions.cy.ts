@@ -81,7 +81,7 @@ const createPrivateDashboard = (
     });
 };
 
-describe('Lightdash API tests for my own private spaces as admin', () => {
+describe('API tests for my own private spaces as admin', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -141,7 +141,7 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     });
 });
 
-describe('Lightdash API tests for an editor accessing other private spaces', () => {
+describe('API tests for an editor accessing other private spaces', () => {
     let privateChart: SavedChart;
     let privateSpaceChart: Space;
     let privateSpaceDashboard: Space;
@@ -262,7 +262,7 @@ describe('Lightdash API tests for an editor accessing other private spaces', () 
     });
 });
 
-describe('Lightdash API tests for an project admin accessing other private spaces', () => {
+describe('API tests for an project admin accessing other private spaces', () => {
     let privateChart: SavedChart;
     let privateSpaceChart: Space;
     let privateSpaceDashboard: Space;

@@ -14,7 +14,7 @@ const runqueryBody: MetricQuery = {
 };
 const sqlQueryBody = { sql: 'select 1' };
 
-describe('Lightdash API organization permission tests', () => {
+describe('API organization permission tests', () => {
     beforeEach(() => {
         cy.anotherLogin();
     });
@@ -210,7 +210,7 @@ describe('Lightdash API organization permission tests', () => {
     });
 });
 
-describe('Lightdash API tests for viewer org user', () => {
+describe('API tests for viewer org user', () => {
     let email;
 
     before(() => {
@@ -276,7 +276,7 @@ describe('Lightdash API tests for viewer org user', () => {
     });
 });
 
-describe('Lightdash API tests for interactive_viewer org user', () => {
+describe('API tests for interactive_viewer org user', () => {
     let email;
 
     before(() => {

@@ -6,11 +6,14 @@ import { BaseService } from '../BaseService';
 
 type DownloadFileServiceArguments = {
     downloadFileModel: DownloadFileModel;
-    lightdashConfig: Pick<LightdashConfig, 's3'>;
+    lightdashConfig: Pick<LightdashConfig, 's3' | 'siteHelpdeskUrl'>;
 };
 
 export class DownloadFileService extends BaseService {
-    private readonly lightdashConfig: Pick<LightdashConfig, 's3'>;
+    private readonly lightdashConfig: Pick<
+        LightdashConfig,
+        's3' | 'siteHelpdeskUrl'
+    >;
 
     private readonly downloadFileModel: DownloadFileModel;
 
@@ -33,7 +36,7 @@ export class DownloadFileService extends BaseService {
         const file = await this.downloadFileModel.getDownloadFile(nanoid);
 
         if (!fs.existsSync(file.path)) {
-            const error = `This file ${file.path} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: https://docs.lightdash.com/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
+            const error = `This file ${file.path} doesn't exist on this server, this may be happening if you are running multiple containers or because files are not persisted. You can check out our docs to learn more on how to enable cloud storage: ${this.lightdashConfig.siteHelpdeskUrl}/self-host/customize-deployment/configure-lightdash-to-use-external-object-storage`;
             throw new NotFoundError(error);
         }
         return file;

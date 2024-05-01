@@ -14,11 +14,14 @@ import SchedulersView from '../components/SchedulersView';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
+import { useApp } from '../providers/AppProvider';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
+
+    const { health } = useApp();
 
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
@@ -37,7 +40,7 @@ const ProjectSettings: FC = () => {
     return (
         <>
             <Helmet>
-                <title>Project Settings - Lightdash</title>
+                <title>Project Settings - {`${health.data?.siteName}`}</title>
             </Helmet>
 
             <Stack spacing="xl">

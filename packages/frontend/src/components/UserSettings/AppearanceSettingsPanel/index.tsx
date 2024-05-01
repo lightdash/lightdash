@@ -32,6 +32,7 @@ import { isEqual } from 'lodash';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useOrganizationUpdateMutation } from '../../../hooks/organization/useOrganizationUpdateMutation';
+import { useApp } from '../../../providers/AppProvider';
 import { isHexCodeColor } from '../../../utils/colorUtils';
 import { Can, useAbilityContext } from '../../common/Authorization';
 import MantineIcon from '../../common/MantineIcon';
@@ -469,6 +470,7 @@ const AppearanceColorSettings: FC = () => {
 };
 
 const AppearanceSettingsPanel: FC = () => {
+    const { health } = useApp();
     return (
         <Stack spacing="sm">
             <Group spacing="xxs">
@@ -479,7 +481,7 @@ const AppearanceSettingsPanel: FC = () => {
                 >
                     <ActionIcon
                         component="a"
-                        href="https://docs.lightdash.com/guides/customizing-the-appearance-of-your-project"
+                        href={`${health.data?.siteHelpdeskUrl}/guides/customizing-the-appearance-of-your-project`}
                         target="_blank"
                         rel="noreferrer"
                     >

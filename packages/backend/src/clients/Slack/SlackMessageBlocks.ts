@@ -7,6 +7,7 @@ import {
     ThresholdOptions,
 } from '@lightdash/common';
 import { KnownBlock, LinkUnfurls, SectionBlock } from '@slack/bolt';
+import { LightdashConfig } from '../../config/parseConfig';
 import { Unfurl } from '../../services/UnfurlService/UnfurlService';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 

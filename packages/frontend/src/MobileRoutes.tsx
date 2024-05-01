@@ -6,6 +6,7 @@ import {
     getDefaultZIndex,
     Group,
     Header,
+    Image,
     MantineProvider,
     Stack,
     Title,
@@ -40,12 +41,14 @@ import MobileSpace from './pages/MobileSpace';
 import MobileSpaces from './pages/MobileSpaces';
 import Projects from './pages/Projects';
 import ShareRedirect from './pages/ShareRedirect';
+import { useApp } from './providers/AppProvider';
 import { TrackPage } from './providers/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
 
 const MobileNavBar: FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { health } = useApp();
     const toggleMenu = useCallback(
         () => setIsMenuOpen((prevValue) => !prevValue),
         [],
@@ -79,7 +82,20 @@ const MobileNavBar: FC = () => {
                         title="Home"
                         size="lg"
                     >
-                        <Logo />
+                        {health.data?.siteLogo ? (
+                            <Image
+                                src={health.data?.siteLogo}
+                                width={36}
+                                height={36}
+                                alt={
+                                    health.data?.siteLogoAlt
+                                        ? health.data?.siteLogoAlt
+                                        : 'logo'
+                                }
+                            />
+                        ) : (
+                            <Logo />
+                        )}
                     </ActionIcon>
                     <Burger opened={isMenuOpen} onClick={toggleMenu} />
                 </Group>
@@ -151,6 +167,7 @@ const routesNotSupportedInMobile = [
 ];
 
 const MobileRoutes: FC = () => {
+    const { health } = useApp();
     return (
         <Switch>
             <Route path="/login">
@@ -159,7 +176,7 @@ const MobileRoutes: FC = () => {
                 </TrackPage>
             </Route>
             <Route path="/no-mobile-page">
-                <MobileView />
+                <MobileView health={health} />
             </Route>
             {routesNotSupportedInMobile.map((route) => (
                 <Redirect key={route} from={route} to="/no-mobile-page" />

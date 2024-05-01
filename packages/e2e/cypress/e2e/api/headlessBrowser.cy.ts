@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 const apiUrl = '/api/v1';
 
-describe('Lightdash headless browser', () => {
+describe('Headless browser', () => {
     it('Should test simple callback endpoint', () => {
         cy.request(`${apiUrl}/headless-browser/callback/callback-arg`).then(
             (resp) => {

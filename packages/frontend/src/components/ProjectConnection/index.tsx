@@ -100,7 +100,7 @@ const ProjectForm: FC<Props> = ({
                     <Flex align="center" gap={2}>
                         <Title order={5}>Warehouse connection</Title>
                         <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
+                            href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#warehouse-connection`}
                             pos="relative"
                             top="2px"
                         />
@@ -131,7 +131,7 @@ const ProjectForm: FC<Props> = ({
                     <Flex align="center" gap={2}>
                         <Title order={5}>dbt connection</Title>
                         <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                            href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project`}
                             pos="relative"
                             top="2px"
                         />
@@ -243,11 +243,11 @@ export const UpdateProjectConnection: FC<{
             <Alert
                 color="orange"
                 icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
-                title="Developer previews are temporary Lightdash projects where settings cannot be changed."
+                title={`Developer previews are temporary ${health.data?.siteName} projects where settings cannot be changed.`}
             >
                 Read docs{' '}
                 <Anchor
-                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
+                    href={`${health.data?.siteHelpdeskUrl}/guides/cli/how-to-use-lightdash-preview`}
                     target="_blank"
                     rel="noreferrer"
                 >

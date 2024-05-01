@@ -461,7 +461,7 @@ export default class SchedulerTask {
                     schedulerUuid || ''
                 }|scheduled delivery> ${getHumanReadableCronExpression(
                     cron,
-                )} from Lightdash\n${
+                )} from ${this.lightdashConfig.siteName}\n${
                     this.s3Client.getExpirationWarning()?.slack || ''
                 }`,
             };
@@ -473,7 +473,9 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         footerMarkdown: `This is a <${url}?threshold_uuid=${
                             schedulerUuid || ''
-                        }|data alert> sent by Lightdash. For security reasons, delivered files expire after ${
+                        }|data alert> sent by ${
+                            this.lightdashConfig.siteName
+                        }. For security reasons, delivered files expire after ${
                             this.s3Client.getExpirationWarning()?.days || 3
                         } days`,
                         imageUrl,
@@ -1026,7 +1028,7 @@ export default class SchedulerTask {
                 )}`;
                 await this.emailClient.sendImageNotificationEmail(
                     recipient,
-                    `Lightdash Data Alert`,
+                    `${this.lightdashConfig.siteName} Data Alert`,
                     name,
                     details.description || '',
                     thresholdMessage,
@@ -1039,7 +1041,7 @@ export default class SchedulerTask {
                     schedulerUrl,
                     pdfFile,
                     undefined, // expiration days
-                    'This is a data alert sent by Lightdash',
+                    `This is a data alert sent by ${this.lightdashConfig.siteName}`,
                 );
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {

@@ -4,6 +4,7 @@ import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
+import { useApp } from '../../../providers/AppProvider';
 import SchedulerModalContent from './SchedulerModalContent';
 
 const SchedulersModal: FC<
@@ -24,6 +25,7 @@ const SchedulersModal: FC<
     itemsMap,
     onClose = () => {},
 }) => {
+    const { health } = useApp();
     return (
         <Modal
             opened={isOpen}
@@ -36,7 +38,7 @@ const SchedulersModal: FC<
                         <MantineIcon icon={IconBell} size="lg" color="gray.7" />
                         <Text fw={600}>Alerts</Text>
                         <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-alerts"
+                            href={`${health.data?.siteHelpdeskUrl}/guides/how-to-create-alerts`}
                             pos="relative"
                             top="2px"
                         />
@@ -46,7 +48,7 @@ const SchedulersModal: FC<
                         <MantineIcon icon={IconSend} size="lg" color="gray.7" />
                         <Text fw={600}>Scheduled deliveries</Text>
                         <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
+                            href={`${health.data?.siteHelpdeskUrl}/guides/how-to-create-scheduled-deliveries`}
                             pos="relative"
                             top="2px"
                         />

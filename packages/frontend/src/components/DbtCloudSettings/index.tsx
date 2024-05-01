@@ -19,6 +19,7 @@ import {
     useProjectDbtCloudDeleteMutation,
     useProjectDbtCloudUpdateMutation,
 } from '../../hooks/dbtCloud/useProjectDbtCloudSettings';
+import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -44,6 +45,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
             metricsJobId: '',
         },
     });
+    const { health: healthState } = useApp();
     const dbtCloudSettings = useProjectDbtCloud(projectUuid, {
         staleTime: 0,
         onSuccess: (data) => {
@@ -74,14 +76,19 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                         <Title order={4}>dbt Semantic Layer</Title>
 
                         <Text color="dimmed">
-                            dbt Semantic Layer is available now in Lightdash
-                            Cloud. To get setup, reach out to your Lightdash
-                            support rep or email support@lightdash.com to have
-                            this activated in your account.
+                            dbt Semantic Layer is available now in{' '}
+                            {`${healthState.data?.siteName}`}
+                            Cloud. To get setup, reach out to your{' '}
+                            {`${healthState.data?.siteName}`}
+                            support rep or email{' '}
+                            {`${healthState.data?.supportEmail}`} to have this
+                            activated in your account.
                         </Text>
                         <Text color="dimmed">
                             Read more about using dbt Semantic Layer in our{' '}
-                            <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
+                            <Anchor
+                                href={`${healthState.data?.siteHelpdeskUrl}/guides/dbt-semantic-layer`}
+                            >
                                 docs guide
                             </Anchor>
                         </Text>

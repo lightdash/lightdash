@@ -3,6 +3,7 @@ import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
+import { useApp } from '../../../providers/AppProvider';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
 import FormSection from '../../ReactHookForm/FormSection';
 import FormCollapseButton from '../FormCollapseButton';
@@ -13,7 +14,7 @@ export const DatabricksSchemaInput: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const { register } = useFormContext();
-
+    const { health } = useApp();
     return (
         <TextInput
             // this supposed to be a `schema` but changing it will break for existing customers
@@ -24,7 +25,7 @@ export const DatabricksSchemaInput: FC<{
                     Check out for more details in{' '}
                     <Anchor
                         target="_blank"
-                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
+                        href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project/#database-1`}
                         rel="noreferrer"
                     >
                         given documentation
@@ -47,6 +48,7 @@ const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
+    const { health } = useApp();
     const { savedProject } = useProjectFormContext();
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
@@ -62,7 +64,7 @@ const DatabricksForm: FC<{
                             Check out for more details in{' '}
                             <Anchor
                                 target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
+                                href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#server-hostname`}
                                 rel="noreferrer"
                             >
                                 given documentation
@@ -88,7 +90,7 @@ const DatabricksForm: FC<{
                             Check out for more details in{' '}
                             <Anchor
                                 target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
+                                href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#http-path`}
                                 rel="noreferrer"
                             >
                                 given documentation
@@ -113,7 +115,7 @@ const DatabricksForm: FC<{
                             Check out for more details in{' '}
                             <Anchor
                                 target="_blank"
-                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
+                                href={`${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#personal-access-token`}
                                 rel="noreferrer"
                             >
                                 given documentation

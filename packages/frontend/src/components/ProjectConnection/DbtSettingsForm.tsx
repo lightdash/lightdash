@@ -109,8 +109,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             }
         }
     }, [disabled, type, resetField]);
-    const baseDocUrl =
-        'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#';
+    const baseDocUrl = `${health.data?.siteHelpdeskUrl}/get-started/setup-lightdash/connect-project#`;
     const typeDocUrls = {
         [DbtProjectType.GITHUB]: {
             env: `environment-variables`,
@@ -203,8 +202,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     description={
                                         <p>
                                             <b>target</b> is the dataset/schema
-                                            in your data warehouse that
-                                            Lightdash will look for your dbt
+                                            in your data warehouse that the
+                                            application will look for your dbt
                                             models. By default, we set this to
                                             be the same value as you have as the
                                             default in your profiles.yml file.

@@ -31,7 +31,7 @@ const UsersAndGroupsPanel: FC = () => {
                 <Tooltip label="Click here to learn more about user roles">
                     <ActionIcon
                         component="a"
-                        href="https://docs.lightdash.com/references/roles"
+                        href={`${health.data?.siteHelpdeskUrl}/references/roles`}
                         target="_blank"
                         rel="noreferrer"
                     >

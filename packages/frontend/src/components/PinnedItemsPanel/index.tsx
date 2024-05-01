@@ -2,6 +2,7 @@ import { ResourceViewItemType, type PinnedItems } from '@lightdash/common';
 import { Card, Group, Text } from '@mantine/core';
 import { IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import useHealth from '../../hooks/health/useHealth';
 import { usePinnedItemsContext } from '../../providers/PinnedItemsProvider';
 import MantineIcon from '../common/MantineIcon';
 import MantineLinkButton from '../common/MantineLinkButton';
@@ -14,6 +15,7 @@ interface Props {
 
 const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
     const { userCanManage } = usePinnedItemsContext();
+    const health = useHealth();
 
     return pinnedItems && pinnedItems.length > 0 ? (
         <ResourceView
@@ -62,7 +64,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     </Text>
                 </Group>
                 <MantineLinkButton
-                    href="https://docs.lightdash.com/guides/pinning/"
+                    href={`${health.data?.siteHelpdeskUrl}/guides/pinning/`}
                     target="_blank"
                     variant="subtle"
                     compact

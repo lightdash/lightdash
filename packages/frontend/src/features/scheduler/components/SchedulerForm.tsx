@@ -171,6 +171,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
 };
 
 const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
+    const health = useHealth();
     if (slackState === SlackStates.NO_SLACK) {
         return (
             <>
@@ -179,12 +180,12 @@ const SlackErrorContent: FC<{ slackState: SlackStates }> = ({ slackState }) => {
                     To create a slack scheduled delivery, you need to
                     <Anchor
                         target="_blank"
-                        href="https://docs.lightdash.com/self-host/customize-deployment/configure-a-slack-app-for-lightdash"
+                        href={`${health.data?.siteHelpdeskUrl}/self-host/customize-deployment/configure-a-slack-app-for-lightdash`}
                     >
                         {' '}
                         setup Slack{' '}
                     </Anchor>
-                    for your Lightdash instance
+                    for your instance
                 </Text>
             </>
         );
@@ -565,7 +566,7 @@ const SchedulerForm: FC<Props> = ({
                                     withinPortal
                                     maw={400}
                                     multiline
-                                    label=" This is the frequency at which Lightdash runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) "
+                                    label={` This is the frequency at which ${health.data?.siteName} runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) `}
                                     position="top"
                                 >
                                     <MantineIcon
@@ -617,7 +618,9 @@ const SchedulerForm: FC<Props> = ({
                                             sx={{ alignSelf: 'start' }}
                                         >
                                             You must enable the
-                                            <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
+                                            <Anchor
+                                                href={`${health.data?.siteHelpdeskUrl}/self-host/customize-deployment/enable-headless-browser-for-lightdash`}
+                                            >
                                                 {' '}
                                                 headless browser{' '}
                                             </Anchor>
@@ -825,13 +828,13 @@ const SchedulerForm: FC<Props> = ({
                                                     delivery, you need to add
                                                     <Anchor
                                                         target="_blank"
-                                                        href="https://docs.lightdash.com/references/environmentVariables"
+                                                        href={`${health.data?.siteHelpdeskUrl}/references/environmentVariables`}
                                                     >
                                                         {' '}
                                                         SMTP environment
                                                         variables{' '}
                                                     </Anchor>
-                                                    for your Lightdash instance
+                                                    for your instance
                                                 </Text>
                                             </>
                                         </HoverCard.Dropdown>
@@ -912,8 +915,8 @@ const SchedulerForm: FC<Props> = ({
                                             channel, please type the name of the
                                             channel in the input box exactly as
                                             it appears in Slack. Also ensure you
-                                            invite the Lightdash Slackbot into
-                                            that channel.
+                                            invite the Slackbot into that
+                                            channel.
                                         </Text>
                                     )}
                                 </Stack>

@@ -192,7 +192,7 @@ const UserAttributesPanel: FC = () => {
                     >
                         <ActionIcon
                             component="a"
-                            href="https://docs.lightdash.com/references/user-attributes"
+                            href={`${health.data?.siteHelpdeskUrl}/references/user-attributes`}
                             target="_blank"
                             rel="noreferrer"
                         >

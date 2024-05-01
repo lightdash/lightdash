@@ -46,6 +46,9 @@ package-lock.json
 # typescript
 *.tsbuildinfo
 
+# scripts
+/scripts/deploy.sh
+
 # examples
 /examples/full-jaffle-shop-demo/dbt/target
 /dbt

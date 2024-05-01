@@ -24,8 +24,12 @@ const PasswordRecovery: FC = () => {
             {/* FIXME: use Mantine sizes for width */}
             <Stack w={400} mt="4xl">
                 <Image
-                    src={LightdashLogo}
-                    alt="lightdash logo"
+                    src={
+                        health.data?.siteLogoBlack
+                            ? health.data?.siteLogoBlack
+                            : LightdashLogo
+                    }
+                    alt={`${health.data?.siteName} logo`}
                     width={130}
                     mx="auto"
                     my="lg"

@@ -523,7 +523,7 @@ export const convertExplores = async (
                             type: e.name,
                             message:
                                 e.message ||
-                                `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
+                                `Could not convert dbt model: "${model.name}" in to an explore`,
                         },
                     ],
                 };

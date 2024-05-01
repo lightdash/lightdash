@@ -11,6 +11,7 @@ import AceEditor, { type IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useApp } from '../../../providers/AppProvider';
 import { type TableCalculationForm } from '../types';
 
 import { useLocalStorage } from '@mantine/hooks';
@@ -50,7 +51,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
         key: SOFT_WRAP_LOCAL_STORAGE_KEY,
         defaultValue: true,
     });
-
+    const { health } = useApp();
     const { setAceEditor } = useExplorerAceEditorCompleter();
 
     return (
@@ -93,7 +94,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
                         Need inspiration?{' '}
                         <Anchor
                             target="_blank"
-                            href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                            href={`${health.data?.siteHelpdeskUrl}/guides/table-calculations/sql-templates`}
                             rel="noreferrer"
                         >
                             Check out our templates!

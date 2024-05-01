@@ -1,5 +1,6 @@
 import { createStyles, keyframes, Loader, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useApp } from '../../../providers/AppProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { SectionName } from '../../../types/Events';
@@ -65,19 +66,21 @@ const useAnimatedTextStyles = createStyles((theme) => ({
     },
 }));
 
-const ExploreDocumentationUrl =
-    'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
+const ExploreDocumentationUrl = (helpdeskUrl: string | undefined) =>
+    `${helpdeskUrl}/get-started/exploring-data/using-explores/`;
 
 export const EmptyStateNoColumns = () => {
     const { classes } = useAnimatedTextStyles();
-
+    const { health } = useApp();
     return (
         <EmptyState
             title={
                 <>
                     Pick a metric & select its dimensions{' '}
                     <DocumentationHelpButton
-                        href={ExploreDocumentationUrl}
+                        href={ExploreDocumentationUrl(
+                            health.data?.siteHelpdeskUrl,
+                        )}
                         pos="relative"
                         top={2}
                         iconProps={{ size: 'lg' }}
@@ -153,44 +156,54 @@ export const EmptyStateNoColumns = () => {
 
 export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     description,
-}) => (
-    <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
+}) => {
+    const { health } = useApp();
+    return (
+        <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
+            <EmptyState
+                maw={500}
+                description={
+                    <>
+                        {description}{' '}
+                        <DocumentationHelpButton
+                            href={ExploreDocumentationUrl(
+                                health.data?.siteHelpdeskUrl,
+                            )}
+                            pos="relative"
+                            top={2}
+                        />
+                    </>
+                }
+            >
+                <RefreshButton size={'xs'} />
+            </EmptyState>
+        </TrackSection>
+    );
+};
+
+export const NoTableSelected = () => {
+    const { health } = useApp();
+    return (
         <EmptyState
             maw={500}
+            icon={<NoTableIcon />}
+            title="Select a table"
             description={
                 <>
-                    {description}{' '}
+                    To run a query, first select the table that you would like
+                    to explore.{' '}
                     <DocumentationHelpButton
-                        href={ExploreDocumentationUrl}
+                        href={ExploreDocumentationUrl(
+                            health.data?.siteHelpdeskUrl,
+                        )}
                         pos="relative"
                         top={2}
                     />
                 </>
             }
-        >
-            <RefreshButton size={'xs'} />
-        </EmptyState>
-    </TrackSection>
-);
-
-export const NoTableSelected = () => (
-    <EmptyState
-        maw={500}
-        icon={<NoTableIcon />}
-        title="Select a table"
-        description={
-            <>
-                To run a query, first select the table that you would like to
-                explore.{' '}
-                <DocumentationHelpButton
-                    href={ExploreDocumentationUrl}
-                    pos="relative"
-                    top={2}
-                />
-            </>
-        }
-    />
-);
+        />
+    );
+};
 
 export const EmptyStateExploreLoading = () => (
     <EmptyState title="Loading tables...">

@@ -56,7 +56,7 @@ async function updateExplores(projectUuid: string) {
     });
 }
 
-describe('Lightdash API tests for member user with admin project permissions', () => {
+describe('API tests for member user with admin project permissions', () => {
     let email;
     before(() => {
         cy.loginWithPermissions('member', [
@@ -400,7 +400,7 @@ describe('Lightdash API tests for member user with admin project permissions', (
     });
 });
 
-describe('Lightdash API tests for member user with editor project permissions', () => {
+describe('API tests for member user with editor project permissions', () => {
     let email;
 
     before(() => {
@@ -698,7 +698,7 @@ describe('Lightdash API tests for member user with editor project permissions', 
     });
 });
 
-describe('Lightdash API tests for member user with developer project permissions', () => {
+describe('API tests for member user with developer project permissions', () => {
     let email;
 
     before(() => {
@@ -770,7 +770,7 @@ describe('Lightdash API tests for member user with developer project permissions
         });
     });
 });
-describe('Lightdash API tests for member user with interactive_viewer project permissions', () => {
+describe('API tests for member user with interactive_viewer project permissions', () => {
     let email;
 
     before(() => {
@@ -984,7 +984,7 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
     });
 });
 
-describe('Lightdash API tests for member user with viewer project permissions', () => {
+describe('API tests for member user with viewer project permissions', () => {
     let email;
 
     before(() => {
@@ -1312,7 +1312,7 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     });
 });
 
-describe('Lightdash API tests for member user with NO project permissions', () => {
+describe('API tests for member user with NO project permissions', () => {
     let email;
 
     before(() => {
@@ -1459,7 +1459,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
     });
 });
 
-describe('Lightdash API tests for project members access', () => {
+describe('API tests for project members access', () => {
     beforeEach(() => {
         cy.login();
     });
