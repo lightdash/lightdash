@@ -19,7 +19,9 @@ jobs:
                   cache: 'yarn'
             - name: Install packages
               run: yarn install --frozen-lockfile
-            - name: Build
+            - name: Build common
+              run: yarn common-build
+            - name: Build frontend
               run: yarn workspace frontend build
             - name: List output files - debugging
               run: ls -R ./packages/frontend/build/assets/
