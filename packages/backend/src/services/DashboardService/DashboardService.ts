@@ -412,7 +412,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: [], // todo copy tabs over
+                    tabs: newDashboard.tabs,
                 },
                 user,
                 projectUuid,
