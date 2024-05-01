@@ -343,7 +343,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         savedChart &&
         user.data?.ability?.can('manage', subject('SavedChart', savedChart));
 
+    const isPromoteChartsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PromoteCharts,
+    );
     const userCanPromoteChart =
+        isPromoteChartsEnabled &&
         savedChart &&
         user.data?.ability?.can('promote', subject('SavedChart', savedChart));
 

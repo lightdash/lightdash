@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    FeatureFlags,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { usePromoteMutation } from '../../../hooks/usePromoteChart';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
@@ -98,14 +100,19 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     }, [spaces, user.data]);
 
     const { mutate: promoteChart } = usePromoteMutation();
-
-    const userCanPromoteChart = user.data?.ability?.can(
-        'promote',
-        subject('SavedChart', {
-            organizationUuid,
-            projectUuid,
-        }),
+    const isPromoteChartsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PromoteCharts,
     );
+
+    const userCanPromoteChart =
+        isPromoteChartsEnabled &&
+        user.data?.ability?.can(
+            'promote',
+            subject('SavedChart', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
 
     switch (item.type) {
         case ResourceViewItemType.CHART: {
