@@ -101,6 +101,12 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.DATE:
             case TableCalculationType.DATE:
             case TableCalculationType.TIMESTAMP:
+                if (
+                    'timeInterval' in item &&
+                    item.timeInterval === TimeFrames.WEEK
+                ) {
+                    return 'category';
+                }
                 return 'time';
             default: {
                 return 'category';
@@ -1062,6 +1068,29 @@ const getEchartAxes = ({
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
     );
+
+    const [minX, maxX] = getMinAndMaxValues(
+        bottomAxisXId ? [bottomAxisXId] : undefined,
+        resultsData?.rows || [],
+    );
+
+    let customXRange = undefined;
+    if (
+        bottomAxisXField &&
+        'timeInterval' in bottomAxisXField &&
+        bottomAxisXField.timeInterval === TimeFrames.WEEK
+    ) {
+        const continuousWeekRange = [dayjs(minX).format('YYYY-MM-DD')];
+        let nextDate = dayjs.utc(minX);
+        while (nextDate.isBefore(dayjs(maxX))) {
+            console.log(nextDate.format('YYYY-MM-DD'));
+            nextDate = nextDate.add(1, 'week');
+            continuousWeekRange.push(nextDate.format('YYYY-MM-DD'));
+        }
+        continuousWeekRange.push(dayjs(maxX).format('YYYY-MM-DD'));
+        customXRange = continuousWeekRange;
+    }
+
     return {
         xAxis: [
             {
@@ -1115,6 +1144,7 @@ const getEchartAxes = ({
                         : showGridX,
                 },
                 inverse: !!xAxisConfiguration?.[0].inverse,
+                data: customXRange,
             },
             {
                 type: topAxisType,
@@ -1388,6 +1418,12 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
     } = useVisualizationContext();
 
+    // console.log('------------inputs\n');
+    // console.log('visualizationConfig', visualizationConfig);
+    // console.log('resultsData', resultsData);
+    // console.log('itemsMap', itemsMap);
+    // console.log('------------<<<\n');
+
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
@@ -1489,7 +1525,7 @@ const useEchartsCartesianConfig = (
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
                   }))
-                : getResultValueArray(rows, true);
+                : getResultValueArray(rows, false);
         try {
             if (!itemsMap) return results;
             const xFieldId = validCartesianConfig?.layout.flipAxes
