@@ -248,13 +248,15 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
+        selector = undefined,
     }: {
         url: string;
-        lightdashPage: LightdashPage;
+        lightdashPage?: LightdashPage;
         imageId: string;
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
+        selector?: string;
     }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
@@ -269,6 +271,7 @@ export class UnfurlService extends BaseService {
             gridWidth,
             resourceUuid: details?.resourceUuid,
             resourceName: details?.title,
+            selector,
         });
 
         let imageUrl;
@@ -360,17 +363,19 @@ export class UnfurlService extends BaseService {
         gridWidth = undefined,
         resourceUuid = undefined,
         resourceName = undefined,
+        selector = 'body',
     }: {
         imageId: string;
         cookie: string;
         url: string;
-        lightdashPage: LightdashPage;
+        lightdashPage?: LightdashPage;
         chartType?: string;
         organizationUuid?: string;
         userUuid: string;
         gridWidth?: number | undefined;
         resourceUuid?: string;
         resourceName?: string;
+        selector?: string;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
@@ -519,18 +524,21 @@ export class UnfurlService extends BaseService {
                         });
 
                     const path = `/tmp/${imageId}.png`;
-                    let selector =
-                        lightdashPage === LightdashPage.EXPLORE
-                            ? `[data-testid="visualization"]`
-                            : 'body';
+
+                    let finalSelector = selector;
+
+                    if (lightdashPage === LightdashPage.EXPLORE) {
+                        finalSelector = `[data-testid="visualization"]`;
+                    }
+
                     if (
                         isPuppeteerSetViewportDynamicallyEnabled &&
                         lightdashPage === LightdashPage.DASHBOARD
                     ) {
-                        selector = '.react-grid-layout';
+                        finalSelector = '.react-grid-layout';
                     }
 
-                    const element = await page.waitForSelector(selector, {
+                    const element = await page.waitForSelector(finalSelector, {
                         timeout: 60000,
                     });
 
