@@ -1,3 +1,10 @@
+## [0.1082.1](https://github.com/lightdash/lightdash/compare/0.1082.0...0.1082.1) (2024-05-01)
+
+
+### Bug Fixes
+
+* postgres and redshift average decimal values ([#9954](https://github.com/lightdash/lightdash/issues/9954)) ([771763f](https://github.com/lightdash/lightdash/commit/771763ffa1547d52e3545a9562654a613e6d610f))
+
 # [0.1082.0](https://github.com/lightdash/lightdash/compare/0.1081.5...0.1082.0) (2024-05-01)
 
 
