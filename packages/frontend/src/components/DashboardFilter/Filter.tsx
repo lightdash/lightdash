@@ -30,7 +30,7 @@ type Props = {
     field?: FilterableField;
     filterRule?: DashboardFilterRule;
     openPopoverId: string | undefined;
-    activeTabUuid?: string | undefined
+    activeTabUuid?: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
     onSave?: (value: DashboardFilterRule) => void;

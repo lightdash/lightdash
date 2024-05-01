@@ -8,8 +8,8 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
     type DashboardFilterRule,
-    type DashboardTile,
     type DashboardTab,
+    type DashboardTile,
     type Field,
     type FilterableField,
 } from '@lightdash/common';
@@ -198,7 +198,7 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const handleToggleAll = useCallback(
-        (checked: boolean) => {
+        (checked: boolean, targetTileUuids: string[]) => {
             if (!checked) {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
@@ -206,7 +206,11 @@ const FilterConfiguration: FC<Props> = ({
                     draftState.tileTargets = {};
                     Object.entries(availableTileFilters).forEach(
                         ([tileUuid]) => {
-                            if (!draftState.tileTargets) return;
+                            if (
+                                !draftState.tileTargets ||
+                                !targetTileUuids.includes(tileUuid)
+                            )
+                                return;
                             draftState.tileTargets[tileUuid] = false;
                         },
                     );

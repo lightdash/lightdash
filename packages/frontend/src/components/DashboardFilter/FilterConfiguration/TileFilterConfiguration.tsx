@@ -15,6 +15,7 @@ import {
     Checkbox,
     Flex,
     Stack,
+    Switch,
     Text,
     Tooltip,
     useMantineTheme,
@@ -35,7 +36,7 @@ type Props = {
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChange: (action: FilterActions, tileUuid: string, field?: Field) => void;
-    onToggleAll: (checked: boolean) => void;
+    onToggleAll: (checked: boolean, tileUuids: string[]) => void;
 };
 
 const TileFilterConfiguration: FC<Props> = ({
@@ -92,7 +93,7 @@ const TileFilterConfiguration: FC<Props> = ({
     const tileTargetList = useMemo(() => {
         return sortedTileWithFilters.map(([tileUuid, filters], index) => {
             const tile = tiles.find((t) => t.uuid === tileUuid);
-            const tabUuidFromTile = tile?.tabUuid
+            const tabUuidFromTile = tile?.tabUuid;
 
             // tileConfig overrides the default filter state for a tile
             // if it is a field, we use that field for the filter.
@@ -104,14 +105,14 @@ const TileFilterConfiguration: FC<Props> = ({
             if (tileConfig !== false) {
                 selectedField = tileConfig?.fieldId
                     ? filters?.find(
-                        (f) => tileConfig?.fieldId === getFieldId(f),
-                    )
+                          (f) => tileConfig?.fieldId === getFieldId(f),
+                      )
                     : filters?.find((f) => matchFieldExact(f)(field));
 
                 // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                 invalidField =
                     tileConfig?.fieldId !== undefined &&
-                        selectedField === undefined
+                    selectedField === undefined
                         ? tileConfig?.fieldId
                         : undefined;
             }
@@ -148,9 +149,9 @@ const TileFilterConfiguration: FC<Props> = ({
                 tileUuid,
                 ...(tile &&
                     isDashboardChartTileType(tile) && {
-                    tileChartKind:
-                        tile.properties.lastVersionChartKind ?? undefined,
-                }),
+                        tileChartKind:
+                            tile.properties.lastVersionChartKind ?? undefined,
+                    }),
                 sortedFilters,
                 selectedField,
                 tabUuid: tabUuidFromTile,
@@ -158,43 +159,51 @@ const TileFilterConfiguration: FC<Props> = ({
         });
     }, [filterRule, field, sortFieldsByMatch, sortedTileWithFilters, tiles]);
 
-    const isAllChecked = tileTargetList.every(({ checked }) => checked);
-    const isIndeterminate =
-        !isAllChecked && tileTargetList.some(({ checked }) => checked);
-
     const filteredTileTargetList = (tabUUid: string) => {
-        return tileTargetList.filter((v) => v.tabUuid === tabUUid)
-    }
+        return tileTargetList.filter((v) => v.tabUuid === tabUUid);
+    };
 
-    const StackSubComponent = ({ tileList }: { tileList: any[] }) => {
+    const SwitchToggle = ({
+        tileList,
+        tabName,
+    }: {
+        tileList: any[];
+        tabName: string;
+    }) => {
+        const isAllChecked = tileList.every(({ checked }) => checked);
+        const isIndeterminate =
+            !isAllChecked && tileList.some(({ checked }) => checked);
+        const tileUuids = tileList.map((tile) => tile.tileUuid);
+        const shouldBeChecked = isAllChecked || isIndeterminate;
+        const tooltipLabel = shouldBeChecked
+            ? `Toggle off to turn filter off for tab '${tabName}'`
+            : `Turn on to turn filter on for tab '${tabName}'`;
+
         return (
-            <Stack spacing="lg">
-                <Checkbox
-                    size="xs"
-                    checked={isAllChecked}
-                    indeterminate={isIndeterminate}
-                    label={
-                        <Text fw={500}>
-                            Select all{' '}
-                            {isIndeterminate
-                                ? ` (${tileList.filter((v) => v.checked).length
-                                } charts selected)`
-                                : ''}
-                        </Text>
-                    }
+            <Tooltip label={tooltipLabel} position="right">
+                <Switch
+                    size="sm"
+                    checked={shouldBeChecked}
                     styles={{
                         label: {
-                            paddingLeft: theme.spacing.xs,
+                            paddingRight: theme.spacing.xs,
                         },
                     }}
                     onChange={() => {
                         if (isIndeterminate) {
-                            onToggleAll(false);
+                            onToggleAll(false, tileUuids);
                         } else {
-                            onToggleAll(!isAllChecked);
+                            onToggleAll(!isAllChecked, tileUuids);
                         }
                     }}
                 />
+            </Tooltip>
+        );
+    };
+
+    const StackSubComponent = ({ tileList }: { tileList: any[] }) => {
+        return (
+            <Stack spacing="lg">
                 <Stack spacing="md">
                     {tileList.map((value) => (
                         <Box key={value.key}>
@@ -263,7 +272,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                         disabled={!value.checked}
                                         item={value.selectedField}
                                         items={value.sortedFilters}
-                                        withinPortal={popoverProps?.withinPortal}
+                                        withinPortal={
+                                            popoverProps?.withinPortal
+                                        }
                                         onDropdownOpen={popoverProps?.onOpen}
                                         onDropdownClose={popoverProps?.onClose}
                                         onChange={(newField) => {
@@ -280,27 +291,39 @@ const TileFilterConfiguration: FC<Props> = ({
                     ))}
                 </Stack>
             </Stack>
-        )
+        );
     };
 
-    return (
-        tabs.length > 0 ? (
-            <Accordion
-                defaultValue={activeTabUuid}
-                variant="contained"
-            >
-                {tabs.map((tab, index) => (
-                    <Accordion.Item key={index} value={tab.uuid}>
-                        <Accordion.Control>{tab.name}</Accordion.Control>
+    return tabs.length > 0 ? (
+        <Accordion defaultValue={activeTabUuid} variant="contained">
+            {tabs.map((tab, index) => (
+                <Flex align="center" gap="sm" key={index}>
+                    <Accordion.Item
+                        key={index}
+                        value={tab.uuid}
+                        style={{ flexGrow: 1 }}
+                    >
+                        <Accordion.Control
+                            fw={500}
+                            style={{ fontSize: '14px', fontWeight: 500 }}
+                        >
+                            {tab.name}
+                        </Accordion.Control>
                         <Accordion.Panel>
-                            <StackSubComponent tileList={filteredTileTargetList(tab.uuid)} />
+                            <StackSubComponent
+                                tileList={filteredTileTargetList(tab.uuid)}
+                            />
                         </Accordion.Panel>
                     </Accordion.Item>
-                ))}
-            </Accordion>
-        ) : (
-            <StackSubComponent tileList={tileTargetList} />
-        )
+                    <SwitchToggle
+                        tileList={filteredTileTargetList(tab.uuid)}
+                        tabName={tab.name}
+                    />
+                </Flex>
+            ))}
+        </Accordion>
+    ) : (
+        <StackSubComponent tileList={tileTargetList} />
     );
 };
 
