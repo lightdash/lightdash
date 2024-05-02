@@ -376,7 +376,7 @@ export const timeFrameConfigs: Record<TimeFrames, TimeFrameConfig> = {
         getDimensionType: () => DimensionType.DATE,
         getSql: getSqlForTruncatedDate,
         getAxisMinInterval: () => null,
-        getAxisLabelFormatter: () => ({ hour: '' }),
+        getAxisLabelFormatter: () => null,
     },
     MONTH: {
         getLabel: () => 'Month',

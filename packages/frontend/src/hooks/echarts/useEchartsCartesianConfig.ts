@@ -101,6 +101,8 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.DATE:
             case TableCalculationType.DATE:
             case TableCalculationType.TIMESTAMP:
+                // Use categorical axis for weeks only. Echarts handles the
+                // other time frames well with a time axis
                 if (
                     'timeInterval' in item &&
                     item.timeInterval === TimeFrames.WEEK
@@ -937,6 +939,7 @@ const getEchartAxes = ({
             // This is to ensure the value is correctly formatted on some types
             switch (axisItem.timeInterval) {
                 case TimeFrames.WEEK_NUM:
+                case TimeFrames.WEEK:
                     axisConfig.axisLabel = {
                         formatter: (value: any) => {
                             return formatItemValue(axisItem, value, false);
@@ -968,6 +971,7 @@ const getEchartAxes = ({
                 (longestLabelWidth || 0) * Math.sin(rotateRadians);
             axisConfig.axisLabel = axisConfig.axisLabel || {};
             axisConfig.axisLabel.rotate = rotate;
+            axisConfig.axisLabel.margin = 12;
             axisConfig.nameGap = oppositeSide + 15;
         }
         return axisConfig;
@@ -1074,20 +1078,21 @@ const getEchartAxes = ({
         resultsData?.rows || [],
     );
 
-    let customXRange = undefined;
-    if (
+    const useWeekAxisConfiguration =
         bottomAxisXField &&
         'timeInterval' in bottomAxisXField &&
-        bottomAxisXField.timeInterval === TimeFrames.WEEK
-    ) {
-        const continuousWeekRange = [dayjs(minX).format('YYYY-MM-DD')];
+        bottomAxisXField.timeInterval === TimeFrames.WEEK;
+    let customXRange = undefined;
+    // When the timeframe is a week, we use a categorical axis which doesn't fill the gaps where there is no data.
+    // This finds the min and max weeks and makes a continuous range of weeks to show on the axis
+    if (useWeekAxisConfiguration) {
+        const continuousWeekRange = [dayjs.utc(minX).format()];
         let nextDate = dayjs.utc(minX);
         while (nextDate.isBefore(dayjs(maxX))) {
-            console.log(nextDate.format('YYYY-MM-DD'));
             nextDate = nextDate.add(1, 'week');
-            continuousWeekRange.push(nextDate.format('YYYY-MM-DD'));
+            continuousWeekRange.push(nextDate.format());
         }
-        continuousWeekRange.push(dayjs(maxX).format('YYYY-MM-DD'));
+        continuousWeekRange.push(dayjs.utc(maxX).format());
         customXRange = continuousWeekRange;
     }
 
@@ -1144,7 +1149,10 @@ const getEchartAxes = ({
                         : showGridX,
                 },
                 inverse: !!xAxisConfiguration?.[0].inverse,
-                data: customXRange,
+                data: useWeekAxisConfiguration ? customXRange : undefined,
+                axisTick: useWeekAxisConfiguration
+                    ? { alignWithLabel: true, interval: 0 }
+                    : undefined,
             },
             {
                 type: topAxisType,
@@ -1418,12 +1426,6 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
     } = useVisualizationContext();
 
-    // console.log('------------inputs\n');
-    // console.log('visualizationConfig', visualizationConfig);
-    // console.log('resultsData', resultsData);
-    // console.log('itemsMap', itemsMap);
-    // console.log('------------<<<\n');
-
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
@@ -1525,7 +1527,7 @@ const useEchartsCartesianConfig = (
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
                   }))
-                : getResultValueArray(rows, false);
+                : getResultValueArray(rows, true);
         try {
             if (!itemsMap) return results;
             const xFieldId = validCartesianConfig?.layout.flipAxes
