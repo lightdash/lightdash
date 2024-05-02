@@ -1,3 +1,10 @@
+## [0.1083.1](https://github.com/lightdash/lightdash/compare/0.1083.0...0.1083.1) (2024-05-02)
+
+
+### Bug Fixes
+
+* disconnect browser instead of closing (feature flag) ([#9963](https://github.com/lightdash/lightdash/issues/9963)) ([350ca3b](https://github.com/lightdash/lightdash/commit/350ca3baab855a49f1f51cb1df217be037726b8b))
+
 # [0.1083.0](https://github.com/lightdash/lightdash/compare/0.1082.1...0.1083.0) (2024-05-02)
 
 
