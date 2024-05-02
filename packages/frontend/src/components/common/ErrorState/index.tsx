@@ -24,7 +24,7 @@ const ErrorState: FC<{
                     <Text maw={400}>{error.message}</Text>
                     {error.id && (
                         <Text maw={400} weight="bold">
-                            Please contact support with the error ID: {error.id}
+                            You can contact support with the following error ID {error.id}
                         </Text>
                     )}
                 </>
