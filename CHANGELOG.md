@@ -1,3 +1,10 @@
+## [0.1084.1](https://github.com/lightdash/lightdash/compare/0.1084.0...0.1084.1) (2024-05-02)
+
+
+### Bug Fixes
+
+* replace escaped newlines in credentials values ([#9964](https://github.com/lightdash/lightdash/issues/9964)) ([4c59e89](https://github.com/lightdash/lightdash/commit/4c59e89eabb17cdafd3a2f05c29c3e4d60cd6d6f))
+
 # [0.1084.0](https://github.com/lightdash/lightdash/compare/0.1083.1...0.1084.0) (2024-05-02)
 
 
