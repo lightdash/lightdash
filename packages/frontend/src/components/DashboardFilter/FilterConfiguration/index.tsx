@@ -203,7 +203,6 @@ const FilterConfiguration: FC<Props> = ({
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
 
-                    draftState.tileTargets = {};
                     Object.entries(availableTileFilters).forEach(
                         ([tileUuid]) => {
                             if (
@@ -221,7 +220,13 @@ const FilterConfiguration: FC<Props> = ({
             } else {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
-                    draftState.tileTargets = {};
+                    targetTileUuids.forEach((tileUuid) => {
+                        if (!draftState.tileTargets) return;
+                        draftState.tileTargets[tileUuid] = {
+                            fieldId: fieldId(selectedField),
+                            tableName: selectedField.table,
+                        };
+                    });
                     return draftState;
                 });
 
