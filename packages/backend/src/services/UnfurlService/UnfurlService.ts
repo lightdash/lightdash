@@ -16,7 +16,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer from 'puppeteer';
+import puppeteer, { type Browser, type Page } from 'puppeteer';
 import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -398,11 +398,16 @@ export class UnfurlService extends BaseService {
                 FeatureFlags.PuppeteerScrollElementIntoView,
                 { userUuid, organizationUuid },
             );
+        const isPuppeteerDisconnectBrowserEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.PuppeteerDisconnectBrowser,
+            { userUuid, organizationUuid },
+        );
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',
             async (span) => {
-                let browser;
+                let browser: Browser | undefined;
+                let page: Page | undefined;
 
                 try {
                     const browserWSEndpoint = `ws://${
@@ -412,7 +417,7 @@ export class UnfurlService extends BaseService {
                         browserWSEndpoint,
                     });
 
-                    const page = await browser.newPage();
+                    page = await browser.newPage();
                     const parsedUrl = new URL(url);
 
                     const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
@@ -632,7 +637,18 @@ export class UnfurlService extends BaseService {
                     );
                     throw e;
                 } finally {
-                    if (browser) await browser.close();
+                    if (isPuppeteerDisconnectBrowserEnabled) {
+                        /**
+                         * For concurrent screenshot jobs, we need to close the page and disconnect the browser
+                         * instead of closing it so that concurrent jobs don't interfere with each other.
+                         * This is to avoid the following error:
+                         * Error: Protocol error (Target.closeTarget): Target closed.
+                         */
+                        if (page) await page.close();
+                        if (browser) await browser.disconnect();
+                    } else if (browser) {
+                        await browser.close();
+                    }
 
                     span.end();
 
