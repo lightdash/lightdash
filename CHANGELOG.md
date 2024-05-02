@@ -1,3 +1,10 @@
+# [0.1083.0](https://github.com/lightdash/lightdash/compare/0.1082.1...0.1083.0) (2024-05-02)
+
+
+### Features
+
+* allow image service to accept selectors ([#9948](https://github.com/lightdash/lightdash/issues/9948)) ([58fd910](https://github.com/lightdash/lightdash/commit/58fd910195374a00139d6842aeaa228830aba2cf))
+
 ## [0.1082.1](https://github.com/lightdash/lightdash/compare/0.1082.0...0.1082.1) (2024-05-01)
 
 
