@@ -734,14 +734,6 @@ const overrideFilterGroupWithFilterRules = (
     };
 };
 
-const combineFilterGroupWithFilterRules = (
-    filterGroup: FilterGroup | undefined,
-    filterRules: FilterRule[],
-): FilterGroup => ({
-    id: uuidv4(),
-    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
-});
-
 const convertDashboardFilterRuleToFilterRule = (
     dashboardFilterRule: DashboardFilterRule,
 ): FilterRule => ({
@@ -762,32 +754,26 @@ const convertDashboardFilterRuleToFilterRule = (
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
-    shouldOverride: boolean,
-): MetricQuery => {
-    const mergeStrategy = shouldOverride
-        ? overrideFilterGroupWithFilterRules
-        : combineFilterGroupWithFilterRules;
-    return {
-        ...metricQuery,
-        filters: {
-            dimensions: mergeStrategy(
-                metricQuery.filters?.dimensions,
-                dashboardFilters.dimensions.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.dimensions,
+            dashboardFilters.dimensions.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-            metrics: mergeStrategy(
-                metricQuery.filters?.metrics,
-                dashboardFilters.metrics.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+        ),
+        metrics: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.metrics,
+            dashboardFilters.metrics.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-            tableCalculations: mergeStrategy(
-                metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+        ),
+        tableCalculations: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.tableCalculations,
+            dashboardFilters.tableCalculations.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-        },
-    };
-};
+        ),
+    },
+});

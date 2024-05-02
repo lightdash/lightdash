@@ -9,7 +9,6 @@ import {
     dashboardFilters,
     dashboardFilterWithSameTargetAndOperator,
     dashboardFilterWithSameTargetButDifferentOperator,
-    expectedChartWithMergedDashboardFilters,
     expectedChartWithOverrideDashboardFilters,
     expectedChartWithOverrideDashboardORFilters,
     metricQueryWithAndFilters,
@@ -21,19 +20,10 @@ jest.mock('uuid', () => ({
 }));
 
 describe('addDashboardFiltersToMetricQuery', () => {
-    test('should merge the chart filters with dashboard filters', async () => {
-        const result = addDashboardFiltersToMetricQuery(
-            metricQueryWithAndFilters,
-            dashboardFilters,
-            false,
-        );
-        expect(result).toEqual(expectedChartWithMergedDashboardFilters);
-    });
     test('should override the chart AND filter group with dashboard filters', async () => {
         const result = addDashboardFiltersToMetricQuery(
             metricQueryWithAndFilters,
             dashboardFilters,
-            true,
         );
         expect(result).toEqual(expectedChartWithOverrideDashboardFilters);
     });
@@ -41,7 +31,6 @@ describe('addDashboardFiltersToMetricQuery', () => {
         const result = addDashboardFiltersToMetricQuery(
             metricQueryWithOrFilters,
             dashboardFilters,
-            true,
         );
         expect(result).toEqual(expectedChartWithOverrideDashboardORFilters);
     });
