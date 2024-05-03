@@ -1,9 +1,42 @@
 import { PostHogProvider, usePostHog } from 'posthog-js/react';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
+import { Helmet } from 'react-helmet';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
 import { useApp } from './AppProvider';
+
+const Pylon = () => {
+    const appId = ''; // todo: replace with health.data.pylon.appId
+    const { user } = useApp();
+    useEffect(() => {
+        if (user.data) {
+            // @ts-ignore
+            window.pylon = {
+                chat_settings: {
+                    app_id: appId,
+                    email: user.data.email,
+                    name: `${user.data.firstName} ${user.data.lastName}`,
+                },
+            };
+            // @ts-ignore
+            window.Pylon('setNewIssueCustomFields', {
+                user_uuid: user.data.userUuid,
+                org_uuid: user.data.organizationUuid,
+                org_name: user.data.organizationName,
+                user_role: user.data.role,
+            });
+        }
+    }, [user]);
+
+    return (
+        <Helmet>
+            <script type="text/javascript">
+                {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
+            </script>
+        </Helmet>
+    );
+};
 
 const PosthogIdentified: FC<React.PropsWithChildren<{}>> = ({ children }) => {
     const { user } = useApp();
@@ -58,6 +91,7 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
             >
                 <PosthogIdentified>
                     <Intercom />
+                    <Pylon />
                     {children}
                 </PosthogIdentified>
             </PostHogProvider>
