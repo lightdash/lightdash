@@ -302,10 +302,11 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                     description: values.description,
                     dashboardUuid: values.dashboardUuid,
                 });
+                const firstTab = selectedDashboard.tabs?.[0];
                 const newTile: DashboardChartTile = {
                     uuid: uuid4(),
                     type: DashboardTileTypes.SAVED_CHART,
-                    tabUuid: undefined,
+                    tabUuid: firstTab?.uuid,
                     properties: {
                         belongsToDashboard: true,
                         savedChartUuid: savedQuery.uuid,
@@ -318,7 +319,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                     tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
                         newTile,
                     ]),
-                    tabs: [],
+                    tabs: selectedDashboard.tabs,
                 };
                 await updateDashboard(updateFields);
             }
