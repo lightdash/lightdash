@@ -1,3 +1,10 @@
+## [0.1084.2](https://github.com/lightdash/lightdash/compare/0.1084.1...0.1084.2) (2024-05-03)
+
+
+### Bug Fixes
+
+* fix add saved chart to tabbed dashbord from explore view error out ([#9966](https://github.com/lightdash/lightdash/issues/9966)) ([c6acdad](https://github.com/lightdash/lightdash/commit/c6acdade75fbb8d332ede3b72a1ff249177ea000))
+
 ## [0.1084.1](https://github.com/lightdash/lightdash/compare/0.1084.0...0.1084.1) (2024-05-02)
 
 
