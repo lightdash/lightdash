@@ -143,20 +143,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 credentials.quotedIdentifiersIgnoreCase;
         }
 
-        let authenticator: ConnectionOptions['authenticator'] | undefined;
+        let authenticationOptions: Partial<ConnectionOptions> = {};
 
-        if (credentials.user && credentials.password) {
-            authenticator = 'SNOWFLAKE';
+        if (credentials.password) {
+            authenticationOptions = {
+                password: credentials.password,
+                authenticator: 'SNOWFLAKE',
+            };
         } else if (decodedPrivateKey) {
-            authenticator = 'SNOWFLAKE_JWT';
+            authenticationOptions = {
+                privateKey: decodedPrivateKey,
+                authenticator: 'SNOWFLAKE_JWT',
+            };
         }
 
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
-            password: credentials.password,
-            authenticator,
-            privateKey: decodedPrivateKey,
+            ...authenticationOptions,
             database: credentials.database,
             schema: credentials.schema,
             warehouse: credentials.warehouse,
