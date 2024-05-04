@@ -1,3 +1,10 @@
+## [0.1084.3](https://github.com/lightdash/lightdash/compare/0.1084.2...0.1084.3) (2024-05-03)
+
+
+### Bug Fixes
+
+* use snowflake user and password if provided ([#9973](https://github.com/lightdash/lightdash/issues/9973)) ([9ebcb14](https://github.com/lightdash/lightdash/commit/9ebcb141b783ea69cfd61ff4763224d324bf56a2))
+
 ## [0.1084.2](https://github.com/lightdash/lightdash/compare/0.1084.1...0.1084.2) (2024-05-03)
 
 
