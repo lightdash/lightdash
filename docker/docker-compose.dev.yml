@@ -74,7 +74,3 @@ services:
       - "9411:9411"
     environment:
       COLLECTOR_ZIPKIN_HOST_PORT: 9411
-    
-    lightdash:
-      platform: linux/amd64
-      image: lightdash/lightdash:latest
