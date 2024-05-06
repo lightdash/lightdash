@@ -27,12 +27,10 @@ export enum FeatureFlags {
     /**/
     PuppeteerScrollElementIntoView = 'puppeteer-scroll-element-into-view',
     PuppeteerSetViewportDynamically = 'puppeteer-set-viewport-dynamically',
+    PuppeteerDisconnectBrowser = 'puppeteer-disconnect-browser',
 
     /* Shows the two-stage login flow */
     newLoginEnabled = 'new-login-enabled',
-
-    /* Dashboard filters will override chart filters */
-    DashboardFilterOverridesChartFilters = 'dashboard-filter-overrides-chart-filters',
 
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',

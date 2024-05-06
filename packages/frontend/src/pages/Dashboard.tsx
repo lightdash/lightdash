@@ -647,7 +647,10 @@ const Dashboard: FC = () => {
             >
                 <Group position="apart" align="flex-start" noWrap>
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
-                        <DashboardFilter isEditMode={isEditMode} />
+                        <DashboardFilter
+                            isEditMode={isEditMode}
+                            activeTabUuid={activeTab?.uuid}
+                        />
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>

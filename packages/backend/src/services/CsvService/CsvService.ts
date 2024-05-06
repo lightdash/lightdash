@@ -411,19 +411,10 @@ export class CsvService extends BaseService {
                   )
                 : undefined;
 
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                },
-            );
         const metricQueryWithDashboardFilters = dashboardFiltersForTile
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
-                  isDashboardFilterOverrideEnabled,
               )
             : metricQuery;
 
