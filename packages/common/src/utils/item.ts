@@ -4,9 +4,7 @@ import {
     fieldId,
     isDimension,
     isField,
-    isTableCalculation,
     MetricType,
-    TableCalculationType,
     type CompiledDimension,
     type CustomDimension,
     type Dimension,
@@ -21,11 +19,8 @@ import {
     type AdditionalMetric,
 } from '../types/metricQuery';
 
-export const isNumericType = (
-    type: DimensionType | MetricType | TableCalculationType,
-) => {
+export const isNumericType = (type: DimensionType | MetricType) => {
     const numericTypes = [
-        TableCalculationType.NUMBER,
         DimensionType.NUMBER,
         MetricType.NUMBER,
         MetricType.PERCENTILE,
@@ -52,10 +47,8 @@ export const isNumericItem = (
         return false;
     }
     if (isCustomDimension(item)) return false;
-    if (isField(item) || isAdditionalMetric(item) || isTableCalculation(item)) {
-        return isNumericType(
-            item.type as DimensionType | MetricType | TableCalculationType,
-        );
+    if (isField(item) || isAdditionalMetric(item)) {
+        return isNumericType(item.type as DimensionType | MetricType);
     }
     return true;
 };
