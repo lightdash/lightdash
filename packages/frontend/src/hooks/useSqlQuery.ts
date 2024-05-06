@@ -13,15 +13,15 @@ const runSqlQuery = async (projectUuid: string, sql: string) =>
 
 export const useSqlQueryMutation = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<ApiSqlQueryResults, ApiError, string>(
         (sql) => runSqlQuery(projectUuid, sql),
         {
             mutationKey: ['run_sql_query', projectUuid],
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to run sql query`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

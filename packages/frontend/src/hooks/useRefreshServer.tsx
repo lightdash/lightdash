@@ -112,17 +112,17 @@ export const useRefreshServer = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<ApiRefreshResults, ApiError>({
         mutationKey: ['refresh', projectUuid],
         mutationFn: () => refresh(projectUuid),
         onSettled: async () =>
             queryClient.setQueryData(['status', projectUuid], 'loading'),
         onSuccess: (data) => setActiveJobId(data.jobUuid),
-        onError: (result) =>
-            showToastError({
+        onError: ({ error }) =>
+            showToastApiError({
                 title: 'Error syncing dbt project',
-                subtitle: result.error.message,
+                apiError: error,
             }),
     });
 };

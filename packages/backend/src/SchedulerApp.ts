@@ -117,7 +117,7 @@ export default class SchedulerApp {
     private async initSentry() {
         Sentry.init({
             release: VERSION,
-            dsn: this.lightdashConfig.sentry.dsn,
+            dsn: this.lightdashConfig.sentry.backend.dsn,
             environment:
                 this.environment === 'development'
                     ? 'development'

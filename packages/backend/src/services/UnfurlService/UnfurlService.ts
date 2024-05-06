@@ -16,7 +16,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer from 'puppeteer';
+import puppeteer, { type Browser, type Page } from 'puppeteer';
 import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -248,13 +248,15 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
+        selector = undefined,
     }: {
         url: string;
-        lightdashPage: LightdashPage;
+        lightdashPage?: LightdashPage;
         imageId: string;
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
+        selector?: string;
     }): Promise<{ imageUrl?: string; pdfPath?: string }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
@@ -269,6 +271,7 @@ export class UnfurlService extends BaseService {
             gridWidth,
             resourceUuid: details?.resourceUuid,
             resourceName: details?.title,
+            selector,
         });
 
         let imageUrl;
@@ -360,17 +363,19 @@ export class UnfurlService extends BaseService {
         gridWidth = undefined,
         resourceUuid = undefined,
         resourceName = undefined,
+        selector = 'body',
     }: {
         imageId: string;
         cookie: string;
         url: string;
-        lightdashPage: LightdashPage;
+        lightdashPage?: LightdashPage;
         chartType?: string;
         organizationUuid?: string;
         userUuid: string;
         gridWidth?: number | undefined;
         resourceUuid?: string;
         resourceName?: string;
+        selector?: string;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
@@ -393,11 +398,16 @@ export class UnfurlService extends BaseService {
                 FeatureFlags.PuppeteerScrollElementIntoView,
                 { userUuid, organizationUuid },
             );
+        const isPuppeteerDisconnectBrowserEnabled = await isFeatureFlagEnabled(
+            FeatureFlags.PuppeteerDisconnectBrowser,
+            { userUuid, organizationUuid },
+        );
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',
             async (span) => {
-                let browser;
+                let browser: Browser | undefined;
+                let page: Page | undefined;
 
                 try {
                     const browserWSEndpoint = `ws://${
@@ -407,7 +417,7 @@ export class UnfurlService extends BaseService {
                         browserWSEndpoint,
                     });
 
-                    const page = await browser.newPage();
+                    page = await browser.newPage();
                     const parsedUrl = new URL(url);
 
                     const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
@@ -519,18 +529,21 @@ export class UnfurlService extends BaseService {
                         });
 
                     const path = `/tmp/${imageId}.png`;
-                    let selector =
-                        lightdashPage === LightdashPage.EXPLORE
-                            ? `[data-testid="visualization"]`
-                            : 'body';
+
+                    let finalSelector = selector;
+
+                    if (lightdashPage === LightdashPage.EXPLORE) {
+                        finalSelector = `[data-testid="visualization"]`;
+                    }
+
                     if (
                         isPuppeteerSetViewportDynamicallyEnabled &&
                         lightdashPage === LightdashPage.DASHBOARD
                     ) {
-                        selector = '.react-grid-layout';
+                        finalSelector = '.react-grid-layout';
                     }
 
-                    const element = await page.waitForSelector(selector, {
+                    const element = await page.waitForSelector(finalSelector, {
                         timeout: 60000,
                     });
 
@@ -624,7 +637,18 @@ export class UnfurlService extends BaseService {
                     );
                     throw e;
                 } finally {
-                    if (browser) await browser.close();
+                    if (isPuppeteerDisconnectBrowserEnabled) {
+                        /**
+                         * For concurrent screenshot jobs, we need to close the page and disconnect the browser
+                         * instead of closing it so that concurrent jobs don't interfere with each other.
+                         * This is to avoid the following error:
+                         * Error: Protocol error (Target.closeTarget): Target closed.
+                         */
+                        if (page) await page.close();
+                        if (browser) await browser.disconnect();
+                    } else if (browser) {
+                        await browser.close();
+                    }
 
                     span.end();
 

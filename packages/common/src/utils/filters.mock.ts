@@ -133,49 +133,6 @@ export const dashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-export const expectedChartWithMergedDashboardFilters: MetricQuery = {
-    exploreName: 'test',
-    dimensions: ['a_dim1'],
-    limit: 501,
-    metrics: [],
-    sorts: [],
-    tableCalculations: [],
-    filters: {
-        dimensions: {
-            and: [
-                {
-                    id: 'root',
-                    and: [
-                        {
-                            id: '1',
-                            target: {
-                                fieldId: 'a_dim1',
-                            },
-                            operator: FilterOperator.EQUALS,
-                            values: [0],
-                        },
-                    ],
-                },
-                {
-                    id: '4',
-                    target: { fieldId: 'a_dim1' },
-                    operator: ConditionalOperator.EQUALS,
-                    values: ['1', '2', '3'],
-                },
-            ],
-            id: 'uuid',
-        },
-        metrics: {
-            and: [],
-            id: 'uuid',
-        },
-        tableCalculations: {
-            and: [],
-            id: 'uuid',
-        },
-    },
-};
-
 export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
     exploreName: 'test',
     dimensions: ['a_dim1'],

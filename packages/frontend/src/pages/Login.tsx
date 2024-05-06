@@ -53,7 +53,7 @@ const loginQuery = async (data: LoginParams) =>
 const LoginContent: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
-    const { showToastError } = useToaster();
+    const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
     useEffect(() => {
@@ -93,11 +93,11 @@ const LoginContent: FC = () => {
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
-        onError: (error) => {
+        onError: ({ error }) => {
             form.reset();
-            showToastError({
+            showToastApiError({
                 title: `Failed to login`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

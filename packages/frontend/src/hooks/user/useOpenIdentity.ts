@@ -16,7 +16,7 @@ const deleteOpenIdentity = async (data: DeleteOpenIdentity) =>
 
 export const useDeleteOpenIdentityMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, DeleteOpenIdentity>(deleteOpenIdentity, {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['user_identities']);
@@ -24,10 +24,10 @@ export const useDeleteOpenIdentityMutation = () => {
                 title: `Deleted! Social login was deleted.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete social login`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

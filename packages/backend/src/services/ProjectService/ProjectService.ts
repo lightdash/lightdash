@@ -1412,19 +1412,11 @@ export class ProjectService extends BaseService {
                 dashboardFilters.tableCalculations,
             ),
         };
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            );
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
-                isDashboardFilterOverrideEnabled,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
@@ -3765,20 +3757,10 @@ export class ProjectService extends BaseService {
               }
             : undefined;
 
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            );
-
         const metricQuery: MetricQuery = appliedDashboardFilters
             ? addDashboardFiltersToMetricQuery(
                   savedChart.metricQuery,
                   appliedDashboardFilters,
-                  isDashboardFilterOverrideEnabled,
               )
             : savedChart.metricQuery;
 

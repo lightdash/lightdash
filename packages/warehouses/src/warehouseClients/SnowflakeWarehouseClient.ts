@@ -10,11 +10,19 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import {
+    configure,
+    Connection,
+    ConnectionOptions,
+    createConnection,
+} from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
+
+// Prevent snowflake sdk from flooding the output with info logs
+configure({ logLevel: 'WARN' });
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -135,12 +143,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 credentials.quotedIdentifiersIgnoreCase;
         }
 
+        let authenticationOptions: Partial<ConnectionOptions> = {};
+
+        if (credentials.password) {
+            authenticationOptions = {
+                password: credentials.password,
+                authenticator: 'SNOWFLAKE',
+            };
+        } else if (decodedPrivateKey) {
+            authenticationOptions = {
+                privateKey: decodedPrivateKey,
+                authenticator: 'SNOWFLAKE_JWT',
+            };
+        }
+
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
-            password: credentials.password,
-            authenticator: decodedPrivateKey ? 'SNOWFLAKE_JWT' : undefined,
-            privateKey: decodedPrivateKey,
+            ...authenticationOptions,
             database: credentials.database,
             schema: credentials.schema,
             warehouse: credentials.warehouse,

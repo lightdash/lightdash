@@ -73,7 +73,8 @@ export const useValidationMutation = (
     onComplete: () => void,
 ) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
 
     return useMutation<ApiJobScheduledResponse['results'], ApiError>({
         mutationKey: ['validation', projectUuid],
@@ -96,11 +97,10 @@ export const useValidationMutation = (
                     });
                 });
         },
-        onError: (error) => {
-            const [title, ...rest] = error.error.message.split('\n');
-            showToastError({
-                title,
-                subtitle: rest.join('\n'),
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update validation',
+                apiError: error,
             });
         },
     });
@@ -154,7 +154,7 @@ const deleteValidation = async (
 
 export const useDeleteValidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, number>(
         (validationId) => deleteValidation(projectUuid, validationId),
         {
@@ -165,11 +165,10 @@ export const useDeleteValidation = (projectUuid: string) => {
                     title: 'Validation dismissed',
                 });
             },
-            onError: async (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
+            onError: async ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to dismiss validation',
+                    apiError: error,
                 });
             },
         },

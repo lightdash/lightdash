@@ -1,14 +1,26 @@
-import { Button, Stack, type ButtonProps } from '@mantine/core';
+import type { ApiErrorDetail } from '@lightdash/common';
+import {
+    ActionIcon,
+    Button,
+    CopyButton,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+    type ButtonProps,
+} from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import { type PolymorphicComponentProps } from '@mantine/utils';
 import {
     IconAlertTriangleFilled,
+    IconCheck,
     IconCircleCheckFilled,
+    IconCopy,
     IconInfoCircleFilled,
     type Icon,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, type ReactNode } from 'react';
 import { v4 as uuid } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -17,7 +29,7 @@ type NotificationData = Omit<
     'message' | 'key'
 > & {
     key?: string;
-    subtitle?: string | JSX.Element;
+    subtitle?: string | ReactNode;
     action?: PolymorphicComponentProps<'button', ButtonProps> & {
         icon?: Icon;
     };
@@ -68,7 +80,14 @@ const useToaster = () => {
                                     }}
                                 />
                             ) : (
-                                subtitle
+                                <div
+                                    style={{
+                                        color: toastColor ? 'white' : undefined,
+                                        fontSize: '12px',
+                                    }}
+                                >
+                                    {subtitle}
+                                </div>
                             )}
 
                             {action && (
@@ -136,6 +155,62 @@ const useToaster = () => {
         [showToast],
     );
 
+    const showToastApiError = useCallback(
+        (
+            props: Omit<NotificationData, 'subtitle'> & {
+                apiError: ApiErrorDetail;
+            },
+        ) => {
+            const title: ReactNode | undefined = props.title ?? 'Error';
+            const subtitle: ReactNode = props.apiError.id ? (
+                <>
+                    <Text mb={0}>{props.apiError.message}</Text>
+                    <Text mb={0} weight="bold">
+                        Please contact support with the error ID:
+                    </Text>
+                    <Group>
+                        <Text mb={0} weight="bold">
+                            {props.apiError.id}
+                        </Text>
+                        <CopyButton value={props.apiError.id}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy error ID'}
+                                    withArrow
+                                    position="right"
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        onClick={copy}
+                                        variant={'transparent'}
+                                    >
+                                        <MantineIcon
+                                            color={'white'}
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    </Group>
+                </>
+            ) : (
+                props.apiError.message
+            );
+
+            showToast({
+                color: 'red',
+                bg: 'red',
+                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
+                autoClose: 60000,
+                title,
+                subtitle,
+                ...props,
+            });
+        },
+        [showToast],
+    );
+
     const showToastInfo = useCallback(
         (props: NotificationData) => {
             showToast({
@@ -172,6 +247,7 @@ const useToaster = () => {
 
     return {
         showToastSuccess,
+        showToastApiError,
         showToastError,
         showToastInfo,
         showToastPrimary,

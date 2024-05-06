@@ -642,11 +642,12 @@ export type ApiResponse<T extends ApiResults = ApiResults> = {
     results: T;
 };
 
-type ApiErrorDetail = {
+export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
     data: { [key: string]: string };
+    id?: string;
 };
 export type ApiError = {
     status: 'error';
@@ -671,6 +672,17 @@ export enum LightdashInstallType {
     UNKNOWN = 'unknown',
 }
 
+export type SentryConfig = {
+    backend: {
+        dsn: string;
+    };
+    frontend: {
+        dsn: string;
+    };
+    release: string;
+    environment: string;
+};
+
 export type HealthState = {
     healthy: boolean;
     mode: LightdashMode;
@@ -687,11 +699,7 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: {
-        dsn: string;
-        environment: string;
-        release: string;
-    };
+    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

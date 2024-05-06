@@ -1,4 +1,9 @@
-import { isLightdashMode, LightdashMode, ParseError } from '@lightdash/common';
+import {
+    isLightdashMode,
+    LightdashMode,
+    ParseError,
+    SentryConfig,
+} from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { type ClientAuthMethod } from 'openid-client';
@@ -226,12 +231,6 @@ export type IntercomConfig = {
     apiBase: string;
 };
 
-export type SentryConfig = {
-    dsn: string;
-    release: string;
-    environment: string;
-};
-
 export type RudderConfig = {
     writeKey: string;
     dataPlaneUrl: string;
@@ -406,7 +405,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 'https://analytics.lightdash.com',
         },
         sentry: {
-            dsn: process.env.SENTRY_DSN || '',
+            backend: {
+                dsn: process.env.SENTRY_BE_DSN || process.env.SENTRY_DSN || '',
+            },
+            frontend: {
+                dsn: process.env.SENTRY_FE_DSN || process.env.SENTRY_DSN || '',
+            },
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
