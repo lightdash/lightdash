@@ -164,6 +164,7 @@ describe('DashboardModel', () => {
                 queryMatcher(DashboardsTableName, [
                     createDashboard.description,
                     createDashboard.name,
+                    createDashboard.slug,
                     spaceEntry.space_id,
                 ]),
             )

@@ -255,7 +255,9 @@ export const defaultProject: OrganizationProject = {
 export const spacesWithSavedCharts: Space[] = [
     {
         organizationUuid: user.organizationUuid!,
-        name: 'sapce',
+        name: 'space',
+        slug: 'space',
+
         isPrivate: false,
         uuid: 'uuid',
         pinnedListUuid: null,
@@ -288,7 +290,9 @@ export const spacesWithSavedCharts: Space[] = [
 export const spacesWithNoSavedCharts: Space[] = [
     {
         organizationUuid: user.organizationUuid!,
-        name: 'sapce',
+        name: 'space',
+        slug: 'space',
+
         uuid: 'uuid',
         pinnedListUuid: null,
         pinnedListOrder: null,

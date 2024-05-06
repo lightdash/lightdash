@@ -1,3 +1,73 @@
+# [0.1085.0](https://github.com/lightdash/lightdash/compare/0.1084.3...0.1085.0) (2024-05-06)
+
+
+### Features
+
+* Tabs included in the filter for a dashboard. ([#9884](https://github.com/lightdash/lightdash/issues/9884)) ([6360136](https://github.com/lightdash/lightdash/commit/6360136f99530a6cbe82dd3d041d68929dae5412))
+
+## [0.1084.3](https://github.com/lightdash/lightdash/compare/0.1084.2...0.1084.3) (2024-05-03)
+
+
+### Bug Fixes
+
+* use snowflake user and password if provided ([#9973](https://github.com/lightdash/lightdash/issues/9973)) ([9ebcb14](https://github.com/lightdash/lightdash/commit/9ebcb141b783ea69cfd61ff4763224d324bf56a2))
+
+## [0.1084.2](https://github.com/lightdash/lightdash/compare/0.1084.1...0.1084.2) (2024-05-03)
+
+
+### Bug Fixes
+
+* fix add saved chart to tabbed dashbord from explore view error out ([#9966](https://github.com/lightdash/lightdash/issues/9966)) ([c6acdad](https://github.com/lightdash/lightdash/commit/c6acdade75fbb8d332ede3b72a1ff249177ea000))
+
+## [0.1084.1](https://github.com/lightdash/lightdash/compare/0.1084.0...0.1084.1) (2024-05-02)
+
+
+### Bug Fixes
+
+* replace escaped newlines in credentials values ([#9964](https://github.com/lightdash/lightdash/issues/9964)) ([4c59e89](https://github.com/lightdash/lightdash/commit/4c59e89eabb17cdafd3a2f05c29c3e4d60cd6d6f))
+
+# [0.1084.0](https://github.com/lightdash/lightdash/compare/0.1083.1...0.1084.0) (2024-05-02)
+
+
+### Features
+
+* dashboard override chart filters ([#9961](https://github.com/lightdash/lightdash/issues/9961)) ([6390b5b](https://github.com/lightdash/lightdash/commit/6390b5bdeb360eab69e2545b702ede23153694f9))
+
+## [0.1083.1](https://github.com/lightdash/lightdash/compare/0.1083.0...0.1083.1) (2024-05-02)
+
+
+### Bug Fixes
+
+* disconnect browser instead of closing (feature flag) ([#9963](https://github.com/lightdash/lightdash/issues/9963)) ([350ca3b](https://github.com/lightdash/lightdash/commit/350ca3baab855a49f1f51cb1df217be037726b8b))
+
+# [0.1083.0](https://github.com/lightdash/lightdash/compare/0.1082.1...0.1083.0) (2024-05-02)
+
+
+### Features
+
+* allow image service to accept selectors ([#9948](https://github.com/lightdash/lightdash/issues/9948)) ([58fd910](https://github.com/lightdash/lightdash/commit/58fd910195374a00139d6842aeaa228830aba2cf))
+
+## [0.1082.1](https://github.com/lightdash/lightdash/compare/0.1082.0...0.1082.1) (2024-05-01)
+
+
+### Bug Fixes
+
+* postgres and redshift average decimal values ([#9954](https://github.com/lightdash/lightdash/issues/9954)) ([771763f](https://github.com/lightdash/lightdash/commit/771763ffa1547d52e3545a9562654a613e6d610f))
+
+# [0.1082.0](https://github.com/lightdash/lightdash/compare/0.1081.5...0.1082.0) (2024-05-01)
+
+
+### Features
+
+* new resource-slugs ([#9875](https://github.com/lightdash/lightdash/issues/9875)) ([8ab18df](https://github.com/lightdash/lightdash/commit/8ab18dfce2f89c8215f30c52176d844a17aad5d5))
+
+## [0.1081.5](https://github.com/lightdash/lightdash/compare/0.1081.4...0.1081.5) (2024-05-01)
+
+
+### Bug Fixes
+
+* fix tile insert error when duplicate tabbed dashboard ([#9953](https://github.com/lightdash/lightdash/issues/9953)) ([ea52d8a](https://github.com/lightdash/lightdash/commit/ea52d8af88aa87289474e2d5e5c129183b0ea50f))
+
 ## [0.1081.4](https://github.com/lightdash/lightdash/compare/0.1081.3...0.1081.4) (2024-05-01)
 
 
