@@ -200,8 +200,9 @@ export const createDashboardWithSlug = {
     slug: 'my-new-dashboard',
 };
 
-export const createDashboardWithTileIds: CreateDashboard = {
+export const createDashboardWithTileIds: CreateDashboard & { slug: string } = {
     ...createDashboard,
+    slug: 'my-new-dashboard',
     tiles: [createTileWithId],
 };
 
