@@ -8,8 +8,8 @@ export const getUniqueTableCalculationName = (
     const suffixes = Array.from(Array(100).keys());
     const getCalcName = (suffix: number) =>
         suffix === 0 ? snakeName : `${snakeName}_${suffix}`;
-     
-const validSuffix = suffixes.find(
+
+    const validSuffix = suffixes.find(
         (suffix) =>
             tableCalculations.findIndex(
                 ({ name: tableCalcName }) =>

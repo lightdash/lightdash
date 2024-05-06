@@ -30,7 +30,8 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                 })}
                             >
                                 <Text>
-                                   You can contact support with the following error ID
+                                    You can contact support with the following
+                                    error ID
                                 </Text>
                                 <Prism
                                     language="javascript"
