@@ -1,3 +1,10 @@
+## [0.1085.1](https://github.com/lightdash/lightdash/compare/0.1085.0...0.1085.1) (2024-05-06)
+
+
+### Bug Fixes
+
+* stack table calculation non-number ([#9982](https://github.com/lightdash/lightdash/issues/9982)) ([88917bc](https://github.com/lightdash/lightdash/commit/88917bc8d370444e23d892b3565a97646e048725))
+
 # [0.1085.0](https://github.com/lightdash/lightdash/compare/0.1084.3...0.1085.0) (2024-05-06)
 
 
