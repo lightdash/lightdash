@@ -4050,8 +4050,8 @@ export class ProjectService extends BaseService {
         const checkPermissions = async (
             organizationUuid: string,
             projectUuid: string,
-            spaceSummary?: Omit<SpaceSummary, 'userAccess'>,
-            context: string = '',
+            spaceSummary: Omit<SpaceSummary, 'userAccess'> | undefined,
+            context: string,
         ) => {
             // If space is undefined, we only check the org/project access, we will create the chart in a new accessible space
             const userDontHaveAccess = spaceSummary
@@ -4073,7 +4073,12 @@ export class ProjectService extends BaseService {
                           organizationUuid,
                           projectUuid,
                       }),
+                  ) ||
+                  user.ability.cannot(
+                      'create',
+                      subject('Space', { organizationUuid, projectUuid }),
                   );
+
             if (userDontHaveAccess) {
                 throw new ForbiddenError(
                     `You must have the right permission on ${context} to promote this chart`,
@@ -4091,6 +4096,10 @@ export class ProjectService extends BaseService {
         const space = await this.spaceModel.getSpaceSummary(
             promotedChart.spaceUuid,
         );
+
+        if (space.isPrivate) {
+            throw new Error(`We can't promote charts from private spaces`);
+        }
 
         await checkPermissions(
             organizationUuid,
@@ -4131,21 +4140,12 @@ export class ProjectService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 slug: space.slug,
             });
-            if (existingSpace.length === 1) {
-                // We have an existing space with the same slug
-                await checkPermissions(
-                    organizationUuid,
-                    upstreamProjectUuid,
-                    existingSpace[0],
-                    'the upstream space and project',
-                );
-                newSpaceUuid = existingSpace[0].uuid;
-            } else {
+            if (existingSpace.length === 0) {
                 // We have 0 or more than 1 space with the same slug
                 await checkPermissions(
                     organizationUuid,
                     upstreamProjectUuid,
-                    undefined,
+                    undefined, // we also check here if user can create spaces in the upstream project
                     'the upstream project',
                 );
                 // We create a new space
@@ -4157,7 +4157,20 @@ export class ProjectService extends BaseService {
                     space.slug,
                 );
                 newSpaceUuid = newSpace.uuid;
-                // TODO set right private permissions after creation
+            } else if (existingSpace.length === 1) {
+                // We have an existing space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    existingSpace[0],
+                    'the upstream space and project',
+                );
+                newSpaceUuid = existingSpace[0].uuid;
+            } else {
+                // Multiple spaces with the same slug
+                throw new Error(
+                    `There are multiple spaces with the same identifier ${space.slug}`,
+                );
             }
 
             // Create new chart
@@ -4191,6 +4204,17 @@ export class ProjectService extends BaseService {
                 upstreamSpace,
                 'the upstream chart and project',
             );
+            if (
+                upstreamChart.name !== promotedChart.name ||
+                upstreamChart.description !== promotedChart.description
+            ) {
+                // We also update chart name and description if they have changed
+                await this.savedChartModel.update(upstreamChart.uuid, {
+                    name: promotedChart.name,
+                    description: promotedChart.description,
+                });
+            }
+
             const updatedChart = await this.savedChartModel.createVersion(
                 upstreamChart.uuid,
                 {
