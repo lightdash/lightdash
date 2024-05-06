@@ -4063,7 +4063,7 @@ export class ProjectService extends BaseService {
 
             if (userDontHaveAccess) {
                 throw new ForbiddenError(
-                    `You must have the right permission on ${context} to promote this chart`,
+                    `You don't have the right access permissions on ${context} to promote this chart.`,
                 );
             }
         };
@@ -4097,14 +4097,9 @@ export class ProjectService extends BaseService {
         if (!upstreamProjectUuid)
             throw new Error('This chart does not have an upstream project');
 
-        const { slug } = promotedChart;
-        if (!slug) {
-            // We could create a new slug here on the fly if needed
-            throw new Error('This chart does not have a valid identifier');
-        }
         const existingUpstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
-            slug,
+            slug: promotedChart.slug,
         });
 
         if (existingUpstreamCharts.length === 0) {
@@ -4211,7 +4206,7 @@ export class ProjectService extends BaseService {
         }
         // Multiple charts with the same slug
         throw new Error(
-            `There are multiple charts with the same identifier ${slug}`,
+            `There are multiple charts with the same identifier ${promotedChart.slug}`,
         );
     }
 }
