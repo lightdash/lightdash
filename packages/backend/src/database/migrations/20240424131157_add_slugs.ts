@@ -8,6 +8,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(chartsTable, (table) => {
         table.text('slug').nullable().index();
     });
+
     await knex.schema.alterTable(dashboards, (table) => {
         table.text('slug').nullable().index();
     });

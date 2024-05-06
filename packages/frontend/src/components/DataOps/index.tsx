@@ -10,8 +10,8 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: projects } = useProjects();
     const { data: currentProject } = useProject(projectUuid);
     const { mutateAsync: updateMutation } = useUpdateMutation(projectUuid);
-    const [selectedProject, setSelectedProject] = useState<string | undefined>(
-        currentProject?.upstreamProjectUuid,
+    const [selectedProject, setSelectedProject] = useState<string | null>(
+        currentProject?.upstreamProjectUuid || null,
     );
     return (
         <>
@@ -51,7 +51,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         }
                         label="Upstream project"
                         onChange={(value) => {
-                            setSelectedProject(value || undefined);
+                            setSelectedProject(value || null);
                         }}
                     />
                     <Flex justify="flex-end" gap="sm" mt="sm">

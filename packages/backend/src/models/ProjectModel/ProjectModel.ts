@@ -957,7 +957,7 @@ export class ProjectModel {
     ): Promise<void> {
         await this.database('projects')
             .update({
-                copied_from_project_uuid: data.upstreamProjectUuid || null, // We want to unset this if undefined
+                copied_from_project_uuid: data.upstreamProjectUuid, // if upstreamProjectUuid is undefined, it will do nothing, if it is null, it will be unset
             })
             .where('project_uuid', projectUuid);
     }

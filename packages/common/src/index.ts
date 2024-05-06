@@ -436,7 +436,7 @@ export type UpdateProjectMember = {
 };
 
 export type UpdateMetadata = {
-    upstreamProjectUuid?: string;
+    upstreamProjectUuid?: string | null; // null means we unset this value
 };
 export type ApiCompiledQueryResults = string;
 

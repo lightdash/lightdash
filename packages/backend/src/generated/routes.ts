@@ -3532,7 +3532,15 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { upstreamProjectUuid: { dataType: 'string' } },
+            nestedProperties: {
+                upstreamProjectUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+            },
             validators: {},
         },
     },
