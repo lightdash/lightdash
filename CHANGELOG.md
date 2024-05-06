@@ -1,3 +1,10 @@
+# [0.1085.0](https://github.com/lightdash/lightdash/compare/0.1084.3...0.1085.0) (2024-05-06)
+
+
+### Features
+
+* Tabs included in the filter for a dashboard. ([#9884](https://github.com/lightdash/lightdash/issues/9884)) ([6360136](https://github.com/lightdash/lightdash/commit/6360136f99530a6cbe82dd3d041d68929dae5412))
+
 ## [0.1084.3](https://github.com/lightdash/lightdash/compare/0.1084.2...0.1084.3) (2024-05-03)
 
 
