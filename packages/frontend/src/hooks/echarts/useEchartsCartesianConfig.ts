@@ -24,10 +24,13 @@ import {
     TimeFrames,
     type ApiQueryResults,
     type CartesianChart,
+    type CustomDimension,
+    type Field,
     type ItemsMap,
     type PivotReference,
     type ResultRow,
     type Series,
+    type TableCalculation,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import {
@@ -810,6 +813,33 @@ const getLongestLabel = ({
     );
 };
 
+const getWeekAxisConfig = (
+    axisId?: string,
+    axisField?: Field | TableCalculation | CustomDimension,
+    rows?: ResultRow[],
+) => {
+    if (!axisId || !rows || !axisField) return {};
+    if (
+        'timeInterval' in axisField &&
+        axisField.timeInterval === TimeFrames.WEEK
+    ) {
+        const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
+        const continuousWeekRange = [dayjs.utc(minX).format()];
+        let nextDate = dayjs.utc(minX);
+        while (nextDate.isBefore(dayjs(maxX))) {
+            nextDate = nextDate.add(1, 'week');
+            continuousWeekRange.push(nextDate.format());
+        }
+        continuousWeekRange.push(dayjs.utc(maxX).format());
+        return {
+            data: continuousWeekRange,
+            axisTick: { alignWithLabel: true, interval: 0 },
+        };
+    } else {
+        return {};
+    }
+};
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -1073,28 +1103,26 @@ const getEchartAxes = ({
         itemsMap,
     );
 
-    const [minX, maxX] = getMinAndMaxValues(
-        bottomAxisXId ? [bottomAxisXId] : undefined,
-        resultsData?.rows || [],
+    const bottomAxisExtraConfig = getWeekAxisConfig(
+        bottomAxisXId,
+        bottomAxisXField,
+        resultsData?.rows,
     );
-
-    const useWeekAxisConfiguration =
-        bottomAxisXField &&
-        'timeInterval' in bottomAxisXField &&
-        bottomAxisXField.timeInterval === TimeFrames.WEEK;
-    let customXRange = undefined;
-    // When the timeframe is a week, we use a categorical axis which doesn't fill the gaps where there is no data.
-    // This finds the min and max weeks and makes a continuous range of weeks to show on the axis
-    if (useWeekAxisConfiguration) {
-        const continuousWeekRange = [dayjs.utc(minX).format()];
-        let nextDate = dayjs.utc(minX);
-        while (nextDate.isBefore(dayjs(maxX))) {
-            nextDate = nextDate.add(1, 'week');
-            continuousWeekRange.push(nextDate.format());
-        }
-        continuousWeekRange.push(dayjs.utc(maxX).format());
-        customXRange = continuousWeekRange;
-    }
+    const topAxisExtraConfig = getWeekAxisConfig(
+        topAxisXId,
+        topAxisXField,
+        resultsData?.rows,
+    );
+    const rightAxisExtraConfig = getWeekAxisConfig(
+        rightAxisYId,
+        rightAxisYField,
+        resultsData?.rows,
+    );
+    const leftAxisExtraConfig = getWeekAxisConfig(
+        leftAxisYId,
+        leftAxisYField,
+        resultsData?.rows,
+    );
 
     return {
         xAxis: [
@@ -1149,10 +1177,7 @@ const getEchartAxes = ({
                         : showGridX,
                 },
                 inverse: !!xAxisConfiguration?.[0].inverse,
-                data: useWeekAxisConfiguration ? customXRange : undefined,
-                axisTick: useWeekAxisConfiguration
-                    ? { alignWithLabel: true, interval: 0 }
-                    : undefined,
+                ...bottomAxisExtraConfig,
             },
             {
                 type: topAxisType,
@@ -1193,6 +1218,7 @@ const getEchartAxes = ({
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
+                ...topAxisExtraConfig,
             },
         ],
         yAxis: [
@@ -1244,6 +1270,7 @@ const getEchartAxes = ({
                         : showGridY,
                 },
                 inverse: !!yAxisConfiguration?.[0].inverse,
+                ...leftAxisExtraConfig,
             },
             {
                 type: rightAxisType,
@@ -1288,6 +1315,7 @@ const getEchartAxes = ({
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
+                ...rightAxisExtraConfig,
             },
         ],
     };
