@@ -1,3 +1,10 @@
+# [0.1086.0](https://github.com/lightdash/lightdash/compare/0.1085.2...0.1086.0) (2024-05-07)
+
+
+### Features
+
+* Error messages changed ([#9959](https://github.com/lightdash/lightdash/issues/9959)) ([588d160](https://github.com/lightdash/lightdash/commit/588d160f85af21c434326cd5fd181f6cdb7fabf2))
+
 ## [0.1085.2](https://github.com/lightdash/lightdash/compare/0.1085.1...0.1085.2) (2024-05-07)
 
 
