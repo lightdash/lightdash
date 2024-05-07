@@ -731,6 +731,10 @@ export type HealthState = {
         appId: string;
         apiBase: string;
     };
+    pylon: {
+        appId: string;
+        verificationHash?: string;
+    };
     staticIp: string;
     query: {
         maxLimit: number;

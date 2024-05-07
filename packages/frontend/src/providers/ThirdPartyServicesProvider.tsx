@@ -7,32 +7,39 @@ import useSentry from '../hooks/thirdPartyServices/useSentry';
 import { useApp } from './AppProvider';
 
 const Pylon = () => {
-    const appId = ''; // todo: replace with health.data.pylon.appId
-    const { user } = useApp();
+    const { user, health } = useApp();
     useEffect(() => {
-        if (user.data) {
+        if (health.data?.pylon?.appId && user.data) {
             // @ts-ignore
             window.pylon = {
                 chat_settings: {
-                    app_id: appId,
+                    app_id: health.data.pylon.appId,
                     email: user.data.email,
                     name: `${user.data.firstName} ${user.data.lastName}`,
+                    email_hash: health.data.pylon.verificationHash,
                 },
             };
             // @ts-ignore
-            window.Pylon('setNewIssueCustomFields', {
-                user_uuid: user.data.userUuid,
-                org_uuid: user.data.organizationUuid,
-                org_name: user.data.organizationName,
-                user_role: user.data.role,
-            });
+            if (window.Pylon) {
+                // @ts-ignore
+                window.Pylon('setNewIssueCustomFields', {
+                    user_uuid: user.data.userUuid,
+                    org_uuid: user.data.organizationUuid,
+                    org_name: user.data.organizationName,
+                    user_role: user.data.role,
+                });
+            }
         }
-    }, [user]);
+    }, [user, health]);
+
+    if (!health.data?.pylon?.appId) {
+        return null;
+    }
 
     return (
         <Helmet>
             <script type="text/javascript">
-                {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
+                {`(function(){var e=window;var t=document;var n=function(){n.e(arguments)};n.q=[];n.e=function(e){n.q.push(e)};e.Pylon=n;var r=function(){var e=t.createElement("script");e.setAttribute("type","text/javascript");e.setAttribute("async","true");e.setAttribute("src","https://widget.usepylon.com/widget/${health.data.pylon.appId}");var n=t.getElementsByTagName("script")[0];n.parentNode.insertBefore(e,n)};if(t.readyState==="complete"){r()}else if(e.addEventListener){e.addEventListener("load",r,false)}})();`}
             </script>
         </Helmet>
     );

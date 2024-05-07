@@ -34,12 +34,16 @@ const HelpMenu: FC = () => {
             </Menu.Target>
 
             <Menu.Dropdown>
-                {(isCloudCustomer || true) && (
+                {isCloudCustomer && (
                     <LargeMenuItem
                         onClick={() => {
                             // @ts-ignore
-                            window.Pylon('show');
-                            showIntercom();
+                            if (window.Pylon) {
+                                // @ts-ignore
+                                window.Pylon('show');
+                            } else {
+                                showIntercom();
+                            }
                         }}
                         title="Contact support"
                         description="Drop us a message and we’ll get back to you asap!"
