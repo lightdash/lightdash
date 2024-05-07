@@ -226,7 +226,7 @@ export default class App {
         }
 
         const expressApp = express();
-        // NOTE: Sentry must be initialized before any other handlers or middleware so that it can capture requests accordingly
+        // NOTE: Sentry must be initialized before any other handlers or middleware so that it can capture requests
         await this.initSentry(expressApp);
         await this.initExpress(expressApp);
 
