@@ -1,3 +1,10 @@
+# [0.1087.0](https://github.com/lightdash/lightdash/compare/0.1086.1...0.1087.0) (2024-05-07)
+
+
+### Features
+
+* align x-axis ticks with data ([#9957](https://github.com/lightdash/lightdash/issues/9957)) ([b81d476](https://github.com/lightdash/lightdash/commit/b81d4769e6c5efbf528ce1f6ae78780fe4772f7a))
+
 ## [0.1086.1](https://github.com/lightdash/lightdash/compare/0.1086.0...0.1086.1) (2024-05-07)
 
 
