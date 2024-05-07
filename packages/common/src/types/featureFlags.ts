@@ -44,4 +44,6 @@ export enum FeatureFlags {
 
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
+
+    PromoteCharts = 'promote-charts',
 }

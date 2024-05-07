@@ -299,7 +299,7 @@ export type Project = {
 
 export type ProjectSummary = Pick<
     Project,
-    'name' | 'projectUuid' | 'organizationUuid' | 'type'
+    'name' | 'projectUuid' | 'organizationUuid' | 'type' | 'upstreamProjectUuid'
 >;
 
 export type ApiProjectResponse = {

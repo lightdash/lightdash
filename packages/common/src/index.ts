@@ -435,6 +435,9 @@ export type UpdateProjectMember = {
     role: ProjectMemberRole;
 };
 
+export type UpdateMetadata = {
+    upstreamProjectUuid?: string | null; // null means we unset this value
+};
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];

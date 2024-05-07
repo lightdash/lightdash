@@ -24,6 +24,7 @@ import {
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
+    UpdateMetadata,
     UpdateProject,
     WarehouseCredentials,
     WarehouseTypes,
@@ -355,6 +356,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
             | {
                   name: string;
@@ -365,6 +367,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
         )[];
         return wrapOtelSpan(
@@ -410,6 +413,9 @@ export class ProjectModel {
                         this.database
                             .ref('dbt_version')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('copied_from_project_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -442,6 +448,7 @@ export class ProjectModel {
                     dbtConnection: dbtSensitiveCredentials,
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
+                    upstreamProjectUuid: project.copied_from_project_uuid,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -474,12 +481,19 @@ export class ProjectModel {
                 'organizations.organization_id',
             )
             .select<
-                Pick<DbProject, 'name' | 'project_uuid' | 'project_type'> &
+                Pick<
+                    DbProject,
+                    | 'name'
+                    | 'project_uuid'
+                    | 'project_type'
+                    | 'copied_from_project_uuid'
+                > &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
                 `${ProjectTableName}.name`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.copied_from_project_uuid`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();
@@ -493,6 +507,7 @@ export class ProjectModel {
             projectUuid: project.project_uuid,
             name: project.name,
             type: project.project_type,
+            upstreamProjectUuid: project.copied_from_project_uuid || undefined,
         };
     }
 
@@ -523,6 +538,7 @@ export class ProjectModel {
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
+            upstreamProjectUuid: project.upstreamProjectUuid || undefined,
         };
     }
 
@@ -933,6 +949,17 @@ export class ProjectModel {
             `,
             { projectUuid, userUuid, role },
         );
+    }
+
+    async updateMetadata(
+        projectUuid: string,
+        data: UpdateMetadata,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                copied_from_project_uuid: data.upstreamProjectUuid, // if upstreamProjectUuid is undefined, it will do nothing, if it is null, it will be unset
+            })
+            .where('project_uuid', projectUuid);
     }
 
     async deleteProjectAccess(

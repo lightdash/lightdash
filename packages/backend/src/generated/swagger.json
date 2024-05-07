@@ -3446,7 +3446,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -3471,6 +3471,9 @@
                     },
                     "isPrivate": {
                         "type": "boolean"
+                    },
+                    "slug": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -3480,7 +3483,8 @@
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "isPrivate"
+                    "isPrivate",
+                    "slug"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -3537,7 +3541,7 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug_"
                     },
                     {
                         "properties": {
@@ -3907,6 +3911,15 @@
                     "userUuid",
                     "uuid"
                 ],
+                "type": "object"
+            },
+            "UpdateMetadata": {
+                "properties": {
+                    "upstreamProjectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
                 "type": "object"
             },
             "CacheMetadata": {
@@ -4940,6 +4953,139 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ChartVersion"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "organizationUuid",
+                    "uuid",
+                    "updatedAt",
+                    "projectUuid",
+                    "spaceUuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "spaceName",
+                    "dashboardUuid",
+                    "dashboardName",
+                    "slug",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SavedChart.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SavedChartDAO": {
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
+            },
+            "ApiPromoteChartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedChartDAO"
                     },
                     "status": {
                         "type": "string",
@@ -6773,7 +6919,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1076.6",
+        "version": "0.1084.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -9883,6 +10029,56 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/metadata": {
+            "patch": {
+                "operationId": "updateProjectMetadata",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update project metadata like upstreamProjectUuid\nwe don't trigger a compile, so not for updating warehouse or credentials",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMetadata"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
             "post": {
                 "operationId": "postRunUnderlyingDataQuery",
@@ -10381,6 +10577,47 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/saved/{chartUuid}/promote": {
+            "post": {
+                "operationId": "promoteChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote chart to its upstream project",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {

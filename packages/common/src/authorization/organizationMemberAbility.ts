@@ -168,6 +168,15 @@ export const organizationMemberAbilities: Record<
         can('manage', 'Validation', {
             organizationUuid: member.organizationUuid,
         });
+        can('promote', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
