@@ -88,7 +88,7 @@ describe('overrideChartFilter', () => {
         });
     });
 
-    test('should not override the chart group filter when operator is different', async () => {
+    test('should override the chart group filter when operator is different', async () => {
         const result = overrideChartFilter(
             chartAndFilterGroup,
             dashboardFilterWithSameTargetButDifferentOperator,
@@ -97,11 +97,11 @@ describe('overrideChartFilter', () => {
             id: 'fillter-group-1',
             and: [
                 {
-                    id: '1',
+                    id: '5',
                     target: { fieldId: 'field-1' },
-                    values: ['1'],
+                    values: ['1', '2', '3'],
                     disabled: false,
-                    operator: ConditionalOperator.EQUALS,
+                    operator: ConditionalOperator.NOT_EQUALS,
                 },
                 {
                     id: '2',

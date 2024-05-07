@@ -140,6 +140,7 @@ module.exports = {
                 'guides/customizing-the-appearance-of-your-project',
                 'guides/dbt-semantic-layer',
                 'guides/how-to-reset-your-password',
+                'guides/how-to-promote-content',
             ],
         },
         {

@@ -1,3 +1,45 @@
+# [0.1087.0](https://github.com/lightdash/lightdash/compare/0.1086.1...0.1087.0) (2024-05-07)
+
+
+### Features
+
+* align x-axis ticks with data ([#9957](https://github.com/lightdash/lightdash/issues/9957)) ([b81d476](https://github.com/lightdash/lightdash/commit/b81d4769e6c5efbf528ce1f6ae78780fe4772f7a))
+
+## [0.1086.1](https://github.com/lightdash/lightdash/compare/0.1086.0...0.1086.1) (2024-05-07)
+
+
+### Bug Fixes
+
+* init sentry before express handlers ([#9996](https://github.com/lightdash/lightdash/issues/9996)) ([1cac040](https://github.com/lightdash/lightdash/commit/1cac04009c8620d68583d6a49c201d47fe1b5daa))
+
+# [0.1086.0](https://github.com/lightdash/lightdash/compare/0.1085.2...0.1086.0) (2024-05-07)
+
+
+### Features
+
+* Error messages changed ([#9959](https://github.com/lightdash/lightdash/issues/9959)) ([588d160](https://github.com/lightdash/lightdash/commit/588d160f85af21c434326cd5fd181f6cdb7fabf2))
+
+## [0.1085.2](https://github.com/lightdash/lightdash/compare/0.1085.1...0.1085.2) (2024-05-07)
+
+
+### Bug Fixes
+
+* override operator dashboard filter ([#9987](https://github.com/lightdash/lightdash/issues/9987)) ([7503170](https://github.com/lightdash/lightdash/commit/75031702ac7f27ecd17cbe4cf0b20b9cc410dd8d))
+
+## [0.1085.1](https://github.com/lightdash/lightdash/compare/0.1085.0...0.1085.1) (2024-05-06)
+
+
+### Bug Fixes
+
+* stack table calculation non-number ([#9982](https://github.com/lightdash/lightdash/issues/9982)) ([88917bc](https://github.com/lightdash/lightdash/commit/88917bc8d370444e23d892b3565a97646e048725))
+
+# [0.1085.0](https://github.com/lightdash/lightdash/compare/0.1084.3...0.1085.0) (2024-05-06)
+
+
+### Features
+
+* Tabs included in the filter for a dashboard. ([#9884](https://github.com/lightdash/lightdash/issues/9884)) ([6360136](https://github.com/lightdash/lightdash/commit/6360136f99530a6cbe82dd3d041d68929dae5412))
+
 ## [0.1084.3](https://github.com/lightdash/lightdash/compare/0.1084.2...0.1084.3) (2024-05-03)
 
 

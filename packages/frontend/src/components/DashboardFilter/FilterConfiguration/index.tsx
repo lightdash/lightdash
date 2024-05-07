@@ -8,6 +8,7 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
     type DashboardFilterRule,
+    type DashboardTab,
     type DashboardTile,
     type Field,
     type FilterableField,
@@ -53,6 +54,8 @@ export enum FilterActions {
 
 interface Props {
     tiles: DashboardTile[];
+    tabs: DashboardTab[];
+    activeTabUuid: string | undefined;
     field?: FilterableField;
     fields?: FilterableField[];
     availableTileFilters: Record<string, FilterableField[] | undefined>;
@@ -81,6 +84,8 @@ const FilterConfiguration: FC<Props> = ({
     isCreatingNew = false,
     isTemporary = false,
     tiles,
+    tabs,
+    activeTabUuid,
     field,
     fields,
     availableTileFilters,
@@ -193,15 +198,18 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const handleToggleAll = useCallback(
-        (checked: boolean) => {
+        (checked: boolean, targetTileUuids: string[]) => {
             if (!checked) {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
 
-                    draftState.tileTargets = {};
                     Object.entries(availableTileFilters).forEach(
                         ([tileUuid]) => {
-                            if (!draftState.tileTargets) return;
+                            if (
+                                !draftState.tileTargets ||
+                                !targetTileUuids.includes(tileUuid)
+                            )
+                                return;
                             draftState.tileTargets[tileUuid] = false;
                         },
                     );
@@ -212,7 +220,13 @@ const FilterConfiguration: FC<Props> = ({
             } else {
                 const newFilterRule = produce(draftFilterRule, (draftState) => {
                     if (!draftState || !selectedField) return;
-                    draftState.tileTargets = {};
+                    targetTileUuids.forEach((tileUuid) => {
+                        if (!draftState.tileTargets) return;
+                        draftState.tileTargets[tileUuid] = {
+                            fieldId: fieldId(selectedField),
+                            tableName: selectedField.table,
+                        };
+                    });
                     return draftState;
                 });
 
@@ -323,6 +337,8 @@ const FilterConfiguration: FC<Props> = ({
                     <Tabs.Panel value={FilterTabs.TILES} w={500}>
                         <TileFilterConfiguration
                             field={selectedField}
+                            tabs={tabs}
+                            activeTabUuid={activeTabUuid}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}

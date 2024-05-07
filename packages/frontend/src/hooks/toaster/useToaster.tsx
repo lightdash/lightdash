@@ -166,7 +166,7 @@ const useToaster = () => {
                 <>
                     <Text mb={0}>{props.apiError.message}</Text>
                     <Text mb={0} weight="bold">
-                        Please contact support with the error ID:
+                        You can contact support with the following error ID
                     </Text>
                     <Group>
                         <Text mb={0} weight="bold">

@@ -120,7 +120,7 @@ export class MissingWarehouseCredentialsError extends LightdashError {
 
 export class UnexpectedServerError extends LightdashError {
     constructor(
-        message = 'Unexpected error in Lightdash server.',
+        message = 'Something went wrong.',
         data: { [key: string]: any } = {},
     ) {
         super({
