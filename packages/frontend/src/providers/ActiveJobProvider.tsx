@@ -42,7 +42,7 @@ export const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({
     const [isJobsDrawerOpen, setIsJobsDrawerOpen] = useState(false);
     const [activeJobId, setActiveJobId] = useState();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
 
     const toastJobStatus = useCallback(
         async (job: Job | undefined) => {
@@ -90,11 +90,11 @@ export const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({
         [showToastInfo, showToastSuccess, queryClient, isJobsDrawerOpen],
     );
 
-    const toastJobError = (error: ApiError) => {
-        showToastError({
+    const toastJobError = ({ error }: ApiError) => {
+        showToastApiError({
             key: TOAST_KEY_FOR_REFRESH_JOB,
             title: 'Failed to refresh server',
-            subtitle: error.error.message,
+            apiError: error,
         });
     };
     const { data: activeJob } = useJob(

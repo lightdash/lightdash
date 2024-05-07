@@ -102,7 +102,7 @@ const createUserQuery = async (data: ActivateUserWithInviteCode) =>
 const Invite: FC = () => {
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
-    const { showToastError } = useToaster();
+    const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
     useEffect(() => {
@@ -127,10 +127,10 @@ const Invite: FC = () => {
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to create user`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

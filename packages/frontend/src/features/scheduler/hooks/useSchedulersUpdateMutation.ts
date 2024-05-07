@@ -19,7 +19,7 @@ const updateScheduler = async (
 
 export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SchedulerAndTargets,
         ApiError,
@@ -34,10 +34,10 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
                 title: `Success! Scheduled delivery was updated.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to update scheduled delivery`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -52,7 +52,7 @@ const updateSchedulerEnabled = async (uuid: string, enabled: boolean) =>
 
 export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<SchedulerAndTargets, ApiError, boolean>(
         (enabled) => updateSchedulerEnabled(schedulerUuid, enabled),
         {
@@ -61,10 +61,10 @@ export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
                 await queryClient.invalidateQueries(['chart_schedulers']);
                 await queryClient.invalidateQueries(['dashboard_schedulers']);
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update scheduled delivery`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

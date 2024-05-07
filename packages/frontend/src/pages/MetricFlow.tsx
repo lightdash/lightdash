@@ -42,7 +42,7 @@ import { useApp } from '../providers/AppProvider';
 const MOCK_TABLE_NAME = 'metricflow';
 
 const MetricFlowPage = () => {
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     const { user, health } = useApp();
     const { data: org } = useOrganization();
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -56,10 +56,10 @@ const MetricFlowPage = () => {
         activeProjectUuid,
         selectedMetrics,
         {
-            onError: (err) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Error fetching dimensions',
-                    subtitle: err.error.message,
+                    apiError: error,
                 });
                 setSelectedMetrics({});
             },
@@ -69,10 +69,10 @@ const MetricFlowPage = () => {
         activeProjectUuid,
         selectedDimensions,
         {
-            onError: (err) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Error fetching metrics',
-                    subtitle: err.error.message,
+                    apiError: error,
                 });
                 setSelectedDimensions({});
             },
@@ -85,18 +85,18 @@ const MetricFlowPage = () => {
             dimensions: selectedDimensions,
         },
         {
-            onError: (err) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Error generating query',
-                    subtitle: err.error.message,
+                    apiError: error,
                 });
             },
         },
         {
-            onError: (err) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Error fetching results',
-                    subtitle: err.error.message,
+                    apiError: error,
                 });
             },
         },

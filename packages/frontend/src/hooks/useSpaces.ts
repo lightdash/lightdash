@@ -73,7 +73,7 @@ const deleteQuery = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useSpaceDeleteMutation = (projectUuid: string) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<null, ApiError, string>(
@@ -91,10 +91,10 @@ export const useSpaceDeleteMutation = (projectUuid: string) => {
                     title: `Success! Space was deleted.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to delete space`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -113,7 +113,7 @@ const updateSpace = async (
     });
 
 export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, UpdateSpace>(
@@ -137,10 +137,10 @@ export const useUpdateMutation = (projectUuid: string, spaceUuid: string) => {
                     title: `Success! Space was updated.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update space`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -160,7 +160,7 @@ export const useCreateMutation = (
         onSuccess?: (space: Space) => void;
     },
 ) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, CreateSpace>(
@@ -180,10 +180,10 @@ export const useCreateMutation = (
                     title: `Success! Space was created.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create space`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -206,7 +206,7 @@ export const useAddSpaceShareMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<Space, ApiError, [string, string]>(
@@ -226,10 +226,10 @@ export const useAddSpaceShareMutation = (
                     title: `Success! Space access updated!`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update space access`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -251,7 +251,7 @@ export const useDeleteSpaceShareMutation = (
     projectUuid: string,
     spaceUuid: string,
 ) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<null, ApiError, string>(
@@ -270,10 +270,10 @@ export const useDeleteSpaceShareMutation = (
                     title: `Success! Space access updated!`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update space access`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

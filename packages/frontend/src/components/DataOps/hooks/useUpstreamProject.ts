@@ -21,7 +21,7 @@ export const useUpdateMutation = (id: string) => {
                 await queryClient.invalidateQueries(['project', id]);
                 showToastSuccess({
                     title: `Project updated`,
-                    subtitle: `Project updtream project updated successfully`,
+                    subtitle: `Project upstream project updated successfully`,
                 });
             },
             onError: (error) => {

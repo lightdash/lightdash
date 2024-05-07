@@ -26,7 +26,7 @@ const validationSchema = (hasCurrentPassword: boolean) => {
 
 const PasswordPanel: FC = () => {
     const { data: hasPassword } = useUserHasPassword();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     const form = useForm({
         initialValues: {
@@ -46,9 +46,9 @@ const PasswordPanel: FC = () => {
                 window.location.href = '/login';
             },
             onError: ({ error }) => {
-                showToastError({
+                showToastApiError({
                     title: 'Failed to update password',
-                    subtitle: error.message,
+                    apiError: error,
                 });
             },
         });

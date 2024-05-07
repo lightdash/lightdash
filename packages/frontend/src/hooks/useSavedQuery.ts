@@ -163,7 +163,7 @@ export const useChartVersionRollbackMutation = (
         'mutationFn'
     >,
 ) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) => rollbackChartQuery(chartUuid, versionUuid),
         {
@@ -175,10 +175,10 @@ export const useChartVersionRollbackMutation = (
                 });
                 useMutationOptions?.onSuccess?.(...args);
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to revert chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -187,7 +187,7 @@ export const useChartVersionRollbackMutation = (
 
 export const useSavedQueryDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
             queryClient.removeQueries(['savedChartResults', data]);
@@ -207,10 +207,10 @@ export const useSavedQueryDeleteMutation = () => {
                     title: `Success! Chart was deleted.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to delete chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -230,7 +230,7 @@ const updateMultipleSavedQuery = async (
 
 export const useUpdateMultipleMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<SavedChart[], ApiError, UpdateMultipleSavedChart[]>(
         (data) => {
@@ -254,10 +254,10 @@ export const useUpdateMultipleMutation = (projectUuid: string) => {
                     title: `Success! Charts were updated.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to save chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -270,7 +270,7 @@ export const useUpdateMutation = (
 ) => {
     const history = useHistory();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
         SavedChart,
@@ -311,10 +311,10 @@ export const useUpdateMutation = (
                         : undefined,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to save chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -331,7 +331,7 @@ export const useMoveChartMutation = (
     const history = useHistory();
     const queryClient = useQueryClient();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<
         SavedChart,
@@ -361,10 +361,10 @@ export const useMoveChartMutation = (
             });
             options?.onSuccess?.(data, _, __);
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to move chart`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -374,7 +374,7 @@ export const useCreateMutation = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) => createSavedQuery(projectUuid, data),
         {
@@ -388,10 +388,10 @@ export const useCreateMutation = () => {
                     pathname: `/projects/${projectUuid}/saved/${data.uuid}/view`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to save chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -410,7 +410,7 @@ export const useDuplicateChartMutation = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SavedChart,
         ApiError,
@@ -455,10 +455,10 @@ export const useDuplicateChartMutation = (
                         : undefined,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to duplicate chart`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -470,7 +470,7 @@ export const useAddVersionMutation = () => {
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
 
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SavedChart,
         ApiError,
@@ -507,10 +507,10 @@ export const useAddVersionMutation = () => {
                 });
             }
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to update chart`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

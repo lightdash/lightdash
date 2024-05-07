@@ -15,7 +15,7 @@ const useQueryError = ({
 }: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
-    const { showToastError } = useToaster();
+    const { showToastError, showToastApiError } = useToaster();
     useEffect(() => {
         (async function doIfError() {
             const { error } = errorResponse || {};
@@ -29,9 +29,9 @@ const useQueryError = ({
                     // we will handle this on pages showing a nice message
 
                     if (forceToastOnForbidden) {
-                        showToastError({
+                        showToastApiError({
                             title: forbiddenToastTitle ?? 'Forbidden',
-                            subtitle: error.message,
+                            apiError: error,
                         });
                     }
                 } else if (statusCode === 401) {
@@ -64,19 +64,9 @@ const useQueryError = ({
                         });
                     }
                 } else {
-                    const { message } = error;
-                    if (message !== '') {
-                        const [first, ...rest] = message.split('\n');
-                        showToastError({
-                            title: first,
-                            subtitle: rest.join('\n'),
-                        });
-                    } else {
-                        showToastError({
-                            title: `An unknown error happened`,
-                            subtitle: JSON.stringify(error),
-                        });
-                    }
+                    showToastApiError({
+                        apiError: error,
+                    });
                 }
             }
         })();
@@ -86,6 +76,7 @@ const useQueryError = ({
         forceToastOnForbidden,
         queryClient,
         showToastError,
+        showToastApiError,
     ]);
     return setErrorResponse;
 };

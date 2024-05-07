@@ -236,7 +236,6 @@ export class SavedChartController extends BaseController {
     /**
      * Promote chart to its upstream project
      * @param chartUuid chartUuid for the chart to run
-     * @param body
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

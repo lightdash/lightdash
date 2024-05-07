@@ -130,7 +130,7 @@ const useCreatePullRequestForChartFieldsMutation = (
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
 
     );*/
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<PullRequestCreated, ApiError>(
         () => createPullRequestForChartFields(projectUuid, chartUuid!),
@@ -149,10 +149,10 @@ const useCreatePullRequestForChartFieldsMutation = (
                     },
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create pull request`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -343,7 +343,11 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         savedChart &&
         user.data?.ability?.can('manage', subject('SavedChart', savedChart));
 
+    const isPromoteChartsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PromoteCharts,
+    );
     const userCanPromoteChart =
+        isPromoteChartsEnabled &&
         savedChart &&
         user.data?.ability?.can('promote', subject('SavedChart', savedChart));
 

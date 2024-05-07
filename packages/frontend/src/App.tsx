@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AbilityContext } from './components/common/Authorization';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
+import { ErrorBoundary } from './features/errorBoundary';
 import { ChartColorMappingContextProvider } from './hooks/useChartColorConfig';
 import MobileRoutes from './MobileRoutes';
 import { ActiveJobProvider } from './providers/ActiveJobProvider';
@@ -39,21 +40,25 @@ const App = () => (
                         <ThirdPartyProvider
                             enabled={isMobile || !isMinimalPage}
                         >
-                            <TrackingProvider
-                                enabled={isMobile || !isMinimalPage}
-                            >
-                                <AbilityContext.Provider value={defaultAbility}>
-                                    <ActiveJobProvider>
-                                        <ChartColorMappingContextProvider>
-                                            {isMobile ? (
-                                                <MobileRoutes />
-                                            ) : (
-                                                <Routes />
-                                            )}
-                                        </ChartColorMappingContextProvider>
-                                    </ActiveJobProvider>
-                                </AbilityContext.Provider>
-                            </TrackingProvider>
+                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                <TrackingProvider
+                                    enabled={isMobile || !isMinimalPage}
+                                >
+                                    <AbilityContext.Provider
+                                        value={defaultAbility}
+                                    >
+                                        <ActiveJobProvider>
+                                            <ChartColorMappingContextProvider>
+                                                {isMobile ? (
+                                                    <MobileRoutes />
+                                                ) : (
+                                                    <Routes />
+                                                )}
+                                            </ChartColorMappingContextProvider>
+                                        </ActiveJobProvider>
+                                    </AbilityContext.Provider>
+                                </TrackingProvider>
+                            </ErrorBoundary>
                         </ThirdPartyProvider>
                     </AppProvider>
                 </Router>

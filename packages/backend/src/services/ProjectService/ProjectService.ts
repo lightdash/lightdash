@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -1412,19 +1413,11 @@ export class ProjectService extends BaseService {
                 dashboardFilters.tableCalculations,
             ),
         };
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            );
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(
                 savedChart.metricQuery,
                 appliedDashboardFilters,
-                isDashboardFilterOverrideEnabled,
             ),
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
@@ -3765,20 +3758,10 @@ export class ProjectService extends BaseService {
               }
             : undefined;
 
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            );
-
         const metricQuery: MetricQuery = appliedDashboardFilters
             ? addDashboardFiltersToMetricQuery(
                   savedChart.metricQuery,
                   appliedDashboardFilters,
-                  isDashboardFilterOverrideEnabled,
               )
             : savedChart.metricQuery;
 
@@ -4075,7 +4058,12 @@ export class ProjectService extends BaseService {
                           organizationUuid,
                           projectUuid,
                       }),
+                  ) ||
+                  user.ability.cannot(
+                      'create',
+                      subject('Space', { organizationUuid, projectUuid }),
                   );
+
             if (userDontHaveAccess) {
                 this.analytics.track({
                     event: 'promote.error',
@@ -4090,7 +4078,7 @@ export class ProjectService extends BaseService {
                 });
 
                 throw new ForbiddenError(
-                    `You must have the right permission on ${context} to promote this chart`,
+                    `You don't have the right access permissions on ${context} to promote this chart.`,
                 );
             }
         };
@@ -4101,10 +4089,18 @@ export class ProjectService extends BaseService {
         );
         const { organizationUuid, projectUuid } = promotedChart;
         if (promotedChart.dashboardUuid)
-            throw new Error(`We can't promote charts within dashboards`);
+            throw new ParameterError(
+                `We can't promote charts within dashboards`,
+            );
         const space = await this.spaceModel.getSpaceSummary(
             promotedChart.spaceUuid,
         );
+
+        if (space.isPrivate) {
+            throw new ParameterError(
+                `We can't promote charts from private spaces`,
+            );
+        }
 
         await checkPermissions(
             organizationUuid,
@@ -4120,16 +4116,13 @@ export class ProjectService extends BaseService {
         );
 
         if (!upstreamProjectUuid)
-            throw new Error('This chart does not have an upstream project');
+            throw new NotFoundError(
+                'This chart does not have an upstream project',
+            );
 
-        const { slug } = promotedChart;
-        if (!slug) {
-            // We could create a new slug here on the fly if needed
-            throw new Error('This chart does not have a valid identifier');
-        }
         const existingUpstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
-            slug,
+            slug: promotedChart.slug,
         });
 
         if (existingUpstreamCharts.length === 0) {
@@ -4149,23 +4142,12 @@ export class ProjectService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 slug: space.slug,
             });
-            if (existingSpace.length === 1) {
-                // We have an existing space with the same slug
-                await checkPermissions(
-                    organizationUuid,
-                    upstreamProjectUuid,
-                    existingSpace[0],
-                    'the upstream space and project',
-                    projectUuid,
-                    upstreamProjectUuid,
-                );
-                newSpaceUuid = existingSpace[0].uuid;
-            } else {
+            if (existingSpace.length === 0) {
                 // We have 0 or more than 1 space with the same slug
                 await checkPermissions(
                     organizationUuid,
                     upstreamProjectUuid,
-                    undefined,
+                    undefined, // we also check here if user can create spaces in the upstream project
                     'the upstream project',
                     projectUuid,
                     upstreamProjectUuid,
@@ -4179,7 +4161,22 @@ export class ProjectService extends BaseService {
                     space.slug,
                 );
                 newSpaceUuid = newSpace.uuid;
-                // TODO set right private permissions after creation
+            } else if (existingSpace.length === 1) {
+                // We have an existing space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    existingSpace[0],
+                    'the upstream space and project',
+                    projectUuid,
+                    upstreamProjectUuid,
+                );
+                newSpaceUuid = existingSpace[0].uuid;
+            } else {
+                // Multiple spaces with the same slug
+                throw new AlreadyExistsError(
+                    `There are multiple spaces with the same identifier ${space.slug}`,
+                );
             }
 
             // Create new chart
@@ -4207,7 +4204,7 @@ export class ProjectService extends BaseService {
                     fromProjectId: projectUuid,
                     toProjectId: upstreamProjectUuid,
                     organizationId: organizationUuid,
-                    slug,
+                    slug: promotedChart.slug,
                     hasExistingContent: false,
                     withNewSpace: existingSpace.length !== 1,
                 },
@@ -4231,6 +4228,17 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 upstreamProjectUuid,
             );
+            if (
+                upstreamChart.name !== promotedChart.name ||
+                upstreamChart.description !== promotedChart.description
+            ) {
+                // We also update chart name and description if they have changed
+                await this.savedChartModel.update(upstreamChart.uuid, {
+                    name: promotedChart.name,
+                    description: promotedChart.description,
+                });
+            }
+
             const updatedChart = await this.savedChartModel.createVersion(
                 upstreamChart.uuid,
                 {
@@ -4249,7 +4257,7 @@ export class ProjectService extends BaseService {
                     fromProjectId: projectUuid,
                     toProjectId: upstreamProjectUuid,
                     organizationId: organizationUuid,
-                    slug,
+                    slug: promotedChart.slug,
                     hasExistingContent: true,
                 },
             });
@@ -4265,13 +4273,13 @@ export class ProjectService extends BaseService {
                 fromProjectId: projectUuid,
                 toProjectId: upstreamProjectUuid,
                 organizationId: organizationUuid,
-                slug,
+                slug: promotedChart.slug,
                 error: `There are multiple charts with the same identifier`,
             },
         });
         // Multiple charts with the same slug
-        throw new Error(
-            `There are multiple charts with the same identifier ${slug}`,
+        throw new AlreadyExistsError(
+            `There are multiple charts with the same identifier ${promotedChart.slug}`,
         );
     }
 }

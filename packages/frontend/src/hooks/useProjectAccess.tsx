@@ -37,7 +37,7 @@ const removeProjectAccessQuery = async (
 
 export const useRevokeProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (data) => removeProjectAccessQuery(projectUuid, data),
         {
@@ -48,10 +48,10 @@ export const useRevokeProjectAccessMutation = (projectUuid: string) => {
                     title: `Revoked project access`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to revoke project access`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -70,7 +70,7 @@ const createProjectAccessQuery = async (
 
 export const useCreateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, CreateProjectMember>(
         (data) => createProjectAccessQuery(projectUuid, data),
         {
@@ -81,11 +81,10 @@ export const useCreateProjectAccessMutation = (projectUuid: string) => {
                     title: 'Created new project access',
                 });
             },
-            onError: async (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
+            onError: async ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create project access',
+                    apiError: error,
                 });
             },
         },
@@ -105,7 +104,7 @@ const updateProjectAccessQuery = async (
 
 export const useUpdateProjectAccessMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         null,
         ApiError,
@@ -121,11 +120,10 @@ export const useUpdateProjectAccessMutation = (projectUuid: string) => {
                     title: 'Updated project access role',
                 });
             },
-            onError: async (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
+            onError: async ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update project access role',
+                    apiError: error,
                 });
             },
         },

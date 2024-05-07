@@ -10,8 +10,8 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: projects } = useProjects();
     const { data: currentProject } = useProject(projectUuid);
     const { mutateAsync: updateMutation } = useUpdateMutation(projectUuid);
-    const [selectedProject, setSelectedProject] = useState<string | undefined>(
-        currentProject?.upstreamProjectUuid,
+    const [selectedProject, setSelectedProject] = useState<string | null>(
+        currentProject?.upstreamProjectUuid || null,
     );
     return (
         <>
@@ -24,8 +24,8 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <Title order={4}>Promote content</Title>
                     <Text c="gray.6" fz="xs">
                         Developers and admins on this organization can copy
-                        conent from this project into the selected upstream
-                        project, overriding its defailts or creating new content
+                        content from this project into the selected upstream
+                        project, overriding its defaults or creating new content
                         if it is new.
                     </Text>
                 </div>
@@ -51,7 +51,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         }
                         label="Upstream project"
                         onChange={(value) => {
-                            setSelectedProject(value || undefined);
+                            setSelectedProject(value || null);
                         }}
                     />
                     <Flex justify="flex-end" gap="sm" mt="sm">

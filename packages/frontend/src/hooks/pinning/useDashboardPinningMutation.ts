@@ -12,7 +12,7 @@ const updateDashboardPinning = async (data: { uuid: string }) =>
 
 export const useDashboardPinningMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<Dashboard, ApiError, { uuid: string }>(
         updateDashboardPinning,
         {
@@ -43,10 +43,10 @@ export const useDashboardPinningMutation = () => {
                     });
                 }
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Failed to pin dashboard',
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

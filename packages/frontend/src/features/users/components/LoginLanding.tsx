@@ -42,7 +42,7 @@ const Login: FC<{}> = () => {
     const { identify } = useTracking();
     const location = useLocation<{ from?: Location } | undefined>();
 
-    const { showToastError } = useToaster();
+    const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
     useEffect(() => {
         if (flashMessages.data?.error) {
@@ -95,10 +95,10 @@ const Login: FC<{}> = () => {
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to login`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

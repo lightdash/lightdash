@@ -52,7 +52,7 @@ const deleteDbtProject = async (projectUuid: string) =>
 
 export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     if (projectUuid === undefined) {
         throw new Error(
             'Must use useProjectDbtCloudDeleteMutation hook under react-router path with projectUuid available',
@@ -68,10 +68,10 @@ export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
                     title: `Success! Integration to dbt Cloud was deleted.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to delete integration`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -80,7 +80,7 @@ export const useProjectDbtCloudDeleteMutation = (projectUuid: string) => {
 
 export const useProjectDbtCloudUpdateMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     if (projectUuid === undefined) {
         throw new Error(
             'Must use useProjectDbtCloudUpdateMutation hook under react-router path with projectUuid available',
@@ -97,10 +97,10 @@ export const useProjectDbtCloudUpdateMutation = (projectUuid: string) => {
                 title: `Success! Integration to dbt Cloud was updated.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to update integration`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
