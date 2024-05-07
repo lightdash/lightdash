@@ -1,3 +1,10 @@
+## [0.1088.1](https://github.com/lightdash/lightdash/compare/0.1088.0...0.1088.1) (2024-05-07)
+
+
+### Bug Fixes
+
+* fix missing scheduled job error ([#9997](https://github.com/lightdash/lightdash/issues/9997)) ([daf9787](https://github.com/lightdash/lightdash/commit/daf97873f982ed41823df3a866705e0b9194f767))
+
 # [0.1088.0](https://github.com/lightdash/lightdash/compare/0.1087.0...0.1088.0) (2024-05-07)
 
 
