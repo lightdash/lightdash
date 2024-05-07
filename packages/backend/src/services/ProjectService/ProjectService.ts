@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -4074,13 +4075,17 @@ export class ProjectService extends BaseService {
         );
         const { organizationUuid, projectUuid } = promotedChart;
         if (promotedChart.dashboardUuid)
-            throw new Error(`We can't promote charts within dashboards`);
+            throw new ParameterError(
+                `We can't promote charts within dashboards`,
+            );
         const space = await this.spaceModel.getSpaceSummary(
             promotedChart.spaceUuid,
         );
 
         if (space.isPrivate) {
-            throw new Error(`We can't promote charts from private spaces`);
+            throw new ParameterError(
+                `We can't promote charts from private spaces`,
+            );
         }
 
         await checkPermissions(
@@ -4095,7 +4100,9 @@ export class ProjectService extends BaseService {
         );
 
         if (!upstreamProjectUuid)
-            throw new Error('This chart does not have an upstream project');
+            throw new NotFoundError(
+                'This chart does not have an upstream project',
+            );
 
         const existingUpstreamCharts = await this.savedChartModel.find({
             projectUuid: upstreamProjectUuid,
@@ -4145,7 +4152,7 @@ export class ProjectService extends BaseService {
                 newSpaceUuid = existingSpace[0].uuid;
             } else {
                 // Multiple spaces with the same slug
-                throw new Error(
+                throw new AlreadyExistsError(
                     `There are multiple spaces with the same identifier ${space.slug}`,
                 );
             }
@@ -4205,7 +4212,7 @@ export class ProjectService extends BaseService {
             return updatedChart;
         }
         // Multiple charts with the same slug
-        throw new Error(
+        throw new AlreadyExistsError(
             `There are multiple charts with the same identifier ${promotedChart.slug}`,
         );
     }
