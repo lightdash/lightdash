@@ -6,6 +6,7 @@ import {
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
+import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
@@ -74,6 +75,20 @@ export class HealthService extends BaseService {
                 release: this.lightdashConfig.sentry.release,
             },
             intercom: this.lightdashConfig.intercom,
+            pylon: {
+                appId: this.lightdashConfig.pylon.appId,
+                verificationHash:
+                    this.lightdashConfig.pylon.identityVerificationSecret &&
+                    user?.email
+                        ? createHmac(
+                              'sha256',
+                              this.lightdashConfig.pylon
+                                  .identityVerificationSecret,
+                          )
+                              .update(user?.email)
+                              .digest('hex')
+                        : undefined,
+            },
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             posthog: this.lightdashConfig.posthog,

@@ -71,6 +71,9 @@ export const lightdashConfigMock: LightdashConfig = {
         appId: '',
         apiBase: '',
     },
+    pylon: {
+        appId: '',
+    },
     lightdashSecret: '',
     logging: {
         level: 'debug',
