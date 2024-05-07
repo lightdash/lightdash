@@ -1,3 +1,10 @@
+# [0.1089.0](https://github.com/lightdash/lightdash/compare/0.1088.1...0.1089.0) (2024-05-07)
+
+
+### Features
+
+* pylon chat ([#9977](https://github.com/lightdash/lightdash/issues/9977)) ([4e2038c](https://github.com/lightdash/lightdash/commit/4e2038cfd146e170684aca9d3db5fb5cc6ed630a))
+
 ## [0.1088.1](https://github.com/lightdash/lightdash/compare/0.1088.0...0.1088.1) (2024-05-07)
 
 
