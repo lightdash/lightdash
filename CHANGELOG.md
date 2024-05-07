@@ -1,3 +1,10 @@
+# [0.1088.0](https://github.com/lightdash/lightdash/compare/0.1087.0...0.1088.0) (2024-05-07)
+
+
+### Features
+
+* promote charts ([#9895](https://github.com/lightdash/lightdash/issues/9895)) ([c5fe882](https://github.com/lightdash/lightdash/commit/c5fe88223a586c5f94274ff0dcc161959abf50d1))
+
 # [0.1087.0](https://github.com/lightdash/lightdash/compare/0.1086.1...0.1087.0) (2024-05-07)
 
 
