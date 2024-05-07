@@ -1,3 +1,10 @@
+## [0.1086.1](https://github.com/lightdash/lightdash/compare/0.1086.0...0.1086.1) (2024-05-07)
+
+
+### Bug Fixes
+
+* init sentry before express handlers ([#9996](https://github.com/lightdash/lightdash/issues/9996)) ([1cac040](https://github.com/lightdash/lightdash/commit/1cac04009c8620d68583d6a49c201d47fe1b5daa))
+
 # [0.1086.0](https://github.com/lightdash/lightdash/compare/0.1085.2...0.1086.0) (2024-05-07)
 
 
