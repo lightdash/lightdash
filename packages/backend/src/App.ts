@@ -225,8 +225,8 @@ export default class App {
             App.initNodeProcessMonitor();
         }
 
-        const expressApp = await this.initExpress();
-        this.initSentry(expressApp);
+        await this.initExpress();
+
         this.initSlack().catch((e) => {
             Logger.error('Error starting slack bot', e);
         });
@@ -237,6 +237,8 @@ export default class App {
 
     private async initExpress() {
         const expressApp = express();
+
+        this.initSentry(expressApp);
 
         const KnexSessionStore = connectSessionKnex(expressSession);
 
