@@ -654,11 +654,7 @@ const findAndOverrideChartFilter = (
     filterRulesList: FilterRule[],
 ): FilterGroupItem => {
     const identicalDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find(
-              (x) =>
-                  x.target.fieldId === item.target.fieldId &&
-                  x.operator === item.operator,
-          )
+        ? filterRulesList.find((x) => x.target.fieldId === item.target.fieldId)
         : undefined;
     return identicalDashboardFilter
         ? {
@@ -670,6 +666,7 @@ const findAndOverrideChartFilter = (
                         settings: identicalDashboardFilter.settings,
                     }
                   : {}),
+              operator: identicalDashboardFilter.operator,
           }
         : item;
 };
