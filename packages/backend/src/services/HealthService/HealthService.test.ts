@@ -1,9 +1,10 @@
 import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { HealthService } from './HealthService';
-import { BaseResponse, Config, userMock } from './HealthService.mock';
+import { BaseResponse, userMock } from './HealthService.mock';
 
 jest.mock('../../version', () => ({
     VERSION: '0.1.0',
@@ -26,7 +27,7 @@ const migrationModel = {
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
-        lightdashConfig: Config,
+        lightdashConfig: lightdashConfigMock,
         migrationModel: migrationModel as unknown as MigrationModel,
     });
 
@@ -67,7 +68,7 @@ describe('health', () => {
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
             lightdashConfig: {
-                ...Config,
+                ...lightdashConfigMock,
                 mode: LightdashMode.CLOUD_BETA,
             },
             migrationModel: migrationModel as unknown as MigrationModel,
