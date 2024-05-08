@@ -914,9 +914,10 @@ export class CsvService extends BaseService {
         });
 
         const zipFileName = CsvService.sanitizeFileName(dashboard.name);
+        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
-            `${zipFileName}.zip`,
+            `${zipFileName}-${timestamp}.zip`,
         );
     }
 }
