@@ -15,6 +15,7 @@ import {
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isCustomSqlDimension,
     isUserWithOrg,
     SavedChart,
     SavedChartDAO,
@@ -318,6 +319,18 @@ export class SavedChartService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL dimensions',
+            );
         }
 
         const savedChart = await this.savedChartModel.createVersion(

@@ -87,6 +87,8 @@ import {
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTable,
     SavedChartCustomDimensionsTableName,
+    SavedChartCustomSqlDimensionsTable,
+    SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
     SavedChartTable,
     SavedChartTableCalculationTable,
@@ -254,6 +256,7 @@ declare module 'knex/types/tables' {
         [OrganizationMemberUserAttributesTable]: DbOrganizationMemberUserAttribute;
         [GroupUserAttributesTable]: DbGroupUserAttribute;
         [SavedChartCustomDimensionsTableName]: SavedChartCustomDimensionsTable;
+        [SavedChartCustomSqlDimensionsTableName]: SavedChartCustomSqlDimensionsTable;
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;

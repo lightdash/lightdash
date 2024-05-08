@@ -792,6 +792,7 @@ export const buildQuery = ({
     const groups = [
         ...(dimensionSelects.length > 0 ? dimensionSelects : []),
         ...(customBinDimensionSql?.selects || []),
+        ...(customSqlDimensionSql?.selects || []),
     ];
     const sqlGroupBy =
         groups.length > 0

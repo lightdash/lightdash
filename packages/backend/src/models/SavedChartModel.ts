@@ -7,13 +7,16 @@ import {
     ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CustomBinDimension,
     CustomDimensionType,
+    CustomSqlDimension,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
     getCustomDimensionId,
     isCustomBinDimension,
+    isCustomSqlDimension,
     isFormat,
     LightdashUser,
     NotFoundError,
@@ -44,10 +47,12 @@ import {
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartCustomDimensionInsert,
+    DbSavedChartCustomSqlDimensionInsert,
     DbSavedChartTableCalculationInsert,
     InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
+    SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
@@ -113,6 +118,16 @@ const createSavedChartVersionCustomDimension = async (
     data: DbSavedChartCustomDimensionInsert,
 ) => {
     const results = await trx('saved_queries_version_custom_dimensions')
+        .insert(data)
+        .returning('*');
+    return results[0];
+};
+
+const createSavedChartVersionCustomSqlDimension = async (
+    trx: Knex,
+    data: DbSavedChartCustomSqlDimensionInsert,
+) => {
+    const results = await trx(SavedChartCustomSqlDimensionsTableName)
         .insert(data)
         .returning('*');
     return results[0];
@@ -214,9 +229,8 @@ const createSavedChartVersion = async (
                 }),
             );
         });
-        customDimensions
-            ?.filter(isCustomBinDimension) // TODO Remove this line when custom sql dimensions are fully implemented
-            .forEach((customDimension) => {
+        customDimensions?.forEach((customDimension) => {
+            if (isCustomBinDimension(customDimension)) {
                 promises.push(
                     createSavedChartVersionCustomDimension(trx, {
                         saved_queries_version_id:
@@ -240,7 +254,26 @@ const createSavedChartVersion = async (
                         ),
                     }),
                 );
-            });
+            }
+            if (isCustomSqlDimension(customDimension)) {
+                promises.push(
+                    createSavedChartVersionCustomSqlDimension(trx, {
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
+                        id: customDimension.id,
+                        name: customDimension.name,
+                        table: customDimension.table,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) =>
+                                column ===
+                                getCustomDimensionId(customDimension),
+                        ),
+                        sql: customDimension.sql,
+                        dimension_type: customDimension.dimensionType,
+                    }),
+                );
+            }
+        });
         additionalMetrics?.forEach((additionalMetric) => {
             promises.push(
                 createSavedChartVersionAdditionalMetrics(trx, {
@@ -742,8 +775,11 @@ export class SavedChartModel {
                 ])
                 .where('saved_queries_version_id', savedQueriesVersionId);
 
-            const customDimensionsQuery = this.database(
+            const customBinDimensionsQuery = this.database(
                 SavedChartCustomDimensionsTableName,
+            ).where('saved_queries_version_id', savedQueriesVersionId);
+            const customSqlDimensionsQuery = this.database(
+                SavedChartCustomSqlDimensionsTableName,
             ).where('saved_queries_version_id', savedQueriesVersionId);
 
             const [
@@ -751,13 +787,15 @@ export class SavedChartModel {
                 sorts,
                 tableCalculations,
                 additionalMetricsRows,
-                customDimensionsRows,
+                customBinDimensionsRows,
+                customSqlDimensionsRows,
             ] = await Promise.all([
                 fieldsQuery,
                 sortsQuery,
                 tableCalculationsQuery,
                 additionalMetricsQuery,
-                customDimensionsQuery,
+                customBinDimensionsQuery,
+                customSqlDimensionsQuery,
             ]);
 
             // Filters out "null" fields
@@ -813,7 +851,8 @@ export class SavedChartModel {
             const columnOrder: string[] = [
                 ...fields,
                 ...tableCalculations,
-                ...customDimensionsRows,
+                ...customBinDimensionsRows,
+                ...customSqlDimensionsRows,
             ]
                 .sort((a, b) => a.order - b.order)
                 .map((x) => x.name);
@@ -855,17 +894,31 @@ export class SavedChartModel {
                         }),
                     ),
                     additionalMetrics,
-                    customDimensions: customDimensionsRows?.map((cd) => ({
-                        id: cd.id,
-                        name: cd.name,
-                        type: CustomDimensionType.BIN,
-                        dimensionId: cd.dimension_id,
-                        table: cd.table,
-                        binType: cd.bin_type as BinType,
-                        binNumber: cd.bin_number || undefined,
-                        binWidth: cd.bin_width || undefined,
-                        customRange: cd.custom_range || undefined,
-                    })),
+                    customDimensions: [
+                        ...(
+                            customBinDimensionsRows || []
+                        ).map<CustomBinDimension>((cd) => ({
+                            id: cd.id,
+                            name: cd.name,
+                            type: CustomDimensionType.BIN,
+                            dimensionId: cd.dimension_id,
+                            table: cd.table,
+                            binType: cd.bin_type as BinType,
+                            binNumber: cd.bin_number || undefined,
+                            binWidth: cd.bin_width || undefined,
+                            customRange: cd.custom_range || undefined,
+                        })),
+                        ...(
+                            customSqlDimensionsRows || []
+                        ).map<CustomSqlDimension>((cd) => ({
+                            id: cd.id,
+                            name: cd.name,
+                            type: CustomDimensionType.SQL,
+                            table: cd.table,
+                            sql: cd.sql,
+                            dimensionType: cd.dimension_type,
+                        })),
+                    ],
                     timezone: savedQuery.timezone,
                 },
                 chartConfig,
