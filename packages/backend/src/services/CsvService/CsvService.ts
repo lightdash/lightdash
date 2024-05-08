@@ -19,6 +19,7 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
+    InvalidConfigError,
     isDashboardChartTileType,
     isField,
     isMomentInput,
@@ -55,7 +56,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread } from '../../utils';
+import { runWorkerThread, sanitizeStringParam } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -207,16 +208,20 @@ export class CsvService extends BaseService {
         });
     }
 
+    static sanitizeFileName(name: string): string {
+        return name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+    }
+
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
-        const sanitizedFileName = fileName
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+        const sanitizedFileName = CsvService.sanitizeFileName(fileName);
         const fileId = `csv-${
             truncated ? 'incomplete_results-' : ''
         }${sanitizedFileName}-${timestamp}.csv`;
@@ -829,7 +834,7 @@ export class CsvService extends BaseService {
         dashboardFilters: DashboardFilters,
     ) {
         if (!this.s3Client.isEnabled()) {
-            throw new Error('Cloud storage is not enabled');
+            throw new InvalidConfigError('Cloud storage is not enabled');
         }
         const options: SchedulerCsvOptions = {
             formatted: true,
@@ -909,9 +914,10 @@ export class CsvService extends BaseService {
             },
         });
 
+        const zipFileName = CsvService.sanitizeFileName(dashboard.name);
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
-            `${dashboard.name}.zip`,
+            `${zipFileName}.zip`,
         );
     }
 }

@@ -280,3 +280,14 @@ export class AlreadyExistsError extends LightdashError {
         });
     }
 }
+
+export class InvalidConfigError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'InvalidConfigError',
+            statusCode: 422,
+            data: {},
+        });
+    }
+}
