@@ -12,6 +12,7 @@ import {
     ProjectRole,
     Space,
     SpaceDashboard,
+    SpaceGroup,
     SpaceMemberRole,
     SpaceQuery,
     SpaceShare,
@@ -30,6 +31,7 @@ import {
 } from '../database/entities/dashboards';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -281,6 +283,7 @@ export class SpaceModel {
             projectUuid,
             dashboards: [],
             access: [],
+            groupsAccess: [],
             slug: space.slug,
         };
     }
@@ -374,7 +377,9 @@ export class SpaceModel {
 
     async get(
         spaceUuid: string,
-    ): Promise<Omit<Space, 'queries' | 'dashboards' | 'access'>> {
+    ): Promise<
+        Omit<Space, 'queries' | 'dashboards' | 'access' | 'groupsAccess'>
+    > {
         const [row] = await this.database(SpaceTableName)
             .leftJoin('projects', 'projects.project_id', 'spaces.project_id')
             .leftJoin(
@@ -802,6 +807,23 @@ export class SpaceModel {
         );
     }
 
+    private async _getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        const access = await this.database
+            .table(SpaceGroupAccessTableName)
+            .select({
+                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                groupName: `${GroupTableName}.name`,
+            })
+            .leftJoin(
+                `${GroupTableName}`,
+                `${GroupTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .where('space_uuid', spaceUuid);
+        return access;
+    }
+
     async getUserSpaceAccess(
         userUuid: string,
         spaceUuid: string,
@@ -1053,6 +1075,7 @@ export class SpaceModel {
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
             access: await this._getSpaceAccess(space.uuid),
+            groupsAccess: await this._getGroupAccess(space.uuid),
             slug: space.slug,
         };
     }
@@ -1087,6 +1110,7 @@ export class SpaceModel {
             projectUuid,
             dashboards: [],
             access: [],
+            groupsAccess: [],
             pinnedListUuid: null,
             pinnedListOrder: null,
             slug: space.slug,

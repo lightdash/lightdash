@@ -1,9 +1,4 @@
-import {
-    isDirectGroupAccess,
-    isDirectUserAccess,
-    OrganizationMemberRole,
-    type Space,
-} from '@lightdash/common';
+import { OrganizationMemberRole, type Space } from '@lightdash/common';
 import {
     Avatar,
     Badge,
@@ -136,13 +131,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
             if (!user) return null;
 
-            const spaceAccess = (space.access || []).find(
+            const hasDirectAccess = !!(space.access || []).find(
                 (access) => access.userUuid === userUuid,
-            );
-
-            const hasDirectAccess =
-                isDirectUserAccess(spaceAccess) ||
-                isDirectGroupAccess(spaceAccess);
+            )?.hasDirectAccess;
 
             if (!hasDirectAccess) return null;
 
@@ -158,18 +149,31 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             };
         });
 
-        const groupsSet = groups?.map((group): SelectItem | null => {
-            return {
-                value: group.uuid,
-                label: group.name,
-                group: 'Groups',
-            };
-        });
+        const groupsSet = groups
+            ?.filter(
+                (group) =>
+                    !space.groupsAccess.some(
+                        (ga) => ga.groupUuid === group.uuid,
+                    ),
+            )
+            .map((group): SelectItem | null => {
+                return {
+                    value: group.uuid,
+                    label: group.name,
+                    group: 'Groups',
+                };
+            });
 
         return [...usersSet, ...(groupsSet ?? [])].filter(
             (item): item is SelectItem => item !== null,
         );
-    }, [organizationUsers, userUuids, space.access, groups]);
+    }, [
+        organizationUsers,
+        userUuids,
+        space.access,
+        groups,
+        space.groupsAccess,
+    ]);
 
     return (
         <Group>

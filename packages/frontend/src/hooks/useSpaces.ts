@@ -326,46 +326,46 @@ export const useAddGroupSpaceShareMutation = (
     );
 };
 
-// const deleteGroupSpaceShare = async (
-//     projectUuid: string,
-//     spaceUuid: string,
-//     groupUuid: string,
-// ) =>
-//     lightdashApi<null>({
-//         url: `/projects/${projectUuid}/spaces/${spaceUuid}/group/share/${groupUuid}`,
-//         method: 'DELETE',
-//         body: undefined,
-//     });
+const deleteGroupSpaceShare = async (
+    projectUuid: string,
+    spaceUuid: string,
+    groupUuid: string,
+) =>
+    lightdashApi<null>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/group/share/${groupUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
 
-// export const useDeleteSpaceGroupAccessMutation = (
-//     projectUuid: string,
-//     spaceUuid: string,
-// ) => {
-//     const { showToastSuccess, showToastError } = useToaster();
-//     const queryClient = useQueryClient();
+export const useDeleteSpaceGroupAccessMutation = (
+    projectUuid: string,
+    spaceUuid: string,
+) => {
+    const { showToastSuccess, showToastError } = useToaster();
+    const queryClient = useQueryClient();
 
-//     return useMutation<null, ApiError, string>(
-//         (groupUuid) => deleteGroupSpaceShare(projectUuid, spaceUuid, groupUuid),
-//         {
-//             mutationKey: ['group_space_unshare', projectUuid, spaceUuid],
-//             onSuccess: async () => {
-//                 await queryClient.refetchQueries(['spaces', projectUuid]);
-//                 await queryClient.refetchQueries([
-//                     'space',
-//                     projectUuid,
-//                     spaceUuid,
-//                 ]);
+    return useMutation<null, ApiError, string>(
+        (groupUuid) => deleteGroupSpaceShare(projectUuid, spaceUuid, groupUuid),
+        {
+            mutationKey: ['group_space_unshare', projectUuid, spaceUuid],
+            onSuccess: async () => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+                await queryClient.refetchQueries([
+                    'space',
+                    projectUuid,
+                    spaceUuid,
+                ]);
 
-//                 showToastSuccess({
-//                     title: `Success! Space group access updated!`,
-//                 });
-//             },
-//             onError: (error) => {
-//                 showToastError({
-//                     title: `Failed to update space group access`,
-//                     subtitle: error.error.message,
-//                 });
-//             },
-//         },
-//     );
-// };
+                showToastSuccess({
+                    title: `Success! Space group access updated!`,
+                });
+            },
+            onError: (error) => {
+                showToastError({
+                    title: `Failed to update space group access`,
+                    subtitle: error.error.message,
+                });
+            },
+        },
+    );
+};

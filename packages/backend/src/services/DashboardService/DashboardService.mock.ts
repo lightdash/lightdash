@@ -63,6 +63,7 @@ export const publicSpace: Space = {
     projectUuid: 'projectUuid',
     dashboards: [],
     access: [],
+    groupsAccess: [],
     name: 'public-space',
     pinnedListUuid: null,
     pinnedListOrder: null,
