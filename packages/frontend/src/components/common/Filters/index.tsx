@@ -81,12 +81,10 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
             setFilters(
                 {
-                    ...filters,
                     dimensions:
                         result.dimensions.length > 0
                             ? {
                                   id: uuidv4(),
-                                  ...filters.dimensions,
                                   and: result.dimensions,
                               }
                             : undefined,
@@ -94,7 +92,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         result.metrics.length > 0
                             ? {
                                   id: uuidv4(),
-                                  ...filters.metrics,
                                   and: result.metrics,
                               }
                             : undefined,
@@ -102,7 +99,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         result.tableCalculations.length > 0
                             ? {
                                   id: uuidv4(),
-                                  ...filters.tableCalculations,
                                   and: result.tableCalculations,
                               }
                             : undefined,
@@ -110,7 +106,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 false,
             );
         },
-        [fields, filters, setFilters],
+        [fields, setFilters],
     );
 
     const updateFiltersFromGroup = useCallback(
