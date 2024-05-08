@@ -1,5 +1,6 @@
 import {
     addFilterRule,
+    deleteFilterRuleFromGroup,
     getFilterRulesByFieldType,
     getFiltersFromGroup,
     getTotalFilterRules,
@@ -9,7 +10,6 @@ import {
     isFilterableField,
     isOrFilterGroup,
     type FilterGroup,
-    type FilterRule,
     type Filters,
     type OrFilterGroup,
 } from '@lightdash/common';
@@ -49,18 +49,17 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     }, [fieldsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
-    const {
-        valid: validFilterRulesPerType,
-        invalid: invalidFilterRulesPerType,
-    } = getFilterRulesByFieldType(fields, totalFilterRules);
+    const { invalid: invalidFilterRulesPerType } = getFilterRulesByFieldType(
+        fields,
+        totalFilterRules,
+    );
 
     const hasInvalidFilterRules = Object.values(invalidFilterRulesPerType).some(
         (arr) => arr.length > 0,
     );
 
     const showSimplifiedForm: boolean =
-        Object.values(validFilterRulesPerType).flat().length < 2 &&
-        !hasNestedGroups(filters);
+        totalFilterRules.length < 2 && !hasNestedGroups(filters);
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
@@ -70,43 +69,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             }
         },
         [filters, setFilters, toggleFieldInput],
-    );
-
-    const updateFieldRules = useCallback(
-        (filterRules: FilterRule[]) => {
-            const { valid: result } = getFilterRulesByFieldType(
-                fields,
-                filterRules,
-            );
-
-            setFilters(
-                {
-                    dimensions:
-                        result.dimensions.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  and: result.dimensions,
-                              }
-                            : undefined,
-                    metrics:
-                        result.metrics.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  and: result.metrics,
-                              }
-                            : undefined,
-                    tableCalculations:
-                        result.tableCalculations.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  and: result.tableCalculations,
-                              }
-                            : undefined,
-                },
-                false,
-            );
-        },
-        [fields, setFilters],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -194,7 +156,13 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         fields={fields}
                         isEditMode={isEditMode}
                         filterRules={getTotalFilterRules(filters)}
-                        onChange={updateFieldRules}
+                        onChange={(filterRules) => {
+                            // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
+                            updateFiltersFromGroup({
+                                id: uuidv4(),
+                                and: filterRules,
+                            });
+                        }}
                     />
                 ) : (
                     <>
@@ -251,11 +219,10 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                     </Text>
                                     <ActionIcon
                                         onClick={() =>
-                                            updateFieldRules(
-                                                getTotalFilterRules(
-                                                    filters,
-                                                ).filter(
-                                                    ({ id }) => id !== rule.id,
+                                            updateFiltersFromGroup(
+                                                deleteFilterRuleFromGroup(
+                                                    rootFilterGroup,
+                                                    rule.id,
                                                 ),
                                             )
                                         }

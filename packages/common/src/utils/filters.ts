@@ -552,6 +552,39 @@ export const getFiltersFromGroup = (
     }, {} as Filters);
 };
 
+export const deleteFilterRuleFromGroup = (
+    filterGroup: FilterGroup,
+    id: string,
+) => {
+    const items = getItemsFromFilterGroup(filterGroup);
+
+    // If the filter group contains the rule we want to delete, we remove it
+    if (items.some((rule) => rule.id === id)) {
+        return {
+            id: filterGroup.id,
+            [getFilterGroupItemsPropertyName(filterGroup)]: items.filter(
+                (rule) => rule.id !== id,
+            ),
+        } as FilterGroup;
+    }
+
+    const groupGroups = items.filter(isFilterGroup);
+    const groupItems = items.filter(isFilterRule);
+
+    // If the filter group contains nested groups, we recursively call this function on each nested group
+    const newGroups: FilterGroup[] = groupGroups.map((group) =>
+        deleteFilterRuleFromGroup(group, id),
+    );
+
+    return {
+        id: filterGroup.id,
+        [getFilterGroupItemsPropertyName(filterGroup)]: [
+            ...groupItems,
+            ...newGroups,
+        ],
+    } as FilterGroup;
+};
+
 export const getDashboardFilterRulesForTile = (
     tileUuid: string,
     rules: DashboardFilterRule[],
