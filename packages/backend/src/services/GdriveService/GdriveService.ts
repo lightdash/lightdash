@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    isCustomSqlDimension,
     SessionUser,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
@@ -66,6 +67,23 @@ export class GdriveService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            gsheetOptions.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: gsheetOptions.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const payload: UploadMetricGsheetPayload = {

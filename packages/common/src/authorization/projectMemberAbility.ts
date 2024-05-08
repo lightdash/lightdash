@@ -140,6 +140,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'CustomSql', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     getCustomDimensionId,
     getItemId,
@@ -8,6 +9,8 @@ import {
 import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { useApp } from '../../../../providers/AppProvider';
 import { useExplorerContext } from '../../../../providers/ExplorerProvider';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
@@ -36,6 +39,15 @@ const TableTreeSections: FC<Props> = ({
     selectedDimensions,
     onSelectedNodeChange,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+    const canManageCustomSql = user.data?.ability?.can(
+        'manage',
+        subject('CustomSql', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
@@ -133,21 +145,23 @@ const TableTreeSections: FC<Props> = ({
                         Dimensions
                     </Text>
 
-                    <Button
-                        size="xs"
-                        variant={'subtle'}
-                        compact
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={() =>
-                            toggleCustomDimensionModal({
-                                isEditing: false,
-                                table: table.name,
-                                item: undefined,
-                            })
-                        }
-                    >
-                        Add
-                    </Button>
+                    {canManageCustomSql && (
+                        <Button
+                            size="xs"
+                            variant={'subtle'}
+                            compact
+                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            onClick={() =>
+                                toggleCustomDimensionModal({
+                                    isEditing: false,
+                                    table: table.name,
+                                    item: undefined,
+                                })
+                            }
+                        >
+                            Add
+                        </Button>
+                    )}
                 </Group>
             )}
 

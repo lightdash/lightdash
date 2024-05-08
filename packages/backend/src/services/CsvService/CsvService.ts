@@ -19,6 +19,7 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
+    isCustomSqlDimension,
     isDashboardChartTileType,
     isField,
     isMomentInput,
@@ -708,6 +709,21 @@ export class CsvService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
