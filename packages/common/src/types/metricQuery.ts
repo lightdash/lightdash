@@ -3,6 +3,7 @@ import {
     friendlyName,
     isCustomBinDimension,
     isCustomDimension,
+    isCustomSqlDimension,
     type CompactOrAlias,
     type CompiledDimension,
     type CompiledMetric,
@@ -131,6 +132,10 @@ export const countCustomDimensionsInMetricQuery = (
             (dimension) =>
                 isCustomBinDimension(dimension) &&
                 dimension.binType === BinType.CUSTOM_RANGE,
+        ).length || 0,
+    numCustomSqlDimensions:
+        metricQuery.customDimensions?.filter((dimension) =>
+            isCustomSqlDimension(dimension),
         ).length || 0,
 });
 
