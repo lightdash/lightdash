@@ -46,6 +46,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     position="bottom-start"
                     arrowOffset={16}
                     offset={-2}
+                    withinPortal
                 >
                     <Menu.Target>
                         <Button
