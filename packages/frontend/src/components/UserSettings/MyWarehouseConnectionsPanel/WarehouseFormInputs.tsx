@@ -37,6 +37,8 @@ export const WarehouseFormInputs: FC<{
             return <>{/* Add key file content input - JSON? */}</>;
         case WarehouseTypes.DATABRICKS:
             return <>{/* Add personal access token input */}</>;
+        case WarehouseTypes.ATHENA:
+            return <>{/* Add AWS credentials input */}</>;
         default:
             return null;
     }

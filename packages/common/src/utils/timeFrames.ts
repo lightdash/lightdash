@@ -276,6 +276,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
+    [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses the same date functions as Trino
 };
 
 export const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (

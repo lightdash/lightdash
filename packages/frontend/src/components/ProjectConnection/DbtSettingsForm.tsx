@@ -23,6 +23,7 @@ import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import FormCollapseButton from './FormCollapseButton';
 import { type SelectedWarehouse } from './ProjectConnectFlow/SelectWarehouse';
+import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
@@ -143,6 +144,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return <PostgresSchemaInput disabled={disabled} />;
             case WarehouseTypes.TRINO:
                 return <TrinoSchemaInput disabled={disabled} />;
+            case WarehouseTypes.ATHENA:
+                return <AthenaSchemaInput disabled={disabled} />;
             case WarehouseTypes.REDSHIFT:
                 return <RedshiftSchemaInput disabled={disabled} />;
             case WarehouseTypes.SNOWFLAKE:

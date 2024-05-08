@@ -174,6 +174,24 @@ const credentialsTarget = (
                     [envVar('token')]: credentials.personalAccessToken,
                 },
             };
+        case WarehouseTypes.ATHENA:
+            return {
+                target: {
+                    type: WarehouseTypes.ATHENA,
+                    // all dbt config
+                    work_group: credentials.workgroup,
+                    region_name: credentials.awsRegion,
+                    s3_staging_dir: credentials.outputLocation,
+                    schema: credentials.schema,
+                    database: credentials.database,
+                    aws_access_key_id: credentials.awsAccessKeyId,
+                    aws_secret_access_key: credentials.awsSecretKey,
+                },
+                environment: {
+                    [envVar('AWS_ACCESS_KEY_ID')]: credentials.awsAccessKeyId,
+                    [envVar('AWS_SECRET_KEY')]: credentials.awsSecretKey,
+                },
+            };
         default:
             const { type } = credentials;
             return assertUnreachable(
