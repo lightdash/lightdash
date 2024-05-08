@@ -8,7 +8,6 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
-    FeatureFlags,
     ForbiddenError,
     formatItemValue,
     friendlyName,
@@ -19,13 +18,13 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
-    InvalidConfigError,
     isDashboardChartTileType,
     isField,
     isMomentInput,
     isTableChartConfig,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -834,7 +833,7 @@ export class CsvService extends BaseService {
         dashboardFilters: DashboardFilters,
     ) {
         if (!this.s3Client.isEnabled()) {
-            throw new InvalidConfigError('Cloud storage is not enabled');
+            throw new MissingConfigError('Cloud storage is not enabled');
         }
         const options: SchedulerCsvOptions = {
             formatted: true,

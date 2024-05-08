@@ -281,11 +281,11 @@ export class AlreadyExistsError extends LightdashError {
     }
 }
 
-export class InvalidConfigError extends LightdashError {
+export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({
             message,
-            name: 'InvalidConfigError',
+            name: 'MissingConfigError',
             statusCode: 422,
             data: {},
         });
