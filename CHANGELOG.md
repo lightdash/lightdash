@@ -1,3 +1,10 @@
+## [0.1089.1](https://github.com/lightdash/lightdash/compare/0.1089.0...0.1089.1) (2024-05-08)
+
+
+### Bug Fixes
+
+* extra week added in week chart axis ([#10005](https://github.com/lightdash/lightdash/issues/10005)) ([499b39b](https://github.com/lightdash/lightdash/commit/499b39bb469cd6da7ad6c02123120449fd6eb8fc))
+
 # [0.1089.0](https://github.com/lightdash/lightdash/compare/0.1088.1...0.1089.0) (2024-05-07)
 
 
