@@ -1,8 +1,13 @@
-import { BinType, ForbiddenError } from '@lightdash/common';
+import {
+    BinType,
+    CustomDimensionType,
+    ForbiddenError,
+    isCustomBinDimension,
+} from '@lightdash/common';
 import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
-    getCustomDimensionSql,
+    getCustomBinDimensionSql,
     replaceUserAttributes,
 } from './queryBuilder';
 import {
@@ -510,10 +515,10 @@ describe('assertValidDimensionRequiredAttribute', () => {
 describe('with custom dimensions', () => {
     it('getCustomDimensionSql with empty custom dimension', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY,
+                customDimensions: undefined,
                 userAttributes: {},
                 sorts: [],
             }),
@@ -522,11 +527,14 @@ describe('with custom dimensions', () => {
 
     it('getCustomDimensionSql with custom dimension', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
 
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                customDimensions:
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.customDimensions?.filter(
+                        isCustomBinDimension,
+                    ),
                 userAttributes: {},
                 sorts: [],
             }),
@@ -557,23 +565,21 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
 
     it('getCustomDimensionSql with only 1 bin', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
 
                 explore: EXPLORE,
-                compiledMetricQuery: {
-                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
-                        {
-                            id: 'age_range',
-                            name: 'Age range',
-                            dimensionId: 'table1_dim1',
-                            table: 'table1',
-                            binType: BinType.FIXED_NUMBER,
-                            binNumber: 1,
-                        },
-                    ],
-                },
+                customDimensions: [
+                    {
+                        id: 'age_range',
+                        name: 'Age range',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table1_dim1',
+                        table: 'table1',
+                        binType: BinType.FIXED_NUMBER,
+                        binNumber: 1,
+                    },
+                ],
                 userAttributes: {},
                 sorts: [],
             }),
@@ -641,6 +647,7 @@ LIMIT 10`);
                         {
                             id: 'age_range',
                             name: 'Age range',
+                            type: CustomDimensionType.BIN,
                             dimensionId: 'table1_dim1',
                             table: 'table1',
                             binType: BinType.FIXED_WIDTH,
@@ -727,11 +734,13 @@ LIMIT 10`);
 
     it('getCustomDimensionSql with sorted custom dimension ', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
-
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                customDimensions:
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.customDimensions?.filter(
+                        isCustomBinDimension,
+                    ),
                 userAttributes: {},
                 sorts: [{ fieldId: 'age_range', descending: true }],
             }),
@@ -823,6 +832,7 @@ LIMIT 10`);
                         {
                             id: 'age_range',
                             name: 'Age range',
+                            type: CustomDimensionType.BIN,
                             dimensionId: 'table1_dim1',
                             table: 'table1',
                             binType: BinType.FIXED_WIDTH,

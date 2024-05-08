@@ -26,7 +26,7 @@ type Props = {
     isFullScreen: boolean;
 };
 
-const SqlEditor = styled(AceEditor)<
+export const SqlEditor = styled(AceEditor)<
     IAceEditorProps & { isFullScreen: boolean; gutterBackgroundColor: string }
 >`
     width: 100%;

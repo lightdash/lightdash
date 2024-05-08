@@ -239,6 +239,7 @@ export interface ExplorerReduceState {
         customDimension: {
             isOpen: boolean;
             isEditing?: boolean;
+            table?: string;
             item?: Dimension | CustomDimension;
         };
     };

@@ -2,6 +2,7 @@ import { type Explore } from '../types/explore';
 import {
     DimensionType,
     fieldId,
+    isCustomDimension,
     isDimension,
     isField,
     isTableCalculation,
@@ -17,7 +18,6 @@ import {
 import {
     getCustomDimensionId,
     isAdditionalMetric,
-    isCustomDimension,
     type AdditionalMetric,
 } from '../types/metricQuery';
 

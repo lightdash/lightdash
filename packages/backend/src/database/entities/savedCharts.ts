@@ -190,6 +190,11 @@ export type DbSavedChartCustomDimensionInsert = Omit<
     custom_range: string | null;
 };
 
+export type SavedChartCustomDimensionsTable = Knex.CompositeTableType<
+    DbSavedChartCustomDimension,
+    DbSavedChartCustomDimensionInsert
+>;
+
 export const SavedChartAdditionalMetricTableName =
     'saved_queries_version_additional_metrics';
 export type DbSavedChartAdditionalMetric = {

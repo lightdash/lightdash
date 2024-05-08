@@ -5,9 +5,10 @@ import {
     type CompiledTable,
     type CustomDimension,
 } from '@lightdash/common';
-import { Center, Group, Text, Tooltip } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { useExplorerContext } from '../../../../providers/ExplorerProvider';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -35,6 +36,10 @@ const TableTreeSections: FC<Props> = ({
     selectedDimensions,
     onSelectedNodeChange,
 }) => {
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
+    );
+
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -123,10 +128,26 @@ const TableTreeSections: FC<Props> = ({
             )}
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
-                <Group mt="sm" mb="xs">
+                <Group mt="sm" mb="xs" position={'apart'}>
                     <Text fw={600} color="blue.9">
                         Dimensions
                     </Text>
+
+                    <Button
+                        size="xs"
+                        variant={'subtle'}
+                        compact
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        onClick={() =>
+                            toggleCustomDimensionModal({
+                                isEditing: false,
+                                table: table.name,
+                                item: undefined,
+                            })
+                        }
+                    >
+                        Add
+                    </Button>
                 </Group>
             )}
 

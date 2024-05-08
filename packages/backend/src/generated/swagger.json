@@ -975,6 +975,10 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "CustomDimensionType.BIN": {
+                "enum": ["bin"],
+                "type": "string"
+            },
             "BinType": {
                 "enum": ["fixed_number", "fixed_width", "custom_range"],
                 "type": "string"
@@ -992,7 +996,11 @@
                 },
                 "type": "object"
             },
-            "CustomDimension": {
+            "CustomDimensionType": {
+                "enum": ["bin", "sql"],
+                "type": "string"
+            },
+            "CustomBinDimension": {
                 "properties": {
                     "id": {
                         "type": "string"
@@ -1000,11 +1008,14 @@
                     "name": {
                         "type": "string"
                     },
-                    "dimensionId": {
-                        "$ref": "#/components/schemas/FieldId"
-                    },
                     "table": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.BIN"
+                    },
+                    "dimensionId": {
+                        "$ref": "#/components/schemas/FieldId"
                     },
                     "binType": {
                         "$ref": "#/components/schemas/BinType"
@@ -1024,9 +1035,66 @@
                         "type": "array"
                     }
                 },
-                "required": ["id", "name", "dimensionId", "table", "binType"],
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "dimensionId",
+                    "binType"
+                ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "CustomDimensionType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "DimensionType": {
+                "enum": ["string", "number", "timestamp", "date", "boolean"],
+                "type": "string"
+            },
+            "CustomSqlDimension": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CustomDimensionType.SQL"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "dimensionType": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "table",
+                    "type",
+                    "sql",
+                    "dimensionType"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "CustomDimension": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CustomBinDimension"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomSqlDimension"
+                    }
+                ]
             },
             "Pick_CompiledDimension.label-or-name_": {
                 "properties": {
@@ -6919,7 +6987,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1084.3",
+        "version": "0.1088.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,16 +1,19 @@
 import {
     AdditionalMetric,
+    BinType,
     ChartConfig,
     ChartKind,
     ChartSummary,
     ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CustomDimensionType,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
     getCustomDimensionId,
+    isCustomBinDimension,
     isFormat,
     LightdashUser,
     NotFoundError,
@@ -211,30 +214,33 @@ const createSavedChartVersion = async (
                 }),
             );
         });
-
-        customDimensions?.forEach((customDimension) => {
-            promises.push(
-                createSavedChartVersionCustomDimension(trx, {
-                    saved_queries_version_id: version.saved_queries_version_id,
-                    id: customDimension.id,
-                    name: customDimension.name,
-                    dimension_id: customDimension.dimensionId,
-                    table: customDimension.table,
-                    bin_type: customDimension.binType,
-                    bin_number: customDimension.binNumber || null,
-                    bin_width: customDimension.binWidth || null,
-                    custom_range:
-                        customDimension.customRange &&
-                        customDimension.customRange.length > 0
-                            ? JSON.stringify(customDimension.customRange)
-                            : null,
-                    order: tableConfig.columnOrder.findIndex(
-                        (column) =>
-                            column === getCustomDimensionId(customDimension), // TODO test if it works
-                    ),
-                }),
-            );
-        });
+        customDimensions
+            ?.filter(isCustomBinDimension) // TODO Remove this line when custom sql dimensions are fully implemented
+            .forEach((customDimension) => {
+                promises.push(
+                    createSavedChartVersionCustomDimension(trx, {
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
+                        id: customDimension.id,
+                        name: customDimension.name,
+                        dimension_id: customDimension.dimensionId,
+                        table: customDimension.table,
+                        bin_type: customDimension.binType,
+                        bin_number: customDimension.binNumber || null,
+                        bin_width: customDimension.binWidth || null,
+                        custom_range:
+                            customDimension.customRange &&
+                            customDimension.customRange.length > 0
+                                ? JSON.stringify(customDimension.customRange)
+                                : null,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) =>
+                                column ===
+                                getCustomDimensionId(customDimension), // TODO test if it works
+                        ),
+                    }),
+                );
+            });
         additionalMetrics?.forEach((additionalMetric) => {
             promises.push(
                 createSavedChartVersionAdditionalMetrics(trx, {
@@ -852,12 +858,13 @@ export class SavedChartModel {
                     customDimensions: customDimensionsRows?.map((cd) => ({
                         id: cd.id,
                         name: cd.name,
+                        type: CustomDimensionType.BIN,
                         dimensionId: cd.dimension_id,
                         table: cd.table,
-                        binType: cd.bin_type,
-                        binNumber: cd.bin_number,
-                        binWidth: cd.bin_width,
-                        customRange: cd.custom_range,
+                        binType: cd.bin_type as BinType,
+                        binNumber: cd.bin_number || undefined,
+                        binWidth: cd.bin_width || undefined,
+                        customRange: cd.custom_range || undefined,
                     })),
                     timezone: savedQuery.timezone,
                 },

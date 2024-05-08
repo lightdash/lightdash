@@ -14,6 +14,7 @@ import {
     DimensionType,
     fieldId,
     friendlyName,
+    isCustomDimension,
     isDimension,
     isField,
     isMetric,
@@ -30,8 +31,6 @@ import {
 } from './types/field';
 import {
     getCustomDimensionId,
-    isAdditionalMetric,
-    isCustomDimension,
     type AdditionalMetric,
     type MetricQuery,
 } from './types/metricQuery';
@@ -901,7 +900,7 @@ export function getItemMap(
     ].reduce(
         (acc, item) => ({
             ...acc,
-            [isAdditionalMetric(item) ? fieldId(item) : getItemId(item)]: item,
+            [getItemId(item)]: item,
         }),
         {},
     );

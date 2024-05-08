@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DimensionType,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isMetric,
@@ -90,6 +91,34 @@ export const getSortLabel = (
                 return assertUnreachable(
                     type,
                     'Unexpected dimension type when getting sort label',
+                );
+        }
+    }
+
+    if (isCustomSqlDimension(item)) {
+        const type = item.dimensionType;
+        switch (type) {
+            case DimensionType.NUMBER:
+                return direction === SortDirection.ASC
+                    ? NumericSortLabels.ASC
+                    : NumericSortLabels.DESC;
+            case DimensionType.STRING:
+                return direction === SortDirection.ASC
+                    ? StringSortLabels.ASC
+                    : StringSortLabels.DESC;
+            case DimensionType.TIMESTAMP:
+            case DimensionType.DATE:
+                return direction === SortDirection.ASC
+                    ? DateSortLabels.ASC
+                    : DateSortLabels.DESC;
+            case DimensionType.BOOLEAN:
+                return direction === SortDirection.ASC
+                    ? BooleanSortLabels.ASC
+                    : BooleanSortLabels.DESC;
+            default:
+                return assertUnreachable(
+                    type,
+                    'Unexpected custom dimension type when getting sort label',
                 );
         }
     }
