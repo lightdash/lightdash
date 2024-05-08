@@ -5,6 +5,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { MissingConfigError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { ReadStream } from 'fs';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -54,7 +55,7 @@ export class S3Client {
         urlOptions?: { expiresIn: number },
     ): Promise<string> {
         if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
-            throw new Error(
+            throw new MissingConfigError(
                 "Missing S3 bucket configuration, can't upload files",
             );
         }
