@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import React, { useEffect, type FC } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
+import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
 import PostgresForm from './WarehouseForms/PostgresForm';
@@ -16,6 +17,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
     [WarehouseTypes.DATABRICKS]: 'Databricks',
     [WarehouseTypes.TRINO]: 'Trino',
+    [WarehouseTypes.ATHENA]: 'Athena',
 };
 
 const WarehouseTypeForms = {
@@ -25,6 +27,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.SNOWFLAKE]: SnowflakeForm,
     [WarehouseTypes.DATABRICKS]: DatabricksForm,
     [WarehouseTypes.TRINO]: TrinoForm,
+    [WarehouseTypes.ATHENA]: AthenaForm,
 };
 
 interface WarehouseSettingsFormProps {

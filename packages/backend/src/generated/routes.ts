@@ -778,6 +778,7 @@ const models: TsoaRoute.Models = {
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -800,7 +801,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        required: { dataType: 'boolean' },
                         label: {
                             dataType: 'union',
                             subSchemas: [
@@ -1058,6 +1058,7 @@ const models: TsoaRoute.Models = {
             target: { ref: 'FieldTarget', required: true },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -1265,6 +1266,7 @@ const models: TsoaRoute.Models = {
             },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -2507,6 +2509,10 @@ const models: TsoaRoute.Models = {
                     ref: 'Record_string.string-or-string-Array_',
                 },
                 hidden: { dataType: 'boolean' },
+                requiredFilters: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+                },
                 sqlWhere: { dataType: 'string' },
                 groupLabel: { dataType: 'string' },
                 orderFieldsBy: { ref: 'OrderFieldsByStrategy' },
@@ -2637,6 +2643,7 @@ const models: TsoaRoute.Models = {
             'redshift',
             'postgres',
             'trino',
+            'athena',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -3275,6 +3282,7 @@ const models: TsoaRoute.Models = {
             'snowflake',
             'databricks',
             'trino',
+            'athena',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -4490,6 +4498,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseTypes.ATHENA': {
+        dataType: 'refEnum',
+        enums: ['athena'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateAthenaCredentials: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                requireUserCredentials: { dataType: 'boolean' },
+                startOfWeek: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'WeekDay' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                extraBotoArgs: { dataType: 'string' },
+                database: { dataType: 'string', required: true },
+                schema: { dataType: 'string', required: true },
+                workgroup: { dataType: 'string', required: true },
+                outputLocation: { dataType: 'string', required: true },
+                awsRegion: { dataType: 'string', required: true },
+                awsSecretKey: { dataType: 'string', required: true },
+                awsAccessKeyId: { dataType: 'string', required: true },
+                type: { ref: 'WarehouseTypes.ATHENA', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -4501,6 +4541,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'BigqueryCredentials' },
                 { ref: 'DatabricksCredentials' },
                 { ref: 'TrinoCredentials' },
+                { ref: 'CreateAthenaCredentials' },
             ],
             validators: {},
         },
@@ -5097,6 +5138,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateAthenaCredentials.type_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.ATHENA', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateDatabricksCredentials.type_': {
         dataType: 'refAlias',
         type: {
@@ -5120,6 +5172,7 @@ const models: TsoaRoute.Models = {
                             ref: 'Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials.type-or-user_',
                         },
                         { ref: 'Pick_CreateBigqueryCredentials.type_' },
+                        { ref: 'Pick_CreateAthenaCredentials.type_' },
                         { ref: 'Pick_CreateDatabricksCredentials.type_' },
                     ],
                     required: true,
@@ -6722,6 +6775,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateAthenaCredentials.type-or-awsSecretKey_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.ATHENA', required: true },
+                awsSecretKey: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateDatabricksCredentials.type-or-personalAccessToken_': {
         dataType: 'refAlias',
         type: {
@@ -6756,6 +6821,9 @@ const models: TsoaRoute.Models = {
                         },
                         {
                             ref: 'Pick_CreateBigqueryCredentials.type-or-keyfileContents_',
+                        },
+                        {
+                            ref: 'Pick_CreateAthenaCredentials.type-or-awsSecretKey_',
                         },
                         {
                             ref: 'Pick_CreateDatabricksCredentials.type-or-personalAccessToken_',

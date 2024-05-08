@@ -736,6 +736,9 @@
                     "settings": {},
                     "disabled": {
                         "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -754,9 +757,6 @@
                     },
                     {
                         "properties": {
-                            "required": {
-                                "type": "boolean"
-                            },
                             "label": {
                                 "type": "string"
                             },
@@ -1071,6 +1071,9 @@
                     "settings": {},
                     "disabled": {
                         "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -1284,6 +1287,9 @@
                     },
                     "settings": {},
                     "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
                         "type": "boolean"
                     }
                 },
@@ -2700,6 +2706,12 @@
                     "hidden": {
                         "type": "boolean"
                     },
+                    "requiredFilters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
                     "sqlWhere": {
                         "type": "string"
                     },
@@ -2834,7 +2846,8 @@
                     "snowflake",
                     "redshift",
                     "postgres",
-                    "trino"
+                    "trino",
+                    "athena"
                 ],
                 "type": "string"
             },
@@ -3550,7 +3563,8 @@
                     "redshift",
                     "snowflake",
                     "databricks",
-                    "trino"
+                    "trino",
+                    "athena"
                 ],
                 "type": "string"
             },
@@ -4956,6 +4970,63 @@
             "TrinoCredentials": {
                 "$ref": "#/components/schemas/Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_"
             },
+            "WarehouseTypes.ATHENA": {
+                "enum": ["athena"],
+                "type": "string"
+            },
+            "CreateAthenaCredentials": {
+                "properties": {
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "extraBotoArgs": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "workgroup": {
+                        "type": "string"
+                    },
+                    "outputLocation": {
+                        "type": "string"
+                    },
+                    "awsRegion": {
+                        "type": "string"
+                    },
+                    "awsSecretKey": {
+                        "type": "string"
+                    },
+                    "awsAccessKeyId": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    }
+                },
+                "required": [
+                    "database",
+                    "schema",
+                    "workgroup",
+                    "outputLocation",
+                    "awsRegion",
+                    "awsSecretKey",
+                    "awsAccessKeyId",
+                    "type"
+                ],
+                "type": "object"
+            },
             "WarehouseCredentials": {
                 "anyOf": [
                     {
@@ -4975,6 +5046,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/TrinoCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateAthenaCredentials"
                     }
                 ]
             },
@@ -5622,6 +5696,16 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateAthenaCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_CreateDatabricksCredentials.type_": {
                 "properties": {
                     "type": {
@@ -5641,6 +5725,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
@@ -7486,6 +7573,19 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateAthenaCredentials.type-or-awsSecretKey_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    },
+                    "awsSecretKey": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "awsSecretKey"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_CreateDatabricksCredentials.type-or-personalAccessToken_": {
                 "properties": {
                     "type": {
@@ -7517,6 +7617,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type-or-keyfileContents_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-awsSecretKey_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken_"
@@ -7817,7 +7920,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1129.1",
+        "version": "0.1133.9",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

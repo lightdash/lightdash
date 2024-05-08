@@ -59,6 +59,10 @@ const defaultCredentials: Record<
         type: WarehouseTypes.DATABRICKS,
         personalAccessToken: '',
     },
+    [WarehouseTypes.ATHENA]: {
+        type: WarehouseTypes.ATHENA,
+        awsSecretKey: '',
+    },
 };
 
 export const CreateCredentialsModal: FC<Props> = ({
