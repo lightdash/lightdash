@@ -185,7 +185,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 console.debug(`Setting Trino timezone to ${timezone}`);
                 await session.query(`SET TIME ZONE '${timezone}'`);
             }
-            query = await session.query(sql);
+            query = await session.query(alteredQuery);
 
             const queryResult = await query.next();
 

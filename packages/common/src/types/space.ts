@@ -29,6 +29,7 @@ export type SpaceSummary = Pick<
     | 'isPrivate'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
+    | 'slug'
 > & {
     userAccess: SpaceShare | undefined;
     access: string[];

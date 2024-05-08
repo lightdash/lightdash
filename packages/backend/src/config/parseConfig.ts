@@ -154,6 +154,7 @@ export type LightdashConfig = {
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
+    pylon: PylonConfig;
     siteUrl: string;
     staticIp: string;
     database: {
@@ -229,6 +230,11 @@ export type S3Config = {
 export type IntercomConfig = {
     appId: string;
     apiBase: string;
+};
+
+type PylonConfig = {
+    appId: string;
+    identityVerificationSecret?: string;
 };
 
 export type RudderConfig = {
@@ -510,6 +516,11 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
+        },
+        pylon: {
+            appId: process.env.PYLON_APP_ID || '',
+            identityVerificationSecret:
+                process.env.PYLON_IDENTITY_VERIFICATION_SECRET,
         },
         siteUrl,
         staticIp: process.env.STATIC_IP || '',

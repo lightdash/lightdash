@@ -388,21 +388,6 @@ export class UnfurlService extends BaseService {
         const startTime = Date.now();
         let hasError = false;
 
-        const isPuppeteerSetViewportDynamicallyEnabled =
-            await isFeatureFlagEnabled(
-                FeatureFlags.PuppeteerSetViewportDynamically,
-                { userUuid, organizationUuid },
-            );
-        const isPuppeteerScrollElementIntoViewEnabled =
-            await isFeatureFlagEnabled(
-                FeatureFlags.PuppeteerScrollElementIntoView,
-                { userUuid, organizationUuid },
-            );
-        const isPuppeteerDisconnectBrowserEnabled = await isFeatureFlagEnabled(
-            FeatureFlags.PuppeteerDisconnectBrowser,
-            { userUuid, organizationUuid },
-        );
-
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',
             async (span) => {
@@ -534,12 +519,7 @@ export class UnfurlService extends BaseService {
 
                     if (lightdashPage === LightdashPage.EXPLORE) {
                         finalSelector = `[data-testid="visualization"]`;
-                    }
-
-                    if (
-                        isPuppeteerSetViewportDynamicallyEnabled &&
-                        lightdashPage === LightdashPage.DASHBOARD
-                    ) {
+                    } else if (lightdashPage === LightdashPage.DASHBOARD) {
                         finalSelector = '.react-grid-layout';
                     }
 
@@ -547,10 +527,7 @@ export class UnfurlService extends BaseService {
                         timeout: 60000,
                     });
 
-                    if (
-                        isPuppeteerSetViewportDynamicallyEnabled &&
-                        lightdashPage === LightdashPage.DASHBOARD
-                    ) {
+                    if (lightdashPage === LightdashPage.DASHBOARD) {
                         const fullPage = await page.$('.react-grid-layout');
                         const fullPageSize = await fullPage?.boundingBox();
                         await page.setViewport({
@@ -605,8 +582,7 @@ export class UnfurlService extends BaseService {
                     }
                     const imageBuffer = await element.screenshot({
                         path,
-                        ...(isPuppeteerScrollElementIntoViewEnabled &&
-                        lightdashPage === LightdashPage.DASHBOARD
+                        ...(lightdashPage === LightdashPage.DASHBOARD
                             ? {
                                   scrollIntoView: true,
                               }
@@ -624,8 +600,6 @@ export class UnfurlService extends BaseService {
                         organization_uuid: organizationUuid || 'undefined',
                         uuid: resourceUuid ?? 'undefined',
                         title: resourceName ?? 'undefined',
-                        is_viewport_dynamically_enabled: `${isPuppeteerSetViewportDynamicallyEnabled}`,
-                        is_scroll_into_view_enabled: `${isPuppeteerScrollElementIntoViewEnabled}`,
                         custom_width: `${gridWidth}`,
                     });
                     span.setStatus({
@@ -637,18 +611,8 @@ export class UnfurlService extends BaseService {
                     );
                     throw e;
                 } finally {
-                    if (isPuppeteerDisconnectBrowserEnabled) {
-                        /**
-                         * For concurrent screenshot jobs, we need to close the page and disconnect the browser
-                         * instead of closing it so that concurrent jobs don't interfere with each other.
-                         * This is to avoid the following error:
-                         * Error: Protocol error (Target.closeTarget): Target closed.
-                         */
-                        if (page) await page.close();
-                        if (browser) await browser.disconnect();
-                    } else if (browser) {
-                        await browser.close();
-                    }
+                    if (page) await page.close();
+                    if (browser) await browser.disconnect();
 
                     span.end();
 

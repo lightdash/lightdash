@@ -225,8 +225,11 @@ export default class App {
             App.initNodeProcessMonitor();
         }
 
-        const expressApp = await this.initExpress();
-        this.initSentry(expressApp);
+        const expressApp = express();
+        // NOTE: Sentry must be initialized before any other handlers or middleware so that it can capture requests
+        await this.initSentry(expressApp);
+        await this.initExpress(expressApp);
+
         this.initSlack().catch((e) => {
             Logger.error('Error starting slack bot', e);
         });
@@ -235,9 +238,7 @@ export default class App {
         }
     }
 
-    private async initExpress() {
-        const expressApp = express();
-
+    private async initExpress(expressApp: Express) {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({

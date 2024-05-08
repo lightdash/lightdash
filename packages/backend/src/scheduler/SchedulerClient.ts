@@ -140,6 +140,14 @@ export class SchedulerClient {
                 maxAttempts: 1,
             },
         );
+        await this.schedulerModel.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobGroup: id,
+            jobId: id,
+            scheduledTime: date,
+            status: SchedulerJobStatus.SCHEDULED,
+        });
         this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,

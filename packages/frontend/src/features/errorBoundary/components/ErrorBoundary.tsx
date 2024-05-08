@@ -20,7 +20,7 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                 >
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title="You have encountered an error."
+                        title="Something went wrong."
                         description={
                             <Box
                                 sx={(theme) => ({
@@ -30,8 +30,8 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                 })}
                             >
                                 <Text>
-                                    Please contact support with the following
-                                    details:
+                                    You can contact support with the following
+                                    error ID
                                 </Text>
                                 <Prism
                                     language="javascript"

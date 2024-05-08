@@ -435,6 +435,9 @@ export type UpdateProjectMember = {
     role: ProjectMemberRole;
 };
 
+export type UpdateMetadata = {
+    upstreamProjectUuid?: string | null; // null means we unset this value
+};
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
@@ -730,6 +733,10 @@ export type HealthState = {
     intercom: {
         appId: string;
         apiBase: string;
+    };
+    pylon: {
+        appId: string;
+        verificationHash?: string;
     };
     staticIp: string;
     query: {
