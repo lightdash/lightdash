@@ -47,7 +47,7 @@ export const useUserWarehouseCredentialsCreateMutation = (
     >,
 ) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         UserWarehouseCredentials,
         ApiError,
@@ -62,10 +62,10 @@ export const useUserWarehouseCredentialsCreateMutation = (
             });
             useMutationOptions?.onSuccess?.(data, payload, undefined);
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to create warehouse connection`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -83,7 +83,7 @@ const updateUserWarehouseCredentials = async (
 
 export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, UpsertUserWarehouseCredentials>(
         (data) => updateUserWarehouseCredentials(uuid, data),
         {
@@ -97,10 +97,10 @@ export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
                     title: `Success! Warehouse connection was updated.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update warehouse connection`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -116,7 +116,7 @@ const deleteUserWarehouseCredentials = async (uuid: string) =>
 
 export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError>(
         () => deleteUserWarehouseCredentials(uuid),
         {
@@ -130,10 +130,10 @@ export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
                     title: `Success! Warehouse connection was deleted.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to delete warehouse connection`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

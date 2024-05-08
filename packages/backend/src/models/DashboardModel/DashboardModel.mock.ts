@@ -42,7 +42,7 @@ const tileWithId: DashboardChartTile = {
     ...tileWithoutId,
 };
 
-export const createDashboard: CreateDashboard = {
+export const createDashboard: CreateDashboard & { slug: string } = {
     name: 'my new dashboard',
     description: 'description',
     tiles: [tileWithoutId],
@@ -52,6 +52,7 @@ export const createDashboard: CreateDashboard = {
         tableCalculations: [],
     },
     tabs: [],
+    slug: 'my-new-dashboard',
 };
 
 export const createDashboardWithTileIds: CreateDashboard = {
@@ -123,6 +124,8 @@ export const projectEntry: Pick<
 export const spaceEntry: SpaceTable['base'] = {
     space_id: 0,
     space_uuid: '123',
+    slug: 'space-name',
+
     name: 'space name',
     is_private: false,
     created_at: new Date(),
@@ -135,6 +138,8 @@ export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_uuid: '123',
     space_id: 0,
     name: 'chart name',
+    slug: 'chart-name',
+
     description: 'My description',
     created_at: new Date(),
     last_version_chart_kind: ChartKind.VERTICAL_BAR,
@@ -148,6 +153,8 @@ export const dashboardEntry: DashboardTable['base'] = {
     dashboard_id: 0,
     dashboard_uuid: 'my_dashboard_uuid',
     name: 'name',
+    slug: 'name',
+
     description: 'description',
     space_id: 0,
     created_at: new Date(),
@@ -179,6 +186,8 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     dashboard_id: dashboardEntry.dashboard_id,
     dashboard_uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
+    slug: `name`,
+
     description: dashboardEntry.description,
     dashboard_version_id: dashboardVersionEntry.dashboard_version_id,
     created_at: dashboardVersionEntry.created_at,
@@ -234,6 +243,8 @@ export const expectedDashboard: DashboardDAO = {
     dashboardVersionId: dashboardVersionEntry.dashboard_version_id,
     uuid: dashboardEntry.dashboard_uuid,
     name: dashboardEntry.name,
+    slug: `name`,
+
     description: dashboardEntry.description,
     updatedAt: dashboardVersionEntry.created_at,
     tiles: [

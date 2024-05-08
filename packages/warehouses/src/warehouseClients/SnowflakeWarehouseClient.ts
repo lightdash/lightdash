@@ -10,11 +10,19 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
-import { Connection, ConnectionOptions, createConnection } from 'snowflake-sdk';
+import {
+    configure,
+    Connection,
+    ConnectionOptions,
+    createConnection,
+} from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
+
+// Prevent snowflake sdk from flooding the output with info logs
+configure({ logLevel: 'WARN' });
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',

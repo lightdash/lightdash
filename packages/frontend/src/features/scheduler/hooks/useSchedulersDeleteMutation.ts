@@ -12,7 +12,7 @@ const deleteScheduler = async (uuid: string) =>
 
 export const useSchedulersDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteScheduler, {
         mutationKey: ['delete_scheduler'],
         onSuccess: async () => {
@@ -22,10 +22,10 @@ export const useSchedulersDeleteMutation = () => {
                 title: `Success! Scheduled delivery was deleted`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete scheduled delivery`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

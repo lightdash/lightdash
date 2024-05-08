@@ -33,7 +33,7 @@ const createUserAttributes = async (data: CreateUserAttribute) =>
 
 export const useCreateUserAtributesMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<null, ApiError, CreateUserAttribute>(
         createUserAttributes,
@@ -45,10 +45,10 @@ export const useCreateUserAtributesMutation = () => {
                     title: `Success! user attribute was created.`,
                 });
             },
-            onError: (error: { error: Error }) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create user attribute`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -67,7 +67,7 @@ const updateUserAttributes = async (
 
 export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<null, ApiError, CreateUserAttribute>(
         (data) => updateUserAttributes(userAttributeUuuid || '', data),
@@ -80,10 +80,10 @@ export const useUpdateUserAtributesMutation = (userAttributeUuuid?: string) => {
                     title: `Success! user attribute was updated.`,
                 });
             },
-            onError: (error: { error: Error }) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update user attribute`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -99,7 +99,7 @@ const deleteUserAttributes = async (uuid: string) =>
 
 export const useUserAttributesDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteUserAttributes, {
         mutationKey: ['delete_user_attributes'],
         onSuccess: async () => {
@@ -108,10 +108,10 @@ export const useUserAttributesDeleteMutation = () => {
                 title: `Success! user attribute was deleted.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete user attribute`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

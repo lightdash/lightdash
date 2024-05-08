@@ -35,7 +35,7 @@ const ProfilePanel: FC = () => {
         user: { data: userData, isLoading: isLoadingUser },
         health,
     } = useApp();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -78,11 +78,10 @@ const ProfilePanel: FC = () => {
                     title: 'Success! User details were updated.',
                 });
             },
-            onError: (error: ApiError) => {
-                const [title, ...rest] = error.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
+            onError: ({ error }: ApiError) => {
+                showToastApiError({
+                    title: 'Failed to update user details',
+                    apiError: error,
                 });
             },
         });

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     CreateSpace,
     ForbiddenError,
+    generateSlug,
     SessionUser,
     Space,
     SpaceMemberRole,
@@ -123,6 +124,7 @@ export class SpaceService extends BaseService {
             space.name,
             user.userId,
             space.isPrivate !== false,
+            generateSlug(space.name),
         );
 
         if (space.access)

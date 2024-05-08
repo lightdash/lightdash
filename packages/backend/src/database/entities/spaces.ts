@@ -10,11 +10,12 @@ export type DbSpace = {
     organization_uuid: string;
     created_by_user_id?: number;
     search_vector: string;
+    slug: string;
 };
 
 export type CreateDbSpace = Pick<
     DbSpace,
-    'name' | 'project_id' | 'is_private' | 'created_by_user_id'
+    'name' | 'project_id' | 'is_private' | 'created_by_user_id' | 'slug'
 >;
 
 export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;

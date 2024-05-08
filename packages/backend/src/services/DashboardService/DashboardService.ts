@@ -7,6 +7,7 @@ import {
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
+    generateSlug,
     hasChartsInDashboard,
     isChartScheduler,
     isChartTile,
@@ -267,6 +268,7 @@ export class DashboardService extends BaseService {
                 organizationUuid: space.organization_uuid,
                 uuid: space.space_uuid,
                 isPrivate: space.is_private,
+                name: space.name,
             };
         };
         const space = dashboard.spaceUuid
@@ -293,10 +295,13 @@ export class DashboardService extends BaseService {
                 "You don't have access to the space this dashboard belongs to",
             );
         }
-
+        const createDashboard = {
+            ...dashboard,
+            slug: generateSlug(dashboard.name),
+        };
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
-            dashboard,
+            createDashboard,
             user,
             projectUuid,
         );
@@ -347,6 +352,7 @@ export class DashboardService extends BaseService {
             ...dashboard,
             description: data.dashboardDesc,
             name: data.dashboardName,
+            slug: generateSlug(dashboard.name),
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -380,6 +386,7 @@ export class DashboardService extends BaseService {
                                         firstName: user.firstName,
                                         lastName: user.lastName,
                                     },
+                                    slug: generateSlug(chartInDashboard.name),
                                 },
                             );
                         this.analytics.track({
@@ -412,7 +419,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: [], // todo copy tabs over
+                    tabs: newDashboard.tabs,
                 },
                 user,
                 projectUuid,

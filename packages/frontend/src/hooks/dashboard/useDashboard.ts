@@ -104,7 +104,7 @@ export const useDashboardQuery = (
 };
 
 export const useExportDashboard = () => {
-    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
     return useMutation<
         string,
         ApiError,
@@ -144,13 +144,13 @@ export const useExportDashboard = () => {
                     });
                 }
             },
-            onError: (error, data) => {
-                showToastError({
+            onError: ({ error }, data) => {
+                showToastApiError({
                     key: 'dashboard_export_toast',
                     title: data.isPreview
                         ? `Failed to generate preview for ${data.dashboard.name}`
                         : `Failed to export ${data.dashboard.name}`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -165,7 +165,7 @@ const exportCsvDashboard = async (id: string, filters: DashboardFilters) =>
     });
 
 export const useExportCsvDashboard = () => {
-    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
+    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
     return useMutation<
         string,
         ApiError,
@@ -192,11 +192,11 @@ export const useExportCsvDashboard = () => {
                 });
             }
         },
-        onError: (error, data) => {
-            showToastError({
+        onError: ({ error }, data) => {
+            showToastApiError({
                 key: 'dashboard_export_toast',
                 title: `Failed to export ${data.dashboard.name}`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -209,7 +209,7 @@ export const useUpdateDashboard = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => {
             if (id === undefined) {
@@ -250,10 +250,10 @@ export const useUpdateDashboard = (
                         : undefined,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update dashboard`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -264,7 +264,7 @@ export const useMoveDashboardMutation = () => {
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Dashboard,
         ApiError,
@@ -296,10 +296,10 @@ export const useMoveDashboardMutation = () => {
                     },
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to move dashboard`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -311,7 +311,7 @@ export const useCreateMutation = (
     showRedirectButton: boolean = false,
 ) => {
     const history = useHistory();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) => createDashboard(projectUuid, data),
@@ -339,10 +339,10 @@ export const useCreateMutation = (
                         : undefined,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to create dashboard`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -359,7 +359,7 @@ export const useDuplicateDashboardMutation = (
     const history = useHistory();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         Dashboard,
         ApiError,
@@ -395,10 +395,10 @@ export const useDuplicateDashboardMutation = (
                         : undefined,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to duplicate dashboard`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },
@@ -407,7 +407,7 @@ export const useDuplicateDashboardMutation = (
 
 export const useDashboardDeleteMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['dashboards']);
@@ -424,10 +424,10 @@ export const useDashboardDeleteMutation = () => {
                 title: `Deleted! Dashboard was deleted.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete dashboard`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

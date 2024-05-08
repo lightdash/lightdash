@@ -203,6 +203,7 @@ export * from './utils/item';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
@@ -638,11 +639,12 @@ export type ApiResponse<T extends ApiResults = ApiResults> = {
     results: T;
 };
 
-type ApiErrorDetail = {
+export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
     data: { [key: string]: string };
+    id?: string;
 };
 export type ApiError = {
     status: 'error';

@@ -3,6 +3,7 @@ import {
     DbtLocalProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
+    generateSlug,
     OrganizationMemberRole,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -162,6 +163,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_SPACE,
             is_private: false,
             project_id: projectId,
+            slug: generateSlug(SEED_SPACE.name),
         })
         .returning(['space_id', 'space_uuid']);
 
