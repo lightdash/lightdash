@@ -1,3 +1,10 @@
+## [0.1089.2](https://github.com/lightdash/lightdash/compare/0.1089.1...0.1089.2) (2024-05-08)
+
+
+### Bug Fixes
+
+* send query tags to trino ([#10012](https://github.com/lightdash/lightdash/issues/10012)) ([d3501b2](https://github.com/lightdash/lightdash/commit/d3501b2e3f366ece947723efe198d6a1423d1681))
+
 ## [0.1089.1](https://github.com/lightdash/lightdash/compare/0.1089.0...0.1089.1) (2024-05-08)
 
 
