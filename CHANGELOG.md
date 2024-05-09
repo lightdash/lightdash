@@ -1,3 +1,10 @@
+# [0.1090.0](https://github.com/lightdash/lightdash/compare/0.1089.4...0.1090.0) (2024-05-09)
+
+
+### Features
+
+* custom SQL dimension ([#10014](https://github.com/lightdash/lightdash/issues/10014)) ([1264ef2](https://github.com/lightdash/lightdash/commit/1264ef2299107d8f312b984e6a4cd5834ca474c4))
+
 ## [0.1089.4](https://github.com/lightdash/lightdash/compare/0.1089.3...0.1089.4) (2024-05-09)
 
 
