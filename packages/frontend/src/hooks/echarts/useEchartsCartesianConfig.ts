@@ -824,11 +824,12 @@ const getWeekAxisConfig = (
         axisField.timeInterval === TimeFrames.WEEK
     ) {
         const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
-        const continuousWeekRange = [dayjs.utc(minX).format()];
+
+        const continuousWeekRange = [];
         let nextDate = dayjs.utc(minX);
         while (nextDate.isBefore(dayjs(maxX))) {
-            nextDate = nextDate.add(1, 'week');
             continuousWeekRange.push(nextDate.format());
+            nextDate = nextDate.add(1, 'week');
         }
         continuousWeekRange.push(dayjs.utc(maxX).format());
         return {

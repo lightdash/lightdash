@@ -1,3 +1,24 @@
+## [0.1089.3](https://github.com/lightdash/lightdash/compare/0.1089.2...0.1089.3) (2024-05-08)
+
+
+### Bug Fixes
+
+* fix error and sanitize csv error ([#10013](https://github.com/lightdash/lightdash/issues/10013)) ([f35abb6](https://github.com/lightdash/lightdash/commit/f35abb6892ad0ecb6b9835e9a1a2bc6eb12add6d))
+
+## [0.1089.2](https://github.com/lightdash/lightdash/compare/0.1089.1...0.1089.2) (2024-05-08)
+
+
+### Bug Fixes
+
+* send query tags to trino ([#10012](https://github.com/lightdash/lightdash/issues/10012)) ([d3501b2](https://github.com/lightdash/lightdash/commit/d3501b2e3f366ece947723efe198d6a1423d1681))
+
+## [0.1089.1](https://github.com/lightdash/lightdash/compare/0.1089.0...0.1089.1) (2024-05-08)
+
+
+### Bug Fixes
+
+* extra week added in week chart axis ([#10005](https://github.com/lightdash/lightdash/issues/10005)) ([499b39b](https://github.com/lightdash/lightdash/commit/499b39bb469cd6da7ad6c02123120449fd6eb8fc))
+
 # [0.1089.0](https://github.com/lightdash/lightdash/compare/0.1088.1...0.1089.0) (2024-05-07)
 
 

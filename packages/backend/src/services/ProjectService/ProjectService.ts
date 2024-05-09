@@ -4035,6 +4035,8 @@ export class ProjectService extends BaseService {
             projectUuid: string,
             spaceSummary: Omit<SpaceSummary, 'userAccess'> | undefined,
             context: string,
+            fromProjectUuid: string, // for analytics
+            toProjectUuid?: string, // for analytics
         ) => {
             // If space is undefined, we only check the org/project access, we will create the chart in a new accessible space
             const userDontHaveAccess = spaceSummary
@@ -4063,6 +4065,18 @@ export class ProjectService extends BaseService {
                   );
 
             if (userDontHaveAccess) {
+                this.analytics.track({
+                    event: 'promote.error',
+                    userId: user.userUuid,
+                    properties: {
+                        chartId: chartUuid,
+                        fromProjectId: fromProjectUuid,
+                        toProjectId: toProjectUuid,
+                        organizationId: organizationUuid,
+                        error: `Permission error on ${context}`,
+                    },
+                });
+
                 throw new ForbiddenError(
                     `You don't have the right access permissions on ${context} to promote this chart.`,
                 );
@@ -4093,6 +4107,8 @@ export class ProjectService extends BaseService {
             projectUuid,
             space,
             'this chart and project',
+            projectUuid,
+            undefined,
         );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
@@ -4117,6 +4133,8 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
                 undefined,
                 'the upstream project',
+                projectUuid,
+                upstreamProjectUuid,
             );
 
             let newSpaceUuid: string;
@@ -4131,6 +4149,8 @@ export class ProjectService extends BaseService {
                     upstreamProjectUuid,
                     undefined, // we also check here if user can create spaces in the upstream project
                     'the upstream project',
+                    projectUuid,
+                    upstreamProjectUuid,
                 );
                 // We create a new space
                 const newSpace = await this.spaceModel.createSpace(
@@ -4148,6 +4168,8 @@ export class ProjectService extends BaseService {
                     upstreamProjectUuid,
                     existingSpace[0],
                     'the upstream space and project',
+                    projectUuid,
+                    upstreamProjectUuid,
                 );
                 newSpaceUuid = existingSpace[0].uuid;
             } else {
@@ -4173,6 +4195,21 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 newChartData,
             );
+
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    chartId: chartUuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
+                    organizationId: organizationUuid,
+                    slug: promotedChart.slug,
+                    hasExistingContent: false,
+                    withNewSpace: existingSpace.length !== 1,
+                },
+            });
+
             return newChart;
         }
         if (existingUpstreamCharts.length === 1) {
@@ -4187,6 +4224,9 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
                 upstreamSpace,
                 'the upstream chart and project',
+
+                projectUuid,
+                upstreamProjectUuid,
             );
             if (
                 upstreamChart.name !== promotedChart.name ||
@@ -4209,8 +4249,34 @@ export class ProjectService extends BaseService {
                 },
                 user,
             );
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    chartId: chartUuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
+                    organizationId: organizationUuid,
+                    slug: promotedChart.slug,
+                    hasExistingContent: true,
+                },
+            });
+
             return updatedChart;
         }
+
+        this.analytics.track({
+            event: 'promote.error',
+            userId: user.userUuid,
+            properties: {
+                chartId: chartUuid,
+                fromProjectId: projectUuid,
+                toProjectId: upstreamProjectUuid,
+                organizationId: organizationUuid,
+                slug: promotedChart.slug,
+                error: `There are multiple charts with the same identifier`,
+            },
+        });
         // Multiple charts with the same slug
         throw new AlreadyExistsError(
             `There are multiple charts with the same identifier ${promotedChart.slug}`,
