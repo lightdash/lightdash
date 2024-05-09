@@ -1,7 +1,8 @@
 import {
     addFilterRule,
-    getFilterRulesByFieldType,
+    deleteFilterRuleFromGroup,
     getFiltersFromGroup,
+    getInvalidFilterRules,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
@@ -9,7 +10,6 @@ import {
     isFilterableField,
     isOrFilterGroup,
     type FilterGroup,
-    type FilterRule,
     type Filters,
     type OrFilterGroup,
 } from '@lightdash/common';
@@ -49,18 +49,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     }, [fieldsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
-    const {
-        valid: validFilterRulesPerType,
-        invalid: invalidFilterRulesPerType,
-    } = getFilterRulesByFieldType(fields, totalFilterRules);
-
-    const hasInvalidFilterRules = Object.values(invalidFilterRulesPerType).some(
-        (arr) => arr.length > 0,
-    );
+    const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
+    const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
     const showSimplifiedForm: boolean =
-        Object.values(validFilterRulesPerType).flat().length < 2 &&
-        !hasNestedGroups(filters);
+        totalFilterRules.length < 2 && !hasNestedGroups(filters);
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
@@ -70,47 +63,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             }
         },
         [filters, setFilters, toggleFieldInput],
-    );
-
-    const updateFieldRules = useCallback(
-        (filterRules: FilterRule[]) => {
-            const { valid: result } = getFilterRulesByFieldType(
-                fields,
-                filterRules,
-            );
-
-            setFilters(
-                {
-                    ...filters,
-                    dimensions:
-                        result.dimensions.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.dimensions,
-                                  and: result.dimensions,
-                              }
-                            : undefined,
-                    metrics:
-                        result.metrics.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.metrics,
-                                  and: result.metrics,
-                              }
-                            : undefined,
-                    tableCalculations:
-                        result.tableCalculations.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.tableCalculations,
-                                  and: result.tableCalculations,
-                              }
-                            : undefined,
-                },
-                false,
-            );
-        },
-        [fields, filters, setFilters],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -198,7 +150,13 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         fields={fields}
                         isEditMode={isEditMode}
                         filterRules={getTotalFilterRules(filters)}
-                        onChange={updateFieldRules}
+                        onChange={(filterRules) => {
+                            // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
+                            updateFiltersFromGroup({
+                                id: uuidv4(),
+                                and: filterRules,
+                            });
+                        }}
                     />
                 ) : (
                     <>
@@ -227,50 +185,44 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 ))}
 
             {hasInvalidFilterRules &&
-                Object.entries(invalidFilterRulesPerType).map(
-                    ([type, rules], index) => (
-                        <Stack
-                            key={type + index}
-                            ml={showSimplifiedForm ? 'none' : 'xl'}
-                            spacing="two"
-                            align="flex-start"
+                invalidFilterRules.map((rule, index) => (
+                    <Stack
+                        key={index}
+                        ml={showSimplifiedForm ? 'none' : 'xl'}
+                        spacing="two"
+                        align="flex-start"
+                    >
+                        <Group
+                            key={rule.id}
+                            spacing="xs"
+                            pl="xs"
+                            sx={(theme) => ({
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                borderRadius: theme.radius.sm,
+                            })}
                         >
-                            {rules.map((rule) => (
-                                <Group
-                                    key={rule.id}
-                                    spacing="xs"
-                                    pl="xs"
-                                    sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.gray[2]}`,
-                                        borderRadius: theme.radius.sm,
-                                    })}
-                                >
-                                    <MantineIcon icon={IconAlertCircle} />
-                                    <Text color="dimmed" fz="xs">
-                                        Tried to reference field with unknown
-                                        id:{' '}
-                                        <Text span fw={500} c="gray.7">
-                                            {rule.target.fieldId}
-                                        </Text>
-                                    </Text>
-                                    <ActionIcon
-                                        onClick={() =>
-                                            updateFieldRules(
-                                                getTotalFilterRules(
-                                                    filters,
-                                                ).filter(
-                                                    ({ id }) => id !== rule.id,
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon icon={IconX} size="sm" />
-                                    </ActionIcon>
-                                </Group>
-                            ))}
-                        </Stack>
-                    ),
-                )}
+                            <MantineIcon icon={IconAlertCircle} />
+                            <Text color="dimmed" fz="xs">
+                                Tried to reference field with unknown id:{' '}
+                                <Text span fw={500} c="gray.7">
+                                    {rule.target.fieldId}
+                                </Text>
+                            </Text>
+                            <ActionIcon
+                                onClick={() =>
+                                    updateFiltersFromGroup(
+                                        deleteFilterRuleFromGroup(
+                                            rootFilterGroup,
+                                            rule.id,
+                                        ),
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconX} size="sm" />
+                            </ActionIcon>
+                        </Group>
+                    </Stack>
+                ))}
 
             {isEditMode ? (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
