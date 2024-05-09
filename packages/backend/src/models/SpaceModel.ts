@@ -654,6 +654,19 @@ export class SpaceModel {
                     );
                 },
             )
+            // .leftJoin(
+            //     SpaceGroupAccessTableName,
+            //     function joinSpaceGroupAccessTable() {
+            //         this.on(
+            //             `${GroupMembershipTableName}.group_uuid`,
+            //             '=',
+            //             `${SpaceGroupAccessTableName}.group_uuid`,
+            //         ).andOn(
+            //             `${SpaceTableName}.space_uuid`,
+            //             '=',
+            //             `${SpaceGroupAccessTableName}.space_uuid`,
+            //         );
+            //     })
             .innerJoin(
                 EmailTableName,
                 `${UserTableName}.user_id`,
@@ -804,7 +817,7 @@ export class SpaceModel {
                         hasDirectAccess: !!user_with_direct_access,
                         inheritedRole: highestRole.role,
                         inheritedFrom: highestRole.type,
-                        type: 'user',
+                        // type: 'user',
                     },
                 ];
             },

@@ -292,7 +292,6 @@ const UserAccessList: FC<UserAccessListProps> = ({
 type GroupAccessListProps = {
     isPrivate: boolean;
     groupsAccess: SpaceGroup[];
-    // sessionUser: LightdashUser | undefined;
     onAccessChange: (
         action: UserAccessAction,
         currentGroupAccess: SpaceGroup,
@@ -300,7 +299,6 @@ type GroupAccessListProps = {
 };
 const GroupsAccessList: FC<GroupAccessListProps> = ({
     isPrivate,
-    // sessionUser,
     onAccessChange,
     groupsAccess,
 }) => {
