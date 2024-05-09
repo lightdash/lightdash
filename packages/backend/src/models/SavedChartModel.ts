@@ -47,7 +47,7 @@ import {
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartCustomDimensionInsert,
-    DbSavedChartCustomSqlDimensionInsert,
+    DbSavedChartCustomSqlDimension,
     DbSavedChartTableCalculationInsert,
     InsertChart,
     SavedChartAdditionalMetricTableName,
@@ -125,7 +125,7 @@ const createSavedChartVersionCustomDimension = async (
 
 const createSavedChartVersionCustomSqlDimension = async (
     trx: Knex,
-    data: DbSavedChartCustomSqlDimensionInsert,
+    data: DbSavedChartCustomSqlDimension,
 ) => {
     const results = await trx(SavedChartCustomSqlDimensionsTableName)
         .insert(data)
@@ -250,7 +250,7 @@ const createSavedChartVersion = async (
                         order: tableConfig.columnOrder.findIndex(
                             (column) =>
                                 column ===
-                                getCustomDimensionId(customDimension), // TODO test if it works
+                                getCustomDimensionId(customDimension),
                         ),
                     }),
                 );
