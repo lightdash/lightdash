@@ -376,47 +376,21 @@ export const addFilterRule = ({
     };
 };
 
-export const getFilterRulesByFieldType = (
+export const getInvalidFilterRules = (
     fields: Field[],
     filterRules: FilterRule[],
 ) =>
-    filterRules.reduce<
-        Record<
-            'valid' | 'invalid',
-            Record<'dimensions' | 'metrics' | 'tableCalculations', FilterRule[]>
-        >
-    >(
-        (accumulator, filterRule) => {
-            const fieldInRule = fields.find(
-                (field) => fieldId(field) === filterRule.target.fieldId,
-            );
+    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+        const fieldInRule = fields.find(
+            (field) => fieldId(field) === filterRule.target.fieldId,
+        );
 
-            const updateAccumulator = (
-                key: 'valid' | 'invalid',
-                rule: FilterRule,
-            ) => {
-                if (isDimension(fieldInRule)) {
-                    accumulator[key].dimensions.push(rule);
-                } else if (isTableCalculationField(fieldInRule)) {
-                    accumulator[key].tableCalculations.push(rule);
-                } else {
-                    accumulator[key].metrics.push(rule);
-                }
-            };
+        if (!fieldInRule) {
+            return [...accumulator, filterRule];
+        }
 
-            if (fieldInRule) {
-                updateAccumulator('valid', filterRule);
-            } else {
-                updateAccumulator('invalid', filterRule);
-            }
-
-            return accumulator;
-        },
-        {
-            valid: { dimensions: [], metrics: [], tableCalculations: [] },
-            invalid: { dimensions: [], metrics: [], tableCalculations: [] },
-        },
-    );
+        return accumulator;
+    }, []);
 
 /**
  * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
