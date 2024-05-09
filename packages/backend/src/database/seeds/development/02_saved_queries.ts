@@ -3,10 +3,10 @@ import {
     CartesianSeriesType,
     ChartType,
     ConditionalOperator,
+    CustomDimensionType,
     generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    SEED_SPACE,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -532,6 +532,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         id: 'amount_range',
                         name: 'amount range',
+                        type: CustomDimensionType.BIN,
                         dimensionId: 'payments_amount',
                         binType: BinType.FIXED_NUMBER,
                         binNumber: 5,

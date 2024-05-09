@@ -33,6 +33,9 @@ export enum FeatureFlags {
     /** */
     LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
 
+    /** Show option to use custom SQL dimension */
+    CustomSqlDimensions = 'custom-sql-dimensions',
+
     /** Enable dashboard tabs */
     DashboardTabs = 'dashboard_tabs',
 

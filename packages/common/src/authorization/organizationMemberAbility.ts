@@ -162,6 +162,9 @@ export const organizationMemberAbilities: Record<
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
+        can('manage', 'CustomSql', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });

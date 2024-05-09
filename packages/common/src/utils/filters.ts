@@ -376,47 +376,21 @@ export const addFilterRule = ({
     };
 };
 
-export const getFilterRulesByFieldType = (
+export const getInvalidFilterRules = (
     fields: Field[],
     filterRules: FilterRule[],
 ) =>
-    filterRules.reduce<
-        Record<
-            'valid' | 'invalid',
-            Record<'dimensions' | 'metrics' | 'tableCalculations', FilterRule[]>
-        >
-    >(
-        (accumulator, filterRule) => {
-            const fieldInRule = fields.find(
-                (field) => fieldId(field) === filterRule.target.fieldId,
-            );
+    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+        const fieldInRule = fields.find(
+            (field) => fieldId(field) === filterRule.target.fieldId,
+        );
 
-            const updateAccumulator = (
-                key: 'valid' | 'invalid',
-                rule: FilterRule,
-            ) => {
-                if (isDimension(fieldInRule)) {
-                    accumulator[key].dimensions.push(rule);
-                } else if (isTableCalculationField(fieldInRule)) {
-                    accumulator[key].tableCalculations.push(rule);
-                } else {
-                    accumulator[key].metrics.push(rule);
-                }
-            };
+        if (!fieldInRule) {
+            return [...accumulator, filterRule];
+        }
 
-            if (fieldInRule) {
-                updateAccumulator('valid', filterRule);
-            } else {
-                updateAccumulator('invalid', filterRule);
-            }
-
-            return accumulator;
-        },
-        {
-            valid: { dimensions: [], metrics: [], tableCalculations: [] },
-            invalid: { dimensions: [], metrics: [], tableCalculations: [] },
-        },
-    );
+        return accumulator;
+    }, []);
 
 /**
  * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
@@ -550,6 +524,39 @@ export const getFiltersFromGroup = (
 
         return accumulator;
     }, {} as Filters);
+};
+
+export const deleteFilterRuleFromGroup = (
+    filterGroup: FilterGroup,
+    id: string,
+) => {
+    const items = getItemsFromFilterGroup(filterGroup);
+
+    // If the filter group contains the rule we want to delete, we remove it
+    if (items.some((rule) => rule.id === id)) {
+        return {
+            id: filterGroup.id,
+            [getFilterGroupItemsPropertyName(filterGroup)]: items.filter(
+                (rule) => rule.id !== id,
+            ),
+        } as FilterGroup;
+    }
+
+    const groupGroups = items.filter(isFilterGroup);
+    const groupItems = items.filter(isFilterRule);
+
+    // If the filter group contains nested groups, we recursively call this function on each nested group
+    const newGroups: FilterGroup[] = groupGroups.map((group) =>
+        deleteFilterRuleFromGroup(group, id),
+    );
+
+    return {
+        id: filterGroup.id,
+        [getFilterGroupItemsPropertyName(filterGroup)]: [
+            ...groupItems,
+            ...newGroups,
+        ],
+    } as FilterGroup;
 };
 
 export const getDashboardFilterRulesForTile = (

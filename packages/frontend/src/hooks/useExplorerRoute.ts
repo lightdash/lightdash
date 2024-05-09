@@ -1,7 +1,10 @@
 import {
     ChartType,
+    CustomDimensionType,
     DateGranularity,
     type CreateSavedChartVersion,
+    type CustomBinDimension,
+    type CustomDimension,
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
@@ -66,6 +69,19 @@ export const parseExplorerSearchParams = (
                 exploreName:
                     parsedValue.metricQuery.exploreName ||
                     parsedValue.tableName,
+                customDimensions:
+                    parsedValue.metricQuery.customDimensions?.map<CustomDimension>(
+                        (customDimension) => {
+                            if (customDimension.type === undefined) {
+                                return {
+                                    ...(customDimension as CustomBinDimension),
+                                    type: CustomDimensionType.BIN, // add type for backwards compatibility
+                                };
+                            } else {
+                                return customDimension;
+                            }
+                        },
+                    ),
             },
         };
     }
