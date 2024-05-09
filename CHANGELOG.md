@@ -1,3 +1,10 @@
+## [0.1090.4](https://github.com/lightdash/lightdash/compare/0.1090.3...0.1090.4) (2024-05-09)
+
+
+### Bug Fixes
+
+* zIndex issues on dashbaord while loading ([#10015](https://github.com/lightdash/lightdash/issues/10015)) ([5175c62](https://github.com/lightdash/lightdash/commit/5175c62ead212696fc9c5065eae9fc9a22e24965))
+
 ## [0.1090.3](https://github.com/lightdash/lightdash/compare/0.1090.2...0.1090.3) (2024-05-09)
 
 
