@@ -1,13 +1,19 @@
+import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     getCustomDimensionId,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
     type CustomDimension,
 } from '@lightdash/common';
-import { Center, Group, Text, Tooltip } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useMemo, type FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { useApp } from '../../../../providers/AppProvider';
+import { useExplorerContext } from '../../../../providers/ExplorerProvider';
 import MantineIcon from '../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { getSearchResults, TreeProvider } from './Tree/TreeProvider';
@@ -35,6 +41,22 @@ const TableTreeSections: FC<Props> = ({
     selectedDimensions,
     onSelectedNodeChange,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+    const canManageCustomSql = user.data?.ability?.can(
+        'manage',
+        subject('CustomSql', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const isCustomSqlDimensionFeatureFlagEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSqlDimensions,
+    );
+    const toggleCustomDimensionModal = useExplorerContext(
+        (context) => context.actions.toggleCustomDimensionModal,
+    );
+
     const dimensions = useMemo(() => {
         return Object.values(table.dimensions).reduce(
             (acc, item) => ({ ...acc, [getItemId(item)]: item }),
@@ -123,10 +145,29 @@ const TableTreeSections: FC<Props> = ({
             )}
             {isSearching &&
             getSearchResults(dimensions, searchQuery).size === 0 ? null : (
-                <Group mt="sm" mb="xs">
+                <Group mt="sm" mb="xs" position={'apart'}>
                     <Text fw={600} color="blue.9">
                         Dimensions
                     </Text>
+
+                    {canManageCustomSql &&
+                        isCustomSqlDimensionFeatureFlagEnabled && (
+                            <Button
+                                size="xs"
+                                variant={'subtle'}
+                                compact
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                onClick={() =>
+                                    toggleCustomDimensionModal({
+                                        isEditing: false,
+                                        table: table.name,
+                                        item: undefined,
+                                    })
+                                }
+                            >
+                                Add
+                            </Button>
+                        )}
                 </Group>
             )}
 

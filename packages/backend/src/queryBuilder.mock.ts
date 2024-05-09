@@ -4,6 +4,7 @@ import {
     CompiledMetricQuery,
     CompiledTable,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     DimensionType,
     Explore,
     FieldType,
@@ -585,6 +586,7 @@ export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
         {
             id: 'age_range',
             name: 'Age range',
+            type: CustomDimensionType.BIN,
             dimensionId: 'table1_dim1',
             table: 'table1',
             binType: BinType.FIXED_NUMBER,

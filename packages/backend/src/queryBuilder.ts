@@ -3,9 +3,10 @@ import {
     BinType,
     CompiledDimension,
     CompiledMetricQuery,
+    CustomBinDimension,
     CustomDimension,
+    CustomSqlDimension,
     DbtModelJoinType,
-    DimensionType,
     Explore,
     fieldId,
     FieldId,
@@ -25,7 +26,8 @@ import {
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isAndFilterGroup,
-    isDimension,
+    isCustomBinDimension,
+    isCustomSqlDimension,
     isFilterGroup,
     ItemsMap,
     parseAllReferences,
@@ -230,6 +232,7 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
             return assertUnreachable(type, `Unknown join type: ${type}`);
     }
 };
+
 export const sortMonthName = (dimension: CompiledDimension) => {
     const fieldSql = `${dimension.compiledSql}`;
     return `(
@@ -272,22 +275,41 @@ export const sortDayOfWeekName = (
         END
     )`;
 };
-export const getCustomDimensionSql = ({
+
+export const getCustomSqlDimensionSql = ({
+    customDimensions,
+}: {
+    customDimensions: CustomSqlDimension[] | undefined;
+}): { selects: string[] } | undefined => {
+    if (customDimensions === undefined || customDimensions.length === 0) {
+        return undefined;
+    }
+
+    const selects = customDimensions.map<string>(
+        (customDimension) =>
+            `  (${customDimension.sql}) AS ${customDimension.id}`,
+    );
+
+    return {
+        selects,
+    };
+};
+
+export const getCustomBinDimensionSql = ({
     warehouseClient,
     explore,
-    compiledMetricQuery,
+    customDimensions,
     userAttributes = {},
     sorts = [],
 }: {
     warehouseClient: WarehouseClient;
     explore: Explore;
-    compiledMetricQuery: CompiledMetricQuery;
+    customDimensions: CustomBinDimension[] | undefined;
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
-    const { customDimensions } = compiledMetricQuery;
     const startOfWeek = warehouseClient.getStartOfWeek();
 
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
@@ -650,12 +672,17 @@ export const buildQuery = ({
         return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
     });
 
-    const customDimensionSql = getCustomDimensionSql({
+    const customBinDimensionSql = getCustomBinDimensionSql({
         warehouseClient,
         explore,
-        compiledMetricQuery,
+        customDimensions:
+            compiledMetricQuery.customDimensions?.filter(isCustomBinDimension),
         userAttributes,
         sorts,
+    });
+    const customSqlDimensionSql = getCustomSqlDimensionSql({
+        customDimensions:
+            compiledMetricQuery.customDimensions?.filter(isCustomSqlDimension),
     });
 
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
@@ -705,7 +732,7 @@ export const buildQuery = ({
             );
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
-        ...(customDimensionSql?.tables || []),
+        ...(customBinDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
                 const dim = getDimensionFromId(
@@ -800,14 +827,16 @@ export const buildQuery = ({
 
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
-        ...(customDimensionSql?.selects || []),
+        ...(customBinDimensionSql?.selects || []),
+        ...(customSqlDimensionSql?.selects || []),
         ...metricSelects,
         ...filteredMetricSelects,
     ].join(',\n')}`;
 
     const groups = [
         ...(dimensionSelects.length > 0 ? dimensionSelects : []),
-        ...(customDimensionSql?.selects || []),
+        ...(customBinDimensionSql?.selects || []),
+        ...(customSqlDimensionSql?.selects || []),
     ];
     const sqlGroupBy =
         groups.length > 0
@@ -821,7 +850,8 @@ export const buildQuery = ({
             customDimensions &&
             customDimensions.find(
                 (customDimension) =>
-                    getCustomDimensionId(customDimension) === sort.fieldId,
+                    getCustomDimensionId(customDimension) === sort.fieldId &&
+                    isCustomBinDimension(customDimension),
             )
         ) {
             // Custom dimensions will have a separate `select` for ordering,
@@ -968,8 +998,8 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
-            customDimensionSql && customDimensionSql.joins.length > 0
-                ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+            customBinDimensionSql && customBinDimensionSql.joins.length > 0
+                ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
                 : undefined,
             sqlWhere,
             sqlGroupBy,
@@ -978,7 +1008,7 @@ export const buildQuery = ({
             .join('\n');
         const cteName = 'metrics';
         const ctes = [
-            ...(customDimensionSql?.ctes || []),
+            ...(customBinDimensionSql?.ctes || []),
             `${cteName} AS (\n${cteSql}\n)`,
         ];
         const tableCalculationSelects =
@@ -1017,14 +1047,14 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
-        customDimensionSql && customDimensionSql.ctes.length > 0
-            ? `WITH ${customDimensionSql.ctes.join(',\n')}`
+        customBinDimensionSql && customBinDimensionSql.ctes.length > 0
+            ? `WITH ${customBinDimensionSql.ctes.join(',\n')}`
             : undefined,
         sqlSelect,
         sqlFrom,
         sqlJoins,
-        customDimensionSql && customDimensionSql.joins.length > 0
-            ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+        customBinDimensionSql && customBinDimensionSql.joins.length > 0
+            ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
             : undefined,
         sqlWhere,
         sqlGroupBy,

@@ -59,7 +59,11 @@ import {
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
+import {
+    DbSavedChart,
+    InsertChart,
+    SavedChartCustomSqlDimensionsTableName,
+} from '../../database/entities/savedCharts';
 import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
@@ -1385,6 +1389,10 @@ export class ProjectModel {
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
                 { custom_range: (value: any) => JSON.stringify(value) },
+            );
+            await copyChartVersionContent(
+                SavedChartCustomSqlDimensionsTableName,
+                [],
             );
             await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',

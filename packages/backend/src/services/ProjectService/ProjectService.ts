@@ -56,6 +56,7 @@ import {
     getMetrics,
     hasIntersection,
     IntrinsicUserAttributes,
+    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -1131,6 +1132,18 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
         const explore = await this.getExplore(user, projectUuid, exploreName);
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -1227,6 +1240,18 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const queryTags: RunQueryTags = {
@@ -1499,6 +1524,18 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const queryTags: RunQueryTags = {
@@ -3609,6 +3646,7 @@ export class ProjectService extends BaseService {
             tableCalculations: [],
             sorts: [],
             dimensions: [],
+            customDimensions: [],
             metrics: metricQuery.metrics,
             additionalMetrics: metricQuery.additionalMetrics,
         };

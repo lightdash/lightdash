@@ -905,8 +905,9 @@ const getEchartAxes = ({
         defaultNameGap?: number;
     }) => {
         const hasFormattingConfig =
-            isField(axisItem) &&
-            (axisItem.format || axisItem.round || axisItem.compact);
+            (isField(axisItem) &&
+                (axisItem.format || axisItem.round || axisItem.compact)) ||
+            (axisItem && isTableCalculation(axisItem) && axisItem.format);
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&
@@ -1801,6 +1802,7 @@ const useEchartsCartesianConfig = (
     ) {
         return undefined;
     }
+
     return eChartsOptions;
 };
 
