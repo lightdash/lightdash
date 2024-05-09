@@ -1,3 +1,10 @@
+## [0.1090.3](https://github.com/lightdash/lightdash/compare/0.1090.2...0.1090.3) (2024-05-09)
+
+
+### Bug Fixes
+
+* retry screenshot for protocol and timeout errors ([#10028](https://github.com/lightdash/lightdash/issues/10028)) ([e77a186](https://github.com/lightdash/lightdash/commit/e77a1868175478f119e24126a557a249c193cb15))
+
 ## [0.1090.2](https://github.com/lightdash/lightdash/compare/0.1090.1...0.1090.2) (2024-05-09)
 
 
