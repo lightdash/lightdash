@@ -171,7 +171,11 @@ export const getBigqueryCredentialsFromServiceAccountJson = async (
             Record<string, string>
         >((acc, [key, value]) => {
             if (typeof value === 'string') {
-                acc[key] = value.replaceAll(/\\n/gm, '\n'); // replace escaped newlines. Prevents error: Error: error:1E08010C:DECODER routines::unsupported
+                acc[key] = value
+                    .replaceAll(/\s/g, '\n')
+                    .replace('BEGIN\nPRIVATE\nKEY', 'BEGIN PRIVATE KEY')
+                    .replace('END\nPRIVATE\nKEY', 'END PRIVATE KEY')
+                    .replaceAll(/\\n/gm, '\n'); // replace escaped newlines. Prevents error: Error: error:1E08010C:DECODER routines::unsupported
             } else {
                 acc[key] = value;
             }
