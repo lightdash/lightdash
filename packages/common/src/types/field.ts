@@ -88,16 +88,49 @@ export type BinRange = {
     from: number | undefined; // first range has from undefined
     to: number | undefined; // last range has to undefined
 };
-export interface CustomDimension {
+
+export enum CustomDimensionType {
+    BIN = 'bin',
+    SQL = 'sql',
+}
+
+export interface BaseCustomDimension {
     id: string;
     name: string;
+    table: string;
+    type: CustomDimensionType;
+}
+
+export interface CustomBinDimension extends BaseCustomDimension {
+    type: CustomDimensionType.BIN;
     dimensionId: FieldId; // Parent dimension id
-    table: string; // Table of parent dimension
     binType: BinType;
     binNumber?: number;
     binWidth?: number;
     customRange?: BinRange[];
 }
+
+export interface CustomSqlDimension extends BaseCustomDimension {
+    type: CustomDimensionType.SQL;
+    sql: string;
+    dimensionType: DimensionType;
+}
+
+export type CustomDimension = CustomBinDimension | CustomSqlDimension;
+
+export const isCustomDimension = (value: any): value is CustomDimension =>
+    value !== undefined &&
+    Object.values(CustomDimensionType).includes(value.type);
+
+export const isCustomBinDimension = (value: any): value is CustomBinDimension =>
+    value !== undefined &&
+    isCustomDimension(value) &&
+    value.type === CustomDimensionType.BIN;
+
+export const isCustomSqlDimension = (value: any): value is CustomSqlDimension =>
+    value !== undefined &&
+    isCustomDimension(value) &&
+    value.type === CustomDimensionType.SQL;
 
 export type ItemsMap = Record<
     string,
@@ -170,7 +203,7 @@ export const isTableCalculation = (
     item: Item | AdditionalMetric | TableCalculationField,
 ): item is TableCalculation =>
     item
-        ? !('binType' in item) &&
+        ? !isCustomDimension(item) &&
           !!item.sql &&
           !('description' in item) &&
           !('tableName' in item) &&

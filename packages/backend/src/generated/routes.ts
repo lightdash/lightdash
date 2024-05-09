@@ -941,6 +941,11 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CustomDimensionType.BIN': {
+        dataType: 'refEnum',
+        enums: ['bin'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     BinType: {
         dataType: 'refEnum',
         enums: ['fixed_number', 'fixed_width', 'custom_range'],
@@ -972,13 +977,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CustomDimension: {
+    CustomDimensionType: {
+        dataType: 'refEnum',
+        enums: ['bin', 'sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomBinDimension: {
         dataType: 'refObject',
         properties: {
             id: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
-            dimensionId: { ref: 'FieldId', required: true },
             table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.BIN', required: true },
+            dimensionId: { ref: 'FieldId', required: true },
             binType: { ref: 'BinType', required: true },
             binNumber: { dataType: 'double' },
             binWidth: { dataType: 'double' },
@@ -988,6 +999,41 @@ const models: TsoaRoute.Models = {
             },
         },
         additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CustomDimensionType.SQL': {
+        dataType: 'refEnum',
+        enums: ['sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DimensionType: {
+        dataType: 'refEnum',
+        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomSqlDimension: {
+        dataType: 'refObject',
+        properties: {
+            id: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            type: { ref: 'CustomDimensionType.SQL', required: true },
+            sql: { dataType: 'string', required: true },
+            dimensionType: { ref: 'DimensionType', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'CustomBinDimension' },
+                { ref: 'CustomSqlDimension' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CompiledDimension.label-or-name_': {
@@ -1019,7 +1065,7 @@ const models: TsoaRoute.Models = {
                 timezone: { dataType: 'string' },
                 customDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
                 },
                 additionalMetrics: {
                     dataType: 'array',
@@ -1180,7 +1226,7 @@ const models: TsoaRoute.Models = {
                 },
                 customDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
                 },
                 additionalMetrics: {
                     dataType: 'array',
@@ -3403,7 +3449,7 @@ const models: TsoaRoute.Models = {
                 granularity: { ref: 'DateGranularity' },
                 customDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'CustomDimension' },
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
                 },
                 csvLimit: { dataType: 'double' },
                 additionalMetrics: {

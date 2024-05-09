@@ -36,6 +36,7 @@ type Subject =
     | 'ChangeCsvResults'
     | 'ScheduledDeliveries'
     | 'DashboardComments'
+    | 'CustomSql'
     | 'all';
 
 type PossibleAbilities = [

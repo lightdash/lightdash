@@ -1,5 +1,6 @@
 import {
     BinType,
+    CustomDimensionType,
     DimensionType,
     FieldType,
     MetricType,
@@ -36,6 +37,7 @@ export const metricQuery: MetricQuery = {
         {
             id: 'custom_dimension_1',
             name: 'custom_dimension_1',
+            type: CustomDimensionType.BIN,
             dimensionId: 'table1_dim1', // Parent dimension id
             binType: BinType.FIXED_NUMBER,
             binNumber: 5,

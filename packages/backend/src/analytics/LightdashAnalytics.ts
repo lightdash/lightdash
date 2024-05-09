@@ -184,6 +184,7 @@ type QueryExecutionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomSqlDimensions: number;
         dateZoomGranularity: string | null;
         timezone?: string;
     };
@@ -334,6 +335,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomSqlDimensions: number;
     };
 };
 
