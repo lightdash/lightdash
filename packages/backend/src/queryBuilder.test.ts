@@ -3,16 +3,21 @@ import {
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
+    WeekDay,
 } from '@lightdash/common';
 import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
     getCustomBinDimensionSql,
     replaceUserAttributes,
+    sortDayOfWeekName,
+    sortMonthName,
 } from './queryBuilder';
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
+    COMPILED_MONTH_NAME_DIMENSION,
+    COMPILED_WEEK_NAME_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
@@ -56,7 +61,9 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    MONTH_NAME_SORT_SQL,
     warehouseClientMock,
+    WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -854,5 +861,52 @@ FROM "db"."schema"."table1" AS "table1"
 GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
 LIMIT 10`);
+    });
+});
+
+const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
+describe('Time frame sorting', () => {
+    it('sortMonthName SQL', () => {
+        expect(
+            ignoreIndentation(sortMonthName(COMPILED_MONTH_NAME_DIMENSION)),
+        ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
+    });
+    it('sortDayOfWeekName SQL for undefined startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL));
+    });
+    it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, WeekDay.SUNDAY),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
+    });
+
+    it('sortDayOfWeekName SQL for Wednesday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(
+                    COMPILED_WEEK_NAME_DIMENSION,
+                    WeekDay.WEDNESDAY,
+                ),
+            ),
+        ).toStrictEqual(
+            ignoreIndentation(`(
+            CASE
+                WHEN "table1".dim1 = 'Sunday' THEN 5
+                WHEN "table1".dim1 = 'Monday' THEN 6
+                WHEN "table1".dim1 = 'Tuesday' THEN 7
+                WHEN "table1".dim1 = 'Wednesday' THEN 1
+                WHEN "table1".dim1 = 'Thursday' THEN 2
+                WHEN "table1".dim1 = 'Friday' THEN 3
+                WHEN "table1".dim1 = 'Saturday' THEN 4
+                ELSE 0
+            END
+        )`),
+        );
     });
 });

@@ -12,6 +12,7 @@ import {
     IntrinsicUserAttributes,
     MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -1314,3 +1315,62 @@ LIMIT 10`;
 export const INTRINSIC_USER_ATTRIBUTES: IntrinsicUserAttributes = {
     email: 'mock@lightdash.com',
 };
+
+export const COMPILED_MONTH_NAME_DIMENSION: CompiledDimension = {
+    type: DimensionType.STRING,
+    name: 'dim1',
+    label: 'dim1',
+    table: 'table1',
+    tableLabel: 'table1',
+    fieldType: FieldType.DIMENSION,
+    sql: '${TABLE}.dim1',
+    compiledSql: '"table1".dim1',
+    tablesReferences: ['table1'],
+    timeInterval: TimeFrames.MONTH_NAME,
+    hidden: false,
+};
+
+export const MONTH_NAME_SORT_SQL = `(
+    CASE
+        WHEN "table1".dim1 = 'January' THEN 1
+        WHEN "table1".dim1 = 'February' THEN 2
+        WHEN "table1".dim1 = 'March' THEN 3
+        WHEN "table1".dim1 = 'April' THEN 4
+        WHEN "table1".dim1 = 'May' THEN 5
+        WHEN "table1".dim1 = 'June' THEN 6
+        WHEN "table1".dim1 = 'July' THEN 7
+        WHEN "table1".dim1 = 'August' THEN 8
+        WHEN "table1".dim1 = 'September' THEN 9
+        WHEN "table1".dim1 = 'October' THEN 10
+        WHEN "table1".dim1 = 'November' THEN 11
+        WHEN "table1".dim1 = 'December' THEN 12
+        ELSE 0
+    END
+    )`;
+
+export const COMPILED_WEEK_NAME_DIMENSION: CompiledDimension = {
+    type: DimensionType.STRING,
+    name: 'dim1',
+    label: 'dim1',
+    table: 'table1',
+    tableLabel: 'table1',
+    fieldType: FieldType.DIMENSION,
+    sql: '${TABLE}.dim1',
+    compiledSql: '"table1".dim1',
+    tablesReferences: ['table1'],
+    timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+    hidden: false,
+};
+
+export const WEEK_NAME_SORT_SQL = `(
+    CASE
+        WHEN "table1".dim1 = 'Sunday' THEN 1
+        WHEN "table1".dim1 = 'Monday' THEN 2
+        WHEN "table1".dim1 = 'Tuesday' THEN 3
+        WHEN "table1".dim1 = 'Wednesday' THEN 4
+        WHEN "table1".dim1 = 'Thursday' THEN 5
+        WHEN "table1".dim1 = 'Friday' THEN 6
+        WHEN "table1".dim1 = 'Saturday' THEN 7
+        ELSE 0
+    END
+)`;
