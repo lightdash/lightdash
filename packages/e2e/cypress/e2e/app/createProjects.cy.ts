@@ -337,7 +337,7 @@ const createCustomDimensionChart = (projectUuid) => {
         url: `${apiUrl}/projects/${projectUuid}/saved`,
         method: 'POST',
         body: {
-            name: 'How do payment methods vary across different amount ranges?"',
+            name: 'How do payment methods vary across different amount ranges?',
             description: 'Payment range by amount',
             tableName: 'payments',
             metricQuery: {
