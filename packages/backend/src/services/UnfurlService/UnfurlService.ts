@@ -4,7 +4,6 @@ import {
     AuthorizationError,
     ChartType,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     LightdashPage,
     SessionUser,
@@ -16,7 +15,12 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
+import puppeteer, {
+    ProtocolError,
+    TimeoutError,
+    type Browser,
+    type Page,
+} from 'puppeteer';
 import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -25,7 +29,6 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
@@ -62,6 +65,8 @@ const bigNumberViewport = {
     width: 768,
     height: 500,
 };
+
+const SCREENSHOT_RETRIES = 3;
 
 export type Unfurl = {
     title: string;
@@ -267,7 +272,6 @@ export class UnfurlService extends BaseService {
             lightdashPage,
             chartType: details?.chartType,
             organizationUuid: details?.organizationUuid,
-            userUuid: authUserUuid,
             gridWidth,
             resourceUuid: details?.resourceUuid,
             resourceName: details?.title,
@@ -359,11 +363,11 @@ export class UnfurlService extends BaseService {
         lightdashPage,
         chartType,
         organizationUuid,
-        userUuid,
         gridWidth = undefined,
         resourceUuid = undefined,
         resourceName = undefined,
         selector = 'body',
+        retries = SCREENSHOT_RETRIES,
     }: {
         imageId: string;
         cookie: string;
@@ -371,11 +375,11 @@ export class UnfurlService extends BaseService {
         lightdashPage?: LightdashPage;
         chartType?: string;
         organizationUuid?: string;
-        userUuid: string;
         gridWidth?: number | undefined;
         resourceUuid?: string;
         resourceName?: string;
         selector?: string;
+        retries?: number;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
@@ -387,6 +391,9 @@ export class UnfurlService extends BaseService {
         }
         const startTime = Date.now();
         let hasError = false;
+
+        // eslint-disable-next-line no-param-reassign
+        retries -= 1;
 
         return tracer.startActiveSpan(
             'UnfurlService.saveScreenshot',
@@ -590,6 +597,52 @@ export class UnfurlService extends BaseService {
                     });
                     return imageBuffer;
                 } catch (e) {
+                    /**
+                     * An error can be retried if it is a TimeoutError or a ProtocolError
+                     * - TimeoutError: when the page is not loaded in time or the element is not found
+                     * - ProtocolError: when the page is closed before the screenshot is taken
+                     * - That include the message "Target closed" or "Protocol error" - e.g: Protocol error (Page.captureScreenshot): Target closed or Protocol error (DOM.describeNode): Target closed"
+                     */
+                    const isRetryableError =
+                        e instanceof TimeoutError ||
+                        e instanceof ProtocolError ||
+                        e.message.includes('Protocol error') ||
+                        e.message.includes('Target closed');
+
+                    if (isRetryableError && retries) {
+                        this.logger.info(
+                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
+                        );
+                        span.recordException(e);
+                        span.setAttributes({
+                            'page.type': lightdashPage,
+                            url,
+                            chartType: chartType || 'undefined',
+                            organization_uuid: organizationUuid || 'undefined',
+                            uuid: resourceUuid ?? 'undefined',
+                            title: resourceName ?? 'undefined',
+                            is_retrying: true,
+                            custom_width: `${gridWidth}`,
+                        });
+                        span.setStatus({
+                            code: SpanStatusCode.ERROR,
+                        });
+
+                        return await this.saveScreenshot({
+                            imageId,
+                            cookie,
+                            url,
+                            lightdashPage,
+                            chartType,
+                            organizationUuid,
+                            gridWidth,
+                            resourceUuid,
+                            resourceName,
+                            selector,
+                            retries,
+                        });
+                    }
+
                     Sentry.captureException(e);
                     hasError = true;
                     span.recordException(e);
