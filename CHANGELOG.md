@@ -1,3 +1,10 @@
+## [0.1089.4](https://github.com/lightdash/lightdash/compare/0.1089.3...0.1089.4) (2024-05-09)
+
+
+### Bug Fixes
+
+* apply formatting to table calculations in axes ([#10002](https://github.com/lightdash/lightdash/issues/10002)) ([039838c](https://github.com/lightdash/lightdash/commit/039838c7ce391f69e933419382126c61d71cf37a))
+
 ## [0.1089.3](https://github.com/lightdash/lightdash/compare/0.1089.2...0.1089.3) (2024-05-08)
 
 
