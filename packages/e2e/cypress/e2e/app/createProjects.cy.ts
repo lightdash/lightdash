@@ -1,4 +1,8 @@
-import { ResultRow, SEED_PROJECT } from '@lightdash/common';
+import {
+    CustomDimensionType,
+    ResultRow,
+    SEED_PROJECT,
+} from '@lightdash/common';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -351,6 +355,7 @@ const createCustomDimensionChart = (projectUuid) => {
                     {
                         id: 'amount_range',
                         name: 'amount range',
+                        type: CustomDimensionType.BIN,
                         dimensionId: 'payments_amount',
                         binType: 'fixed_number',
                         binNumber: 5,
