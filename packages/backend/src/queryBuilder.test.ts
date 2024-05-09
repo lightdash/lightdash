@@ -3,16 +3,21 @@ import {
     CustomDimensionType,
     ForbiddenError,
     isCustomBinDimension,
+    WeekDay,
 } from '@lightdash/common';
 import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
     getCustomBinDimensionSql,
     replaceUserAttributes,
+    sortDayOfWeekName,
+    sortMonthName,
 } from './queryBuilder';
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
+    COMPILED_MONTH_NAME_DIMENSION,
+    COMPILED_WEEK_NAME_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
@@ -56,7 +61,9 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    MONTH_NAME_SORT_SQL,
     warehouseClientMock,
+    WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
