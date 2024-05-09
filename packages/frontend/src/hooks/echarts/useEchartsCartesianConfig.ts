@@ -907,7 +907,7 @@ const getEchartAxes = ({
         const hasFormattingConfig =
             (isField(axisItem) &&
                 (axisItem.format || axisItem.round || axisItem.compact)) ||
-            (isTableCalculation(axisItem) && axisItem.format);
+            (axisItem && isTableCalculation(axisItem) && axisItem.format);
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&

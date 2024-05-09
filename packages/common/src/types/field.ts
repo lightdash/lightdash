@@ -167,7 +167,7 @@ export interface TableCalculationField extends Field {
 // This type check is a little fragile because it's based on
 // 'displayName'. Ideally these would all have fieldTypes.
 export const isTableCalculation = (
-    item?: Item | AdditionalMetric | TableCalculationField,
+    item: Item | AdditionalMetric | TableCalculationField,
 ): item is TableCalculation =>
     item
         ? !('binType' in item) &&
