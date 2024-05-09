@@ -1392,7 +1392,7 @@ export class ProjectModel {
             );
             await copyChartVersionContent(
                 SavedChartCustomSqlDimensionsTableName,
-                ['saved_queries_version_custom_sql_dimensions_uuid'],
+                [],
             );
             await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',

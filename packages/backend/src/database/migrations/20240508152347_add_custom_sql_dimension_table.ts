@@ -9,11 +9,6 @@ export async function up(knex: Knex): Promise<void> {
             CUSTOM_SQL_DIMENSIONS_TABLE_NAME,
             (tableBuilder) => {
                 tableBuilder
-                    .uuid('saved_queries_version_custom_sql_dimensions_uuid')
-                    .primary()
-                    .notNullable()
-                    .defaultTo(knex.raw('uuid_generate_v4()'));
-                tableBuilder
                     .integer('saved_queries_version_id')
                     .notNullable()
                     .references('saved_queries_version_id')
@@ -25,6 +20,8 @@ export async function up(knex: Knex): Promise<void> {
                 tableBuilder.text('sql').notNullable();
                 tableBuilder.text('dimension_type').notNullable();
                 tableBuilder.integer('order').notNullable();
+
+                tableBuilder.unique(['id', 'saved_queries_version_id']);
             },
         );
     }
