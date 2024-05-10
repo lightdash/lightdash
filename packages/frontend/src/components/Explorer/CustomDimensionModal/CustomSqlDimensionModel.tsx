@@ -19,6 +19,7 @@ import { useForm } from '@mantine/form';
 import { useEffect, type FC } from 'react';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
 type FormValues = {
@@ -35,6 +36,7 @@ export const CustomSqlDimensionModal: FC<{
 }> = ({ isEditing, table, item }) => {
     const theme = useMantineTheme();
     const { showToastSuccess } = useToaster();
+    const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
     const toggleModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
@@ -155,6 +157,7 @@ export const CustomSqlDimensionModal: FC<{
                             setOptions={{
                                 autoScrollEditorIntoView: true,
                             }}
+                            onLoad={setAceEditor}
                             isFullScreen={false}
                             enableLiveAutocompletion
                             enableBasicAutocompletion

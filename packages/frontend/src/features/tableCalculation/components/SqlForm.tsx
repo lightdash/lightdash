@@ -10,7 +10,7 @@ import { type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
 import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
 
 import { useLocalStorage } from '@mantine/hooks';
@@ -51,7 +51,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
         defaultValue: true,
     });
 
-    const { setAceEditor } = useExplorerAceEditorCompleter();
+    const { setAceEditor } = useTableCalculationAceEditorCompleter();
 
     return (
         <>
