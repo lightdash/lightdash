@@ -962,15 +962,18 @@ function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension,
     value: any,
 ) {
-    const isTimestamp =
-        isField(field) &&
-        (field.type === DimensionType.DATE ||
-            field.type === DimensionType.TIMESTAMP);
-
-    if (isTimestamp) {
+    if (!isField(field)) {
+        return value;
+    }
+    if (field.type === DimensionType.DATE) {
+        // For dates we leave out the time and timezone info
+        return dayjs.utc(value).format('YYYY-MM-DD');
+    }
+    if (field.type === DimensionType.TIMESTAMP) {
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
         return dayjs(value).utc(true).format();
     }
+
     return value;
 }
 

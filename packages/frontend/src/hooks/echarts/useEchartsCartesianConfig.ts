@@ -827,11 +827,11 @@ const getWeekAxisConfig = (
 
         const continuousWeekRange = [];
         let nextDate = dayjs.utc(minX);
-        while (nextDate.isBefore(dayjs(maxX))) {
-            continuousWeekRange.push(nextDate.format());
+        while (nextDate.isBefore(dayjs.utc(maxX))) {
+            continuousWeekRange.push(nextDate.format('YYYY-MM-DD'));
             nextDate = nextDate.add(1, 'week');
         }
-        continuousWeekRange.push(dayjs.utc(maxX).format());
+        continuousWeekRange.push(dayjs.utc(maxX).format('YYYY-MM-DD'));
         return {
             data: continuousWeekRange,
             axisTick: { alignWithLabel: true, interval: 0 },
@@ -1753,6 +1753,8 @@ const useEchartsCartesianConfig = (
         }),
         [itemsMap, validCartesianConfig?.layout.flipAxes],
     );
+
+    console.log('sortedResults', sortedResults);
 
     const eChartsOptions = useMemo(
         () => ({
