@@ -480,6 +480,8 @@ export default class App {
                 new Sentry.Integrations.Express({
                     app: expressApp,
                 }),
+                new Sentry.Integrations.Postgres({ usePgNative: true }),
+                ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {
