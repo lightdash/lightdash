@@ -974,7 +974,7 @@ const getEchartAxes = ({
                 case TimeFrames.WEEK:
                     axisConfig.axisLabel = {
                         formatter: (value: any) => {
-                            return formatItemValue(axisItem, value, false);
+                            return formatItemValue(axisItem, value, true);
                         },
                     };
                     axisConfig.axisPointer = {
@@ -983,7 +983,7 @@ const getEchartAxes = ({
                                 return formatItemValue(
                                     axisItem,
                                     value.value,
-                                    false,
+                                    true,
                                 );
                             },
                         },
