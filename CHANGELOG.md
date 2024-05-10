@@ -1,3 +1,10 @@
+## [0.1090.5](https://github.com/lightdash/lightdash/compare/0.1090.4...0.1090.5) (2024-05-10)
+
+
+### Bug Fixes
+
+* multiline profile bigquery ([#10026](https://github.com/lightdash/lightdash/issues/10026)) ([c7d3911](https://github.com/lightdash/lightdash/commit/c7d3911ba566f12093b16a687b82b9a21acee286))
+
 ## [0.1090.4](https://github.com/lightdash/lightdash/compare/0.1090.3...0.1090.4) (2024-05-09)
 
 
