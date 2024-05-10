@@ -20,5 +20,11 @@ export const renderProfilesYml = (
         ...nunjucksContext,
         ...(context || {}),
     });
-    return rendered;
+    // Fix multiline privatekey strings
+    // Prevents error: Error: error:1E08010C:DECODER routines::unsupported
+    const privateKeyRegex =
+        /-----BEGIN PRIVATE KEY-----[\s\S]*?-----END PRIVATE KEY-----/g;
+    return rendered.replace(privateKeyRegex, (match) =>
+        match.replace(/\n/g, '\\n'),
+    );
 };
