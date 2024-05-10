@@ -221,7 +221,7 @@ const UnderlyingDataModalContent: FC<Props> = () => {
                 id: uuidv4(),
                 and: combinedFilters,
             },
-            fieldsInQuery,
+            allFields,
         );
 
         const showUnderlyingTable: string | undefined = isField(item)
