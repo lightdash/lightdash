@@ -12,7 +12,6 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     getSeriesId,
-    isCustomDimension,
     isSeriesWithMixedChartTypes,
     type CartesianChartLayout,
     type CustomDimension,
@@ -54,8 +53,6 @@ const getFormatterValue = (
     items: Array<Field | TableCalculation | CustomDimension>,
 ) => {
     const item = items.find((i) => getItemId(i) === key);
-    if (isCustomDimension(item)) return value;
-
     return formatItemValue(item, value);
 };
 

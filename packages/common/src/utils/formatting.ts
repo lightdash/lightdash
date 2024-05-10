@@ -6,6 +6,7 @@ import {
     DimensionType,
     findCompactConfig,
     Format,
+    isCustomSqlDimension,
     isDimension,
     isTableCalculation,
     MetricType,
@@ -394,8 +395,11 @@ export function formatItemValue(
     if (value === undefined) return '-';
 
     if (item) {
-        if ('type' in item) {
-            switch (item.type) {
+        if (isCustomSqlDimension(item) || 'type' in item) {
+            const type = isCustomSqlDimension(item)
+                ? item.dimensionType
+                : item.type;
+            switch (type) {
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
                 case MetricType.STRING:
