@@ -110,12 +110,10 @@ export const compileMetricQuery = ({
             }),
     );
 
+    const compiler = new ExploreCompiler(warehouseClient);
     const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
         (customDimension) =>
-            new ExploreCompiler(warehouseClient).compileCustomDimension(
-                customDimension,
-                explore.tables,
-            ),
+            compiler.compileCustomDimension(customDimension, explore.tables),
     );
 
     return {
