@@ -3863,6 +3863,18 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
         const results = await this._calculateTotal(
             user,
             projectUuid,
