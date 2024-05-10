@@ -5,6 +5,7 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     type CompactOrAlias,
+    type CompiledCustomDimension,
     type CompiledDimension,
     type CompiledMetric,
     type CompiledTableCalculation,
@@ -70,9 +71,10 @@ export type MetricQuery = {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
     };
 };
-export type CompiledMetricQuery = MetricQuery & {
+export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledTableCalculations: CompiledTableCalculation[];
     compiledAdditionalMetrics: CompiledMetric[];
+    compiledCustomDimensions: CompiledCustomDimension[];
 };
 // Sort by
 export type SortField = {

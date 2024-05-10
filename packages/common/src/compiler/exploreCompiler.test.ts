@@ -11,6 +11,10 @@ import {
     compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
     compiledSimpleJoinedExplore,
     compiledSimpleJoinedExploreWithAlwaysTrue,
+    customSqlDimensionWithNoReferences,
+    customSqlDimensionWithReferences,
+    expectedCompiledCustomSqlDimensionWithNoReferences,
+    expectedCompiledCustomSqlDimensionWithReferences,
     exploreCircularDimensionReference,
     exploreCircularDimensionShortReference,
     exploreCircularMetricReference,
@@ -308,5 +312,24 @@ describe('Explore with always true join', () => {
         expect(
             compiler.compileExplore(simpleJoinedExploreWithAlwaysTrue),
         ).toStrictEqual(compiledSimpleJoinedExploreWithAlwaysTrue);
+    });
+});
+
+describe('Compiled custom dimensions', () => {
+    test('should compile custom dimension with no references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithNoReferences,
+                simpleJoinedExplore.tables,
+            ),
+        ).toStrictEqual(expectedCompiledCustomSqlDimensionWithNoReferences);
+    });
+    test('should compile custom dimension with references', () => {
+        expect(
+            compiler.compileCustomDimension(
+                customSqlDimensionWithReferences,
+                simpleJoinedExplore.tables,
+            ),
+        ).toStrictEqual(expectedCompiledCustomSqlDimensionWithReferences);
     });
 });

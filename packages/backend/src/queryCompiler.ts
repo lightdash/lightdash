@@ -1,14 +1,17 @@
 import {
     AdditionalMetric,
+    CompiledCustomDimension,
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
     CompileError,
     convertAdditionalMetric,
     convertFieldRefToFieldId,
+    CustomDimension,
     Explore,
     ExploreCompiler,
     getFieldQuoteChar,
+    isCustomBinDimension,
     lightdashVariablePattern,
     MetricQuery,
     TableCalculation,
@@ -107,9 +110,18 @@ export const compileMetricQuery = ({
             }),
     );
 
+    const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
+        (customDimension) =>
+            new ExploreCompiler(warehouseClient).compileCustomDimension(
+                customDimension,
+                explore.tables,
+            ),
+    );
+
     return {
         ...metricQuery,
         compiledTableCalculations,
         compiledAdditionalMetrics,
+        compiledCustomDimensions,
     };
 };
