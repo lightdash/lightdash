@@ -1667,7 +1667,7 @@ const useEchartsCartesianConfig = (
             },
             formatter: (params) => {
                 if (!Array.isArray(params) || !itemsMap) return '';
-             
+
                 const flipAxes = validCartesianConfig?.layout.flipAxes;
                 const getTooltipHeader = () => {
                     if (flipAxes && !('axisDim' in params[0])) {
@@ -1677,7 +1677,7 @@ const useEchartsCartesianConfig = (
                     return params[0].axisValueLabel;
                 };
                 // When flipping axes, we get all series in the chart
-                
+
                 const tooltipRows = params
                     .map((param) => {
                         const {
@@ -1687,7 +1687,7 @@ const useEchartsCartesianConfig = (
                             encode,
                             value,
                         } = param;
-                        
+
                         if (dimensionNames) {
                             let dim = '';
                             if (flipAxes) {
@@ -1719,7 +1719,7 @@ const useEchartsCartesianConfig = (
                         return '';
                     })
                     .join('');
-                
+
                 const dimensionId = params[0].dimensionNames?.[0];
                 if (dimensionId !== undefined) {
                     const field = itemsMap[dimensionId];
