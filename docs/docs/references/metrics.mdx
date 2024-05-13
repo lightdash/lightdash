@@ -536,7 +536,8 @@ columns:
 | does not contain            | User name does not contain katie               | `user_name: "!%katie%"` |
 | starts with                 | User name starts with katie                    | `user_name: "katie%"`   |
 | ends with                   | User name ends with katie                      | `user_name: "%katie"`   |
-| is greater than             | Number of orders is greater than 4             | `num_orders: "> 4"`     |
+| is greater than (number)    | Number of orders is greater than 4             | `num_orders: "> 4"`     |
+| is greater than (date)      | Date is after 2024-05-01                       | `date: "> '2024-05-01'"`|
 | is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`    |
 | is less than                | Number of orders is less than 4                | `num_orders: "< 4"`     |
 | is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`    |
