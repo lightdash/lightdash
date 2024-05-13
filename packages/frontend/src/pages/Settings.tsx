@@ -122,7 +122,6 @@ const Settings: FC = () => {
         health.auth.oidc.enabled;
 
     const isGroupManagementEnabled = health.hasGroups;
-
     return (
         <Page
             withFullHeight
@@ -603,16 +602,18 @@ const Settings: FC = () => {
                     <AccessTokensPanel />
                 </Route>
 
-                {(health.hasSlack || health.hasGithub) &&
-                    user.ability.can('manage', 'Organization') && (
-                        <Route exact path="/generalSettings/integrations">
-                            <Stack>
-                                <Title order={4}>Integrations</Title>
-                                {health.hasSlack && <SlackSettingsPanel />}
-                                {health.hasGithub && <GithubSettingsPanel />}
-                            </Stack>
-                        </Route>
-                    )}
+                {user.ability.can('manage', 'Organization') && (
+                    <Route exact path="/generalSettings/integrations">
+                        <Stack>
+                            <Title order={4}>Integrations</Title>
+                            {!health.hasSlack &&
+                                !health.hasGithub &&
+                                'No integrations available'}
+                            {health.hasSlack && <SlackSettingsPanel />}
+                            {health.hasGithub && <GithubSettingsPanel />}
+                        </Stack>
+                    </Route>
+                )}
 
                 <Route exact path="/generalSettings">
                     <SettingsGridCard>
