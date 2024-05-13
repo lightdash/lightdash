@@ -38,8 +38,12 @@ const allowedTextStylingProperties: NonNullable<
     'word-spacing': [/^\d+(?:px|em|rem|%)$/], // 1px, 0.2em, 10%
     'text-align': [/^(?:left|right|center|justify)$/], //  left, right, center, justify
     'text-decoration': [/^(?:none|underline|overline|line-through)$/], //  none, underline, overline, line-through
-    'text-shadow': [/.+/],
-    color: [/.+/],
+    color: [
+        /^[a-zA-Z]+$/, // Color names: red, blue, green, etc.
+        /^#[0-9a-fA-F]{3}$/, // Hex colors: #000 Note: we don't allow alpha hex colors (4 digits)
+        /^#[0-9a-fA-F]{6}$/, // Hex colors: #000000 Note: we don't allow alpha hex colors (8 digits)
+        /^rgb\(\d{1,3},\s*\d{1,3},\s*\d{1,3}\)$/, // RGB colors: rgb(0, 0, 0) Note: we don't allow rgba
+    ],
 };
 
 /**
