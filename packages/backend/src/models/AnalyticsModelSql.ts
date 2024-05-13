@@ -4,23 +4,25 @@ export const usersInProjectSql = (
 ) => `
 SELECT 
   DISTINCT ON (users.user_uuid) user_uuid,
-  CASE WHEN project_memberships.role IS NULL THEN
-    organization_memberships.role
-    else project_memberships.role end as role
+  COALESCE(project_memberships.role, project_group_access.role, organization_memberships.role) as role
 from users 
   left join emails on emails.user_id = users.user_id
   LEFT JOIN organization_memberships ON users.user_id  =  organization_memberships.user_id
   LEFT JOIN organizations ON organization_memberships.organization_id = organizations.organization_id
   LEFT JOIN project_memberships ON project_memberships.user_id = users.user_id
   LEFT JOIN projects on project_memberships.project_id = projects.project_id
+  LEFT JOIN group_memberships on group_memberships.user_id = users.user_id
+  LEFT JOIN project_group_access on project_group_access.group_uuid = group_memberships.group_uuid
 WHERE 
   emails.is_primary = true 
   AND ( 
       (organization_memberships.role != 'member'
         AND organization_uuid = '${organizationUuid}')
   OR 
-      (projects.project_uuid = project_uuid
-        AND project_uuid = '${projectUuid}'))
+      (projects.project_uuid = '${projectUuid}')
+  OR (
+    project_group_access.project_uuid = '${projectUuid}'
+  ))
 `;
 
 export const numberWeeklyQueryingUsersSql = (
