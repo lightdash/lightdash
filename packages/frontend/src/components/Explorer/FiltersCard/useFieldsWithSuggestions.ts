@@ -10,12 +10,12 @@ import {
     type AdditionalMetric,
     type ApiQueryResults,
     type Explore,
+    type FieldsWithSuggestions,
+    type ItemsMap,
     type Metric,
     type TableCalculation,
-    type TableCalculationField,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
-import { type FieldsWithSuggestions } from '../../common/Filters/FiltersProvider';
 
 interface FieldsWithSuggestionsHookParams {
     exploreData: Explore | undefined;
@@ -54,9 +54,10 @@ export const useFieldsWithSuggestions = ({
                 // converts table calculation to filterable table calculation
                 // which is a sub-type of Field.
                 const cals = (tableCalculations || []).reduce<
-                    TableCalculationField[]
+                    ItemsMap[string][]
                 >((acc, cal) => {
-                    const tableCalculationFilters: TableCalculationField = {
+                    // TODO: Verify if this is OK
+                    const tableCalculationFilters = {
                         fieldType: FieldType.TABLE_CALCULATION,
                         type: cal.type || TableCalculationType.NUMBER,
                         table: 'table_calculation',

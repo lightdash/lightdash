@@ -8,7 +8,8 @@ import {
     isDimension,
     isFilterGroup,
     isMetric,
-    isTableCalculationField,
+    isTableCalculation,
+    type FieldWithSuggestions,
     type FilterableDimension,
     type FilterableField,
     type FilterGroup,
@@ -29,7 +30,6 @@ import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
-import { type FieldWithSuggestions } from './FiltersProvider';
 
 type Props = {
     hideButtons?: boolean;
@@ -61,7 +61,7 @@ const FilterGroupForm: FC<Props> = ({
         return [
             fields.filter(isDimension),
             fields.filter(isMetric),
-            fields.filter(isTableCalculationField),
+            fields.filter(isTableCalculation),
         ];
     }, [fields]);
 

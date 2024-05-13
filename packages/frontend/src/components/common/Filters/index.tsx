@@ -9,6 +9,8 @@ import {
     isField,
     isFilterableField,
     isOrFilterGroup,
+    type FieldsWithSuggestions,
+    type FieldWithSuggestions,
     type FilterGroup,
     type Filters,
     type OrFilterGroup,
@@ -29,10 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
-import {
-    useFiltersContext,
-    type FieldWithSuggestions,
-} from './FiltersProvider';
+import { useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
@@ -42,11 +41,12 @@ type Props = {
 };
 
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
-    const { fieldsMap } = useFiltersContext();
+    // TODO: double check if this is correct
+    const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
-        return Object.values(fieldsMap);
-    }, [fieldsMap]);
+        return Object.values(itemsMap);
+    }, [itemsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
     const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);

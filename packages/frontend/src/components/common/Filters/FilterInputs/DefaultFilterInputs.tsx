@@ -3,7 +3,7 @@ import {
     FilterOperator,
     FilterType,
     isFilterRule,
-    isTableCalculationField,
+    isTableCalculation,
     type ConditionalRule,
 } from '@lightdash/common';
 import isString from 'lodash/isString';
@@ -48,7 +48,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
         case FilterOperator.NOT_EQUALS: {
             switch (filterType) {
                 case FilterType.STRING:
-                    return isTableCalculationField(field) ? (
+                    return isTableCalculation(field) ? (
                         <FilterMultiStringInput
                             disabled={disabled}
                             field={field}

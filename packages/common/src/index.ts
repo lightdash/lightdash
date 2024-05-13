@@ -17,6 +17,7 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isFilterableDimension,
     isMetric,
     isTableCalculation,
     type CompiledField,
@@ -24,6 +25,7 @@ import {
     type Dimension,
     type Field,
     type FieldId,
+    type FilterableDimension,
     type FilterableField,
     type ItemsMap,
     type Metric,
@@ -919,6 +921,17 @@ export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
         }
         return acc;
     }, {});
+
+export const getFilterableDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
+    Object.entries(itemsMap).reduce<Record<string, FilterableDimension>>(
+        (acc, [key, value]) => {
+            if (isDimension(value) && isFilterableDimension(value)) {
+                return { ...acc, [key]: value };
+            }
+            return acc;
+        },
+        {},
+    );
 
 export const getMetricsFromItemsMap = (
     itemsMap: ItemsMap,

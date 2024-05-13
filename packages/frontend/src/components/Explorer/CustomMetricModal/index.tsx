@@ -323,7 +323,7 @@ export const CustomMetricModal = () => {
                             <Accordion.Panel>
                                 <FiltersProvider
                                     projectUuid={projectUuid}
-                                    fieldsMap={fieldsMap}
+                                    itemsMap={fieldsMap}
                                     startOfWeek={startOfWeek ?? undefined}
                                     popoverProps={{
                                         withinPortal: true,
