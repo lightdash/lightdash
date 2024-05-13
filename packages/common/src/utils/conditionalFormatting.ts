@@ -146,7 +146,14 @@ export const getConditionalFormattingConfig = (
     value: unknown | undefined,
     conditionalFormattings: ConditionalFormattingConfig[] | undefined,
 ) => {
-    if (!conditionalFormattings || !field || !isNumericItem(field))
+    // For backwards compatibility with old table calculations without type
+    const isCalculationTypeUndefined =
+        field && isTableCalculation(field) && field.type === undefined;
+    if (
+        !conditionalFormattings ||
+        !field ||
+        (!isNumericItem(field) && !isCalculationTypeUndefined)
+    )
         return undefined;
 
     const fieldConfigs = conditionalFormattings.filter(
