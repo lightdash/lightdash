@@ -1,3 +1,10 @@
+## [0.1090.9](https://github.com/lightdash/lightdash/compare/0.1090.8...0.1090.9) (2024-05-13)
+
+
+### Bug Fixes
+
+* add select all if no tabs ([#10048](https://github.com/lightdash/lightdash/issues/10048)) ([b74754b](https://github.com/lightdash/lightdash/commit/b74754bb43c70389f76e3b2ea61fd35353c96d9e))
+
 ## [0.1090.8](https://github.com/lightdash/lightdash/compare/0.1090.7...0.1090.8) (2024-05-13)
 
 
