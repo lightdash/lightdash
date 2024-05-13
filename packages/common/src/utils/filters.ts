@@ -5,15 +5,15 @@ import {
     DimensionType,
     fieldId,
     isDimension,
-    isFilterableDimension,
-    isTableCalculationField,
+    isTableCalculation,
     MetricType,
     TableCalculationType,
-    type Dimension,
     type Field,
     type FilterableDimension,
     type FilterableField,
     type FilterableItem,
+    type ItemsMap,
+    type Metric,
 } from '../types/field';
 import {
     FilterOperator,
@@ -27,6 +27,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterRule,
+    type FieldWithSuggestions,
     type FilterDashboardToRule,
     type FilterGroup,
     type FilterGroupItem,
@@ -97,10 +98,6 @@ export const getFilterGroupItemsPropertyName = (
     }
     return 'and';
 };
-
-export const filterableDimensionsOnly = (
-    dimensions: Dimension[],
-): FilterableDimension[] => dimensions.filter(isFilterableDimension);
 
 export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
     const { type } = item;
@@ -274,8 +271,8 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 const getDefaultTileTargets = (
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension | Metric,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) =>
     Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
@@ -301,8 +298,8 @@ export const applyDefaultTileTargets = (
         any,
         any
     >,
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) => {
     if (!filterRule.tileTargets) {
         return {
@@ -319,8 +316,8 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field: FilterableField;
-    availableTileFilters: Record<string, FilterableField[] | undefined>;
+    field: FilterableDimension | Metric;
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
@@ -357,7 +354,7 @@ export const addFilterRule = ({
         if (isDimension(f)) {
             return 'dimensions';
         }
-        if (isTableCalculationField(f)) {
+        if (isTableCalculation(f)) {
             return 'tableCalculations';
         }
         return 'metrics';
@@ -377,7 +374,7 @@ export const addFilterRule = ({
 };
 
 export const getInvalidFilterRules = (
-    fields: Field[],
+    fields: FieldWithSuggestions[], // TODO: CHECK THIS
     filterRules: FilterRule[],
 ) =>
     filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
@@ -433,7 +430,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  */
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
-    fields: Field[],
+    fields: ItemsMap[string][],
 ): Filters => {
     const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
@@ -457,7 +454,7 @@ export const getFiltersFromGroup = (
                             item,
                         ],
                     } as FilterGroup;
-                } else if (isTableCalculationField(fieldInRule)) {
+                } else if (isTableCalculation(fieldInRule)) {
                     accumulator.tableCalculations = {
                         id: uuidv4(),
                         ...accumulator.tableCalculations,

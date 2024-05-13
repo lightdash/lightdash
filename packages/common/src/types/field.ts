@@ -178,17 +178,16 @@ export enum TableCalculationType {
     BOOLEAN = 'boolean',
 }
 
-// TODO: this type and the TableCalculationField type share
-// most of the same fields -- can we merge them. This mostly
-// needs to add fieldType: FieldType.TABLE_CALCULATION which
-// would make the type checking more robust
 export type TableCalculation = {
     index?: number;
     name: string;
+    // This is a unique property of the table calculation
     displayName: string;
     sql: string;
     format?: CustomFormat;
     type?: TableCalculationType;
+    // TODO: Check if this needs to be required - it's not in the metricQuery compiled
+    fieldType?: FieldType.TABLE_CALCULATION;
 };
 
 export type TableCalculationMetadata = {
@@ -202,23 +201,14 @@ export enum FieldType {
     TABLE_CALCULATION = 'table_calculation',
 }
 
-export interface TableCalculationField extends Field {
-    fieldType: FieldType.TABLE_CALCULATION;
-    type: TableCalculationType;
-    index?: number;
-    name: string;
-    displayName: string;
-    sql: string;
-}
-
 // This type check is a little fragile because it's based on
 // 'displayName'. Ideally these would all have fieldTypes.
 export const isTableCalculation = (
-    item: Item | AdditionalMetric | TableCalculationField,
+    item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'table' | 'name'>,
 ): item is TableCalculation =>
     item
         ? !isCustomDimension(item) &&
-          !!item.sql &&
+          !!('sql' in item && item.sql) &&
           !('description' in item) &&
           !('tableName' in item) &&
           'displayName' in item
@@ -258,8 +248,14 @@ export const isField = (field: any): field is Field =>
 
 // Field ids are unique across the project
 export type FieldId = string;
-export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
-    `${field.table}_${field.name.replaceAll('.', '__')}`;
+export const fieldId = (
+    field: ItemsMap[string] | AdditionalMetric | Pick<Field, 'table' | 'name'>,
+): FieldId => {
+    if (isTableCalculation(field)) {
+        return `table_calculation_${field.name}`;
+    }
+    return `${field.table}_${field.name.replaceAll('.', '__')}`;
+};
 
 export const convertFieldRefToFieldId = (
     fieldRef: string,
@@ -315,11 +311,6 @@ export interface Dimension extends Field {
     colors?: Record<string, string>;
 }
 
-export const isTableCalculationField = (
-    field: any,
-): field is TableCalculationField =>
-    isField(field) && field.fieldType === FieldType.TABLE_CALCULATION;
-
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
@@ -364,21 +355,15 @@ export const isFilterableDimension = (
         DimensionType.TIMESTAMP,
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
-export type FilterableField =
-    | FilterableDimension
-    | Metric
-    | TableCalculationField;
+export type FilterableField = FilterableDimension | Metric | TableCalculation;
 export const isFilterableField = (
-    field: Field | Dimension | Metric | TableCalculationField,
+    field: Dimension | ItemsMap[string],
 ): field is FilterableField =>
     isDimension(field) ? isFilterableDimension(field) : true;
 
-export type FilterableItem =
-    | FilterableField
-    | TableCalculationField
-    | TableCalculation;
+export type FilterableItem = FilterableField | TableCalculation;
 export const isFilterableItem = (
-    item: ItemsMap[string] | TableCalculationField,
+    item: ItemsMap[string] | TableCalculation,
 ): item is FilterableItem =>
     isDimension(item) ? isFilterableDimension(item) : true;
 
@@ -461,8 +446,12 @@ const NonAggregateMetricTypes = [
     MetricType.BOOLEAN,
 ];
 
-export const isMetric = (field: Field | undefined): field is Metric =>
-    field ? field.fieldType === FieldType.METRIC : false;
+export const isMetric = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is Metric =>
+    field
+        ? 'fieldType' in field && field.fieldType === FieldType.METRIC
+        : false;
 
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
