@@ -1,8 +1,9 @@
-import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, Flex, Skeleton, Stack, TextInput } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
     IconSearch,
+    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
@@ -96,10 +97,17 @@ const BasePanel = () => {
         return (
             <>
                 <ItemDetailProvider>
-                    <PageBreadcrumbs
-                        size="md"
-                        items={[{ title: 'Tables', active: true }]}
-                    />
+                    <Flex gap="xs" align="center">
+                        <MantineIcon
+                            icon={IconTable}
+                            size="lg"
+                            color="gray.7"
+                        />
+                        <PageBreadcrumbs
+                            size="md"
+                            items={[{ title: 'Tables', active: true }]}
+                        />
+                    </Flex>
 
                     <TextInput
                         icon={<MantineIcon icon={IconSearch} />}

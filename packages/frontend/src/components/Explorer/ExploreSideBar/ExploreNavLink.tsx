@@ -1,11 +1,7 @@
 import { InlineErrorType, type SummaryExplore } from '@lightdash/common';
 import { Anchor, Box, Highlight, NavLink, Text, Tooltip } from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
-import {
-    IconAlertTriangle,
-    IconInfoCircle,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
@@ -37,20 +33,13 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     <NavLink
                         role="listitem"
                         disabled
-                        icon={
-                            <MantineIcon
-                                icon={IconTable}
-                                size="lg"
-                                color="gray.7"
-                            />
-                        }
                         label={
                             <Highlight
                                 component={Text}
                                 highlight={query ?? ''}
                                 truncate
                             >
-                                {explore.label}
+                                {explore.label + 'hllo'}
                             </Highlight>
                         }
                         rightSection={
@@ -84,7 +73,6 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     return (
         <NavLink
             role="listitem"
-            icon={<MantineIcon icon={IconTable} size="lg" color="gray.7" />}
             onClick={onClick}
             onMouseEnter={() => toggleHover(true)}
             onMouseLeave={() => toggleHover(false)}
