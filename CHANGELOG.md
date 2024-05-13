@@ -1,3 +1,10 @@
+# [0.1094.0](https://github.com/lightdash/lightdash/compare/0.1093.2...0.1094.0) (2024-05-13)
+
+
+### Features
+
+* enable sentry backend profiling ([#10059](https://github.com/lightdash/lightdash/issues/10059)) ([dfaa7d7](https://github.com/lightdash/lightdash/commit/dfaa7d710c276ed4f6d0ec65ce6a710e4ed96ef3))
+
 ## [0.1093.2](https://github.com/lightdash/lightdash/compare/0.1093.1...0.1093.2) (2024-05-13)
 
 
