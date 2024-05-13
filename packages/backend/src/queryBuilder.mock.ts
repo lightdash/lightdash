@@ -1,5 +1,6 @@
 import {
     BinType,
+    CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
@@ -1390,3 +1391,14 @@ export const WEEK_NAME_SORT_SQL = `(
         ELSE 0
     END
 )`;
+
+export const CUSTOM_SQL_DIMENSION: CompiledCustomSqlDimension = {
+    id: 'is_adult',
+    name: 'Is adult',
+    table: 'table1',
+    type: CustomDimensionType.SQL,
+    sql: '${table1.dim1} < 18',
+    dimensionType: DimensionType.BOOLEAN,
+    compiledSql: '"table1".dim1 < 18',
+    tablesReferences: ['table1'],
+};

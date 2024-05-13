@@ -9,6 +9,7 @@ import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
     getCustomBinDimensionSql,
+    getCustomSqlDimensionSql,
     replaceUserAttributes,
     sortDayOfWeekName,
     sortMonthName,
@@ -18,6 +19,7 @@ import {
     COMPILED_DIMENSION,
     COMPILED_MONTH_NAME_DIMENSION,
     COMPILED_WEEK_NAME_DIMENSION,
+    CUSTOM_SQL_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
@@ -530,6 +532,18 @@ describe('with custom dimensions', () => {
                 sorts: [],
             }),
         ).toStrictEqual(undefined);
+    });
+
+    it('getCustomSqlDimensionSql with custom sql dimension', () => {
+        expect(
+            getCustomSqlDimensionSql({
+                warehouseClient: bigqueryClientMock,
+                customDimensions: [CUSTOM_SQL_DIMENSION],
+            }),
+        ).toStrictEqual({
+            selects: ['  ("table1".dim1 < 18) AS `is_adult`'],
+            tables: ['table1'],
+        });
     });
 
     it('getCustomDimensionSql with custom dimension', () => {

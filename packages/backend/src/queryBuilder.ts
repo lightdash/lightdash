@@ -277,17 +277,19 @@ export const sortDayOfWeekName = (
 };
 
 export const getCustomSqlDimensionSql = ({
+    warehouseClient,
     customDimensions,
 }: {
+    warehouseClient: WarehouseClient;
     customDimensions: CompiledCustomSqlDimension[] | undefined;
 }): { selects: string[]; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
-
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const selects = customDimensions.map<string>(
         (customDimension) =>
-            `  (${customDimension.compiledSql}) AS ${customDimension.id}`,
+            `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
     );
 
     return {
@@ -682,6 +684,7 @@ export const buildQuery = ({
         sorts,
     });
     const customSqlDimensionSql = getCustomSqlDimensionSql({
+        warehouseClient,
         customDimensions: compiledCustomDimensions?.filter(
             isCompiledCustomSqlDimension,
         ),
