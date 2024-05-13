@@ -87,9 +87,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     hasChanged,
 }) => {
     const theme = useMantineTheme();
-    const { fieldsMap } =
+    const { itemsMap } =
         useFiltersContext<Record<string, FilterableDimension>>();
-    const field = fieldsMap[dashboardFilter.target.fieldId];
+    const field = itemsMap[dashboardFilter.target.fieldId];
     const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
@@ -376,7 +376,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         <FiltersProvider<Record<string, FilterableDimension>>
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
-            fieldsMap={allFilterableFieldsMap}
+            itemsMap={allFilterableFieldsMap}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={allFilters}
         >
