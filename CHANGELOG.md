@@ -1,3 +1,15 @@
+# [0.1093.0](https://github.com/lightdash/lightdash/compare/0.1092.1...0.1093.0) (2024-05-13)
+
+
+### Bug Fixes
+
+* custom dimension value type ([#10045](https://github.com/lightdash/lightdash/issues/10045)) ([963108e](https://github.com/lightdash/lightdash/commit/963108ebb62e77ca9b4eb24ddcf55734d818b1e5))
+
+
+### Features
+
+* allow common properties for text styling in markdown tile html tags ([#9979](https://github.com/lightdash/lightdash/issues/9979)) ([2bc17e5](https://github.com/lightdash/lightdash/commit/2bc17e56f3ab7cca64047b3fe7df53eedfe08b87))
+
 ## [0.1092.1](https://github.com/lightdash/lightdash/compare/0.1092.0...0.1092.1) (2024-05-13)
 
 
