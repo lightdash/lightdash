@@ -1,3 +1,10 @@
+## [0.1093.2](https://github.com/lightdash/lightdash/compare/0.1093.1...0.1093.2) (2024-05-13)
+
+
+### Bug Fixes
+
+* custom sql dimension alias quotes ([#10050](https://github.com/lightdash/lightdash/issues/10050)) ([4cd696f](https://github.com/lightdash/lightdash/commit/4cd696f02b43978c5d9f2beae3504cd53e35a9fe))
+
 ## [0.1093.1](https://github.com/lightdash/lightdash/compare/0.1093.0...0.1093.1) (2024-05-13)
 
 
