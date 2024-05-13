@@ -1,3 +1,10 @@
+# [0.1092.0](https://github.com/lightdash/lightdash/compare/0.1091.0...0.1092.0) (2024-05-13)
+
+
+### Features
+
+* custom dimensions can reference dimensions ([#10041](https://github.com/lightdash/lightdash/issues/10041)) ([9137595](https://github.com/lightdash/lightdash/commit/9137595d38c6d48edac0f14962f508faec57d94a))
+
 # [0.1091.0](https://github.com/lightdash/lightdash/compare/0.1090.9...0.1091.0) (2024-05-13)
 
 
