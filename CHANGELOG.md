@@ -1,3 +1,10 @@
+# [0.1091.0](https://github.com/lightdash/lightdash/compare/0.1090.9...0.1091.0) (2024-05-13)
+
+
+### Features
+
+* enable sentry distributed tracing ([#10042](https://github.com/lightdash/lightdash/issues/10042)) ([0474fc4](https://github.com/lightdash/lightdash/commit/0474fc4cba6f963700788d8ea0fd543a23ef8939))
+
 ## [0.1090.9](https://github.com/lightdash/lightdash/compare/0.1090.8...0.1090.9) (2024-05-13)
 
 
