@@ -1,7 +1,6 @@
 import { Group, Skeleton } from '@mantine/core';
 import { type FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
-import { type FieldWithSuggestions } from '../../common/Filters/FiltersProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 
@@ -22,8 +21,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
-    const fieldsWithSuggestions = useDashboardContext(
-        (c) => c.fieldsWithSuggestions,
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
     );
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
@@ -50,14 +49,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         );
     }
 
-    if (!fieldsWithSuggestions) return null;
+    if (!allFilterableFieldsMap) return null;
 
     return (
         <>
             {dashboardFilters.dimensions.map((item, index) => {
-                const field = fieldsWithSuggestions[item.target.fieldId] as
-                    | FieldWithSuggestions
-                    | undefined;
+                const field = allFilterableFieldsMap[item.target.fieldId];
                 return field ? (
                     <Filter
                         key={item.id}
@@ -92,9 +89,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             })}
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
-                const field = fieldsWithSuggestions[item.target.fieldId] as
-                    | FieldWithSuggestions
-                    | undefined;
+                const field = allFilterableFieldsMap[item.target.fieldId];
                 return field ? (
                     <Filter
                         key={item.id}

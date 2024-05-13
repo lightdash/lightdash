@@ -1,8 +1,6 @@
-import { type FilterableField } from './field';
+import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
-// eslint-disable-next-line import/no-cycle
 import { type ChartKind, type SavedChartType } from './savedCharts';
-// eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
@@ -186,7 +184,7 @@ export type UpdateMultipleDashboards = Pick<
 
 export type DashboardAvailableFilters = {
     savedQueryFilters: Record<string, number[]>;
-    allFilterableFields: FilterableField[];
+    allFilterableFields: FilterableDimension[];
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {

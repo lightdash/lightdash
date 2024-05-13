@@ -6,6 +6,8 @@ import {
     type DashboardFilterRule,
     type FilterableField,
     type FilterRule,
+    type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -28,7 +30,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/util
 interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
-    field: FilterableField;
+    field: Exclude<FilterableField, TableCalculation | Metric>;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;

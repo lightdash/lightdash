@@ -5,12 +5,9 @@ import {
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { useCallback, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
-import { useProject } from '../../hooks/useProject';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
-import { FiltersProvider } from '../common/Filters/FiltersProvider';
 import ActiveFilters from './ActiveFilters';
 import Filter from './Filter';
 
@@ -21,15 +18,8 @@ interface Props {
 
 const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();
 
-    const project = useProject(projectUuid);
-
-    const allFilters = useDashboardContext((c) => c.allFilters);
-    const fieldsWithSuggestions = useDashboardContext(
-        (c) => c.fieldsWithSuggestions,
-    );
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
@@ -66,34 +56,24 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     if (!hasChartTiles) return null;
 
     return (
-        // TODO is this provider necessary?
-        <FiltersProvider
-            projectUuid={projectUuid}
-            fieldsMap={fieldsWithSuggestions}
-            startOfWeek={
-                project.data?.warehouseConnection?.startOfWeek ?? undefined
-            }
-            dashboardFilters={allFilters}
-        >
-            <Flex gap="xs" wrap="wrap" mb="xs">
-                <Filter
-                    isCreatingNew
-                    isEditMode={isEditMode}
-                    openPopoverId={openPopoverId}
-                    activeTabUuid={activeTabUuid}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onSave={handleSaveNew}
-                />
+        <Flex gap="xs" wrap="wrap" mb="xs">
+            <Filter
+                isCreatingNew
+                isEditMode={isEditMode}
+                openPopoverId={openPopoverId}
+                activeTabUuid={activeTabUuid}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+                onSave={handleSaveNew}
+            />
 
-                <ActiveFilters
-                    isEditMode={isEditMode}
-                    openPopoverId={openPopoverId}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                />
-            </Flex>
-        </FiltersProvider>
+            <ActiveFilters
+                isEditMode={isEditMode}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+            />
+        </Flex>
     );
 };
 
