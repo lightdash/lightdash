@@ -81,7 +81,7 @@
         "fs-extra": "^10.0.0",
         "fuse.js": "^6.4.6",
         "googleapis": "105",
-        "graphile-worker": "^0.13.0",
+        "graphile-worker": "^0.16.0",
         "graphql": "^16.8.1",
         "graphql-request": "^5.0.0",
         "jose": "^5.2.3",
