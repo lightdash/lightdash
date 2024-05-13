@@ -1,3 +1,10 @@
+## [0.1093.1](https://github.com/lightdash/lightdash/compare/0.1093.0...0.1093.1) (2024-05-13)
+
+
+### Bug Fixes
+
+* dashboard chart from explore from here was overwriting the current tiles ([#10058](https://github.com/lightdash/lightdash/issues/10058)) ([4ef93b4](https://github.com/lightdash/lightdash/commit/4ef93b4a171adbf830d84b2746b528425a13a7a2))
+
 # [0.1093.0](https://github.com/lightdash/lightdash/compare/0.1092.1...0.1093.0) (2024-05-13)
 
 
