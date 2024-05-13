@@ -203,96 +203,101 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const StackSubComponent = ({ tileList }: { tileList: any[] }) => {
         return (
-            <Stack spacing="lg">
-                <Stack spacing="md">
-                    {tileList.map((value) => (
-                        <Box key={value.key}>
-                            <Tooltip
-                                label={
-                                    value.invalidField
-                                        ? `The selected field ${value.invalidField} is not valid`
-                                        : 'No fields matching filter type'
-                                }
-                                position="left"
-                                disabled={
-                                    !value.disabled &&
-                                    value.invalidField === undefined
-                                }
-                            >
-                                <Box>
-                                    <Checkbox
-                                        size="xs"
-                                        fw={500}
-                                        disabled={value.disabled}
-                                        label={
-                                            <Flex align="center" gap="xxs">
-                                                <MantineIcon
-                                                    color="blue.8"
-                                                    icon={getChartIcon(
-                                                        value.tileChartKind,
-                                                    )}
-                                                />
-                                                <Text
-                                                    color={
-                                                        value.invalidField
-                                                            ? 'red'
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {value.label}
-                                                </Text>
-                                            </Flex>
-                                        }
-                                        styles={{
-                                            label: {
-                                                paddingLeft: theme.spacing.xs,
-                                            },
-                                        }}
-                                        checked={value.checked}
-                                        onChange={(event) => {
-                                            onChange(
-                                                event.currentTarget.checked
-                                                    ? FilterActions.ADD
-                                                    : FilterActions.REMOVE,
-                                                value.tileUuid,
-                                            );
-                                        }}
-                                    />
-                                </Box>
-                            </Tooltip>
+            <Stack spacing="md">
+                {tileList.map((value) => (
+                    <Box key={value.key}>
+                        <Tooltip
+                            label={
+                                value.invalidField
+                                    ? `The selected field ${value.invalidField} is not valid`
+                                    : 'No fields matching filter type'
+                            }
+                            position="left"
+                            disabled={
+                                !value.disabled &&
+                                value.invalidField === undefined
+                            }
+                        >
+                            <Box>
+                                <Checkbox
+                                    size="xs"
+                                    fw={500}
+                                    disabled={value.disabled}
+                                    label={
+                                        <Flex align="center" gap="xxs">
+                                            <MantineIcon
+                                                color="blue.8"
+                                                icon={getChartIcon(
+                                                    value.tileChartKind,
+                                                )}
+                                            />
+                                            <Text
+                                                color={
+                                                    value.invalidField
+                                                        ? 'red'
+                                                        : undefined
+                                                }
+                                            >
+                                                {value.label}
+                                            </Text>
+                                        </Flex>
+                                    }
+                                    styles={{
+                                        label: {
+                                            paddingLeft: theme.spacing.xs,
+                                        },
+                                    }}
+                                    checked={value.checked}
+                                    onChange={(event) => {
+                                        onChange(
+                                            event.currentTarget.checked
+                                                ? FilterActions.ADD
+                                                : FilterActions.REMOVE,
+                                            value.tileUuid,
+                                        );
+                                    }}
+                                />
+                            </Box>
+                        </Tooltip>
 
-                            {value.sortedFilters && (
-                                <Box
-                                    ml="xl"
-                                    mt="sm"
-                                    display={!value.checked ? 'none' : 'auto'}
-                                >
-                                    <FieldSelect
-                                        size="xs"
-                                        disabled={!value.checked}
-                                        item={value.selectedField}
-                                        items={value.sortedFilters}
-                                        withinPortal={
-                                            popoverProps?.withinPortal
-                                        }
-                                        onDropdownOpen={popoverProps?.onOpen}
-                                        onDropdownClose={popoverProps?.onClose}
-                                        onChange={(newField) => {
-                                            onChange(
-                                                FilterActions.ADD,
-                                                value.tileUuid,
-                                                newField,
-                                            );
-                                        }}
-                                    />
-                                </Box>
-                            )}
-                        </Box>
-                    ))}
-                </Stack>
+                        {value.sortedFilters && (
+                            <Box
+                                ml="xl"
+                                mt="sm"
+                                display={!value.checked ? 'none' : 'auto'}
+                            >
+                                <FieldSelect
+                                    size="xs"
+                                    disabled={!value.checked}
+                                    item={value.selectedField}
+                                    items={value.sortedFilters}
+                                    withinPortal={popoverProps?.withinPortal}
+                                    onDropdownOpen={popoverProps?.onOpen}
+                                    onDropdownClose={popoverProps?.onClose}
+                                    onChange={(newField) => {
+                                        onChange(
+                                            FilterActions.ADD,
+                                            value.tileUuid,
+                                            newField,
+                                        );
+                                    }}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                ))}
             </Stack>
         );
     };
+
+    const isAllChecked = useMemo(
+        () => tileTargetList.every(({ checked }) => checked),
+        [tileTargetList],
+    );
+    const isIndeterminate = useMemo(
+        () => !isAllChecked && tileTargetList.some(({ checked }) => checked),
+        [tileTargetList, isAllChecked],
+    );
 
     return tabs.length > 0 ? (
         <Accordion defaultValue={activeTabUuid} variant="contained">
@@ -323,7 +328,37 @@ const TileFilterConfiguration: FC<Props> = ({
             ))}
         </Accordion>
     ) : (
-        <StackSubComponent tileList={tileTargetList} />
+        <Stack spacing="lg">
+            <Checkbox
+                size="xs"
+                checked={isAllChecked}
+                indeterminate={isIndeterminate}
+                label={
+                    <Text fw={500}>
+                        Select all{' '}
+                        {isIndeterminate
+                            ? ` (${
+                                  tileTargetList.filter((v) => v.checked).length
+                              } charts selected)`
+                            : ''}
+                    </Text>
+                }
+                styles={{
+                    label: {
+                        paddingLeft: theme.spacing.xs,
+                    },
+                }}
+                onChange={() => {
+                    const tileUuids = tileTargetList.map((v) => v.tileUuid);
+                    if (isIndeterminate) {
+                        onToggleAll(false, tileUuids);
+                    } else {
+                        onToggleAll(!isAllChecked, tileUuids);
+                    }
+                }}
+            />
+            <StackSubComponent tileList={tileTargetList} />
+        </Stack>
     );
 };
 
