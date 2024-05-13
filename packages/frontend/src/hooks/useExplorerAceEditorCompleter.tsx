@@ -6,6 +6,7 @@ import {
     convertAdditionalMetric,
     type Field,
     fieldId,
+    getDimensions,
     getFieldRef,
     type Metric,
 } from '@lightdash/common';
@@ -21,29 +22,25 @@ const createCompleter: (fields: Ace.Completion[]) => Ace.Completer = (
     },
 });
 
-const mapActiveFieldsToCompletions = (
+const mapFieldsToCompletions = (
     fields: Field[],
-    selectedFields: Set<string>,
     meta: string,
 ): Ace.Completion[] =>
     fields.reduce<Ace.Completion[]>((acc, field) => {
-        if (Array.from(selectedFields).includes(fieldId(field))) {
-            const technicalOption: Ace.Completion = {
-                caption: `\${${getFieldRef(field)}}`,
-                value: `\${${getFieldRef(field)}}`,
-                meta,
-                score: Number.MAX_VALUE,
-            };
-            const friendlyOption: Ace.Completion = {
-                ...technicalOption,
-                caption: `${field.tableLabel} ${field.label}`,
-            };
-            return [...acc, technicalOption, friendlyOption];
-        }
-        return [...acc];
+        const technicalOption: Ace.Completion = {
+            caption: `\${${getFieldRef(field)}}`,
+            value: `\${${getFieldRef(field)}}`,
+            meta,
+            score: Number.MAX_VALUE,
+        };
+        const friendlyOption: Ace.Completion = {
+            ...technicalOption,
+            caption: `${field.tableLabel} ${field.label}`,
+        };
+        return [...acc, technicalOption, friendlyOption];
     }, []);
 
-export const useExplorerAceEditorCompleter = (): {
+export const useTableCalculationAceEditorCompleter = (): {
     setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
 } => {
     const activeFields = useExplorerContext(
@@ -81,20 +78,20 @@ export const useExplorerAceEditorCompleter = (): {
             >(
                 (acc, table) => [
                     ...acc,
-                    ...mapActiveFieldsToCompletions(
+                    ...mapFieldsToCompletions(
                         [
                             ...Object.values(table.metrics),
                             ...customMetrics.filter(
                                 (customMetric) =>
                                     customMetric.table === table.name,
                             ),
-                        ],
-                        activeFields,
+                        ].filter((field) => activeFields.has(fieldId(field))),
                         'Metric',
                     ),
-                    ...mapActiveFieldsToCompletions(
-                        Object.values(table.dimensions),
-                        activeFields,
+                    ...mapFieldsToCompletions(
+                        Object.values(table.dimensions).filter((field) =>
+                            activeFields.has(fieldId(field)),
+                        ),
                         'Dimension',
                     ),
                 ],
@@ -106,6 +103,34 @@ export const useExplorerAceEditorCompleter = (): {
             langTools.setCompleters([]);
         };
     }, [aceEditor, explore, activeFields, additionalMetrics]);
+
+    return {
+        setAceEditor,
+    };
+};
+
+export const useCustomDimensionsAceEditorCompleter = (): {
+    setAceEditor: Dispatch<SetStateAction<Ace.Editor | undefined>>;
+} => {
+    const tableName = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.tableName,
+    );
+    const explore = useExplore(tableName);
+    const [aceEditor, setAceEditor] = useState<Ace.Editor>();
+
+    useEffect(() => {
+        if (aceEditor && explore.data) {
+            const activeExplore = explore.data;
+            const fields = mapFieldsToCompletions(
+                getDimensions(activeExplore),
+                'Dimension',
+            );
+            langTools.setCompleters([createCompleter(fields)]);
+        }
+        return () => {
+            langTools.setCompleters([]);
+        };
+    }, [aceEditor, explore]);
 
     return {
         setAceEditor,

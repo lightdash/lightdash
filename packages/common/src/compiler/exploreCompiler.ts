@@ -9,9 +9,14 @@ import {
 } from '../types/explore';
 import {
     friendlyName,
+    isCustomBinDimension,
     isNonAggregateMetric,
+    type CompiledCustomDimension,
+    type CompiledCustomSqlDimension,
     type CompiledDimension,
     type CompiledMetric,
+    type CustomDimension,
+    type CustomSqlDimension,
     type Dimension,
     type Metric,
 } from '../types/field';
@@ -513,6 +518,59 @@ export class ExploreCompiler {
             return compiledReference.sql;
         });
         return { sql, tablesReferences };
+    }
+
+    compileCustomDimensionSql(
+        dimension: CustomSqlDimension,
+        tables: Record<string, Table>,
+    ): Pick<CompiledCustomSqlDimension, 'compiledSql' | 'tablesReferences'> {
+        const currentRef = dimension.id;
+        let tablesReferences = new Set<string>([]);
+        const compiledSql = dimension.sql.replace(
+            lightdashVariablePattern,
+            (_, p1) => {
+                if (currentRef === p1) {
+                    throw new CompileError(
+                        `Dimension "${dimension.name}" in table "${dimension.table}" has a sql string referencing itself: "${dimension.sql}"`,
+                        {},
+                    );
+                }
+
+                const compiledReference = this.compileDimensionReference(
+                    p1,
+                    tables,
+                    dimension.table,
+                );
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiledReference.tablesReferences,
+                ]);
+                return compiledReference.sql;
+            },
+        );
+        return {
+            compiledSql,
+            tablesReferences: Array.from(tablesReferences),
+        };
+    }
+
+    compileCustomDimension(
+        customDimension: CustomDimension,
+        tables: Record<string, Table>,
+    ): CompiledCustomDimension {
+        if (isCustomBinDimension(customDimension)) {
+            return customDimension;
+        }
+
+        const compiledCustomDimensionSql = this.compileCustomDimensionSql(
+            customDimension,
+            tables,
+        );
+
+        return {
+            ...customDimension,
+            ...compiledCustomDimensionSql,
+        };
     }
 
     compileDimensionReference(

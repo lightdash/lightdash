@@ -539,7 +539,7 @@ describe('with custom dimensions', () => {
 
                 explore: EXPLORE,
                 customDimensions:
-                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.customDimensions?.filter(
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.compiledCustomDimensions?.filter(
                         isCustomBinDimension,
                     ),
                 userAttributes: {},
@@ -650,7 +650,7 @@ LIMIT 10`);
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
+                    compiledCustomDimensions: [
                         {
                             id: 'age_range',
                             name: 'Age range',
@@ -745,7 +745,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 explore: EXPLORE,
                 customDimensions:
-                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.customDimensions?.filter(
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.compiledCustomDimensions?.filter(
                         isCustomBinDimension,
                     ),
                 userAttributes: {},
@@ -835,7 +835,7 @@ LIMIT 10`);
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
+                    compiledCustomDimensions: [
                         {
                             id: 'age_range',
                             name: 'Age range',

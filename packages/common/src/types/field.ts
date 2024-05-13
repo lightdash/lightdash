@@ -132,6 +132,20 @@ export const isCustomSqlDimension = (value: any): value is CustomSqlDimension =>
     isCustomDimension(value) &&
     value.type === CustomDimensionType.SQL;
 
+export type CompiledCustomSqlDimension = CustomSqlDimension & {
+    compiledSql: string;
+    tablesReferences: Array<string>;
+};
+
+export type CompiledCustomDimension =
+    | CustomBinDimension
+    | CompiledCustomSqlDimension;
+
+export const isCompiledCustomSqlDimension = (
+    value: any,
+): value is CompiledCustomSqlDimension =>
+    isCustomSqlDimension(value) && 'compiledSql' in value;
+
 export type ItemsMap = Record<
     string,
     Field | TableCalculation | CustomDimension | Metric
