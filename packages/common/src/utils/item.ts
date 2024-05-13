@@ -2,7 +2,9 @@ import { type Explore } from '../types/explore';
 import {
     DimensionType,
     fieldId,
+    isCustomBinDimension,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isTableCalculation,
@@ -51,7 +53,10 @@ export const isNumericItem = (
     if (!item) {
         return false;
     }
-    if (isCustomDimension(item)) return false;
+    if (isCustomBinDimension(item)) return false;
+    if (isCustomSqlDimension(item)) {
+        return isNumericType(item.dimensionType);
+    }
     if (isField(item) || isAdditionalMetric(item) || isTableCalculation(item)) {
         return isNumericType(
             item.type as DimensionType | MetricType | TableCalculationType,
