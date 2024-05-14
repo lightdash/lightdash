@@ -106,7 +106,7 @@ type DbtColumnLightdashDimension = {
     compact?: CompactOrAlias;
     format?: Format;
     group_label?: string;
-    group?: string[];
+    group?: string[] | string;
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
@@ -366,10 +366,16 @@ export interface DbtRpcRunSqlResults {
 export const convertModelGroupsToColumnGroups = (
     columnName: string,
     modelName: string,
-    columnGroups: string[],
+    columnGroups: string[] | string,
     modelGroups: Record<string, DbtModelGroup>,
-): GroupType[] =>
-    columnGroups.map((groupName) => {
+): GroupType[] => {
+    let columnGroupsArray: string[] = [];
+    if (typeof columnGroups === 'string') {
+        columnGroupsArray = [columnGroups];
+    } else {
+        columnGroupsArray = columnGroups;
+    }
+    const groups: GroupType[] = columnGroupsArray.map((groupName) => {
         const modelGroupName = Object.keys(modelGroups).find(
             (key) => key === groupName,
         );
@@ -383,12 +389,13 @@ export const convertModelGroupsToColumnGroups = (
             label: groupName,
         } as GroupType;
     });
-
+    return groups;
+};
 export const extractColumnGroups = (
     modelName: string,
     columnName: string,
     meta: DbtModelMetadata,
-    metricGroup?: string[],
+    metricGroup?: string[] | string,
     metricGroupLabel?: string,
 ): GroupType[] => {
     let groups: GroupType[] = [];

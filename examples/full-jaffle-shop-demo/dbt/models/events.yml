@@ -128,7 +128,8 @@ models:
             in_trillions:
               type: sum
               compact: trillions
-              group: ["percentile","sub", "non existent"]
+              group_label: "this will be ignored"
+              group: "percentile"
             percentile_25:
               type: percentile
               percentile: 25
