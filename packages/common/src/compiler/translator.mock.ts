@@ -295,34 +295,6 @@ export const MODEL_WITH_GROUPS_BLOCK: DbtModelNode & { relation_name: string } =
         },
     };
 
-export const MODEL_WITH_BAD_METRIC_GROUPS: DbtModelNode & {
-    relation_name: string;
-} = {
-    ...model,
-    meta: {
-        groups: {
-            revenue: {
-                label: 'Revenue',
-                description: 'Revenue description',
-            },
-        },
-    },
-    columns: {
-        user_id: {
-            name: 'user_id',
-            data_type: DimensionType.STRING,
-            meta: {
-                metrics: {
-                    user_id_count: {
-                        type: MetricType.COUNT_DISTINCT,
-                        group: ['non_existent'],
-                    },
-                },
-            },
-        },
-    },
-};
-
 export const LIGHTDASH_TABLE_WITH_GROUP_LABEL: Omit<Table, 'lineageGraph'> = {
     ...BASE_LIGHTDASH_TABLE,
     groupLabel: 'revenue',
