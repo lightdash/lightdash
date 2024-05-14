@@ -2,6 +2,7 @@ import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import {
     ProjectMemberRole,
     ProjectRoleOrder,
+    SpaceRoleOrder,
     type GroupRole,
     type InheritedProjectRole,
     type OrganizationRole,
@@ -90,7 +91,7 @@ export const getHighestSpaceRole = (
 
         if (
             highestRole === undefined ||
-            ProjectRoleOrder[role] >= ProjectRoleOrder[highestRole]
+            SpaceRoleOrder[role] >= SpaceRoleOrder[highestRole]
         ) {
             return role;
         }

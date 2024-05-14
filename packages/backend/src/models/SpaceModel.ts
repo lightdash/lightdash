@@ -823,7 +823,7 @@ export class SpaceModel {
                 } else if (user_with_direct_access) {
                     spaceRole =
                         getHighestSpaceRole([
-                            space_role,
+                            space_role ?? undefined,
                             ...space_group_roles.map(
                                 (role) => role ?? undefined,
                             ),

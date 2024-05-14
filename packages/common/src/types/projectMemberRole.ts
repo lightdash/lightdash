@@ -62,6 +62,6 @@ export const ProjectRoleOrder = {
 
 export const SpaceRoleOrder = {
     [SpaceMemberRole.VIEWER]: 0,
-    [ProjectMemberRole.EDITOR]: 1,
-    [ProjectMemberRole.ADMIN]: 2,
+    [SpaceMemberRole.EDITOR]: 1,
+    [SpaceMemberRole.ADMIN]: 2,
 } as const;
