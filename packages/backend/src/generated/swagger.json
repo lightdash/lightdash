@@ -836,8 +836,15 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
+            "FieldType.TABLE_CALCULATION": {
+                "enum": ["table_calculation"],
+                "type": "string"
+            },
             "TableCalculation": {
                 "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.TABLE_CALCULATION"
+                    },
                     "type": {
                         "$ref": "#/components/schemas/TableCalculationType"
                     },
@@ -6987,7 +6994,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1088.1",
+        "version": "0.1092.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
