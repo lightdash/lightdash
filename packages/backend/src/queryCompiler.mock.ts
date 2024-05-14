@@ -154,6 +154,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 filters: [],
                 requiredAttributes: undefined,
                 dimensionReference: undefined,
+                groups: [],
             },
         ],
         compiledCustomDimensions: [],
