@@ -3,7 +3,9 @@ import {
     ChartType,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
+    convertSpaceRoleToProjectRole,
     getHighestProjectRole,
+    getHighestSpaceRole,
     GroupRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -13,6 +15,7 @@ import {
     Space,
     SpaceDashboard,
     SpaceGroup,
+    SpaceGroupAccessRole,
     SpaceMemberRole,
     SpaceQuery,
     SpaceShare,
@@ -654,19 +657,20 @@ export class SpaceModel {
                     );
                 },
             )
-            // .leftJoin(
-            //     SpaceGroupAccessTableName,
-            //     function joinSpaceGroupAccessTable() {
-            //         this.on(
-            //             `${GroupMembershipTableName}.group_uuid`,
-            //             '=',
-            //             `${SpaceGroupAccessTableName}.group_uuid`,
-            //         ).andOn(
-            //             `${SpaceTableName}.space_uuid`,
-            //             '=',
-            //             `${SpaceGroupAccessTableName}.space_uuid`,
-            //         );
-            //     })
+            .leftJoin(
+                SpaceGroupAccessTableName,
+                function joinSpaceGroupAccessTable() {
+                    this.on(
+                        `${GroupMembershipTableName}.group_uuid`,
+                        '=',
+                        `${SpaceGroupAccessTableName}.group_uuid`,
+                    ).andOn(
+                        `${SpaceTableName}.space_uuid`,
+                        '=',
+                        `${SpaceGroupAccessTableName}.space_uuid`,
+                    );
+                },
+            )
             .innerJoin(
                 EmailTableName,
                 `${UserTableName}.user_id`,
@@ -692,6 +696,9 @@ export class SpaceModel {
                                 void query2
                                     .whereNotNull(
                                         `${SpaceUserAccessTableName}.user_uuid`,
+                                    )
+                                    .orWhereNotNull(
+                                        `${SpaceGroupAccessTableName}.group_uuid`,
                                     )
                                     .orWhere(
                                         `${ProjectMembershipsTableName}.role`,
@@ -720,6 +727,7 @@ export class SpaceModel {
                 `${OrganizationMembershipsTableName}.role`,
                 `${SpaceUserAccessTableName}.user_uuid`,
                 `${SpaceUserAccessTableName}.space_role`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
             )
             .select<
                 {
@@ -733,6 +741,7 @@ export class SpaceModel {
                     project_role: ProjectMemberRole | null;
                     organization_role: OrganizationMemberRole;
                     group_roles: (ProjectMemberRole | null)[];
+                    space_group_roles: (SpaceMemberRole | null)[];
                 }[]
             >([
                 `users.user_uuid`,
@@ -742,12 +751,15 @@ export class SpaceModel {
                 `spaces.is_private`,
                 `space_user_access.space_role`,
                 this.database.raw(
-                    `CASE WHEN ${SpaceUserAccessTableName}.user_uuid IS NULL THEN false ELSE true end as user_with_direct_access`,
+                    `CASE WHEN ${SpaceUserAccessTableName}.user_uuid IS NULL AND ( ${SpaceGroupAccessTableName}.group_uuid IS NULL ) THEN false ELSE true end as user_with_direct_access`,
                 ),
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
                 this.database.raw(
                     `array_agg(${ProjectGroupAccessTableName}.role) as group_roles`,
+                ),
+                this.database.raw(
+                    `array_agg(${SpaceGroupAccessTableName}.space_role) as space_group_roles`,
                 ),
             ]);
 
@@ -765,6 +777,7 @@ export class SpaceModel {
                     project_role,
                     organization_role,
                     group_roles,
+                    space_group_roles,
                 },
             ) => {
                 const inheritedOrgRole: OrganizationRole = {
@@ -783,10 +796,19 @@ export class SpaceModel {
                     (role) => ({ type: 'group', role: role ?? undefined }),
                 );
 
+                const spaceGroupAccessRoles: SpaceGroupAccessRole[] =
+                    space_group_roles.map((role) => ({
+                        type: 'space_group',
+                        role: role
+                            ? convertSpaceRoleToProjectRole(role)
+                            : undefined,
+                    }));
+
                 const highestRole = getHighestProjectRole([
                     inheritedOrgRole,
                     inheritedProjectRole,
                     ...inheritedGroupRoles,
+                    ...spaceGroupAccessRoles,
                 ]);
 
                 // exclude users with no space role
@@ -799,7 +821,13 @@ export class SpaceModel {
                 if (highestRole.role === ProjectMemberRole.ADMIN) {
                     spaceRole = SpaceMemberRole.ADMIN;
                 } else if (user_with_direct_access) {
-                    spaceRole = space_role;
+                    spaceRole =
+                        getHighestSpaceRole([
+                            space_role,
+                            ...space_group_roles.map(
+                                (role) => role ?? undefined,
+                            ),
+                        ]) ?? space_role;
                 } else if (!is_private && !user_with_direct_access) {
                     spaceRole = convertProjectRoleToSpaceRole(highestRole.role);
                 } else {
@@ -817,7 +845,6 @@ export class SpaceModel {
                         hasDirectAccess: !!user_with_direct_access,
                         inheritedRole: highestRole.role,
                         inheritedFrom: highestRole.type,
-                        // type: 'user',
                     },
                 ];
             },

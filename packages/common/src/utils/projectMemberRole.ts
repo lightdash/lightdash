@@ -6,6 +6,7 @@ import {
     type InheritedProjectRole,
     type OrganizationRole,
     type ProjectRole,
+    type SpaceGroupAccessRole,
 } from '../types/projectMemberRole';
 import { SpaceMemberRole } from '../types/space';
 import assertUnreachable from './assertUnreachable';
@@ -34,8 +35,28 @@ export const convertOrganizationRoleToProjectRole = (
     }
 };
 
+export const convertSpaceRoleToProjectRole = (
+    spaceRole: SpaceMemberRole,
+): ProjectMemberRole | undefined => {
+    switch (spaceRole) {
+        case SpaceMemberRole.VIEWER:
+            return ProjectMemberRole.VIEWER;
+        case SpaceMemberRole.EDITOR:
+            return ProjectMemberRole.EDITOR;
+        case SpaceMemberRole.ADMIN:
+            return ProjectMemberRole.ADMIN;
+        default:
+            return assertUnreachable(
+                spaceRole,
+                `Unknown space role ${spaceRole}`,
+            );
+    }
+};
+
 export const getHighestProjectRole = (
-    inheritedRoles: Array<OrganizationRole | ProjectRole | GroupRole>,
+    inheritedRoles: Array<
+        OrganizationRole | ProjectRole | GroupRole | SpaceGroupAccessRole
+    >,
 ): InheritedProjectRole | undefined =>
     inheritedRoles.reduce<InheritedProjectRole | undefined>(
         (highestRole, role) => {
@@ -58,6 +79,24 @@ export const getHighestProjectRole = (
         },
         undefined,
     );
+
+export const getHighestSpaceRole = (
+    spaceRoles: Array<SpaceMemberRole | undefined>,
+): SpaceMemberRole | undefined =>
+    spaceRoles.reduce<SpaceMemberRole | undefined>((highestRole, role) => {
+        if (role === undefined) {
+            return highestRole;
+        }
+
+        if (
+            highestRole === undefined ||
+            ProjectRoleOrder[role] >= ProjectRoleOrder[highestRole]
+        ) {
+            return role;
+        }
+
+        return highestRole;
+    }, undefined);
 
 export const convertProjectRoleToSpaceRole = (
     projectRole: ProjectMemberRole,

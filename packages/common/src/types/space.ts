@@ -56,7 +56,12 @@ export type SpaceShare = {
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
-    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+    inheritedFrom:
+        | 'organization'
+        | 'project'
+        | 'group'
+        | 'space_group'
+        | undefined;
 };
 
 export type SpaceGroup = {

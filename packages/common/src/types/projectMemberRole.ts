@@ -1,3 +1,5 @@
+import { SpaceMemberRole } from './space';
+
 export enum ProjectMemberRole {
     VIEWER = 'viewer',
     INTERACTIVE_VIEWER = 'interactive_viewer',
@@ -29,9 +31,19 @@ export type GroupRole = {
     role: ProjectMemberRole | undefined;
 };
 
-export type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
+export type SpaceGroupAccessRole = {
+    type: 'space_group';
+    role: ProjectMemberRole | undefined;
+};
 
-const RoleTypes = ['organization', 'project', 'group'] as const;
+export type InheritedRoles = [
+    OrganizationRole,
+    GroupRole,
+    ProjectRole,
+    SpaceGroupAccessRole,
+];
+
+const RoleTypes = ['organization', 'project', 'group', 'space_group'] as const;
 
 export type RoleType = typeof RoleTypes[number];
 
@@ -46,4 +58,10 @@ export const ProjectRoleOrder = {
     [ProjectMemberRole.EDITOR]: 2,
     [ProjectMemberRole.DEVELOPER]: 3,
     [ProjectMemberRole.ADMIN]: 4,
+} as const;
+
+export const SpaceRoleOrder = {
+    [SpaceMemberRole.VIEWER]: 0,
+    [ProjectMemberRole.EDITOR]: 1,
+    [ProjectMemberRole.ADMIN]: 2,
 } as const;
