@@ -73,7 +73,12 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     const missingCustomMetrics = useMemo(() => {
         const allTables = Object.keys(explore.tables);
         return additionalMetrics.filter(
-            (metric) => !allTables.includes(metric.table),
+            (metric) =>
+                !allTables.includes(metric.table) ||
+                (metric.baseDimensionName &&
+                    !explore.tables[metric.table].dimensions[
+                        metric.baseDimensionName
+                    ]),
         );
     }, [explore, additionalMetrics]);
 
