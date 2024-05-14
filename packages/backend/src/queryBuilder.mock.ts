@@ -1,5 +1,6 @@
 import {
     BinType,
+    CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
@@ -12,6 +13,7 @@ import {
     IntrinsicUserAttributes,
     MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     WarehouseClient,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -499,6 +501,7 @@ export const METRIC_QUERY_JOIN_CHAIN: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const EXPLORE_WITH_SQL_FILTER = {
@@ -569,6 +572,7 @@ export const METRIC_QUERY: CompiledMetricQuery = {
         },
     ],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
@@ -581,7 +585,7 @@ export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledTableCalculations: [],
     tableCalculations: [],
-    customDimensions: [
+    compiledCustomDimensions: [
         {
             id: 'age_range',
             name: 'Age range',
@@ -617,6 +621,7 @@ export const METRIC_QUERY_TWO_TABLES: CompiledMetricQuery = {
         },
     ],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_TABLE_REFERENCE: CompiledMetricQuery = {
@@ -629,6 +634,7 @@ export const METRIC_QUERY_WITH_TABLE_REFERENCE: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_TABLE_REFERENCE_SQL = `SELECT
@@ -665,6 +671,7 @@ export const METRIC_QUERY_WITH_FILTER: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
@@ -691,6 +698,7 @@ export const METRIC_QUERY_WITH_METRIC_FILTER: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM: CompiledMetricQuery =
@@ -720,6 +728,7 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
         tableCalculations: [],
         compiledTableCalculations: [],
         compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
     };
 
 export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
@@ -767,6 +776,7 @@ export const METRIC_QUERY_WITH_NESTED_METRIC_FILTERS: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
@@ -800,6 +810,7 @@ export const METRIC_QUERY_WITH_FILTER_OR_OPERATOR: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
@@ -827,6 +838,7 @@ export const METRIC_QUERY_WITH_DISABLED_FILTER: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER: CompiledMetricQuery =
@@ -862,6 +874,7 @@ export const METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER: CompiledMetricQuery =
         tableCalculations: [],
         compiledTableCalculations: [],
         compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
     };
 
 export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
@@ -908,6 +921,7 @@ export const METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
@@ -925,6 +939,7 @@ export const METRIC_QUERY_WITH_EMPTY_FILTER: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
@@ -942,6 +957,7 @@ export const METRIC_QUERY_WITH_EMPTY_METRIC_FILTER: CompiledMetricQuery = {
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
@@ -989,6 +1005,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRIC: CompiledMetricQuery = {
             hidden: false,
         },
     ],
+    compiledCustomDimensions: [],
 };
 
 export const METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS = {
@@ -1043,6 +1060,7 @@ export const METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER: CompiledMetricQuery = {
         },
     ],
     compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
 };
 
 export const COMPILED_DIMENSION: CompiledDimension = {
@@ -1313,4 +1331,74 @@ LIMIT 10`;
 
 export const INTRINSIC_USER_ATTRIBUTES: IntrinsicUserAttributes = {
     email: 'mock@lightdash.com',
+};
+
+export const COMPILED_MONTH_NAME_DIMENSION: CompiledDimension = {
+    type: DimensionType.STRING,
+    name: 'dim1',
+    label: 'dim1',
+    table: 'table1',
+    tableLabel: 'table1',
+    fieldType: FieldType.DIMENSION,
+    sql: '${TABLE}.dim1',
+    compiledSql: '"table1".dim1',
+    tablesReferences: ['table1'],
+    timeInterval: TimeFrames.MONTH_NAME,
+    hidden: false,
+};
+
+export const MONTH_NAME_SORT_SQL = `(
+    CASE
+        WHEN "table1".dim1 = 'January' THEN 1
+        WHEN "table1".dim1 = 'February' THEN 2
+        WHEN "table1".dim1 = 'March' THEN 3
+        WHEN "table1".dim1 = 'April' THEN 4
+        WHEN "table1".dim1 = 'May' THEN 5
+        WHEN "table1".dim1 = 'June' THEN 6
+        WHEN "table1".dim1 = 'July' THEN 7
+        WHEN "table1".dim1 = 'August' THEN 8
+        WHEN "table1".dim1 = 'September' THEN 9
+        WHEN "table1".dim1 = 'October' THEN 10
+        WHEN "table1".dim1 = 'November' THEN 11
+        WHEN "table1".dim1 = 'December' THEN 12
+        ELSE 0
+    END
+    )`;
+
+export const COMPILED_WEEK_NAME_DIMENSION: CompiledDimension = {
+    type: DimensionType.STRING,
+    name: 'dim1',
+    label: 'dim1',
+    table: 'table1',
+    tableLabel: 'table1',
+    fieldType: FieldType.DIMENSION,
+    sql: '${TABLE}.dim1',
+    compiledSql: '"table1".dim1',
+    tablesReferences: ['table1'],
+    timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+    hidden: false,
+};
+
+export const WEEK_NAME_SORT_SQL = `(
+    CASE
+        WHEN "table1".dim1 = 'Sunday' THEN 1
+        WHEN "table1".dim1 = 'Monday' THEN 2
+        WHEN "table1".dim1 = 'Tuesday' THEN 3
+        WHEN "table1".dim1 = 'Wednesday' THEN 4
+        WHEN "table1".dim1 = 'Thursday' THEN 5
+        WHEN "table1".dim1 = 'Friday' THEN 6
+        WHEN "table1".dim1 = 'Saturday' THEN 7
+        ELSE 0
+    END
+)`;
+
+export const CUSTOM_SQL_DIMENSION: CompiledCustomSqlDimension = {
+    id: 'is_adult',
+    name: 'Is adult',
+    table: 'table1',
+    type: CustomDimensionType.SQL,
+    sql: '${table1.dim1} < 18',
+    dimensionType: DimensionType.BOOLEAN,
+    compiledSql: '"table1".dim1 < 18',
+    tablesReferences: ['table1'],
 };

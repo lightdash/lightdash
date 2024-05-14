@@ -2659,6 +2659,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         filtered: boolean,
+        includeErrors: boolean = true,
     ): Promise<SummaryExplore[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2687,26 +2688,30 @@ export class ProjectService extends BaseService {
         const allExploreSummaries = explores.reduce<SummaryExplore[]>(
             (acc, explore) => {
                 if (isExploreError(explore)) {
-                    return [
-                        ...acc,
-                        {
-                            name: explore.name,
-                            label: explore.label,
-                            tags: explore.tags,
-                            groupLabel: explore.groupLabel,
-                            errors: explore.errors,
-                            databaseName:
-                                explore.baseTable &&
-                                explore.tables?.[explore.baseTable]?.database,
-                            schemaName:
-                                explore.baseTable &&
-                                explore.tables?.[explore.baseTable]?.schema,
-                            description:
-                                explore.baseTable &&
-                                explore.tables?.[explore.baseTable]
-                                    ?.description,
-                        },
-                    ];
+                    return includeErrors
+                        ? [
+                              ...acc,
+                              {
+                                  name: explore.name,
+                                  label: explore.label,
+                                  tags: explore.tags,
+                                  groupLabel: explore.groupLabel,
+                                  errors: explore.errors,
+                                  databaseName:
+                                      explore.baseTable &&
+                                      explore.tables?.[explore.baseTable]
+                                          ?.database,
+                                  schemaName:
+                                      explore.baseTable &&
+                                      explore.tables?.[explore.baseTable]
+                                          ?.schema,
+                                  description:
+                                      explore.baseTable &&
+                                      explore.tables?.[explore.baseTable]
+                                          ?.description,
+                              },
+                          ]
+                        : acc;
                 }
                 if (
                     doesExploreMatchRequiredAttributes(explore, userAttributes)
@@ -3861,6 +3866,18 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const results = await this._calculateTotal(

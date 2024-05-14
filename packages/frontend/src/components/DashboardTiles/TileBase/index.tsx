@@ -119,14 +119,17 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     : `1px solid ${theme.colors.gray[1]}`,
             })}
         >
-            <LoadingOverlay visible={isLoading ?? false} />
+            <LoadingOverlay
+                visible={isLoading ?? false}
+                zIndex={getDefaultZIndex('modal') - 10}
+            />
 
             <HeaderContainer
                 $isEditMode={isEditMode}
                 $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                 style={{
                     backgroundColor: 'white',
-                    zIndex: isLoading ? getDefaultZIndex('overlay') + 1 : 3,
+                    zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
                     borderRadius: '5px',
                 }}
             >

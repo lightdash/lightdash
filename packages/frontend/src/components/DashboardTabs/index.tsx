@@ -10,7 +10,6 @@ import { useProfiler } from '@sentry/react';
 import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useHistory } from 'react-router-dom';
 import { useIntersection } from 'react-use';
 import { v4 as uuid4 } from 'uuid';
 import {
@@ -140,7 +139,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [dashboardTiles, isEditMode],
     );
 
-    const history = useHistory();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -266,9 +264,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     setActiveTab(tab);
                 }
                 if (!isEditMode) {
-                    history.replace(
+                    window.history.replaceState(
+                        null,
+                        '',
                         `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                    );
+                    ); // replace url without reloading
                 }
             }}
             style={{

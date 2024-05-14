@@ -12,7 +12,9 @@ import {
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
+    isCustomBinDimension,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isPivotReferenceWithValues,
@@ -81,10 +83,18 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
 };
 
 const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
-    if (item && isCustomDimension(item)) return 'category';
+    if (item && isCustomBinDimension(item)) return 'category';
     if (item && isTableCalculation(item) && !item.type) return 'value';
-    if (item && (isField(item) || isTableCalculation(item))) {
-        switch (item.type) {
+    if (
+        item &&
+        (isField(item) ||
+            isTableCalculation(item) ||
+            isCustomSqlDimension(item))
+    ) {
+        const type = isCustomSqlDimension(item)
+            ? item.dimensionType
+            : item.type;
+        switch (type) {
             case TableCalculationType.NUMBER:
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
@@ -974,7 +984,7 @@ const getEchartAxes = ({
                 case TimeFrames.WEEK:
                     axisConfig.axisLabel = {
                         formatter: (value: any) => {
-                            return formatItemValue(axisItem, value, false);
+                            return formatItemValue(axisItem, value, true);
                         },
                     };
                     axisConfig.axisPointer = {
@@ -983,7 +993,7 @@ const getEchartAxes = ({
                                 return formatItemValue(
                                     axisItem,
                                     value.value,
-                                    false,
+                                    true,
                                 );
                             },
                         },

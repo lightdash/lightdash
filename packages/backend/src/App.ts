@@ -1,6 +1,7 @@
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -480,6 +481,9 @@ export default class App {
                 new Sentry.Integrations.Express({
                     app: expressApp,
                 }),
+                new Sentry.Integrations.Postgres({ usePgNative: true }),
+                nodeProfilingIntegration(),
+                ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {
@@ -498,8 +502,9 @@ export default class App {
                 if (context.parentSampled !== undefined) {
                     return context.parentSampled;
                 }
-                return 0.5;
+                return 0.2;
             },
+            profilesSampleRate: 0.2, // 20% of samples will be profiled
             beforeBreadcrumb(breadcrumb) {
                 if (
                     breadcrumb.category === 'http' &&

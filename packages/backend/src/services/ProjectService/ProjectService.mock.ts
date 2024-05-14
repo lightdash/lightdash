@@ -193,6 +193,10 @@ export const expectedExploreSummaryFilteredByName = [
     expectedAllExploreSummary[0],
 ];
 
+export const expectedAllExploreSummaryWithoutErrors = [
+    expectedAllExploreSummary[0],
+];
+
 export const tablesConfiguration: TablesConfiguration = {
     tableSelection: {
         type: TableSelectionType.ALL,

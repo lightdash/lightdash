@@ -1,11 +1,11 @@
 import {
     assertUnreachable,
     BinType,
+    CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
     CustomBinDimension,
     CustomDimension,
-    CustomSqlDimension,
     DbtModelJoinType,
     Explore,
     fieldId,
@@ -26,8 +26,8 @@ import {
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isAndFilterGroup,
+    isCompiledCustomSqlDimension,
     isCustomBinDimension,
-    isCustomSqlDimension,
     isFilterGroup,
     ItemsMap,
     parseAllReferences,
@@ -35,6 +35,7 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TimeFrames,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
@@ -232,22 +233,68 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
+export const sortMonthName = (dimension: CompiledDimension) => {
+    const fieldSql = `${dimension.compiledSql}`;
+    return `(
+        CASE
+            WHEN ${fieldSql} = 'January' THEN 1
+            WHEN ${fieldSql} = 'February' THEN 2
+            WHEN ${fieldSql} = 'March' THEN 3
+            WHEN ${fieldSql} = 'April' THEN 4
+            WHEN ${fieldSql} = 'May' THEN 5
+            WHEN ${fieldSql} = 'June' THEN 6
+            WHEN ${fieldSql} = 'July' THEN 7
+            WHEN ${fieldSql} = 'August' THEN 8
+            WHEN ${fieldSql} = 'September' THEN 9
+            WHEN ${fieldSql} = 'October' THEN 10
+            WHEN ${fieldSql} = 'November' THEN 11
+            WHEN ${fieldSql} = 'December' THEN 12
+            ELSE 0
+        END
+        )`;
+};
+export const sortDayOfWeekName = (
+    dimension: CompiledDimension,
+    startOfWeek: WeekDay | null | undefined,
+) => {
+    const fieldSql = `${dimension.compiledSql}`;
+    const calculateDayIndex = (dayNumber: number) => {
+        if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
+        return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
+    };
+    return `(
+        CASE
+            WHEN ${fieldSql} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldSql} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldSql} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldSql} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldSql} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldSql} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldSql} = 'Saturday' THEN ${calculateDayIndex(7)}
+            ELSE 0
+        END
+    )`;
+};
+
 export const getCustomSqlDimensionSql = ({
+    warehouseClient,
     customDimensions,
 }: {
-    customDimensions: CustomSqlDimension[] | undefined;
-}): { selects: string[] } | undefined => {
+    warehouseClient: WarehouseClient;
+    customDimensions: CompiledCustomSqlDimension[] | undefined;
+}): { selects: string[]; tables: string[] } | undefined => {
     if (customDimensions === undefined || customDimensions.length === 0) {
         return undefined;
     }
-
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
     const selects = customDimensions.map<string>(
         (customDimension) =>
-            `  (${customDimension.sql}) AS ${customDimension.id}`,
+            `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
     );
 
     return {
         selects,
+        tables: customDimensions.flatMap((d) => d.tablesReferences),
     };
 };
 
@@ -601,7 +648,7 @@ export const buildQuery = ({
         sorts,
         limit,
         additionalMetrics,
-        customDimensions,
+        compiledCustomDimensions,
         timezone,
     } = compiledMetricQuery;
 
@@ -632,13 +679,15 @@ export const buildQuery = ({
         warehouseClient,
         explore,
         customDimensions:
-            compiledMetricQuery.customDimensions?.filter(isCustomBinDimension),
+            compiledCustomDimensions?.filter(isCustomBinDimension),
         userAttributes,
         sorts,
     });
     const customSqlDimensionSql = getCustomSqlDimensionSql({
-        customDimensions:
-            compiledMetricQuery.customDimensions?.filter(isCustomSqlDimension),
+        warehouseClient,
+        customDimensions: compiledCustomDimensions?.filter(
+            isCompiledCustomSqlDimension,
+        ),
     });
 
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
@@ -689,6 +738,7 @@ export const buildQuery = ({
             return [...acc, ...(dim.tablesReferences || [dim.table])];
         }, []),
         ...(customBinDimensionSql?.tables || []),
+        ...(customSqlDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
                 const dim = getDimensionFromId(
@@ -798,10 +848,13 @@ export const buildQuery = ({
         groups.length > 0
             ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
+
+    const compiledDimensions = getDimensions(explore);
+
     const fieldOrders = sorts.map((sort) => {
         if (
-            customDimensions &&
-            customDimensions.find(
+            compiledCustomDimensions &&
+            compiledCustomDimensions.find(
                 (customDimension) =>
                     getCustomDimensionId(customDimension) === sort.fieldId &&
                     isCustomBinDimension(customDimension),
@@ -814,10 +867,27 @@ export const buildQuery = ({
                 sort.descending ? ' DESC' : ''
             }`;
         }
+        const sortedDimension = compiledDimensions.find(
+            (d) => fieldId(d) === sort.fieldId,
+        );
+
+        if (
+            sortedDimension &&
+            sortedDimension.timeInterval === TimeFrames.MONTH_NAME
+        ) {
+            return sortMonthName(sortedDimension);
+        }
+        if (
+            sortedDimension &&
+            sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
+        ) {
+            return sortDayOfWeekName(sortedDimension, startOfWeek);
+        }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
             sort.descending ? ' DESC' : ''
         }`;
     });
+
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
     const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {

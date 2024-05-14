@@ -662,6 +662,23 @@ export class CsvService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (
+            csvOptions.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: csvOptions.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
         // If the user can't change the csv limit, default csvLimit to undefined
         // csvLimit undefined means that we will be using the limit from the metricQuery
         // csvLimit null means all rows

@@ -1,3 +1,137 @@
+## [0.1095.2](https://github.com/lightdash/lightdash/compare/0.1095.1...0.1095.2) (2024-05-14)
+
+
+### Bug Fixes
+
+* conditional formatting table calculation ([#10053](https://github.com/lightdash/lightdash/issues/10053)) ([65918b6](https://github.com/lightdash/lightdash/commit/65918b6d569d8b4bd9fef8c504dda1f5fa017e14))
+* usage analytics groups ([#10049](https://github.com/lightdash/lightdash/issues/10049)) ([ed15fda](https://github.com/lightdash/lightdash/commit/ed15fdaf977a7b806b0ec621b16c038593ff0d81))
+
+## [0.1095.1](https://github.com/lightdash/lightdash/compare/0.1095.0...0.1095.1) (2024-05-14)
+
+
+### Bug Fixes
+
+* Revert "fix: dashboard chart from explore from here deleted all current dashboard tiles" ([#10067](https://github.com/lightdash/lightdash/issues/10067)) ([ff8e101](https://github.com/lightdash/lightdash/commit/ff8e101f7718f7d5d700dadc622e6d49b36c55a5))
+
+# [0.1095.0](https://github.com/lightdash/lightdash/compare/0.1094.0...0.1095.0) (2024-05-14)
+
+
+### Features
+
+* add "include errors" arg to all explores summaries ([#10064](https://github.com/lightdash/lightdash/issues/10064)) ([0803493](https://github.com/lightdash/lightdash/commit/08034934dc2d3ff98bce64c79e13c69741011632))
+
+# [0.1094.0](https://github.com/lightdash/lightdash/compare/0.1093.2...0.1094.0) (2024-05-13)
+
+
+### Features
+
+* enable sentry backend profiling ([#10059](https://github.com/lightdash/lightdash/issues/10059)) ([dfaa7d7](https://github.com/lightdash/lightdash/commit/dfaa7d710c276ed4f6d0ec65ce6a710e4ed96ef3))
+
+## [0.1093.2](https://github.com/lightdash/lightdash/compare/0.1093.1...0.1093.2) (2024-05-13)
+
+
+### Bug Fixes
+
+* custom sql dimension alias quotes ([#10050](https://github.com/lightdash/lightdash/issues/10050)) ([4cd696f](https://github.com/lightdash/lightdash/commit/4cd696f02b43978c5d9f2beae3504cd53e35a9fe))
+
+## [0.1093.1](https://github.com/lightdash/lightdash/compare/0.1093.0...0.1093.1) (2024-05-13)
+
+
+### Bug Fixes
+
+* dashboard chart from explore from here was overwriting the current tiles ([#10058](https://github.com/lightdash/lightdash/issues/10058)) ([4ef93b4](https://github.com/lightdash/lightdash/commit/4ef93b4a171adbf830d84b2746b528425a13a7a2))
+
+# [0.1093.0](https://github.com/lightdash/lightdash/compare/0.1092.1...0.1093.0) (2024-05-13)
+
+
+### Bug Fixes
+
+* custom dimension value type ([#10045](https://github.com/lightdash/lightdash/issues/10045)) ([963108e](https://github.com/lightdash/lightdash/commit/963108ebb62e77ca9b4eb24ddcf55734d818b1e5))
+
+
+### Features
+
+* allow common properties for text styling in markdown tile html tags ([#9979](https://github.com/lightdash/lightdash/issues/9979)) ([2bc17e5](https://github.com/lightdash/lightdash/commit/2bc17e56f3ab7cca64047b3fe7df53eedfe08b87))
+
+## [0.1092.1](https://github.com/lightdash/lightdash/compare/0.1092.0...0.1092.1) (2024-05-13)
+
+
+### Bug Fixes
+
+* sql dimension permission on csv download and total calculation ([#10033](https://github.com/lightdash/lightdash/issues/10033)) ([57a853e](https://github.com/lightdash/lightdash/commit/57a853e9fb7ed9c2108b9ceb4930b5af618a2d64))
+
+# [0.1092.0](https://github.com/lightdash/lightdash/compare/0.1091.0...0.1092.0) (2024-05-13)
+
+
+### Features
+
+* custom dimensions can reference dimensions ([#10041](https://github.com/lightdash/lightdash/issues/10041)) ([9137595](https://github.com/lightdash/lightdash/commit/9137595d38c6d48edac0f14962f508faec57d94a))
+
+# [0.1091.0](https://github.com/lightdash/lightdash/compare/0.1090.9...0.1091.0) (2024-05-13)
+
+
+### Features
+
+* enable sentry distributed tracing ([#10042](https://github.com/lightdash/lightdash/issues/10042)) ([0474fc4](https://github.com/lightdash/lightdash/commit/0474fc4cba6f963700788d8ea0fd543a23ef8939))
+
+## [0.1090.9](https://github.com/lightdash/lightdash/compare/0.1090.8...0.1090.9) (2024-05-13)
+
+
+### Bug Fixes
+
+* add select all if no tabs ([#10048](https://github.com/lightdash/lightdash/issues/10048)) ([b74754b](https://github.com/lightdash/lightdash/commit/b74754bb43c70389f76e3b2ea61fd35353c96d9e))
+
+## [0.1090.8](https://github.com/lightdash/lightdash/compare/0.1090.7...0.1090.8) (2024-05-13)
+
+
+### Bug Fixes
+
+* apply dashboard filters to underlying data query ([#10032](https://github.com/lightdash/lightdash/issues/10032)) ([c534ac5](https://github.com/lightdash/lightdash/commit/c534ac5479c8520e344765904b5eb8533831ad80))
+* switch tab clears temp filters state ([#10025](https://github.com/lightdash/lightdash/issues/10025)) ([a1d3e1c](https://github.com/lightdash/lightdash/commit/a1d3e1cf6850d8ffbd1c144a9e51abe5cc922600))
+
+## [0.1090.7](https://github.com/lightdash/lightdash/compare/0.1090.6...0.1090.7) (2024-05-13)
+
+
+### Bug Fixes
+
+* empty integrations redirection ([#10044](https://github.com/lightdash/lightdash/issues/10044)) ([1e19031](https://github.com/lightdash/lightdash/commit/1e190310e81bb48f0497879dd1d7e6215c87e410))
+* fix undefiled type table calculation on bignumber ([#10031](https://github.com/lightdash/lightdash/issues/10031)) ([e0be1df](https://github.com/lightdash/lightdash/commit/e0be1dfdcce985b2cc7b0ec3cc53787c5dc156da))
+
+## [0.1090.6](https://github.com/lightdash/lightdash/compare/0.1090.5...0.1090.6) (2024-05-10)
+
+
+### Bug Fixes
+
+* week axes not respecting timezone correctly ([#10035](https://github.com/lightdash/lightdash/issues/10035)) ([45a4766](https://github.com/lightdash/lightdash/commit/45a4766ae1335467a6cfb81e9b466592dd90f991))
+
+## [0.1090.5](https://github.com/lightdash/lightdash/compare/0.1090.4...0.1090.5) (2024-05-10)
+
+
+### Bug Fixes
+
+* multiline profile bigquery ([#10026](https://github.com/lightdash/lightdash/issues/10026)) ([c7d3911](https://github.com/lightdash/lightdash/commit/c7d3911ba566f12093b16a687b82b9a21acee286))
+
+## [0.1090.4](https://github.com/lightdash/lightdash/compare/0.1090.3...0.1090.4) (2024-05-09)
+
+
+### Bug Fixes
+
+* zIndex issues on dashbaord while loading ([#10015](https://github.com/lightdash/lightdash/issues/10015)) ([5175c62](https://github.com/lightdash/lightdash/commit/5175c62ead212696fc9c5065eae9fc9a22e24965))
+
+## [0.1090.3](https://github.com/lightdash/lightdash/compare/0.1090.2...0.1090.3) (2024-05-09)
+
+
+### Bug Fixes
+
+* retry screenshot for protocol and timeout errors ([#10028](https://github.com/lightdash/lightdash/issues/10028)) ([e77a186](https://github.com/lightdash/lightdash/commit/e77a1868175478f119e24126a557a249c193cb15))
+
+## [0.1090.2](https://github.com/lightdash/lightdash/compare/0.1090.1...0.1090.2) (2024-05-09)
+
+
+### Bug Fixes
+
+* week and month name sorting ([#10021](https://github.com/lightdash/lightdash/issues/10021)) ([e0ac129](https://github.com/lightdash/lightdash/commit/e0ac129f602ddd63ee5792c277d9216418a49143))
+
 ## [0.1090.1](https://github.com/lightdash/lightdash/compare/0.1090.0...0.1090.1) (2024-05-09)
 
 
