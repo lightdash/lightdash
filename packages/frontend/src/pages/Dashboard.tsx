@@ -223,12 +223,7 @@ const Dashboard: FC = () => {
         try {
             const unsavedDashboardTiles = JSON.parse(unsavedDashboardTilesRaw);
             // If there are unsaved tiles, add them to the dashboard
-            setDashboardTiles((currentDashboardTiles) =>
-                appendNewTilesToBottom(
-                    currentDashboardTiles,
-                    unsavedDashboardTiles,
-                ),
-            );
+            setDashboardTiles(unsavedDashboardTiles);
 
             setHaveTilesChanged(!!unsavedDashboardTiles);
         } catch {
