@@ -1,5 +1,4 @@
 import { ConditionalOperator, type ConditionalRule } from './conditionalRule';
-import { type FilterableField } from './field';
 import type { SchedulerFilterRule } from './scheduler';
 
 export enum FilterType {
@@ -111,12 +110,6 @@ export type Filters = {
     metrics?: FilterGroup;
     tableCalculations?: FilterGroup;
 };
-
-export type FieldWithSuggestions = FilterableField & {
-    suggestions?: string[];
-};
-
-export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
 export type DashboardFilters = {
     dimensions: DashboardFilterRule[];

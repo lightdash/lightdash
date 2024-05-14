@@ -10,7 +10,7 @@ import {
     type AdditionalMetric,
     type ApiQueryResults,
     type Explore,
-    type FieldsWithSuggestions,
+    type FilterableField,
     type ItemsMap,
     type Metric,
     type TableCalculation,
@@ -23,6 +23,12 @@ interface FieldsWithSuggestionsHookParams {
     additionalMetrics: AdditionalMetric[] | undefined;
     tableCalculations: TableCalculation[] | undefined;
 }
+
+export type FieldWithSuggestions = FilterableField & {
+    suggestions?: string[];
+};
+
+export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
 
 export const useFieldsWithSuggestions = ({
     exploreData,

@@ -9,12 +9,12 @@ import {
     isFilterGroup,
     isMetric,
     isTableCalculation,
-    type FieldWithSuggestions,
     type FilterableDimension,
     type FilterableField,
     type FilterGroup,
     type FilterRule,
     type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -56,7 +56,7 @@ const FilterGroupForm: FC<Props> = ({
     const [conditionLabel, setConditionLabel] = useState('');
 
     const [dimensions, metrics, tableCalculations] = useMemo<
-        [FilterableDimension[], Metric[], FieldWithSuggestions[]]
+        [FilterableDimension[], Metric[], TableCalculation[]]
     >(() => {
         return [
             fields.filter(isDimension),

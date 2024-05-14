@@ -12,9 +12,6 @@ import {
     type DashboardTile,
     type Field,
     type FilterableDimension,
-    type FilterableField,
-    type Metric,
-    type TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -72,8 +69,8 @@ interface Props {
 }
 
 const getDefaultField = (
-    fields: Exclude<FilterableField, TableCalculation | Metric>[],
-    selectedField: Exclude<FilterableField, TableCalculation | Metric>,
+    fields: FilterableDimension[],
+    selectedField: FilterableDimension,
 ) => {
     return (
         fields.find(matchFieldExact(selectedField)) ??
@@ -100,7 +97,7 @@ const FilterConfiguration: FC<Props> = ({
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
 
     const [selectedField, setSelectedField] = useState<
-        Exclude<FilterableField, TableCalculation | Metric> | undefined
+        FilterableDimension | undefined
     >(field);
 
     const [draftFilterRule, setDraftFilterRule] = useState<
@@ -113,9 +110,7 @@ const FilterConfiguration: FC<Props> = ({
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (
-        newField: Exclude<FilterableField, TableCalculation | Metric>,
-    ) => {
+    const handleChangeField = (newField: FilterableDimension) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {

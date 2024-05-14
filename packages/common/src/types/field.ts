@@ -345,28 +345,6 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.BOOLEAN;
 }
 
-export const isFilterableDimension = (
-    dimension: Dimension,
-): dimension is FilterableDimension =>
-    [
-        DimensionType.STRING,
-        DimensionType.NUMBER,
-        DimensionType.DATE,
-        DimensionType.TIMESTAMP,
-        DimensionType.BOOLEAN,
-    ].includes(dimension.type);
-export type FilterableField = FilterableDimension | Metric | TableCalculation;
-export const isFilterableField = (
-    field: Dimension | ItemsMap[string],
-): field is FilterableField =>
-    isDimension(field) ? isFilterableDimension(field) : true;
-
-export type FilterableItem = FilterableField | TableCalculation;
-export const isFilterableItem = (
-    item: ItemsMap[string] | TableCalculation,
-): item is FilterableItem =>
-    isDimension(item) ? isFilterableDimension(item) : true;
-
 export type FieldRef = string;
 export const getFieldRef = (field: Pick<Field, 'table' | 'name'>): FieldRef =>
     `${field.table}.${field.name}`;
@@ -467,6 +445,33 @@ export interface Metric extends Field {
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
 }
+
+export const isFilterableDimension = (
+    dimension: Dimension,
+): dimension is FilterableDimension =>
+    [
+        DimensionType.STRING,
+        DimensionType.NUMBER,
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+        DimensionType.BOOLEAN,
+    ].includes(dimension.type);
+
+export type FilterableField =
+    | Exclude<ItemsMap[string], CustomDimension>
+    | FilterableDimension;
+export const isFilterableField = (
+    field: Dimension | ItemsMap[string],
+): field is FilterableField =>
+    (isDimension(field) && isFilterableDimension(field)) ||
+    isMetric(field) ||
+    isTableCalculation(field);
+
+export type FilterableItem = FilterableField;
+export const isFilterableItem = (
+    item: ItemsMap[string] | TableCalculation,
+): item is FilterableItem =>
+    isDimension(item) ? isFilterableDimension(item) : true;
 
 export const defaultSql = (columnName: string): string =>
     // eslint-disable-next-line no-useless-escape

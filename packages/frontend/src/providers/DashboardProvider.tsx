@@ -11,12 +11,9 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type FilterableDimension,
-    type FilterableField,
-    type Metric,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerFilterRule,
     type SortField,
-    type TableCalculation,
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, {
@@ -96,11 +93,9 @@ type DashboardContext = {
     invalidateCache: boolean | undefined;
     clearCacheAndFetch: () => void;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
-    allFilterableFields:
-        | Exclude<FilterableField, TableCalculation | Metric>[]
-        | undefined;
+    allFilterableFields: FilterableDimension[] | undefined;
     filterableFieldsByTileUuid:
-        | Record<string, Exclude<FilterableField, TableCalculation | Metric>[]>
+        | Record<string, FilterableDimension[]>
         | undefined;
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
@@ -381,10 +376,7 @@ export const DashboardProvider: React.FC<
             return;
 
         const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
-            Record<
-                string,
-                Exclude<FilterableField, TableCalculation | Metric>[]
-            >
+            Record<string, FilterableDimension[]>
         >((acc, { tileUuid }) => {
             const filterFields =
                 dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(

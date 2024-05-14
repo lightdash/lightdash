@@ -1,17 +1,16 @@
 import {
     addFilterRule,
     deleteFilterRuleFromGroup,
+    fieldId,
     getFiltersFromGroup,
-    getInvalidFilterRules,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
     isField,
     isFilterableField,
     isOrFilterGroup,
-    type FieldsWithSuggestions,
-    type FieldWithSuggestions,
     type FilterGroup,
+    type FilterRule,
     type Filters,
     type OrFilterGroup,
 } from '@lightdash/common';
@@ -28,6 +27,10 @@ import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    type FieldsWithSuggestions,
+    type FieldWithSuggestions,
+} from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
@@ -40,8 +43,23 @@ type Props = {
     isEditMode: boolean;
 };
 
+const getInvalidFilterRules = (
+    fields: FieldWithSuggestions[],
+    filterRules: FilterRule[],
+) =>
+    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+        const fieldInRule = fields.find(
+            (field) => fieldId(field) === filterRule.target.fieldId,
+        );
+
+        if (!fieldInRule) {
+            return [...accumulator, filterRule];
+        }
+
+        return accumulator;
+    }, []);
+
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
-    // TODO: double check if this is correct
     const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {

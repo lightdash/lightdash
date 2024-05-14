@@ -17,9 +17,8 @@ import {
     type ConditionalRule,
     type ConditionalRuleLabels,
     type Field,
-    type FilterableField,
+    type FilterableDimension,
     type FilterableItem,
-    type Metric,
     type TableCalculation,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
@@ -247,8 +246,8 @@ export const getConditionalRuleLabel = (
 
 export const getFilterRuleTables = (
     filterRule: ConditionalRule,
-    field: Exclude<FilterableField, TableCalculation | Metric>,
-    filterableFields: Exclude<FilterableField, TableCalculation | Metric>[],
+    field: FilterableDimension,
+    filterableFields: FilterableDimension[],
 ): string[] => {
     if (
         isDashboardFilterRule(filterRule) &&

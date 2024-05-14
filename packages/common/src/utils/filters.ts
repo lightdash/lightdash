@@ -27,7 +27,6 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterRule,
-    type FieldWithSuggestions,
     type FilterDashboardToRule,
     type FilterGroup,
     type FilterGroupItem,
@@ -136,6 +135,8 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
             return FilterType.BOOLEAN;
         default: {
             return assertUnreachable(
+                // @ts-expect-error - TODO: Fix this
+                // TODO: Fix this
                 type,
                 `No filter type found for field type: ${type}`,
             );
@@ -271,7 +272,7 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 const getDefaultTileTargets = (
-    field: FilterableDimension | Metric,
+    field: FilterableDimension | Metric | Field,
     availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) =>
     Object.entries(availableTileFilters).reduce<
@@ -316,7 +317,7 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field: FilterableDimension | Metric;
+    field: FilterableDimension | Metric | Field;
     availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
@@ -372,22 +373,6 @@ export const addFilterRule = ({
         },
     };
 };
-
-export const getInvalidFilterRules = (
-    fields: FieldWithSuggestions[], // TODO: CHECK THIS
-    filterRules: FilterRule[],
-) =>
-    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
-        const fieldInRule = fields.find(
-            (field) => fieldId(field) === filterRule.target.fieldId,
-        );
-
-        if (!fieldInRule) {
-            return [...accumulator, filterRule];
-        }
-
-        return accumulator;
-    }, []);
 
 /**
  * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type

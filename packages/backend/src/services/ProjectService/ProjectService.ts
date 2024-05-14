@@ -3054,10 +3054,7 @@ export class ProjectService extends BaseService {
             span?.finish();
         }
 
-        const allFilterableFields: Exclude<
-            FilterableField,
-            TableCalculation | Metric
-        >[] = [];
+        const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
 
         allFilters.forEach((filterSet) => {

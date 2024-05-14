@@ -4,10 +4,8 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     type DashboardFilterRule,
-    type FilterableField,
+    type FilterableDimension,
     type FilterRule,
-    type Metric,
-    type TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -30,7 +28,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/util
 interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
-    field: Exclude<FilterableField, TableCalculation | Metric>;
+    field: FilterableDimension;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
