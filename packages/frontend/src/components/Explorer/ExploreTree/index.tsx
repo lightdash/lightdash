@@ -1,5 +1,6 @@
 import {
     getItemId,
+    isCustomBinDimension,
     type AdditionalMetric,
     type CompiledTable,
     type CustomDimension,
@@ -71,16 +72,29 @@ const ExploreTree: FC<ExploreTreeProps> = ({
     }, [explore, searchHasResults, isSearching]);
 
     const missingCustomMetrics = useMemo(() => {
-        const allTables = Object.keys(explore.tables);
-        return additionalMetrics.filter(
-            (metric) =>
-                !allTables.includes(metric.table) ||
+        return additionalMetrics.filter((metric) => {
+            const table = explore.tables[metric.table];
+            return (
+                !table ||
                 (metric.baseDimensionName &&
-                    !explore.tables[metric.table].dimensions[
-                        metric.baseDimensionName
-                    ]),
-        );
+                    !table.dimensions[metric.baseDimensionName])
+            );
+        });
     }, [explore, additionalMetrics]);
+
+    const missingCustomDimensions = useMemo(() => {
+        return customDimensions?.filter((customDimension) => {
+            const table = explore.tables[customDimension.table];
+
+            return (
+                !table ||
+                (isCustomBinDimension(customDimension) &&
+                    !Object.values(table.dimensions)
+                        .map(getItemId)
+                        .includes(customDimension.dimensionId))
+            );
+        });
+    }, [customDimensions, explore.tables]);
 
     return (
         <>
@@ -121,6 +135,11 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             missingCustomMetrics={
                                 table.name === explore.baseTable
                                     ? missingCustomMetrics
+                                    : []
+                            }
+                            missingCustomDimensions={
+                                table.name === explore.baseTable
+                                    ? missingCustomDimensions
                                     : []
                             }
                             missingFields={missingFields}

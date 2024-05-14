@@ -159,6 +159,7 @@ type Props = {
     itemsMap: Record<string, Item>;
     selectedItems: Set<string>;
     missingCustomMetrics?: AdditionalMetric[];
+    missingCustomDimensions?: CustomDimension[];
     onItemClick: (key: string, item: Item) => void;
 };
 
@@ -176,11 +177,13 @@ export const TreeProvider: FC<React.PropsWithChildren<Props>> = ({
     itemsMap,
     selectedItems,
     missingCustomMetrics,
+    missingCustomDimensions,
     ...rest
 }) => {
     const nodeMap = getNodeMapFromItemsMap(itemsMap, selectedItems);
     const searchResults = getSearchResults(itemsMap, searchQuery);
     const isSearching = !!searchQuery && searchQuery !== '';
+
     return (
         <Context.Provider
             value={{
@@ -191,6 +194,7 @@ export const TreeProvider: FC<React.PropsWithChildren<Props>> = ({
                 searchQuery,
                 searchResults,
                 missingCustomMetrics,
+                missingCustomDimensions,
                 ...rest,
             }}
         >

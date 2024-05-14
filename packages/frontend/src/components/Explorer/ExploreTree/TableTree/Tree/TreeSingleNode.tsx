@@ -43,6 +43,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         searchResults,
         searchQuery,
         missingCustomMetrics,
+        missingCustomDimensions,
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
@@ -73,9 +74,13 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             : item.name;
 
     const isMissing =
-        isAdditionalMetric(item) &&
-        missingCustomMetrics &&
-        missingCustomMetrics.includes(item);
+        (isAdditionalMetric(item) &&
+            missingCustomMetrics &&
+            missingCustomMetrics.includes(item)) ||
+        (isCustomDimension(item) &&
+            missingCustomDimensions &&
+            missingCustomDimensions.includes(item));
+
     const description = isField(item) ? item.description : undefined;
 
     const bgColor = getItemBgColor(item);
