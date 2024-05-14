@@ -11,8 +11,8 @@ from users
   LEFT JOIN organizations ON organization_memberships.organization_id = organizations.organization_id
   LEFT JOIN project_memberships ON project_memberships.user_id = users.user_id
   LEFT JOIN projects on project_memberships.project_id = projects.project_id
-  LEFT JOIN group_memberships on group_memberships.user_id = users.user_id
-  LEFT JOIN project_group_access on project_group_access.group_uuid = group_memberships.group_uuid
+  LEFT JOIN group_memberships ON group_memberships.user_id = users.user_id
+  LEFT JOIN project_group_access ON project_group_access.group_uuid = group_memberships.group_uuid
 WHERE 
   emails.is_primary = true 
   AND ( 
