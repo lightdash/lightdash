@@ -178,6 +178,11 @@ export type FieldUrl = {
     label: string;
 };
 
+export type GroupType = {
+    label: string;
+    description?: string;
+};
+
 // Every dimension and metric is a field
 export interface Field {
     fieldType: FieldType;
@@ -193,7 +198,7 @@ export interface Field {
     compact?: CompactOrAlias;
     round?: number;
     format?: Format;
-    groupLabel?: string;
+    groups?: GroupType[];
     urls?: FieldUrl[];
     index?: number;
 }
@@ -253,11 +258,11 @@ export enum DimensionType {
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
-    group?: string;
     requiredAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
+    intervalBase?: boolean;
 }
 
 export const isTableCalculationField = (
@@ -444,4 +449,10 @@ export const friendlyName = (text: string): string => {
         capitalize(first.toLowerCase()),
         ...rest.map((word) => word.toLowerCase()),
     ].join(' ');
+};
+
+export const intervalGroupFriendlyName = (text: string): string => {
+    const words = friendlyName(text).split(' ');
+    words.pop();
+    return words.join(' ');
 };

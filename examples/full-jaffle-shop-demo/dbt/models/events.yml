@@ -1,6 +1,20 @@
 version: 2
 models:
   - name: events
+    meta:
+      groups:
+        percentile:
+          label: Percentiles
+          description: Grouping of percentiles
+        sub:
+          label: Percentiles under 40
+          description: Grouping of percentiles under 40
+        timestamp:
+          label: Group of timestamp by group
+          description: Some description of the group
+        over:
+          label: Percentiles over 40
+          description: Grouping percentiles over 40
     columns:
       - name: timestamp_tz
         description: ""
@@ -8,6 +22,7 @@ models:
           dimension:
             label: 'Timestamp (with timezone)'
             type: timestamp
+            group: ['timestamp']
             time_intervals:
               - RAW
               - MILLISECOND
@@ -41,6 +56,7 @@ models:
         meta:
           dimension:
             type: timestamp
+            time_intervals: OFF
       - name: date
         description: ""
         meta:
@@ -112,17 +128,22 @@ models:
             in_trillions:
               type: sum
               compact: trillions
+              group: ["percentile","sub"]
             percentile_25:
               type: percentile
               percentile: 25
+              group: ["percentile", "sub"]
             percentile_50:
               type: percentile
               percentile: 50
+              group: ["percentile", "over"]
             percentile_75:
               type: percentile
               percentile: 75
+              group: ["percentile", "over"]
             median: 
               type: median
+              group_label: "Median Metrics group"
             with_filters:
               type: sum
               filters:

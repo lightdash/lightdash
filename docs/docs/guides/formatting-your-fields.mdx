@@ -1,4 +1,5 @@
 import GroupLabel from './assets/group-label.png';
+import SubGroupLabel from './assets/sub-group-label.png';
 import Description from './assets/description-on-hover.png';
 import CustomMetricCreate from './assets/custom-metric-create.png';
 import CustomMetricFormat from './assets/custom-metric-format.png';
@@ -53,8 +54,67 @@ By default, all of your dimensions and metrics have been set to `hidden: false`.
 
 ### Grouping your metrics and dimensions in the sidebar
 
-You can group related metrics and dimensions together using the `group_label` property in your .yml files.
+You can group related metrics and dimensions together using the model meta `groups` block in combination with the `group` property in your .yml files.
+You can as well add descriptions to your groups using the property `description` that will be displayed when hovering over the group label.
 
+:::note Property Deprecated
+
+The property `group_label` will be deprecated in favor of the above `groups` functionality.
+
+The `group_label` property will still work but it is recommended to use the `groups` property.
+
+:::
+
+For example you might want to group the percentile metrics into two sub categories one being for over 40 percentiles and the other for under 40 percentiles. You can do this by adding the `group` property to your metrics like so:
+
+```yaml
+version: 2
+models:
+  - name: events
+    meta:
+      groups:
+        percentile:
+          label: Percentiles
+          description: Grouping of percentiles
+        sub:
+          label: Percentiles under 40
+          description: Grouping of percentiles under 40
+        over:
+          label: Percentiles over 40
+          description: Grouping percentiles over 40
+    columns:
+      - name: event_id
+        description: ''
+        meta:
+          dimension:
+            type: number
+            group_label: 'Events'
+          metrics:
+            percentile_25:
+              type: percentile
+              percentile: 25
+              group: ['percentile', 'sub']
+            percentile_50:
+              type: percentile
+              percentile: 50
+              group: ['percentile', 'over']
+            percentile_75:
+              type: percentile
+              percentile: 75
+              group: ['percentile', 'over']
+            median:
+              type: median
+              group_label: 'Median Metrics group'
+```
+
+<img
+  src={SubGroupLabel}
+  width="366"
+  height="124"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can also group related metrics and dimensions together using the `group_label` property in your .yml files.
 For example, you might want to group together all of the fields related to your user's `product activity`. To do this, you'd add the same `group_label` to all of the fields you want grouped together, like so:
 
 ```yaml
