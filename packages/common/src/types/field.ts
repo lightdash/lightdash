@@ -181,8 +181,7 @@ export enum TableCalculationType {
 export type TableCalculation = {
     index?: number;
     name: string;
-    // This is a unique property of the table calculation
-    displayName: string;
+    displayName: string; // This is a unique property of the table calculation
     sql: string;
     format?: CustomFormat;
     type?: TableCalculationType;
@@ -454,9 +453,7 @@ export const isFilterableDimension = (
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
 
-export type FilterableField =
-    | Exclude<ItemsMap[string], CustomDimension>
-    | FilterableDimension;
+export type FilterableField = TableCalculation | Metric | FilterableDimension;
 export const isFilterableField = (
     field: Dimension | ItemsMap[string],
 ): field is FilterableField =>

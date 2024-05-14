@@ -8,12 +8,14 @@ import {
     isTableCalculation,
     MetricType,
     TableCalculationType,
+    type CompiledField,
     type Field,
     type FilterableDimension,
     type FilterableField,
     type FilterableItem,
     type ItemsMap,
     type Metric,
+    type TableCalculation,
 } from '../types/field';
 import {
     FilterOperator,
@@ -98,13 +100,14 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
     const { type } = item;
 
     if (type === undefined) {
         // Type check for TableCalculationType
         return FilterType.NUMBER;
     }
+
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -135,8 +138,6 @@ export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
             return FilterType.BOOLEAN;
         default: {
             return assertUnreachable(
-                // @ts-expect-error - TODO: Fix this
-                // TODO: Fix this
                 type,
                 `No filter type found for field type: ${type}`,
             );
@@ -317,7 +318,7 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field: FilterableDimension | Metric | Field;
+    field: Exclude<FilterableItem, TableCalculation> | CompiledField;
     availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
