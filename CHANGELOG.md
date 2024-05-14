@@ -1,3 +1,11 @@
+## [0.1095.2](https://github.com/lightdash/lightdash/compare/0.1095.1...0.1095.2) (2024-05-14)
+
+
+### Bug Fixes
+
+* conditional formatting table calculation ([#10053](https://github.com/lightdash/lightdash/issues/10053)) ([65918b6](https://github.com/lightdash/lightdash/commit/65918b6d569d8b4bd9fef8c504dda1f5fa017e14))
+* usage analytics groups ([#10049](https://github.com/lightdash/lightdash/issues/10049)) ([ed15fda](https://github.com/lightdash/lightdash/commit/ed15fdaf977a7b806b0ec621b16c038593ff0d81))
+
 ## [0.1095.1](https://github.com/lightdash/lightdash/compare/0.1095.0...0.1095.1) (2024-05-14)
 
 
