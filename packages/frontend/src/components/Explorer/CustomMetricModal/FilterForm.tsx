@@ -1,10 +1,10 @@
 import {
     createFilterRuleFromField,
     getFieldRef,
-    getFilterableDimensionsFromItemsMap,
     isDimension,
     type ConditionalOperator,
     type FieldTarget,
+    type FilterableDimension,
     type FilterRule,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
@@ -39,9 +39,9 @@ export const FilterForm: FC<{
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
-    const { itemsMap } = useFiltersContext();
+    const { itemsMap: dimensionsMap } =
+        useFiltersContext<Record<string, FilterableDimension>>();
 
-    const dimensionsMap = getFilterableDimensionsFromItemsMap(itemsMap);
     const dimensions = Object.values(dimensionsMap);
 
     const addFieldRule = useCallback(() => {
