@@ -3,6 +3,7 @@ import { Button } from '@mantine/core';
 import { IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useHistory } from 'react-router-dom';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { useApp } from '../../providers/AppProvider';
@@ -25,6 +26,7 @@ const ExploreFromHereButton = () => {
     const { user } = useApp();
     const history = useHistory();
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
+    const { clearDashboardStorage } = useDashboardStorage();
 
     const handleCreateShareUrl = useCallback(async () => {
         if (!exploreFromHereUrl) return;
@@ -34,8 +36,11 @@ const ExploreFromHereButton = () => {
             params: `?` + exploreFromHereUrl.search,
         });
 
+        // Clear dashboard storage to prevent banner from showing when `exploring from here` on a chart from a dashboard
+        clearDashboardStorage();
+
         history.push(`/share/${shareUrl.nanoid}`);
-    }, [createShareUrl, exploreFromHereUrl, history]);
+    }, [clearDashboardStorage, createShareUrl, exploreFromHereUrl, history]);
 
     const cannotManageExplore = user.data?.ability.cannot(
         'manage',
