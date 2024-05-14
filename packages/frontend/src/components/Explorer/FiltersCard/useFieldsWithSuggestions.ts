@@ -2,7 +2,6 @@ import {
     convertAdditionalMetric,
     DimensionType,
     fieldId,
-    FieldType,
     getResultValueArray,
     getVisibleFields,
     isFilterableField,
@@ -62,9 +61,7 @@ export const useFieldsWithSuggestions = ({
                 const cals = (tableCalculations || []).reduce<
                     ItemsMap[string][]
                 >((acc, cal) => {
-                    // TODO: Verify if this is OK
                     const tableCalculationFilters = {
-                        fieldType: FieldType.TABLE_CALCULATION,
                         type: cal.type || TableCalculationType.NUMBER,
                         table: 'table_calculation',
                         label: cal.name,

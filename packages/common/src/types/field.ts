@@ -186,8 +186,6 @@ export type TableCalculation = {
     sql: string;
     format?: CustomFormat;
     type?: TableCalculationType;
-    // TODO: Check if this needs to be required - it's not in the metricQuery compiled
-    fieldType?: FieldType.TABLE_CALCULATION;
 };
 
 export type TableCalculationMetadata = {
@@ -198,7 +196,6 @@ export type TableCalculationMetadata = {
 export enum FieldType {
     METRIC = 'metric',
     DIMENSION = 'dimension',
-    TABLE_CALCULATION = 'table_calculation',
 }
 
 // This type check is a little fragile because it's based on

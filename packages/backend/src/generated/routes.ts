@@ -850,17 +850,11 @@ const models: TsoaRoute.Models = {
         enums: ['number', 'string', 'date', 'timestamp', 'boolean'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FieldType.TABLE_CALCULATION': {
-        dataType: 'refEnum',
-        enums: ['table_calculation'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableCalculation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                fieldType: { ref: 'FieldType.TABLE_CALCULATION' },
                 type: { ref: 'TableCalculationType' },
                 format: { ref: 'CustomFormat' },
                 sql: { dataType: 'string', required: true },

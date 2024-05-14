@@ -887,8 +887,8 @@ export const buildQuery = ({
 
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-    const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
-        if (fieldType === FieldType.TABLE_CALCULATION) {
+    const sqlFilterRule = (filter: FilterRule, fieldType?: FieldType) => {
+        if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
                 (tc) =>
                     `table_calculation_${tc.name}` === filter.target.fieldId,
@@ -934,7 +934,7 @@ export const buildQuery = ({
 
     const getNestedFilterSQLFromGroup = (
         filterGroup: FilterGroup | undefined,
-        fieldType: FieldType,
+        fieldType?: FieldType,
     ): string | undefined => {
         if (filterGroup) {
             const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
@@ -988,7 +988,6 @@ export const buildQuery = ({
 
     const tableCalculationFilters = getNestedFilterSQLFromGroup(
         filters.tableCalculations,
-        FieldType.TABLE_CALCULATION,
     );
 
     const sqlLimit = `LIMIT ${limit}`;

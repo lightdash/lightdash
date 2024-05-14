@@ -836,15 +836,8 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
-            "FieldType.TABLE_CALCULATION": {
-                "enum": ["table_calculation"],
-                "type": "string"
-            },
             "TableCalculation": {
                 "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.TABLE_CALCULATION"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/TableCalculationType"
                     },
