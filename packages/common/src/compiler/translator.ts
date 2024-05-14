@@ -2,6 +2,7 @@ import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
+    extractColumnGroups,
     isV9MetricRef,
     SupportedDbtAdapter,
     type DbtMetric,
@@ -16,9 +17,11 @@ import {
     DimensionType,
     FieldType,
     friendlyName,
+    intervalGroupFriendlyName,
     MetricType,
     parseMetricType,
     type Dimension,
+    type GroupType,
     type Metric,
     type Source,
 } from '../types/field';
@@ -74,10 +77,20 @@ const convertTimezone = (
     }
 };
 
+const isInterval = (
+    dimensionType: DimensionType,
+    { meta }: DbtModelColumn,
+): boolean =>
+    [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dimensionType) &&
+    meta.dimension?.time_intervals !== false &&
+    ((meta.dimension?.time_intervals &&
+        meta.dimension.time_intervals !== 'OFF') ||
+        !meta.dimension?.time_intervals);
+
 const convertDimension = (
     index: number,
     targetWarehouse: SupportedDbtAdapter,
-    model: Pick<DbtModelNode, 'name' | 'relation_name'>,
+    model: Pick<DbtModelNode, 'name' | 'relation_name' | 'meta'>,
     tableLabel: string,
     column: DbtModelColumn,
     source?: Source,
@@ -97,13 +110,20 @@ const convertDimension = (
             {},
         );
     }
-    let group: string | undefined;
     let name = column.meta.dimension?.name || column.name;
     let sql = column.meta.dimension?.sql || defaultSql(column.name);
     let label = column.meta.dimension?.label || friendlyName(name);
     if (type === DimensionType.TIMESTAMP) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
+    const groups: GroupType[] = extractColumnGroups(
+        model.name,
+        name,
+        model.meta,
+        column.meta.dimension?.group,
+        column.meta.dimension?.group_label,
+    );
+    const intervalBase = timeInterval === undefined && isInterval(type, column);
     if (timeInterval) {
         sql = timeFrameConfigs[timeInterval].getSql(
             targetWarehouse,
@@ -116,7 +136,11 @@ const convertDimension = (
         label = `${label} ${timeFrameConfigs[timeInterval]
             .getLabel()
             .toLowerCase()}`;
-        group = column.name;
+        groups.push({
+            label:
+                column.meta.dimension?.label || intervalGroupFriendlyName(name),
+            description: column.description,
+        } as GroupType);
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {
@@ -130,19 +154,19 @@ const convertDimension = (
         type,
         description: column.meta.dimension?.description || column.description,
         source,
-        group,
         timeInterval,
         hidden: !!column.meta.dimension?.hidden,
         format: column.meta.dimension?.format,
         round: column.meta.dimension?.round,
         compact: column.meta.dimension?.compact,
         requiredAttributes: column.meta.dimension?.required_attributes,
-        groupLabel: column.meta.dimension?.group_label,
         colors: column.meta.dimension?.colors,
         ...(column.meta.dimension?.urls
             ? { urls: column.meta.dimension.urls }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
+        groups,
+        intervalBase,
     };
 };
 
@@ -168,6 +192,7 @@ const generateTableLineage = (
 
 const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
+    model: Pick<DbtModelNode, 'name' | 'meta'>,
     tableName: string,
     tableLabel: string,
 ): Metric => {
@@ -221,6 +246,14 @@ const convertDbtMetricToLightdashMetric = (
         sql = `CASE WHEN ${filterSql} THEN ${sql} ELSE NULL END`;
     }
 
+    const groups: GroupType[] = extractColumnGroups(
+        model.name,
+        metric.name,
+        model.meta,
+        metric.meta?.group,
+        metric.meta?.group_label,
+    );
+
     return {
         fieldType: FieldType.METRIC,
         type,
@@ -236,7 +269,7 @@ const convertDbtMetricToLightdashMetric = (
         round: metric.meta?.round,
         compact: metric.meta?.compact,
         format: metric.meta?.format,
-        groupLabel: metric.meta?.group_label,
+        groups,
         percentile: metric.meta?.percentile,
         showUnderlyingValues: metric.meta?.show_underlying_values,
         filters: parseFilters(metric.meta?.filters),
@@ -270,15 +303,7 @@ export const convertTable = (
 
             let extraDimensions = {};
 
-            if (
-                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                    dimension.type,
-                ) &&
-                column.meta.dimension?.time_intervals !== false &&
-                ((column.meta.dimension?.time_intervals &&
-                    column.meta.dimension.time_intervals !== 'OFF') ||
-                    !column.meta.dimension?.time_intervals)
-            ) {
+            if (isInterval(dimension.type, column)) {
                 let intervals: TimeFrames[] = [];
                 if (
                     column.meta.dimension?.time_intervals &&
@@ -346,6 +371,7 @@ export const convertTable = (
                             dimensionSql: dimension.sql,
                             name,
                             metric,
+                            meta: model.meta,
                             tableLabel,
                             requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
                         }),
@@ -372,6 +398,7 @@ export const convertTable = (
                 modelName: model.name,
                 name,
                 metric,
+                meta: model.meta,
                 tableLabel,
             }),
         ]),
@@ -380,7 +407,12 @@ export const convertTable = (
     const convertedDbtMetrics = Object.fromEntries(
         dbtMetrics.map((metric) => [
             metric.name,
-            convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
+            convertDbtMetricToLightdashMetric(
+                metric,
+                model,
+                model.name,
+                tableLabel,
+            ),
         ]),
     );
 

@@ -806,7 +806,8 @@ export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
         isDimension(axisItem) &&
         [DimensionType.DATE, DimensionType.TIMESTAMP].includes(axisItem.type) &&
-        axisItem.group &&
+        axisItem.groups &&
+        axisItem.groups.length > 0 &&
         axisItem.label &&
         axisItem.timeInterval
     ) {

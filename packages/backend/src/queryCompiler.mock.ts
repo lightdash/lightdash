@@ -151,7 +151,6 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 source: undefined,
                 showUnderlyingValues: undefined,
                 format: undefined,
-                groupLabel: undefined,
                 filters: [],
                 requiredAttributes: undefined,
                 dimensionReference: undefined,
