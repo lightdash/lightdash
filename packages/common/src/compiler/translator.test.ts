@@ -22,7 +22,6 @@ import {
     LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
     model,
     MODEL_WITH_ADDITIONAL_DIMENSIONS,
-    MODEL_WITH_BAD_METRIC_GROUPS,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_GROUPS_BLOCK,
@@ -281,17 +280,5 @@ describe('convert tables from dbt models', () => {
                 [],
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
-    });
-
-    it('should throw an error metric group does not match any model meta groups block', async () => {
-        expect(() =>
-            convertTable(
-                SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_BAD_METRIC_GROUPS,
-                [],
-            ),
-        ).toThrowError(
-            'Column "user_id_count" group "non_existent" not found in model "myTable" groups',
-        );
     });
 });

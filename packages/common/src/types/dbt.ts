@@ -379,10 +379,9 @@ export const convertModelGroupsToColumnGroups = (
                 description: modelGroups[modelGroupName].description,
             } as GroupType;
         }
-        throw new ParseError(
-            `Column "${columnName}" group "${groupName}" not found in model "${modelName}" groups`,
-            {},
-        );
+        return {
+            label: groupName,
+        } as GroupType;
     });
 
 export const extractColumnGroups = (
