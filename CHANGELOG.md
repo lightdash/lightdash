@@ -1,3 +1,10 @@
+# [0.1095.0](https://github.com/lightdash/lightdash/compare/0.1094.0...0.1095.0) (2024-05-14)
+
+
+### Features
+
+* add "include errors" arg to all explores summaries ([#10064](https://github.com/lightdash/lightdash/issues/10064)) ([0803493](https://github.com/lightdash/lightdash/commit/08034934dc2d3ff98bce64c79e13c69741011632))
+
 # [0.1094.0](https://github.com/lightdash/lightdash/compare/0.1093.2...0.1094.0) (2024-05-13)
 
 
