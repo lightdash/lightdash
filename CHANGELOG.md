@@ -1,3 +1,10 @@
+## [0.1095.3](https://github.com/lightdash/lightdash/compare/0.1095.2...0.1095.3) (2024-05-15)
+
+
+### Bug Fixes
+
+* fix type error or undefined param.encode.x ([#10076](https://github.com/lightdash/lightdash/issues/10076)) ([f31d237](https://github.com/lightdash/lightdash/commit/f31d237785067509a5c84f491e01d61caf234d76))
+
 ## [0.1095.2](https://github.com/lightdash/lightdash/compare/0.1095.1...0.1095.2) (2024-05-14)
 
 
