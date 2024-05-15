@@ -100,6 +100,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
+    console.log('it', titleHref);
+
     return (
         <Card
             component={Flex}
@@ -162,16 +164,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     withinPortal
                                     maw={400}
                                 >
-                                    <TileTitleLink
-                                        ref={titleRef}
-                                        href={titleHref}
-                                        $hovered={titleHovered}
-                                        target="_blank"
-                                        className="non-draggable"
-                                        hidden={hideTitle}
-                                    >
-                                        {title}
-                                    </TileTitleLink>
+                                    {isEditMode ? (
+                                        <Text fw={600} fz="md">
+                                            {title}
+                                        </Text>
+                                    ) : (
+                                        <TileTitleLink
+                                            ref={titleRef}
+                                            href={titleHref}
+                                            $hovered={titleHovered}
+                                            target="_blank"
+                                            className="non-draggable"
+                                            hidden={hideTitle}
+                                        >
+                                            {title}
+                                        </TileTitleLink>
+                                    )}
                                 </Tooltip>
                             </Group>
                         </TitleWrapper>
