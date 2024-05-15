@@ -1,3 +1,10 @@
+## [0.1095.4](https://github.com/lightdash/lightdash/compare/0.1095.3...0.1095.4) (2024-05-15)
+
+
+### Bug Fixes
+
+* clear dashboard storage before explore from here ([#10071](https://github.com/lightdash/lightdash/issues/10071)) ([7578924](https://github.com/lightdash/lightdash/commit/7578924221b253b243c1c67752cc9ef3878aa672))
+
 ## [0.1095.3](https://github.com/lightdash/lightdash/compare/0.1095.2...0.1095.3) (2024-05-15)
 
 
