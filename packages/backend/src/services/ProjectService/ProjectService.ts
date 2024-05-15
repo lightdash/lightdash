@@ -973,8 +973,7 @@ export class ProjectService extends BaseService {
 
         const renderedFilters = filterRules.map((filterRule) => {
             const field = compiledTableCalculations.find(
-                ({ name }) =>
-                    `table_calculation_${name}` === filterRule.target.fieldId,
+                (tc) => getItemId(tc) === filterRule.target.fieldId,
             );
 
             /**

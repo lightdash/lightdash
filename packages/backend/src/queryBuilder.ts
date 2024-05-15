@@ -22,6 +22,7 @@ import {
     getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
+    getItemId,
     getMetrics,
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
@@ -890,8 +891,7 @@ export const buildQuery = ({
     const sqlFilterRule = (filter: FilterRule, fieldType?: FieldType) => {
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
-                (tc) =>
-                    `table_calculation_${tc.name}` === filter.target.fieldId,
+                (tc) => getItemId(tc) === filter.target.fieldId,
             );
             return renderTableCalculationFilterRuleSql(
                 filter,

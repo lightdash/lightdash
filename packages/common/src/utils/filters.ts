@@ -40,6 +40,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
+import { getItemId } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -256,7 +257,7 @@ export const createFilterRuleFromField = (
         {
             id: uuidv4(),
             target: {
-                fieldId: fieldId(field),
+                fieldId: getItemId(field),
             },
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
@@ -425,7 +426,7 @@ export const getFiltersFromGroup = (
         if (isFilterRule(item)) {
             // when filter group item is a filter rule, we find the field it's targeting
             const fieldInRule = fields.find(
-                (field) => fieldId(field) === item.target.fieldId,
+                (field) => getItemId(field) === item.target.fieldId,
             );
 
             // determine the type of the field and add the rule it to the correct filters object property

@@ -1,8 +1,8 @@
 import {
     addFilterRule,
     deleteFilterRuleFromGroup,
-    fieldId,
     getFiltersFromGroup,
+    getItemId,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
@@ -49,7 +49,7 @@ const getInvalidFilterRules = (
 ) =>
     filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
         const fieldInRule = fields.find(
-            (field) => fieldId(field) === filterRule.target.fieldId,
+            (field) => getItemId(field) === filterRule.target.fieldId,
         );
 
         if (!fieldInRule) {

@@ -2,6 +2,7 @@ import {
     convertAdditionalMetric,
     DimensionType,
     fieldId,
+    getItemId,
     getResultValueArray,
     getVisibleFields,
     isFilterableField,
@@ -86,7 +87,7 @@ export const useFieldsWithSuggestions = ({
                         }
                         return {
                             ...sum,
-                            [fieldId(field)]: {
+                            [getItemId(field)]: {
                                 ...field,
                                 suggestions,
                             },

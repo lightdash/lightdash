@@ -244,14 +244,8 @@ export const isField = (field: any): field is Field =>
 
 // Field ids are unique across the project
 export type FieldId = string;
-export const fieldId = (
-    field: ItemsMap[string] | AdditionalMetric | Pick<Field, 'table' | 'name'>,
-): FieldId => {
-    if (isTableCalculation(field)) {
-        return `table_calculation_${field.name}`;
-    }
-    return `${field.table}_${field.name.replaceAll('.', '__')}`;
-};
+export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
+    `${field.table}_${field.name.replaceAll('.', '__')}`;
 
 export const convertFieldRefToFieldId = (
     fieldRef: string,
@@ -263,7 +257,7 @@ export const convertFieldRefToFieldId = (
             return `${fallbackTableName}_${fieldRef}`;
         }
         throw new CompileError(
-            `Table calculation contains an invalid reference: ${fieldRef}. References must be of the format "table.field"`,
+            `Table calculation contains an invalid reference: ${fieldRef}. References mugst be of the format "table.field"`,
             {},
         );
     }
