@@ -218,14 +218,20 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[field.timeInterval]
                             : moment();
 
-                    const dateValue = valueIsDate
-                        ? formatDate(
-                              // Treat the date as UTC, then remove its timezone information before formatting
-                              moment.utc(value).format('YYYY-MM-DD'),
-                              undefined,
-                              false,
-                          )
-                        : formatDate(defaultDate, undefined, false);
+                    // If the field is a year filter, we want to convert it to the start of the year. Example: 2021-03-01 -> 2021-01-01
+                    const isYearFilter =
+                        isDimension(field) &&
+                        field.timeInterval === TimeFrames.YEAR;
+
+                    const dateValue =
+                        valueIsDate && !isYearFilter
+                            ? formatDate(
+                                  // Treat the date as UTC, then remove its timezone information before formatting
+                                  moment.utc(value).format('YYYY-MM-DD'),
+                                  undefined,
+                                  false,
+                              )
+                            : formatDate(defaultDate, undefined, false);
 
                     filterRuleDefaults.values = [dateValue];
                 }

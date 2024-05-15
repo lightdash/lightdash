@@ -4,6 +4,7 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
+    isDimension,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -56,14 +57,29 @@ const FilterRuleForm: FC<Props> = ({
             );
             if (selectedField && activeField) {
                 if (selectedField.type === activeField.type) {
-                    onChange({
+                    if (
+                        isDimension(selectedField) &&
+                        isDimension(activeField) &&
+                        activeField.timeInterval !== selectedField.timeInterval
+                    ) {
+                        // If the time interval changes, we need to update the value to match the new time interval if it's converted to a YEAR timeframe
+                        // Example: If the change is from month -> year, the value of the filter `2021-03-01` should be updated to `2021-01-01`
+                        return onChange(
+                            createFilterRuleFromField(
+                                selectedField,
+                                filterRule.values?.[0],
+                            ),
+                        );
+                    }
+
+                    return onChange({
                         ...filterRule,
                         target: {
                             fieldId,
                         },
                     });
                 } else {
-                    onChange(createFilterRuleFromField(selectedField));
+                    return onChange(createFilterRuleFromField(selectedField));
                 }
             }
         },
