@@ -257,7 +257,7 @@ export const convertFieldRefToFieldId = (
             return `${fallbackTableName}_${fieldRef}`;
         }
         throw new CompileError(
-            `Table calculation contains an invalid reference: ${fieldRef}. References mugst be of the format "table.field"`,
+            `Table calculation contains an invalid reference: ${fieldRef}. References must be of the format "table.field"`,
             {},
         );
     }
