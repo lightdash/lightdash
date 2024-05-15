@@ -1,7 +1,7 @@
 import { type CreateSavedChartVersion } from '@lightdash/common';
 import { Group, Modal, Text } from '@mantine/core';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import MantineIcon from '../../MantineIcon';
@@ -28,6 +28,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     defaultSpaceUuid,
     onConfirm,
 }) => {
+    // Store it in the state to avoid losing the param when the user switches between tables
+    const [spaceUuid] = useState(defaultSpaceUuid);
+
     const { getEditingDashboardInfo } = useDashboardStorage();
     const editingDashboardInfo = getEditingDashboardInfo();
 
@@ -79,7 +82,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     savedData={savedData}
                     onConfirm={onConfirm}
                     onClose={onClose}
-                    defaultSpaceUuid={defaultSpaceUuid}
+                    defaultSpaceUuid={spaceUuid}
                     dashboardInfoFromSavedData={{
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,
