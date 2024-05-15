@@ -76,6 +76,7 @@ const getDimensionFromId = (
                 };
         }
 
+        console.trace();
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
@@ -658,34 +659,43 @@ export const buildQuery = ({
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();
 
-    const dimensionSelects = dimensions.map((field) => {
-        const alias = field;
-        const dimension = getDimensionFromId(
-            field,
-            explore,
-            adapterType,
-            startOfWeek,
-        );
+    // dimensions contains a mix of Dimensions and CustomDimensions,
+    // we want to filter customDimensions from this list as we will handle them separately
+    const excludeCustomDimensions = (field: string) =>
+        !compiledCustomDimensions.map((cd) => cd.id).includes(field);
+    const dimensionSelects = dimensions
+        .filter(excludeCustomDimensions)
+        .map((field) => {
+            const alias = field;
+            const dimension = getDimensionFromId(
+                field,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
 
-        assertValidDimensionRequiredAttribute(
-            dimension,
-            userAttributes,
-            `dimension: "${field}"`,
-        );
-        return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-    });
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `dimension: "${field}"`,
+            );
+            return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+        });
 
+    const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
+        dimensions.includes(cd.id),
+    );
     const customBinDimensionSql = getCustomBinDimensionSql({
         warehouseClient,
         explore,
         customDimensions:
-            compiledCustomDimensions?.filter(isCustomBinDimension),
+            selectedCustomDimensions?.filter(isCustomBinDimension),
         userAttributes,
         sorts,
     });
     const customSqlDimensionSql = getCustomSqlDimensionSql({
         warehouseClient,
-        customDimensions: compiledCustomDimensions?.filter(
+        customDimensions: selectedCustomDimensions?.filter(
             isCompiledCustomSqlDimension,
         ),
     });
@@ -728,15 +738,17 @@ export const buildQuery = ({
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
             return [...acc, ...(metric.tablesReferences || [metric.table])];
         }, []),
-        ...dimensions.reduce<string[]>((acc, field) => {
-            const dim = getDimensionFromId(
-                field,
-                explore,
-                adapterType,
-                startOfWeek,
-            );
-            return [...acc, ...(dim.tablesReferences || [dim.table])];
-        }, []),
+        ...dimensions
+            .filter(excludeCustomDimensions)
+            .reduce<string[]>((acc, field) => {
+                const dim = getDimensionFromId(
+                    field,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+                return [...acc, ...(dim.tablesReferences || [dim.table])];
+            }, []),
         ...(customBinDimensionSql?.tables || []),
         ...(customSqlDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(

@@ -1,4 +1,9 @@
-import { fieldId as getFieldId, getVisibleFields } from '@lightdash/common';
+import {
+    fieldId as getFieldId,
+    getCustomDimensionId,
+    getVisibleFields,
+    isCustomDimension,
+} from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -53,14 +58,21 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const missingFields = useMemo(() => {
         if (data) {
             const visibleFields = getVisibleFields(data);
-            const allFields = [...visibleFields, ...(additionalMetrics || [])];
-
+            const allFields = [
+                ...visibleFields,
+                ...(additionalMetrics || []),
+                ...(customDimensions || []),
+            ];
             const selectedFields = [...metrics, ...dimensions];
+            const fieldIds = allFields.map((field) =>
+                isCustomDimension(field)
+                    ? getCustomDimensionId(field)
+                    : getFieldId(field),
+            );
 
-            const fieldIds = allFields.map(getFieldId);
             return selectedFields.filter((node) => !fieldIds.includes(node));
         }
-    }, [data, additionalMetrics, metrics, dimensions]);
+    }, [data, additionalMetrics, metrics, dimensions, customDimensions]);
 
     if (status === 'loading') {
         return <LoadingSkeleton />;

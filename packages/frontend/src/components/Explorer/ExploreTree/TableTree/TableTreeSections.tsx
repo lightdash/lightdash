@@ -309,9 +309,7 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={customDimensionsMap}
                     selectedItems={selectedItems}
-                    onItemClick={() => {
-                        //TODO implement
-                    }}
+                    onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
                     <TreeRoot />
                 </TreeProvider>

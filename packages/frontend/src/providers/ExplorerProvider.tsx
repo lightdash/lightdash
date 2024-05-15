@@ -838,12 +838,17 @@ function reducer(
                     []),
                 action.payload,
             ];
+            const dimensions = [
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                ...newCustomDimensions.map(getCustomDimensionId),
+            ];
             return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
+                        dimensions,
                         customDimensions: newCustomDimensions,
                     },
                     tableConfig: {
@@ -1340,9 +1345,6 @@ export const ExplorerProvider: FC<
             ...unsavedChartVersion.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ),
-            ...(unsavedChartVersion.metricQuery.customDimensions?.map(
-                getCustomDimensionId,
-            ) || []),
         ]);
         return [fields, fields.size > 0];
     }, [unsavedChartVersion]);
