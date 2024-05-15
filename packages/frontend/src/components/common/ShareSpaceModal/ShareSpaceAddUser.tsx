@@ -135,7 +135,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 (access) => access.userUuid === userUuid,
             )?.hasDirectAccess;
 
-            if (!hasDirectAccess) return null;
+            if (hasDirectAccess) return null;
 
             return {
                 value: userUuid,
