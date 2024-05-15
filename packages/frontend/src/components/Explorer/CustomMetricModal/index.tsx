@@ -4,6 +4,7 @@ import {
     fieldId as getFieldId,
     friendlyName,
     isAdditionalMetric,
+    isCustomDimension,
     isDimension,
     MetricType,
     NumberSeparator,
@@ -145,13 +146,14 @@ export const CustomMetricModal = () => {
     useEffect(() => {
         if (!item || !customMetricType) return;
 
-        if (item.label && customMetricType) {
+        const label = isCustomDimension(item) ? item.name : item.label;
+        if (label && customMetricType) {
             setFieldValue(
                 'customMetricLabel',
                 isEditing
-                    ? item.label
+                    ? label
                     : customMetricType
-                    ? `${friendlyName(customMetricType)} of ${item.label}`
+                    ? `${friendlyName(customMetricType)} of ${label}`
                     : '',
             );
         }
@@ -225,6 +227,15 @@ export const CustomMetricModal = () => {
                 addAdditionalMetric({
                     uuid: uuidv4(),
                     baseDimensionName: item.name,
+                    ...data,
+                });
+                showToastSuccess({
+                    title: 'Custom metric added successfully',
+                });
+            } else if (isCustomDimension(item)) {
+                addAdditionalMetric({
+                    uuid: uuidv4(),
+                    // Do not add baseDimensionName to avoid invalid validation errors in queryBuilder
                     ...data,
                 });
                 showToastSuccess({
