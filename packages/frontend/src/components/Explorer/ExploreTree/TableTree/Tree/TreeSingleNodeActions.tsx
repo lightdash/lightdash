@@ -1,11 +1,11 @@
 import {
-    CustomDimensionType,
     DimensionType,
     fieldId,
     friendlyName,
     getCustomDimensionId,
     isAdditionalMetric,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -95,7 +95,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     );
 
     const customMetrics = useMemo(() => {
-        if (isCustomDimension(item) && item.type === CustomDimensionType.SQL) {
+        if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
@@ -210,9 +210,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                 )}
 
                 {customMetrics.length > 0 &&
-                (isDimension(item) ||
-                    (isCustomDimension(item) &&
-                        item.type === CustomDimensionType.SQL)) ? (
+                (isDimension(item) || isCustomSqlDimension(item)) ? (
                     <>
                         <Menu.Divider />
 
