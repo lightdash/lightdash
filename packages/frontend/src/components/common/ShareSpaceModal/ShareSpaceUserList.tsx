@@ -306,11 +306,15 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
         <Stack spacing="sm">
             {groupsAccess.map((group) => {
                 const userAccessTypes = UserAccessOptions.map((accessType) =>
-                    accessType.value === UserAccessAction.DELETE && !isPrivate
+                    accessType.value === UserAccessAction.DELETE
                         ? {
                               ...accessType,
-                              title: 'Reset access',
-                              selectDescription: `Reset group's access`,
+                              title: { isPrivate }
+                                  ? 'Remove access'
+                                  : 'Reset access',
+                              selectDescription: { isPrivate }
+                                  ? `Remove group's access`
+                                  : `Reset group's access`,
                           }
                         : accessType,
                 );
