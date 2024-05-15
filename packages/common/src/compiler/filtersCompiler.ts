@@ -351,23 +351,18 @@ export const renderTableCalculationFilterRuleSql = (
     }
 
     switch (field.format?.type) {
-        case CustomFormatType.DEFAULT:
+        case CustomFormatType.PERCENT:
+        case CustomFormatType.CURRENCY:
+        case CustomFormatType.NUMBER: {
+            return renderNumberFilterSql(fieldSql, filterRule);
+        }
+        default:
             return renderStringFilterSql(
                 fieldSql,
                 filterRule,
                 stringQuoteChar,
                 escapeStringQuoteChar,
             );
-        case CustomFormatType.PERCENT:
-        case CustomFormatType.CURRENCY:
-        case CustomFormatType.NUMBER: {
-            return renderNumberFilterSql(fieldSql, filterRule);
-        }
-        default: {
-            throw Error(
-                `No function implemented to render filter sql for table calculation type ${field.format?.type}`,
-            );
-        }
     }
 };
 
