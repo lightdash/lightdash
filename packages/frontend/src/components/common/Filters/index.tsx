@@ -6,7 +6,6 @@ import {
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
-    isField,
     isFilterableField,
     isOrFilterGroup,
     type FilterGroup,
@@ -75,7 +74,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
-            if (isField(field) && isFilterableField(field)) {
+            if (isFilterableField(field)) {
                 setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
             }
