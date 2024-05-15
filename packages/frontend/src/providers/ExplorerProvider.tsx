@@ -1559,7 +1559,7 @@ export const ExplorerProvider: FC<
         (
             additionalMetricModalData?: Omit<
                 ExplorerReduceState['modals']['additionalMetric'],
-                'isOpen' | 'item'
+                'isOpen'
             >,
         ) => {
             dispatch({

@@ -79,7 +79,6 @@ const getTypeOverridesForAdditionalMetric = (
     item: Dimension | AdditionalMetric | CustomDimension,
     type: MetricType,
 ): Partial<AdditionalMetric> | undefined => {
-    //TODO handle custom dimensions based on dimensionType
     if (!isDimension(item)) return;
 
     switch (type) {
