@@ -180,10 +180,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
                                     // on `useEchartsCartesianConfig` to generate the tooltip
                                     if (eChartsOptions.tooltip.formatter) {
                                         const dim =
-                                            param.encode?.x &&
-                                            Array.isArray(param.encode?.x) &&
-                                            param.encode.x.length > 0 &&
-                                            param.encode?.x[0] !== undefined
+                                            param.encode?.x?.[0] !== undefined
                                                 ? param.dimensionNames[
                                                       param.encode?.x[0]
                                                   ]
