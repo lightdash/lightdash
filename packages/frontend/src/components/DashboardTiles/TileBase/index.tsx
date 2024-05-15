@@ -100,8 +100,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
-    console.log('it', titleHref);
-
     return (
         <Card
             component={Flex}
