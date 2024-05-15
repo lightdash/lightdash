@@ -4,13 +4,18 @@ import {
     type ApiJobScheduledResponse,
     type ValidationResponse,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryResult,
+} from '@tanstack/react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../toaster/useToaster';
 import { useProject } from '../useProject';
-import useUser from '../user/useUser';
+import useUser, { type UserWithAbility } from '../user/useUser';
 
 const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
 
@@ -26,12 +31,26 @@ const getValidation = async (
 
 export const useValidation = (
     projectUuid: string,
+    user: UseQueryResult<UserWithAbility, ApiError>,
     fromSettings: boolean = false,
 ) => {
     const [lastValidationNotification, setLastValidationNotification] =
         useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+    const organizationUuid = user.data?.organizationUuid;
 
-    return useQuery<ValidationResponse[], ApiError>({
+    // Check if the user has a valid ability to check for Validation.
+    const canValidateResponse = !user.data?.ability.cannot(
+        'manage',
+        subject('Validation', {
+            organizationUuid,
+            projectUuid,
+        }),
+    );
+    // used for conditional calling useQuery
+    const skipQuery = canValidateResponse;
+
+    const queryResult = useQuery<ValidationResponse[], ApiError>({
+        enabled: skipQuery, // Skip the query if user doesn't have permission
         queryKey: ['validation', fromSettings],
         queryFn: () => getValidation(projectUuid, fromSettings),
         retry: (_, error) => error.error.statusCode !== 403,
@@ -57,6 +76,13 @@ export const useValidation = (
             );
         },
     });
+
+    // If the user doesn't have permission, return an empty data object.
+    if (!canValidateResponse) {
+        return { data: [] };
+    }
+
+    return queryResult;
 };
 
 const updateValidation = async (
