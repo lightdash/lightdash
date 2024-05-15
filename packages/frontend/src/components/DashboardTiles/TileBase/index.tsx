@@ -163,7 +163,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     maw={400}
                                 >
                                     {isEditMode ? (
-                                        <Text fw={600} fz="md" hidden={hideTitle}>
+                                        <Text
+                                            fw={600}
+                                            fz="md"
+                                            hidden={hideTitle}
+                                        >
                                             {title}
                                         </Text>
                                     ) : (
