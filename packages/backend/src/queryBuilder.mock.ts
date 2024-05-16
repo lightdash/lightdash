@@ -577,7 +577,7 @@ export const METRIC_QUERY: CompiledMetricQuery = {
 
 export const METRIC_QUERY_WITH_CUSTOM_DIMENSION: CompiledMetricQuery = {
     exploreName: 'table1',
-    dimensions: ['table1_dim1'],
+    dimensions: ['table1_dim1', 'age_range'],
     metrics: ['table1_metric1'],
     filters: {},
     sorts: [{ fieldId: 'table1_metric1', descending: true }],
