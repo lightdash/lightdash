@@ -41,19 +41,19 @@ export const getFieldsFromMetricQuery = (
         }
         return acc;
     }, {});
-    const additionalMetrics = (metricQuery.additionalMetrics || []).reduce<
-        Record<string, Metric>
-    >((acc, additionalMetric) => {
-        const table = explore.tables[additionalMetric.table];
-        if (table) {
-            const metric = convertAdditionalMetric({
-                additionalMetric,
-                table,
-            });
-            return { ...acc, [getItemId(additionalMetric)]: metric };
-        }
-        return acc;
-    }, {});
+    const additionalMetrics = (metricQuery.additionalMetrics || [])
+        .filter((cd) => metricQuery.metrics.includes(getItemId(cd)))
+        .reduce<Record<string, Metric>>((acc, additionalMetric) => {
+            const table = explore.tables[additionalMetric.table];
+            if (table) {
+                const metric = convertAdditionalMetric({
+                    additionalMetric,
+                    table,
+                });
+                return { ...acc, [getItemId(additionalMetric)]: metric };
+            }
+            return acc;
+        }, {});
     const tableCalculations = metricQuery.tableCalculations.reduce<
         Record<string, TableCalculation>
     >(
@@ -63,15 +63,17 @@ export const getFieldsFromMetricQuery = (
         }),
         {},
     );
-    const customDimensions = metricQuery.customDimensions?.reduce<
-        Record<string, CustomDimension>
-    >(
-        (acc, customDimension) => ({
-            ...acc,
-            [getCustomDimensionId(customDimension)]: customDimension,
-        }),
-        {},
-    );
+    const customDimensions = metricQuery.customDimensions
+        ?.filter((cd) =>
+            metricQuery.dimensions.includes(getCustomDimensionId(cd)),
+        )
+        .reduce<Record<string, CustomDimension>>(
+            (acc, customDimension) => ({
+                ...acc,
+                [getCustomDimensionId(customDimension)]: customDimension,
+            }),
+            {},
+        );
     return {
         ...fields,
         ...tableCalculations,
