@@ -1,3 +1,10 @@
+## [0.1096.2](https://github.com/lightdash/lightdash/compare/0.1096.1...0.1096.2) (2024-05-16)
+
+
+### Bug Fixes
+
+* add custom metric from custom dimension ([#10077](https://github.com/lightdash/lightdash/issues/10077)) ([9d87bef](https://github.com/lightdash/lightdash/commit/9d87bef725af67eb918effb3c1fc6a8b703e5749))
+
 ## [0.1096.1](https://github.com/lightdash/lightdash/compare/0.1096.0...0.1096.1) (2024-05-15)
 
 
