@@ -667,9 +667,6 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
-                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || []),
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
@@ -721,9 +718,6 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
-                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || []),
             ]);
             return {
                 ...state,
