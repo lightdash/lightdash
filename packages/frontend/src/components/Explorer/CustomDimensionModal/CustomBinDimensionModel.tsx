@@ -294,7 +294,7 @@ export const CustomBinDimensionModal: FC<{
                                                     color="gray.6"
                                                     fw="400"
                                                 >
-                                                    &lt;{toProps.value}{' '}
+                                                    {/* &lt; {toProps.value}{' '} */}
                                                 </Text>
 
                                                 <NumberInput
@@ -351,8 +351,8 @@ export const CustomBinDimensionModal: FC<{
                                                     color="gray.6"
                                                     fw="400"
                                                 >
-                                                    ≥{fromProps.value} and &lt;
-                                                    {toProps.value}
+                                                    {/* ≥{fromProps.value} and &lt;
+                                                    {toProps.value} */}
                                                 </Text>
 
                                                 <NumberInput

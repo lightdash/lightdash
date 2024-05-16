@@ -27,6 +27,7 @@ module.exports = {
         'plugin:testing-library/react',
     ],
     plugins: [
+        'eslint-plugin-react-compiler',
         'css-modules',
         'import',
         'json',
@@ -104,5 +105,6 @@ module.exports = {
                 ignoreRestSiblings: true,
             },
         ],
+        'react-compiler/react-compiler': 2,
     },
 };

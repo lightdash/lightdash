@@ -5,11 +5,22 @@ import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
+const ReactCompilerConfig = {
+    sources: (filename) => {
+        return true;
+    },
+};
+
 export default defineConfig({
     plugins: [
+        reactPlugin({
+            babel: {
+                plugins: [['babel-plugin-react-compiler', ReactCompilerConfig]],
+            },
+        }),
         tsconfigPaths(),
         svgrPlugin(),
-        reactPlugin(),
+
         compression({
             include: [/\.(js)$/, /\.(css)$/, /\.js\.map$/],
             filename: '[path][base].gzip',

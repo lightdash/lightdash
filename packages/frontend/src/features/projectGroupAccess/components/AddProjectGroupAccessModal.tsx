@@ -72,8 +72,8 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
                                         Your organization doesn't have any
                                         groups yet. Go to{' '}
                                         <Text span fw={500}>
-                                            "Organization settings" &gt; "Users
-                                            & Groups"{' '}
+                                            "Organization settings" "Users &
+                                            Groups"{' '}
                                         </Text>{' '}
                                         to create a group
                                     </Text>
