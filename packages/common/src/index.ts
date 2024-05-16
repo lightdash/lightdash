@@ -29,11 +29,7 @@ import {
     type Metric,
     type TableCalculation,
 } from './types/field';
-import {
-    getCustomDimensionId,
-    type AdditionalMetric,
-    type MetricQuery,
-} from './types/metricQuery';
+import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
 import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
@@ -954,7 +950,6 @@ export function itemsInMetricQuery(
               ...metricQuery.metrics,
               ...metricQuery.dimensions,
               ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
-              ...(metricQuery.customDimensions || []).map(getCustomDimensionId),
           ];
 }
 

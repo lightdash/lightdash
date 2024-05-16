@@ -1,9 +1,4 @@
-import {
-    fieldId as getFieldId,
-    getCustomDimensionId,
-    getVisibleFields,
-    isCustomDimension,
-} from '@lightdash/common';
+import { getItemId, getVisibleFields } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -64,9 +59,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 ...(customDimensions || []),
             ];
             const selectedFields = [...metrics, ...dimensions];
-            const fieldIds = allFields.map((field) =>
-                getItemId(field),
-            );
+            const fieldIds = allFields.map((field) => getItemId(field));
 
             return selectedFields.filter((node) => !fieldIds.includes(node));
         }

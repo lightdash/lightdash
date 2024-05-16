@@ -11,7 +11,6 @@ import {
     ForbiddenError,
     formatItemValue,
     friendlyName,
-    getCustomDimensionId,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getHiddenTableFields,
@@ -54,7 +53,6 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { runWorkerThread, sanitizeStringParam } from '../../utils';
 import { BaseService } from '../BaseService';
@@ -251,7 +249,6 @@ export class CsvService extends BaseService {
             ...metricQuery.metrics,
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
-            ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
         ].filter((id) => !hiddenFields.includes(id));
 
         Logger.debug(
