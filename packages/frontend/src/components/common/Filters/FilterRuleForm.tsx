@@ -1,9 +1,9 @@
 import {
     createFilterRuleFromField,
-    fieldId as getFieldId,
     FilterType,
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
+    getItemId,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -35,7 +35,7 @@ const FilterRuleForm: FC<Props> = ({
     const { popoverProps } = useFiltersContext();
     const activeField = useMemo(() => {
         return fields.find(
-            (field) => getFieldId(field) === filterRule.target.fieldId,
+            (field) => getItemId(field) === filterRule.target.fieldId,
         );
     }, [fields, filterRule.target.fieldId]);
 
@@ -52,7 +52,7 @@ const FilterRuleForm: FC<Props> = ({
     const onFieldChange = useCallback(
         (fieldId: string) => {
             const selectedField = fields.find(
-                (field) => getFieldId(field) === fieldId,
+                (field) => getItemId(field) === fieldId,
             );
             if (selectedField && activeField) {
                 if (selectedField.type === activeField.type) {
@@ -87,7 +87,7 @@ const FilterRuleForm: FC<Props> = ({
                 items={fields}
                 onChange={(field) => {
                     if (!field) return;
-                    onFieldChange(getFieldId(field));
+                    onFieldChange(getItemId(field));
                 }}
             />
             <Select

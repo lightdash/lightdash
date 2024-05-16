@@ -1037,7 +1037,7 @@ export const METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER: CompiledMetricQuery = {
                         fieldId: 'calc3',
                     },
                     operator: FilterOperator.EQUALS,
-                    values: [],
+                    values: ['my value'],
                 },
             ],
         },
@@ -1324,7 +1324,7 @@ FROM metrics
 
 )
 SELECT * FROM table_calculations WHERE ((
-  1=1
+  ("calc3") IN ('my value')
 ))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;

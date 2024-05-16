@@ -1,7 +1,7 @@
 import {
     applyDefaultTileTargets,
     type DashboardFilterRule,
-    type FilterableField,
+    type FilterableDimension,
 } from '@lightdash/common';
 import {
     Button,
@@ -27,7 +27,7 @@ type Props = {
     isEditMode: boolean;
     isCreatingNew?: boolean;
     isTemporary?: boolean;
-    field?: FilterableField;
+    field?: FilterableDimension;
     filterRule?: DashboardFilterRule;
     openPopoverId: string | undefined;
     activeTabUuid?: string | undefined;

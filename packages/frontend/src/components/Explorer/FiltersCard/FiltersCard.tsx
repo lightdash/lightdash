@@ -159,7 +159,7 @@ const FiltersCard: FC = memo(() => {
         >
             <FiltersProvider
                 projectUuid={projectUuid}
-                fieldsMap={fieldsWithSuggestions}
+                itemsMap={fieldsWithSuggestions}
                 startOfWeek={
                     project.data?.warehouseConnection?.startOfWeek ?? undefined
                 }

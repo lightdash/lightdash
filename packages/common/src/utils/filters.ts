@@ -5,15 +5,17 @@ import {
     DimensionType,
     fieldId,
     isDimension,
-    isFilterableDimension,
-    isTableCalculationField,
+    isTableCalculation,
     MetricType,
     TableCalculationType,
-    type Dimension,
+    type CompiledField,
     type Field,
     type FilterableDimension,
     type FilterableField,
     type FilterableItem,
+    type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from '../types/field';
 import {
     FilterOperator,
@@ -38,6 +40,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
+import { getItemId } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -98,17 +101,14 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const filterableDimensionsOnly = (
-    dimensions: Dimension[],
-): FilterableDimension[] => dimensions.filter(isFilterableDimension);
-
-export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
     const { type } = item;
 
     if (type === undefined) {
         // Type check for TableCalculationType
         return FilterType.NUMBER;
     }
+
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -257,7 +257,7 @@ export const createFilterRuleFromField = (
         {
             id: uuidv4(),
             target: {
-                fieldId: fieldId(field),
+                fieldId: getItemId(field),
             },
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
@@ -274,8 +274,8 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 const getDefaultTileTargets = (
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension | Metric | Field,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) =>
     Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
@@ -301,8 +301,8 @@ export const applyDefaultTileTargets = (
         any,
         any
     >,
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) => {
     if (!filterRule.tileTargets) {
         return {
@@ -319,8 +319,8 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field: FilterableField;
-    availableTileFilters: Record<string, FilterableField[] | undefined>;
+    field: Exclude<FilterableItem, TableCalculation> | CompiledField;
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
@@ -357,7 +357,7 @@ export const addFilterRule = ({
         if (isDimension(f)) {
             return 'dimensions';
         }
-        if (isTableCalculationField(f)) {
+        if (isTableCalculation(f)) {
             return 'tableCalculations';
         }
         return 'metrics';
@@ -375,22 +375,6 @@ export const addFilterRule = ({
         },
     };
 };
-
-export const getInvalidFilterRules = (
-    fields: Field[],
-    filterRules: FilterRule[],
-) =>
-    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
-        const fieldInRule = fields.find(
-            (field) => fieldId(field) === filterRule.target.fieldId,
-        );
-
-        if (!fieldInRule) {
-            return [...accumulator, filterRule];
-        }
-
-        return accumulator;
-    }, []);
 
 /**
  * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
@@ -433,7 +417,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  */
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
-    fields: Field[],
+    fields: ItemsMap[string][],
 ): Filters => {
     const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
@@ -442,7 +426,7 @@ export const getFiltersFromGroup = (
         if (isFilterRule(item)) {
             // when filter group item is a filter rule, we find the field it's targeting
             const fieldInRule = fields.find(
-                (field) => fieldId(field) === item.target.fieldId,
+                (field) => getItemId(field) === item.target.fieldId,
             );
 
             // determine the type of the field and add the rule it to the correct filters object property
@@ -457,7 +441,7 @@ export const getFiltersFromGroup = (
                             item,
                         ],
                     } as FilterGroup;
-                } else if (isTableCalculationField(fieldInRule)) {
+                } else if (isTableCalculation(fieldInRule)) {
                     accumulator.tableCalculations = {
                         id: uuidv4(),
                         ...accumulator.tableCalculations,

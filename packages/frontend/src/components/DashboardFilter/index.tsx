@@ -1,6 +1,7 @@
 import {
     type DashboardFieldTarget,
     type DashboardFilterRule,
+    type FilterableDimension,
     type FilterOperator,
 } from '@lightdash/common';
 import { Flex } from '@mantine/core';
@@ -27,8 +28,8 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const project = useProject(projectUuid);
 
     const allFilters = useDashboardContext((c) => c.allFilters);
-    const fieldsWithSuggestions = useDashboardContext(
-        (c) => c.fieldsWithSuggestions,
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
     );
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -66,10 +67,9 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     if (!hasChartTiles) return null;
 
     return (
-        // TODO is this provider necessary?
-        <FiltersProvider
+        <FiltersProvider<Record<string, FilterableDimension>>
             projectUuid={projectUuid}
-            fieldsMap={fieldsWithSuggestions}
+            itemsMap={allFilterableFieldsMap}
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }

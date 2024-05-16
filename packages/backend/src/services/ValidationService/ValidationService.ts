@@ -325,11 +325,9 @@ export class ValidationService extends BaseService {
                 [],
             );
 
-            const fieldsWithTableCalculationFilters = [
+            const fieldIds = [
                 ...allItemIdsAvailableInChart,
-                ...chartTableCalculationIds.map(
-                    (tc) => `table_calculation_${tc}`,
-                ),
+                ...chartTableCalculationIds,
             ];
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
@@ -337,7 +335,7 @@ export class ValidationService extends BaseService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: fieldsWithTableCalculationFilters,
+                        fieldIds,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,

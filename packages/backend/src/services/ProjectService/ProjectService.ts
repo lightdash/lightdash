@@ -39,6 +39,7 @@ import {
     ExploreError,
     FeatureFlags,
     fieldId as getFieldId,
+    FilterableDimension,
     FilterableField,
     FilterGroup,
     FilterGroupItem,
@@ -66,6 +67,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -971,8 +973,7 @@ export class ProjectService extends BaseService {
 
         const renderedFilters = filterRules.map((filterRule) => {
             const field = compiledTableCalculations.find(
-                ({ name }) =>
-                    `table_calculation_${name}` === filterRule.target.fieldId,
+                (tc) => getItemId(tc) === filterRule.target.fieldId,
             );
 
             /**
@@ -2917,7 +2918,7 @@ export class ProjectService extends BaseService {
     async getAvailableFiltersForSavedQuery(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<FilterableField[]> {
+    ): Promise<FilterableDimension[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
             ?.getTransaction();
@@ -3057,7 +3058,7 @@ export class ProjectService extends BaseService {
             span?.finish();
         }
 
-        const allFilterableFields: FilterableField[] = [];
+        const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
 
         allFilters.forEach((filterSet) => {

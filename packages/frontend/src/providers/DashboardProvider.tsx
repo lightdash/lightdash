@@ -10,7 +10,7 @@ import {
     type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
-    type FilterableField,
+    type FilterableDimension,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerFilterRule,
     type SortField,
@@ -28,10 +28,6 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import { createContext, useContextSelector } from 'use-context-selector';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs';
-import {
-    type FieldsWithSuggestions,
-    type FieldWithSuggestions,
-} from '../components/common/Filters/FiltersProvider';
 import { hasSavedFilterValueChanged } from '../components/DashboardFilter/FilterConfiguration/utils';
 import {
     useGetComments,
@@ -96,9 +92,11 @@ type DashboardContext = {
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean | undefined;
     clearCacheAndFetch: () => void;
-    fieldsWithSuggestions: FieldsWithSuggestions;
-    allFilterableFields: FilterableField[] | undefined;
-    filterableFieldsByTileUuid: Record<string, FilterableField[]> | undefined;
+    allFilterableFieldsMap: Record<string, FilterableDimension>;
+    allFilterableFields: FilterableDimension[] | undefined;
+    filterableFieldsByTileUuid:
+        | Record<string, FilterableDimension[]>
+        | undefined;
     hasChartTiles: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
@@ -378,7 +376,7 @@ export const DashboardProvider: React.FC<
             return;
 
         const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
-            Record<string, FilterableField[]>
+            Record<string, FilterableDimension[]>
         >((acc, { tileUuid }) => {
             const filterFields =
                 dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
@@ -403,11 +401,12 @@ export const DashboardProvider: React.FC<
         savedChartUuidsAndTileUuids,
     ]);
 
-    const fieldsWithSuggestions = useMemo(() => {
-        return dashboardAvailableFiltersData &&
-            dashboardAvailableFiltersData.allFilterableFields &&
+    const allFilterableFieldsMap = useMemo(() => {
+        return dashboardAvailableFiltersData?.allFilterableFields &&
             dashboardAvailableFiltersData.allFilterableFields.length > 0
-            ? dashboardAvailableFiltersData.allFilterableFields.reduce<FieldsWithSuggestions>(
+            ? dashboardAvailableFiltersData.allFilterableFields.reduce<
+                  Record<string, FilterableDimension>
+              >(
                   (sum, field) => ({
                       ...sum,
                       [fieldId(field)]: field,
@@ -588,9 +587,7 @@ export const DashboardProvider: React.FC<
                 .filter((f) => f.required && f.disabled)
                 .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
                     (acc, f) => {
-                        const field = fieldsWithSuggestions[
-                            f.target.fieldId
-                        ] as FieldWithSuggestions | undefined;
+                        const field = allFilterableFieldsMap[f.target.fieldId];
 
                         let label = '';
 
@@ -610,7 +607,7 @@ export const DashboardProvider: React.FC<
                     },
                     [],
                 ),
-        [dashboardFilters.dimensions, fieldsWithSuggestions],
+        [dashboardFilters.dimensions, allFilterableFieldsMap],
     );
 
     const value = {
@@ -640,7 +637,7 @@ export const DashboardProvider: React.FC<
         oldestCacheTime,
         invalidateCache,
         clearCacheAndFetch,
-        fieldsWithSuggestions,
+        allFilterableFieldsMap,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,

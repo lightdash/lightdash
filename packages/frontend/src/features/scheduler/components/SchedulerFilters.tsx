@@ -4,6 +4,7 @@ import {
     type ConditionalOperator,
     type Dashboard,
     type DashboardFilterRule,
+    type FilterableDimension,
     type SchedulerFilterRule,
 } from '@lightdash/common';
 import {
@@ -34,7 +35,6 @@ import {
 import {
     FiltersProvider,
     useFiltersContext,
-    type FieldWithSuggestions,
 } from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -87,10 +87,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     hasChanged,
 }) => {
     const theme = useMantineTheme();
-    const { fieldsMap } = useFiltersContext();
-    const field = fieldsMap[dashboardFilter.target.fieldId] as
-        | FieldWithSuggestions
-        | undefined;
+    const { itemsMap } =
+        useFiltersContext<Record<string, FilterableDimension>>();
+    const field = itemsMap[dashboardFilter.target.fieldId];
     const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
@@ -310,8 +309,8 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         (c) => c.isLoadingDashboardFilters,
     );
     const allFilters = useDashboardContext((c) => c.allFilters);
-    const fieldsWithSuggestions = useDashboardContext(
-        (c) => c.fieldsWithSuggestions,
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
     );
     const originalDashboardFilters = dashboard?.filters;
     const dashboardFilterIds = useMemo(
@@ -374,10 +373,10 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
     };
 
     return (
-        <FiltersProvider
+        <FiltersProvider<Record<string, FilterableDimension>>
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
-            fieldsMap={fieldsWithSuggestions}
+            itemsMap={allFilterableFieldsMap}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={allFilters}
         >

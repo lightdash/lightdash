@@ -3,6 +3,7 @@ import {
     CustomFormatType,
     fieldId as getFieldId,
     friendlyName,
+    getFilterableDimensionsFromItemsMap,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -11,6 +12,7 @@ import {
     type AdditionalMetric,
     type CustomFormat,
     type Dimension,
+    type FilterableDimension,
 } from '@lightdash/common';
 import {
     Accordion,
@@ -85,6 +87,8 @@ export const CustomMetricModal = () => {
     );
 
     const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
+
+    const dimensionsMap = getFilterableDimensionsFromItemsMap(fieldsMap);
 
     const form = useForm<
         Pick<AdditionalMetric, 'percentile'> & {
@@ -332,9 +336,11 @@ export const CustomMetricModal = () => {
                                 </Text>
                             </Accordion.Control>
                             <Accordion.Panel>
-                                <FiltersProvider
+                                <FiltersProvider<
+                                    Record<string, FilterableDimension>
+                                >
                                     projectUuid={projectUuid}
-                                    fieldsMap={fieldsMap}
+                                    itemsMap={dimensionsMap}
                                     startOfWeek={startOfWeek ?? undefined}
                                     popoverProps={{
                                         withinPortal: true,

@@ -12,24 +12,25 @@ import {
     type CustomFormat,
     type Dimension,
     type Explore,
-    type Field,
     type FilterRule,
+    type getFilterableDimensionsFromItemsMap,
     type MetricFilterRule,
 } from '@lightdash/common';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
     filterRule: FilterRule,
-    fields: Record<string, Field>,
-): MetricFilterRuleWithFieldId => ({
-    ...filterRule,
-    target: {
-        ...filterRule.target,
-        fieldRef: `${fields[filterRule.target.fieldId].table}.${
-            fields[filterRule.target.fieldId].name
-        }`,
-    },
-});
+    fields: ReturnType<typeof getFilterableDimensionsFromItemsMap>,
+): MetricFilterRuleWithFieldId => {
+    const field = fields[filterRule.target.fieldId];
+    return {
+        ...filterRule,
+        target: {
+            ...filterRule.target,
+            fieldRef: `${field.table}.${field.name}`,
+        },
+    };
+};
 
 export const addFieldIdToMetricFilterRule = (
     filterRule: MetricFilterRule,
