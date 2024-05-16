@@ -228,11 +228,35 @@ const Dashboard: FC = () => {
                 `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
             );
         }
+
+        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
+
+        console.log('unsavedDashboardTabsRaw', unsavedDashboardTabsRaw);
+
+        sessionStorage.removeItem('dashboardTabs');
+
+        if (!unsavedDashboardTabsRaw) return;
+
+        try {
+            const unsavedDashboardTabs = JSON.parse(unsavedDashboardTabsRaw);
+            setDashboardTabs(unsavedDashboardTabs);
+            setHaveTabsChanged(!!unsavedDashboardTabs);
+        } catch {
+            showToastError({
+                title: 'Error parsing tabs',
+                subtitle: 'Unable to save tabs in dashboard',
+            });
+            captureException(
+                `Error parsing tabs in dashboard. Attempted to parse: ${unsavedDashboardTabsRaw} `,
+            );
+        }
     }, [
         isDashboardLoading,
         dashboardTiles,
         setHaveTilesChanged,
         setDashboardTiles,
+        setDashboardTabs,
+        setHaveTabsChanged,
         clearIsEditingDashboardChart,
         showToastError,
     ]);
@@ -599,6 +623,7 @@ const Dashboard: FC = () => {
                         isFullscreen={isFullscreen}
                         isPinned={isPinned}
                         activeTabUuid={activeTab?.uuid}
+                        dashboardTabs={dashboardTabs}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
