@@ -416,6 +416,20 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
 };
 
 /**
+ * Checks if a dimension value is an invalid date before it is added to the filter
+ * @param item - The field to compare against the value
+ * @param value - The value to check
+ * @returns True if the value is an invalid date, false otherwise
+ */
+export const isDimensionValueInvalidDate = (
+    item: FilterableField,
+    value: any,
+) =>
+    isDimension(item) &&
+    Object.values(TimeFrames).includes(item.timeInterval as TimeFrames) &&
+    value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
+
+/**
  * Takes a filter group and build a filters object from it based on the field type
  * @param filterGroup - The filter group to extract filters from
  * @param fields - Fields to compare against the filter group items to determine types
