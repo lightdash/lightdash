@@ -361,7 +361,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                     <SegmentedControl
                                         disabled={isXAxisFieldNumeric}
                                         value={
-                                            isStacked ? 'stack' : 'noStacking'
+                                            !isXAxisFieldNumeric && isStacked
+                                                ? 'stack'
+                                                : 'noStacking'
                                         }
                                         onChange={(value) =>
                                             setStacking(value === 'stack')
