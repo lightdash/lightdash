@@ -342,7 +342,7 @@ const createCustomDimensionChart = (projectUuid) => {
             tableName: 'payments',
             metricQuery: {
                 exploreName: 'payments',
-                dimensions: ['payments_payment_method'],
+                dimensions: ['payments_payment_method', 'amount_range'],
                 metrics: ['orders_total_order_amount'],
                 filters: {},
                 sorts: [
