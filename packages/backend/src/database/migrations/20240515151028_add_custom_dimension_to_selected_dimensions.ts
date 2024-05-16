@@ -20,7 +20,8 @@ export async function up(knex: Knex): Promise<void> {
     console.debug(
         `Selecting ${newEntries.length} custom dimensions in saved charts`,
     );
-    await knex('saved_queries_version_fields').insert(newEntries);
+    if (newEntries.length > 0)
+        await knex('saved_queries_version_fields').insert(newEntries);
 }
 
 export async function down(knex: Knex): Promise<void> {
@@ -31,11 +32,12 @@ export async function down(knex: Knex): Promise<void> {
         'saved_queries_version_custom_sql_dimensions',
     ).select('saved_queries_version_id', 'id');
 
-    await knex('saved_queries_version_fields')
-        .delete()
-        .where((builder) => {
-            [...customBinDimensions, ...customSqlDimensions].forEach(
-                (customDimension) =>
+    const customDimensions = [...customBinDimensions, ...customSqlDimensions];
+    if (customDimensions.length > 0)
+        await knex('saved_queries_version_fields')
+            .delete()
+            .where((builder) => {
+                customDimensions.forEach((customDimension) =>
                     builder.orWhere((nestedBuilder) =>
                         nestedBuilder
                             .where('name', customDimension.id)
@@ -45,6 +47,6 @@ export async function down(knex: Knex): Promise<void> {
                                 customDimension.saved_queries_version_id,
                             ),
                     ),
-            );
-        });
+                );
+            });
 }
