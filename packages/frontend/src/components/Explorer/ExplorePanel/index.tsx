@@ -65,9 +65,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             ];
             const selectedFields = [...metrics, ...dimensions];
             const fieldIds = allFields.map((field) =>
-                isCustomDimension(field)
-                    ? getCustomDimensionId(field)
-                    : getFieldId(field),
+                getItemId(field),
             );
 
             return selectedFields.filter((node) => !fieldIds.includes(node));
