@@ -1,6 +1,7 @@
 import {
     type CreateDashboardChartTile,
     type DashboardFilters,
+    type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import { useCallback, useEffect, useState } from 'react';
@@ -63,6 +64,10 @@ const useDashboardStorage = () => {
         return sessionStorage.getItem('activeTabUuid');
     }, []);
 
+    const getDashboardTabs = useCallback(() => {
+        return sessionStorage.getItem('dashboardTabs');
+    }, []);
+
     const clearDashboardStorage = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
@@ -82,12 +87,17 @@ const useDashboardStorage = () => {
             dashboardUuid?: string,
             dashboardName?: string,
             activeTabUuid?: string,
+            dashboardTabs?: DashboardTab[],
         ) => {
             sessionStorage.setItem('fromDashboard', dashboardName ?? '');
             sessionStorage.setItem('dashboardUuid', dashboardUuid ?? '');
             sessionStorage.setItem(
                 'unsavedDashboardTiles',
                 JSON.stringify(dashboardTiles ?? []),
+            );
+            sessionStorage.setItem(
+                'dashboardTabs',
+                JSON.stringify(dashboardTabs),
             );
             if (
                 dashboardFilters.dimensions.length > 0 ||
@@ -141,6 +151,7 @@ const useDashboardStorage = () => {
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
+        getDashboardTabs,
     };
 };
 
