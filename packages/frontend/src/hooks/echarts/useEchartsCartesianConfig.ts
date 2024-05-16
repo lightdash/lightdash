@@ -1687,10 +1687,8 @@ const useEchartsCartesianConfig = (
                     return params[0].axisValueLabel;
                 };
                 // When flipping axes, we get all series in the chart
+
                 const tooltipRows = params
-                    .filter((param) =>
-                        flipAxes ? param.name === param.seriesName : true,
-                    )
                     .map((param) => {
                         const {
                             marker,
