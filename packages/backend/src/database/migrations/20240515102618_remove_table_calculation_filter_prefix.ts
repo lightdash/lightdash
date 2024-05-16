@@ -7,18 +7,20 @@ export async function up(knex: Knex): Promise<void> {
         .select('saved_queries_version_uuid')
         .whereRaw("jsonb_path_exists(filters, '$.tableCalculations')");
 
-    await knex('saved_queries_versions')
-        .update({
-            filters: knex.raw(
-                `REPLACE(filters::TEXT, '"table_calculation_', '"')::jsonb`,
-            ),
-        })
-        .whereIn(
-            'saved_queries_version_uuid',
-            versionsWithTableCalculationFilters.map(
-                (row: any) => row.saved_queries_version_uuid,
-            ),
-        );
+    if (versionsWithTableCalculationFilters.length > 0) {
+        await knex('saved_queries_versions')
+            .update({
+                filters: knex.raw(
+                    `REPLACE(filters::TEXT, '"table_calculation_', '"')::jsonb`,
+                ),
+            })
+            .whereIn(
+                'saved_queries_version_uuid',
+                versionsWithTableCalculationFilters.map(
+                    (row: any) => row.saved_queries_version_uuid,
+                ),
+            );
+    }
 }
 
 export async function down(_knex: Knex): Promise<void> {
