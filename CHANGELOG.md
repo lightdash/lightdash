@@ -1,3 +1,11 @@
+## [0.1096.5](https://github.com/lightdash/lightdash/compare/0.1096.4...0.1096.5) (2024-05-16)
+
+
+### Bug Fixes
+
+* select custom dimensions ([#10088](https://github.com/lightdash/lightdash/issues/10088)) ([f823735](https://github.com/lightdash/lightdash/commit/f82373554c1d9b3422b59cf03a9ccea887e3ff68))
+* tooltip fix for horizontal bar ([#10046](https://github.com/lightdash/lightdash/issues/10046)) ([7bf8430](https://github.com/lightdash/lightdash/commit/7bf8430226802b446426c62f7dabdd95a3b69be7))
+
 ## [0.1096.4](https://github.com/lightdash/lightdash/compare/0.1096.3...0.1096.4) (2024-05-16)
 
 
