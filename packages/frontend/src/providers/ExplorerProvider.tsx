@@ -827,14 +827,16 @@ function reducer(
         }
 
         case ActionType.ADD_CUSTOM_DIMENSION: {
-            const newCustomDimensions = [
+            const newCustomDimension = action.payload;
+            const allCustomDimensions = [
                 ...(state.unsavedChartVersion.metricQuery.customDimensions ||
                     []),
-                action.payload,
+                newCustomDimension,
             ];
+
             const dimensions = [
                 ...state.unsavedChartVersion.metricQuery.dimensions,
-                ...newCustomDimensions.map(getCustomDimensionId),
+                getCustomDimensionId(newCustomDimension),
             ];
             return {
                 ...state,
@@ -843,7 +845,7 @@ function reducer(
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
                         dimensions,
-                        customDimensions: newCustomDimensions,
+                        customDimensions: allCustomDimensions,
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
@@ -852,7 +854,7 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...newCustomDimensions.map(
+                                ...allCustomDimensions.map(
                                     getCustomDimensionId,
                                 ),
                                 ...state.unsavedChartVersion.metricQuery

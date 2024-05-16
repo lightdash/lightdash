@@ -76,7 +76,6 @@ const getDimensionFromId = (
                 };
         }
 
-        console.trace();
         throw new FieldReferenceError(
             `Tried to reference dimension with unknown field id: ${dimId}`,
         );
