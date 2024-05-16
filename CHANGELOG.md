@@ -1,3 +1,10 @@
+## [0.1096.4](https://github.com/lightdash/lightdash/compare/0.1096.3...0.1096.4) (2024-05-16)
+
+
+### Bug Fixes
+
+* table calculation group stack ([#10065](https://github.com/lightdash/lightdash/issues/10065)) ([943438b](https://github.com/lightdash/lightdash/commit/943438b4d5a17dba5f253a9a2f2cf0b4da3d6582))
+
 ## [0.1096.3](https://github.com/lightdash/lightdash/compare/0.1096.2...0.1096.3) (2024-05-16)
 
 
