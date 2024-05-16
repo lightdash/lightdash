@@ -39,4 +39,22 @@ describe('getFieldsFromMetricQuery', () => {
         const result = getFieldsFromMetricQuery(emptyMetricQuery, explore);
         expect(Object.keys(result)).toEqual([]);
     });
+
+    test('should not return custom metric or dimensions if not selected', async () => {
+        const result = getFieldsFromMetricQuery(
+            {
+                ...metricQuery,
+                dimensions: ['table1_dim1', 'table2_dim2'],
+                metrics: ['table1_metric1', 'table2_metric2'],
+            },
+            explore,
+        );
+        expect(Object.keys(result)).toEqual([
+            'table1_dim1',
+            'table1_metric1',
+            'calc2',
+            // 'custom_dimension_1',
+            // 'table1_additional_metric_1',
+        ]);
+    });
 });

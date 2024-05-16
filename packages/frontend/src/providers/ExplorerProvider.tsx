@@ -6,6 +6,7 @@ import {
     fieldId as getFieldId,
     getCustomDimensionId,
     getFieldRef,
+    getItemId,
     lightdashVariablePattern,
     removeEmptyProperties,
     removeFieldFromFilterGroup,
@@ -608,9 +609,6 @@ function reducer(
                             state.unsavedChartVersion.tableConfig.columnOrder,
                             [
                                 ...dimensions,
-                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                    getCustomDimensionId,
-                                ) || []),
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
@@ -646,9 +644,6 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                    getCustomDimensionId,
-                                ) || []),
                                 ...metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                     ({ name }) => name,
@@ -667,9 +662,6 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
-                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || []),
             ]);
             if (!activeFields.has(sortFieldId)) {
                 return state;
@@ -721,9 +713,6 @@ function reducer(
                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                     (tc) => tc.name,
                 ),
-                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || []),
             ]);
             return {
                 ...state,
@@ -833,10 +822,16 @@ function reducer(
         }
 
         case ActionType.ADD_CUSTOM_DIMENSION: {
-            const newCustomDimensions = [
+            const newCustomDimension = action.payload;
+            const allCustomDimensions = [
                 ...(state.unsavedChartVersion.metricQuery.customDimensions ||
                     []),
-                action.payload,
+                newCustomDimension,
+            ];
+
+            const dimensions = [
+                ...state.unsavedChartVersion.metricQuery.dimensions,
+                getCustomDimensionId(newCustomDimension),
             ];
             return {
                 ...state,
@@ -844,18 +839,15 @@ function reducer(
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        customDimensions: newCustomDimensions,
+                        dimensions,
+                        customDimensions: allCustomDimensions,
                     },
                     tableConfig: {
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(
                             state.unsavedChartVersion.tableConfig.columnOrder,
                             [
-                                ...state.unsavedChartVersion.metricQuery
-                                    .dimensions,
-                                ...newCustomDimensions.map(
-                                    getCustomDimensionId,
-                                ),
+                                ...dimensions,
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
@@ -869,18 +861,22 @@ function reducer(
         }
 
         case ActionType.EDIT_CUSTOM_DIMENSION: {
+            //The id of the custom dimension changes on edit if the name was updated, so we need to update the dimension array
+            const dimensions = [
+                ...state.unsavedChartVersion.metricQuery.dimensions.filter(
+                    (dimension) =>
+                        dimension !==
+                        action.payload.previousCustomDimensionName,
+                ),
+                getItemId(action.payload.customDimension),
+            ];
             return {
                 ...state,
                 unsavedChartVersion: {
                     ...state.unsavedChartVersion,
                     metricQuery: {
                         ...state.unsavedChartVersion.metricQuery,
-                        dimensions:
-                            state.unsavedChartVersion.metricQuery.dimensions.filter(
-                                (dimension) =>
-                                    dimension !==
-                                    action.payload.previousCustomDimensionName,
-                            ),
+                        dimensions,
                         customDimensions:
                             state.unsavedChartVersion.metricQuery.customDimensions?.map(
                                 (customDimension) =>
@@ -1112,9 +1108,7 @@ function reducer(
                         ...state.unsavedChartVersion.tableConfig,
                         columnOrder: calcColumnOrder(action.payload, [
                             ...state.unsavedChartVersion.metricQuery.dimensions,
-                            ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                getCustomDimensionId,
-                            ) || []),
+
                             ...state.unsavedChartVersion.metricQuery.metrics,
                             ...state.unsavedChartVersion.metricQuery.tableCalculations.map(
                                 ({ name }) => name,
@@ -1144,9 +1138,7 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                    getCustomDimensionId,
-                                ) || []),
+
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
@@ -1240,9 +1232,7 @@ function reducer(
                             [
                                 ...state.unsavedChartVersion.metricQuery
                                     .dimensions,
-                                ...(state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                    getCustomDimensionId,
-                                ) || []),
+
                                 ...state.unsavedChartVersion.metricQuery
                                     .metrics,
                                 ...newTableCalculations.map(({ name }) => name),
@@ -1340,9 +1330,6 @@ export const ExplorerProvider: FC<
             ...unsavedChartVersion.metricQuery.tableCalculations.map(
                 ({ name }) => name,
             ),
-            ...(unsavedChartVersion.metricQuery.customDimensions?.map(
-                getCustomDimensionId,
-            ) || []),
         ]);
         return [fields, fields.size > 0];
     }, [unsavedChartVersion]);

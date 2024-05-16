@@ -1,5 +1,4 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { getCustomDimensionId } from '@lightdash/common';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -26,7 +25,7 @@ const GeneralSettings: FC = () => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
     const {
-        metricQuery: { dimensions, customDimensions },
+        metricQuery: { dimensions },
     } = resultsData || { metricQuery: { dimensions: [] as string[] } };
 
     const isTableConfig = isTableVisualizationConfig(visualizationConfig);
@@ -42,10 +41,9 @@ const GeneralSettings: FC = () => {
     }: { columns: string[]; rows: string[]; metrics: string[] } =
         useMemo(() => {
             const columnFields = pivotDimensions ?? [];
-            const rowsFields = [
-                ...dimensions,
-                ...(customDimensions?.map(getCustomDimensionId) || []),
-            ].filter((itemId) => !pivotDimensions?.includes(itemId));
+            const rowsFields = [...dimensions].filter(
+                (itemId) => !pivotDimensions?.includes(itemId),
+            );
             const metricsFields = (chartConfig?.selectedItemIds ?? []).filter(
                 (id) => ![...columnFields, ...rowsFields].includes(id),
             );
@@ -54,7 +52,7 @@ const GeneralSettings: FC = () => {
                 rows: rowsFields,
                 metrics: metricsFields,
             };
-        }, [pivotDimensions, dimensions, chartConfig, customDimensions]);
+        }, [pivotDimensions, dimensions, chartConfig]);
 
     const handleToggleMetricsAsRows = useCallback(() => {
         if (!chartConfig) return;

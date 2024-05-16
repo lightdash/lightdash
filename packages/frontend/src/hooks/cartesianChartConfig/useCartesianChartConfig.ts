@@ -1,6 +1,5 @@
 import {
     CartesianSeriesType,
-    getCustomDimensionId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -490,18 +489,10 @@ const useCartesianChartConfig = ({
                 resultsData?.metricQuery.tableCalculations.map(
                     ({ name }) => name,
                 ) || [];
-            const customDimensions =
-                resultsData?.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || [];
+
             return [
-                [
-                    ...sortedDimensions,
-                    ...metrics,
-                    ...tableCalculations,
-                    ...customDimensions,
-                ],
-                [...sortedDimensions, ...customDimensions],
+                [...sortedDimensions, ...metrics, ...tableCalculations],
+                [...sortedDimensions],
                 metrics,
             ];
         }, [resultsData, sortedDimensions]);

@@ -1,5 +1,4 @@
 import {
-    getCustomDimensionId,
     type ApiChartAndResults,
     type ApiError,
     type ApiQueryResults,
@@ -128,8 +127,6 @@ export const useQueryResults = (props?: {
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
                 ...metricQuery.tableCalculations.map(({ name }) => name),
-                ...(metricQuery.customDimensions?.map(getCustomDimensionId) ||
-                    []),
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery) {

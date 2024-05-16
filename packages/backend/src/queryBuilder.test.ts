@@ -876,6 +876,21 @@ GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
 LIMIT 10`);
     });
+
+    it('buildQuery with custom dimension not selected', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    dimensions: ['table1_dim1'], // without age_range
+                },
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            }).query,
+        ).not.toContain('age_range');
+    });
 });
 
 const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
