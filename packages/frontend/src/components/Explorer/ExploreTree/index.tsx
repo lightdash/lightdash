@@ -1,6 +1,9 @@
 import {
+    convertFieldRefToFieldId,
+    getAllReferences,
     getItemId,
     isCustomBinDimension,
+    isCustomSqlDimension,
     type AdditionalMetric,
     type CompiledTable,
     type CustomDimension,
@@ -86,13 +89,21 @@ const ExploreTree: FC<ExploreTreeProps> = ({
         return customDimensions?.filter((customDimension) => {
             const table = explore.tables[customDimension.table];
 
-            return (
-                !table ||
-                (isCustomBinDimension(customDimension) &&
-                    !Object.values(table.dimensions)
-                        .map(getItemId)
-                        .includes(customDimension.dimensionId))
-            );
+            if (!table) return true;
+
+            const dimIds = Object.values(table.dimensions).map(getItemId);
+
+            const isCustomBinDimensionMissing =
+                isCustomBinDimension(customDimension) &&
+                !dimIds.includes(customDimension.dimensionId);
+
+            const isCustomSqlDimensionMissing =
+                isCustomSqlDimension(customDimension) &&
+                getAllReferences(customDimension.sql)
+                    .map((ref) => convertFieldRefToFieldId(ref))
+                    .some((refFieldId) => !dimIds.includes(refFieldId));
+
+            return isCustomBinDimensionMissing || isCustomSqlDimensionMissing;
         });
     }, [customDimensions, explore.tables]);
 

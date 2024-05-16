@@ -53,14 +53,16 @@ const getParsedReference = (ref: string, currentTable: string): Reference => {
     return { refTable, refName };
 };
 
+export const getAllReferences = (raw: string): string[] =>
+    (raw.match(lightdashVariablePattern) || []).map(
+        (value) => value.slice(2, value.length - 1), // value without brackets
+    );
+
 export const parseAllReferences = (
     raw: string,
     currentTable: string,
 ): Reference[] =>
-    (raw.match(lightdashVariablePattern) || []).map((value) => {
-        const valueWithoutBrackets = value.slice(2, value.length - 1);
-        return getParsedReference(valueWithoutBrackets, currentTable);
-    });
+    getAllReferences(raw).map((ref) => getParsedReference(ref, currentTable));
 
 export type UncompiledExplore = {
     name: string;
