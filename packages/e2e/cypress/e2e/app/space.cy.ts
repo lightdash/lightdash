@@ -55,7 +55,7 @@ describe('Custom dimensions', () => {
         cy.contains(`Private chart ${timestamp}`).click();
     });
 
-    it.only('Another non-admin user cannot see private content', () => {
+    it('Another non-admin user cannot see private content', () => {
         // We assume the previous test has been run and the private space has been created
         // If this is causing issues, try reusing the `createPrivateChart` from spacePermissions.cy.ts
         cy.request({
