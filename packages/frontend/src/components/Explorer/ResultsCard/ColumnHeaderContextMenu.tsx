@@ -1,7 +1,7 @@
 import {
-    fieldId,
     getCustomDimensionId,
     getItemId,
+    getItemLabelWithoutTableName,
     isCustomDimension,
     isField,
     isFilterableField,
@@ -79,8 +79,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
         (context) => context.actions.removeCustomDimension,
     );
 
-    if (item && isField(item) && isFilterableField(item)) {
-        const itemFieldId = fieldId(item);
+    if (item && item && isFilterableField(item)) {
+        const itemFieldId = getItemId(item);
         return (
             <>
                 <Menu.Item
@@ -92,7 +92,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 >
                     Filter by{' '}
                     <Text span fw={500}>
-                        {item.label}
+                        {getItemLabelWithoutTableName(item)}
                     </Text>
                 </Menu.Item>
 

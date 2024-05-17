@@ -86,7 +86,7 @@ const CellContextMenu: FC<
     ]);
 
     const handleFilterByValue = useCallback(() => {
-        if (!isField(item) || !isFilterableField(item)) return;
+        if (!item || !isFilterableField(item)) return;
 
         track({
             name: EventName.ADD_FILTER_CLICKED,
@@ -164,7 +164,7 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode && isField(item) && isFilterableField(item) && (
+                {isEditMode && item && isFilterableField(item) && (
                     <Menu.Item
                         icon={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
