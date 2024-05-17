@@ -22,6 +22,7 @@ import {
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { getItemType } from './item';
 
 dayjs.extend(timezone);
 
@@ -396,9 +397,7 @@ export function formatItemValue(
 
     if (item) {
         if (isCustomSqlDimension(item) || 'type' in item) {
-            const type = isCustomSqlDimension(item)
-                ? item.dimensionType
-                : item.type;
+            const type = getItemType(item);
             switch (type) {
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
