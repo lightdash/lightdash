@@ -218,10 +218,11 @@ export class SpaceController extends BaseController {
     }
 
     /**
-     * Grant a user access to a space
+     * Grant a group access to a space
      * @param projectUuid The uuid of the space's parent project
-     * @parmm spaceUuid The uuid of the space to update
-     * @param userUuid The uuid of the user to grant access to
+     * @param spaceUuid The uuid of the space to update
+     * @param groupUuid The uuid of the group to grant access to
+     * @param spaceRole The role for the group in the space
      * @param req
      */
     @Middlewares([
@@ -258,7 +259,7 @@ export class SpaceController extends BaseController {
      * Remove a user's access to a space
      * @param projectUuid The uuid of the space's parent project
      * @param spaceUuid The uuid of the space to update
-     * @param userUuid The uuid of the user to revoke access from
+     * @param groupUuid The uuid of the group to revoke access from
      * @param req
      */
     @Middlewares([

@@ -84,20 +84,10 @@ export const getHighestProjectRole = (
 export const getHighestSpaceRole = (
     spaceRoles: Array<SpaceMemberRole | undefined>,
 ): SpaceMemberRole | undefined =>
-    spaceRoles.reduce<SpaceMemberRole | undefined>((highestRole, role) => {
-        if (role === undefined) {
-            return highestRole;
-        }
-
-        if (
-            highestRole === undefined ||
-            SpaceRoleOrder[role] >= SpaceRoleOrder[highestRole]
-        ) {
-            return role;
-        }
-
-        return highestRole;
-    }, undefined);
+    spaceRoles
+        .filter((role) => role !== undefined)
+        .sort((a, b) => SpaceRoleOrder[a!] - SpaceRoleOrder[b!])
+        .reverse()[0];
 
 export const convertProjectRoleToSpaceRole = (
     projectRole: ProjectMemberRole,

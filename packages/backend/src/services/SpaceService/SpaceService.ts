@@ -287,7 +287,6 @@ export class SpaceService extends BaseService {
         shareWithGroupUuid: string,
         spaceRole: SpaceMemberRole,
     ): Promise<void> {
-        // TODO: check if user can access groups
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
@@ -317,7 +316,6 @@ export class SpaceService extends BaseService {
         spaceUuid: string,
         shareWithGroupUuid: string,
     ): Promise<void> {
-        // TODO: check if user can access groups
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
