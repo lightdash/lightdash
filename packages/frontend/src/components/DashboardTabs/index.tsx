@@ -8,9 +8,8 @@ import {
 import { ActionIcon, Box, Button, Group, Menu, Tabs } from '@mantine/core';
 import { useProfiler } from '@sentry/react';
 import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { memo, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
-import { useIntersection } from 'react-use';
 import { v4 as uuid4 } from 'uuid';
 import {
     getReactGridLayoutConfig,
@@ -37,42 +36,18 @@ const GridTile: FC<
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > & {
-        isLazyLoadEnabled: boolean;
         index: number;
         tabs?: DashboardTab[];
         onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
         locked: boolean;
     }
 > = memo((props) => {
-    const { tile, isLazyLoadEnabled, index } = props;
+    const { tile } = props;
     useProfiler(`Dashboard-${tile.type}`);
-    const [isTiledViewed, setIsTiledViewed] = useState(false);
-    const ref = useRef(null);
-    const intersection = useIntersection(ref, {
-        root: null,
-        threshold: 0.3,
-    });
-    useEffect(() => {
-        if (intersection?.isIntersecting) {
-            setIsTiledViewed(true);
-        }
-    }, [intersection]);
-
-    if (isLazyLoadEnabled && !isTiledViewed) {
-        setTimeout(() => {
-            setIsTiledViewed(true);
-            // Prefetch tile sequentially, even if it's not in view
-        }, index * 1000);
-        return (
-            <Box ref={ref} h="100%">
-                <TileBase isLoading {...props} title={''} />
-            </Box>
-        );
-    }
 
     if (props.locked) {
         return (
-            <Box ref={ref} h="100%">
+            <Box h="100%">
                 <TileBase isLoading={false} title={''} {...props} />
             </Box>
         );
@@ -98,7 +73,6 @@ type DashboardTabsProps = {
     isEditMode: boolean;
     hasRequiredDashboardFiltersToSet: boolean;
     addingTab: boolean;
-    isLazyLoadEnabled: boolean;
     dashboardTiles: DashboardTile[] | undefined;
     activeTab: DashboardTab | undefined;
     handleAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
@@ -116,7 +90,6 @@ type DashboardTabsProps = {
 const DashboardTabs: FC<DashboardTabsProps> = ({
     isEditMode,
     hasRequiredDashboardFiltersToSet,
-    isLazyLoadEnabled,
     addingTab,
     dashboardTiles,
     activeTab,
@@ -425,9 +398,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     <GridTile
                                         locked={
                                             hasRequiredDashboardFiltersToSet
-                                        }
-                                        isLazyLoadEnabled={
-                                            isLazyLoadEnabled ?? true
                                         }
                                         index={idx}
                                         isEditMode={isEditMode}

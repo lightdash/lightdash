@@ -30,9 +30,6 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /** */
-    LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
-
     /** Show option to use custom SQL dimension */
     CustomSqlDimensions = 'custom-sql-dimensions',
 

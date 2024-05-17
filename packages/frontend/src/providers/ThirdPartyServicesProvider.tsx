@@ -89,11 +89,6 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
                     api_host: health.data?.posthog.apiHost,
                     autocapture: false,
                     capture_pageview: false,
-                    bootstrap: {
-                        featureFlags: {
-                            'lazy-load-dashboard-tiles': true,
-                        },
-                    },
                 }}
             >
                 <PosthogIdentified>
