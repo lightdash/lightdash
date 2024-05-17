@@ -156,6 +156,7 @@ export type LightdashConfig = {
     intercom: IntercomConfig;
     pylon: PylonConfig;
     siteUrl: string;
+    exposedSiteUrl?: string;
     staticIp: string;
     database: {
         connectionUri: string | undefined;
@@ -523,6 +524,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 process.env.PYLON_IDENTITY_VERIFICATION_SECRET,
         },
         siteUrl,
+        exposedSiteUrl: process.env.EXPOSED_SITE_URL,
         staticIp: process.env.STATIC_IP || '',
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
