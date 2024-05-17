@@ -1,5 +1,5 @@
 import {
-    fieldId as getFieldId,
+    getItemId,
     isField,
     isMetric,
     type ApiCalculateTotalResponse,
@@ -75,7 +75,7 @@ const getCalculationColumnFields = (
         .filter((item) => isField(item) && isMetric(item));
 
     return items?.reduce<string[]>((acc, item) => {
-        if (isField(item)) return [...acc, getFieldId(item)];
+        if (isField(item)) return [...acc, getItemId(item)];
         return acc;
     }, []);
 };

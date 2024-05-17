@@ -1,5 +1,4 @@
 import {
-    getCustomDimensionId,
     getItemId,
     getItemLabelWithoutTableName,
     isCustomDimension,
@@ -194,7 +193,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     icon={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
-                        removeCustomDimension(getCustomDimensionId(item));
+                        removeCustomDimension(getItemId(item));
                     }}
                 >
                     Remove

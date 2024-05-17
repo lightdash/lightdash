@@ -1,5 +1,5 @@
 import {
-    fieldId as getFieldId,
+    getItemId,
     isField,
     isNumericItem,
     isTableCalculation,
@@ -61,7 +61,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
                 if (field) {
                     const fieldId = isField(field)
-                        ? getFieldId(field)
+                        ? getItemId(field)
                         : field.name;
 
                     const isNumericField =

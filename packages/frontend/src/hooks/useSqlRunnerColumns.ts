@@ -1,5 +1,5 @@
 import {
-    fieldId as getFieldId,
+    getItemId,
     type ApiQueryResults,
     type Field,
     type FieldId,
@@ -27,7 +27,7 @@ const useSqlRunnerColumns = ({
     return useMemo(() => {
         if (fieldsMap) {
             return Object.values(fieldsMap).map<TableColumn>((dimension) => {
-                const fieldId = getFieldId(dimension);
+                const fieldId = getItemId(dimension);
                 return columnHelper.accessor((row) => row[fieldId], {
                     id: fieldId,
                     header: () =>

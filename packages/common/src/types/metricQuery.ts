@@ -38,9 +38,6 @@ export interface AdditionalMetric {
     formatOptions?: CustomFormat;
 }
 
-export const getCustomDimensionId = (dimension: CustomDimension) =>
-    dimension.id;
-
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
     value?.table &&
     value?.name &&

@@ -1,5 +1,5 @@
 import {
-    fieldId as getFieldId,
+    getItemId,
     hashFieldReference,
     isField,
     isMetric,
@@ -38,7 +38,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
 
         return pivotReference !== undefined
             ? hashFieldReference(pivotReference)
-            : getFieldId(item);
+            : getItemId(item);
     }, [item, pivotReference]);
 
     const value = fieldId ? fieldValues?.[fieldId]?.formatted : undefined;

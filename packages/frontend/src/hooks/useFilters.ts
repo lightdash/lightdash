@@ -1,6 +1,6 @@
 import {
     addFilterRule,
-    fieldId,
+    getItemId,
     getTotalFilterRules,
     type Field,
     type FilterableField,
@@ -34,7 +34,7 @@ export const useFilters = () => {
     const isFilteredField = useCallback(
         (field: Field): boolean =>
             !!allFilterRules.find(
-                (rule) => rule.target.fieldId === fieldId(field),
+                (rule) => rule.target.fieldId === getItemId(field),
             ),
         [allFilterRules],
     );

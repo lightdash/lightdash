@@ -8,14 +8,12 @@ import {
     CustomDimension,
     DbtModelJoinType,
     Explore,
-    fieldId,
     FieldId,
     FieldReferenceError,
     FieldType,
     FilterGroup,
     FilterRule,
     ForbiddenError,
-    getCustomDimensionId,
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
@@ -51,7 +49,7 @@ const getDimensionFromId = (
     startOfWeek: WeekDay | null | undefined,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
-    const dimension = dimensions.find((d) => fieldId(d) === dimId);
+    const dimension = dimensions.find((d) => getItemId(d) === dimId);
 
     if (dimension === undefined) {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
@@ -114,7 +112,7 @@ const getMetricFromId = (
         ...getMetrics(explore),
         ...(compiledMetricQuery.compiledAdditionalMetrics || []),
     ];
-    const metric = metrics.find((m) => fieldId(m) === metricId);
+    const metric = metrics.find((m) => getItemId(m) === metricId);
     if (metric === undefined)
         throw new FieldReferenceError(
             `Tried to reference metric with unknown field id: ${metricId}`,
@@ -342,7 +340,7 @@ export const getCustomBinDimensionSql = ({
         return undefined;
 
     const getCteReference = (customDimension: CustomDimension) =>
-        `${getCustomDimensionId(customDimension)}_cte`;
+        `${getItemId(customDimension)}_cte`;
 
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
@@ -418,10 +416,10 @@ export const getCustomBinDimensionSql = ({
                 `custom dimension: "${customDimension.name}"`,
             );
 
-            const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
+            const customDimensionName = `${fieldQuoteChar}${getItemId(
                 customDimension,
             )}${fieldQuoteChar}`;
-            const customDimensionOrder = `${fieldQuoteChar}${getCustomDimensionId(
+            const customDimensionOrder = `${fieldQuoteChar}${getItemId(
                 customDimension,
             )}_order${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
@@ -432,8 +430,7 @@ export const getCustomBinDimensionSql = ({
                 sorts.length > 0 &&
                 sorts.find(
                     (sortField) =>
-                        getCustomDimensionId(customDimension) ===
-                        sortField.fieldId,
+                        getItemId(customDimension) === sortField.fieldId,
                 );
             const quoteChar = warehouseClient.getStringQuoteChar();
             const dash = `${quoteChar} - ${quoteChar}`;
@@ -892,7 +889,7 @@ export const buildQuery = ({
             compiledCustomDimensions &&
             compiledCustomDimensions.find(
                 (customDimension) =>
-                    getCustomDimensionId(customDimension) === sort.fieldId &&
+                    getItemId(customDimension) === sort.fieldId &&
                     isCustomBinDimension(customDimension),
             )
         ) {
@@ -904,7 +901,7 @@ export const buildQuery = ({
             }`;
         }
         const sortedDimension = compiledDimensions.find(
-            (d) => fieldId(d) === sort.fieldId,
+            (d) => getItemId(d) === sort.fieldId,
         );
 
         if (

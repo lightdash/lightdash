@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
-    getCustomDimensionId,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -88,7 +87,7 @@ const TableTreeSections: FC<Props> = ({
         return customDimensions
             .filter((customDimension) => customDimension.table === table.name)
             .reduce<Record<string, CustomDimension>>(
-                (acc, item) => ({ ...acc, [getCustomDimensionId(item)]: item }),
+                (acc, item) => ({ ...acc, [getItemId(item)]: item }),
                 {},
             );
     }, [customDimensions, table]);

@@ -1,7 +1,7 @@
 import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
-    fieldId,
+    getItemId,
     isField,
     isFilterableField,
     matchFieldByType,
@@ -169,7 +169,7 @@ const FilterConfiguration: FC<Props> = ({
                         if (!filterableField) return draftState;
 
                         draftState.tileTargets[tileUuid] = {
-                            fieldId: fieldId(filterableField),
+                            fieldId: getItemId(filterableField),
                             tableName: filterableField.table,
                         };
 
@@ -223,7 +223,7 @@ const FilterConfiguration: FC<Props> = ({
                     targetTileUuids.forEach((tileUuid) => {
                         if (!draftState.tileTargets) return;
                         draftState.tileTargets[tileUuid] = {
-                            fieldId: fieldId(selectedField),
+                            fieldId: getItemId(selectedField),
                             tableName: selectedField.table,
                         };
                     });

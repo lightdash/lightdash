@@ -12,7 +12,6 @@ import { type DbtCloudIntegration } from './types/dbtCloud';
 import { type Explore, type SummaryExplore } from './types/explore';
 import {
     DimensionType,
-    fieldId,
     friendlyName,
     isCustomDimension,
     isDimension,
@@ -354,7 +353,7 @@ export const findFieldByIdInExplore = (
     explore: Explore,
     id: FieldId,
 ): Field | undefined =>
-    getFields(explore).find((field) => fieldId(field) === id);
+    getFields(explore).find((field) => getItemId(field) === id);
 
 export const snakeCaseName = (text: string): string =>
     text
@@ -869,7 +868,7 @@ export function getFieldMap(
     return [...getFields(explore), ...additionalMetrics].reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: field,
+            [getItemId(field)]: field,
         }),
         {},
     );

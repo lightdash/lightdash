@@ -1,7 +1,7 @@
 import {
     BinType,
     CustomDimensionType,
-    fieldId,
+    getItemId,
     isCustomDimension,
     isDimension,
     snakeCaseName,
@@ -162,7 +162,7 @@ export const CustomBinDimensionModal: FC<{
                     id: sanitizedId,
                     name: values.customDimensionLabel,
                     type: CustomDimensionType.BIN,
-                    dimensionId: fieldId(item),
+                    dimensionId: getItemId(item),
                     binType: values.binType,
                     binNumber: values.binConfig.fixedNumber.binNumber,
                     binWidth: values.binConfig.fixedWidth.binWidth,

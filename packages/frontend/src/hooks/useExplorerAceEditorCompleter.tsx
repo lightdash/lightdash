@@ -5,9 +5,9 @@ import langTools from 'ace-builds/src-noconflict/ext-language_tools';
 import {
     convertAdditionalMetric,
     type Field,
-    fieldId,
     getDimensions,
     getFieldRef,
+    getItemId,
     type Metric,
 } from '@lightdash/common';
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
@@ -85,12 +85,12 @@ export const useTableCalculationAceEditorCompleter = (): {
                                 (customMetric) =>
                                     customMetric.table === table.name,
                             ),
-                        ].filter((field) => activeFields.has(fieldId(field))),
+                        ].filter((field) => activeFields.has(getItemId(field))),
                         'Metric',
                     ),
                     ...mapFieldsToCompletions(
                         Object.values(table.dimensions).filter((field) =>
-                            activeFields.has(fieldId(field)),
+                            activeFields.has(getItemId(field)),
                         ),
                         'Dimension',
                     ),
