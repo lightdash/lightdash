@@ -72,7 +72,6 @@ describe('Custom dimensions', () => {
         const sqlLines = [
             `(random() + 1) AS "random_number",`,
             `SUM("payments".amount) AS "payments_total_revenue"`,
-            `FROM "postgres"."jaffle"."payments" AS "payments"`,
             `GROUP BY 1`,
             `ORDER BY "payments_total_revenue" DESC`,
         ];
@@ -110,7 +109,6 @@ describe('Custom dimensions', () => {
         const sqlLines = [
             `('payment_' || ("payments".payment_method) ) AS "payment_method",`,
             `SUM("payments".amount) AS "payments_total_revenue"`,
-            `FROM "postgres"."jaffle"."payments" AS "payments"`,
             `GROUP BY 1`,
             `ORDER BY "payments_total_revenue" DESC`,
         ];
@@ -158,7 +156,6 @@ describe('Custom dimensions', () => {
         const sqlLines = [
             `"payments".payment_method AS "payments_payment_method",`,
             `MAX((("orders".amount)) / 10) AS "payments_discounted amount_max_of_discounted_amount",`,
-            `FROM "postgres"."jaffle"."payments" AS "payments"`,
             `GROUP BY 1`,
             `ORDER BY "payments_payment_method"`,
         ];
