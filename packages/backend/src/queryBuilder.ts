@@ -84,6 +84,27 @@ const getDimensionFromId = (
     return dimension;
 };
 
+const getDimensionFromFilterTargetId = (
+    filterTargetId: FieldId,
+    explore: Explore,
+    compiledCustomDimensions: CompiledCustomSqlDimension[],
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
+): CompiledDimension | CompiledCustomSqlDimension => {
+    const dim = compiledCustomDimensions.find(
+        (cd) => getItemId(cd) === filterTargetId,
+    );
+    if (dim && isCompiledCustomSqlDimension(dim)) {
+        return dim;
+    }
+    return getDimensionFromId(
+        filterTargetId,
+        explore,
+        adapterType,
+        startOfWeek,
+    );
+};
+
 const getMetricFromId = (
     metricId: FieldId,
     explore: Explore,
@@ -753,9 +774,12 @@ export const buildQuery = ({
         ...(customSqlDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
-                const dim = getDimensionFromId(
+                const dim = getDimensionFromFilterTargetId(
                     filterRule.target.fieldId,
                     explore,
+                    compiledCustomDimensions.filter(
+                        isCompiledCustomSqlDimension,
+                    ),
                     adapterType,
                     startOfWeek,
                 );
@@ -920,9 +944,12 @@ export const buildQuery = ({
 
         const field =
             fieldType === FieldType.DIMENSION
-                ? getDimensions(explore).find(
-                      (d) => fieldId(d) === filter.target.fieldId,
-                  )
+                ? [
+                      ...getDimensions(explore),
+                      ...compiledCustomDimensions.filter(
+                          isCompiledCustomSqlDimension,
+                      ),
+                  ].find((d) => getItemId(d) === filter.target.fieldId)
                 : getMetricFromId(
                       filter.target.fieldId,
                       explore,

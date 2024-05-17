@@ -4,9 +4,11 @@ import {
     CustomFormatType,
     DimensionType,
     fieldId,
+    isCompiledCustomSqlDimension,
     isMetric,
     MetricType,
     TableCalculationType,
+    type CompiledCustomSqlDimension,
     type CompiledField,
     type CompiledTableCalculation,
 } from '../types/field';
@@ -368,7 +370,7 @@ export const renderTableCalculationFilterRuleSql = (
 
 export const renderFilterRuleSql = (
     filterRule: FilterRule<FilterOperator, unknown>,
-    field: CompiledField,
+    field: CompiledField | CompiledCustomSqlDimension,
     fieldQuoteChar: string,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
@@ -394,12 +396,14 @@ export const renderFilterRuleSql = (
         }
         return originalFieldSql;
     };
-    const fieldType = field.type;
+    const fieldType = isCompiledCustomSqlDimension(field)
+        ? field.dimensionType
+        : field.type;
     const fieldSql = isMetric(field)
         ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
         : field.compiledSql;
 
-    switch (field.type) {
+    switch (fieldType) {
         case DimensionType.STRING:
         case MetricType.STRING: {
             return renderStringFilterSql(
@@ -447,7 +451,7 @@ export const renderFilterRuleSql = (
         }
         default: {
             return assertUnreachable(
-                field,
+                fieldType,
                 `No function implemented to render sql for filter group type ${fieldType}`,
             );
         }

@@ -3652,7 +3652,7 @@ export class ProjectService extends BaseService {
             tableCalculations: [],
             sorts: [],
             dimensions: [],
-            customDimensions: [],
+            customDimensions: metricQuery.customDimensions,
             metrics: metricQuery.metrics,
             additionalMetrics: metricQuery.additionalMetrics,
         };

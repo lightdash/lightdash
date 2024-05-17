@@ -1,9 +1,15 @@
 import { ConditionalOperator } from '../types/conditionalRule';
 import {
+    CustomDimensionType,
+    DimensionType,
+    type CustomSqlDimension,
+} from '../types/field';
+import {
     FilterOperator,
     type AndFilterGroup,
     type DashboardFilters,
     type FilterRule,
+    type Filters,
     type OrFilterGroup,
 } from '../types/filter';
 import type { MetricQuery } from '../types/metricQuery';
@@ -199,5 +205,30 @@ export const expectedChartWithOverrideDashboardORFilters: MetricQuery = {
             and: [],
             id: 'uuid',
         },
+    },
+};
+
+export const customSqlDimension: CustomSqlDimension = {
+    id: 'custom-sql-dimension',
+    name: 'Custom SQL Dimension',
+    table: 'custom_sql',
+    type: CustomDimensionType.SQL,
+    sql: '${table.field}',
+    dimensionType: DimensionType.STRING,
+};
+
+export const expectedFiltersWithCustomSqlDimension: Filters = {
+    dimensions: {
+        and: [
+            {
+                id: 'uuid',
+                operator: ConditionalOperator.EQUALS,
+                target: {
+                    fieldId: 'custom-sql-dimension',
+                },
+                values: [],
+            },
+        ],
+        id: 'uuid',
     },
 };
