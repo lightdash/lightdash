@@ -35,6 +35,11 @@ services:
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
       - GROUPS_ENABLED=${GROUPS_ENABLED}
       - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
+      - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
+      - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
     volumes:
       - "../:/usr/app"
       - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
