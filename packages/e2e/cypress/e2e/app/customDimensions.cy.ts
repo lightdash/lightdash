@@ -116,7 +116,7 @@ describe('Custom dimensions', () => {
         });
     });
 
-    it.only('I can create a custom metric from a custom dimension', () => {
+    it('I can create a custom metric from a custom dimension', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
         cy.contains('Add').click();
 
