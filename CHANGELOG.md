@@ -1,3 +1,10 @@
+## [0.1096.6](https://github.com/lightdash/lightdash/compare/0.1096.5...0.1096.6) (2024-05-17)
+
+
+### Bug Fixes
+
+* reference lines break for tables calculations with no type ([#10095](https://github.com/lightdash/lightdash/issues/10095)) ([f07f8a6](https://github.com/lightdash/lightdash/commit/f07f8a63b569bc11ba879d1219a5308bd2c37ea7))
+
 ## [0.1096.5](https://github.com/lightdash/lightdash/compare/0.1096.4...0.1096.5) (2024-05-16)
 
 
