@@ -1,3 +1,15 @@
+# [0.1097.0](https://github.com/lightdash/lightdash/compare/0.1096.6...0.1097.0) (2024-05-17)
+
+
+### Bug Fixes
+
+* avoid requesting validation endpoint when no permission ([#10085](https://github.com/lightdash/lightdash/issues/10085)) ([d69c677](https://github.com/lightdash/lightdash/commit/d69c677c54f832b69ce5264111eea444cbec001b))
+
+
+### Features
+
+* custom sql dimension filters ([#10103](https://github.com/lightdash/lightdash/issues/10103)) ([4094eb2](https://github.com/lightdash/lightdash/commit/4094eb235d7202dcb2d49ded68bb75768dfda38a))
+
 ## [0.1096.6](https://github.com/lightdash/lightdash/compare/0.1096.5...0.1096.6) (2024-05-17)
 
 
