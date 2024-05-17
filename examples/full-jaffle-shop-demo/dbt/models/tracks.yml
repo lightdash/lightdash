@@ -41,6 +41,34 @@ models:
               - YEAR_NUM
               - HOUR_OF_DAY_NUM
               - MINUTE_OF_HOUR_NUM
+      - name: timestamp_EST
+        description: "Timestamp, but converted to EST in BigQuery using DATETIME(timestamp, "America/New_York")"
+        meta:
+          dimension:
+            type: timestamp
+            time_intervals:
+              - RAW
+              - MILLISECOND
+              - SECOND
+              - MINUTE
+              - HOUR
+              - DAY
+              - DAY_OF_WEEK_INDEX
+              - DAY_OF_WEEK_NAME
+              - DAY_OF_MONTH_NUM
+              - DAY_OF_YEAR_NUM
+              - WEEK
+              - WEEK_NUM
+              - MONTH
+              - MONTH_NUM
+              - MONTH_NAME
+              - QUARTER
+              - QUARTER_NUM
+              - QUARTER_NAME
+              - YEAR
+              - YEAR_NUM
+              - HOUR_OF_DAY_NUM
+              - MINUTE_OF_HOUR_NUM
       - name: event
         description: ""
         meta:
