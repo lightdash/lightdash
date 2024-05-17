@@ -1,9 +1,9 @@
 import {
     ChartType,
     DimensionType,
-    fieldId,
     FieldType,
     friendlyName,
+    getItemId,
     MetricType,
     SupportedDbtAdapter,
     type ApiQueryResults,
@@ -55,7 +55,7 @@ const useSqlQueryVisualization = ({
                             ...acc,
                             sqlQueryMetrics: {
                                 ...acc.sqlQueryMetrics,
-                                [fieldId(metric)]: metric,
+                                [getItemId(metric)]: metric,
                             },
                         };
                     } else {
@@ -75,7 +75,7 @@ const useSqlQueryVisualization = ({
                             ...acc,
                             sqlQueryDimensions: {
                                 ...acc.sqlQueryDimensions,
-                                [fieldId(dimension)]: dimension,
+                                [getItemId(dimension)]: dimension,
                             },
                         };
                     }

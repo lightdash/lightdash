@@ -3,8 +3,6 @@ import {
     ChartType,
     convertFieldRefToFieldId,
     deepEqual,
-    fieldId as getFieldId,
-    getCustomDimensionId,
     getFieldRef,
     getItemId,
     lightdashVariablePattern,
@@ -799,9 +797,7 @@ function reducer(
         case ActionType.ADD_ADDITIONAL_METRIC: {
             const isMetricAlreadyInList = (
                 state.unsavedChartVersion.metricQuery.additionalMetrics || []
-            ).find(
-                (metric) => getFieldId(metric) === getFieldId(action.payload),
-            );
+            ).find((metric) => getItemId(metric) === getItemId(action.payload));
             return {
                 ...state,
                 unsavedChartVersion: {
@@ -831,7 +827,7 @@ function reducer(
 
             const dimensions = [
                 ...state.unsavedChartVersion.metricQuery.dimensions,
-                getCustomDimensionId(newCustomDimension),
+                getItemId(newCustomDimension),
             ];
             return {
                 ...state,
@@ -902,8 +898,7 @@ function reducer(
                                 .customDimensions || []
                         ).filter(
                             (customDimension) =>
-                                getCustomDimensionId(customDimension) !==
-                                action.payload,
+                                getItemId(customDimension) !== action.payload,
                         ),
                         dimensions:
                             state.unsavedChartVersion.metricQuery.dimensions.filter(
@@ -938,7 +933,7 @@ function reducer(
         }
 
         case ActionType.EDIT_ADDITIONAL_METRIC: {
-            const additionalMetricFieldId = getFieldId(
+            const additionalMetricFieldId = getItemId(
                 action.payload.additionalMetric,
             );
             return {
@@ -1048,7 +1043,7 @@ function reducer(
                             state.unsavedChartVersion.metricQuery
                                 .additionalMetrics || []
                         ).filter(
-                            (metric) => getFieldId(metric) !== action.payload,
+                            (metric) => getItemId(metric) !== action.payload,
                         ),
                         metrics:
                             state.unsavedChartVersion.metricQuery.metrics.filter(
@@ -1516,7 +1511,7 @@ export const ExplorerProvider: FC<
             });
             dispatch({
                 type: ActionType.TOGGLE_METRIC,
-                payload: getFieldId(additionalMetric),
+                payload: getItemId(additionalMetric),
             });
         },
         [],

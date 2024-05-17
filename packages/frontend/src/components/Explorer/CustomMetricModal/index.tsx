@@ -1,9 +1,9 @@
 import {
     canApplyFormattingToCustomMetric,
     CustomFormatType,
-    fieldId as getFieldId,
     friendlyName,
     getFilterableDimensionsFromItemsMap,
+    getItemId,
     isAdditionalMetric,
     isCustomDimension,
     isDimension,
@@ -222,7 +222,7 @@ export const CustomMetricModal = () => {
                         ...item,
                         ...data,
                     },
-                    getFieldId(item),
+                    getItemId(item),
                 );
                 showToastSuccess({
                     title: 'Custom metric edited successfully',
@@ -252,7 +252,7 @@ export const CustomMetricModal = () => {
 
     const defaultFilterRuleFieldId = useMemo(() => {
         if (item) {
-            if (!isEditing) return getFieldId(item);
+            if (!isEditing) return getItemId(item);
 
             if (
                 isEditing &&

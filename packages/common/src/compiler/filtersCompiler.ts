@@ -3,7 +3,6 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import {
     CustomFormatType,
     DimensionType,
-    fieldId,
     isCompiledCustomSqlDimension,
     isMetric,
     MetricType,
@@ -400,7 +399,7 @@ export const renderFilterRuleSql = (
         ? field.dimensionType
         : field.type;
     const fieldSql = isMetric(field)
-        ? `${fieldQuoteChar}${fieldId(field)}${fieldQuoteChar}`
+        ? `${fieldQuoteChar}${getItemId(field)}${fieldQuoteChar}`
         : field.compiledSql;
 
     switch (fieldType) {

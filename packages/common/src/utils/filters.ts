@@ -3,7 +3,6 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
     DimensionType,
-    fieldId,
     isCustomSqlDimension,
     isDimension,
     isTableCalculation,
@@ -293,7 +292,7 @@ const getDefaultTileTargets = (
         return {
             ...acc,
             [tileUuid]: {
-                fieldId: fieldId(filterableField),
+                fieldId: getItemId(filterableField),
                 tableName: filterableField.table,
             },
         };
@@ -338,7 +337,7 @@ export const createDashboardFilterRuleFromField = ({
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
             target: {
-                fieldId: fieldId(field),
+                fieldId: getItemId(field),
                 tableName: field.table,
                 fieldName: field.name,
             },

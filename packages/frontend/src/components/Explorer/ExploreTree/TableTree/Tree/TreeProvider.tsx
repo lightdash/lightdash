@@ -1,5 +1,5 @@
 import {
-    fieldId,
+    getItemId,
     isCustomDimension,
     isDimension,
     isField,
@@ -67,7 +67,7 @@ const getNodeMapFromItemsMap = (
 
                     // child date inside group
                     if (isDimension(item) && item.group) {
-                        const parentDateId = fieldId({
+                        const parentDateId = getItemId({
                             table: item.table,
                             name: item.group,
                         });
@@ -110,7 +110,7 @@ const getNodeMapFromItemsMap = (
 
                 // child date outside group
                 if (isDimension(item) && item.group) {
-                    const parentDateId = fieldId({
+                    const parentDateId = getItemId({
                         table: item.table,
                         name: item.group,
                     });

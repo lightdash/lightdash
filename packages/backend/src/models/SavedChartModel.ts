@@ -14,7 +14,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
-    getCustomDimensionId,
+    getItemId,
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormat,
@@ -248,9 +248,7 @@ const createSavedChartVersion = async (
                                 ? JSON.stringify(customDimension.customRange)
                                 : null,
                         order: tableConfig.columnOrder.findIndex(
-                            (column) =>
-                                column ===
-                                getCustomDimensionId(customDimension),
+                            (column) => column === getItemId(customDimension),
                         ),
                     }),
                 );
@@ -264,9 +262,7 @@ const createSavedChartVersion = async (
                         name: customDimension.name,
                         table: customDimension.table,
                         order: tableConfig.columnOrder.findIndex(
-                            (column) =>
-                                column ===
-                                getCustomDimensionId(customDimension),
+                            (column) => column === getItemId(customDimension),
                         ),
                         sql: customDimension.sql,
                         dimension_type: customDimension.dimensionType,

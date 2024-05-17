@@ -3,7 +3,7 @@ import {
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     DateGranularity,
-    fieldId,
+    getItemId,
     isDashboardChartTileType,
     type ApiError,
     type CacheMetadata,
@@ -409,7 +409,7 @@ export const DashboardProvider: React.FC<
               >(
                   (sum, field) => ({
                       ...sum,
-                      [fieldId(field)]: field,
+                      [getItemId(field)]: field,
                   }),
                   {},
               )

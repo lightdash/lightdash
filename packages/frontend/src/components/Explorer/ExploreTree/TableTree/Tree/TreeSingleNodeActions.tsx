@@ -1,8 +1,7 @@
 import {
     DimensionType,
-    fieldId,
     friendlyName,
-    getCustomDimensionId,
+    getItemId,
     isAdditionalMetric,
     isCustomDimension,
     isCustomSqlDimension,
@@ -156,7 +155,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 track({
                                     name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
                                 });
-                                removeAdditionalMetric(fieldId(item));
+                                removeAdditionalMetric(getItemId(item));
                             }}
                         >
                             Remove custom metric
@@ -198,9 +197,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconTrash} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                removeCustomDimension(
-                                    getCustomDimensionId(item),
-                                );
+                                removeCustomDimension(getItemId(item));
                             }}
                         >
                             Remove custom dimension

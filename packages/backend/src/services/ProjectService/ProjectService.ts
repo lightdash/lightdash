@@ -38,7 +38,6 @@ import {
     Explore,
     ExploreError,
     FeatureFlags,
-    fieldId as getFieldId,
     FilterableDimension,
     FilterableField,
     FilterGroup,
@@ -1481,7 +1480,7 @@ export class ProjectService extends BaseService {
         ];
         const hasADateDimension = exploreDimensions.find(
             (c) =>
-                metricQueryDimensions.includes(getFieldId(c)) && isDateItem(c),
+                metricQueryDimensions.includes(getItemId(c)) && isDateItem(c),
         );
 
         if (hasADateDimension) {
@@ -2066,16 +2065,14 @@ export class ProjectService extends BaseService {
                             additionalMetricsCount: (
                                 metricQuery.additionalMetrics || []
                             ).filter((metric) =>
-                                metricQuery.metrics.includes(
-                                    getFieldId(metric),
-                                ),
+                                metricQuery.metrics.includes(getItemId(metric)),
                             ).length,
                             additionalMetricsFilterCount: (
                                 metricQuery.additionalMetrics || []
                             ).filter(
                                 (metric) =>
                                     metricQuery.metrics.includes(
-                                        getFieldId(metric),
+                                        getItemId(metric),
                                     ) &&
                                     metric.filters &&
                                     metric.filters.length > 0,
@@ -2085,7 +2082,7 @@ export class ProjectService extends BaseService {
                             ).filter(
                                 (metric) =>
                                     metricQuery.metrics.includes(
-                                        getFieldId(metric),
+                                        getItemId(metric),
                                     ) &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
@@ -2096,7 +2093,7 @@ export class ProjectService extends BaseService {
                             ).filter(
                                 (metric) =>
                                     metricQuery.metrics.includes(
-                                        getFieldId(metric),
+                                        getItemId(metric),
                                     ) &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
@@ -2107,7 +2104,7 @@ export class ProjectService extends BaseService {
                             ).filter(
                                 (metric) =>
                                     metricQuery.metrics.includes(
-                                        getFieldId(metric),
+                                        getItemId(metric),
                                     ) &&
                                     metric.formatOptions &&
                                     metric.formatOptions.type ===
@@ -3063,7 +3060,7 @@ export class ProjectService extends BaseService {
 
         allFilters.forEach((filterSet) => {
             filterSet.filters.forEach((filter) => {
-                const fieldId = getFieldId(filter);
+                const fieldId = getItemId(filter);
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
@@ -3081,7 +3078,7 @@ export class ProjectService extends BaseService {
             if (!filterResult || !filterResult.filters.length) return acc;
 
             const filterIndexes = filterResult.filters.map(
-                (filter) => filterIndexMap[getFieldId(filter)],
+                (filter) => filterIndexMap[getItemId(filter)],
             );
             return {
                 ...acc,

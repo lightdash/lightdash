@@ -1,6 +1,5 @@
 import { type Explore } from '../types/explore';
 import {
-    fieldId,
     type CompiledDimension,
     type CompiledField,
     type CompiledMetric,
@@ -10,7 +9,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '../types/field';
-import { getCustomDimensionId, type MetricQuery } from '../types/metricQuery';
+import { type MetricQuery } from '../types/metricQuery';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
@@ -35,7 +34,7 @@ export const getFieldsFromMetricQuery = (
     const fields = [...metricQuery.dimensions, ...metricQuery.metrics].reduce<
         Record<string, Dimension | Metric>
     >((acc, metricField) => {
-        const field = exploreFields.find((f) => metricField === fieldId(f));
+        const field = exploreFields.find((f) => metricField === getItemId(f));
         if (field) {
             return { ...acc, [metricField]: field };
         }
@@ -64,13 +63,11 @@ export const getFieldsFromMetricQuery = (
         {},
     );
     const customDimensions = metricQuery.customDimensions
-        ?.filter((cd) =>
-            metricQuery.dimensions.includes(getCustomDimensionId(cd)),
-        )
+        ?.filter((cd) => metricQuery.dimensions.includes(getItemId(cd)))
         .reduce<Record<string, CustomDimension>>(
             (acc, customDimension) => ({
                 ...acc,
-                [getCustomDimensionId(customDimension)]: customDimension,
+                [getItemId(customDimension)]: customDimension,
             }),
             {},
         );

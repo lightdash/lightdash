@@ -1,7 +1,6 @@
 import { type Explore } from '../types/explore';
 import {
     DimensionType,
-    fieldId,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -19,7 +18,6 @@ import {
     type TableCalculation,
 } from '../types/field';
 import {
-    getCustomDimensionId,
     isAdditionalMetric,
     type AdditionalMetric,
 } from '../types/metricQuery';
@@ -66,20 +64,17 @@ export const isNumericItem = (
     return true;
 };
 
-export const findItem = (
-    items: Array<Field | TableCalculation | CustomDimension>,
-    id: string | undefined,
-) =>
-    items.find((item) =>
-        isField(item) ? fieldId(item) === id : item.name === id,
-    );
-
-export const getItemId = (item: ItemsMap[string] | AdditionalMetric) => {
-    if (isCustomDimension(item)) return getCustomDimensionId(item);
-
-    return isField(item) || isAdditionalMetric(item)
-        ? fieldId(item)
-        : item.name;
+export const getItemId = (
+    item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'name' | 'table'>,
+) => {
+    if (isCustomDimension(item)) {
+        return item.id;
+    }
+    if (isTableCalculation(item)) {
+        return item.name;
+    }
+    // dimension or metric or additional metric or field
+    return `${item.table}_${item.name.replaceAll('.', '__')}`;
 };
 
 export const getItemLabelWithoutTableName = (item: Item) => {

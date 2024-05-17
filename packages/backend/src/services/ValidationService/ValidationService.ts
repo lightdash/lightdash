@@ -6,11 +6,9 @@ import {
     CreateDashboardValidation,
     CreateTableValidation,
     CreateValidation,
-    DashboardFilterRule,
     DashboardTileTarget,
     Explore,
     ExploreError,
-    fieldId as getFieldId,
     ForbiddenError,
     getCustomMetricDimensionId,
     getFilterRules,
@@ -405,7 +403,7 @@ export class ValidationService extends BaseService {
         existingFields: CompiledField[],
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
     ): Promise<CreateDashboardValidation[]> {
-        const existingFieldIds = existingFields.map(getFieldId);
+        const existingFieldIds = existingFields.map(getItemId);
 
         const dashboardSummaries = await this.dashboardModel.getAllByProject(
             projectUuid,
@@ -560,8 +558,8 @@ export class ValidationService extends BaseService {
                 return {
                     ...acc,
                     [explore.baseTable]: {
-                        dimensionIds: dimensions.map(getFieldId),
-                        metricIds: metrics.map(getFieldId),
+                        dimensionIds: dimensions.map(getItemId),
+                        metricIds: metrics.map(getItemId),
                     },
                 };
             }, {}) || {};

@@ -1,6 +1,5 @@
 import {
     ChartType,
-    fieldId as getFieldId,
     FilterOperator,
     getDimensions,
     getItemId,
@@ -176,7 +175,7 @@ export const DrillDownModal: FC = () => {
             const fieldId =
                 drillDownConfig.pivotReference !== undefined
                     ? hashFieldReference(drillDownConfig.pivotReference)
-                    : getFieldId(drillDownConfig.item);
+                    : getItemId(drillDownConfig.item);
             return drillDownConfig.fieldValues[fieldId]?.formatted;
         }
     }, [drillDownConfig]);
