@@ -31,6 +31,7 @@ describe('Custom dimensions', () => {
         cy.contains('$276.98');
 
         // Show SQL
+        cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
         cy.findByTestId('SQL-card-expand').click();
 
@@ -64,6 +65,7 @@ describe('Custom dimensions', () => {
         cy.get('button').contains('Run query').click();
 
         // Show SQL
+        cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
         cy.findByTestId('SQL-card-expand').click();
 
@@ -101,6 +103,7 @@ describe('Custom dimensions', () => {
         cy.contains('payment_credit_card');
         cy.contains(994.16);
         // Show SQL
+        cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
         cy.findByTestId('SQL-card-expand').click();
 
@@ -148,6 +151,7 @@ describe('Custom dimensions', () => {
         cy.contains('bank_transfer');
         cy.contains(5.8);
         // Show SQL
+        cy.findByTestId('Chart-card-expand').click(); // Close chart
         cy.findByTestId('Results-card-expand').click(); // Close results
         cy.findByTestId('SQL-card-expand').click();
 
