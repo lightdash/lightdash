@@ -1,16 +1,19 @@
 import { ConditionalOperator } from '../types/conditionalRule';
 import {
     addDashboardFiltersToMetricQuery,
+    addFilterRule,
     overrideChartFilter,
 } from './filters';
 import {
     chartAndFilterGroup,
     chartOrFilterGroup,
+    customSqlDimension,
     dashboardFilters,
     dashboardFilterWithSameTargetAndOperator,
     dashboardFilterWithSameTargetButDifferentOperator,
     expectedChartWithOverrideDashboardFilters,
     expectedChartWithOverrideDashboardORFilters,
+    expectedFiltersWithCustomSqlDimension,
     metricQueryWithAndFilters,
     metricQueryWithOrFilters,
 } from './filters.mock';
@@ -112,5 +115,15 @@ describe('overrideChartFilter', () => {
                 },
             ],
         });
+    });
+});
+
+describe('addFilterRule', () => {
+    test('should add custom sql dimension filter to dimensions group', async () => {
+        const result = addFilterRule({
+            filters: {},
+            field: customSqlDimension,
+        });
+        expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
     });
 });

@@ -42,6 +42,10 @@ const FiltersCard: FC = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -67,6 +71,7 @@ const FiltersCard: FC = memo(() => {
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData: data,
         queryResults,
+        customDimensions,
         additionalMetrics,
         tableCalculations,
     });

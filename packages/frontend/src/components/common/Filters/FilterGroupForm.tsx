@@ -5,10 +5,12 @@ import {
     getFiltersFromGroup,
     getItemsFromFilterGroup,
     isAndFilterGroup,
+    isCustomSqlDimension,
     isDimension,
     isFilterGroup,
     isMetric,
     isTableCalculation,
+    type CustomSqlDimension,
     type FilterableDimension,
     type FilterableField,
     type FilterGroup,
@@ -56,10 +58,17 @@ const FilterGroupForm: FC<Props> = ({
     const [conditionLabel, setConditionLabel] = useState('');
 
     const [dimensions, metrics, tableCalculations] = useMemo<
-        [FilterableDimension[], Metric[], TableCalculation[]]
+        [
+            Array<FilterableDimension | CustomSqlDimension>,
+            Metric[],
+            TableCalculation[],
+        ]
     >(() => {
         return [
-            fields.filter(isDimension),
+            [
+                ...fields.filter(isDimension),
+                ...fields.filter(isCustomSqlDimension),
+            ],
             fields.filter(isMetric),
             fields.filter(isTableCalculation),
         ];

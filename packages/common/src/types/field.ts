@@ -448,11 +448,16 @@ export const isFilterableDimension = (
     ].includes(dimension.type);
 
 // TODO: FilterableField === FilterableItem, we should remove one of them, as well as one of the type guards
-export type FilterableField = TableCalculation | Metric | FilterableDimension;
+export type FilterableField =
+    | TableCalculation
+    | Metric
+    | FilterableDimension
+    | CustomSqlDimension;
 export const isFilterableField = (
     field: Dimension | ItemsMap[string],
 ): field is FilterableField =>
     (isDimension(field) && isFilterableDimension(field)) ||
+    isCustomSqlDimension(field) ||
     isMetric(field) ||
     isTableCalculation(field);
 
