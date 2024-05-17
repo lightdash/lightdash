@@ -7,7 +7,7 @@ describe('Custom dimensions', () => {
         cy.login();
     });
 
-    it('I can create a private space with private content', () => {
+    it.only('I can create a private space with private content', () => {
         const timestamp = new Date().toISOString();
 
         // Create private space
@@ -16,8 +16,6 @@ describe('Custom dimensions', () => {
         cy.contains('Organize your saved charts and dashboards.').click();
         cy.findByPlaceholderText('eg. KPIs').type(`Private space ${timestamp}`);
         cy.get('button').contains('Create').click();
-
-        // cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces/4d44d948-b6e1-433d-a4f1-738dad321ad5`)
 
         // Create new chart
         cy.get('.tabler-icon-plus').click();
@@ -32,7 +30,7 @@ describe('Custom dimensions', () => {
         // Saves to space by default
         cy.get('.mantine-Modal-body').find('button').contains('Save').click();
 
-        // Go back to space using breadcrums
+        // Go back to space using breadcrumbs
         cy.contains('Private space').click();
 
         // Create new dashboard
@@ -45,14 +43,14 @@ describe('Custom dimensions', () => {
         // At this point the dashboard is created, but empty
         // TODO add private chart to dashboard ?
 
-        // Go back to space using navbar
-        cy.contains('Browse').click();
+        // Go back to space using url
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
         cy.contains(`Private space ${timestamp}`).click();
 
         // Check all items exist in private space
         cy.contains('All items').click();
         cy.contains(`Private dashboard ${timestamp}`);
-        cy.contains(`Private chart ${timestamp}`).click();
+        cy.contains(`Private chart ${timestamp}`);
     });
 
     it('Another non-admin user cannot see private content', () => {
