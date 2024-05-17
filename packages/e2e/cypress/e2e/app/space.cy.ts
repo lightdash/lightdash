@@ -7,7 +7,7 @@ describe('Custom dimensions', () => {
         cy.login();
     });
 
-    it.only('I can create a private space with private content', () => {
+    it('I can create a private space with private content', () => {
         const timestamp = new Date().toISOString();
 
         // Create private space
@@ -44,7 +44,7 @@ describe('Custom dimensions', () => {
         // TODO add private chart to dashboard ?
 
         // Go back to space using url
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`); // I think we need to refresh the page for the items to appear
         cy.contains(`Private space ${timestamp}`).click();
 
         // Check all items exist in private space
