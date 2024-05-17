@@ -6,6 +6,7 @@ import {
     isDimension,
     isField,
     isNumericItem,
+    isTableCalculation,
     TimeFrames,
     type CompiledDimension,
     type CustomDimension,
@@ -169,7 +170,12 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
     return (
         <TextInput
-            disabled={!isNumericItem(field) || disabled}
+            disabled={
+                (!isNumericItem(field) &&
+                    // We treat untyped table calculations as numeric
+                    !(field && isTableCalculation(field) && !field.type)) ||
+                disabled
+            }
             size="xs"
             title={
                 isNumericItem(field)
@@ -287,7 +293,11 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         ],
     );
 
-    const isNumericField = selectedField && isNumericItem(selectedField);
+    const isNumericField =
+        selectedField &&
+        (isNumericItem(selectedField) ||
+            // We treat untyped table calculations as numeric
+            (isTableCalculation(selectedField) && !selectedField.type));
 
     const averageAvailable = isNumericField && markLineKey === 'yAxis';
     const controlLabel = `Line ${index}`;
