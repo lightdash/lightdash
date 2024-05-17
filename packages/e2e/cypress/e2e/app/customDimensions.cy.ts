@@ -107,7 +107,7 @@ describe('Custom dimensions', () => {
         cy.findByTestId('SQL-card-expand').click();
 
         const sqlLines = [
-            `('payment_' || ("payments".payment_method) ) AS "payment_method",`,
+            `('payment_' || ("payments".payment_method)) AS "payment_method",`,
             `SUM("payments".amount) AS "payments_total_revenue"`,
             `GROUP BY 1`,
             `ORDER BY "payments_total_revenue" DESC`,
