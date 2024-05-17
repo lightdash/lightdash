@@ -12,6 +12,7 @@ import {
     useValidation,
     useValidationMutation,
 } from '../../hooks/validation/useValidation';
+import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import { ValidatorTable } from './ValidatorTable';
@@ -24,7 +25,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
 
-    const { data } = useValidation(projectUuid, true);
+    const { user } = useApp();
+    const { data } = useValidation(projectUuid, user, true); // Note: Users that land on this page can always manage validations
     const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
         setIsValidating(false),
     );
