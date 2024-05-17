@@ -7,7 +7,6 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     isDimension,
-    isField,
     isFilterableField,
     MetricType,
     type AdditionalMetric,
@@ -113,7 +112,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             onChange={onMenuChange}
         >
             <Menu.Dropdown>
-                {isField(item) && isFilterableField(item) ? (
+                {!isAdditionalMetric(item) && isFilterableField(item) ? (
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconFilter} />}
