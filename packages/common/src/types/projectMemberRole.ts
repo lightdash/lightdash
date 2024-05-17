@@ -36,12 +36,7 @@ export type SpaceGroupAccessRole = {
     role: ProjectMemberRole | undefined;
 };
 
-export type InheritedRoles = [
-    OrganizationRole,
-    GroupRole,
-    ProjectRole,
-    SpaceGroupAccessRole,
-];
+export type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
 
 const RoleTypes = ['organization', 'project', 'group', 'space_group'] as const;
 
