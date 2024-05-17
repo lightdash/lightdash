@@ -38,19 +38,17 @@ export const useValidation = (
         useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
     const organizationUuid = user.data?.organizationUuid;
 
-    // Check if the user has a valid ability to check for Validation.
-    const canValidateResponse = !user.data?.ability.cannot(
+    // Check if the user can manage validation feature
+    const canManageValidation = user.data?.ability.can(
         'manage',
         subject('Validation', {
             organizationUuid,
             projectUuid,
         }),
     );
-    // used for conditional calling useQuery
-    const skipQuery = canValidateResponse;
 
-    const queryResult = useQuery<ValidationResponse[], ApiError>({
-        enabled: skipQuery, // Skip the query if user doesn't have permission
+    return useQuery<ValidationResponse[], ApiError>({
+        enabled: canManageValidation,
         queryKey: ['validation', fromSettings],
         queryFn: () => getValidation(projectUuid, fromSettings),
         retry: (_, error) => error.error.statusCode !== 403,
@@ -76,13 +74,6 @@ export const useValidation = (
             );
         },
     });
-
-    // If the user doesn't have permission, return an empty data object.
-    if (!canValidateResponse) {
-        return { data: [] };
-    }
-
-    return queryResult;
 };
 
 const updateValidation = async (
