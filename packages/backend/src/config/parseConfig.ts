@@ -210,8 +210,6 @@ export type LightdashConfig = {
 };
 
 export type SlackConfig = {
-    appToken?: string;
-    port: number;
     signingSecret?: string;
     clientId?: string;
     clientSecret?: string;
@@ -587,8 +585,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             },
         },
         slack: {
-            appToken: process.env.SLACK_APP_TOKEN,
-            port: parseInt(process.env.SLACK_PORT || '4351', 10),
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,

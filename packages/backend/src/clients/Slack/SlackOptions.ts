@@ -12,7 +12,7 @@ export const slackOptions = {
     // When testing locally on http://localhost:3000, replace again https:// with http:// after redirection happens
     redirectUri: `${(
         lightdashConfig.exposedSiteUrl ?? lightdashConfig.siteUrl
-    ).replace('http://', 'https://')}/api/v1/slack/oauth_redirect`,
+    ).replace('http://', 'https://')}/slack/oauth_redirect`,
     installerOptions: {
         directInstall: true,
         redirectUriPath: '/slack/oauth_redirect',

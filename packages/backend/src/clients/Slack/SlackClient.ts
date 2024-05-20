@@ -42,7 +42,7 @@ export class SlackClient {
     }
 
     async start() {
-        if (this.lightdashConfig.slack?.appToken) {
+        if (this.lightdashConfig.slack?.clientId) {
             try {
                 this.slackApp = new App({
                     ...slackOptions,
@@ -53,9 +53,6 @@ export class SlackClient {
                             this.slackAuthenticationModel.getInstallation(i),
                     },
                     logLevel: LogLevel.INFO,
-                    port: this.lightdashConfig.slack.port,
-                    socketMode: true,
-                    appToken: this.lightdashConfig.slack.appToken,
                 });
             } catch (e: unknown) {
                 Logger.error(`Unable to start Slack client ${e}`);
@@ -63,7 +60,7 @@ export class SlackClient {
             this.isEnabled = true;
         } else {
             Logger.warn(
-                `Missing "SLACK_APP_TOKEN", Slack client will not work`,
+                `Missing "SLACK_CLIENT_ID", Slack client will not work`,
             );
         }
     }
