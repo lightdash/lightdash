@@ -41,7 +41,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
-import { getItemId, isDateItem, getItemType } from './item';
+import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
