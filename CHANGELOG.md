@@ -1,3 +1,10 @@
+## [0.1099.1](https://github.com/lightdash/lightdash/compare/0.1099.0...0.1099.1) (2024-05-20)
+
+
+### Bug Fixes
+
+* remove and under from first custom dim range ([#10125](https://github.com/lightdash/lightdash/issues/10125)) ([5e4fd7b](https://github.com/lightdash/lightdash/commit/5e4fd7b87cf92274d28ae4444f076cc19853b0ab))
+
 # [0.1099.0](https://github.com/lightdash/lightdash/compare/0.1098.0...0.1099.0) (2024-05-20)
 
 
