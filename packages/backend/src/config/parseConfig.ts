@@ -168,6 +168,7 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
         csvCellsLimit: number;
+        timezone: string | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -537,6 +538,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
+            timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
         },
         chart: {
             versionHistory: {

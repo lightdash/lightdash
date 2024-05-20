@@ -1,4 +1,4 @@
-import moment from 'moment/moment';
+import moment from 'moment-timezone';
 import { SupportedDbtAdapter } from '../types/dbt';
 import {
     CustomFormatType,
@@ -139,6 +139,7 @@ export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
     adapterType: SupportedDbtAdapter,
+    timezone: string,
     dateFormatter: (date: Date) => string = formatDate,
     startOfWeek: WeekDay | null | undefined = undefined,
 ): string => {
@@ -262,12 +263,16 @@ export const renderDateFilterSql = (
                 filter.settings?.unitOfTime || UnitOfTime.days;
             const fromDate = dateFormatter(
                 getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .tz(timezone)
                     .startOf(unitOfTime)
+                    .utc()
                     .toDate(),
             );
             const untilDate = dateFormatter(
                 getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .tz(timezone)
                     .endOf(unitOfTime)
+                    .utc()
                     .toDate(),
             );
             return `((${dimensionSql}) >= ${castValue(
@@ -319,6 +324,7 @@ export const renderTableCalculationFilterRuleSql = (
     escapeStringQuoteChar: string,
     adapterType: SupportedDbtAdapter,
     startOfWeek: WeekDay | null | undefined,
+    timezone: string,
 ): string => {
     if (!field) return '1=1';
 
@@ -340,6 +346,7 @@ export const renderTableCalculationFilterRuleSql = (
                 fieldSql,
                 filterRule,
                 adapterType,
+                timezone,
                 undefined,
                 startOfWeek,
             );
@@ -375,7 +382,7 @@ export const renderFilterRuleSql = (
     escapeStringQuoteChar: string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
-    timezone?: string, // TODO replacde with enum
+    timezone: string,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -430,6 +437,7 @@ export const renderFilterRuleSql = (
                 fieldSql,
                 filterRule,
                 adapterType,
+                timezone,
                 undefined,
                 startOfWeek,
             );
@@ -440,6 +448,7 @@ export const renderFilterRuleSql = (
                 convertBigqueryTimezone(fieldSql),
                 filterRule,
                 adapterType,
+                timezone,
                 formatTimestampAsUTCWithNoTimezone,
                 startOfWeek,
             );

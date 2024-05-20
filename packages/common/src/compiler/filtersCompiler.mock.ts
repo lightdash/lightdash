@@ -482,6 +482,7 @@ export const disabledFilterMock: {
     escapeStringQuoteChar: RenderFilterRuleSqlParams[4];
     startOfWeek: RenderFilterRuleSqlParams[5];
     adapterType: RenderFilterRuleSqlParams[6];
+    timezone: RenderFilterRuleSqlParams[7];
 } = {
     filterRule: {
         id: '3cf51ddc-fa2b-4442-afaa-9eee4f348d7a',
@@ -509,4 +510,5 @@ export const disabledFilterMock: {
     escapeStringQuoteChar: "'",
     startOfWeek: null,
     adapterType: SupportedDbtAdapter.POSTGRES,
+    timezone: 'UTC',
 };
