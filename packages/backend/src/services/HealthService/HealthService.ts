@@ -155,7 +155,7 @@ export class HealthService extends BaseService {
 
     private hasSlackConfig(): boolean {
         return (
-            this.lightdashConfig.slack?.appToken !== undefined &&
+            this.lightdashConfig.slack?.clientId !== undefined &&
             this.lightdashConfig.slack.signingSecret !== undefined
         );
     }
