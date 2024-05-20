@@ -1,3 +1,10 @@
+## [0.1097.1](https://github.com/lightdash/lightdash/compare/0.1097.0...0.1097.1) (2024-05-20)
+
+
+### Bug Fixes
+
+* handle filter bys for invalid dates/empty ([#10097](https://github.com/lightdash/lightdash/issues/10097)) ([2c3a193](https://github.com/lightdash/lightdash/commit/2c3a193a7fcb46df0ae95f33df04ba96e5800959))
+
 # [0.1097.0](https://github.com/lightdash/lightdash/compare/0.1096.6...0.1097.0) (2024-05-17)
 
 
