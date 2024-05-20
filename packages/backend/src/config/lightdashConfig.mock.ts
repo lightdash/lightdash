@@ -123,5 +123,6 @@ export const lightdashConfigMock: LightdashConfig = {
     query: {
         maxLimit: 5000,
         csvCellsLimit: 100000,
+        timezone: undefined,
     },
 };

@@ -324,7 +324,7 @@ export const renderTableCalculationFilterRuleSql = (
     escapeStringQuoteChar: string,
     adapterType: SupportedDbtAdapter,
     startOfWeek: WeekDay | null | undefined,
-    timezone: string,
+    timezone: string = 'UTC',
 ): string => {
     if (!field) return '1=1';
 
@@ -382,7 +382,7 @@ export const renderFilterRuleSql = (
     escapeStringQuoteChar: string,
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
-    timezone: string,
+    timezone: string = 'UTC',
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows

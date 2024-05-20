@@ -936,7 +936,7 @@ export const buildQuery = ({
                 escapeStringQuoteChar,
                 adapterType,
                 startOfWeek,
-                timezone ?? 'UTC',
+                timezone,
             );
         }
 
@@ -967,7 +967,7 @@ export const buildQuery = ({
             escapeStringQuoteChar,
             startOfWeek,
             adapterType,
-            timezone ?? 'UTC',
+            timezone,
         );
     };
 

@@ -512,3 +512,22 @@ export const disabledFilterMock: {
     adapterType: SupportedDbtAdapter.POSTGRES,
     timezone: 'UTC',
 };
+
+export const filterInTheCurrentDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04 04:00:00') AND (customers.created) <= ('2020-04-05 03:59:59'))",
+    ],
+    [
+        'Asia/Bangkok',
+        "((customers.created) >= ('2020-04-03 17:00:00') AND (customers.created) <= ('2020-04-04 16:59:59'))",
+    ],
+    [
+        'Pacific/Fiji',
+        "((customers.created) >= ('2020-04-03 12:00:00') AND (customers.created) <= ('2020-04-04 11:59:59'))",
+    ],
+];

@@ -18,6 +18,7 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
+    filterInTheCurrentDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -619,6 +620,22 @@ describe('Filter SQL', () => {
             ),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
     });
+
+    test.each(filterInTheCurrentDayTimezoneMocks)(
+        'should return in the current day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    InTheCurrentFilterBase,
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
 
     test('should return single value in includes filter sql', () => {
         expect(

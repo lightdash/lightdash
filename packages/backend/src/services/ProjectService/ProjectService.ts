@@ -990,7 +990,7 @@ export class ProjectService extends BaseService {
                 '\\',
                 warehouseClient.getAdapterType(),
                 warehouseClient.getStartOfWeek(),
-                metricQuery.timezone ?? 'UTC',
+                metricQuery.timezone,
             );
         });
 
@@ -1041,7 +1041,7 @@ export class ProjectService extends BaseService {
         return [primaryQuery, tableCalculationsSubQuery];
     }
 
-    private static async _compileQuery(
+    private async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
@@ -1049,16 +1049,21 @@ export class ProjectService extends BaseService {
         userAttributes: UserAttributeValueMap,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
+        const metricQueryWithTimezone: MetricQuery = {
+            ...metricQuery,
+            timezone:
+                metricQuery.timezone || this.lightdashConfig.query.timezone,
+        };
         const exploreWithOverride = ProjectService.updateExploreWithGranularity(
             explore,
-            metricQuery,
+            metricQueryWithTimezone,
             warehouseClient,
             granularity,
         );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery,
+            metricQuery: metricQueryWithTimezone,
             warehouseClient,
         });
 
@@ -1177,7 +1182,7 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const compiledQuery = await ProjectService._compileQuery(
+        const compiledQuery = await this._compileQuery(
             timezoneMetricQuery,
             explore,
             warehouseClient,
@@ -2009,7 +2014,7 @@ export class ProjectService extends BaseService {
                         tableCalculationsCompiledQuery =
                             tableCalculationsSubQuery;
                     } else {
-                        const fullQuery = await ProjectService._compileQuery(
+                        const fullQuery = await this._compileQuery(
                             ...compileQueryArgs,
                         );
 
@@ -2316,7 +2321,7 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const { query } = await ProjectService._compileQuery(
+        const { query } = await this._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
@@ -3655,7 +3660,7 @@ export class ProjectService extends BaseService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const { query } = await ProjectService._compileQuery(
+        const { query } = await this._compileQuery(
             totalQuery,
             explore,
             warehouseClient,
