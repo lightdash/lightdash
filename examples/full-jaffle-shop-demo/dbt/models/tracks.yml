@@ -42,7 +42,7 @@ models:
               - HOUR_OF_DAY_NUM
               - MINUTE_OF_HOUR_NUM
       - name: timestamp_EST
-        description: "Timestamp, but converted to EST in BigQuery using DATETIME(timestamp, "America/New_York")"
+        description: "Timestamp, but converted to EST in BigQuery using DATETIME(timestamp, \"America/New_York\")"
         meta:
           dimension:
             type: timestamp
