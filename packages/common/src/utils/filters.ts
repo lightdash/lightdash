@@ -41,7 +41,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
-import { getItemId } from './item';
+import { getItemId, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -422,12 +422,9 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  * @returns True if the value is an invalid date, false otherwise
  */
 export const isDimensionValueInvalidDate = (
-    item: FilterableField,
+    item: Exclude<FilterableField, CustomSqlDimension>,
     value: any,
-) =>
-    isDimension(item) &&
-    Object.values(TimeFrames).includes(item.timeInterval as TimeFrames) &&
-    value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
+) => isDateItem(item) && value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
 
 /**
  * Takes a filter group and build a filters object from it based on the field type
