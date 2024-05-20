@@ -2,7 +2,7 @@ import { type SummaryExplore } from '@lightdash/common';
 import { ActionIcon, Button } from '@mantine/core';
 import { IconSearch, IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
     explore: SummaryExplore;

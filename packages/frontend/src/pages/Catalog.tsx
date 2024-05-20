@@ -2,8 +2,7 @@ import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
-
-import { CatalogPanel } from '../components/CatalogPanel';
+import { CatalogPanel } from '../features/catalog/components';
 
 const Catalog: FC = () => {
     const params = useParams<{ projectUuid: string }>();

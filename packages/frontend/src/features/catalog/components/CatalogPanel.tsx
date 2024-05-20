@@ -4,8 +4,8 @@ import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import { useExplores } from '../../hooks/useExplores';
-import MantineIcon from '../common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useExplores } from '../../../hooks/useExplores';
 import { CataloGroup } from './CatalogGroup';
 import { CatalogItem } from './CatalogItem';
 
