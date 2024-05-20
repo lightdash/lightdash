@@ -1,5 +1,5 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Group, Text } from '@mantine/core';
+import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
 import { IconExternalLink, IconSearch, IconTable } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -8,11 +8,13 @@ import MantineLinkButton from '../../../components/common/MantineLinkButton';
 type Props = {
     explore: SummaryExplore;
     tableUrl: string;
+    searchString?: string;
 };
 
 export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
     explore,
     tableUrl,
+    searchString = '',
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
 
@@ -30,9 +32,14 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
                 <MantineIcon size={'lg'} color="gray" icon={IconTable} />
             </td>
             <td>
-                <Text fw={600} w={150}>
+                <Highlight
+                    fw={600}
+                    w={150}
+                    highlight={searchString}
+                    highlightColor="violet"
+                >
                     {explore.name}
-                </Text>
+                </Highlight>
             </td>
             <td>
                 <Group noWrap position="apart">

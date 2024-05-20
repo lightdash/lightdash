@@ -152,6 +152,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                             <CatalogItem
                                                 key={explore.name}
                                                 explore={explore}
+                                                searchString={search}
                                                 tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
                                             />
                                         ))}
@@ -167,6 +168,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 <CatalogItem
                                     key={explore.name}
                                     explore={explore}
+                                    searchString={search}
                                     tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
                                 />
                             ))}
