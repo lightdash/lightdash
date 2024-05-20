@@ -422,7 +422,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  * @returns True if the value is an invalid date, false otherwise
  */
 export const isDimensionValueInvalidDate = (
-    item: Exclude<FilterableField, CustomSqlDimension>,
+    item: FilterableField,
     value: any,
 ) => isDateItem(item) && value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
 
