@@ -482,6 +482,7 @@ export const disabledFilterMock: {
     escapeStringQuoteChar: RenderFilterRuleSqlParams[4];
     startOfWeek: RenderFilterRuleSqlParams[5];
     adapterType: RenderFilterRuleSqlParams[6];
+    timezone: RenderFilterRuleSqlParams[7];
 } = {
     filterRule: {
         id: '3cf51ddc-fa2b-4442-afaa-9eee4f348d7a',
@@ -509,4 +510,24 @@ export const disabledFilterMock: {
     escapeStringQuoteChar: "'",
     startOfWeek: null,
     adapterType: SupportedDbtAdapter.POSTGRES,
+    timezone: 'UTC',
 };
+
+export const filterInTheCurrentDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04 04:00:00') AND (customers.created) <= ('2020-04-05 03:59:59'))",
+    ],
+    [
+        'Asia/Bangkok',
+        "((customers.created) >= ('2020-04-03 17:00:00') AND (customers.created) <= ('2020-04-04 16:59:59'))",
+    ],
+    [
+        'Pacific/Fiji',
+        "((customers.created) >= ('2020-04-03 12:00:00') AND (customers.created) <= ('2020-04-04 11:59:59'))",
+    ],
+];
