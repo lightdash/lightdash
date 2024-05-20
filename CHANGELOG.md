@@ -1,3 +1,10 @@
+# [0.1099.0](https://github.com/lightdash/lightdash/compare/0.1098.0...0.1099.0) (2024-05-20)
+
+
+### Features
+
+* remove 2-stage login feature flag ([#10105](https://github.com/lightdash/lightdash/issues/10105)) ([196f8f8](https://github.com/lightdash/lightdash/commit/196f8f85e2bf5440e27acab1bff22ae4deebf8a1))
+
 # [0.1098.0](https://github.com/lightdash/lightdash/compare/0.1097.1...0.1098.0) (2024-05-20)
 
 
