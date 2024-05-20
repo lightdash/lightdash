@@ -14,7 +14,6 @@ import {
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProject } from '../../../hooks/useProject';
@@ -28,7 +27,6 @@ type Props = {
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
 }) => {
-    const history = useHistory();
     const [search, setSearch] = useState<string>('');
     const { data: projectData } = useProject(projectUuid);
 
@@ -70,6 +68,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         }
         return [{}, []];
     }, [exploresResult.data, search]);
+
     /*
     if (exploresResult.status === 'loading') {
         return <LoadingSkeleton />;
@@ -153,11 +152,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                             <CatalogItem
                                                 key={explore.name}
                                                 explore={explore}
-                                                onClick={() => {
-                                                    history.push(
-                                                        `/projects/${projectUuid}/tables/${explore.name}`,
-                                                    );
-                                                }}
+                                                tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
                                             />
                                         ))}
                                 </tbody>
@@ -172,11 +167,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 <CatalogItem
                                     key={explore.name}
                                     explore={explore}
-                                    onClick={() => {
-                                        history.push(
-                                            `/projects/${projectUuid}/tables/${explore.name}`,
-                                        );
-                                    }}
+                                    tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
                                 />
                             ))}
                     </tbody>
