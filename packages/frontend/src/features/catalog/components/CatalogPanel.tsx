@@ -17,7 +17,8 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProject } from '../../../hooks/useProject';
-import { CataloGroup } from './CatalogGroup';
+import { useCatalog } from '../hooks/useCatalog';
+import { CatalogGroup } from './CatalogGroup';
 import { CatalogItem } from './CatalogItem';
 
 type Props = {
@@ -31,6 +32,16 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     const { data: projectData } = useProject(projectUuid);
 
     const exploresResult = useExplores(projectUuid, true);
+
+    // TODO: don't always fetch all catalog results
+    const { data: catalogResults } = useCatalog(projectUuid, true, true);
+
+    console.log('catalogResults', catalogResults);
+
+    // TODO: only getting fields at the moment
+    // const tables = catalogResults?.filter((item) => {
+    //     return item.type === 'table';
+    // });
 
     const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
         const validSearch = search ? search.toLowerCase() : '';
@@ -141,7 +152,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 {Object.keys(exploreGroupMap)
                     .sort((a, b) => a.localeCompare(b))
                     .map((groupLabel) => (
-                        <CataloGroup label={groupLabel} key={groupLabel}>
+                        <CatalogGroup label={groupLabel} key={groupLabel}>
                             <Table>
                                 <tbody>
                                     {exploreGroupMap[groupLabel]
@@ -158,7 +169,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                         ))}
                                 </tbody>
                             </Table>
-                        </CataloGroup>
+                        </CatalogGroup>
                     ))}
                 <Table>
                     <tbody>

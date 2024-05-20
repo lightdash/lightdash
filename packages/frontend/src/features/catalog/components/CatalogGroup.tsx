@@ -8,7 +8,7 @@ type Props = {
     label: string;
 };
 
-export const CataloGroup: FC<React.PropsWithChildren<Props>> = ({
+export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     label,
     children,
 }) => {
