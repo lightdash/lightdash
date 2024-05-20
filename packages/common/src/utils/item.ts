@@ -11,6 +11,7 @@ import {
     TableCalculationType,
     type CompiledDimension,
     type CustomDimension,
+    type CustomSqlDimension,
     type Dimension,
     type Field,
     type Item,
@@ -110,7 +111,12 @@ export const getItemColor = (
 };
 
 export const isDateItem = (
-    item: Field | AdditionalMetric | TableCalculation | undefined,
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomSqlDimension
+        | undefined,
 ): boolean => {
     if (!item) {
         return false;

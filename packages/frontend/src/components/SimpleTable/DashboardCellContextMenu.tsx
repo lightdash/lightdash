@@ -3,6 +3,7 @@ import {
     createDashboardFilterRuleFromField,
     hasCustomDimension,
     isDimension,
+    isDimensionValueInvalidDate,
     isField,
     isFilterableField,
     type FilterDashboardToRule,
@@ -55,6 +56,12 @@ const DashboardCellContextMenu: FC<
         [cell.row.original],
     );
 
+    const filterValue =
+        value.raw === undefined ||
+        (isDimension(item) && isDimensionValueInvalidDate(item, value))
+            ? null // Set as null if value is invalid date or undefined
+            : value.raw;
+
     const filterField =
         isDimension(item) && !item.hidden
             ? [
@@ -62,7 +69,7 @@ const DashboardCellContextMenu: FC<
                       field: item,
                       availableTileFilters: {},
                       isTemporary: true,
-                      value: value.raw,
+                      value: filterValue,
                   }),
               ]
             : [];
