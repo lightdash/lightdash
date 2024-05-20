@@ -40,6 +40,132 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "Pick_Explore.SummaryExploreFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "label", "tags"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SummaryExtraFields": {
+                "properties": {
+                    "databaseName": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["databaseName", "schemaName"],
+                "type": "object"
+            },
+            "InlineErrorType": {
+                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
+            "Pick_ExploreError.SummaryExploreErrorFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["name", "label", "tags", "errors"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_SummaryExtraFields_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "databaseName": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SummaryExplore": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SummaryExtraFields"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "ApiExploresResults": {
+                "items": {
+                    "$ref": "#/components/schemas/SummaryExplore"
+                },
+                "type": "array"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -244,132 +370,6 @@
                 },
                 "required": ["status"],
                 "type": "object"
-            },
-            "Pick_Explore.SummaryExploreFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    }
-                },
-                "required": ["name", "label", "tags"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SummaryExtraFields": {
-                "properties": {
-                    "databaseName": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    }
-                },
-                "required": ["databaseName", "schemaName"],
-                "type": "object"
-            },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
-            },
-            "Pick_ExploreError.SummaryExploreErrorFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "errors": {
-                        "items": {
-                            "$ref": "#/components/schemas/InlineError"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "label", "tags", "errors"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Partial_SummaryExtraFields_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "databaseName": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "SummaryExplore": {
-                "anyOf": [
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/SummaryExtraFields"
-                            }
-                        ]
-                    },
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
-                            }
-                        ]
-                    }
-                ]
-            },
-            "ApiExploresResults": {
-                "items": {
-                    "$ref": "#/components/schemas/SummaryExplore"
-                },
-                "type": "array"
             },
             "DbtModelJoinType": {
                 "type": "string",
@@ -6987,7 +6987,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1092.0",
+        "version": "0.1097.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7000,6 +7000,56 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/projects/{projectUuid}/catalog": {
+            "get": {
+                "operationId": "GetCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiExploresResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
             "post": {
                 "operationId": "createComment",

@@ -1,0 +1,23 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Catalog endpoint
+
+#### Get tables
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?onlyTables=true
+
+
+#### Get Fields
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?onlyFields=true
+
+
+#### Search
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?search=customer
+
+
