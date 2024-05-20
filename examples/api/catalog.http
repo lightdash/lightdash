@@ -1,5 +1,5 @@
 ### Login
-POST http://localhost:8080/api/v1/login
+POST http://localhost:3000/api/v1/login
 Content-Type: application/json
 
 {
@@ -10,14 +10,19 @@ Content-Type: application/json
 ### Catalog endpoint
 
 #### Get tables
-GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?onlyTables=true
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?allTables=true
 
 
 #### Get Fields
-GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?onlyFields=true
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?allFields=true
 
 
 #### Search
-GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/catalog?search=customer
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=customer
 
 
+#### Search field without attribute access (plan)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=plan
+
+#### Search table without attribute access (memberships)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=memberships

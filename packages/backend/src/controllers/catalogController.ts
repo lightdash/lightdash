@@ -1,13 +1,14 @@
 import {
     ApiCatalogResults,
+    ApiCatalogSearch,
     ApiErrorPayload,
-    ApiExploresResults,
 } from '@lightdash/common';
 import {
     Get,
     Middlewares,
     OperationId,
     Path,
+    Query,
     Request,
     Response,
     Route,
@@ -18,32 +19,40 @@ import express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
-@Route('/api/v1/projects/{projectUuid}/catalog')
+@Route('/api/v1/projects/{projectUuid}/dataCatalog')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Catalog')
 export class CatalogController extends BaseController {
     /**
      * Get catalog items
      * @param projectUuid
-     * @param req contains filters for the catalog items
+     * @param query contains filters for the catalog items
      * - search: string
-     * - onlyTables: boolean
-     * - onlyFields: boolean
+     * - allTables: boolean
+     * - allFields: boolean
      * @returns
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
-    @OperationId('GetCatalog')
-    async GetExplores(
+    @OperationId('getCatalog')
+    async getCatalog(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() search?: ApiCatalogSearch['search'],
+        @Query() allTables?: ApiCatalogSearch['allTables'],
+        @Query() allFields?: ApiCatalogSearch['allFields'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
+        const query: ApiCatalogSearch = {
+            search,
+            allTables,
+            allFields,
+        };
+
         const results = await this.services
             .getCatalogService()
-            .getCatalog(req.user!, projectUuid, req.query);
-
+            .getCatalog(req.user!, projectUuid, query);
         return {
             status: 'ok',
             results,

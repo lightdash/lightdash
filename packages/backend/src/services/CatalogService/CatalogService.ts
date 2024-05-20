@@ -1,41 +1,26 @@
 import { subject } from '@casl/ability';
 import {
     ApiCatalogSearch,
-    assertUnreachable,
+    CatalogField,
     CatalogTable,
     CatalogType,
-    CompiledField,
-    CreateChartValidation,
-    CreateDashboardValidation,
-    CreateTableValidation,
-    CreateValidation,
-    DashboardTileTarget,
     Explore,
     ExploreError,
     ForbiddenError,
-    getCustomMetricDimensionId,
-    getFilterRules,
-    getItemId,
-    InlineErrorType,
-    isDashboardChartTileType,
     isExploreError,
-    OrganizationMemberRole,
-    RequestMethod,
     SessionUser,
-    SummaryExplore,
-    TableCalculation,
-    TableSelectionType,
-    ValidationErrorType,
-    ValidationResponse,
-    ValidationSourceType,
+    UserAttributeValueMap,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SearchModel } from '../../models/SearchModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
-import { doesExploreMatchRequiredAttributes } from '../UserAttributesService/UserAttributeUtils';
+import {
+    doesExploreMatchRequiredAttributes,
+    getFilteredExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 
 type CatalogArguments = {
     lightdashConfig: LightdashConfig;
@@ -66,12 +51,102 @@ export class CatalogService extends BaseService {
         this.userAttributesModel = userAttributesModel;
     }
 
+    private static async getCatalogFields(
+        explores: (Explore | ExploreError)[],
+        userAttributes: UserAttributeValueMap,
+    ): Promise<CatalogField[]> {
+        return explores.reduce<CatalogField[]>((acc, explore) => {
+            if (isExploreError(explore)) {
+                return acc;
+            }
+            if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+                const fields: CatalogField[] = Object.values(
+                    explore.tables,
+                ).flatMap((t) => {
+                    const tableFields = [
+                        ...Object.values(t.dimensions),
+                        ...Object.values(t.metrics),
+                    ];
+                    return tableFields.map((d) => ({
+                        name: d.name,
+                        description: d.description,
+                        tableLabel: d.tableLabel,
+                        fieldType: d.fieldType,
+                        type: CatalogType.Field,
+                    }));
+                });
+
+                return [...acc, ...fields];
+            }
+            return acc;
+        }, []);
+    }
+
+    private static async getCatalogTables(
+        explores: (Explore | ExploreError)[],
+        userAttributes: UserAttributeValueMap,
+    ): Promise<CatalogTable[]> {
+        return explores.reduce<CatalogTable[]>((acc, explore) => {
+            if (isExploreError(explore)) {
+                return [
+                    ...acc,
+                    {
+                        name: explore.name,
+                        errors: explore.errors,
+                        groupLabel: explore.groupLabel,
+                        description:
+                            explore.baseTable &&
+                            explore.tables?.[explore.baseTable]?.description,
+                        type: CatalogType.Table,
+                    },
+                ];
+            }
+            if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+                return [
+                    ...acc,
+                    {
+                        name: explore.name,
+                        description:
+                            explore.tables[explore.baseTable].description,
+                        type: CatalogType.Table,
+                    },
+                ];
+            }
+            return acc;
+        }, []);
+    }
+
+    private static async searchCatalog(
+        query: string,
+        explores: Explore[],
+    ): Promise<(CatalogTable | CatalogField)[]> {
+        const [tables, fields] = SearchModel.searchTablesAndFields(
+            query,
+            explores,
+        );
+
+        const catalogTables: CatalogTable[] = tables.map((t) => ({
+            name: t.name,
+            description: t.description,
+            // groupLabel TODO update searchTables
+            type: CatalogType.Table,
+        }));
+        const catalogFields: CatalogField[] = fields.map((f) => ({
+            name: f.name,
+            description: f.description,
+            tableLabel: f.tableLabel,
+            type: CatalogType.Field,
+            fieldType: f.fieldType,
+        }));
+
+        return [...catalogTables, ...catalogFields];
+    }
+
     async getCatalog(
         user: SessionUser,
         projectUuid: string,
-        { search, onlyTables, onlyFields }: ApiCatalogSearch,
+        { search, allTables, allFields }: ApiCatalogSearch,
     ) {
-        const includeErrors = true;
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -96,69 +171,47 @@ export class CatalogService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-        const allExploreSummaries = explores.reduce<CatalogTable[]>(
+        // We keep errors in the list of explores
+        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
             (acc, explore) => {
                 if (isExploreError(explore)) {
-                    return acc;
-                    /* return includeErrors
-                        ? [
-                              ...acc,
-                              {
-                                  name: explore.name,
-                                  label: explore.label,
-                                  tags: explore.tags,
-                                  groupLabel: explore.groupLabel,
-                                  errors: explore.errors,
-                                  databaseName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.database,
-                                  schemaName:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.schema,
-                                  description:
-                                      explore.baseTable &&
-                                      explore.tables?.[explore.baseTable]
-                                          ?.description,
-                              },
-                          ]
-                        : acc; */
+                    return [...acc, explore];
                 }
                 if (
-                    doesExploreMatchRequiredAttributes(explore, userAttributes)
+                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
                 ) {
-                    return [
-                        ...acc,
-                        {
-                            name: explore.name,
-                            description:
-                                explore.tables[explore.baseTable].description,
-                            type: CatalogType.Table,
-                        },
-                    ];
+                    return acc;
                 }
-                return acc;
+                const filteredExplore = getFilteredExplore(
+                    explore,
+                    userAttributes,
+                );
+                return [...acc, filteredExplore];
             },
             [],
         );
-        /*
-        if (filtered) {
-            const {
-                tableSelection: { type, value },
-            } = await this.getTablesConfiguration(user, projectUuid);
-            if (type === TableSelectionType.WITH_TAGS) {
-                return allExploreSummaries.filter((explore) =>
-                    hasIntersection(explore.tags || [], value || []),
-                );
-            }
-            if (type === TableSelectionType.WITH_NAMES) {
-                return allExploreSummaries.filter((explore) =>
-                    (value || []).includes(explore.name),
-                );
-            }
-        } */
 
-        return allExploreSummaries;
+        if (search) {
+            // On search we don't show explore errors
+            const validExplores: Explore[] = filteredExplores.reduce<Explore[]>(
+                (acc, e) => {
+                    if (isExploreError(e)) return acc;
+                    return [...acc, e];
+                },
+                [],
+            );
+            return CatalogService.searchCatalog(search, validExplores);
+        }
+        if (allFields)
+            return CatalogService.getCatalogFields(
+                filteredExplores,
+                userAttributes,
+            );
+
+        // all tables
+        return CatalogService.getCatalogTables(
+            filteredExplores,
+            userAttributes,
+        );
     }
 }

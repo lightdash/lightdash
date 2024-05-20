@@ -132,6 +132,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
             </>
         );
     }
+    return null;
     /*
     return (
         <SuboptimalState
