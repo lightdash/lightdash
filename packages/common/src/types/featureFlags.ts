@@ -24,9 +24,6 @@ export enum FeatureFlags {
     /**/
     CustomSQLEnabled = 'custom-sql-enabled',
 
-    /* Shows the two-stage login flow */
-    newLoginEnabled = 'new-login-enabled',
-
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
