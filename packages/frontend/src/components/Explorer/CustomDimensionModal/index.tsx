@@ -1,7 +1,7 @@
 import { isCustomBinDimension, isDimension } from '@lightdash/common';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import { CustomBinDimensionModal } from './CustomBinDimensionModel';
-import { CustomSqlDimensionModal } from './CustomSqlDimensionModel';
+import { CustomBinDimensionModal } from './CustomBinDimensionModal';
+import { CustomSqlDimensionModal } from './CustomSqlDimensionModal';
 
 export const CustomDimensionModal = () => {
     const { isOpen, isEditing, table, item } = useExplorerContext(
