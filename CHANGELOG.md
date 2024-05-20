@@ -1,3 +1,10 @@
+# [0.1098.0](https://github.com/lightdash/lightdash/compare/0.1097.1...0.1098.0) (2024-05-20)
+
+
+### Features
+
+* add timezone handling to "in the current" filter ([#10118](https://github.com/lightdash/lightdash/issues/10118)) ([28c151f](https://github.com/lightdash/lightdash/commit/28c151f6fedc89469a6447706d300e58de81ee7a))
+
 ## [0.1097.1](https://github.com/lightdash/lightdash/compare/0.1097.0...0.1097.1) (2024-05-20)
 
 
