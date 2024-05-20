@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -280,6 +281,16 @@ const Routes: FC = () => {
                                             name={PageName.USER_ACTIVITY}
                                         >
                                             <UserActivity />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        path="/projects/:projectUuid/catalog"
+                                        exact
+                                    >
+                                        <NavBar />
+                                        <TrackPage name={PageName.CATALOG}>
+                                            <Catalog />
                                         </TrackPage>
                                     </Route>
 
