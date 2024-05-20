@@ -223,15 +223,8 @@ export class ValidationService extends BaseService {
                 chart.metricQuery.tableCalculations?.map(getItemId) || [];
             const availableDimensionIds =
                 exploreFields[tableName]?.dimensionIds || [];
-            console.log('availableDimensionIds', availableDimensionIds);
-
             const availableCustomDimensionIds =
                 chart.metricQuery.customDimensions?.map(getItemId) || [];
-
-            console.log(
-                'availableCustomDimensionIds',
-                availableCustomDimensionIds,
-            );
             const availableMetricIds =
                 exploreFields[tableName]?.metricIds || [];
 
