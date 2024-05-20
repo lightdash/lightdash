@@ -1402,3 +1402,5 @@ export const CUSTOM_SQL_DIMENSION: CompiledCustomSqlDimension = {
     compiledSql: '"table1".dim1 < 18',
     tablesReferences: ['table1'],
 };
+
+export const QUERY_BUILDER_UTC_TIMEZONE = 'UTC';

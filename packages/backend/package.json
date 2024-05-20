@@ -71,8 +71,6 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
-        "duckdb": "^0.9.2",
-        "duckdb-async": "^0.9.2",
         "execa": "^5.0.0",
         "express": "^4.19.2",
         "express-handlebars": "^7.1.2",

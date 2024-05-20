@@ -64,6 +64,7 @@ import {
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
     MONTH_NAME_SORT_SQL,
+    QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
     WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
@@ -76,6 +77,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -87,6 +89,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: bigqueryClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
@@ -98,6 +101,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
@@ -109,6 +113,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
@@ -120,6 +125,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
@@ -131,6 +137,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
@@ -142,6 +149,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
@@ -153,6 +161,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
@@ -164,6 +173,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
     });
@@ -176,6 +186,7 @@ describe('Query builder', () => {
                     METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
@@ -187,6 +198,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
@@ -198,6 +210,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -209,6 +222,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
@@ -221,6 +235,7 @@ describe('Query builder', () => {
                     METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
@@ -234,6 +249,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
@@ -245,6 +261,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
@@ -256,6 +273,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
@@ -267,6 +285,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
@@ -278,6 +297,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL);
     });
@@ -291,6 +311,7 @@ describe('Query builder', () => {
                     warehouseClient: warehouseClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
         ).toThrowError(ForbiddenError);
     });
@@ -305,6 +326,7 @@ describe('Query builder', () => {
                     country: ['EU'],
                 },
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
     });
@@ -630,6 +652,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -679,6 +702,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS \`table1_dim1\`,
@@ -718,6 +742,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -808,6 +833,7 @@ ELSE 2
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -864,6 +890,7 @@ LIMIT 10`);
                 warehouseClient: warehouseClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS "table1_dim1",
@@ -888,6 +915,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).not.toContain('age_range');
     });
