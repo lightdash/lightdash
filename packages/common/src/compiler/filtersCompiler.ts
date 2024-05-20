@@ -387,21 +387,21 @@ export const renderFilterRuleSql = (
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
     }
-
-    const convertBigqueryTimezone = (originalFieldSql: string) => {
-        // On Bigquery we convert timestamps to the right timezone before adding the SQL filter
-        // Bigquery does not support set TIMEZONE in session like the rest of the warehouses
-        // and field.compiledSql is generated in compile time, so we need to patch it here
-        // Only timestamp type in Bigquery has timezone information.
-        if (timezone && adapterType === SupportedDbtAdapter.BIGQUERY) {
-            const timestampRegex = /TIMESTAMP_TRUNC\(([^,]+),/;
-            return originalFieldSql.replace(
-                timestampRegex,
-                `TIMESTAMP_TRUNC(DATE($1, '${timezone}'),`,
-            );
-        }
-        return originalFieldSql;
-    };
+    // Note: This function is WIP for the user timezone milestone: https://github.com/lightdash/lightdash/milestone/97
+    // const convertBigqueryTimezone = (originalFieldSql: string) => {
+    //     // On Bigquery we convert timestamps to the right timezone before adding the SQL filter
+    //     // Bigquery does not support set TIMEZONE in session like the rest of the warehouses
+    //     // and field.compiledSql is generated in compile time, so we need to patch it here
+    //     // Only timestamp type in Bigquery has timezone information.
+    //     if (timezone && adapterType === SupportedDbtAdapter.BIGQUERY) {
+    //         const timestampRegex = /TIMESTAMP_TRUNC\(([^,]+),/;
+    //         return originalFieldSql.replace(
+    //             timestampRegex,
+    //             `TIMESTAMP_TRUNC(DATE($1, '${timezone}'),`,
+    //         );
+    //     }
+    //     return originalFieldSql;
+    // };
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
         : field.type;
@@ -445,7 +445,7 @@ export const renderFilterRuleSql = (
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP: {
             return renderDateFilterSql(
-                convertBigqueryTimezone(fieldSql),
+                fieldSql,
                 filterRule,
                 adapterType,
                 timezone,

@@ -990,6 +990,7 @@ export class ProjectService extends BaseService {
                 '\\',
                 warehouseClient.getAdapterType(),
                 warehouseClient.getStartOfWeek(),
+                metricQuery.timezone ?? 'UTC',
             );
         });
 
