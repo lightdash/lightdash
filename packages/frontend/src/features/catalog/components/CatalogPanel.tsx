@@ -1,11 +1,23 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Table, TextInput } from '@mantine/core';
-import { IconSearch, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    SegmentedControl,
+    Stack,
+    Table,
+    Text,
+    TextInput,
+    Title,
+} from '@mantine/core';
+import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProject } from '../../../hooks/useProject';
 import { CataloGroup } from './CatalogGroup';
 import { CatalogItem } from './CatalogItem';
 
@@ -18,6 +30,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const history = useHistory();
     const [search, setSearch] = useState<string>('');
+    const { data: projectData } = useProject(projectUuid);
+
     const exploresResult = useExplores(projectUuid, true);
 
     const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
@@ -72,20 +86,58 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
     if (exploresResult.data) {
         return (
-            <>
-                <TextInput
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
+            <Stack>
+                <Box>
+                    <Title order={4} mt="xxl">
+                        {projectData?.name}
+                    </Title>
+                    <Text color="gray">
+                        Select a table or field to start exploring.
+                    </Text>
+                </Box>
+                <Group position="apart">
+                    <TextInput
+                        w={'40%'}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />{' '}
+                    <Group>
+                        <SegmentedControl
+                            w={200}
+                            disabled // TODO: remove when implemented
+                            defaultValue={'tables'}
+                            data={[
+                                {
+                                    value: 'tables',
+                                    label: 'Tables',
+                                },
+                                {
+                                    value: 'fields',
+                                    label: 'Fields',
+                                },
+                            ]}
+                            onChange={() => {
+                                // NYI
+                            }}
+                        />
+                        <Button
+                            variant="default"
+                            disabled // TODO: remove when implemented
+                            leftIcon={<MantineIcon icon={IconFilter} />}
+                        >
+                            Filters
+                        </Button>
+                    </Group>
+                </Group>
 
                 {Object.keys(exploreGroupMap)
                     .sort((a, b) => a.localeCompare(b))
@@ -129,7 +181,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                             ))}
                     </tbody>
                 </Table>
-            </>
+            </Stack>
         );
     }
     return null;
