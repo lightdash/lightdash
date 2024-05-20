@@ -303,9 +303,6 @@ export const CustomBinDimensionModal: FC<{
                                                     type="number"
                                                     {...toProps}
                                                 />
-                                                <Text color="gray.6" fw="400">
-                                                    and under{' '}
-                                                </Text>
                                             </Flex>
                                         );
                                     } else if (
