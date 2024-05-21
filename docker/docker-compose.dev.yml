@@ -46,7 +46,6 @@ services:
     ports:
       - "8080:8080"
       - "3000:3000"
-      - "4351:4351" # slack bot
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
   db-dev:
