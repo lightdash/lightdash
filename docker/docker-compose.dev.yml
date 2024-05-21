@@ -35,7 +35,6 @@ services:
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
       - GROUPS_ENABLED=${GROUPS_ENABLED}
       - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
-      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
       - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
       - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
@@ -47,7 +46,6 @@ services:
     ports:
       - "8080:8080"
       - "3000:3000"
-      - "4351:4351" # slack bot
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
   db-dev:

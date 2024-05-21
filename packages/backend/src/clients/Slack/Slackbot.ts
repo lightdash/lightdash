@@ -1,12 +1,12 @@
 import { LightdashMode } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
+import { Express } from 'express';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
-import { apiV1Router } from '../../routers/apiV1Router';
 import {
     Unfurl,
     type UnfurlService,
@@ -65,46 +65,36 @@ export class SlackBot {
         this.unfurlService = unfurlService;
     }
 
-    async start() {
-        if (this.lightdashConfig.slack?.appToken) {
-            try {
-                const slackReceiver = new ExpressReceiver({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                        deleteInstallation: (i) =>
-                            this.slackAuthenticationModel.deleteInstallation(i),
-                    },
-                    router: apiV1Router,
-                });
+    async start(expressApp: Express) {
+        if (!this.lightdashConfig.slack?.clientId) {
+            Logger.warn(`Missing "SLACK_CLIENT_ID", Slack App will not run`);
+            return;
+        }
 
-                await slackReceiver.start(parseInt('4352', 10));
+        try {
+            const slackReceiver = new ExpressReceiver({
+                ...slackOptions,
+                installationStore: {
+                    storeInstallation: (i) =>
+                        this.slackAuthenticationModel.createInstallation(i),
+                    fetchInstallation: (i) =>
+                        this.slackAuthenticationModel.getInstallation(i),
+                    deleteInstallation: (i) =>
+                        this.slackAuthenticationModel.deleteInstallation(i),
+                },
+                logLevel: LogLevel.INFO,
+                app: expressApp,
+            });
 
-                const app = new App({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                    },
-                    logLevel: LogLevel.INFO,
-                    port: this.lightdashConfig.slack.port,
-                    socketMode: true,
-                    appToken: this.lightdashConfig.slack.appToken,
-                });
+            const app = new App({
+                ...slackOptions,
 
-                this.addEventListeners(app);
+                receiver: slackReceiver,
+            });
 
-                await app.start();
-            } catch (e: unknown) {
-                Logger.error(`Unable to start Slack app ${e}`);
-            }
-        } else {
-            Logger.warn(`Missing "SLACK_APP_TOKEN", Slack App will not run`);
+            this.addEventListeners(app);
+        } catch (e: unknown) {
+            Logger.error(`Unable to start Slack app ${e}`);
         }
     }
 
