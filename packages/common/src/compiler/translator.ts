@@ -89,7 +89,7 @@ const isInterval = (
 const convertDimension = (
     index: number,
     targetWarehouse: SupportedDbtAdapter,
-    model: Pick<DbtModelNode, 'name' | 'relation_name' | 'meta'>,
+    model: Pick<DbtModelNode, 'name' | 'relation_name'>,
     tableLabel: string,
     column: DbtModelColumn,
     source?: Source,
@@ -187,7 +187,6 @@ const generateTableLineage = (
 
 const convertDbtMetricToLightdashMetric = (
     metric: DbtMetric,
-    model: Pick<DbtModelNode, 'name' | 'meta'>,
     tableName: string,
     tableLabel: string,
 ): Metric => {
@@ -395,12 +394,7 @@ export const convertTable = (
     const convertedDbtMetrics = Object.fromEntries(
         dbtMetrics.map((metric) => [
             metric.name,
-            convertDbtMetricToLightdashMetric(
-                metric,
-                model,
-                model.name,
-                tableLabel,
-            ),
+            convertDbtMetricToLightdashMetric(metric, model.name, tableLabel),
         ]),
     );
 
