@@ -28,9 +28,25 @@ export const getSearchResults = (
     }
     return results;
 };
+const removeBaseDimensionNode = (
+    item: Dimension,
+    group: string,
+    root: NodeMap,
+    groupLabel?: string,
+): void => {
+    if (groupLabel) {
+        const newRoot = root[groupLabel].children || {};
+        removeBaseDimensionNode(item, group, newRoot);
+    }
+    Object.entries(root).forEach(([key, node]) => {
+        if (node.label === group) {
+            delete root[key];
+        }
+    });
+};
 const isBaseDimensionWithIntervalDefined = (item: Item): boolean => {
-    if (isDimension(item) && item.intervalBase) {
-        return item.intervalBase;
+    if (isDimension(item) && item.isIntervalBase) {
+        return item.isIntervalBase;
     } else {
         return false;
     }
@@ -38,24 +54,29 @@ const isBaseDimensionWithIntervalDefined = (item: Item): boolean => {
 const addNodeToGroup = (
     node: NodeMap,
     item: Node,
-    groups: GroupType[],
+    groups: string[],
+    groupDetails: Record<string, GroupType>,
 ): void => {
     if (groups.length === 0) {
         node[item.key] = item;
     } else {
         const [head, ...tail] = groups;
-        if (!node[head.label]) {
-            node[head.label] = {
-                key: head.label,
-                label: head.label,
-                description: head.description,
+        const groupDefinition = groupDetails[head] || {
+            label: head,
+        };
+
+        if (!node[groupDefinition.label]) {
+            node[groupDefinition.label] = {
+                key: groupDefinition.label,
+                label: groupDefinition.label,
+                description: groupDefinition.description,
                 children: {},
                 index: item.index ?? Number.MAX_SAFE_INTEGER,
             };
         }
-        let children = node[head.label].children;
+        let children = node[groupDefinition.label].children;
         if (children) {
-            addNodeToGroup(children, item, tail);
+            addNodeToGroup(children, item, tail, groupDetails);
         }
     }
 };
@@ -63,6 +84,7 @@ const addNodeToGroup = (
 const getNodeMapFromItemsMap = (
     itemsMap: Record<string, Item>,
     selectedItems: Set<string>,
+    groupDetails?: Record<string, GroupType>,
 ): NodeMap => {
     const root: NodeMap = {};
     Object.entries(itemsMap)
@@ -84,14 +106,29 @@ const getNodeMapFromItemsMap = (
                       index: item.index ?? Number.MAX_SAFE_INTEGER,
                   };
             if (isField(item)) {
-                const groups: GroupType[] = item.groups || [];
+                const groups: string[] = item.groups || [];
+                if (item.groupLabel) {
+                    groups.push(item.groupLabel);
+                }
+                if (isDimension(item) && item.group) {
+                    // We need to clean the baseDimensionNode
+                    removeBaseDimensionNode(
+                        item,
+                        item.group,
+                        root,
+                        item.groupLabel,
+                    );
+                    groups.push(item.group);
+                }
+                const tableGroupDetails = groupDetails || {};
                 if (!isBaseDimensionWithIntervalDefined(item)) {
-                    addNodeToGroup(root, node, groups);
+                    addNodeToGroup(root, node, groups, tableGroupDetails);
                 }
             } else {
                 root[node.key] = node;
             }
         });
+
     return root;
 };
 
@@ -119,6 +156,7 @@ type Props = {
     selectedItems: Set<string>;
     missingCustomMetrics?: AdditionalMetric[];
     missingCustomDimensions?: CustomDimension[];
+    groupDetails?: Record<string, GroupType>;
     onItemClick: (key: string, item: Item) => void;
 };
 
@@ -137,9 +175,14 @@ export const TreeProvider: FC<React.PropsWithChildren<Props>> = ({
     selectedItems,
     missingCustomMetrics,
     missingCustomDimensions,
+    groupDetails,
     ...rest
 }) => {
-    const nodeMap = getNodeMapFromItemsMap(itemsMap, selectedItems);
+    const nodeMap = getNodeMapFromItemsMap(
+        itemsMap,
+        selectedItems,
+        groupDetails,
+    );
     const searchResults = getSearchResults(itemsMap, searchQuery);
     const isSearching = !!searchQuery && searchQuery !== '';
     return (

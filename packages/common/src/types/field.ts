@@ -219,11 +219,6 @@ export type FieldUrl = {
     label: string;
 };
 
-export type GroupType = {
-    label: string;
-    description?: string;
-};
-
 // Every dimension and metric is a field
 export interface Field {
     fieldType: FieldType;
@@ -239,7 +234,11 @@ export interface Field {
     compact?: CompactOrAlias;
     round?: number;
     format?: Format;
-    groups?: GroupType[];
+    /**
+     * @deprecated Use groups property instead.
+     */
+    groupLabel?: string;
+    groups?: string[];
     urls?: FieldUrl[];
     index?: number;
 }
@@ -297,11 +296,15 @@ export enum DimensionType {
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
+    /**
+     * @deprecated Use groups property instead.
+     */
+    group?: string;
     requiredAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
-    intervalBase?: boolean;
+    isIntervalBase?: boolean;
 }
 
 export interface CompiledDimension extends Dimension {

@@ -3,6 +3,11 @@ export enum OrderFieldsByStrategy {
     INDEX = 'INDEX',
 }
 
+export type GroupType = {
+    label: string;
+    description?: string;
+};
+
 export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -16,4 +21,5 @@ export type TableBase = {
     sqlWhere?: string;
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
+    groupDetails?: Record<string, GroupType>;
 };

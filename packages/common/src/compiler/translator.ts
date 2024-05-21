@@ -2,7 +2,7 @@ import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
-    extractColumnGroups,
+    convertToGroups,
     isV9MetricRef,
     SupportedDbtAdapter,
     type DbtMetric,
@@ -21,12 +21,11 @@ import {
     MetricType,
     parseMetricType,
     type Dimension,
-    type GroupType,
     type Metric,
     type Source,
 } from '../types/field';
 import { parseFilters } from '../types/filterGrammar';
-import { OrderFieldsByStrategy } from '../types/table';
+import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import { type WarehouseClient } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
@@ -116,14 +115,12 @@ const convertDimension = (
     if (type === DimensionType.TIMESTAMP) {
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
-    const groups: GroupType[] = extractColumnGroups(
-        model.name,
-        name,
-        model.meta,
+    const isIntervalBase =
+        timeInterval === undefined && isInterval(type, column);
+    const groups: string[] = convertToGroups(
         column.meta.dimension?.group,
         column.meta.dimension?.group_label,
     );
-    const intervalBase = timeInterval === undefined && isInterval(type, column);
     if (timeInterval) {
         sql = timeFrameConfigs[timeInterval].getSql(
             targetWarehouse,
@@ -136,11 +133,9 @@ const convertDimension = (
         label = `${label} ${timeFrameConfigs[timeInterval]
             .getLabel()
             .toLowerCase()}`;
-        groups.push({
-            label:
-                column.meta.dimension?.label || intervalGroupFriendlyName(name),
-            description: column.description,
-        } as GroupType);
+        groups.push(
+            column.meta.dimension?.label || intervalGroupFriendlyName(name),
+        );
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {
@@ -166,7 +161,7 @@ const convertDimension = (
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
-        intervalBase,
+        isIntervalBase,
     };
 };
 
@@ -245,15 +240,10 @@ const convertDbtMetricToLightdashMetric = (
             .join(' AND ');
         sql = `CASE WHEN ${filterSql} THEN ${sql} ELSE NULL END`;
     }
-
-    const groups: GroupType[] = extractColumnGroups(
-        model.name,
-        metric.name,
-        model.meta,
+    const groups: string[] = convertToGroups(
         metric.meta?.group,
         metric.meta?.group_label,
     );
-
     return {
         fieldType: FieldType.METRIC,
         type,
@@ -371,7 +361,6 @@ export const convertTable = (
                             dimensionSql: dimension.sql,
                             name,
                             metric,
-                            meta: model.meta,
                             tableLabel,
                             requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
                         }),
@@ -398,7 +387,6 @@ export const convertTable = (
                 modelName: model.name,
                 name,
                 metric,
-                meta: model.meta,
                 tableLabel,
             }),
         ]),
@@ -442,6 +430,15 @@ export const convertTable = (
     if (!model.relation_name) {
         throw new Error(`Model "${model.name}" has no table relation`);
     }
+    const groupDetails: Record<string, GroupType> = {};
+    if (meta.groups) {
+        Object.entries(meta.groups).forEach(([key, data]) => {
+            groupDetails[key] = {
+                label: data.label,
+                description: data.description,
+            };
+        });
+    }
 
     return {
         name: model.name,
@@ -462,6 +459,7 @@ export const convertTable = (
         groupLabel: meta.group_label,
         sqlWhere: meta.sql_filter || meta.sql_where,
         requiredAttributes: meta.required_attributes,
+        groupDetails,
     };
 };
 

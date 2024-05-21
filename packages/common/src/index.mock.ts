@@ -32,7 +32,7 @@ export const dateYearDimension: Dimension = {
 
 export const dateDayDimensionWithGroup: Dimension = {
     ...dateDayDimension,
-    groups: [{ label: 'date group' }],
+    groups: ['date group'],
 };
 
 export const emptyValueFilter: FilterRule = {

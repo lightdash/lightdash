@@ -178,16 +178,23 @@ export class ExploreCompiler {
                                 requiredDimensionsForJoin.includes(
                                     dimensionKey,
                                 );
+                            const tableGroups =
+                                tables[join.table].groupDetails || {};
                             const allGroupsIncluded =
                                 dimension.groups &&
                                 dimension.groups.every(
                                     (group) =>
                                         join.fields !== undefined &&
-                                        join.fields.includes(group.label),
+                                        (join.fields.includes(group) ||
+                                            join.fields.includes(
+                                                tableGroups[group].label,
+                                            )),
                                 );
                             const isVisible =
                                 join.fields === undefined ||
                                 join.fields.includes(dimensionKey) ||
+                                (dimension.group !== undefined &&
+                                    join.fields.includes(dimension.group)) ||
                                 (dimension.groups &&
                                     dimension.groups.length > 0 &&
                                     allGroupsIncluded);

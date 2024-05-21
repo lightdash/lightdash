@@ -14,7 +14,6 @@ import {
     type DimensionType,
     type FieldUrl,
     type Format,
-    type GroupType,
     type Metric,
     type MetricType,
     type Source,
@@ -363,55 +362,20 @@ export interface DbtRpcRunSqlResults {
         table: { column_names: string[]; rows: any[][] };
     }[];
 }
-export const convertModelGroupsToColumnGroups = (
-    columnName: string,
-    modelName: string,
-    columnGroups: string[] | string,
-    modelGroups: Record<string, DbtModelGroup>,
-): GroupType[] => {
-    let columnGroupsArray: string[] = [];
-    if (typeof columnGroups === 'string') {
-        columnGroupsArray = [columnGroups];
-    } else {
-        columnGroupsArray = columnGroups;
-    }
-    const groups: GroupType[] = columnGroupsArray.map((groupName) => {
-        const modelGroupName = Object.keys(modelGroups).find(
-            (key) => key === groupName,
-        );
-        if (modelGroupName) {
-            return {
-                label: modelGroups[modelGroupName].label,
-                description: modelGroups[modelGroupName].description,
-            } as GroupType;
+
+export const convertToGroups = (
+    dbtGroups: string | string[] | undefined,
+    dbtGroupLabel: string | undefined,
+): string[] => {
+    let groups: string[] = [];
+    if (dbtGroups) {
+        if (typeof dbtGroups === 'string') {
+            groups = [dbtGroups];
+        } else {
+            groups = dbtGroups || [];
         }
-        return {
-            label: groupName,
-        } as GroupType;
-    });
-    return groups;
-};
-export const extractColumnGroups = (
-    modelName: string,
-    columnName: string,
-    meta: DbtModelMetadata,
-    metricGroup?: string[] | string,
-    metricGroupLabel?: string,
-): GroupType[] => {
-    let groups: GroupType[] = [];
-    if (metricGroup && metricGroup.length > 0 && meta.groups) {
-        const dimensionGroups = metricGroup;
-        const modelGroups = meta.groups;
-        groups = convertModelGroupsToColumnGroups(
-            columnName,
-            modelName,
-            dimensionGroups,
-            modelGroups,
-        );
-    } else if (metricGroupLabel) {
-        groups.push({
-            label: metricGroupLabel,
-        } as GroupType);
+    } else if (dbtGroupLabel) {
+        groups = [dbtGroupLabel];
     }
     return groups;
 };
@@ -437,7 +401,6 @@ type ConvertModelMetricArgs = {
     modelName: string;
     name: string;
     metric: DbtModelLightdashMetric;
-    meta: DbtModelMetadata;
     source?: Source;
     tableLabel: string;
     dimensionReference?: string;
@@ -447,19 +410,12 @@ export const convertModelMetric = ({
     modelName,
     name,
     metric,
-    meta,
     source,
     tableLabel,
     dimensionReference,
     requiredAttributes,
 }: ConvertModelMetricArgs): Metric => {
-    const groups: GroupType[] = extractColumnGroups(
-        modelName,
-        name,
-        meta,
-        metric.group,
-        metric.group_label,
-    );
+    const groups = convertToGroups(metric.group, metric.group_label);
     return {
         fieldType: FieldType.METRIC,
         name,
@@ -496,7 +452,6 @@ export const convertColumnMetric = ({
     dimensionSql,
     name,
     metric,
-    meta,
     source,
     tableLabel,
     requiredAttributes,
@@ -515,7 +470,6 @@ export const convertColumnMetric = ({
                       )}`
                     : undefined),
         },
-        meta,
         source,
         tableLabel,
         dimensionReference: dimensionName

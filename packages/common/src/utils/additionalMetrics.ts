@@ -18,7 +18,6 @@ export const convertAdditionalMetric = ({
         name: additionalMetric.name,
         metric: { ...additionalMetric, filters: undefined },
         tableLabel: table.label,
-        meta: {},
     });
 
     return {
