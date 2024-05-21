@@ -6,6 +6,7 @@ import {
     isCustomSqlDimension,
     isDimension,
     isField,
+    isMetric,
     isTableCalculation,
     MetricType,
     TableCalculationType,
@@ -42,29 +43,6 @@ export const isNumericType = (
     return numericTypes.includes(type);
 };
 
-export const isNumericItem = (
-    item:
-        | Field
-        | AdditionalMetric
-        | TableCalculation
-        | CustomDimension
-        | undefined,
-) => {
-    if (!item) {
-        return false;
-    }
-    if (isCustomBinDimension(item)) return false;
-    if (isCustomSqlDimension(item)) {
-        return isNumericType(item.dimensionType);
-    }
-    if (isField(item) || isAdditionalMetric(item) || isTableCalculation(item)) {
-        return isNumericType(
-            item.type as DimensionType | MetricType | TableCalculationType,
-        );
-    }
-    return true;
-};
-
 export const getItemId = (
     item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'name' | 'table'>,
 ) => {
@@ -88,6 +66,41 @@ export const getItemLabelWithoutTableName = (item: Item) => {
 export const getItemLabel = (item: Item) =>
     (isField(item) ? `${item.tableLabel} ` : '') +
     getItemLabelWithoutTableName(item);
+
+export function getItemType(
+    item: ItemsMap[string] | AdditionalMetric,
+): DimensionType | MetricType | TableCalculationType {
+    if (isDimension(item) || isMetric(item)) {
+        return item.type;
+    }
+    if (isCustomSqlDimension(item)) {
+        return item.dimensionType;
+    }
+    if (isCustomBinDimension(item)) {
+        return DimensionType.STRING;
+    }
+    if (isTableCalculation(item)) {
+        return item.type ?? TableCalculationType.NUMBER;
+    }
+    if (isAdditionalMetric(item)) {
+        return item.type;
+    }
+    return DimensionType.STRING;
+}
+
+export function isNumericItem(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+) {
+    if (!item) {
+        return false;
+    }
+    return isNumericType(getItemType(item));
+}
 
 export const getItemIcon = (
     item: Field | TableCalculation | AdditionalMetric | CustomDimension,
