@@ -1,5 +1,5 @@
-import { Group, NavLink } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { Box, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
+import { IconBoxMultiple, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -15,28 +15,38 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     const [isOpen, toggleOpen] = useToggle(false);
 
     return (
-        <NavLink
-            opened={isOpen}
-            onClick={toggleOpen}
-            // --start moves chevron to the left
-            // mostly hardcoded, to match mantine's internal sizes
-            disableRightSectionRotation
-            rightSection={<></>}
-            icon={
-                <MantineIcon
-                    icon={IconChevronRight}
-                    size={14}
-                    style={{
-                        margin: 1,
-                        transition: 'transform 200ms ease',
-                        transform: isOpen ? 'rotate(90deg)' : undefined,
-                    }}
-                />
-            }
-            // --end
-            label={<Group>{label}</Group>}
-        >
-            {children}
-        </NavLink>
+        <>
+            <UnstyledButton
+                onClick={toggleOpen}
+                sx={(theme) => ({
+                    backgroundColor: theme.colors.gray[3],
+                    borderRadius: theme.radius.sm,
+                    padding: theme.spacing.xs,
+                })}
+            >
+                <Group spacing={'sm'}>
+                    <MantineIcon
+                        icon={IconChevronRight}
+                        size={14}
+                        style={{
+                            margin: 1,
+                            transition: 'transform 200ms ease',
+                            transform: isOpen ? 'rotate(90deg)' : undefined,
+                        }}
+                    />
+                    <MantineIcon
+                        size={'xl'}
+                        color="gray"
+                        icon={IconBoxMultiple}
+                    />
+                    <Text fw={600} fz={14}>
+                        {label}
+                    </Text>
+                </Group>
+            </UnstyledButton>
+            <Collapse in={isOpen} pl="xl">
+                <Box>{children}</Box>
+            </Collapse>
+        </>
     );
 };
