@@ -936,6 +936,7 @@ export const buildQuery = ({
                 escapeStringQuoteChar,
                 adapterType,
                 startOfWeek,
+                timezone,
             );
         }
 

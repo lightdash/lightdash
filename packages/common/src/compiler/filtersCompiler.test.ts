@@ -18,6 +18,7 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
+    filterInTheCurrentDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -117,6 +118,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime },
                     },
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheCurrentFilterSQL[unitOfTime]);
@@ -134,6 +136,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime },
                     },
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(TrinoExpectedInTheCurrentFilterSQL[unitOfTime]);
@@ -151,6 +154,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime },
                     },
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheNextFilterSQL[unitOfTime]);
@@ -168,6 +172,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime },
                     },
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(TrinoExpectedInTheNextFilterSQL[unitOfTime]);
@@ -185,6 +190,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime, completed: true },
                     },
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(ExpectedInTheNextCompleteFilterSQL[unitOfTime]);
@@ -202,6 +208,7 @@ describe('Filter SQL', () => {
                         settings: { unitOfTime, completed: true },
                     },
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                 ),
             ).toStrictEqual(
@@ -222,6 +229,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -245,6 +253,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -268,6 +277,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -291,6 +301,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -314,6 +325,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.default,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -337,6 +349,7 @@ describe('Filter SQL', () => {
                     DimensionSqlMock,
                     filter,
                     adapterType.trino,
+                    'UTC',
                     formatTimestamp,
                     weekDay,
                 ),
@@ -353,6 +366,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1DayFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1DayFilterSQL);
         expect(
@@ -360,6 +374,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1WeekFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1WeekFilterSQL);
         expect(
@@ -367,6 +382,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1MonthFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1MonthFilterSQL);
 
@@ -375,6 +391,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1YearFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1YearFilterSQL);
     });
@@ -384,6 +401,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1DayFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1DayFilterSQL);
         expect(
@@ -391,6 +409,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1WeekFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1WeekFilterSQL);
         expect(
@@ -398,6 +417,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1MonthFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1MonthFilterSQL);
 
@@ -406,6 +426,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1YearFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
@@ -416,6 +437,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedDayFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1CompletedDayFilterSQL);
         expect(
@@ -423,6 +445,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedWeekFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1CompletedWeekFilterSQL);
         expect(
@@ -430,6 +453,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedMonthFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1CompletedMonthFilterSQL);
         expect(
@@ -437,6 +461,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedYearFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InTheLast1CompletedYearFilterSQL);
     });
@@ -446,6 +471,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedDayFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedDayFilterSQL);
         expect(
@@ -453,6 +479,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedWeekFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedWeekFilterSQL);
         expect(
@@ -460,6 +487,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedMonthFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedMonthFilterSQL);
         expect(
@@ -467,6 +495,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedYearFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedYearFilterSQL);
     });
@@ -477,6 +506,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1HourFilter,
                 adapterType.default,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1HourFilterSQL);
@@ -485,6 +515,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedHourFilter,
                 adapterType.default,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedHourFilterSQL);
@@ -493,6 +524,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1MinuteFilter,
                 adapterType.default,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1MinuteFilterSQL);
@@ -501,6 +533,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedMinuteFilter,
                 adapterType.default,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
@@ -511,6 +544,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1HourFilter,
                 adapterType.trino,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInTheLast1HourFilterSQL);
@@ -519,6 +553,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedHourFilter,
                 adapterType.trino,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedHourFilterSQL);
@@ -527,6 +562,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1MinuteFilter,
                 adapterType.trino,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInTheLast1MinuteFilterSQL);
@@ -535,6 +571,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InTheLast1CompletedMinuteFilter,
                 adapterType.trino,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInTheLast1CompletedMinuteFilterSQL);
@@ -546,6 +583,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.default,
+                'UTC',
             ),
         ).toStrictEqual(InBetweenPastTwoYearsFilterSQL);
     });
@@ -555,6 +593,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.trino,
+                'UTC',
             ),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsFilterSQL);
     });
@@ -565,6 +604,7 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.default,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(InBetweenPastTwoYearsTimestampFilterSQL);
@@ -575,10 +615,27 @@ describe('Filter SQL', () => {
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.trino,
+                'UTC',
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
     });
+
+    test.each(filterInTheCurrentDayTimezoneMocks)(
+        'should return in the current day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    InTheCurrentFilterBase,
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
 
     test('should return single value in includes filter sql', () => {
         expect(
@@ -744,6 +801,7 @@ describe('Filter SQL', () => {
                 disabledFilterMock.escapeStringQuoteChar,
                 disabledFilterMock.startOfWeek,
                 disabledFilterMock.adapterType,
+                disabledFilterMock.timezone,
             ),
         ).toBe('1=1');
     });

@@ -1,3 +1,24 @@
+## [0.1099.1](https://github.com/lightdash/lightdash/compare/0.1099.0...0.1099.1) (2024-05-20)
+
+
+### Bug Fixes
+
+* remove and under from first custom dim range ([#10125](https://github.com/lightdash/lightdash/issues/10125)) ([5e4fd7b](https://github.com/lightdash/lightdash/commit/5e4fd7b87cf92274d28ae4444f076cc19853b0ab))
+
+# [0.1099.0](https://github.com/lightdash/lightdash/compare/0.1098.0...0.1099.0) (2024-05-20)
+
+
+### Features
+
+* remove 2-stage login feature flag ([#10105](https://github.com/lightdash/lightdash/issues/10105)) ([196f8f8](https://github.com/lightdash/lightdash/commit/196f8f85e2bf5440e27acab1bff22ae4deebf8a1))
+
+# [0.1098.0](https://github.com/lightdash/lightdash/compare/0.1097.1...0.1098.0) (2024-05-20)
+
+
+### Features
+
+* add timezone handling to "in the current" filter ([#10118](https://github.com/lightdash/lightdash/issues/10118)) ([28c151f](https://github.com/lightdash/lightdash/commit/28c151f6fedc89469a6447706d300e58de81ee7a))
+
 ## [0.1097.1](https://github.com/lightdash/lightdash/compare/0.1097.0...0.1097.1) (2024-05-20)
 
 

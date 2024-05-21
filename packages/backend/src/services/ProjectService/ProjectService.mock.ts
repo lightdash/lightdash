@@ -363,6 +363,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     query: {
         maxLimit: 100,
         csvCellsLimit: 100,
+        timezone: undefined,
     },
 };
 
