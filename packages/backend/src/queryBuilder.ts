@@ -230,14 +230,6 @@ export const assertValidDimensionRequiredAttribute = (
         });
 };
 
-export type BuildQueryProps = {
-    explore: Explore;
-    compiledMetricQuery: CompiledMetricQuery;
-    warehouseClient: WarehouseClient;
-    userAttributes?: UserAttributeValueMap;
-    intrinsicUserAttributes: IntrinsicUserAttributes;
-};
-
 const getJoinType = (type: DbtModelJoinType = 'left') => {
     switch (type) {
         case 'inner':
@@ -650,12 +642,22 @@ export type CompiledQuery = {
     fields: ItemsMap;
 };
 
+export type BuildQueryProps = {
+    explore: Explore;
+    compiledMetricQuery: CompiledMetricQuery;
+    warehouseClient: WarehouseClient;
+    userAttributes?: UserAttributeValueMap;
+    intrinsicUserAttributes: IntrinsicUserAttributes;
+    timezone: string;
+};
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
     intrinsicUserAttributes,
     userAttributes = {},
+    timezone,
 }: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
     const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
@@ -668,7 +670,6 @@ export const buildQuery = ({
         limit,
         additionalMetrics,
         compiledCustomDimensions,
-        timezone,
     } = compiledMetricQuery;
 
     const baseTable = explore.tables[explore.baseTable].sqlTable;
