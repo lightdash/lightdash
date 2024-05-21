@@ -46,6 +46,7 @@ export class SlackAuthenticationModel {
 
     async createInstallation(installation: Installation) {
         const metadata = JSON.parse(installation.metadata || '{}');
+
         const organizationId = await this.getOrganizationId(
             metadata.organizationUuid,
         );

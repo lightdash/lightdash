@@ -66,31 +66,53 @@ export class SlackBot {
     }
 
     async start(expressApp: Express) {
-        if (this.lightdashConfig.slack?.clientId) {
-            try {
-                const slackReceiver = new ExpressReceiver({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                        deleteInstallation: (i) =>
-                            this.slackAuthenticationModel.deleteInstallation(i),
-                    },
-                    logLevel: LogLevel.INFO,
-                    app: expressApp,
-                });
-                const app = new App({
-                    ...slackOptions,
-                    receiver: slackReceiver,
-                });
-                this.addEventListeners(app);
-            } catch (e: unknown) {
-                Logger.error(`Unable to start Slack app ${e}`);
-            }
-        } else {
+        if (!this.lightdashConfig.slack?.clientId) {
             Logger.warn(`Missing "SLACK_CLIENT_ID", Slack App will not run`);
+            return;
+        }
+
+        try {
+            const slackReceiver = new ExpressReceiver({
+                ...slackOptions,
+
+                installationStore: {
+                    storeInstallation: (i) =>
+                        this.slackAuthenticationModel.createInstallation(i),
+                    fetchInstallation: (i) =>
+                        this.slackAuthenticationModel.getInstallation(i),
+                    deleteInstallation: (i) =>
+                        this.slackAuthenticationModel.deleteInstallation(i),
+                },
+                installerOptions: {
+                    ...slackOptions.installerOptions,
+
+                    callbackOptions: {
+                        beforeInstallation: async (
+                            options,
+                            _callbackReq,
+                            _callbackRes,
+                        ) => {
+                            if (!('metadata' in options)) {
+                                return false;
+                            }
+
+                            return true;
+                        },
+                    },
+                },
+                logLevel: LogLevel.INFO,
+                app: expressApp,
+            });
+
+            const app = new App({
+                ...slackOptions,
+
+                receiver: slackReceiver,
+            });
+
+            this.addEventListeners(app);
+        } catch (e: unknown) {
+            Logger.error(`Unable to start Slack app ${e}`);
         }
     }
 
