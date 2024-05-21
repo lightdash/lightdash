@@ -22,9 +22,6 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /** Show option to use custom SQL dimension */
-    CustomSqlDimensions = 'custom-sql-dimensions',
-
     /** Enable dashboard tabs */
     DashboardTabs = 'dashboard_tabs',
 
