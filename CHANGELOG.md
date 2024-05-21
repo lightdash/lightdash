@@ -1,3 +1,10 @@
+## [0.1099.3](https://github.com/lightdash/lightdash/compare/0.1099.2...0.1099.3) (2024-05-21)
+
+
+### Bug Fixes
+
+* get correct id when editing a custom dimension ([#10127](https://github.com/lightdash/lightdash/issues/10127)) ([f3f8235](https://github.com/lightdash/lightdash/commit/f3f8235544aa96554e51cc2b3850c87ad868bcb8))
+
 ## [0.1099.2](https://github.com/lightdash/lightdash/compare/0.1099.1...0.1099.2) (2024-05-21)
 
 
