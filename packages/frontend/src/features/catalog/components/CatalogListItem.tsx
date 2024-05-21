@@ -1,6 +1,11 @@
-import { type CatalogItem } from '@lightdash/common';
-import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
-import { IconExternalLink, IconSearch, IconTable } from '@tabler/icons-react';
+import { CatalogType, type CatalogItem } from '@lightdash/common';
+import { ActionIcon, Group, Highlight } from '@mantine/core';
+import {
+    IconAbc,
+    IconExternalLink,
+    IconSearch,
+    IconTable,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
@@ -29,7 +34,15 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
             onMouseLeave={() => setHovered(false)}
         >
             <td>
-                <MantineIcon size={'lg'} color="gray" icon={IconTable} />
+                <MantineIcon
+                    size={'lg'}
+                    color="gray"
+                    icon={
+                        catalogItem.type === CatalogType.Table
+                            ? IconTable
+                            : IconAbc
+                    }
+                />
             </td>
             <td>
                 <Highlight
@@ -37,15 +50,20 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
                     w={150}
                     highlight={searchString}
                     highlightColor="violet"
+                    lineClamp={1}
                 >
                     {catalogItem.name}
                 </Highlight>
             </td>
             <td>
                 <Group noWrap position="apart">
-                    <Text lineClamp={hovered ? undefined : 1}>
-                        {catalogItem.description}
-                    </Text>
+                    <Highlight
+                        highlight={searchString}
+                        highlightColor="violet"
+                        lineClamp={hovered ? undefined : 1}
+                    >
+                        {catalogItem.description || ''}
+                    </Highlight>
                     <Group
                         spacing="xs"
                         noWrap
