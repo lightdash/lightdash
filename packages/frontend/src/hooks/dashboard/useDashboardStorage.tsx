@@ -64,10 +64,6 @@ const useDashboardStorage = () => {
         return sessionStorage.getItem('activeTabUuid');
     }, []);
 
-    const getDashboardTabs = useCallback(() => {
-        return sessionStorage.getItem('dashboardTabs');
-    }, []);
-
     const clearDashboardStorage = useCallback(() => {
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
@@ -151,7 +147,6 @@ const useDashboardStorage = () => {
         getUnsavedDashboardTiles,
         setUnsavedDashboardTiles,
         getDashboardActiveTabUuid,
-        getDashboardTabs,
     };
 };
 
