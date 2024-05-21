@@ -333,18 +333,16 @@ export class UserService extends BaseService {
         const existingUserWithEmail = await this.userModel.findUserByEmail(
             email,
         );
-        if (
-            existingUserWithEmail &&
-            existingUserWithEmail.organizationUuid !== organizationUuid
-        ) {
-            throw new ParameterError(
-                'Email is already used by a user in another organization',
-            );
-        }
-        if (existingUserWithEmail && existingUserWithEmail.isActive) {
-            throw new ParameterError(
-                'Email is already used by a user in your organization',
-            );
+        if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {
+            if (existingUserWithEmail.organizationUuid !== organizationUuid) {
+                throw new ParameterError(
+                    'Email is already used by a user in another organization',
+                );
+            } else if (existingUserWithEmail.isActive) {
+                throw new ParameterError(
+                    'Email is already used by a user in your organization',
+                );
+            }
         }
 
         let userUuid: string;

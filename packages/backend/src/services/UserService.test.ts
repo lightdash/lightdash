@@ -1,4 +1,4 @@
-import { OpenIdIdentityIssuerType, SessionUser } from '@lightdash/common';
+import { OpenIdIdentityIssuerType } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -19,10 +19,14 @@ import { UserService } from './UserService';
 import {
     authenticatedUser,
     inviteLink,
+    inviteUser,
+    newUser,
     openIdIdentity,
     openIdUser,
     openIdUserWithInvalidIssuer,
+    organisation,
     sessionUser,
+    userWithoutOrg,
 } from './UserService.mock';
 
 const userModel = {
@@ -32,6 +36,8 @@ const userModel = {
     createUser: jest.fn(async () => sessionUser),
     activateUser: jest.fn(async () => sessionUser),
     getOrganizationsForUser: jest.fn(async () => [sessionUser]),
+    findUserByEmail: jest.fn(async () => undefined),
+    createPendingUser: jest.fn(async () => newUser),
 };
 
 const openIdIdentityModel = {
@@ -47,6 +53,15 @@ const emailModel = {
 const inviteLinkModel = {
     getByCode: jest.fn(async () => inviteLink),
     deleteByCode: jest.fn(async () => undefined),
+    upsert: jest.fn(async () => inviteLink),
+};
+
+const emailClient = {
+    sendInviteEmail: jest.fn(),
+};
+
+const organizationModel = {
+    get: jest.fn(async () => organisation),
 };
 
 const createUserService = (lightdashConfig: LightdashConfig) =>
@@ -61,9 +76,9 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         openIdIdentityModel:
             openIdIdentityModel as unknown as OpenIdIdentityModel,
         passwordResetLinkModel: {} as PasswordResetLinkModel,
-        emailClient: {} as EmailClient,
+        emailClient: emailClient as unknown as EmailClient,
         organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
-        organizationModel: {} as OrganizationModel,
+        organizationModel: organizationModel as unknown as OrganizationModel,
         personalAccessTokenModel: {} as PersonalAccessTokenModel,
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
@@ -385,6 +400,92 @@ describe('UserService', () => {
             expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
             expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
                 0,
+            );
+        });
+    });
+
+    describe('createPendingUserAndInviteLink', () => {
+        test('should create user and send invite when email is not found', async () => {
+            expect(
+                await userService.createPendingUserAndInviteLink(
+                    sessionUser,
+                    inviteUser,
+                ),
+            ).toEqual(inviteLink);
+            expect(
+                userModel.createPendingUser as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+        test('should send invite when email belongs to user without org', async () => {
+            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
+                async () => userWithoutOrg,
+            );
+            expect(
+                await userService.createPendingUserAndInviteLink(
+                    sessionUser,
+                    inviteUser,
+                ),
+            ).toEqual(inviteLink);
+            expect(
+                userModel.createPendingUser as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+        test('should send invite when email belongs to inactive user in same org', async () => {
+            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
+                async () => ({
+                    ...userWithoutOrg,
+                    isActive: false,
+                    organizationUuid: sessionUser.organizationUuid,
+                }),
+            );
+            await userService.createPendingUserAndInviteLink(
+                sessionUser,
+                inviteUser,
+            );
+            expect(
+                userModel.createPendingUser as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(inviteLinkModel.upsert as jest.Mock).toHaveBeenCalledTimes(
+                1,
+            );
+        });
+        test('should throw error when email belongs to user in different org', async () => {
+            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
+                async () => ({
+                    ...userWithoutOrg,
+                    organizationUuid: 'anotherOrg',
+                }),
+            );
+            await expect(
+                userService.createPendingUserAndInviteLink(
+                    sessionUser,
+                    inviteUser,
+                ),
+            ).rejects.toThrowError(
+                'Email is already used by a user in another organization',
+            );
+        });
+        test('should throw error when email belongs to an active user in same org', async () => {
+            (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
+                async () => ({
+                    ...userWithoutOrg,
+                    isActive: true,
+                    organizationUuid: sessionUser.organizationUuid,
+                }),
+            );
+            await expect(
+                userService.createPendingUserAndInviteLink(
+                    sessionUser,
+                    inviteUser,
+                ),
+            ).rejects.toThrowError(
+                'Email is already used by a user in your organization',
             );
         });
     });
