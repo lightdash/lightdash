@@ -1,4 +1,4 @@
-import { type SummaryExplore } from '@lightdash/common';
+import { CatalogType, type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -12,14 +12,12 @@ import {
     Title,
 } from '@mantine/core';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
-import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useExplores } from '../../../hooks/useExplores';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
 import { CatalogGroup } from './CatalogGroup';
-import { CatalogItem } from './CatalogItem';
+import { CatalogListItem } from './CatalogListItem';
 
 type Props = {
     projectUuid: string;
@@ -31,54 +29,35 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     const [search, setSearch] = useState<string>('');
     const { data: projectData } = useProject(projectUuid);
 
-    const exploresResult = useExplores(projectUuid, true);
+    const { data: catalogResults } = useCatalog({
+        projectUuid,
+        type: CatalogType.Field,
+    });
 
-    // TODO: don't always fetch all catalog results
-    const { data: catalogResults } = useCatalog(projectUuid, true, true);
-
-    console.log('catalogResults', catalogResults);
-
-    // TODO: only getting fields at the moment
-    // const tables = catalogResults?.filter((item) => {
-    //     return item.type === 'table';
-    // });
-
-    const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
-        const validSearch = search ? search.toLowerCase() : '';
-        if (exploresResult.data) {
-            let explores = Object.values(exploresResult.data);
-            if (validSearch !== '') {
-                explores = new Fuse(Object.values(exploresResult.data), {
-                    keys: ['label'],
-                    ignoreLocation: true,
-                    threshold: 0.3,
-                })
-                    .search(validSearch)
-                    .map((res) => res.item);
-            }
-
-            return explores.reduce<
-                [Record<string, SummaryExplore[]>, SummaryExplore[]]
+    const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
+        if (catalogResults) {
+            return catalogResults.reduce<
+                [Record<string, CatalogItem[]>, CatalogItem[]]
             >(
-                (acc, explore) => {
-                    if (explore.groupLabel) {
+                (acc, item) => {
+                    if ('groupLabel' in item && item.groupLabel) {
                         return [
                             {
                                 ...acc[0],
-                                [explore.groupLabel]: acc[0][explore.groupLabel]
-                                    ? [...acc[0][explore.groupLabel], explore]
-                                    : [explore],
+                                [item.groupLabel]: acc[0][item.groupLabel]
+                                    ? [...acc[0][item.groupLabel], item]
+                                    : [item],
                             },
                             acc[1],
                         ];
                     }
-                    return [acc[0], [...acc[1], explore]];
+                    return [acc[0], [...acc[1], item]];
                 },
                 [{}, []],
             );
         }
         return [{}, []];
-    }, [exploresResult.data, search]);
+    }, [catalogResults]);
 
     /*
     if (exploresResult.status === 'loading') {
@@ -94,7 +73,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         );
     }*/
 
-    if (exploresResult.data) {
+    if (catalogResults) {
         return (
             <Stack>
                 <Box>
@@ -149,22 +128,22 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     </Group>
                 </Group>
 
-                {Object.keys(exploreGroupMap)
+                {Object.keys(catalogGroupMap)
                     .sort((a, b) => a.localeCompare(b))
                     .map((groupLabel) => (
                         <CatalogGroup label={groupLabel} key={groupLabel}>
                             <Table>
                                 <tbody>
-                                    {exploreGroupMap[groupLabel]
+                                    {catalogGroupMap[groupLabel]
                                         .sort((a, b) =>
-                                            a.label.localeCompare(b.label),
+                                            a.name.localeCompare(b.name),
                                         )
-                                        .map((explore) => (
-                                            <CatalogItem
-                                                key={explore.name}
-                                                explore={explore}
+                                        .map((item) => (
+                                            <CatalogListItem
+                                                key={item.name}
+                                                catalogItem={item}
                                                 searchString={search}
-                                                tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
+                                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                             />
                                         ))}
                                 </tbody>
@@ -173,14 +152,14 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     ))}
                 <Table>
                     <tbody>
-                        {ungroupedExplores
-                            .sort((a, b) => a.label.localeCompare(b.label))
-                            .map((explore) => (
-                                <CatalogItem
-                                    key={explore.name}
-                                    explore={explore}
+                        {ungroupedCatalogItems
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((item) => (
+                                <CatalogListItem
+                                    key={item.name}
+                                    catalogItem={item}
                                     searchString={search}
-                                    tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
+                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                 />
                             ))}
                     </tbody>

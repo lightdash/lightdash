@@ -1,4 +1,4 @@
-import { type SummaryExplore } from '@lightdash/common';
+import { type CatalogItem } from '@lightdash/common';
 import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
 import { IconExternalLink, IconSearch, IconTable } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -6,13 +6,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
 
 type Props = {
-    explore: SummaryExplore;
+    catalogItem: CatalogItem;
     tableUrl: string;
     searchString?: string;
 };
 
-export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
-    explore,
+export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
+    catalogItem,
     tableUrl,
     searchString = '',
 }) => {
@@ -20,7 +20,7 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <tr
-            key={explore.name}
+            key={catalogItem.name}
             style={{
                 height: 55,
                 backgroundColor: hovered ? 'rgba(0, 0, 0, 0.05)' : undefined,
@@ -38,13 +38,13 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
                     highlight={searchString}
                     highlightColor="violet"
                 >
-                    {explore.name}
+                    {catalogItem.name}
                 </Highlight>
             </td>
             <td>
                 <Group noWrap position="apart">
                     <Text lineClamp={hovered ? undefined : 1}>
-                        {explore.description}
+                        {catalogItem.description}
                     </Text>
                     <Group
                         spacing="xs"

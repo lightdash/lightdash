@@ -28,7 +28,7 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param query contains filters for the catalog items
      * - search: string
-     * - type: 'tables' | 'fields'
+     * - type: 'table' | 'field'
      * @returns
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -46,6 +46,8 @@ export class CatalogController extends BaseController {
             search,
             type,
         };
+
+        console.log('-----------------------------', query);
 
         const results = await this.services
             .getCatalogService()
