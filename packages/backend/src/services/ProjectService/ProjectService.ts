@@ -1713,8 +1713,6 @@ export class ProjectService extends BaseService {
                         ? getIntrinsicUserAttributes(user)
                         : {};
 
-                    const { timezone } = this.lightdashConfig.query;
-
                     const fullQuery = await ProjectService._compileQuery(
                         metricQueryWithLimit,
                         explore,
