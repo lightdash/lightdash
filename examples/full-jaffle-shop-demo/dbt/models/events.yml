@@ -1,11 +1,6 @@
 version: 2
 models:
   - name: events
-    meta:
-      groups:
-        percentiles:
-          label: 'Percentiles'
-          description: 'Percentiles description'
     columns:
       - name: timestamp_tz
         description: ""
@@ -118,12 +113,9 @@ models:
               type: sum
               compact: trillions
             percentile_25:
-              group_label: Ignored group
-              group: percentiles
               type: percentile
               percentile: 25
             percentile_50:
-              group: ['percentiles', 'non existent']
               type: percentile
               percentile: 50
             percentile_75:
