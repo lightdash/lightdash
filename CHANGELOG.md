@@ -1,3 +1,10 @@
+## [0.1099.5](https://github.com/lightdash/lightdash/compare/0.1099.4...0.1099.5) (2024-05-21)
+
+
+### Bug Fixes
+
+* use http mode for slackbot ([#10123](https://github.com/lightdash/lightdash/issues/10123)) ([c53cc34](https://github.com/lightdash/lightdash/commit/c53cc34a96702ab2d01841a50a686a2097a115e1))
+
 ## [0.1099.4](https://github.com/lightdash/lightdash/compare/0.1099.3...0.1099.4) (2024-05-21)
 
 
