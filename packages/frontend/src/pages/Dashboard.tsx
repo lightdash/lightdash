@@ -231,8 +231,6 @@ const Dashboard: FC = () => {
 
         const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
 
-        console.log('unsavedDashboardTabsRaw', unsavedDashboardTabsRaw);
-
         sessionStorage.removeItem('dashboardTabs');
 
         if (!unsavedDashboardTabsRaw) return;
