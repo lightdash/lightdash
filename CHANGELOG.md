@@ -1,3 +1,10 @@
+## [0.1099.2](https://github.com/lightdash/lightdash/compare/0.1099.1...0.1099.2) (2024-05-21)
+
+
+### Bug Fixes
+
+* validate custom dimensions if field is custom dim ([#10121](https://github.com/lightdash/lightdash/issues/10121)) ([278bd3a](https://github.com/lightdash/lightdash/commit/278bd3aed86bf3b38b9f76d6c0e8d97bd37a2871))
+
 ## [0.1099.1](https://github.com/lightdash/lightdash/compare/0.1099.0...0.1099.1) (2024-05-20)
 
 
