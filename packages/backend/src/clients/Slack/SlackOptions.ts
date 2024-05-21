@@ -13,7 +13,7 @@ export const slackOptions = {
     redirectUri: `${lightdashConfig.siteUrl.replace(
         'http://',
         'https://',
-    )}/slack/api/v1/oauth_redirect`,
+    )}/api/v1/slack/oauth_redirect`,
     installerOptions: {
         directInstall: true,
         // The default value for redirectUriPath is ‘/slack/oauth_redirect’, but we override it to match the existing redirect route in the Slack app manifest files.
