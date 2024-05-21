@@ -44,6 +44,10 @@ export const CustomSqlDimensionModal: FC<{
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
     const addCustomDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
     );
@@ -67,11 +71,22 @@ export const CustomSqlDimensionModal: FC<{
                     return null;
                 }
 
-                return customDimensions?.some(
-                    (customDimension) =>
-                        customDimension.id === customDimensionId,
-                )
-                    ? 'Dimension with this label already exists'
+                const tableCalculationsIds = tableCalculations.map(
+                    (tc) => tc.name,
+                );
+
+                const customDimensionsIds =
+                    customDimensions?.map(
+                        (customDimension) => customDimension.id,
+                    ) ?? [];
+
+                const isInvalid = [
+                    ...tableCalculationsIds,
+                    ...customDimensionsIds,
+                ].some((id) => id === customDimensionId);
+
+                return isInvalid
+                    ? 'Dimension/Table calculation with this label already exists'
                     : null;
             },
         },
