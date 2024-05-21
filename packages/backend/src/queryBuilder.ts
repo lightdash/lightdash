@@ -1074,8 +1074,7 @@ export const buildQuery = ({
             const queryResultCteName = 'table_calculations';
             ctes.push(`${queryResultCteName} AS (\n${secondQuery}\n)`);
 
-            finalQuery = `SELECT *
-                          FROM ${queryResultCteName}`;
+            finalQuery = `SELECT * FROM ${queryResultCteName}`;
 
             if (tableCalculationFilters)
                 finalQuery += ` WHERE ${tableCalculationFilters}`;
