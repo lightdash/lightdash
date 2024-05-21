@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
+import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
@@ -74,6 +75,7 @@ export type ModelManifest = {
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     validationModel: ValidationModel;
+    catalogModel: CatalogModel;
 
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
@@ -440,6 +442,13 @@ export class ModelRepository
         return this.getModel(
             'validationModel',
             () => new ValidationModel({ database: this.database }),
+        );
+    }
+
+    public getCatalogModel(): CatalogModel {
+        return this.getModel(
+            'catalogModel',
+            () => new CatalogModel({ database: this.database }),
         );
     }
 

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
@@ -27,6 +28,7 @@ type CatalogArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
+    catalogModel: CatalogModel;
 };
 
 export class CatalogService extends BaseService {
@@ -38,17 +40,21 @@ export class CatalogService extends BaseService {
 
     userAttributesModel: UserAttributesModel;
 
+    catalogModel: CatalogModel;
+
     constructor({
         lightdashConfig,
         analytics,
         projectModel,
         userAttributesModel,
+        catalogModel,
     }: CatalogArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.userAttributesModel = userAttributesModel;
+        this.catalogModel = catalogModel;
     }
 
     private static async getCatalogFields(
@@ -116,30 +122,13 @@ export class CatalogService extends BaseService {
         }, []);
     }
 
-    private static async searchCatalog(
+    private async searchCatalog(
+        projectUuid: string,
         query: string,
-        explores: Explore[],
     ): Promise<(CatalogTable | CatalogField)[]> {
-        const [tables, fields] = SearchModel.searchTablesAndFields(
-            query,
-            explores,
-        );
-
-        const catalogTables: CatalogTable[] = tables.map((t) => ({
-            name: t.name,
-            description: t.description,
-            // groupLabel TODO update searchTables
-            type: CatalogType.Table,
-        }));
-        const catalogFields: CatalogField[] = fields.map((f) => ({
-            name: f.name,
-            description: f.description,
-            tableLabel: f.tableLabel,
-            type: CatalogType.Field,
-            fieldType: f.fieldType,
-        }));
-
-        return [...catalogTables, ...catalogFields];
+        const catalog = await this.catalogModel.search(projectUuid, query);
+        // TODO filter permissions
+        return catalog;
     }
 
     async getCatalog(
@@ -200,7 +189,7 @@ export class CatalogService extends BaseService {
                 },
                 [],
             );
-            return CatalogService.searchCatalog(search, validExplores);
+            return this.searchCatalog(projectUuid, search);
         }
         if (type === CatalogType.Field)
             return CatalogService.getCatalogFields(

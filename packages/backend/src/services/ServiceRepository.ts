@@ -601,6 +601,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
+                    catalogModel: this.models.getCatalogModel(),
                 }),
         );
     }

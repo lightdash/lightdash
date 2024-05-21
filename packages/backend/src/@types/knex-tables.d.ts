@@ -124,6 +124,7 @@ import {
     DbAnalyticsChartViews,
     DbAnalyticsDashboardViews,
 } from '../database/entities/analytics';
+import { CatalogTableName, DbCatalog } from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
     DashboardTileCommentsTableName,
@@ -261,5 +262,6 @@ declare module 'knex/types/tables' {
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [NotificationsTableName]: NotificationsTable;
+        [CatalogTableName]: DbCatalog;
     }
 }
