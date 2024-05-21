@@ -1,3 +1,10 @@
+## [0.1099.4](https://github.com/lightdash/lightdash/compare/0.1099.3...0.1099.4) (2024-05-21)
+
+
+### Bug Fixes
+
+* make compile query public ([#10129](https://github.com/lightdash/lightdash/issues/10129)) ([fb3e132](https://github.com/lightdash/lightdash/commit/fb3e1327452c4c459dd65a18c442067722e87e34))
+
 ## [0.1099.3](https://github.com/lightdash/lightdash/compare/0.1099.2...0.1099.3) (2024-05-21)
 
 
