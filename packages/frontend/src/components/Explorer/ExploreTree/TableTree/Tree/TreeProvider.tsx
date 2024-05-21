@@ -1,4 +1,5 @@
 import {
+    getItemId,
     isCustomDimension,
     isDimension,
     isField,
@@ -28,22 +29,6 @@ export const getSearchResults = (
     }
     return results;
 };
-const removeBaseDimensionNode = (
-    item: Dimension,
-    group: string,
-    root: NodeMap,
-    groupLabel?: string,
-): void => {
-    if (groupLabel) {
-        const newRoot = root[groupLabel].children || {};
-        removeBaseDimensionNode(item, group, newRoot);
-    }
-    Object.entries(root).forEach(([key, node]) => {
-        if (node.label === group) {
-            delete root[key];
-        }
-    });
-};
 const isBaseDimensionWithIntervalDefined = (item: Item): boolean => {
     if (isDimension(item) && item.isIntervalBase) {
         return item.isIntervalBase;
@@ -56,6 +41,7 @@ const addNodeToGroup = (
     item: Node,
     groups: string[],
     groupDetails: Record<string, GroupType>,
+    isLegacyInterval: boolean,
 ): void => {
     if (groups.length === 0) {
         node[item.key] = item;
@@ -75,8 +61,22 @@ const addNodeToGroup = (
             };
         }
         let children = node[groupDefinition.label].children;
-        if (children) {
-            addNodeToGroup(children, item, tail, groupDetails);
+        if (isLegacyInterval && tail.length === 0) {
+            /*
+             * This is a dimension time interval from deprecated legacy cached model
+             */
+            node[groupDefinition.label].children = {
+                ...(children || {}),
+                [item.key]: item,
+            };
+        } else if (children) {
+            addNodeToGroup(
+                children,
+                item,
+                tail,
+                groupDetails,
+                isLegacyInterval,
+            );
         }
     }
 };
@@ -105,30 +105,39 @@ const getNodeMapFromItemsMap = (
                       label: item.label || item.name,
                       index: item.index ?? Number.MAX_SAFE_INTEGER,
                   };
+            let isLegacyInterval = false;
             if (isField(item)) {
                 const groups: string[] = item.groups || [];
+                /*
+                 * Deprecated groupLabel and group properties
+                 * will only have values for legacy cached models
+                 */
                 if (item.groupLabel) {
                     groups.push(item.groupLabel);
                 }
                 if (isDimension(item) && item.group) {
                     // We need to clean the baseDimensionNode
-                    removeBaseDimensionNode(
-                        item,
-                        item.group,
-                        root,
-                        item.groupLabel,
-                    );
-                    groups.push(item.group);
+                    const groupName = getItemId({
+                        table: item.table,
+                        name: item.group,
+                    });
+                    groups.push(groupName);
+                    isLegacyInterval = true;
                 }
                 const tableGroupDetails = groupDetails || {};
                 if (!isBaseDimensionWithIntervalDefined(item)) {
-                    addNodeToGroup(root, node, groups, tableGroupDetails);
+                    addNodeToGroup(
+                        root,
+                        node,
+                        groups,
+                        tableGroupDetails,
+                        isLegacyInterval,
+                    );
                 }
             } else {
                 root[node.key] = node;
             }
         });
-
     return root;
 };
 
