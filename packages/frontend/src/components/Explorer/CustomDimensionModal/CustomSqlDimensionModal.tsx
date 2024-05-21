@@ -100,7 +100,7 @@ export const CustomSqlDimensionModal: FC<{
             dimensionType: values.dimensionType,
         };
         if (isEditing && item) {
-            editCustomDimension(customDim, item.name);
+            editCustomDimension({ ...customDim, id: item.id }, item.id);
             showToastSuccess({
                 title: 'Custom dimension edited successfully',
             });
