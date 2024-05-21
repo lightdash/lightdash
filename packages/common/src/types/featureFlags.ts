@@ -34,5 +34,8 @@ export enum FeatureFlags {
      */
     DisableSnowflakeQuotedIdentifiersIgnoreCase = 'disable-snowflake-quoted-identifiers-ignore-case',
 
+    /* Send local timezone to the warehouse session */
+    EnableUserTimezones = 'enable-user-timezones',
+
     PromoteCharts = 'promote-charts',
 }
