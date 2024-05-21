@@ -74,7 +74,6 @@ export class SlackBot {
         try {
             const slackReceiver = new ExpressReceiver({
                 ...slackOptions,
-
                 installationStore: {
                     storeInstallation: (i) =>
                         this.slackAuthenticationModel.createInstallation(i),
@@ -82,23 +81,6 @@ export class SlackBot {
                         this.slackAuthenticationModel.getInstallation(i),
                     deleteInstallation: (i) =>
                         this.slackAuthenticationModel.deleteInstallation(i),
-                },
-                installerOptions: {
-                    ...slackOptions.installerOptions,
-
-                    callbackOptions: {
-                        beforeInstallation: async (
-                            options,
-                            _callbackReq,
-                            _callbackRes,
-                        ) => {
-                            if (!('metadata' in options)) {
-                                return false;
-                            }
-
-                            return true;
-                        },
-                    },
                 },
                 logLevel: LogLevel.INFO,
                 app: expressApp,
