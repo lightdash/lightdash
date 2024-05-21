@@ -122,7 +122,7 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                                     ? missingFields.customDimensions
                                     : []
                             }
-                            missingFields={missingFields?.all}
+                            missingFields={missingFields}
                             selectedDimensions={selectedDimensions}
                         />
                     ))
