@@ -1,16 +1,15 @@
 import { type Explore, type InlineError } from './explore';
 import { type Field } from './field';
 
-export type ApiCatalogSearch = {
-    search?: string;
-    allTables?: boolean;
-    allFields?: boolean;
-};
 export enum CatalogType {
     Table = 'table',
     Field = 'field',
-    Group = 'group',
 }
+
+export type ApiCatalogSearch = {
+    search?: string;
+    type?: CatalogType;
+};
 export type CatalogField = Pick<
     Field,
     'name' | 'fieldType' | 'tableLabel' | 'description'

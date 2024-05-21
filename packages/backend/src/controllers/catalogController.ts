@@ -28,8 +28,7 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param query contains filters for the catalog items
      * - search: string
-     * - allTables: boolean
-     * - allFields: boolean
+     * - type: 'tables' | 'fields'
      * @returns
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -40,14 +39,12 @@ export class CatalogController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() search?: ApiCatalogSearch['search'],
-        @Query() allTables?: ApiCatalogSearch['allTables'],
-        @Query() allFields?: ApiCatalogSearch['allFields'],
+        @Query() type?: ApiCatalogSearch['type'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
         const query: ApiCatalogSearch = {
             search,
-            allTables,
-            allFields,
+            type,
         };
 
         const results = await this.services

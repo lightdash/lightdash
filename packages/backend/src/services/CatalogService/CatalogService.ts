@@ -145,7 +145,7 @@ export class CatalogService extends BaseService {
     async getCatalog(
         user: SessionUser,
         projectUuid: string,
-        { search, allTables, allFields }: ApiCatalogSearch,
+        { search, type }: ApiCatalogSearch,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -202,7 +202,7 @@ export class CatalogService extends BaseService {
             );
             return CatalogService.searchCatalog(search, validExplores);
         }
-        if (allFields)
+        if (type === CatalogType.Field)
             return CatalogService.getCatalogFields(
                 filteredExplores,
                 userAttributes,

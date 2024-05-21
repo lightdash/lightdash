@@ -157,6 +157,10 @@
                 },
                 "type": "array"
             },
+            "CatalogType": {
+                "enum": ["table", "field"],
+                "type": "string"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -7088,7 +7092,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1097.0",
+        "version": "0.1099.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7159,18 +7163,10 @@
                     },
                     {
                         "in": "query",
-                        "name": "allTables",
+                        "name": "type",
                         "required": false,
                         "schema": {
-                            "type": "boolean"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "allFields",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
+                            "$ref": "#/components/schemas/CatalogType"
                         }
                     }
                 ]

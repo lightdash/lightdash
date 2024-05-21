@@ -205,6 +205,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogType: {
+        dataType: 'refEnum',
+        enums: ['table', 'field'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
         dataType: 'refAlias',
         type: {
@@ -6344,16 +6349,7 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'object',
                 },
                 search: { in: 'query', name: 'search', dataType: 'string' },
-                allTables: {
-                    in: 'query',
-                    name: 'allTables',
-                    dataType: 'boolean',
-                },
-                allFields: {
-                    in: 'query',
-                    name: 'allFields',
-                    dataType: 'boolean',
-                },
+                type: { in: 'query', name: 'type', ref: 'CatalogType' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
