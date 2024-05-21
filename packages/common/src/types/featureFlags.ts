@@ -24,14 +24,8 @@ export enum FeatureFlags {
     /**/
     CustomSQLEnabled = 'custom-sql-enabled',
 
-    /* Shows the two-stage login flow */
-    newLoginEnabled = 'new-login-enabled',
-
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
-
-    /** */
-    LazyLoadDashboardTiles = 'lazy-load-dashboard-tiles',
 
     /** Show option to use custom SQL dimension */
     CustomSqlDimensions = 'custom-sql-dimensions',

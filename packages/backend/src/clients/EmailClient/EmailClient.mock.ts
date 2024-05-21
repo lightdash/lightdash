@@ -17,6 +17,7 @@ export const lightdashConfigWithNoSMTP: Pick<
     query: {
         maxLimit: 100,
         csvCellsLimit: 100,
+        timezone: undefined,
     },
 };
 
@@ -47,6 +48,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
     query: {
         maxLimit: 100,
         csvCellsLimit: 100,
+        timezone: undefined,
     },
 };
 
@@ -66,6 +68,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
     query: {
         maxLimit: 100,
         csvCellsLimit: 100,
+        timezone: undefined,
     },
 };
 
@@ -81,6 +84,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
     query: {
         maxLimit: 100,
         csvCellsLimit: 100,
+        timezone: undefined,
     },
 };
 

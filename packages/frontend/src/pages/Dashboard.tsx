@@ -1,6 +1,5 @@
 import {
     DashboardTileTypes,
-    FeatureFlags,
     isDashboardChartTileType,
     ResourceViewItemType,
     type Dashboard as IDashboard,
@@ -11,7 +10,6 @@ import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
@@ -83,11 +81,6 @@ export const getResponsiveGridLayoutProps = ({
 });
 
 const Dashboard: FC = () => {
-    const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
-        FeatureFlags.LazyLoadDashboardTiles,
-    );
-    const isLazyLoadEnabled =
-        !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode, tabUuid } = useParams<{
         projectUuid: string;
@@ -659,7 +652,6 @@ const Dashboard: FC = () => {
                     hasRequiredDashboardFiltersToSet={
                         hasRequiredDashboardFiltersToSet
                     }
-                    isLazyLoadEnabled={isLazyLoadEnabled}
                     addingTab={addingTab}
                     dashboardTiles={dashboardTiles}
                     handleAddTiles={handleAddTiles}

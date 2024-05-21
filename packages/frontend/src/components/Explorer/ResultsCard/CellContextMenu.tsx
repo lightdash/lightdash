@@ -3,6 +3,7 @@ import {
     hasCustomDimension,
     isCustomDimension,
     isDimension,
+    isDimensionValueInvalidDate,
     isField,
     isFilterableField,
     type Field,
@@ -91,7 +92,13 @@ const CellContextMenu: FC<
         track({
             name: EventName.ADD_FILTER_CLICKED,
         });
-        addFilter(item, value.raw === undefined ? null : value.raw, true);
+
+        const filterValue =
+            value.raw === undefined || isDimensionValueInvalidDate(item, value)
+                ? null // Set as null if value is invalid date or undefined
+                : value.raw;
+
+        addFilter(item, filterValue, true);
     }, [track, addFilter, item, value]);
 
     let parseResult: null | object = null;
