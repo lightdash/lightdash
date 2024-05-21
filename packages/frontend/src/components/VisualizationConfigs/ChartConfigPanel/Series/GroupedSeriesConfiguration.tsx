@@ -53,7 +53,7 @@ const getFormatterValue = (
     items: Array<Field | TableCalculation | CustomDimension>,
 ) => {
     const item = items.find((i) => getItemId(i) === key);
-    return formatItemValue(item, value);
+    return formatItemValue(item, value, true);
 };
 
 type DraggablePortalHandlerProps = {
