@@ -12,8 +12,6 @@ import {
     CalculateTotalFromQuery,
     ChartSummary,
     CompiledDimension,
-    CompiledMetricQuery,
-    CompiledTableCalculation,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
@@ -37,10 +35,7 @@ import {
     DimensionType,
     Explore,
     ExploreError,
-    FeatureFlags,
     FilterableDimension,
-    FilterableField,
-    FilterGroup,
     FilterGroupItem,
     FilterOperator,
     findFieldByIdInExplore,
@@ -50,7 +45,6 @@ import {
     getDateDimension,
     getDimensions,
     getFields,
-    getFilterRulesFromGroup,
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
@@ -66,7 +60,6 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
-    Metric,
     MetricQuery,
     MetricType,
     MissingWarehouseCredentialsError,
@@ -80,7 +73,6 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
-    renderTableCalculationFilterRuleSql,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
@@ -88,11 +80,9 @@ import {
     SessionUser,
     snakeCaseName,
     SortField,
-    Space,
     SpaceQuery,
     SpaceSummary,
     SummaryExplore,
-    TableCalculation,
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
@@ -123,7 +113,6 @@ import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { errorHandler } from '../../errors';
-import { runQueryInMemoryDatabaseContext } from '../../inMemoryTableCalculations';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -136,7 +125,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -916,21 +904,15 @@ export class ProjectService extends BaseService {
         return explore;
     }
 
-    /**
-     * Based on _compileQuery, this -temporary- method handles isolating and generating
-     * a separate query for table calculations on DuckDB.
-     *
-     * Once the feature is proven and ready to be rolled out, _compileQuery and the query builder
-     * will be expanded to support this behavior natively.
-     */
-    private static async _compileMetricQueryWithNewTableCalculationsEngine(
+    static async _compileQuery(
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
+        timezone: string,
         granularity?: DateGranularity,
-    ): Promise<[CompiledQuery, CompiledQuery]> {
+    ): Promise<CompiledQuery> {
         const exploreWithOverride = ProjectService.updateExploreWithGranularity(
             explore,
             metricQuery,
@@ -938,132 +920,9 @@ export class ProjectService extends BaseService {
             granularity,
         );
 
-        const {
-            compiledMetricQuery: originalCompiledMetricQuery,
-            compiledMetricQueryWithoutTableCalculations,
-            compiledTableCalculations,
-            tableCalculationFilters,
-            tableCalculations,
-        } = ProjectService.isolateTableCalculationsFromCompiledMetricsQuery(
-            compileMetricQuery({
-                explore: exploreWithOverride,
-                metricQuery,
-                warehouseClient,
-            }),
-        );
-
-        /**
-         * Generate a new SELECT statement with all of our original columns, as well as
-         * table calculation columns/aggregates:
-         */
-        const selectFrom = [
-            '*',
-            ...compiledTableCalculations.map(
-                ({ name, compiledSql }) => `${compiledSql} AS ${name}`,
-            ),
-        ];
-
-        /**
-         * Render table calculation filter rules for compatibility with DuckDB.
-         */
-        const filterRules = getFilterRulesFromGroup(
-            tableCalculationFilters as FilterGroup,
-        );
-
-        const renderedFilters = filterRules.map((filterRule) => {
-            const field = compiledTableCalculations.find(
-                (tc) => getItemId(tc) === filterRule.target.fieldId,
-            );
-
-            /**
-             * If a matching field cannot be found, we insert a placeholder expression.
-             */
-            if (!field) {
-                return '1=1';
-            }
-
-            return renderTableCalculationFilterRuleSql(
-                filterRule,
-                field,
-                '"',
-                "'",
-                '\\',
-                warehouseClient.getAdapterType(),
-                warehouseClient.getStartOfWeek(),
-                metricQuery.timezone,
-            );
-        });
-
-        const whereClause =
-            renderedFilters.length > 0
-                ? `WHERE ${renderedFilters.join('\nAND ')}`
-                : '';
-
-        /**
-         * We apply sorting at this stage, so we need to access sort data from the
-         * original compiled query.
-         */
-        const sorts = originalCompiledMetricQuery.sorts.map(
-            ({ descending, fieldId }) =>
-                `${fieldId} ${descending ? 'DESC' : 'ASC'}`,
-        );
-
-        const orderByClause =
-            sorts.length > 0 ? `ORDER BY ${sorts.join(', ')}` : '';
-
-        const primaryQuery = buildQuery({
-            explore: exploreWithOverride,
-            compiledMetricQuery: compiledMetricQueryWithoutTableCalculations,
-            warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-        });
-
-        const tableCalculationsSubQuery: CompiledQuery = {
-            fields: tableCalculations.reduce((acc, tableCalculation) => {
-                acc[tableCalculation.name] = tableCalculation;
-
-                return acc;
-            }, {} as ItemsMap),
-            query: `
-                WITH results AS (
-                    SELECT ${selectFrom.join(',\n')}
-                    FROM _
-                )
-
-                SELECT * FROM results
-                ${whereClause}
-                ${orderByClause}
-            ;`,
-            hasExampleMetric: false,
-        };
-
-        return [primaryQuery, tableCalculationsSubQuery];
-    }
-
-    private async _compileQuery(
-        metricQuery: MetricQuery,
-        explore: Explore,
-        warehouseClient: WarehouseClient,
-        intrinsicUserAttributes: IntrinsicUserAttributes,
-        userAttributes: UserAttributeValueMap,
-        granularity?: DateGranularity,
-    ): Promise<CompiledQuery> {
-        const metricQueryWithTimezone: MetricQuery = {
-            ...metricQuery,
-            timezone:
-                metricQuery.timezone || this.lightdashConfig.query.timezone,
-        };
-        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
-            explore,
-            metricQueryWithTimezone,
-            warehouseClient,
-            granularity,
-        );
-
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery: metricQueryWithTimezone,
+            metricQuery,
             warehouseClient,
         });
 
@@ -1073,52 +932,10 @@ export class ProjectService extends BaseService {
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
+            timezone,
         });
 
         return buildQueryResult;
-    }
-
-    /**
-     * Modifies a compiled metric query to remove any references to table calculations, and
-     * returns the isolated portions separately.
-     *
-     * This is a temporary approach to avoid poluting the query compiler while rolling-out
-     * improvements to table calculations handling.
-     */
-    private static isolateTableCalculationsFromCompiledMetricsQuery(
-        compiledMetricQuery: CompiledMetricQuery,
-    ): {
-        compiledMetricQuery: CompiledMetricQuery;
-        compiledMetricQueryWithoutTableCalculations: CompiledMetricQuery;
-        tableCalculationFilters?: FilterGroupItem;
-        tableCalculations: TableCalculation[];
-        compiledTableCalculations: CompiledTableCalculation[];
-    } {
-        const {
-            filters,
-            tableCalculations,
-            compiledTableCalculations,
-            sorts,
-            ...otherProps
-        } = compiledMetricQuery;
-
-        return {
-            compiledMetricQuery,
-            compiledMetricQueryWithoutTableCalculations: {
-                ...otherProps,
-                tableCalculations: [],
-                compiledTableCalculations: [],
-                filters: {
-                    ...filters,
-                    tableCalculations: undefined,
-                },
-                sorts: [],
-            },
-
-            tableCalculationFilters: filters.tableCalculations,
-            tableCalculations,
-            compiledTableCalculations,
-        };
     }
 
     async compileQuery(
@@ -1163,18 +980,6 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-        const isTimezoneEnabled = await isFeatureFlagEnabled(
-            FeatureFlags.EnableUserTimezones,
-            {
-                userUuid: user.userUuid,
-                organizationUuid,
-            },
-        );
-        const timezoneMetricQuery = {
-            ...metricQuery,
-            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
-        };
-
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(
             user.userUuid,
         );
@@ -1182,12 +987,13 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const compiledQuery = await this._compileQuery(
-            timezoneMetricQuery,
+        const compiledQuery = await ProjectService._compileQuery(
+            metricQuery,
             explore,
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
+            this.lightdashConfig.query.timezone || 'UTC',
         );
         await sshTunnel.disconnect();
         return compiledQuery;
@@ -1705,7 +1511,6 @@ export class ProjectService extends BaseService {
         metricQuery,
         queryTags,
         invalidateCache,
-        tableCalculationsSubQuery,
     }: {
         projectUuid: string;
         context: QueryExecutionContext;
@@ -1714,7 +1519,6 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery;
         queryTags?: RunQueryTags;
         invalidateCache?: boolean;
-        tableCalculationsSubQuery?: CompiledQuery;
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1796,44 +1600,16 @@ export class ProjectService extends BaseService {
                         warehouseClient.runQuery(
                             query,
                             queryTags,
-                            metricQuery.timezone,
+                            // metricQuery.timezone,
                         ),
                 );
-
-                /**
-                 * If we have a table calculations sub-query, we run it against the in-memory
-                 * database, essentially generating a new result set based on the upstream
-                 * warehouse results.
-                 *
-                 * At this point, we also merge the two sets of fields - the field set used for
-                 * the warehouse query, and the follow-up table calculation fields.
-                 */
-                const warehouseResultsWithTableCalculations =
-                    tableCalculationsSubQuery
-                        ? {
-                              rows: await runQueryInMemoryDatabaseContext({
-                                  query: tableCalculationsSubQuery.query,
-                                  tables: {
-                                      _: warehouseResults,
-                                  },
-                              }),
-
-                              /**
-                               *
-                               */
-                              fields: {
-                                  ...warehouseResults.fields,
-                                  ...tableCalculationsSubQuery.fields,
-                              },
-                          }
-                        : warehouseResults;
 
                 if (this.lightdashConfig.resultsCache?.enabled) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
                     const buffer = Buffer.from(
-                        JSON.stringify(warehouseResultsWithTableCalculations),
+                        JSON.stringify(warehouseResults),
                     );
                     // fire and forget
                     this.s3CacheClient
@@ -1842,7 +1618,7 @@ export class ProjectService extends BaseService {
                 }
 
                 return {
-                    rows: warehouseResultsWithTableCalculations.rows,
+                    rows: warehouseResults.rows,
                     cacheMetadata: { cacheHit: false },
                 };
             },
@@ -1886,24 +1662,6 @@ export class ProjectService extends BaseService {
                             'User is not part of an organization',
                         );
                     }
-
-                    /**
-                     * If the feature flag is enabled, and we actually have any table calculations
-                     * to process, we use the new in-memory table calculations engine. This avoid us
-                     * spinning-up a new DuckDB database pointlessly.
-                     *
-                     * In a follow-up after initial testing, this check should be done somewhere further
-                     * down the stack.
-                     */
-                    const newTableCalculationsFeatureFlagEnabled =
-                        await isFeatureFlagEnabled(
-                            FeatureFlags.UseInMemoryTableCalculations,
-                            user,
-                        );
-
-                    const useNewTableCalculationsEngine =
-                        newTableCalculationsFeatureFlagEnabled &&
-                        metricQuery.tableCalculations.length > 0;
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
@@ -1955,73 +1713,17 @@ export class ProjectService extends BaseService {
                         ? getIntrinsicUserAttributes(user)
                         : {};
 
-                    /**
-                     * Note: most of this is temporary while testing out in-memory table calculations,
-                     * so that we can more cleanly handle the feature-flagged behavior fork below.
-                     */
-                    let fields: ItemsMap;
-                    let query: string;
-                    let hasExampleMetric: boolean;
-                    let tableCalculationsCompiledQuery:
-                        | undefined
-                        | CompiledQuery;
-                    const isTimezoneEnabled = await isFeatureFlagEnabled(
-                        FeatureFlags.EnableUserTimezones,
-                        {
-                            userUuid: user.userUuid,
-                            organizationUuid,
-                        },
-                    );
-                    const timezoneMetricQuery = {
-                        ...metricQueryWithLimit,
-                        timezone: isTimezoneEnabled
-                            ? metricQueryWithLimit.timezone
-                            : undefined,
-                    };
-                    const compileQueryArgs = [
-                        timezoneMetricQuery,
+                    const fullQuery = await ProjectService._compileQuery(
+                        metricQueryWithLimit,
                         explore,
                         warehouseClient,
                         intrinsicUserAttributes,
                         userAttributes,
+                        this.lightdashConfig.query.timezone || 'UTC',
                         granularity,
-                    ] as const;
+                    );
 
-                    /**
-                     * If we're using the new table calculations engine, we're actually going to be
-                     * doing two separate queries - the parent query which excludes table calculations,
-                     * and a separate query that runs against the result of the parent query, exclusively
-                     * to generate table calculation values, and apply table calculation filters.
-                     */
-                    if (useNewTableCalculationsEngine) {
-                        const [parentQuery, tableCalculationsSubQuery] =
-                            await ProjectService._compileMetricQueryWithNewTableCalculationsEngine(
-                                ...compileQueryArgs,
-                            );
-
-                        /**
-                         * Merge field sets coming from the parent warehouse query, as well as the
-                         * table calculations sub-query:
-                         */
-                        fields = {
-                            ...parentQuery.fields,
-                            ...tableCalculationsSubQuery.fields,
-                        };
-
-                        query = parentQuery.query;
-                        hasExampleMetric = parentQuery.hasExampleMetric;
-
-                        tableCalculationsCompiledQuery =
-                            tableCalculationsSubQuery;
-                    } else {
-                        const fullQuery = await this._compileQuery(
-                            ...compileQueryArgs,
-                        );
-
-                        fields = fullQuery.fields;
-                        query = fullQuery.query;
-                        hasExampleMetric = fullQuery.hasExampleMetric;
-                    }
+                    const { fields, query, hasExampleMetric } = fullQuery;
 
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
@@ -2128,41 +1830,21 @@ export class ProjectService extends BaseService {
                     );
                     span.setAttribute('generatedSql', query);
 
-                    /**
-                     * If enabled, we include additional attributes for this span allowing us to measure
-                     * the impact of upcoming table calculation handling changes.
-                     */
-                    if (useNewTableCalculationsEngine) {
-                        span.setAttributes({
-                            tableCalculationsNum:
-                                metricQuery.tableCalculations.length,
-                            newTableCalculations: useNewTableCalculationsEngine,
-                        });
-                    }
                     span.setAttribute('lightdash.projectUuid', projectUuid);
                     span.setAttribute(
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
 
-                    const metricQueryWithTimezone = {
-                        ...metricQuery,
-                        timezone: isTimezoneEnabled
-                            ? metricQuery.timezone
-                            : undefined,
-                    };
-
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             context,
                             warehouseClient,
-                            metricQuery: metricQueryWithTimezone,
+                            metricQuery: metricQueryWithLimit,
                             query,
                             queryTags,
                             invalidateCache,
-                            tableCalculationsSubQuery:
-                                tableCalculationsCompiledQuery,
                         });
                     await sshTunnel.disconnect();
                     return { rows, cacheMetadata, fields };
@@ -2321,12 +2003,13 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const { query } = await this._compileQuery(
+        const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
+            this.lightdashConfig.query.timezone || 'UTC',
         );
 
         this.logger.debug(`Run query against warehouse`);
@@ -3660,12 +3343,13 @@ export class ProjectService extends BaseService {
             additionalMetrics: metricQuery.additionalMetrics,
         };
 
-        const { query } = await this._compileQuery(
+        const { query } = await ProjectService._compileQuery(
             totalQuery,
             explore,
             warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
+            this.lightdashConfig.query.timezone || 'UTC',
         );
 
         return { query, totalQuery };
@@ -3724,22 +3408,10 @@ export class ProjectService extends BaseService {
             explore.warehouse,
         );
 
-        const isTimezoneEnabled = await isFeatureFlagEnabled(
-            FeatureFlags.EnableUserTimezones,
-            {
-                userUuid: user.userUuid,
-                organizationUuid,
-            },
-        );
-        const metricQueryWithTimezone = {
-            ...metricQuery,
-            timezone: isTimezoneEnabled ? metricQuery.timezone : undefined,
-        };
-
         const { query, totalQuery } = await this._getCalculateTotalQuery(
             user,
             explore,
-            metricQueryWithTimezone,
+            metricQuery,
             organizationUuid,
             warehouseClient,
         );

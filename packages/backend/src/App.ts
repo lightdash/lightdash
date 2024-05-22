@@ -227,13 +227,18 @@ export default class App {
         }
 
         const expressApp = express();
-        // NOTE: Sentry must be initialized before any other handlers or middleware so that it can capture requests
-        await this.initSentry(expressApp);
-        await this.initExpress(expressApp);
 
-        this.initSlack().catch((e) => {
+        // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
+        this.initSlack(expressApp).catch((e) => {
             Logger.error('Error starting slack bot', e);
         });
+
+        // NOTE: Sentry must be initialized before any handlers or middleware that should be traced
+        this.initSentry(expressApp);
+
+        // Load Lightdash middleware/routes last
+        await this.initExpress(expressApp);
+
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
         }
@@ -458,14 +463,14 @@ export default class App {
         return expressApp;
     }
 
-    private async initSlack() {
+    private async initSlack(expressApp: Express) {
         const slackBot = this.slackBotFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
             serviceRepository: this.serviceRepository,
             models: this.models,
         });
-        await slackBot.start();
+        await slackBot.start(expressApp);
     }
 
     private initSentry(expressApp: Express) {

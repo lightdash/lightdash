@@ -1,4 +1,4 @@
-import { type SummaryExplore } from '@lightdash/common';
+import { CatalogType, type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -11,15 +11,14 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
-import Fuse from 'fuse.js';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useExplores } from '../../../hooks/useExplores';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
 import { CatalogGroup } from './CatalogGroup';
-import { CatalogItem } from './CatalogItem';
+import { CatalogListItem } from './CatalogListItem';
 
 type Props = {
     projectUuid: string;
@@ -29,56 +28,46 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
 }) => {
     const [search, setSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data: projectData } = useProject(projectUuid);
 
-    const exploresResult = useExplores(projectUuid, true);
+    const { data: catalogResults } = useCatalog({
+        projectUuid,
+        type: CatalogType.Field,
+        search: debouncedSearch,
+    });
 
-    // TODO: don't always fetch all catalog results
-    const { data: catalogResults } = useCatalog(projectUuid, true, true);
-
-    console.log('catalogResults', catalogResults);
-
-    // TODO: only getting fields at the moment
-    // const tables = catalogResults?.filter((item) => {
-    //     return item.type === 'table';
-    // });
-
-    const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
-        const validSearch = search ? search.toLowerCase() : '';
-        if (exploresResult.data) {
-            let explores = Object.values(exploresResult.data);
-            if (validSearch !== '') {
-                explores = new Fuse(Object.values(exploresResult.data), {
-                    keys: ['label'],
-                    ignoreLocation: true,
-                    threshold: 0.3,
-                })
-                    .search(validSearch)
-                    .map((res) => res.item);
-            }
-
-            return explores.reduce<
-                [Record<string, SummaryExplore[]>, SummaryExplore[]]
+    const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
+        if (catalogResults) {
+            return catalogResults.reduce<
+                [Record<string, CatalogItem[]>, CatalogItem[]]
             >(
-                (acc, explore) => {
-                    if (explore.groupLabel) {
+                (acc, item) => {
+                    if ('groupLabel' in item && item.groupLabel) {
                         return [
                             {
                                 ...acc[0],
-                                [explore.groupLabel]: acc[0][explore.groupLabel]
-                                    ? [...acc[0][explore.groupLabel], explore]
-                                    : [explore],
+                                [item.groupLabel]: acc[0][item.groupLabel]
+                                    ? [...acc[0][item.groupLabel], item]
+                                    : [item],
                             },
                             acc[1],
                         ];
                     }
-                    return [acc[0], [...acc[1], explore]];
+                    return [acc[0], [...acc[1], item]];
                 },
                 [{}, []],
             );
         }
         return [{}, []];
-    }, [exploresResult.data, search]);
+    }, [catalogResults]);
+
+    const handleSearchChange = useCallback(
+        (searchString: string) => {
+            setSearch(searchString);
+        },
+        [setSearch],
+    );
 
     /*
     if (exploresResult.status === 'loading') {
@@ -94,106 +83,96 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         );
     }*/
 
-    if (exploresResult.data) {
-        return (
-            <Stack>
-                <Box>
-                    <Title order={4} mt="xxl">
-                        {projectData?.name}
-                    </Title>
-                    <Text color="gray">
-                        Select a table or field to start exploring.
-                    </Text>
-                </Box>
-                <Group position="apart">
-                    <TextInput
-                        w={'40%'}
-                        icon={<MantineIcon icon={IconSearch} />}
-                        rightSection={
-                            search ? (
-                                <ActionIcon onClick={() => setSearch('')}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />{' '}
-                    <Group>
-                        <SegmentedControl
-                            w={200}
-                            disabled // TODO: remove when implemented
-                            defaultValue={'tables'}
-                            data={[
-                                {
-                                    value: 'tables',
-                                    label: 'Tables',
-                                },
-                                {
-                                    value: 'fields',
-                                    label: 'Fields',
-                                },
-                            ]}
-                            onChange={() => {
-                                // NYI
-                            }}
-                        />
-                        <Button
-                            variant="default"
-                            disabled // TODO: remove when implemented
-                            leftIcon={<MantineIcon icon={IconFilter} />}
-                        >
-                            Filters
-                        </Button>
-                    </Group>
-                </Group>
-
-                {Object.keys(exploreGroupMap)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((groupLabel) => (
-                        <CatalogGroup label={groupLabel} key={groupLabel}>
-                            <Table>
-                                <tbody>
-                                    {exploreGroupMap[groupLabel]
-                                        .sort((a, b) =>
-                                            a.label.localeCompare(b.label),
-                                        )
-                                        .map((explore) => (
-                                            <CatalogItem
-                                                key={explore.name}
-                                                explore={explore}
-                                                searchString={search}
-                                                tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
-                                            />
-                                        ))}
-                                </tbody>
-                            </Table>
-                        </CatalogGroup>
-                    ))}
-                <Table>
-                    <tbody>
-                        {ungroupedExplores
-                            .sort((a, b) => a.label.localeCompare(b.label))
-                            .map((explore) => (
-                                <CatalogItem
-                                    key={explore.name}
-                                    explore={explore}
-                                    searchString={search}
-                                    tableUrl={`/projects/${projectUuid}/tables/${explore.name}`}
-                                />
-                            ))}
-                    </tbody>
-                </Table>
-            </Stack>
-        );
-    }
-    return null;
-    /*
     return (
-        <SuboptimalState
-            icon={IconAlertTriangle}
-            title="Could not load explores"
-        />
-    );*/
+        <Stack>
+            <Box>
+                <Title order={4} mt="xxl">
+                    {projectData?.name}
+                </Title>
+                <Text color="gray">
+                    Select a table or field to start exploring.
+                </Text>
+            </Box>
+            <Group position="apart">
+                <TextInput
+                    w={'40%'}
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                />{' '}
+                <Group>
+                    <SegmentedControl
+                        w={200}
+                        disabled // TODO: remove when implemented
+                        defaultValue={'tables'}
+                        data={[
+                            {
+                                value: 'tables',
+                                label: 'Tables',
+                            },
+                            {
+                                value: 'fields',
+                                label: 'Fields',
+                            },
+                        ]}
+                        onChange={() => {
+                            // NYI
+                        }}
+                    />
+                    <Button
+                        variant="default"
+                        disabled // TODO: remove when implemented
+                        leftIcon={<MantineIcon icon={IconFilter} />}
+                    >
+                        Filters
+                    </Button>
+                </Group>
+            </Group>
+
+            {Object.keys(catalogGroupMap)
+                .sort((a, b) => a.localeCompare(b))
+                .map((groupLabel, idx) => (
+                    <CatalogGroup label={groupLabel} key={groupLabel}>
+                        <Table>
+                            <tbody>
+                                {catalogGroupMap[groupLabel]
+                                    .sort((a, b) =>
+                                        a.name.localeCompare(b.name),
+                                    )
+                                    .map((item) => (
+                                        <CatalogListItem
+                                            key={`${item.name}-${idx}`}
+                                            catalogItem={item}
+                                            searchString={debouncedSearch}
+                                            tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                        />
+                                    ))}
+                            </tbody>
+                        </Table>
+                    </CatalogGroup>
+                ))}
+            <Table>
+                <tbody>
+                    {ungroupedCatalogItems
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((item, idx) => (
+                            <CatalogListItem
+                                key={`${item.name}-${idx}`}
+                                catalogItem={item}
+                                searchString={debouncedSearch}
+                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                            />
+                        ))}
+                </tbody>
+            </Table>
+        </Stack>
+    );
 };

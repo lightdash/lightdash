@@ -1,18 +1,23 @@
-import { type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
-import { IconExternalLink, IconSearch, IconTable } from '@tabler/icons-react';
+import { CatalogType, type CatalogItem } from '@lightdash/common';
+import { ActionIcon, Group, Highlight } from '@mantine/core';
+import {
+    IconAbc,
+    IconExternalLink,
+    IconSearch,
+    IconTable,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
 
 type Props = {
-    explore: SummaryExplore;
+    catalogItem: CatalogItem;
     tableUrl: string;
     searchString?: string;
 };
 
-export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
-    explore,
+export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
+    catalogItem,
     tableUrl,
     searchString = '',
 }) => {
@@ -20,7 +25,7 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <tr
-            key={explore.name}
+            key={catalogItem.name}
             style={{
                 height: 55,
                 backgroundColor: hovered ? 'rgba(0, 0, 0, 0.05)' : undefined,
@@ -29,7 +34,15 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
             onMouseLeave={() => setHovered(false)}
         >
             <td>
-                <MantineIcon size={'lg'} color="gray" icon={IconTable} />
+                <MantineIcon
+                    size={'lg'}
+                    color="gray"
+                    icon={
+                        catalogItem.type === CatalogType.Table
+                            ? IconTable
+                            : IconAbc
+                    }
+                />
             </td>
             <td>
                 <Highlight
@@ -37,15 +50,20 @@ export const CatalogItem: FC<React.PropsWithChildren<Props>> = ({
                     w={150}
                     highlight={searchString}
                     highlightColor="violet"
+                    lineClamp={1}
                 >
-                    {explore.name}
+                    {catalogItem.name}
                 </Highlight>
             </td>
             <td>
                 <Group noWrap position="apart">
-                    <Text lineClamp={hovered ? undefined : 1}>
-                        {explore.description}
-                    </Text>
+                    <Highlight
+                        highlight={searchString}
+                        highlightColor="violet"
+                        lineClamp={hovered ? undefined : 1}
+                    >
+                        {catalogItem.description || ''}
+                    </Highlight>
                     <Group
                         spacing="xs"
                         noWrap

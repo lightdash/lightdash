@@ -41,7 +41,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
-import { getItemId, isDateItem } from './item';
+import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -103,13 +103,7 @@ export const getFilterGroupItemsPropertyName = (
 };
 
 export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
-    const type = isCustomSqlDimension(item) ? item.dimensionType : item.type;
-
-    if (type === undefined) {
-        // Type check for TableCalculationType
-        return FilterType.NUMBER;
-    }
-
+    const type = getItemType(item);
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
