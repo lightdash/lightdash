@@ -185,8 +185,8 @@ const FilterGroupForm: FC<Props> = ({
                         ]}
                         value={
                             isAndFilterGroup(filterGroup)
-                                ? FilterGroupOperator.and
-                                : FilterGroupOperator.or
+                                ? FilterGroupOperator.or
+                                : FilterGroupOperator.and
                         }
                         onChange={(operator: FilterGroupOperator) =>
                             onChangeOperator(operator)
