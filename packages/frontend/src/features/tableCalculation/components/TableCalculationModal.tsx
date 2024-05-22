@@ -96,7 +96,9 @@ const TableCalculationModal: FC<Props> = ({
                     ...tableCalculations,
                     ...(customDimensions ?? []),
                 ].some(
-                    (i) => getItemId(i).toLowerCase() === label.toLowerCase(),
+                    (i) =>
+                        getItemId(i).toLowerCase().trim() ===
+                        label.toLowerCase().trim(),
                 );
 
                 return isInvalid

@@ -75,7 +75,11 @@ export const CustomSqlDimensionModal: FC<{
                 const isInvalid = [
                     ...tableCalculations,
                     ...(customDimensions ?? []),
-                ].some((i) => getItemId(i) === customDimensionId);
+                ].some(
+                    (i) =>
+                        getItemId(i).toLowerCase().trim() ===
+                        customDimensionId.toLowerCase().trim(),
+                );
 
                 return isInvalid
                     ? 'Dimension/Table calculation with this label already exists'
