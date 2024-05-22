@@ -141,7 +141,7 @@ export const CustomBinDimensionModal: FC<{
             if (isEditing && isCustomDimension(item)) {
                 editCustomDimension(
                     {
-                        id: sanitizedId,
+                        id: item.id,
                         name: values.customDimensionLabel,
                         type: CustomDimensionType.BIN,
                         dimensionId: item.dimensionId,
