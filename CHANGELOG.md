@@ -1,3 +1,10 @@
+# [0.1101.0](https://github.com/lightdash/lightdash/compare/0.1100.0...0.1101.0) (2024-05-22)
+
+
+### Features
+
+* catalog search ([#10139](https://github.com/lightdash/lightdash/issues/10139)) ([bfb24e4](https://github.com/lightdash/lightdash/commit/bfb24e4fc259f78337276a526f8b9ddbc62c791d))
+
 # [0.1100.0](https://github.com/lightdash/lightdash/compare/0.1099.5...0.1100.0) (2024-05-22)
 
 
