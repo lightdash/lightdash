@@ -1,6 +1,7 @@
 import {
     CustomDimensionType,
     DimensionType,
+    getItemId,
     snakeCaseName,
     type CustomSqlDimension,
 } from '@lightdash/common';
@@ -71,19 +72,10 @@ export const CustomSqlDimensionModal: FC<{
                     return null;
                 }
 
-                const tableCalculationsIds = tableCalculations.map(
-                    (tc) => tc.name,
-                );
-
-                const customDimensionsIds =
-                    customDimensions?.map(
-                        (customDimension) => customDimension.id,
-                    ) ?? [];
-
                 const isInvalid = [
-                    ...tableCalculationsIds,
-                    ...customDimensionsIds,
-                ].some((id) => id === customDimensionId);
+                    ...tableCalculations,
+                    ...(customDimensions ?? []),
+                ].some((i) => getItemId(i) === customDimensionId);
 
                 return isInvalid
                     ? 'Dimension/Table calculation with this label already exists'
