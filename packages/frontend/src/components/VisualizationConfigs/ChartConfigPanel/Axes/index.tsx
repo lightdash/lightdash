@@ -100,13 +100,11 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             }-axis range`}
                             min={dirtyEchartsConfig?.xAxis?.[0]?.min}
                             minOffset={
-                                dirtyEchartsConfig?.xAxis?.[0]?.minOffset ??
-                                '0.5'
+                                dirtyEchartsConfig?.xAxis?.[0]?.minOffset
                             }
                             max={dirtyEchartsConfig?.xAxis?.[0]?.max}
                             maxOffset={
-                                dirtyEchartsConfig?.xAxis?.[0]?.maxOffset ??
-                                '0.5'
+                                dirtyEchartsConfig?.xAxis?.[0]?.maxOffset
                             }
                             setMin={(newValue) => setXMinValue(0, newValue)}
                             setMax={(newValue) => setXMaxValue(0, newValue)}

@@ -28,7 +28,6 @@ export const AxisMinMax: FC<Props> = ({
     setMaxOffset,
 }) => {
     const [isAuto, toggleAuto] = useToggle(
-        // Fix this issue; it's set as true by default because of the offsets
         !(min || max || minOffset || maxOffset),
     );
     const { track } = useTracking();
