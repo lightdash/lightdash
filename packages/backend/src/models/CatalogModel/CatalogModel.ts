@@ -40,6 +40,9 @@ export class CatalogModel {
             ...Object.values(baseTable.dimensions),
             ...Object.values(baseTable.metrics),
         ];
+        // This is the most computationally expensive part of the code
+        // Perhaps we should add metadata (requiredAttributes) to the catalog database
+        // or cache this somehow
         const findField = dimensionsAndMetrics.find(
             (d) => d.name === dbCatalog.name,
         );
