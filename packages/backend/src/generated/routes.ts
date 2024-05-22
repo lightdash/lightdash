@@ -174,6 +174,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        groupLabel: { dataType: 'string' },
                         type: { ref: 'CatalogType.Table', required: true },
                         errors: {
                             dataType: 'array',

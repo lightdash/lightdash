@@ -21,6 +21,7 @@ export type CatalogTable = Pick<Explore, 'name' | 'groupLabel'> & {
     description?: string;
     errors?: InlineError[];
     type: CatalogType.Table;
+    groupLabel?: string;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;

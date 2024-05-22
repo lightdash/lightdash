@@ -22,6 +22,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     backgroundColor: theme.colors.gray[3],
                     borderRadius: theme.radius.sm,
                     padding: theme.spacing.xs,
+                    width: '100%',
                 })}
             >
                 <Group spacing={'sm'}>
