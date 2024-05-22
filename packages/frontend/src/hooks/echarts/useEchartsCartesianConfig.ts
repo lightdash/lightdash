@@ -1149,11 +1149,10 @@ const getEchartAxes = ({
 
     const getMinAndMaxFromBottomAxisBounds = (
         axisType: 'value' | 'category' | 'time' | string,
-        truncateAxis: boolean,
         min?: number,
         max?: number,
     ) => {
-        if (axisType === 'value' && truncateAxis) {
+        if (axisType === 'value') {
             const defaultMin =
                 xAxisConfiguration?.[0]?.min ||
                 referenceLineMinX ||
@@ -1169,8 +1168,8 @@ const getEchartAxes = ({
                 max !== undefined
             ) {
                 return {
-                    min: min - (bottomAxisOffset.minOffset ?? 0.5),
-                    max: max + (bottomAxisOffset.maxOffset ?? 0.5),
+                    min: min - (bottomAxisOffset.minOffset ?? 0),
+                    max: max + (bottomAxisOffset.maxOffset ?? 0),
                 };
             }
             return {
@@ -1234,7 +1233,6 @@ const getEchartAxes = ({
 
     const bottomAxisBounds = getMinAndMaxFromBottomAxisBounds(
         bottomAxisType,
-        true,
         bottomAxisMinValue,
         bottomAxisMaxValue,
     );
