@@ -3,6 +3,7 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { CatalogTableName } from '../../database/entities/catalog';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -126,6 +127,7 @@ describe('ProjectModel', () => {
                     ]),
                 )
                 .response([]);
+
             await model.saveExploresToCache(projectUuid, exploresWithSameName);
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(2);

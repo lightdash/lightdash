@@ -733,6 +733,7 @@ export class ProjectModel {
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
     ) {
+        if (cachedExplores.length === 0) return;
         const catalogItems = await convertExploresToCatalog(
             projectUuid,
             cachedExplores,
