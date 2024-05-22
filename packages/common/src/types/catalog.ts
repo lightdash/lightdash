@@ -1,5 +1,6 @@
-import { type Explore, type InlineError } from './explore';
-import { type Field } from './field';
+import { type InlineError } from './explore';
+import { type Dimension, type Field } from './field';
+import { type TableBase } from './table';
 
 export enum CatalogType {
     Table = 'table',
@@ -13,13 +14,16 @@ export type ApiCatalogSearch = {
 export type CatalogField = Pick<
     Field,
     'name' | 'fieldType' | 'tableLabel' | 'description'
-> & {
-    type: CatalogType.Field;
-};
+> &
+    Pick<Dimension, 'requiredAttributes'> & {
+        type: CatalogType.Field;
+    };
 
-export type CatalogTable = Pick<Explore, 'name' | 'groupLabel'> & {
-    description?: string;
-    errors?: InlineError[];
+export type CatalogTable = Pick<
+    TableBase,
+    'name' | 'groupLabel' | 'description' | 'requiredAttributes'
+> & {
+    errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
 };

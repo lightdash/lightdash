@@ -13,13 +13,15 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SearchModel } from '../../models/SearchModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
+    hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
 type CatalogArguments = {
@@ -27,6 +29,7 @@ type CatalogArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
+    catalogModel: CatalogModel;
 };
 
 export class CatalogService extends BaseService {
@@ -38,17 +41,21 @@ export class CatalogService extends BaseService {
 
     userAttributesModel: UserAttributesModel;
 
+    catalogModel: CatalogModel;
+
     constructor({
         lightdashConfig,
         analytics,
         projectModel,
         userAttributesModel,
+        catalogModel,
     }: CatalogArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.userAttributesModel = userAttributesModel;
+        this.catalogModel = catalogModel;
     }
 
     private static async getCatalogFields(
@@ -117,30 +124,41 @@ export class CatalogService extends BaseService {
         }, []);
     }
 
-    private static async searchCatalog(
+    private async searchCatalog(
+        projectUuid: string,
         query: string,
-        explores: Explore[],
+        userAttributes: UserAttributeValueMap,
     ): Promise<(CatalogTable | CatalogField)[]> {
-        const [tables, fields] = SearchModel.searchTablesAndFields(
-            query,
-            explores,
+        return wrapSentryTransaction(
+            'CatalogService.searchCatalog',
+            {
+                projectUuid,
+                userAttributesSize: Object.keys(userAttributes).length,
+                query,
+            },
+            async () => {
+                const catalog = await wrapSentryTransaction(
+                    'CatalogService.searchCatalog.modelSearch',
+                    {},
+                    async () => this.catalogModel.search(projectUuid, query),
+                );
+
+                // Filter required attributes
+                return wrapSentryTransaction(
+                    'CatalogService.searchCatalog.filterAttributes',
+                    {
+                        catalogSize: catalog.length,
+                    },
+                    async () =>
+                        catalog.filter((c) =>
+                            hasUserAttributes(
+                                c.requiredAttributes,
+                                userAttributes,
+                            ),
+                        ),
+                );
+            },
         );
-
-        const catalogTables: CatalogTable[] = tables.map((t) => ({
-            name: t.name,
-            description: t.description,
-            // groupLabel TODO update searchTables
-            type: CatalogType.Table,
-        }));
-        const catalogFields: CatalogField[] = fields.map((f) => ({
-            name: f.name,
-            description: f.description,
-            tableLabel: f.tableLabel,
-            type: CatalogType.Field,
-            fieldType: f.fieldType,
-        }));
-
-        return [...catalogTables, ...catalogFields];
     }
 
     async getCatalog(
@@ -193,15 +211,8 @@ export class CatalogService extends BaseService {
         );
 
         if (search) {
-            // On search we don't show explore errors
-            const validExplores: Explore[] = filteredExplores.reduce<Explore[]>(
-                (acc, e) => {
-                    if (isExploreError(e)) return acc;
-                    return [...acc, e];
-                },
-                [],
-            );
-            return CatalogService.searchCatalog(search, validExplores);
+            // On search we don't show explore errors, because they are not indexed
+            return this.searchCatalog(projectUuid, search, userAttributes);
         }
         if (type === CatalogType.Field)
             return CatalogService.getCatalogFields(

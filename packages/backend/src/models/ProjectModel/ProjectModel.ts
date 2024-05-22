@@ -1,5 +1,8 @@
 import {
     AlreadyExistsError,
+    CatalogType,
+    CompiledDimension,
+    CompiledMetric,
     CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
@@ -39,6 +42,11 @@ import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
+    CatalogTableName,
+    DbCatalog,
+    DbCatalogIn,
+} from '../../database/entities/catalog';
+import {
     DashboardViewsTableName,
     DbDashboard,
 } from '../../database/entities/dashboards';
@@ -54,6 +62,7 @@ import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
+    DbCachedExplore,
     DbCachedExplores,
     DbCachedWarehouse,
     DbProject,
@@ -70,6 +79,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 type ProjectModelArguments = {
@@ -719,6 +729,51 @@ export class ProjectModel {
         );
     }
 
+    async indexCatalog(
+        projectUuid: string,
+        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    ) {
+        if (cachedExplores.length === 0) return;
+        const catalogItems = await convertExploresToCatalog(
+            projectUuid,
+            cachedExplores,
+        );
+        await this.database.transaction(async (trx) => {
+            await trx(CatalogTableName)
+                .where('project_uuid', projectUuid)
+                .delete();
+            await trx(CatalogTableName).insert(catalogItems);
+        });
+    }
+
+    static getExploresWithCacheUuids(
+        explores: (Explore | ExploreError)[],
+        cachedExplore: { name: string; cached_explore_uuid: string }[],
+    ) {
+        return explores.reduce<(Explore & { cachedExploreUuid: string })[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) return acc;
+                const cachedExploreUuid = cachedExplore.find(
+                    (cached) => cached.name === explore.name,
+                )?.cached_explore_uuid;
+                if (!cachedExploreUuid) {
+                    Logger.error(
+                        `Could not find cached explore uuid for explore ${explore.name}`,
+                    );
+                    return acc;
+                }
+                return [
+                    ...acc,
+                    {
+                        ...explore,
+                        cachedExploreUuid,
+                    },
+                ];
+            },
+            [],
+        );
+    }
+
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
@@ -739,7 +794,9 @@ export class ProjectModel {
                 );
 
                 // cache explores individually
-                await this.database(CachedExploreTableName)
+                const cachedExplore = await this.database(
+                    CachedExploreTableName,
+                )
                     .insert(
                         uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
@@ -749,7 +806,18 @@ export class ProjectModel {
                         })),
                     )
                     .onConflict(['project_uuid', 'name'])
-                    .merge();
+                    .merge()
+                    .returning(['name', 'cached_explore_uuid']);
+
+                const exploresWithCachedExploreUuid =
+                    ProjectModel.getExploresWithCacheUuids(
+                        explores,
+                        cachedExplore,
+                    );
+                await this.indexCatalog(
+                    projectUuid,
+                    exploresWithCachedExploreUuid,
+                );
 
                 // cache explores together
                 const [cachedExplores] = await this.database(
@@ -762,6 +830,7 @@ export class ProjectModel {
                     .onConflict('project_uuid')
                     .merge()
                     .returning('*');
+
                 return cachedExplores;
             },
         );
