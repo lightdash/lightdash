@@ -47,8 +47,6 @@ export class CatalogController extends BaseController {
             type,
         };
 
-        console.log('-----------------------------', query);
-
         const results = await this.services
             .getCatalogService()
             .getCatalog(req.user!, projectUuid, query);
