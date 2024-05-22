@@ -1168,6 +1168,12 @@ const getEchartAxes = ({
                 min !== undefined &&
                 max !== undefined
             ) {
+                console.log('bottom axis offset is enabled', {
+                    min,
+                    max,
+                    bottomAxisOffset,
+                });
+
                 return {
                     min: min - (bottomAxisOffset.minOffset ?? 0.5),
                     max: max + (bottomAxisOffset.maxOffset ?? 0.5),
@@ -1212,6 +1218,20 @@ const getEchartAxes = ({
             };
         }
 
+        console.log('got values', {
+            rows,
+            firstValue,
+            lastValue,
+            minValue:
+                firstValue !== undefined
+                    ? Math.min(firstValue, lastValue)
+                    : undefined,
+            maxValue:
+                lastValue !== undefined
+                    ? Math.max(firstValue, lastValue)
+                    : undefined,
+        });
+
         return {
             minValue:
                 firstValue !== undefined
@@ -1254,6 +1274,8 @@ const getEchartAxes = ({
         bottomAxisMinValue,
         bottomAxisMaxValue,
     );
+
+    console.log({ bottomAxisName, bottomAxisBounds, bottomAxisOffset });
 
     return {
         xAxis: [
