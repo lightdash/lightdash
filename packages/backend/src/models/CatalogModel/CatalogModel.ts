@@ -68,6 +68,12 @@ export class CatalogModel {
         query: string,
         limit: number = 50,
     ): Promise<(CatalogTable | CatalogField)[]> {
+        // To query multiple words with tsquery, we need to split the query and add `:*` to each word
+        const splitQuery = query
+            .split(' ')
+            .map((word) => `${word}:*`)
+            .join(' & ');
+
         const searchRankRawSql = getFullTextSearchRankCalcSql(
             this.database,
             CatalogTableName,
@@ -90,13 +96,9 @@ export class CatalogModel {
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
-            .andWhere(
-                `${CatalogTableName}.search_vector`,
-                '@@',
-                this.database.raw(
-                    `to_tsquery('lightdash_english_config', ?)`,
-                    query,
-                ),
+            .andWhereRaw(
+                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
+                splitQuery,
             )
             .orderBy('search_rank', 'desc')
             .limit(limit);
