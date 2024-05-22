@@ -105,6 +105,7 @@ export class CatalogService extends BaseService {
                             explore.baseTable &&
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
+                        joinedTables: explore.joinedTables,
                     },
                 ];
             }
@@ -117,6 +118,7 @@ export class CatalogService extends BaseService {
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
+                        joinedTables: explore.joinedTables,
                     },
                 ];
             }

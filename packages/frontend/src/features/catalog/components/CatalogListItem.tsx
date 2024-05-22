@@ -1,8 +1,9 @@
 import { CatalogType, type CatalogItem } from '@lightdash/common';
-import { ActionIcon, Group, Highlight } from '@mantine/core';
+import { ActionIcon, Group, Highlight, Text, Tooltip } from '@mantine/core';
 import {
     IconAbc,
     IconExternalLink,
+    IconLayersLinked,
     IconSearch,
     IconTable,
 } from '@tabler/icons-react';
@@ -22,6 +23,11 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
     searchString = '',
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
+
+    const countJoinedTables =
+        'joinedTables' in catalogItem
+            ? catalogItem.joinedTables?.length || 0
+            : 0;
 
     return (
         <tr
@@ -56,7 +62,17 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
                 </Highlight>
             </td>
             <td>
-                <Group noWrap position="apart">
+                {countJoinedTables > 0 && (
+                    <Tooltip label={`${countJoinedTables} joined tables`}>
+                        <Group noWrap spacing="xs">
+                            <MantineIcon color="gray" icon={IconLayersLinked} />
+                            <Text color="gray">{countJoinedTables}</Text>
+                        </Group>
+                    </Tooltip>
+                )}
+            </td>
+            <td>
+                <Group noWrap position="apart" w="100%">
                     <Highlight
                         highlight={searchString}
                         highlightColor="violet"

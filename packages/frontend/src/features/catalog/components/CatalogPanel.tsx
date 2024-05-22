@@ -10,6 +10,7 @@ import {
     Text,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
@@ -136,45 +137,49 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     </Button>
                 </Group>
             </Group>
-            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                {Object.keys(catalogGroupMap)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((groupLabel, idx) => (
-                        <CatalogGroup label={groupLabel} key={groupLabel}>
-                            <Table>
-                                <tbody>
-                                    {catalogGroupMap[groupLabel]
-                                        .sort((a, b) =>
-                                            a.name.localeCompare(b.name),
-                                        )
-                                        .map((item) => (
-                                            <CatalogListItem
-                                                key={`${item.name}-${idx}`}
-                                                catalogItem={item}
-                                                searchString={debouncedSearch}
-                                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                            />
-                                        ))}
-                                </tbody>
-                            </Table>
-                        </CatalogGroup>
-                    ))}
+            <Tooltip.Group>
+                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                    {Object.keys(catalogGroupMap)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel, idx) => (
+                            <CatalogGroup label={groupLabel} key={groupLabel}>
+                                <Table>
+                                    <tbody>
+                                        {catalogGroupMap[groupLabel]
+                                            .sort((a, b) =>
+                                                a.name.localeCompare(b.name),
+                                            )
+                                            .map((item) => (
+                                                <CatalogListItem
+                                                    key={`${item.name}-${idx}`}
+                                                    catalogItem={item}
+                                                    searchString={
+                                                        debouncedSearch
+                                                    }
+                                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                                />
+                                            ))}
+                                    </tbody>
+                                </Table>
+                            </CatalogGroup>
+                        ))}
 
-                <Table h="100%">
-                    <tbody>
-                        {ungroupedCatalogItems
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map((item, idx) => (
-                                <CatalogListItem
-                                    key={`${item.name}-${idx}`}
-                                    catalogItem={item}
-                                    searchString={debouncedSearch}
-                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                />
-                            ))}
-                    </tbody>
-                </Table>
-            </Stack>
+                    <Table h="100%">
+                        <tbody>
+                            {ungroupedCatalogItems
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((item, idx) => (
+                                    <CatalogListItem
+                                        key={`${item.name}-${idx}`}
+                                        catalogItem={item}
+                                        searchString={debouncedSearch}
+                                        tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                    />
+                                ))}
+                        </tbody>
+                    </Table>
+                </Stack>
+            </Tooltip.Group>
         </Stack>
     );
 };

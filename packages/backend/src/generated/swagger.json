@@ -63,6 +63,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Pick_Dimension.requiredAttributes_": {
+                "properties": {
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "CatalogType.Field": {
                 "enum": ["field"],
                 "type": "string"
@@ -71,6 +85,9 @@
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/Pick_Field.name-or-fieldType-or-tableLabel-or-description_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_Dimension.requiredAttributes_"
                     },
                     {
                         "properties": {
@@ -83,10 +100,16 @@
                     }
                 ]
             },
-            "Pick_Explore.name-or-groupLabel_": {
+            "Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_": {
                 "properties": {
                     "name": {
                         "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
                     },
                     "groupLabel": {
                         "type": "string"
@@ -116,13 +139,61 @@
                 "enum": ["table"],
                 "type": "string"
             },
-            "CatalogTable": {
+            "DbtModelJoinType": {
+                "type": "string",
+                "enum": ["inner", "full", "left", "right"]
+            },
+            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_": {
+                "properties": {
+                    "table": {
+                        "type": "string"
+                    },
+                    "sqlOn": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DbtModelJoinType"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "always": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["table", "sqlOn"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CompiledExploreJoin": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Explore.name-or-groupLabel_"
+                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_"
                     },
                     {
                         "properties": {
+                            "compiledSqlOn": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["compiledSqlOn"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "CatalogTable": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_"
+                    },
+                    {
+                        "properties": {
+                            "joinedTables": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CompiledExploreJoin"
+                                },
+                                "type": "array"
+                            },
                             "groupLabel": {
                                 "type": "string"
                             },
@@ -134,9 +205,6 @@
                                     "$ref": "#/components/schemas/InlineError"
                                 },
                                 "type": "array"
-                            },
-                            "description": {
-                                "type": "string"
                             }
                         },
                         "required": ["type"],
@@ -479,56 +547,9 @@
                 },
                 "type": "array"
             },
-            "DbtModelJoinType": {
-                "type": "string",
-                "enum": ["inner", "full", "left", "right"]
-            },
-            "Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_": {
-                "properties": {
-                    "table": {
-                        "type": "string"
-                    },
-                    "sqlOn": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DbtModelJoinType"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "always": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["table", "sqlOn"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CompiledExploreJoin": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_"
-                    },
-                    {
-                        "properties": {
-                            "compiledSqlOn": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["compiledSqlOn"],
-                        "type": "object"
-                    }
-                ]
-            },
             "OrderFieldsByStrategy": {
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
-            },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "TableBase": {
                 "properties": {
@@ -2999,11 +3020,11 @@
             },
             "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
-                    "warehouse": {
-                        "type": "string"
-                    },
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "warehouse": {
+                        "type": "string"
                     },
                     "role": {
                         "type": "string"
@@ -3046,8 +3067,8 @@
                     }
                 },
                 "required": [
-                    "warehouse",
                     "type",
+                    "warehouse",
                     "account",
                     "database",
                     "schema"
@@ -7095,7 +7116,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1100.0",
+        "version": "0.1101.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

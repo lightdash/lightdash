@@ -107,6 +107,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Dimension.requiredAttributes_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                requiredAttributes: {
+                    ref: 'Record_string.string-or-string-Array_',
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'CatalogType.Field': {
         dataType: 'refEnum',
         enums: ['field'],
@@ -120,6 +142,7 @@ const models: TsoaRoute.Models = {
                 {
                     ref: 'Pick_Field.name-or-fieldType-or-tableLabel-or-description_',
                 },
+                { ref: 'Pick_Dimension.requiredAttributes_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -131,12 +154,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Explore.name-or-groupLabel_': {
+    'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                requiredAttributes: {
+                    ref: 'Record_string.string-or-string-Array_',
+                },
                 groupLabel: { dataType: 'string' },
             },
             validators: {},
@@ -165,22 +192,78 @@ const models: TsoaRoute.Models = {
         enums: ['table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtModelJoinType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['inner'] },
+                { dataType: 'enum', enums: ['full'] },
+                { dataType: 'enum', enums: ['left'] },
+                { dataType: 'enum', enums: ['right'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                table: { dataType: 'string', required: true },
+                sqlOn: { dataType: 'string', required: true },
+                type: { ref: 'DbtModelJoinType' },
+                hidden: { dataType: 'boolean' },
+                always: { dataType: 'boolean' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CompiledExploreJoin: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_',
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        compiledSqlOn: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogTable: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Pick_Explore.name-or-groupLabel_' },
+                {
+                    ref: 'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        joinedTables: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'CompiledExploreJoin',
+                            },
+                        },
                         groupLabel: { dataType: 'string' },
                         type: { ref: 'CatalogType.Table', required: true },
                         errors: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'InlineError' },
                         },
-                        description: { dataType: 'string' },
                     },
                 },
             ],
@@ -501,66 +584,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbtModelJoinType: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['inner'] },
-                { dataType: 'enum', enums: ['full'] },
-                { dataType: 'enum', enums: ['left'] },
-                { dataType: 'enum', enums: ['right'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                table: { dataType: 'string', required: true },
-                sqlOn: { dataType: 'string', required: true },
-                type: { ref: 'DbtModelJoinType' },
-                hidden: { dataType: 'boolean' },
-                always: { dataType: 'boolean' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CompiledExploreJoin: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    ref: 'Pick_ExploreJoin.table-or-sqlOn-or-type-or-hidden-or-always_',
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        compiledSqlOn: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrderFieldsByStrategy: {
         dataType: 'refEnum',
         enums: ['LABEL', 'INDEX'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-string-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableBase: {
@@ -2714,8 +2740,8 @@ const models: TsoaRoute.Models = {
             type: {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
-                    warehouse: { dataType: 'string', required: true },
                     type: { ref: 'WarehouseTypes.SNOWFLAKE', required: true },
+                    warehouse: { dataType: 'string', required: true },
                     role: { dataType: 'string' },
                     account: { dataType: 'string', required: true },
                     requireUserCredentials: { dataType: 'boolean' },
