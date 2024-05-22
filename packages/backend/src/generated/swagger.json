@@ -40,6 +40,127 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "FieldType": {
+                "enum": ["metric", "dimension"],
+                "type": "string"
+            },
+            "Pick_Field.name-or-fieldType-or-tableLabel-or-description_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "fieldType", "tableLabel"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogType.Field": {
+                "enum": ["field"],
+                "type": "string"
+            },
+            "CatalogField": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Field.name-or-fieldType-or-tableLabel-or-description_"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/CatalogType.Field"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_Explore.name-or-groupLabel_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "InlineErrorType": {
+                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
+            "CatalogType.Table": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "CatalogTable": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Explore.name-or-groupLabel_"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/CatalogType.Table"
+                            },
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/InlineError"
+                                },
+                                "type": "array"
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "CatalogItem": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CatalogField"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CatalogTable"
+                    }
+                ]
+            },
+            "ApiCatalogResults": {
+                "items": {
+                    "$ref": "#/components/schemas/CatalogItem"
+                },
+                "type": "array"
+            },
+            "CatalogType": {
+                "enum": ["table", "field"],
+                "type": "string"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -250,6 +371,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "groupLabel": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -258,9 +382,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -282,25 +403,12 @@
                 "required": ["databaseName", "schemaName"],
                 "type": "object"
             },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
-            },
             "Pick_ExploreError.SummaryExploreErrorFields_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
                         "type": "string"
                     },
                     "label": {
@@ -311,9 +419,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
                     },
                     "errors": {
                         "items": {
@@ -6987,7 +7092,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1099.2",
+        "version": "0.1099.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7000,6 +7105,73 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/projects/{projectUuid}/dataCatalog": {
+            "get": {
+                "operationId": "getCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog items",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/CatalogType"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
             "post": {
                 "operationId": "createComment",

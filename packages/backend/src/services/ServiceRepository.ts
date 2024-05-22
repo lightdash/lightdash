@@ -4,6 +4,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
+import { CatalogService } from './CatalogService/CatalogService';
 import { CommentService } from './CommentService/CommentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
@@ -62,6 +63,7 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+    catalogService: CatalogService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -586,6 +588,19 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                }),
+        );
+    }
+
+    public getCatalogService(): CatalogService {
+        return this.getService(
+            'catalogService',
+            () =>
+                new CatalogService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    userAttributesModel: this.models.getUserAttributesModel(),
                 }),
         );
     }
