@@ -109,6 +109,7 @@ export class CatalogService extends BaseService {
                         description:
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
+                        groupLabel: explore.groupLabel,
                     },
                 ];
             }

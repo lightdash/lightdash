@@ -33,7 +33,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
     const { data: catalogResults } = useCatalog({
         projectUuid,
-        type: CatalogType.Field,
+        type: CatalogType.Table,
         search: debouncedSearch,
     });
 
@@ -136,43 +136,45 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     </Button>
                 </Group>
             </Group>
+            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                {Object.keys(catalogGroupMap)
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((groupLabel, idx) => (
+                        <CatalogGroup label={groupLabel} key={groupLabel}>
+                            <Table>
+                                <tbody>
+                                    {catalogGroupMap[groupLabel]
+                                        .sort((a, b) =>
+                                            a.name.localeCompare(b.name),
+                                        )
+                                        .map((item) => (
+                                            <CatalogListItem
+                                                key={`${item.name}-${idx}`}
+                                                catalogItem={item}
+                                                searchString={debouncedSearch}
+                                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                            />
+                                        ))}
+                                </tbody>
+                            </Table>
+                        </CatalogGroup>
+                    ))}
 
-            {Object.keys(catalogGroupMap)
-                .sort((a, b) => a.localeCompare(b))
-                .map((groupLabel, idx) => (
-                    <CatalogGroup label={groupLabel} key={groupLabel}>
-                        <Table>
-                            <tbody>
-                                {catalogGroupMap[groupLabel]
-                                    .sort((a, b) =>
-                                        a.name.localeCompare(b.name),
-                                    )
-                                    .map((item) => (
-                                        <CatalogListItem
-                                            key={`${item.name}-${idx}`}
-                                            catalogItem={item}
-                                            searchString={debouncedSearch}
-                                            tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                        />
-                                    ))}
-                            </tbody>
-                        </Table>
-                    </CatalogGroup>
-                ))}
-            <Table>
-                <tbody>
-                    {ungroupedCatalogItems
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map((item, idx) => (
-                            <CatalogListItem
-                                key={`${item.name}-${idx}`}
-                                catalogItem={item}
-                                searchString={debouncedSearch}
-                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                            />
-                        ))}
-                </tbody>
-            </Table>
+                <Table h="100%">
+                    <tbody>
+                        {ungroupedCatalogItems
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((item, idx) => (
+                                <CatalogListItem
+                                    key={`${item.name}-${idx}`}
+                                    catalogItem={item}
+                                    searchString={debouncedSearch}
+                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                />
+                            ))}
+                    </tbody>
+                </Table>
+            </Stack>
         </Stack>
     );
 };
