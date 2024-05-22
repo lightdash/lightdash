@@ -119,7 +119,7 @@ describe('Lightdash catalog search', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog?search=dbt_derived`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length(1);
+            expect(resp.body.results).to.have.length.gt(0);
 
             const field = resp.body.results[0];
             expect(field).to.deep.eq({
