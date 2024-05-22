@@ -3,12 +3,11 @@ import {
     CatalogTable,
     CatalogType,
     Explore,
-    FieldType,
 } from '@lightdash/common';
-import { Field } from 'apache-arrow';
 import { Knex } from 'knex';
 import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
+import { wrapSentryTransaction } from '../../utils';
 import { getFullTextSearchRankCalcSql } from '../SearchModel/utils/search';
 
 type SearchModelArguments = {
@@ -25,27 +24,38 @@ export class CatalogModel {
     static parseCatalog(
         dbCatalog: DbCatalog & { explore: Explore },
     ): CatalogTable | CatalogField {
+        const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
+
         if (dbCatalog.type === CatalogType.Table) {
             return {
                 name: dbCatalog.name,
                 groupLabel: dbCatalog.explore.groupLabel,
                 description: dbCatalog.description || undefined,
                 type: dbCatalog.type,
+                requiredAttributes: baseTable.requiredAttributes,
             };
         }
 
-        const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
-        const isDimension = Object.values(baseTable.dimensions).some(
+        const dimensionsAndMetrics = [
+            ...Object.values(baseTable.dimensions),
+            ...Object.values(baseTable.metrics),
+        ];
+        const findField = dimensionsAndMetrics.find(
             (d) => d.name === dbCatalog.name,
         );
-
-        // TODO return requiredAttributes and filter permissions on CatalogService
+        if (!findField) {
+            throw new Error(
+                `Field ${dbCatalog.name} not found in explore ${dbCatalog.explore.name}`,
+            );
+        }
         return {
             name: dbCatalog.name,
             tableLabel: dbCatalog.explore.name,
             description: dbCatalog.description || undefined,
             type: dbCatalog.type,
-            fieldType: isDimension ? FieldType.DIMENSION : FieldType.METRIC,
+            fieldType: findField?.fieldType,
+            requiredAttributes:
+                findField?.requiredAttributes || baseTable.requiredAttributes,
         };
     }
 
@@ -53,7 +63,7 @@ export class CatalogModel {
     async search(
         projectUuid: string,
         query: string,
-        limit: number = 100,
+        limit: number = 50,
     ): Promise<(CatalogTable | CatalogField)[]> {
         const searchRankRawSql = getFullTextSearchRankCalcSql(
             this.database,
@@ -61,7 +71,7 @@ export class CatalogModel {
             'search_vector',
             query,
         );
-        const catalogItems = await this.database(CatalogTableName)
+        const catalogItemsQuery = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.name`,
                 'description',
@@ -77,10 +87,25 @@ export class CatalogModel {
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
-            // TODO filter search_rank > 0.1
+            .andWhere(
+                `${CatalogTableName}.search_vector`,
+                '@@',
+                this.database.raw(
+                    `to_tsquery('lightdash_english_config', ?)`,
+                    query,
+                ),
+            )
             .orderBy('search_rank', 'desc')
             .limit(limit);
 
-        return catalogItems.map(CatalogModel.parseCatalog);
+        const catalogItems = await catalogItemsQuery;
+        const catalog = await wrapSentryTransaction(
+            'CatalogModel.search.parse',
+            {
+                catalogSize: catalogItems.length,
+            },
+            async () => catalogItems.map(CatalogModel.parseCatalog),
+        );
+        return catalog;
     }
 }

@@ -15,12 +15,13 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SearchModel } from '../../models/SearchModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
+    hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
 type CatalogArguments = {
@@ -125,10 +126,38 @@ export class CatalogService extends BaseService {
     private async searchCatalog(
         projectUuid: string,
         query: string,
+        userAttributes: UserAttributeValueMap,
     ): Promise<(CatalogTable | CatalogField)[]> {
-        const catalog = await this.catalogModel.search(projectUuid, query);
-        // TODO filter permissions
-        return catalog;
+        return wrapSentryTransaction(
+            'CatalogService.searchCatalog',
+            {
+                projectUuid,
+                userAttributesSize: Object.keys(userAttributes).length,
+                query,
+            },
+            async () => {
+                const catalog = await wrapSentryTransaction(
+                    'CatalogService.searchCatalog.modelSearch',
+                    {},
+                    async () => this.catalogModel.search(projectUuid, query),
+                );
+
+                // Filter required attributes
+                return wrapSentryTransaction(
+                    'CatalogService.searchCatalog.filterAttributes',
+                    {
+                        catalogSize: catalog.length,
+                    },
+                    async () =>
+                        catalog.filter((c) =>
+                            hasUserAttributes(
+                                c.requiredAttributes,
+                                userAttributes,
+                            ),
+                        ),
+                );
+            },
+        );
     }
 
     async getCatalog(
@@ -181,15 +210,8 @@ export class CatalogService extends BaseService {
         );
 
         if (search) {
-            // On search we don't show explore errors
-            const validExplores: Explore[] = filteredExplores.reduce<Explore[]>(
-                (acc, e) => {
-                    if (isExploreError(e)) return acc;
-                    return [...acc, e];
-                },
-                [],
-            );
-            return this.searchCatalog(projectUuid, search);
+            // On search we don't show explore errors, because they are not indexed
+            return this.searchCatalog(projectUuid, search, userAttributes);
         }
         if (type === CatalogType.Field)
             return CatalogService.getCatalogFields(

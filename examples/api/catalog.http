@@ -20,6 +20,8 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 #### Search
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=customer
 
+#### Search metric
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=dbt_derived
 
 #### Search field without attribute access (plan)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=plan

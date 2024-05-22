@@ -79,6 +79,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 type ProjectModelArguments = {
@@ -728,6 +729,22 @@ export class ProjectModel {
         );
     }
 
+    async indexCatalog(
+        projectUuid: string,
+        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    ) {
+        const catalogItems = await convertExploresToCatalog(
+            projectUuid,
+            cachedExplores,
+        );
+        await this.database.transaction(async (trx) => {
+            await trx(CatalogTableName)
+                .where('project_uuid', projectUuid)
+                .delete();
+            await trx(CatalogTableName).insert(catalogItems);
+        });
+    }
+
     static getExploresWithCacheUuids(
         explores: (Explore | ExploreError)[],
         cachedExplore: { name: string; cached_explore_uuid: string }[],
@@ -754,51 +771,6 @@ export class ProjectModel {
             },
             [],
         );
-    }
-
-    // TODO move to catalog utils ?
-    static async convertExploresToCatalog(
-        projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ) {
-        return cachedExplores.reduce<DbCatalogIn[]>((acc, explore) => {
-            const baseTable = explore?.tables?.[explore.baseTable];
-            const table = {
-                project_uuid: projectUuid,
-                cached_explore_uuid: explore.cachedExploreUuid,
-                name: explore.name,
-                description: baseTable?.description || null,
-                type: CatalogType.Table,
-            };
-            const dimensionsAndMetrics = [
-                ...Object.values(baseTable?.dimensions || []),
-                ...Object.values(baseTable?.metrics || []),
-            ];
-            const fields = dimensionsAndMetrics.map((field) => ({
-                project_uuid: projectUuid,
-                cached_explore_uuid: explore.cachedExploreUuid,
-                name: field.name,
-                description: field.description || null,
-                type: CatalogType.Field,
-            }));
-            return [...acc, table, ...fields];
-        }, []);
-    }
-
-    async indexCatalog(
-        projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ) {
-        const catalogItems = await ProjectModel.convertExploresToCatalog(
-            projectUuid,
-            cachedExplores,
-        );
-        await this.database.transaction(async (trx) => {
-            await trx(CatalogTableName)
-                .where('project_uuid', projectUuid)
-                .delete();
-            await trx(CatalogTableName).insert(catalogItems);
-        });
     }
 
     async saveExploresToCache(
