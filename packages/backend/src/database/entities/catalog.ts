@@ -17,7 +17,7 @@ export type DbCatalogIn = Pick<
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate = Pick<DbCatalog, 'name' | 'description'>;
 
-export type EmailTable = Knex.CompositeTableType<
+export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,
     DbCatalogIn,
     DbCatalogUpdate
