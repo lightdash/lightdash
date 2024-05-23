@@ -68,13 +68,17 @@ export class CatalogModel {
         projectUuid,
         exploreName,
         type,
-        limit,
+        limit = 50,
+        excludeUnmatched = true,
+        searchRankFunction = getFullTextSearchRankCalcSql,
     }: {
         searchQuery: string;
         projectUuid: string;
         exploreName?: string;
         type?: CatalogType;
         limit?: number;
+        excludeUnmatched?: boolean;
+        searchRankFunction?: typeof getFullTextSearchRankCalcSql;
     }): Promise<(CatalogTable | CatalogField)[]> {
         // To query multiple words with tsquery, we need to split the query and add `:*` to each word
         const splitQuery = searchQuery
@@ -82,7 +86,7 @@ export class CatalogModel {
             .map((word) => `${word}:*`)
             .join(' & ');
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql({
+        const searchRankRawSql = searchRankFunction({
             database: this.database,
             tableName: CatalogTableName,
             searchVectorColumnName: 'search_vector',
@@ -104,11 +108,7 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .where(`${CatalogTableName}.project_uuid`, projectUuid)
-            .andWhereRaw(
-                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                splitQuery,
-            );
+            .where(`${CatalogTableName}.project_uuid`, projectUuid);
 
         if (exploreName) {
             catalogItemsQuery = catalogItemsQuery.andWhere(
@@ -121,6 +121,13 @@ export class CatalogModel {
             catalogItemsQuery = catalogItemsQuery.andWhere(
                 `${CatalogTableName}.type`,
                 type,
+            );
+        }
+
+        if (excludeUnmatched) {
+            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
+                `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
+                splitQuery,
             );
         }
 
