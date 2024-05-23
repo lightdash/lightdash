@@ -24,7 +24,7 @@ import {
     hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
-export type CatalogArguments<T> = {
+export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
