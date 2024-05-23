@@ -256,7 +256,7 @@ export class SpaceController extends BaseController {
     }
 
     /**
-     * Remove a user's access to a space
+     * Remove a group's access to a space
      * @param projectUuid The uuid of the space's parent project
      * @param spaceUuid The uuid of the space to update
      * @param groupUuid The uuid of the group to revoke access from
