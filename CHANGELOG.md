@@ -1,3 +1,10 @@
+## [0.1101.1](https://github.com/lightdash/lightdash/compare/0.1101.0...0.1101.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* catalog table typo ([#10163](https://github.com/lightdash/lightdash/issues/10163)) ([f7dff5a](https://github.com/lightdash/lightdash/commit/f7dff5a9df171efb9c0c4fef582d88eb0be8690a))
+
 # [0.1101.0](https://github.com/lightdash/lightdash/compare/0.1100.0...0.1101.0) (2024-05-22)
 
 
