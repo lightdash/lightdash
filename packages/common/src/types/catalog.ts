@@ -17,6 +17,7 @@ export type CatalogField = Pick<
 > &
     Pick<Dimension, 'requiredAttributes'> & {
         type: CatalogType.Field;
+        basicType: string; // string, number, timestamp...
     };
 
 export type CatalogTable = Pick<
@@ -30,3 +31,13 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 export type ApiCatalogResults = CatalogItem[];
+
+export type CatalogMetadata = {
+    name: string;
+    description: string | undefined;
+    // TODO Tags
+    modelName: string;
+    source: string | undefined;
+    fields: CatalogField[];
+};
+export type ApiCatalogMetadataResults = CatalogMetadata;

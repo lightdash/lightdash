@@ -3,6 +3,8 @@ import {
     CatalogTable,
     CatalogType,
     Explore,
+    NotFoundError,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
@@ -112,5 +114,21 @@ export class CatalogModel {
             async () => catalogItems.map(CatalogModel.parseCatalog),
         );
         return catalog;
+    }
+
+    async getMetadata(projectUuid: string, name: string): Promise<Explore> {
+        const explores = await this.database(CachedExploreTableName)
+            .andWhere(`project_uuid`, projectUuid)
+            .where(`name`, name);
+
+        if (explores.length === 0) {
+            throw new NotFoundError(`Explore with name ${name} not found`);
+        } else if (explores.length > 1) {
+            throw new UnexpectedServerError(
+                `Multiple explores with name ${name} found`,
+            );
+        }
+
+        return explores[0].explore;
     }
 }

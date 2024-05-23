@@ -14,24 +14,38 @@ type Props = {
     catalogItem: CatalogItem;
     tableUrl: string;
     searchString?: string;
+    isSelected: boolean;
+    onClick: () => void;
 };
 
 export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
     catalogItem,
     tableUrl,
     searchString = '',
+    isSelected,
+    onClick,
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
 
     return (
         <tr
             key={catalogItem.name}
-            style={{
-                height: 55,
-                backgroundColor: hovered ? 'rgba(0, 0, 0, 0.05)' : undefined,
-            }}
+            style={
+                isSelected
+                    ? {
+                          backgroundColor: 'cyan',
+                          border: '1px solid blue',
+                      }
+                    : {
+                          height: 55,
+                          backgroundColor: hovered
+                              ? 'rgba(0, 0, 0, 0.05)'
+                              : undefined,
+                      }
+            }
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={onClick}
         >
             <td>
                 <MantineIcon

@@ -24,7 +24,7 @@ export const useCatalog = ({ projectUuid, search, type }: GetCatalogParams) => {
     const setErrorResponse = useQueryError();
 
     return useQuery<ApiCatalogResults, ApiError>({
-        queryKey: ['comments', projectUuid, type, search],
+        queryKey: ['catalog', projectUuid, type, search],
         queryFn: () => fetchCatalog({ projectUuid, search, type }),
         retry: false,
         onError: (result) => setErrorResponse(result),

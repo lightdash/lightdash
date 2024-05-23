@@ -2,11 +2,14 @@ import { subject } from '@casl/ability';
 import {
     ApiCatalogSearch,
     CatalogField,
+    CatalogMetadata,
     CatalogTable,
     CatalogType,
+    CompiledTable,
     Explore,
     ExploreError,
     ForbiddenError,
+    isDimension,
     isExploreError,
     SessionUser,
     UserAttributeValueMap,
@@ -58,6 +61,23 @@ export class CatalogService extends BaseService {
         this.catalogModel = catalogModel;
     }
 
+    private static parseFieldsFromCompiledTable(
+        table: CompiledTable,
+    ): CatalogField[] {
+        const tableFields = [
+            ...Object.values(table.dimensions),
+            ...Object.values(table.metrics),
+        ];
+        return tableFields.map((d) => ({
+            name: d.name,
+            description: d.description,
+            tableLabel: d.tableLabel,
+            fieldType: d.fieldType,
+            basicType: isDimension(d) ? d.type : 'number', // TODO convert metrics into types
+            type: CatalogType.Field,
+        }));
+    }
+
     private static async getCatalogFields(
         explores: (Explore | ExploreError)[],
         userAttributes: UserAttributeValueMap,
@@ -69,19 +89,9 @@ export class CatalogService extends BaseService {
             if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
-                ).flatMap((t) => {
-                    const tableFields = [
-                        ...Object.values(t.dimensions),
-                        ...Object.values(t.metrics),
-                    ];
-                    return tableFields.map((d) => ({
-                        name: d.name,
-                        description: d.description,
-                        tableLabel: d.tableLabel,
-                        fieldType: d.fieldType,
-                        type: CatalogType.Field,
-                    }));
-                });
+                ).flatMap((t) =>
+                    CatalogService.parseFieldsFromCompiledTable(t),
+                );
 
                 return [...acc, ...fields];
             }
@@ -225,5 +235,24 @@ export class CatalogService extends BaseService {
             filteredExplores,
             userAttributes,
         );
+    }
+
+    async getMetadata(user: SessionUser, projectUuid: string, table: string) {
+        // Right now we return the full cached explore based on name
+        // We could extract some data to only return what we need instead
+        // to make this request more lightweight
+
+        // TODO permissions
+        const explore = await this.catalogModel.getMetadata(projectUuid, table);
+        const baseTable = explore.tables?.[explore.baseTable];
+
+        const metadata: CatalogMetadata = {
+            name: explore.label,
+            description: baseTable.description,
+            modelName: explore.name,
+            source: explore.ymlPath,
+            fields: CatalogService.parseFieldsFromCompiledTable(baseTable),
+        };
+        return metadata;
     }
 }

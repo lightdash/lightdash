@@ -3,6 +3,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Flex,
     Group,
     SegmentedControl,
     Stack,
@@ -17,8 +18,10 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogGroup } from './CatalogGroup';
 import { CatalogListItem } from './CatalogListItem';
+import { CatalogMetadata } from './CatalogMetadata';
 
 type Props = {
     projectUuid: string;
@@ -36,6 +39,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         type: CatalogType.Table,
         search: debouncedSearch,
     });
+
+    const [isMetadataOpen, setIsMetadataOpen] = useState<boolean>(false);
+    const [selectedTable, setSelectedTable] = useState<string>('');
+    const { mutate: getMetadata, data: metadata } =
+        useCatalogMetadata(projectUuid);
 
     const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
         if (catalogResults) {
@@ -69,112 +77,126 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         [setSearch],
     );
 
-    /*
-    if (exploresResult.status === 'loading') {
-        return <LoadingSkeleton />;
-    }
-
-    if (exploresResult.status === 'error') {
-        return (
-            <SuboptimalState
-                icon={IconAlertCircle}
-                title="Could not load explores"
-            />
-        );
-    }*/
-
     return (
-        <Stack>
-            <Box>
-                <Title order={4} mt="xxl">
-                    {projectData?.name}
-                </Title>
-                <Text color="gray">
-                    Select a table or field to start exploring.
-                </Text>
-            </Box>
-            <Group position="apart">
-                <TextInput
-                    w={'40%'}
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                />{' '}
-                <Group>
-                    <SegmentedControl
-                        w={200}
-                        disabled // TODO: remove when implemented
-                        defaultValue={'tables'}
-                        data={[
-                            {
-                                value: 'tables',
-                                label: 'Tables',
-                            },
-                            {
-                                value: 'fields',
-                                label: 'Fields',
-                            },
-                        ]}
-                        onChange={() => {
-                            // NYI
-                        }}
-                    />
-                    <Button
-                        variant="default"
-                        disabled // TODO: remove when implemented
-                        leftIcon={<MantineIcon icon={IconFilter} />}
-                    >
-                        Filters
-                    </Button>
+        <Flex>
+            <Stack>
+                <Box>
+                    <Title order={4} mt="xxl">
+                        {projectData?.name}
+                    </Title>
+                    <Text color="gray">
+                        Select a table or field to start exploring.
+                    </Text>
+                </Box>
+                <Group position="apart">
+                    <TextInput
+                        w={'40%'}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                    />{' '}
+                    <Group>
+                        <SegmentedControl
+                            w={200}
+                            disabled // TODO: remove when implemented
+                            defaultValue={'tables'}
+                            data={[
+                                {
+                                    value: 'tables',
+                                    label: 'Tables',
+                                },
+                                {
+                                    value: 'fields',
+                                    label: 'Fields',
+                                },
+                            ]}
+                            onChange={() => {
+                                // NYI
+                            }}
+                        />
+                        <Button
+                            variant="default"
+                            disabled // TODO: remove when implemented
+                            leftIcon={<MantineIcon icon={IconFilter} />}
+                        >
+                            Filters
+                        </Button>
+                    </Group>
                 </Group>
-            </Group>
-            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                {Object.keys(catalogGroupMap)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((groupLabel, idx) => (
-                        <CatalogGroup label={groupLabel} key={groupLabel}>
-                            <Table>
-                                <tbody>
-                                    {catalogGroupMap[groupLabel]
-                                        .sort((a, b) =>
-                                            a.name.localeCompare(b.name),
-                                        )
-                                        .map((item) => (
-                                            <CatalogListItem
-                                                key={`${item.name}-${idx}`}
-                                                catalogItem={item}
-                                                searchString={debouncedSearch}
-                                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                            />
-                                        ))}
-                                </tbody>
-                            </Table>
-                        </CatalogGroup>
-                    ))}
+                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                    {Object.keys(catalogGroupMap)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel, idx) => (
+                            <CatalogGroup label={groupLabel} key={groupLabel}>
+                                <Table>
+                                    <tbody>
+                                        {catalogGroupMap[groupLabel]
+                                            .sort((a, b) =>
+                                                a.name.localeCompare(b.name),
+                                            )
+                                            .map((item) => (
+                                                <CatalogListItem
+                                                    key={`${item.name}-${idx}`}
+                                                    onClick={() => {
+                                                        setSelectedTable(
+                                                            item.name,
+                                                        );
+                                                        getMetadata(item.name);
+                                                    }}
+                                                    catalogItem={item}
+                                                    searchString={
+                                                        debouncedSearch
+                                                    }
+                                                    isSelected={
+                                                        item.name ===
+                                                        selectedTable
+                                                    }
+                                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                                />
+                                            ))}
+                                    </tbody>
+                                </Table>
+                            </CatalogGroup>
+                        ))}
 
-                <Table h="100%">
-                    <tbody>
-                        {ungroupedCatalogItems
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map((item, idx) => (
-                                <CatalogListItem
-                                    key={`${item.name}-${idx}`}
-                                    catalogItem={item}
-                                    searchString={debouncedSearch}
-                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                />
-                            ))}
-                    </tbody>
-                </Table>
+                    <Table h="100%">
+                        <tbody>
+                            {ungroupedCatalogItems
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((item, idx) => (
+                                    <CatalogListItem
+                                        key={`${item.name}-${idx}`}
+                                        catalogItem={item}
+                                        searchString={debouncedSearch}
+                                        tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                        isSelected={item.name === selectedTable}
+                                        onClick={() => {
+                                            setSelectedTable(item.name);
+                                            getMetadata(item.name);
+                                        }}
+                                    />
+                                ))}
+                        </tbody>
+                    </Table>
+                </Stack>
             </Stack>
-        </Stack>
+            <Stack>
+                <Button onClick={() => setIsMetadataOpen((prev) => !prev)}>
+                    Show metadata
+                </Button>
+
+                {isMetadataOpen && metadata && (
+                    <CatalogMetadata data={metadata} />
+                )}
+            </Stack>
+        </Flex>
     );
 };
