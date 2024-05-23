@@ -24,10 +24,12 @@ type Props = {
     additionalMetrics: AdditionalMetric[];
     selectedItems: Set<string>;
     onSelectedNodeChange: (itemId: string, isDimension: boolean) => void;
-    missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
-    missingCustomDimensions?: CustomDimension[];
-    missingFields?: string[];
+    missingFields?: {
+        all: string[];
+        customDimensions: CustomDimension[] | undefined;
+        customMetrics: AdditionalMetric[] | undefined;
+    };
     selectedDimensions?: string[];
 };
 const TableTreeSections: FC<Props> = ({
@@ -36,8 +38,6 @@ const TableTreeSections: FC<Props> = ({
     additionalMetrics,
     customDimensions,
     selectedItems,
-    missingCustomMetrics,
-    missingCustomDimensions,
     missingFields,
     selectedDimensions,
     onSelectedNodeChange,
@@ -77,10 +77,14 @@ const TableTreeSections: FC<Props> = ({
             (metric) => metric.table === table.name,
         );
 
-        return [...customMetricsTable, ...missingCustomMetrics].reduce<
-            Record<string, AdditionalMetric>
-        >((acc, item) => ({ ...acc, [getItemId(item)]: item }), {});
-    }, [additionalMetrics, , missingCustomMetrics, table]);
+        return [
+            ...customMetricsTable,
+            ...(missingFields?.customMetrics ?? []),
+        ].reduce<Record<string, AdditionalMetric>>(
+            (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+            {},
+        );
+    }, [additionalMetrics, missingFields?.customMetrics, table.name]);
 
     const customDimensionsMap = useMemo(() => {
         if (customDimensions === undefined) return undefined;
@@ -101,7 +105,7 @@ const TableTreeSections: FC<Props> = ({
 
     return (
         <>
-            {missingFields && missingFields.length > 0 && (
+            {missingFields && missingFields.all.length > 0 && (
                 <>
                     {' '}
                     <Group mt="sm" mb="xs">
@@ -109,7 +113,7 @@ const TableTreeSections: FC<Props> = ({
                             Missing fields
                         </Text>
                     </Group>
-                    {missingFields.map((missingField) => {
+                    {missingFields.all.map((missingField) => {
                         return (
                             <Tooltip
                                 key={missingField}
@@ -268,7 +272,7 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
-                    missingCustomMetrics={missingCustomMetrics}
+                    missingCustomMetrics={missingFields?.customMetrics}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
                     <TreeRoot />
@@ -310,7 +314,7 @@ const TableTreeSections: FC<Props> = ({
                     orderFieldsBy={table.orderFieldsBy}
                     searchQuery={searchQuery}
                     itemsMap={customDimensionsMap}
-                    missingCustomDimensions={missingCustomDimensions}
+                    missingCustomDimensions={missingFields?.customDimensions}
                     selectedItems={selectedItems}
                     onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
