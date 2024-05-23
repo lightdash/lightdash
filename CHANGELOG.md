@@ -1,3 +1,10 @@
+## [0.1101.2](https://github.com/lightdash/lightdash/compare/0.1101.1...0.1101.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* use utc time display in series config ([#10142](https://github.com/lightdash/lightdash/issues/10142)) ([91302ad](https://github.com/lightdash/lightdash/commit/91302ad959e52ce78a9d9a9aedff6444883938d4))
+
 ## [0.1101.1](https://github.com/lightdash/lightdash/compare/0.1101.0...0.1101.1) (2024-05-23)
 
 
