@@ -63,9 +63,10 @@ export class SearchModel {
 
         const searchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
-            tableName: SpaceTableName,
-            searchVectorColumnName: 'search_vector',
-            searchQuery: query,
+            variables: {
+                searchVectorColumn: `${SpaceTableName}.search_vector`,
+                searchQuery: query,
+            },
         });
 
         let subquery = this.database(SpaceTableName)
@@ -113,9 +114,10 @@ export class SearchModel {
 
         const searchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
-            tableName: DashboardsTableName,
-            searchVectorColumnName: 'search_vector',
-            searchQuery: query,
+            variables: {
+                searchVectorColumn: `${DashboardsTableName}.search_vector`,
+                searchQuery: query,
+            },
         });
 
         let subquery = this.database(DashboardsTableName)
@@ -200,9 +202,10 @@ export class SearchModel {
 
         const searchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
-            tableName: SavedChartsTableName,
-            searchVectorColumnName: 'search_vector',
-            searchQuery: query,
+            variables: {
+                searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+                searchQuery: query,
+            },
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results

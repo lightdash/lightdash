@@ -78,7 +78,10 @@ export class CatalogModel {
         type?: CatalogType;
         limit?: number;
         excludeUnmatched?: boolean;
-        searchRankFunction?: typeof getFullTextSearchRankCalcSql;
+        searchRankFunction?: (args: {
+            database: Knex;
+            variables: Record<string, string>;
+        }) => Knex.Raw<any>;
     }): Promise<(CatalogTable | CatalogField)[]> {
         // To query multiple words with tsquery, we need to split the query and add `:*` to each word
         const splitQuery = searchQuery
@@ -88,9 +91,10 @@ export class CatalogModel {
 
         const searchRankRawSql = searchRankFunction({
             database: this.database,
-            tableName: CatalogTableName,
-            searchVectorColumnName: 'search_vector',
-            searchQuery: splitQuery,
+            variables: {
+                searchVectorColumn: `${CatalogTableName}.search_vector`,
+                searchQuery: splitQuery,
+            },
         });
 
         let catalogItemsQuery = this.database(CatalogTableName)
