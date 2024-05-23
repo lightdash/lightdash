@@ -24,15 +24,17 @@ import {
     hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
-type CatalogArguments = {
+export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
-    catalogModel: CatalogModel;
+    catalogModel: T;
 };
 
-export class CatalogService extends BaseService {
+export class CatalogService<
+    T extends CatalogModel = CatalogModel,
+> extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -41,7 +43,7 @@ export class CatalogService extends BaseService {
 
     userAttributesModel: UserAttributesModel;
 
-    catalogModel: CatalogModel;
+    catalogModel: T;
 
     constructor({
         lightdashConfig,
@@ -49,7 +51,7 @@ export class CatalogService extends BaseService {
         projectModel,
         userAttributesModel,
         catalogModel,
-    }: CatalogArguments) {
+    }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -140,7 +142,11 @@ export class CatalogService extends BaseService {
                 const catalog = await wrapSentryTransaction(
                     'CatalogService.searchCatalog.modelSearch',
                     {},
-                    async () => this.catalogModel.search(projectUuid, query),
+                    async () =>
+                        this.catalogModel.search({
+                            projectUuid,
+                            searchQuery: query,
+                        }),
                 );
 
                 // Filter required attributes

@@ -2,24 +2,29 @@ import { CompiledField, CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
-export function getFullTextSearchRankCalcSql(
-    database: Knex,
-    tableName: string,
-    searchVectorColumnName: string,
-    query: string,
-) {
+export function getFullTextSearchRankCalcSql({
+    database,
+    tableName,
+    searchVectorColumnName,
+    searchQuery,
+}: {
+    database: Knex;
+    tableName: string;
+    searchVectorColumnName: string;
+    searchQuery: string;
+}) {
     return database.raw(
         `ROUND(
             ts_rank_cd(
                 :searchVectorColumn:,
-                websearch_to_tsquery('lightdash_english_config', :query),
+                websearch_to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
             6
         )::float`,
         {
             searchVectorColumn: `${tableName}.${searchVectorColumnName}`,
-            query,
+            searchQuery,
         },
     );
 }

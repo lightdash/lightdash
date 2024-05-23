@@ -1,8 +1,5 @@
 import {
     AlreadyExistsError,
-    CatalogType,
-    CompiledDimension,
-    CompiledMetric,
     CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
@@ -38,6 +35,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import { map, omit, zip } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -62,7 +60,6 @@ import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
-    DbCachedExplore,
     DbCachedExplores,
     DbCachedWarehouse,
     DbProject,
@@ -79,10 +76,13 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { convertExploresToCatalog } from '../CatalogModel/utils';
+import {
+    convertExploresToCatalog,
+    ExploreCatalog,
+} from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
-type ProjectModelArguments = {
+export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
@@ -91,7 +91,7 @@ type ProjectModelArguments = {
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
 export class ProjectModel {
-    private database: Knex;
+    protected database: Knex;
 
     private lightdashConfig: LightdashConfig;
 
@@ -732,18 +732,35 @@ export class ProjectModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ) {
-        if (cachedExplores.length === 0) return;
-        const catalogItems = await convertExploresToCatalog(
+    ): Promise<[DbCatalog, ExploreCatalog][]> {
+        if (cachedExplores.length === 0) return [];
+
+        const catalogItems = convertExploresToCatalog(
             projectUuid,
             cachedExplores,
         );
-        await this.database.transaction(async (trx) => {
-            await trx(CatalogTableName)
-                .where('project_uuid', projectUuid)
-                .delete();
-            await trx(CatalogTableName).insert(catalogItems);
-        });
+
+        const transactionInserts = await this.database.transaction(
+            async (trx) => {
+                await trx(CatalogTableName)
+                    .where('project_uuid', projectUuid)
+                    .delete();
+
+                const inserts = await trx(CatalogTableName)
+                    .insert(
+                        catalogItems.map((catalogItem, _index) => ({
+                            ...omit(catalogItem, ['field_type']),
+                        })),
+                    )
+                    .returning('*');
+
+                return inserts;
+            },
+        );
+
+        return transactionInserts.map<[DbCatalog, ExploreCatalog]>(
+            (insert, index) => [insert, catalogItems[index]],
+        );
     }
 
     static getExploresWithCacheUuids(

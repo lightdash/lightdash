@@ -15,7 +15,7 @@ type SearchModelArguments = {
 };
 
 export class CatalogModel {
-    private database: Knex;
+    protected database: Knex;
 
     constructor(args: SearchModelArguments) {
         this.database = args.database;
@@ -63,24 +63,37 @@ export class CatalogModel {
     }
 
     // Index catalog happens inside projectModel, inside `saveExploresToCache`
-    async search(
-        projectUuid: string,
-        query: string,
-        limit: number = 50,
-    ): Promise<(CatalogTable | CatalogField)[]> {
+    async search({
+        searchQuery,
+        projectUuid,
+        exploreName,
+        type,
+        limit = 50,
+        excludeUnmatched = true,
+        searchRankFunction = getFullTextSearchRankCalcSql,
+    }: {
+        searchQuery: string;
+        projectUuid: string;
+        exploreName?: string;
+        type?: CatalogType;
+        limit?: number;
+        excludeUnmatched?: boolean;
+        searchRankFunction?: typeof getFullTextSearchRankCalcSql;
+    }): Promise<(CatalogTable | CatalogField)[]> {
         // To query multiple words with tsquery, we need to split the query and add `:*` to each word
-        const splitQuery = query
+        const splitQuery = searchQuery
             .split(' ')
             .map((word) => `${word}:*`)
             .join(' & ');
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql(
-            this.database,
-            CatalogTableName,
-            'search_vector',
-            query,
-        );
-        const catalogItemsQuery = this.database(CatalogTableName)
+        const searchRankRawSql = searchRankFunction({
+            database: this.database,
+            tableName: CatalogTableName,
+            searchVectorColumnName: 'search_vector',
+            searchQuery: splitQuery,
+        });
+
+        let catalogItemsQuery = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.name`,
                 'description',
@@ -95,13 +108,32 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .where(`${CatalogTableName}.project_uuid`, projectUuid)
-            .andWhereRaw(
+            .where(`${CatalogTableName}.project_uuid`, projectUuid);
+
+        if (exploreName) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CachedExploreTableName}.name`,
+                exploreName,
+            );
+        }
+
+        if (type) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.type`,
+                type,
+            );
+        }
+
+        if (excludeUnmatched) {
+            catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
                 splitQuery,
-            )
+            );
+        }
+
+        catalogItemsQuery = catalogItemsQuery
             .orderBy('search_rank', 'desc')
-            .limit(limit);
+            .limit(limit ?? 50);
 
         const catalogItems = await catalogItemsQuery;
         const catalog = await wrapSentryTransaction(
