@@ -1,6 +1,7 @@
 import {
     CustomDimensionType,
     DimensionType,
+    getItemId,
     snakeCaseName,
     type CustomSqlDimension,
 } from '@lightdash/common';
@@ -44,6 +45,10 @@ export const CustomSqlDimensionModal: FC<{
         (context) =>
             context.state.unsavedChartVersion.metricQuery.customDimensions,
     );
+    const tableCalculations = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.tableCalculations,
+    );
     const addCustomDimension = useExplorerContext(
         (context) => context.actions.addCustomDimension,
     );
@@ -67,11 +72,17 @@ export const CustomSqlDimensionModal: FC<{
                     return null;
                 }
 
-                return customDimensions?.some(
-                    (customDimension) =>
-                        customDimension.id === customDimensionId,
-                )
-                    ? 'Dimension with this label already exists'
+                const isInvalid = [
+                    ...tableCalculations,
+                    ...(customDimensions ?? []),
+                ].some(
+                    (i) =>
+                        getItemId(i).toLowerCase().trim() ===
+                        customDimensionId.toLowerCase().trim(),
+                );
+
+                return isInvalid
+                    ? 'Dimension/Table calculation with this label already exists'
                     : null;
             },
         },
