@@ -1,4 +1,8 @@
-import { CatalogType, type CatalogItem } from '@lightdash/common';
+import {
+    CatalogType,
+    type CatalogField,
+    type CatalogTable,
+} from '@lightdash/common';
 import { ActionIcon, Group, Highlight } from '@mantine/core';
 import {
     IconAbc,
@@ -11,7 +15,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
 
 type Props = {
-    catalogItem: CatalogItem;
+    catalogItem: CatalogTable & { fields: CatalogField[] };
     tableUrl: string;
     searchString?: string;
 };

@@ -1,4 +1,8 @@
-import { CatalogType, type CatalogItem } from '@lightdash/common';
+import {
+    CatalogType,
+    type CatalogField,
+    type CatalogTable,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -37,37 +41,77 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         search: debouncedSearch,
     });
 
-    const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
-        if (catalogResults) {
-            return catalogResults.reduce<
-                [Record<string, CatalogItem[]>, CatalogItem[]]
-            >(
-                (acc, item) => {
-                    if ('groupLabel' in item && item.groupLabel) {
-                        return [
-                            {
-                                ...acc[0],
-                                [item.groupLabel]: acc[0][item.groupLabel]
-                                    ? [...acc[0][item.groupLabel], item]
-                                    : [item],
-                            },
-                            acc[1],
-                        ];
-                    }
-                    return [acc[0], [...acc[1], item]];
-                },
-                [{}, []],
-            );
-        }
-        return [{}, []];
-    }, [catalogResults]);
-
     const handleSearchChange = useCallback(
         (searchString: string) => {
             setSearch(searchString);
         },
         [setSearch],
     );
+
+    // TODO: should this transform be in the backend?
+    // This could be more efficient. It does two passes on the data at the moment:
+    // one to group tables and fields, and another to group tables by groupLabel
+    const catalogTree = useMemo(() => {
+        if (catalogResults) {
+            const tablesWithFields = catalogResults.reduce<{
+                [key: string]:
+                    | (CatalogTable & { fields: CatalogField[] })
+                    | { fields: CatalogField[]; type: CatalogType };
+            }>((acc, item) => {
+                if (item.type === CatalogType.Table) {
+                    if (!acc[item.name]) {
+                        acc[item.name] = { ...item, fields: [] };
+                    } else {
+                        acc[item.name] = {
+                            ...acc[item.name],
+                            ...item,
+                        };
+                    }
+                } else if (item.type === CatalogType.Field) {
+                    if (acc[item.tableLabel]) {
+                        acc[item.tableLabel].fields.push(item);
+                    } else {
+                        acc[item.tableLabel] = {
+                            fields: [item],
+                            type: CatalogType.Table,
+                        };
+                    }
+                }
+                return acc;
+            }, {});
+            const groupsWithTables = Object.keys(tablesWithFields).reduce<{
+                [key: string]: Array<
+                    | (CatalogTable & { fields: CatalogField[] })
+                    | {
+                          name: string;
+                          fields: CatalogField[];
+                          type: CatalogType;
+                      }
+                >;
+            }>((acc, tableName) => {
+                const table = tablesWithFields[tableName];
+
+                // TODO: fields whose table is not returned need the grouping data from the BE
+                // Without it, fields whose table is not returned will be grouped under 'Ungrouped tables'
+                const groupLabel =
+                    'groupLabel' in table && table.groupLabel
+                        ? table.groupLabel
+                        : 'Ungrouped tables';
+
+                if (acc[groupLabel]) {
+                    acc[groupLabel] = [
+                        ...acc[groupLabel],
+                        { name: tableName, ...table },
+                    ];
+                } else {
+                    acc[groupLabel] = [{ name: tableName, ...table }];
+                }
+                return acc;
+            }, {});
+            return groupsWithTables;
+        }
+        return {};
+    }, [catalogResults]);
 
     /*
     if (exploresResult.status === 'loading') {
@@ -137,43 +181,31 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 </Group>
             </Group>
             <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                {Object.keys(catalogGroupMap)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((groupLabel, idx) => (
-                        <CatalogGroup label={groupLabel} key={groupLabel}>
-                            <Table>
-                                <tbody>
-                                    {catalogGroupMap[groupLabel]
-                                        .sort((a, b) =>
-                                            a.name.localeCompare(b.name),
-                                        )
-                                        .map((item) => (
-                                            <CatalogListItem
-                                                key={`${item.name}-${idx}`}
-                                                catalogItem={item}
-                                                searchString={debouncedSearch}
-                                                tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                            />
-                                        ))}
-                                </tbody>
-                            </Table>
-                        </CatalogGroup>
-                    ))}
-
-                <Table h="100%">
-                    <tbody>
-                        {ungroupedCatalogItems
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map((item, idx) => (
-                                <CatalogListItem
-                                    key={`${item.name}-${idx}`}
-                                    catalogItem={item}
-                                    searchString={debouncedSearch}
-                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                />
-                            ))}
-                    </tbody>
-                </Table>
+                {catalogTree &&
+                    Object.keys(catalogTree)
+                        .sort((a, b) => a.localeCompare(b))
+                        .map((groupLabel, idx) => (
+                            <CatalogGroup label={groupLabel} key={groupLabel}>
+                                <Table>
+                                    <tbody>
+                                        {catalogTree[groupLabel]
+                                            .sort((a, b) =>
+                                                a.name.localeCompare(b.name),
+                                            )
+                                            .map((item) => (
+                                                <CatalogListItem
+                                                    key={`${item.name}-${idx}`}
+                                                    catalogItem={item}
+                                                    searchString={
+                                                        debouncedSearch
+                                                    }
+                                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                                />
+                                            ))}
+                                    </tbody>
+                                </Table>
+                            </CatalogGroup>
+                        ))}
             </Stack>
         </Stack>
     );
