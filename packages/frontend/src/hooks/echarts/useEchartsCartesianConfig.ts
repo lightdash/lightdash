@@ -850,6 +850,46 @@ const getWeekAxisConfig = (
     }
 };
 
+// Gets the min and max values for an axis based on the first and last values of the rows data
+const findMinAndMaxForAxis = (
+    rows: ApiQueryResults['rows'],
+    name: string,
+): { minValue: number | undefined; maxValue: number | undefined } => {
+    if (rows.length === 0) {
+        return {
+            minValue: undefined,
+            maxValue: undefined,
+        };
+    }
+
+    const parseValue = (raw: unknown) => {
+        if (typeof raw === 'number') return raw;
+        const parsed = typeof raw === 'string' ? parseFloat(raw) : undefined;
+        return parsed !== undefined && isNaN(parsed) ? undefined : parsed;
+    };
+
+    const firstValue = parseValue(rows[0][name]?.value?.raw);
+    const lastValue = parseValue(rows[rows.length - 1][name]?.value?.raw);
+
+    if (firstValue === undefined || lastValue === undefined) {
+        return {
+            minValue: undefined,
+            maxValue: undefined,
+        };
+    }
+
+    return {
+        minValue:
+            firstValue !== undefined
+                ? Math.min(firstValue, lastValue)
+                : undefined,
+        maxValue:
+            lastValue !== undefined
+                ? Math.max(firstValue, lastValue)
+                : undefined,
+    };
+};
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -1139,102 +1179,71 @@ const getEchartAxes = ({
         enabled:
             !!xAxisConfiguration?.[0]?.minOffset ||
             !!xAxisConfiguration?.[0]?.maxOffset,
-        minOffset: xAxisConfiguration?.[0]?.minOffset
-            ? parseFloat(xAxisConfiguration?.[0].minOffset)
-            : undefined,
-        maxOffset: xAxisConfiguration?.[0]?.maxOffset
-            ? parseFloat(xAxisConfiguration?.[0].maxOffset)
-            : undefined,
+        minOffset:
+            xAxisConfiguration?.[0]?.minOffset !== undefined
+                ? parseFloat(xAxisConfiguration?.[0].minOffset)
+                : undefined,
+        maxOffset:
+            xAxisConfiguration?.[0]?.maxOffset !== undefined
+                ? parseFloat(xAxisConfiguration?.[0].maxOffset)
+                : undefined,
     };
 
+    // Get the min and max values for the bottom X axis
     const getMinAndMaxFromBottomAxisBounds = (
         axisType: 'value' | 'category' | 'time' | string,
         min?: number,
         max?: number,
     ) => {
         if (axisType === 'value') {
-            const defaultMin =
-                xAxisConfiguration?.[0]?.min ||
-                referenceLineMinX ||
+            const initialBottomAxisMin =
+                xAxisConfiguration?.[0]?.min ??
+                referenceLineMinX ??
                 maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange);
-            const defaultMax =
-                xAxisConfiguration?.[0]?.max ||
-                referenceLineMaxX ||
+            const initialBottomAxisMax =
+                xAxisConfiguration?.[0]?.max ??
+                referenceLineMaxX ??
                 maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange);
 
+            // Apply offset to the min and max values of the axis
             if (
                 bottomAxisOffset.enabled &&
                 min !== undefined &&
                 max !== undefined
             ) {
-                const minX = xAxisConfiguration?.[0]?.min
-                    ? parseFloat(xAxisConfiguration?.[0]?.min)
-                    : min;
-                const maxX = xAxisConfiguration?.[0]?.max
-                    ? parseFloat(xAxisConfiguration?.[0]?.max)
-                    : max;
+                const minX =
+                    xAxisConfiguration?.[0]?.min !== undefined
+                        ? parseFloat(xAxisConfiguration?.[0]?.min)
+                        : min;
+                const maxX =
+                    xAxisConfiguration?.[0]?.max !== undefined
+                        ? parseFloat(xAxisConfiguration?.[0]?.max)
+                        : max;
                 return {
                     min: minX - (bottomAxisOffset.minOffset ?? 0),
                     max: maxX + (bottomAxisOffset.maxOffset ?? 0),
                 };
             }
             return {
-                min: defaultMin,
-                max: defaultMax,
+                min: initialBottomAxisMin,
+                max: initialBottomAxisMax,
             };
         }
 
+        // For category and time axis, we don't need to apply the offset
         return {
             min: undefined,
             max: undefined,
         };
     };
-    const findMinMax = (
-        rows: ApiQueryResults['rows'],
-        name: string,
-    ): { minValue: number | undefined; maxValue: number | undefined } => {
-        if (rows.length === 0) {
-            return {
-                minValue: undefined,
-                maxValue: undefined,
-            };
-        }
-
-        const parseValue = (raw: unknown) => {
-            if (typeof raw === 'number') return raw;
-            const parsed =
-                typeof raw === 'string' ? parseFloat(raw) : undefined;
-            return parsed !== undefined && isNaN(parsed) ? undefined : parsed;
-        };
-
-        const firstValue = parseValue(rows[0][name]?.value?.raw);
-        const lastValue = parseValue(rows[rows.length - 1][name]?.value?.raw);
-
-        if (firstValue === undefined || lastValue === undefined) {
-            return {
-                minValue: undefined,
-                maxValue: undefined,
-            };
-        }
-
-        return {
-            minValue:
-                firstValue !== undefined
-                    ? Math.min(firstValue, lastValue)
-                    : undefined,
-            maxValue:
-                lastValue !== undefined
-                    ? Math.max(firstValue, lastValue)
-                    : undefined,
-        };
-    };
 
     const { minValue: bottomAxisMinValue, maxValue: bottomAxisMaxValue } =
         bottomAxisOffset.enabled && xAxisItemId
-            ? findMinMax(resultsData?.rows || [], xAxisItemId)
+            ? // Find the min and max values for the axis if the offset is enabled
+              findMinAndMaxForAxis(resultsData?.rows || [], xAxisItemId)
             : {
-                  minValue: 0,
-                  maxValue: 0,
+                  minValue: undefined,
+                  maxValue: undefined,
               };
 
     const bottomAxisBounds = getMinAndMaxFromBottomAxisBounds(
