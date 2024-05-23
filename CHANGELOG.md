@@ -1,3 +1,10 @@
+## [0.1101.3](https://github.com/lightdash/lightdash/compare/0.1101.2...0.1101.3) (2024-05-23)
+
+
+### Bug Fixes
+
+* save temp dashboard tabs to session storage when creating new chart ([#10093](https://github.com/lightdash/lightdash/issues/10093)) ([c90bfbf](https://github.com/lightdash/lightdash/commit/c90bfbf19ff90ee8ef7e4622679280697235b4b3))
+
 ## [0.1101.2](https://github.com/lightdash/lightdash/compare/0.1101.1...0.1101.2) (2024-05-23)
 
 
