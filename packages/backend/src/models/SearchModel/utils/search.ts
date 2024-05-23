@@ -9,16 +9,25 @@ export function getFullTextSearchRankCalcSql({
     database: Knex;
     variables: Record<string, string>;
 }) {
+    // To query multiple words with tsquery, we need to split the query and add `:*` to each word
+    const updatedVariables = {
+        ...variables,
+        searchQuery: variables.searchQuery
+            .split(' ')
+            .map((word) => word.replace(/[^a-zA-Z0-9]/g, '').concat(':*'))
+            .join(' | '),
+    };
+
     return database.raw(
         `ROUND(
             ts_rank_cd(
                 :searchVectorColumn:,
-                websearch_to_tsquery('lightdash_english_config', :searchQuery),
+                to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
             6
         )::float`,
-        variables,
+        updatedVariables,
     );
 }
 

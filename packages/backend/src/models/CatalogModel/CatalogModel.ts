@@ -83,17 +83,11 @@ export class CatalogModel {
             variables: Record<string, string>;
         }) => Knex.Raw<any>;
     }): Promise<(CatalogTable | CatalogField)[]> {
-        // To query multiple words with tsquery, we need to split the query and add `:*` to each word
-        const splitQuery = searchQuery
-            .split(' ')
-            .map((word) => `${word}:*`)
-            .join(' & ');
-
         const searchRankRawSql = searchRankFunction({
             database: this.database,
             variables: {
                 searchVectorColumn: `${CatalogTableName}.search_vector`,
-                searchQuery: splitQuery,
+                searchQuery,
             },
         });
 
@@ -131,7 +125,7 @@ export class CatalogModel {
         if (excludeUnmatched) {
             catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                splitQuery,
+                searchQuery,
             );
         }
 
