@@ -131,6 +131,63 @@ describe('Lightdash catalog search', () => {
         });
     });
 
+    it('Should search with partial word (cust)', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=cust`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length.gt(0);
+
+            // Check for a returned field
+            const matchingField = resp.body.results.find(
+                (f) =>
+                    f.name === 'customer_id' &&
+                    f.tableLabel === 'users' &&
+                    f.type === 'field',
+            );
+            expect(matchingField).to.deep.eq({
+                name: 'customer_id',
+                tableLabel: 'users',
+                description: 'This is a unique identifier for a customer',
+                type: 'field',
+                fieldType: 'dimension',
+            });
+
+            // Check for a table
+            const matchingTable = resp.body.results.find(
+                (t) => t.name === 'customers',
+            );
+            expect(matchingTable).to.deep.eq({
+                name: 'customers',
+                description:
+                    "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
+                type: 'table',
+            });
+        });
+    });
+
+    it('Should search with multiple words (order date)', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=order%20date`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length.gt(0);
+
+            const matchingField = resp.body.results.find(
+                (f) => f.name === 'date_of_first_order' && f.type === 'field',
+            );
+            expect(matchingField).to.deep.eq({
+                name: 'date_of_first_order',
+                tableLabel: 'orders',
+                description: 'Min of Order date',
+                type: 'field',
+                fieldType: 'metric',
+            });
+        });
+    });
+
     it('Should filter fields with required attributes (age)', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
