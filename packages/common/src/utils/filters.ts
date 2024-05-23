@@ -3,17 +3,20 @@ import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import {
     DimensionType,
-    fieldId,
+    isCustomSqlDimension,
     isDimension,
-    isFilterableDimension,
-    isTableCalculationField,
+    isTableCalculation,
     MetricType,
     TableCalculationType,
-    type Dimension,
+    type CompiledField,
+    type CustomSqlDimension,
     type Field,
     type FilterableDimension,
     type FilterableField,
     type FilterableItem,
+    type ItemsMap,
+    type Metric,
+    type TableCalculation,
 } from '../types/field';
 import {
     FilterOperator,
@@ -38,6 +41,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
+import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -98,17 +102,8 @@ export const getFilterGroupItemsPropertyName = (
     return 'and';
 };
 
-export const filterableDimensionsOnly = (
-    dimensions: Dimension[],
-): FilterableDimension[] => dimensions.filter(isFilterableDimension);
-
-export const getFilterTypeFromItem = (item: FilterableItem): FilterType => {
-    const { type } = item;
-
-    if (type === undefined) {
-        // Type check for TableCalculationType
-        return FilterType.NUMBER;
-    }
+export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
+    const type = getItemType(item);
     switch (type) {
         case DimensionType.STRING:
         case MetricType.STRING:
@@ -164,7 +159,10 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             case FilterType.DATE: {
                 const value = values ? values[0] : undefined;
 
-                const isTimestamp = field.type === DimensionType.TIMESTAMP;
+                const isTimestamp =
+                    (isCustomSqlDimension(field)
+                        ? field.dimensionType
+                        : field.type) === DimensionType.TIMESTAMP;
                 if (
                     filterRule.operator === FilterOperator.IN_THE_PAST ||
                     filterRule.operator === FilterOperator.NOT_IN_THE_PAST ||
@@ -257,7 +255,7 @@ export const createFilterRuleFromField = (
         {
             id: uuidv4(),
             target: {
-                fieldId: fieldId(field),
+                fieldId: getItemId(field),
             },
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
@@ -274,8 +272,8 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 const getDefaultTileTargets = (
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension | Metric | Field,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) =>
     Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
@@ -288,7 +286,7 @@ const getDefaultTileTargets = (
         return {
             ...acc,
             [tileUuid]: {
-                fieldId: fieldId(filterableField),
+                fieldId: getItemId(filterableField),
                 tableName: filterableField.table,
             },
         };
@@ -301,8 +299,8 @@ export const applyDefaultTileTargets = (
         any,
         any
     >,
-    field: FilterableField,
-    availableTileFilters: Record<string, FilterableField[] | undefined>,
+    field: FilterableDimension,
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
 ) => {
     if (!filterRule.tileTargets) {
         return {
@@ -319,8 +317,10 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field: FilterableField;
-    availableTileFilters: Record<string, FilterableField[] | undefined>;
+    field:
+        | Exclude<FilterableItem, TableCalculation | CustomSqlDimension>
+        | CompiledField;
+    availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>
@@ -331,7 +331,7 @@ export const createDashboardFilterRuleFromField = ({
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
             target: {
-                fieldId: fieldId(field),
+                fieldId: getItemId(field),
                 tableName: field.table,
                 fieldName: field.name,
             },
@@ -354,10 +354,10 @@ export const addFilterRule = ({
     value,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: any) => {
-        if (isDimension(f)) {
+        if (isDimension(f) || isCustomSqlDimension(f)) {
             return 'dimensions';
         }
-        if (isTableCalculationField(f)) {
+        if (isTableCalculation(f)) {
             return 'tableCalculations';
         }
         return 'metrics';
@@ -375,48 +375,6 @@ export const addFilterRule = ({
         },
     };
 };
-
-export const getFilterRulesByFieldType = (
-    fields: Field[],
-    filterRules: FilterRule[],
-) =>
-    filterRules.reduce<
-        Record<
-            'valid' | 'invalid',
-            Record<'dimensions' | 'metrics' | 'tableCalculations', FilterRule[]>
-        >
-    >(
-        (accumulator, filterRule) => {
-            const fieldInRule = fields.find(
-                (field) => fieldId(field) === filterRule.target.fieldId,
-            );
-
-            const updateAccumulator = (
-                key: 'valid' | 'invalid',
-                rule: FilterRule,
-            ) => {
-                if (isDimension(fieldInRule)) {
-                    accumulator[key].dimensions.push(rule);
-                } else if (isTableCalculationField(fieldInRule)) {
-                    accumulator[key].tableCalculations.push(rule);
-                } else {
-                    accumulator[key].metrics.push(rule);
-                }
-            };
-
-            if (fieldInRule) {
-                updateAccumulator('valid', filterRule);
-            } else {
-                updateAccumulator('invalid', filterRule);
-            }
-
-            return accumulator;
-        },
-        {
-            valid: { dimensions: [], metrics: [], tableCalculations: [] },
-            invalid: { dimensions: [], metrics: [], tableCalculations: [] },
-        },
-    );
 
 /**
  * Takes a filter group and flattens it by merging nested groups into the parent group if they are the same filter group type
@@ -452,6 +410,17 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
 };
 
 /**
+ * Checks if a dimension value is an invalid date before it is added to the filter
+ * @param item - The field to compare against the value
+ * @param value - The value to check
+ * @returns True if the value is an invalid date, false otherwise
+ */
+export const isDimensionValueInvalidDate = (
+    item: FilterableField,
+    value: any,
+) => isDateItem(item) && value.raw === 'Invalid Date'; // Message from moment.js when it can't parse a date
+
+/**
  * Takes a filter group and build a filters object from it based on the field type
  * @param filterGroup - The filter group to extract filters from
  * @param fields - Fields to compare against the filter group items to determine types
@@ -459,7 +428,7 @@ const flattenSameFilterGroupType = (filterGroup: FilterGroup): FilterGroup => {
  */
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
-    fields: Field[],
+    fields: ItemsMap[string][],
 ): Filters => {
     const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
@@ -468,13 +437,16 @@ export const getFiltersFromGroup = (
         if (isFilterRule(item)) {
             // when filter group item is a filter rule, we find the field it's targeting
             const fieldInRule = fields.find(
-                (field) => fieldId(field) === item.target.fieldId,
+                (field) => getItemId(field) === item.target.fieldId,
             );
 
             // determine the type of the field and add the rule it to the correct filters object property
             // always keep the parent filter group type (AND/OR) when adding the filter rules
             if (fieldInRule) {
-                if (isDimension(fieldInRule)) {
+                if (
+                    isDimension(fieldInRule) ||
+                    isCustomSqlDimension(fieldInRule)
+                ) {
                     accumulator.dimensions = {
                         id: uuidv4(),
                         ...accumulator.dimensions,
@@ -483,7 +455,7 @@ export const getFiltersFromGroup = (
                             item,
                         ],
                     } as FilterGroup;
-                } else if (isTableCalculationField(fieldInRule)) {
+                } else if (isTableCalculation(fieldInRule)) {
                     accumulator.tableCalculations = {
                         id: uuidv4(),
                         ...accumulator.tableCalculations,
@@ -550,6 +522,39 @@ export const getFiltersFromGroup = (
 
         return accumulator;
     }, {} as Filters);
+};
+
+export const deleteFilterRuleFromGroup = (
+    filterGroup: FilterGroup,
+    id: string,
+) => {
+    const items = getItemsFromFilterGroup(filterGroup);
+
+    // If the filter group contains the rule we want to delete, we remove it
+    if (items.some((rule) => rule.id === id)) {
+        return {
+            id: filterGroup.id,
+            [getFilterGroupItemsPropertyName(filterGroup)]: items.filter(
+                (rule) => rule.id !== id,
+            ),
+        } as FilterGroup;
+    }
+
+    const groupGroups = items.filter(isFilterGroup);
+    const groupItems = items.filter(isFilterRule);
+
+    // If the filter group contains nested groups, we recursively call this function on each nested group
+    const newGroups: FilterGroup[] = groupGroups.map((group) =>
+        deleteFilterRuleFromGroup(group, id),
+    );
+
+    return {
+        id: filterGroup.id,
+        [getFilterGroupItemsPropertyName(filterGroup)]: [
+            ...groupItems,
+            ...newGroups,
+        ],
+    } as FilterGroup;
 };
 
 export const getDashboardFilterRulesForTile = (
@@ -654,17 +659,19 @@ const findAndOverrideChartFilter = (
     filterRulesList: FilterRule[],
 ): FilterGroupItem => {
     const identicalDashboardFilter = isFilterRule(item)
-        ? filterRulesList.find(
-              (x) =>
-                  x.target.fieldId === item.target.fieldId &&
-                  x.operator === item.operator,
-          )
+        ? filterRulesList.find((x) => x.target.fieldId === item.target.fieldId)
         : undefined;
     return identicalDashboardFilter
         ? {
               ...item,
               id: identicalDashboardFilter.id,
               values: identicalDashboardFilter.values,
+              ...(identicalDashboardFilter.settings
+                  ? {
+                        settings: identicalDashboardFilter.settings,
+                    }
+                  : {}),
+              operator: identicalDashboardFilter.operator,
           }
         : item;
 };
@@ -729,14 +736,6 @@ const overrideFilterGroupWithFilterRules = (
     };
 };
 
-const combineFilterGroupWithFilterRules = (
-    filterGroup: FilterGroup | undefined,
-    filterRules: FilterRule[],
-): FilterGroup => ({
-    id: uuidv4(),
-    and: [...(filterGroup ? [filterGroup] : []), ...filterRules],
-});
-
 const convertDashboardFilterRuleToFilterRule = (
     dashboardFilterRule: DashboardFilterRule,
 ): FilterRule => ({
@@ -757,32 +756,26 @@ const convertDashboardFilterRuleToFilterRule = (
 export const addDashboardFiltersToMetricQuery = (
     metricQuery: MetricQuery,
     dashboardFilters: DashboardFilters,
-    shouldOverride: boolean,
-): MetricQuery => {
-    const mergeStrategy = shouldOverride
-        ? overrideFilterGroupWithFilterRules
-        : combineFilterGroupWithFilterRules;
-    return {
-        ...metricQuery,
-        filters: {
-            dimensions: mergeStrategy(
-                metricQuery.filters?.dimensions,
-                dashboardFilters.dimensions.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+): MetricQuery => ({
+    ...metricQuery,
+    filters: {
+        dimensions: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.dimensions,
+            dashboardFilters.dimensions.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-            metrics: mergeStrategy(
-                metricQuery.filters?.metrics,
-                dashboardFilters.metrics.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+        ),
+        metrics: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.metrics,
+            dashboardFilters.metrics.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-            tableCalculations: mergeStrategy(
-                metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+        ),
+        tableCalculations: overrideFilterGroupWithFilterRules(
+            metricQuery.filters?.tableCalculations,
+            dashboardFilters.tableCalculations.map(
+                convertDashboardFilterRuleToFilterRule,
             ),
-        },
-    };
-};
+        ),
+    },
+});

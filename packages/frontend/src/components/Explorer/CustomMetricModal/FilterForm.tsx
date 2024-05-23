@@ -4,6 +4,7 @@ import {
     isDimension,
     type ConditionalOperator,
     type FieldTarget,
+    type FilterableDimension,
     type FilterRule,
 } from '@lightdash/common';
 import { Button, Stack } from '@mantine/core';
@@ -38,14 +39,15 @@ export const FilterForm: FC<{
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
-    const { fieldsMap } = useFiltersContext();
+    const { itemsMap: dimensionsMap } =
+        useFiltersContext<Record<string, FilterableDimension>>();
 
-    const dimensions = Object.values(fieldsMap).filter(isDimension);
+    const dimensions = Object.values(dimensionsMap);
 
     const addFieldRule = useCallback(() => {
-        const fallbackField = Object.values(fieldsMap)[0];
+        const fallbackField = dimensions[0];
         const defaultField = defaultFilterRuleFieldId
-            ? fieldsMap[defaultFilterRuleFieldId]
+            ? dimensionsMap[defaultFilterRuleFieldId]
             : undefined;
         const field = defaultField || fallbackField;
 
@@ -53,21 +55,24 @@ export const FilterForm: FC<{
             return;
         }
 
-        const newFilterRule = createFilterRuleFromField(field);
-        setCustomMetricFiltersWithIds([
-            ...customMetricFiltersWithIds,
-            {
-                ...newFilterRule,
-                target: {
-                    fieldId: newFilterRule.target.fieldId,
-                    fieldRef: getFieldRef(field),
+        if (isDimension(field)) {
+            const newFilterRule = createFilterRuleFromField(field);
+            setCustomMetricFiltersWithIds([
+                ...customMetricFiltersWithIds,
+                {
+                    ...newFilterRule,
+                    target: {
+                        fieldId: newFilterRule.target.fieldId,
+                        fieldRef: getFieldRef(field),
+                    },
                 },
-            },
-        ]);
+            ]);
+        }
     }, [
         customMetricFiltersWithIds,
         defaultFilterRuleFieldId,
-        fieldsMap,
+        dimensions,
+        dimensionsMap,
         setCustomMetricFiltersWithIds,
     ]);
 
@@ -76,12 +81,16 @@ export const FilterForm: FC<{
             setCustomMetricFiltersWithIds(
                 customMetricFiltersWithIds.map((customMetricFilter, index) =>
                     itemIndex === index
-                        ? addFieldRefToFilterRule(filterRule, fieldsMap)
+                        ? addFieldRefToFilterRule(filterRule, dimensionsMap)
                         : customMetricFilter,
                 ),
             );
         },
-        [customMetricFiltersWithIds, fieldsMap, setCustomMetricFiltersWithIds],
+        [
+            customMetricFiltersWithIds,
+            dimensionsMap,
+            setCustomMetricFiltersWithIds,
+        ],
     );
 
     const onDeleteItem = useCallback(

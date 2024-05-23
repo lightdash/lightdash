@@ -6,6 +6,7 @@ import {
     CompactOrAlias,
     CustomFormat,
     DBFieldTypes,
+    DimensionType,
     MetricFilterRule,
     MetricType,
     NumberSeparator,
@@ -23,6 +24,7 @@ type InsertChartInSpace = Pick<
     | 'description'
     | 'last_version_chart_kind'
     | 'last_version_updated_by_user_uuid'
+    | 'slug'
 > & {
     space_id: number;
     dashboard_uuid: null;
@@ -54,6 +56,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'last_version_updated_at'
             | 'last_version_updated_by_user_uuid'
             | 'dashboard_uuid'
+            | 'slug'
         >
     >
 >;
@@ -70,6 +73,7 @@ export type DbSavedChart = {
     last_version_updated_at: Date;
     last_version_updated_by_user_uuid: string | undefined;
     search_vector: string;
+    slug: string;
 };
 
 export type DbSavedChartVersion = {
@@ -187,6 +191,11 @@ export type DbSavedChartCustomDimensionInsert = Omit<
     custom_range: string | null;
 };
 
+export type SavedChartCustomDimensionsTable = Knex.CompositeTableType<
+    DbSavedChartCustomDimension,
+    DbSavedChartCustomDimensionInsert
+>;
+
 export const SavedChartAdditionalMetricTableName =
     'saved_queries_version_additional_metrics';
 export type DbSavedChartAdditionalMetric = {
@@ -248,3 +257,21 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'format_options'
         >
     >;
+
+export const SavedChartCustomSqlDimensionsTableName =
+    'saved_queries_version_custom_sql_dimensions';
+
+export type DbSavedChartCustomSqlDimension = {
+    saved_queries_version_id: number;
+    id: string;
+    name: string;
+    table: string;
+    order: number;
+    sql: string;
+    dimension_type: DimensionType;
+};
+
+export type SavedChartCustomSqlDimensionsTable = Knex.CompositeTableType<
+    DbSavedChartCustomSqlDimension,
+    DbSavedChartCustomSqlDimension
+>;

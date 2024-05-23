@@ -9,10 +9,13 @@ import {
     getCustomFormatFromLegacy,
     getDateGroupLabel,
     getItemLabelWithoutTableName,
+    getItemType,
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
+    isCustomBinDimension,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isPivotReferenceWithValues,
@@ -24,10 +27,13 @@ import {
     TimeFrames,
     type ApiQueryResults,
     type CartesianChart,
+    type CustomDimension,
+    type Field,
     type ItemsMap,
     type PivotReference,
     type ResultRow,
     type Series,
+    type TableCalculation,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import {
@@ -78,10 +84,16 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
 };
 
 const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
-    if (item && isCustomDimension(item)) return 'category';
+    if (item && isCustomBinDimension(item)) return 'category';
     if (item && isTableCalculation(item) && !item.type) return 'value';
-    if (item && (isField(item) || isTableCalculation(item))) {
-        switch (item.type) {
+    if (
+        item &&
+        (isField(item) ||
+            isTableCalculation(item) ||
+            isCustomSqlDimension(item))
+    ) {
+        const type = getItemType(item);
+        switch (type) {
             case TableCalculationType.NUMBER:
             case DimensionType.NUMBER:
             case MetricType.NUMBER:
@@ -101,6 +113,14 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             case MetricType.DATE:
             case TableCalculationType.DATE:
             case TableCalculationType.TIMESTAMP:
+                // Use categorical axis for weeks only. Echarts handles the
+                // other time frames well with a time axis
+                if (
+                    'timeInterval' in item &&
+                    item.timeInterval === TimeFrames.WEEK
+                ) {
+                    return 'category';
+                }
                 return 'time';
             default: {
                 return 'category';
@@ -802,6 +822,34 @@ const getLongestLabel = ({
     );
 };
 
+const getWeekAxisConfig = (
+    axisId?: string,
+    axisField?: Field | TableCalculation | CustomDimension,
+    rows?: ResultRow[],
+) => {
+    if (!axisId || !rows || !axisField) return {};
+    if (
+        'timeInterval' in axisField &&
+        axisField.timeInterval === TimeFrames.WEEK
+    ) {
+        const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
+
+        const continuousWeekRange = [];
+        let nextDate = dayjs.utc(minX);
+        while (nextDate.isBefore(dayjs(maxX))) {
+            continuousWeekRange.push(nextDate.format());
+            nextDate = nextDate.add(1, 'week');
+        }
+        continuousWeekRange.push(dayjs.utc(maxX).format());
+        return {
+            data: continuousWeekRange,
+            axisTick: { alignWithLabel: true, interval: 0 },
+        };
+    } else {
+        return {};
+    }
+};
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -866,8 +914,9 @@ const getEchartAxes = ({
         defaultNameGap?: number;
     }) => {
         const hasFormattingConfig =
-            isField(axisItem) &&
-            (axisItem.format || axisItem.round || axisItem.compact);
+            (isField(axisItem) &&
+                (axisItem.format || axisItem.round || axisItem.compact)) ||
+            (axisItem && isTableCalculation(axisItem) && axisItem.format);
         const axisMinInterval =
             isDimension(axisItem) &&
             axisItem.timeInterval &&
@@ -931,9 +980,10 @@ const getEchartAxes = ({
             // This is to ensure the value is correctly formatted on some types
             switch (axisItem.timeInterval) {
                 case TimeFrames.WEEK_NUM:
+                case TimeFrames.WEEK:
                     axisConfig.axisLabel = {
                         formatter: (value: any) => {
-                            return formatItemValue(axisItem, value, false);
+                            return formatItemValue(axisItem, value, true);
                         },
                     };
                     axisConfig.axisPointer = {
@@ -942,7 +992,7 @@ const getEchartAxes = ({
                                 return formatItemValue(
                                     axisItem,
                                     value.value,
-                                    false,
+                                    true,
                                 );
                             },
                         },
@@ -962,6 +1012,7 @@ const getEchartAxes = ({
                 (longestLabelWidth || 0) * Math.sin(rotateRadians);
             axisConfig.axisLabel = axisConfig.axisLabel || {};
             axisConfig.axisLabel.rotate = rotate;
+            axisConfig.axisLabel.margin = 12;
             axisConfig.nameGap = oppositeSide + 15;
         }
         return axisConfig;
@@ -1062,6 +1113,28 @@ const getEchartAxes = ({
         validCartesianConfig.eChartsConfig.series,
         itemsMap,
     );
+
+    const bottomAxisExtraConfig = getWeekAxisConfig(
+        bottomAxisXId,
+        bottomAxisXField,
+        resultsData?.rows,
+    );
+    const topAxisExtraConfig = getWeekAxisConfig(
+        topAxisXId,
+        topAxisXField,
+        resultsData?.rows,
+    );
+    const rightAxisExtraConfig = getWeekAxisConfig(
+        rightAxisYId,
+        rightAxisYField,
+        resultsData?.rows,
+    );
+    const leftAxisExtraConfig = getWeekAxisConfig(
+        leftAxisYId,
+        leftAxisYField,
+        resultsData?.rows,
+    );
+
     return {
         xAxis: [
             {
@@ -1082,13 +1155,21 @@ const getEchartAxes = ({
                             getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
                 min:
-                    xAxisConfiguration?.[0]?.min ||
-                    referenceLineMinX ||
-                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                    bottomAxisType === 'value'
+                        ? xAxisConfiguration?.[0]?.min ||
+                          referenceLineMinX ||
+                          maybeGetAxisDefaultMinValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    xAxisConfiguration?.[0]?.max ||
-                    referenceLineMaxX ||
-                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
+                    bottomAxisType === 'value'
+                        ? xAxisConfiguration?.[0]?.max ||
+                          referenceLineMaxX ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 nameLocation: 'center',
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -1107,6 +1188,7 @@ const getEchartAxes = ({
                         : showGridX,
                 },
                 inverse: !!xAxisConfiguration?.[0].inverse,
+                ...bottomAxisExtraConfig,
             },
             {
                 type: topAxisType,
@@ -1122,11 +1204,19 @@ const getEchartAxes = ({
                       })
                     : undefined,
                 min:
-                    xAxisConfiguration?.[1]?.min ||
-                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                    topAxisType === 'value'
+                        ? xAxisConfiguration?.[1]?.min ||
+                          maybeGetAxisDefaultMinValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    xAxisConfiguration?.[1]?.max ||
-                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
+                    topAxisType === 'value'
+                        ? xAxisConfiguration?.[1]?.max ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 nameLocation: 'center',
                 ...getAxisFormatter({
                     axisItem: topAxisXField,
@@ -1139,6 +1229,7 @@ const getEchartAxes = ({
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
+                ...topAxisExtraConfig,
             },
         ],
         yAxis: [
@@ -1160,13 +1251,21 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
                 min:
-                    yAxisConfiguration?.[0]?.min ||
-                    referenceLineMinLeftY ||
-                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange),
+                    leftAxisType === 'value'
+                        ? yAxisConfiguration?.[0]?.min ||
+                          referenceLineMinLeftY ||
+                          maybeGetAxisDefaultMinValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    yAxisConfiguration?.[0]?.max ||
-                    referenceLineMaxLeftY ||
-                    maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange),
+                    leftAxisType === 'value'
+                        ? yAxisConfiguration?.[0]?.max ||
+                          referenceLineMaxLeftY ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowFirstAxisDefaultRange,
+                          )
+                        : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1182,6 +1281,7 @@ const getEchartAxes = ({
                         : showGridY,
                 },
                 inverse: !!yAxisConfiguration?.[0].inverse,
+                ...leftAxisExtraConfig,
             },
             {
                 type: rightAxisType,
@@ -1197,13 +1297,21 @@ const getEchartAxes = ({
                           series: validCartesianConfig.eChartsConfig.series,
                       }),
                 min:
-                    yAxisConfiguration?.[1]?.min ||
-                    referenceLineMinRightY ||
-                    maybeGetAxisDefaultMinValue(allowSecondAxisDefaultRange),
+                    rightAxisType === 'value'
+                        ? yAxisConfiguration?.[1]?.min ||
+                          referenceLineMinRightY ||
+                          maybeGetAxisDefaultMinValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 max:
-                    yAxisConfiguration?.[1]?.max ||
-                    referenceLineMaxRightY ||
-                    maybeGetAxisDefaultMaxValue(allowSecondAxisDefaultRange),
+                    rightAxisType === 'value'
+                        ? yAxisConfiguration?.[1]?.max ||
+                          referenceLineMaxRightY ||
+                          maybeGetAxisDefaultMaxValue(
+                              allowSecondAxisDefaultRange,
+                          )
+                        : undefined,
                 nameTextStyle: {
                     fontWeight: 'bold',
                     align: 'center',
@@ -1218,6 +1326,7 @@ const getEchartAxes = ({
                 splitLine: {
                     show: isAxisTheSameForAllSeries,
                 },
+                ...rightAxisExtraConfig,
             },
         ],
     };
@@ -1577,10 +1686,8 @@ const useEchartsCartesianConfig = (
                     return params[0].axisValueLabel;
                 };
                 // When flipping axes, we get all series in the chart
+
                 const tooltipRows = params
-                    .filter((param) =>
-                        flipAxes ? param.name === param.seriesName : true,
-                    )
                     .map((param) => {
                         const {
                             marker,
@@ -1702,6 +1809,7 @@ const useEchartsCartesianConfig = (
     ) {
         return undefined;
     }
+
     return eChartsOptions;
 };
 

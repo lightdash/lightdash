@@ -37,7 +37,7 @@ const registerQuery = async (data: CreateUserArgs) =>
 const Register: FC = () => {
     const location = useLocation<{ from?: Location } | undefined>();
     const { health } = useApp();
-    const { showToastError } = useToaster();
+    const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
     useEffect(() => {
@@ -64,10 +64,10 @@ const Register: FC = () => {
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to create user`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

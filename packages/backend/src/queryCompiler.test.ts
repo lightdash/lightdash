@@ -19,6 +19,7 @@ test('Should compile without table calculations', () => {
         ...METRIC_QUERY_NO_CALCS,
         compiledTableCalculations: [],
         compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
     };
     expect(
         compileMetricQuery({

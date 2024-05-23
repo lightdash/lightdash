@@ -1,6 +1,5 @@
 import {
-    fieldId,
-    getCustomDimensionId,
+    getItemId,
     isCustomDimension,
     isDimension,
     isField,
@@ -96,11 +95,7 @@ export const Layout: React.FC = () => {
                                     if (!dimensionId) return;
 
                                     if (newField) {
-                                        const newFieldId = isCustomDimension(
-                                            newField,
-                                        )
-                                            ? getCustomDimensionId(newField)
-                                            : fieldId(newField);
+                                        const newFieldId = getItemId(newField);
                                         if (newFieldId !== dimensionId) {
                                             groupChange(
                                                 dimensionId,
@@ -135,7 +130,7 @@ export const Layout: React.FC = () => {
                                 items={numericMetrics}
                                 onChange={(newField) => {
                                     if (newField && isField(newField))
-                                        metricChange(fieldId(newField));
+                                        metricChange(getItemId(newField));
                                     else if (
                                         newField &&
                                         isTableCalculation(newField)

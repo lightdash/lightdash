@@ -12,7 +12,7 @@ const updateChartPinning = async (data: { uuid: string }) =>
 
 export const useChartPinningMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<SavedChart, ApiError, { uuid: string }>(
         updateChartPinning,
         {
@@ -42,10 +42,10 @@ export const useChartPinningMutation = () => {
                     });
                 }
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Failed to pin chart',
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

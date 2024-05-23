@@ -2,8 +2,8 @@ import {
     DimensionType,
     FilterOperator,
     formatDate,
+    isCustomSqlDimension,
     isDimension,
-    isField,
     isFilterRule,
     parseDate,
     TimeFrames,
@@ -32,7 +32,8 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
     const { field, rule, onChange, popoverProps, disabled, filterType } = props;
     const { startOfWeek } = useFiltersContext();
     const isTimestamp =
-        isField(field) && field.type === DimensionType.TIMESTAMP;
+        (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
+        DimensionType.TIMESTAMP;
 
     if (!isFilterRule(rule)) {
         throw new Error('DateFilterInputs expects a FilterRule');

@@ -11,9 +11,11 @@ import {
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
+    generateSlug,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isCustomSqlDimension,
     isUserWithOrg,
     SavedChart,
     SavedChartDAO,
@@ -319,6 +321,18 @@ export class SavedChartService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL dimensions',
+            );
+        }
+
         const savedChart = await this.savedChartModel.createVersion(
             savedChartUuid,
             data,
@@ -353,8 +367,13 @@ export class SavedChartService extends BaseService {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid, dashboardUuid } =
-            await this.savedChartModel.getSummary(savedChartUuid);
+        const {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            dashboardUuid,
+            name,
+        } = await this.savedChartModel.getSummary(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -683,6 +702,7 @@ export class SavedChartService extends BaseService {
             user.userUuid,
             {
                 ...savedChart,
+                slug: generateSlug(savedChart.name),
                 updatedByUser: user,
             },
         );
@@ -736,12 +756,14 @@ export class SavedChartService extends BaseService {
         }
         let duplicatedChart: CreateSavedChart & {
             updatedByUser: UpdatedByUser;
+            slug: string;
         };
         const base = {
             ...chart,
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
+            slug: generateSlug(data.chartName),
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {

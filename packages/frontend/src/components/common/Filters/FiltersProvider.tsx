@@ -2,26 +2,25 @@ import {
     isField,
     type AndFilterGroup,
     type DashboardFilters,
-    type FilterableField,
     type FilterableItem,
     type FilterRule,
+    type ItemsMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
 import { uuid4 } from '@sentry/utils';
-import { createContext, useCallback, useContext, type FC } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
 
-export type FieldWithSuggestions = FilterableField & {
-    suggestions?: string[];
-};
+type DefaultFieldsMap = Record<
+    string,
+    ItemsMap[string] & { suggestions?: string[] }
+>;
 
-export type FieldsWithSuggestions = Record<string, FieldWithSuggestions>;
-
-type FiltersContext = {
+type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     projectUuid?: string;
-    fieldsMap: FieldsWithSuggestions;
+    itemsMap: T;
     startOfWeek?: WeekDay;
-    getField: (filterRule: FilterRule) => FieldWithSuggestions | undefined;
+    getField: (filterRule: FilterRule) => T[keyof T] | undefined;
     getAutocompleteFilterGroup: (
         filterId: string,
         item: FilterableItem,
@@ -31,29 +30,30 @@ type FiltersContext = {
 
 const Context = createContext<FiltersContext | undefined>(undefined);
 
-type Props = {
+type Props<T extends DefaultFieldsMap> = {
     projectUuid?: string;
-    fieldsMap?: Record<string, FieldWithSuggestions>;
+    itemsMap?: T;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    children?: ReactNode;
 };
 
-export const FiltersProvider: FC<React.PropsWithChildren<Props>> = ({
+export const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     projectUuid,
-    fieldsMap = {},
+    itemsMap = {} as T,
     startOfWeek,
     dashboardFilters,
     popoverProps,
     children,
-}) => {
+}: Props<T>) => {
     const getField = useCallback(
         (filterRule: FilterRule) => {
-            if (fieldsMap) {
-                return fieldsMap[filterRule.target.fieldId];
+            if (itemsMap) {
+                return itemsMap[filterRule.target.fieldId];
             }
         },
-        [fieldsMap],
+        [itemsMap],
     );
     const getAutocompleteFilterGroup = useCallback(
         (filterId: string, item: FilterableItem) => {
@@ -79,7 +79,7 @@ export const FiltersProvider: FC<React.PropsWithChildren<Props>> = ({
         <Context.Provider
             value={{
                 projectUuid,
-                fieldsMap,
+                itemsMap,
                 startOfWeek,
                 getField,
                 getAutocompleteFilterGroup,
@@ -91,8 +91,12 @@ export const FiltersProvider: FC<React.PropsWithChildren<Props>> = ({
     );
 };
 
-export function useFiltersContext(): FiltersContext {
-    const context = useContext(Context);
+export function useFiltersContext<
+    T extends DefaultFieldsMap = DefaultFieldsMap,
+>(): FiltersContext<T> {
+    const context = useContext(
+        Context as React.Context<FiltersContext<T> | undefined>,
+    );
     if (context === undefined) {
         throw new Error(
             'useFiltersContext must be used within a FiltersProvider',

@@ -167,7 +167,16 @@ export const getBigqueryCredentialsFromServiceAccountJson = async (
         bigqueryServiceAccountJsonSchema,
     );
     if (validate(target)) {
-        return target.keyfile_json as Record<string, string>;
+        return Object.entries(target.keyfile_json).reduce<
+            Record<string, string>
+        >((acc, [key, value]) => {
+            if (typeof value === 'string') {
+                acc[key] = value.replaceAll(/\\n/gm, '\n'); // replace escaped newlines. Prevents error: Error: error:1E08010C:DECODER routines::unsupported
+            } else {
+                acc[key] = value;
+            }
+            return acc;
+        }, {});
     }
     const lineErrorMessages = (validate.errors || [])
         .map((err) => `Field at ${err.instancePath} ${err.message}`)

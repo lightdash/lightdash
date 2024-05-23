@@ -1,11 +1,11 @@
 import {
     addFilterRule,
-    getFilterRulesByFieldType,
+    deleteFilterRuleFromGroup,
     getFiltersFromGroup,
+    getItemId,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
-    isField,
     isFilterableField,
     isOrFilterGroup,
     type FilterGroup,
@@ -26,13 +26,14 @@ import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    type FieldsWithSuggestions,
+    type FieldWithSuggestions,
+} from '../../Explorer/FiltersCard/useFieldsWithSuggestions';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import FilterGroupForm from './FilterGroupForm';
-import {
-    useFiltersContext,
-    type FieldWithSuggestions,
-} from './FiltersProvider';
+import { useFiltersContext } from './FiltersProvider';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 
 type Props = {
@@ -41,76 +42,44 @@ type Props = {
     isEditMode: boolean;
 };
 
+const getInvalidFilterRules = (
+    fields: FieldWithSuggestions[],
+    filterRules: FilterRule[],
+) =>
+    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+        const fieldInRule = fields.find(
+            (field) => getItemId(field) === filterRule.target.fieldId,
+        );
+
+        if (!fieldInRule) {
+            return [...accumulator, filterRule];
+        }
+
+        return accumulator;
+    }, []);
+
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
-    const { fieldsMap } = useFiltersContext();
+    const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
-        return Object.values(fieldsMap);
-    }, [fieldsMap]);
+        return Object.values(itemsMap);
+    }, [itemsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
-    const {
-        valid: validFilterRulesPerType,
-        invalid: invalidFilterRulesPerType,
-    } = getFilterRulesByFieldType(fields, totalFilterRules);
-
-    const hasInvalidFilterRules = Object.values(invalidFilterRulesPerType).some(
-        (arr) => arr.length > 0,
-    );
+    const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
+    const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
     const showSimplifiedForm: boolean =
-        Object.values(validFilterRulesPerType).flat().length < 2 &&
-        !hasNestedGroups(filters);
+        totalFilterRules.length < 2 && !hasNestedGroups(filters);
 
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
-            if (isField(field) && isFilterableField(field)) {
+            if (isFilterableField(field)) {
                 setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
             }
         },
         [filters, setFilters, toggleFieldInput],
-    );
-
-    const updateFieldRules = useCallback(
-        (filterRules: FilterRule[]) => {
-            const { valid: result } = getFilterRulesByFieldType(
-                fields,
-                filterRules,
-            );
-
-            setFilters(
-                {
-                    ...filters,
-                    dimensions:
-                        result.dimensions.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.dimensions,
-                                  and: result.dimensions,
-                              }
-                            : undefined,
-                    metrics:
-                        result.metrics.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.metrics,
-                                  and: result.metrics,
-                              }
-                            : undefined,
-                    tableCalculations:
-                        result.tableCalculations.length > 0
-                            ? {
-                                  id: uuidv4(),
-                                  ...filters.tableCalculations,
-                                  and: result.tableCalculations,
-                              }
-                            : undefined,
-                },
-                false,
-            );
-        },
-        [fields, filters, setFilters],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -198,7 +167,13 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         fields={fields}
                         isEditMode={isEditMode}
                         filterRules={getTotalFilterRules(filters)}
-                        onChange={updateFieldRules}
+                        onChange={(filterRules) => {
+                            // This is a simplified form that only shows up with 1 filter rule, so we can just create a new root group
+                            updateFiltersFromGroup({
+                                id: uuidv4(),
+                                and: filterRules,
+                            });
+                        }}
                     />
                 ) : (
                     <>
@@ -227,50 +202,44 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                 ))}
 
             {hasInvalidFilterRules &&
-                Object.entries(invalidFilterRulesPerType).map(
-                    ([type, rules], index) => (
-                        <Stack
-                            key={type + index}
-                            ml={showSimplifiedForm ? 'none' : 'xl'}
-                            spacing="two"
-                            align="flex-start"
+                invalidFilterRules.map((rule, index) => (
+                    <Stack
+                        key={index}
+                        ml={showSimplifiedForm ? 'none' : 'xl'}
+                        spacing="two"
+                        align="flex-start"
+                    >
+                        <Group
+                            key={rule.id}
+                            spacing="xs"
+                            pl="xs"
+                            sx={(theme) => ({
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                borderRadius: theme.radius.sm,
+                            })}
                         >
-                            {rules.map((rule) => (
-                                <Group
-                                    key={rule.id}
-                                    spacing="xs"
-                                    pl="xs"
-                                    sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.gray[2]}`,
-                                        borderRadius: theme.radius.sm,
-                                    })}
-                                >
-                                    <MantineIcon icon={IconAlertCircle} />
-                                    <Text color="dimmed" fz="xs">
-                                        Tried to reference field with unknown
-                                        id:{' '}
-                                        <Text span fw={500} c="gray.7">
-                                            {rule.target.fieldId}
-                                        </Text>
-                                    </Text>
-                                    <ActionIcon
-                                        onClick={() =>
-                                            updateFieldRules(
-                                                getTotalFilterRules(
-                                                    filters,
-                                                ).filter(
-                                                    ({ id }) => id !== rule.id,
-                                                ),
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon icon={IconX} size="sm" />
-                                    </ActionIcon>
-                                </Group>
-                            ))}
-                        </Stack>
-                    ),
-                )}
+                            <MantineIcon icon={IconAlertCircle} />
+                            <Text color="dimmed" fz="xs">
+                                Tried to reference field with unknown id:{' '}
+                                <Text span fw={500} c="gray.7">
+                                    {rule.target.fieldId}
+                                </Text>
+                            </Text>
+                            <ActionIcon
+                                onClick={() =>
+                                    updateFiltersFromGroup(
+                                        deleteFilterRuleFromGroup(
+                                            rootFilterGroup,
+                                            rule.id,
+                                        ),
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconX} size="sm" />
+                            </ActionIcon>
+                        </Group>
+                    </Stack>
+                ))}
 
             {isEditMode ? (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>

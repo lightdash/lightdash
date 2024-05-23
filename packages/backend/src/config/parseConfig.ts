@@ -154,6 +154,7 @@ export type LightdashConfig = {
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
+    pylon: PylonConfig;
     siteUrl: string;
     staticIp: string;
     siteName: string;
@@ -187,6 +188,7 @@ export type LightdashConfig = {
     query: {
         maxLimit: number;
         csvCellsLimit: number;
+        timezone: string | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -228,8 +230,6 @@ export type LightdashConfig = {
 };
 
 export type SlackConfig = {
-    appToken?: string;
-    port: number;
     signingSecret?: string;
     clientId?: string;
     clientSecret?: string;
@@ -250,6 +250,11 @@ export type S3Config = {
 export type IntercomConfig = {
     appId: string;
     apiBase: string;
+};
+
+type PylonConfig = {
+    appId: string;
+    identityVerificationSecret?: string;
 };
 
 export type RudderConfig = {
@@ -534,6 +539,11 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },
+        pylon: {
+            appId: process.env.PYLON_APP_ID || '',
+            identityVerificationSecret:
+                process.env.PYLON_IDENTITY_VERIFICATION_SECRET,
+        },
         siteUrl,
         siteName: process.env.SITE_NAME || 'Lightdash',
         siteLogo: process.env.SITE_LOGO || '{{host}}/lightdash-logo.png',
@@ -586,6 +596,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
+            timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
         },
         chart: {
             versionHistory: {
@@ -634,8 +645,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             },
         },
         slack: {
-            appToken: process.env.SLACK_APP_TOKEN,
-            port: parseInt(process.env.SLACK_PORT || '4351', 10),
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,

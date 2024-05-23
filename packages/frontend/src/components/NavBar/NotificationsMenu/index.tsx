@@ -22,7 +22,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
     const { user } = useApp();
 
     // Validator notifications
-    const { data: validationData } = useValidation(projectUuid, false);
+    const { data: validationData } = useValidation(projectUuid, user, false);
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
         useValidationNotificationChecker();

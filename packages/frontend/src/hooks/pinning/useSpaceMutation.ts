@@ -12,7 +12,7 @@ const updateSpacePinning = async (projectUuid: string, spaceUuid: string) =>
 
 export const useSpacePinningMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<Space, ApiError, string>(
         (spaceUuid) => updateSpacePinning(projectUuid, spaceUuid),
         {
@@ -47,10 +47,10 @@ export const useSpacePinningMutation = (projectUuid: string) => {
                     });
                 }
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Failed to pin space',
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

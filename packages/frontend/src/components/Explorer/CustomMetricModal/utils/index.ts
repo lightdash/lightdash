@@ -2,31 +2,35 @@ import {
     DimensionType,
     friendlyName,
     isAdditionalMetric,
+    isCustomBinDimension,
+    isCustomDimension,
     isDimension,
     MetricType,
     snakeCaseName,
     type AdditionalMetric,
+    type CustomDimension,
     type CustomFormat,
     type Dimension,
     type Explore,
-    type Field,
     type FilterRule,
+    type getFilterableDimensionsFromItemsMap,
     type MetricFilterRule,
 } from '@lightdash/common';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
 export const addFieldRefToFilterRule = (
     filterRule: FilterRule,
-    fields: Record<string, Field>,
-): MetricFilterRuleWithFieldId => ({
-    ...filterRule,
-    target: {
-        ...filterRule.target,
-        fieldRef: `${fields[filterRule.target.fieldId].table}.${
-            fields[filterRule.target.fieldId].name
-        }`,
-    },
-});
+    fields: ReturnType<typeof getFilterableDimensionsFromItemsMap>,
+): MetricFilterRuleWithFieldId => {
+    const field = fields[filterRule.target.fieldId];
+    return {
+        ...filterRule,
+        target: {
+            ...filterRule.target,
+            fieldRef: `${field.table}.${field.name}`,
+        },
+    };
+};
 
 export const addFieldIdToMetricFilterRule = (
     filterRule: MetricFilterRule,
@@ -73,7 +77,7 @@ const getCustomMetricDescription = (
     }`;
 
 const getTypeOverridesForAdditionalMetric = (
-    item: Dimension | AdditionalMetric,
+    item: Dimension | AdditionalMetric | CustomDimension,
     type: MetricType,
 ): Partial<AdditionalMetric> | undefined => {
     if (!isDimension(item)) return;
@@ -124,7 +128,7 @@ export const prepareCustomMetricData = ({
     percentile: metricPercentile,
     formatOptions,
 }: {
-    item: Dimension | AdditionalMetric;
+    item: Dimension | AdditionalMetric | CustomDimension;
     type: MetricType;
     customMetricLabel: string;
     customMetricFiltersWithIds: MetricFilterRuleWithFieldId[];
@@ -133,6 +137,8 @@ export const prepareCustomMetricData = ({
     percentile?: number;
     formatOptions?: CustomFormat;
 }): AdditionalMetric => {
+    if (isCustomBinDimension(item))
+        throw new Error('Cannot create custom metric from bin dimension');
     const shouldCopyFormatting = [
         MetricType.PERCENTILE,
         MetricType.MEDIAN,
@@ -143,13 +149,17 @@ export const prepareCustomMetricData = ({
     ].includes(type);
 
     const compact =
-        shouldCopyFormatting && item.compact ? { compact: item.compact } : {};
+        !isCustomDimension(item) && shouldCopyFormatting && item.compact
+            ? { compact: item.compact }
+            : {};
     const format =
-        shouldCopyFormatting && item.format ? { format: item.format } : {};
+        !isCustomDimension(item) && shouldCopyFormatting && item.format
+            ? { format: item.format }
+            : {};
 
     const defaultRound = type === MetricType.AVERAGE ? { round: 2 } : {};
     const round =
-        shouldCopyFormatting && item.round
+        !isCustomDimension(item) && shouldCopyFormatting && item.round
             ? { round: item.round }
             : defaultRound;
 
@@ -168,7 +178,7 @@ export const prepareCustomMetricData = ({
         );
 
     const tableLabel = exploreData?.tables[item.table].label;
-
+    const label = isCustomDimension(item) ? item.name : item.label;
     return {
         table: item.table,
         sql: item.sql,
@@ -191,11 +201,11 @@ export const prepareCustomMetricData = ({
                 : item.name,
         ),
         ...(isEditingCustomMetric &&
-            item.label &&
+            label &&
             tableLabel && {
                 description: getCustomMetricDescription(
                     type,
-                    item.label,
+                    label,
                     tableLabel,
                     customMetricFilters,
                 ),

@@ -1,5 +1,4 @@
 import {
-    getCustomDimensionId,
     type ApiChartAndResults,
     type ApiError,
     type ApiQueryResults,
@@ -128,8 +127,6 @@ export const useQueryResults = (props?: {
                 ...metricQuery.dimensions,
                 ...metricQuery.metrics,
                 ...metricQuery.tableCalculations.map(({ name }) => name),
-                ...(metricQuery.customDimensions?.map(getCustomDimensionId) ||
-                    []),
             ]);
             const isValidQuery = fields.size > 0;
             if (!!tableName && isValidQuery) {
@@ -301,15 +298,15 @@ export const useChartVersionResultsMutation = (
     chartUuid: string,
     versionUuid?: string,
 ) => {
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     const mutation = useMutation<ApiQueryResults, ApiError>(
         () => getChartVersionResults(chartUuid, versionUuid!),
         {
             mutationKey: ['chartVersionResults', chartUuid, versionUuid],
-            onError: (result) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: 'Error running query',
-                    subtitle: result.error.message,
+                    apiError: error,
                 });
             },
         },

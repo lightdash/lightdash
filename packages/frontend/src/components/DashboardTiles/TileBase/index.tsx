@@ -119,14 +119,17 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     : `1px solid ${theme.colors.gray[1]}`,
             })}
         >
-            <LoadingOverlay visible={isLoading ?? false} />
+            <LoadingOverlay
+                visible={isLoading ?? false}
+                zIndex={getDefaultZIndex('modal') - 10}
+            />
 
             <HeaderContainer
                 $isEditMode={isEditMode}
                 $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
                 style={{
                     backgroundColor: 'white',
-                    zIndex: isLoading ? getDefaultZIndex('overlay') + 1 : 3,
+                    zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
                     borderRadius: '5px',
                 }}
             >
@@ -159,16 +162,26 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     withinPortal
                                     maw={400}
                                 >
-                                    <TileTitleLink
-                                        ref={titleRef}
-                                        href={titleHref}
-                                        $hovered={titleHovered}
-                                        target="_blank"
-                                        className="non-draggable"
-                                        hidden={hideTitle}
-                                    >
-                                        {title}
-                                    </TileTitleLink>
+                                    {isEditMode ? (
+                                        <Text
+                                            fw={600}
+                                            fz="md"
+                                            hidden={hideTitle}
+                                        >
+                                            {title}
+                                        </Text>
+                                    ) : (
+                                        <TileTitleLink
+                                            ref={titleRef}
+                                            href={titleHref}
+                                            $hovered={titleHovered}
+                                            target="_blank"
+                                            className="non-draggable"
+                                            hidden={hideTitle}
+                                        >
+                                            {title}
+                                        </TileTitleLink>
+                                    )}
                                 </Tooltip>
                             </Group>
                         </TitleWrapper>
@@ -223,6 +236,25 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                         Edit tile content
                                                     </Menu.Item>
                                                 </Box>
+                                                {tabs && tabs.length > 1 && (
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconArrowAutofitContent
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsMovingTabs(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Move to another tab
+                                                    </Menu.Item>
+                                                )}
+                                                <Menu.Divider />
                                                 {belongsToDashboard ? (
                                                     <Menu.Item
                                                         color="red"
@@ -235,44 +267,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                         Delete chart
                                                     </Menu.Item>
                                                 ) : (
-                                                    <>
-                                                        {tabs &&
-                                                            tabs.length > 1 && (
-                                                                <Menu.Item
-                                                                    icon={
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                IconArrowAutofitContent
-                                                                            }
-                                                                        />
-                                                                    }
-                                                                    onClick={() =>
-                                                                        setIsMovingTabs(
-                                                                            true,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Move to
-                                                                    another tab
-                                                                </Menu.Item>
-                                                            )}
-                                                        <Menu.Divider />
-                                                        <Menu.Item
-                                                            color="red"
-                                                            icon={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconTrash
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                onDelete(tile)
-                                                            }
-                                                        >
-                                                            Remove tile
-                                                        </Menu.Item>
-                                                    </>
+                                                    <Menu.Item
+                                                        color="red"
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconTrash}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            onDelete(tile)
+                                                        }
+                                                    >
+                                                        Remove tile
+                                                    </Menu.Item>
                                                 )}
                                             </>
                                         )}

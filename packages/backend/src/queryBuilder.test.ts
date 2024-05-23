@@ -1,13 +1,25 @@
-import { BinType, ForbiddenError } from '@lightdash/common';
+import {
+    BinType,
+    CustomDimensionType,
+    ForbiddenError,
+    isCustomBinDimension,
+    WeekDay,
+} from '@lightdash/common';
 import {
     assertValidDimensionRequiredAttribute,
     buildQuery,
-    getCustomDimensionSql,
+    getCustomBinDimensionSql,
+    getCustomSqlDimensionSql,
     replaceUserAttributes,
+    sortDayOfWeekName,
+    sortMonthName,
 } from './queryBuilder';
 import {
     bigqueryClientMock,
     COMPILED_DIMENSION,
+    COMPILED_MONTH_NAME_DIMENSION,
+    COMPILED_WEEK_NAME_DIMENSION,
+    CUSTOM_SQL_DIMENSION,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
     EXPLORE_BIGQUERY,
@@ -51,7 +63,10 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    MONTH_NAME_SORT_SQL,
+    QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
+    WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
 
 describe('Query builder', () => {
@@ -62,6 +77,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -73,6 +89,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY,
                 warehouseClient: bigqueryClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL_BIGQUERY);
     });
@@ -84,6 +101,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_TWO_TABLES_SQL);
     });
@@ -95,6 +113,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL);
     });
@@ -106,6 +125,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_SQL);
     });
@@ -117,6 +137,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_JOIN_CHAIN_SQL);
     });
@@ -128,6 +149,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL);
     });
@@ -139,6 +161,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL);
     });
@@ -150,6 +173,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_DISABLED_FILTER_SQL);
     });
@@ -162,6 +186,7 @@ describe('Query builder', () => {
                     METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL);
     });
@@ -173,6 +198,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL);
     });
@@ -184,6 +210,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_SQL);
     });
@@ -195,6 +222,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_METRIC_FILTER_SQL);
     });
@@ -207,6 +235,7 @@ describe('Query builder', () => {
                     METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(
             METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
@@ -220,6 +249,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL);
     });
@@ -231,6 +261,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL);
     });
@@ -242,6 +273,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_FILTER_SQL);
     });
@@ -253,6 +285,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL);
     });
@@ -264,6 +297,7 @@ describe('Query builder', () => {
                 compiledMetricQuery: METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
                 warehouseClient: warehouseClientMock,
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL);
     });
@@ -277,6 +311,7 @@ describe('Query builder', () => {
                     warehouseClient: warehouseClientMock,
                     userAttributes: {},
                     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
         ).toThrowError(ForbiddenError);
     });
@@ -291,6 +326,7 @@ describe('Query builder', () => {
                     country: ['EU'],
                 },
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(METRIC_QUERY_WITH_SQL_FILTER);
     });
@@ -510,23 +546,38 @@ describe('assertValidDimensionRequiredAttribute', () => {
 describe('with custom dimensions', () => {
     it('getCustomDimensionSql with empty custom dimension', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY,
+                customDimensions: undefined,
                 userAttributes: {},
                 sorts: [],
             }),
         ).toStrictEqual(undefined);
     });
 
+    it('getCustomSqlDimensionSql with custom sql dimension', () => {
+        expect(
+            getCustomSqlDimensionSql({
+                warehouseClient: bigqueryClientMock,
+                customDimensions: [CUSTOM_SQL_DIMENSION],
+            }),
+        ).toStrictEqual({
+            selects: ['  ("table1".dim1 < 18) AS `is_adult`'],
+            tables: ['table1'],
+        });
+    });
+
     it('getCustomDimensionSql with custom dimension', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
 
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                customDimensions:
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.compiledCustomDimensions?.filter(
+                        isCustomBinDimension,
+                    ),
                 userAttributes: {},
                 sorts: [],
             }),
@@ -557,23 +608,21 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
 
     it('getCustomDimensionSql with only 1 bin', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
 
                 explore: EXPLORE,
-                compiledMetricQuery: {
-                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
-                        {
-                            id: 'age_range',
-                            name: 'Age range',
-                            dimensionId: 'table1_dim1',
-                            table: 'table1',
-                            binType: BinType.FIXED_NUMBER,
-                            binNumber: 1,
-                        },
-                    ],
-                },
+                customDimensions: [
+                    {
+                        id: 'age_range',
+                        name: 'Age range',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table1_dim1',
+                        table: 'table1',
+                        binType: BinType.FIXED_NUMBER,
+                        binNumber: 1,
+                    },
+                ],
                 userAttributes: {},
                 sorts: [],
             }),
@@ -603,6 +652,7 @@ ELSE CONCAT(age_range_cte.min_id + age_range_cte.bin_width * 2, ' - ', age_range
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -637,10 +687,11 @@ LIMIT 10`);
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
+                    compiledCustomDimensions: [
                         {
                             id: 'age_range',
                             name: 'Age range',
+                            type: CustomDimensionType.BIN,
                             dimensionId: 'table1_dim1',
                             table: 'table1',
                             binType: BinType.FIXED_WIDTH,
@@ -651,6 +702,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS \`table1_dim1\`,
@@ -690,6 +742,7 @@ LIMIT 10`);
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -727,11 +780,13 @@ LIMIT 10`);
 
     it('getCustomDimensionSql with sorted custom dimension ', () => {
         expect(
-            getCustomDimensionSql({
+            getCustomBinDimensionSql({
                 warehouseClient: bigqueryClientMock,
-
                 explore: EXPLORE,
-                compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                customDimensions:
+                    METRIC_QUERY_WITH_CUSTOM_DIMENSION.compiledCustomDimensions?.filter(
+                        isCustomBinDimension,
+                    ),
                 userAttributes: {},
                 sorts: [{ fieldId: 'age_range', descending: true }],
             }),
@@ -778,6 +833,7 @@ ELSE 2
                 warehouseClient: bigqueryClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`WITH  age_range_cte AS (
                     SELECT
@@ -819,10 +875,11 @@ LIMIT 10`);
                 explore: EXPLORE,
                 compiledMetricQuery: {
                     ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    customDimensions: [
+                    compiledCustomDimensions: [
                         {
                             id: 'age_range',
                             name: 'Age range',
+                            type: CustomDimensionType.BIN,
                             dimensionId: 'table1_dim1',
                             table: 'table1',
                             binType: BinType.FIXED_WIDTH,
@@ -833,6 +890,7 @@ LIMIT 10`);
                 warehouseClient: warehouseClientMock,
                 userAttributes: {},
                 intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
             }).query,
         ).toStrictEqual(`SELECT
   "table1".dim1 AS "table1_dim1",
@@ -844,5 +902,68 @@ FROM "db"."schema"."table1" AS "table1"
 GROUP BY 1,2
 ORDER BY "table1_metric1" DESC
 LIMIT 10`);
+    });
+
+    it('buildQuery with custom dimension not selected', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+                    dimensions: ['table1_dim1'], // without age_range
+                },
+                warehouseClient: bigqueryClientMock,
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
+        ).not.toContain('age_range');
+    });
+});
+
+const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
+describe('Time frame sorting', () => {
+    it('sortMonthName SQL', () => {
+        expect(
+            ignoreIndentation(sortMonthName(COMPILED_MONTH_NAME_DIMENSION)),
+        ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
+    });
+    it('sortDayOfWeekName SQL for undefined startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL));
+    });
+    it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, WeekDay.SUNDAY),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
+    });
+
+    it('sortDayOfWeekName SQL for Wednesday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(
+                    COMPILED_WEEK_NAME_DIMENSION,
+                    WeekDay.WEDNESDAY,
+                ),
+            ),
+        ).toStrictEqual(
+            ignoreIndentation(`(
+            CASE
+                WHEN "table1".dim1 = 'Sunday' THEN 5
+                WHEN "table1".dim1 = 'Monday' THEN 6
+                WHEN "table1".dim1 = 'Tuesday' THEN 7
+                WHEN "table1".dim1 = 'Wednesday' THEN 1
+                WHEN "table1".dim1 = 'Thursday' THEN 2
+                WHEN "table1".dim1 = 'Friday' THEN 3
+                WHEN "table1".dim1 = 'Saturday' THEN 4
+                ELSE 0
+            END
+        )`),
+        );
     });
 });

@@ -1,9 +1,9 @@
 import {
-    fieldId,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getItemId,
     isField,
     isNumericItem,
     type ConditionalFormattingConfig,
@@ -154,7 +154,7 @@ const PivotTable: FC<PivotTableProps> = ({
 
             const initialData =
                 isField(item) && itemValue
-                    ? { [fieldId(item)]: itemValue }
+                    ? { [getItemId(item)]: itemValue }
                     : {};
 
             return [

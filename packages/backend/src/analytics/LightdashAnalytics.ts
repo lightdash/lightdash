@@ -184,6 +184,7 @@ type QueryExecutionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomSqlDimensions: number;
         dateZoomGranularity: string | null;
         timezone?: string;
     };
@@ -334,6 +335,7 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
+        numCustomSqlDimensions: number;
     };
 };
 
@@ -639,6 +641,22 @@ type DashboardView = BaseTrack & {
     };
 };
 
+type PromoteContent = BaseTrack & {
+    event: 'promote.executed' | 'promote.error';
+    userId: string;
+    properties: {
+        chartId?: string;
+        // dashboardId?: string;  // Not implemented yet
+        fromProjectId: string;
+        toProjectId?: string;
+        organizationId: string;
+        slug?: string;
+        withNewSpace?: boolean;
+        hasExistingContent?: boolean;
+        error?: string;
+    };
+};
+
 type AnalyticsDashboardView = BaseTrack & {
     event: 'usage_analytics.dashboard_viewed';
     userId: string;
@@ -933,6 +951,7 @@ type TypedEvent =
     | ShareSlack
     | SavedChartView
     | DashboardView
+    | PromoteContent
     | AnalyticsDashboardView
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent

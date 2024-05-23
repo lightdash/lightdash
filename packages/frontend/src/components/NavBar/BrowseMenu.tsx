@@ -22,6 +22,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
+            withinPortal
             shadow="lg"
             position="bottom-start"
             arrowOffset={16}

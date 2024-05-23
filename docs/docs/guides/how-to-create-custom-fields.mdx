@@ -5,6 +5,9 @@ import CustomMetricAddFilterWhenCreating from './assets/custom-metric-add-filter
 import CustomMetricAddFilterWhenEditing from './assets/custom-metric-add-filter-while-editing.png';
 import CustomDimensionCreating from './assets/custom-dimension-creating.png';
 import CustomDimensionBins from './assets/custom-dimension-bins.png';
+import CustomDimensionSqlAdd from './assets/custom-dimension-sql-add.png';
+import CustomDimensionSqlForm from './assets/custom-dimension-sql-form.png';
+import CustomDimensionSqlResult from './assets/custom-dimension-sql-result.png';
 
 # Using custom fields
 
@@ -89,9 +92,7 @@ Custom dimensions are helpful to use when you want to group or bin your data bas
 
 Then, your new dimension will be added to your results table automatically and will appear in the `custom dimensions` space in your sidebar.
 
-### Custom dimension types
-
-#### Bin
+### Bin
 
 Bins are used to split out values of a numeric dimension into custom sets of ranges. Bins can only be used with dimensions that are numeric. Fixed bins (fixed number and fixed width) will update automatically if the min or max values of your dimension change.
 
@@ -115,3 +116,46 @@ You pick the width (a.k.a. ranges) for your bins and Lightdash automatically def
 **3. Custom range**
 
 You manually define the min and max values for each bin. The custom range option is the only binning option that will not automatically update if the min or max values of your dimension change (you would need to manually adjust your custom bins or some values could not be included in your bins).
+
+---
+
+### SQL
+
+You can use SQL to create a custom dimension. This is useful when you want to create a custom dimension on the fly. You can use SQL to create a custom dimension based on the values of an existing dimension.
+
+In this example, let's explore the `orders` table and create a custom dimension that categorizes my orders' totals into three categories: `low`, `medium`, and `high`.
+
+You can click on the button to add a custom dimension on the sidebar:
+
+<img
+  src={CustomDimensionSqlAdd}
+  width="300"
+  height="532"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Then you can write your SQL query to create your custom dimension:
+
+```sql
+CASE
+  WHEN ${orders.subtotal} < 100 THEN 'low'
+  WHEN ${orders.subtotal}  < 500 THEN 'medium'
+  ELSE 'high'
+END
+```
+
+<img
+  src={CustomDimensionSqlForm}
+  width="400"
+  height="532"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+And after you run your query, you will see your new custom dimension categorising your orders' totals:
+
+<img
+  src={CustomDimensionSqlResult}
+  width="500"
+  height="690"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

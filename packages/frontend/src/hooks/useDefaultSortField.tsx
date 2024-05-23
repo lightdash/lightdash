@@ -1,7 +1,7 @@
 import {
     DimensionType,
-    fieldId as getFieldId,
     getDimensions,
+    getItemId,
     getMetrics,
     type CreateSavedChartVersion,
     type SortField,
@@ -22,7 +22,7 @@ const useDefaultSortField = (
     return useMemo(() => {
         if (data) {
             const dimensionFields = getDimensions(data).filter((field) =>
-                dimensions.includes(getFieldId(field)),
+                dimensions.includes(getItemId(field)),
             );
 
             const timeDimension = dimensionFields.find(({ type }) =>
@@ -31,18 +31,18 @@ const useDefaultSortField = (
 
             if (timeDimension) {
                 return {
-                    fieldId: getFieldId(timeDimension),
+                    fieldId: getItemId(timeDimension),
                     descending: true,
                 };
             }
 
             const firstMetric = columnOrder.find((c) => metrics.includes(c));
             const firstMetricField = getMetrics(data).find(
-                (field) => firstMetric === getFieldId(field),
+                (field) => firstMetric === getItemId(field),
             );
             if (firstMetricField) {
                 return {
-                    fieldId: getFieldId(firstMetricField),
+                    fieldId: getItemId(firstMetricField),
                     descending: true,
                 };
             }
@@ -50,12 +50,12 @@ const useDefaultSortField = (
                 dimensions.includes(c),
             );
             const firstDimensionField = dimensionFields.find(
-                (field) => firstDimension === getFieldId(field),
+                (field) => firstDimension === getItemId(field),
             );
 
             if (firstDimensionField) {
                 return {
-                    fieldId: getFieldId(firstDimensionField),
+                    fieldId: getItemId(firstDimensionField),
                     descending: false,
                 };
             }

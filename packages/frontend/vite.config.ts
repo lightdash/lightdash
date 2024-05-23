@@ -57,7 +57,6 @@ export default defineConfig({
                     ],
                     thirdparty: [
                         '@sentry/react',
-                        '@sentry/tracing',
                         'rudder-sdk-js',
                         'posthog-js',
                     ],

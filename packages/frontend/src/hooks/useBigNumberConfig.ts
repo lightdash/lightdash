@@ -268,8 +268,12 @@ const useBigNumberConfig = (
     }, [item, firstRowValueRaw, selectedField, bigNumberStyle, resultsData]);
 
     const unformattedValue = useMemo(() => {
-        return isNumber(item, secondRowValueRaw) &&
-            isNumber(item, firstRowValueRaw)
+        // For backwards compatibility with old table calculations without type
+        const isCalculationTypeUndefined =
+            item && isTableCalculation(item) && item.type === undefined;
+        return (isNumber(item, secondRowValueRaw) &&
+            isNumber(item, firstRowValueRaw)) ||
+            isCalculationTypeUndefined
             ? calculateComparisonValue(
                   Number(firstRowValueRaw),
                   Number(secondRowValueRaw),

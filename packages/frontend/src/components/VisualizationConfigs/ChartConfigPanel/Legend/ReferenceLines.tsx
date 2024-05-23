@@ -1,7 +1,8 @@
 import {
-    fieldId as getFieldId,
+    getItemId,
     isField,
     isNumericItem,
+    isTableCalculation,
     type CompiledDimension,
     type CustomDimension,
     type Field,
@@ -60,10 +61,14 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
 
                 if (field) {
                     const fieldId = isField(field)
-                        ? getFieldId(field)
+                        ? getItemId(field)
                         : field.name;
 
-                    const isNumericField = field && isNumericItem(field);
+                    const isNumericField =
+                        field &&
+                        (isNumericItem(field) ||
+                            // Treat untyped table calculations as numeric
+                            (isTableCalculation(field) && !field.type));
                     const useAverage =
                         dynamicValue === 'average' && isNumericField;
 

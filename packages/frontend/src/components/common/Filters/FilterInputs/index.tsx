@@ -8,6 +8,7 @@ import {
     getFilterTypeFromItem,
     getItemId,
     getLocalTimeDisplay,
+    isCustomSqlDimension,
     isDashboardFilterRule,
     isDimension,
     isField,
@@ -16,8 +17,9 @@ import {
     isMomentInput,
     type ConditionalRule,
     type ConditionalRuleLabels,
+    type CustomSqlDimension,
     type Field,
-    type FilterableField,
+    type FilterableDimension,
     type FilterableItem,
     type TableCalculation,
 } from '@lightdash/common';
@@ -149,7 +151,7 @@ export const FilterInputComponent = <T extends ConditionalRule>(
 const getValueAsString = (
     filterType: FilterType,
     rule: ConditionalRule,
-    field: Field | TableCalculation,
+    field: Field | TableCalculation | CustomSqlDimension,
 ) => {
     const { operator, values } = rule;
     const firstValue = values?.[0];
@@ -194,16 +196,19 @@ const getValueAsString = (
                 case FilterOperator.GREATER_THAN_OR_EQUAL:
                     return values
                         ?.map((value) => {
+                            const type = isCustomSqlDimension(field)
+                                ? field.dimensionType
+                                : field.type;
                             if (
                                 isDimension(field) &&
                                 isMomentInput(value) &&
-                                field.type === DimensionType.TIMESTAMP
+                                type === DimensionType.TIMESTAMP
                             ) {
                                 return getLocalTimeDisplay(value);
                             } else if (
                                 isDimension(field) &&
                                 isMomentInput(value) &&
-                                field.type === DimensionType.DATE
+                                type === DimensionType.DATE
                             ) {
                                 return formatDate(value, field.timeInterval);
                             } else {
@@ -246,8 +251,8 @@ export const getConditionalRuleLabel = (
 
 export const getFilterRuleTables = (
     filterRule: ConditionalRule,
-    field: FilterableField,
-    filterableFields: FilterableField[],
+    field: FilterableDimension,
+    filterableFields: FilterableDimension[],
 ): string[] => {
     if (
         isDashboardFilterRule(filterRule) &&

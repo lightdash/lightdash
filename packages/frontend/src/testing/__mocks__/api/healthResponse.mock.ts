@@ -28,6 +28,9 @@ export default function mockHealthResponse(
             appId: '',
             apiBase: '',
         },
+        pylon: {
+            appId: '',
+        },
         siteUrl: 'http://localhost:3000',
         staticIp: '',
         posthog: {

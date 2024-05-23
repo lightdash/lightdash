@@ -27,6 +27,7 @@ import {
     allExplores,
     defaultProject,
     expectedAllExploreSummary,
+    expectedAllExploreSummaryWithoutErrors,
     expectedApiQueryResultsWith1Row,
     expectedApiQueryResultsWith501Rows,
     expectedCatalog,
@@ -219,6 +220,15 @@ describe('ProjectService', () => {
                 true,
             );
             expect(result).toEqual(expectedExploreSummaryFilteredByName);
+        });
+        test('should get all explores summary that do not have errors', async () => {
+            const result = await service.getAllExploresSummary(
+                user,
+                projectUuid,
+                false,
+                false,
+            );
+            expect(result).toEqual(expectedAllExploreSummaryWithoutErrors);
         });
     });
     describe('getJobStatus', () => {

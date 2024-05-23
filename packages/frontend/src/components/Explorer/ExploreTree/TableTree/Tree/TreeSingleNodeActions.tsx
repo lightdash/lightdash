@@ -1,12 +1,11 @@
 import {
     DimensionType,
-    fieldId,
     friendlyName,
-    getCustomDimensionId,
+    getItemId,
     isAdditionalMetric,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
-    isField,
     isFilterableField,
     MetricType,
     type AdditionalMetric,
@@ -40,7 +39,6 @@ const getCustomMetricType = (type: DimensionType): MetricType[] => {
                 MetricType.MIN,
                 MetricType.MAX,
             ];
-
         case DimensionType.NUMBER:
             return [
                 MetricType.MIN,
@@ -94,10 +92,12 @@ const TreeSingleNodeActions: FC<Props> = ({
         (context) => context.actions.toggleCustomDimensionModal,
     );
 
-    const customMetrics = useMemo(
-        () => (isDimension(item) ? getCustomMetricType(item.type) : []),
-        [item],
-    );
+    const customMetrics = useMemo(() => {
+        if (isCustomSqlDimension(item)) {
+            return getCustomMetricType(item.dimensionType);
+        }
+        return isDimension(item) ? getCustomMetricType(item.type) : [];
+    }, [item]);
 
     return isHovered || isSelected || isOpened ? (
         <Menu
@@ -111,7 +111,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             onChange={onMenuChange}
         >
             <Menu.Dropdown>
-                {isField(item) && isFilterableField(item) ? (
+                {!isAdditionalMetric(item) && isFilterableField(item) ? (
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconFilter} />}
@@ -155,7 +155,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 track({
                                     name: EventName.REMOVE_CUSTOM_METRIC_CLICKED,
                                 });
-                                removeAdditionalMetric(fieldId(item));
+                                removeAdditionalMetric(getItemId(item));
                             }}
                         >
                             Remove custom metric
@@ -176,7 +176,37 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 )}
 
-                {customMetrics.length > 0 && isDimension(item) ? (
+                {isCustomDimension(item) && (
+                    <>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconEdit} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCustomDimensionModal({
+                                    item,
+                                    isEditing: true,
+                                });
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Item
+                            color="red"
+                            component="button"
+                            icon={<MantineIcon icon={IconTrash} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                removeCustomDimension(getItemId(item));
+                            }}
+                        >
+                            Remove custom dimension
+                        </Menu.Item>
+                    </>
+                )}
+
+                {customMetrics.length > 0 &&
+                (isDimension(item) || isCustomSqlDimension(item)) ? (
                     <>
                         <Menu.Divider />
 
@@ -192,6 +222,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                         'opening custom metric modal: ' +
                                             metric,
                                     );
+
                                     toggleAdditionalMetricModal({
                                         type: metric,
                                         item,
@@ -231,37 +262,6 @@ const TreeSingleNodeActions: FC<Props> = ({
                         </Menu.Item>
                     </>
                 ) : null}
-
-                {isCustomDimension(item) && (
-                    <>
-                        <Menu.Item
-                            component="button"
-                            icon={<MantineIcon icon={IconEdit} />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleCustomDimensionModal({
-                                    item,
-                                    isEditing: true,
-                                });
-                            }}
-                        >
-                            Edit custom dimension
-                        </Menu.Item>
-                        <Menu.Item
-                            color="red"
-                            component="button"
-                            icon={<MantineIcon icon={IconTrash} />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeCustomDimension(
-                                    getCustomDimensionId(item),
-                                );
-                            }}
-                        >
-                            Remove custom dimension
-                        </Menu.Item>
-                    </>
-                )}
             </Menu.Dropdown>
 
             {/* prevents bubbling of click event to NavLink */}

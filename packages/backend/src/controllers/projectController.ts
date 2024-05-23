@@ -13,6 +13,7 @@ import {
     CalculateTotalFromQuery,
     CreateProjectMember,
     DbtExposure,
+    UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
 } from '@lightdash/common';
@@ -424,6 +425,33 @@ export class ProjectController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getCustomMetrics(req.user!, projectUuid),
+        };
+    }
+
+    /**
+     * Update project metadata like upstreamProjectUuid
+     * we don't trigger a compile, so not for updating warehouse or credentials
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/metadata')
+    @OperationId('updateProjectMetadata')
+    async updateProjectMetadata(
+        @Path() projectUuid: string,
+        @Body() body: UpdateMetadata,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateMetadata(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

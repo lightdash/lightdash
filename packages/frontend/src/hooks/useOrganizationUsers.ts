@@ -62,7 +62,7 @@ export const useOrganizationUsers = (params?: {
 
 export const useDeleteOrganizationUserMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteUserQuery, {
         mutationKey: ['organization_users_delete'],
         onSuccess: async () => {
@@ -71,10 +71,10 @@ export const useDeleteOrganizationUserMutation = () => {
                 title: `Success! User was deleted.`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete user`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -83,7 +83,7 @@ export const useDeleteOrganizationUserMutation = () => {
 export const useUpdateUserMutation = (userUuid: string) => {
     const queryClient = useQueryClient();
     const { user } = useApp();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, OrganizationMemberProfileUpdate>(
         (data) => {
             if (userUuid) {
@@ -102,10 +102,10 @@ export const useUpdateUserMutation = (userUuid: string) => {
                     title: `Success! User was updated.`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update user's permissions`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

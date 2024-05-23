@@ -88,16 +88,63 @@ export type BinRange = {
     from: number | undefined; // first range has from undefined
     to: number | undefined; // last range has to undefined
 };
-export interface CustomDimension {
+
+export enum CustomDimensionType {
+    BIN = 'bin',
+    SQL = 'sql',
+}
+
+export interface BaseCustomDimension {
     id: string;
     name: string;
+    table: string;
+    type: CustomDimensionType;
+}
+
+export interface CustomBinDimension extends BaseCustomDimension {
+    type: CustomDimensionType.BIN;
     dimensionId: FieldId; // Parent dimension id
-    table: string; // Table of parent dimension
     binType: BinType;
     binNumber?: number;
     binWidth?: number;
     customRange?: BinRange[];
 }
+
+export interface CustomSqlDimension extends BaseCustomDimension {
+    type: CustomDimensionType.SQL;
+    sql: string;
+    dimensionType: DimensionType;
+}
+
+export type CustomDimension = CustomBinDimension | CustomSqlDimension;
+
+export const isCustomDimension = (value: any): value is CustomDimension =>
+    value !== undefined &&
+    Object.values(CustomDimensionType).includes(value.type);
+
+export const isCustomBinDimension = (value: any): value is CustomBinDimension =>
+    value !== undefined &&
+    isCustomDimension(value) &&
+    value.type === CustomDimensionType.BIN;
+
+export const isCustomSqlDimension = (value: any): value is CustomSqlDimension =>
+    value !== undefined &&
+    isCustomDimension(value) &&
+    value.type === CustomDimensionType.SQL;
+
+export type CompiledCustomSqlDimension = CustomSqlDimension & {
+    compiledSql: string;
+    tablesReferences: Array<string>;
+};
+
+export type CompiledCustomDimension =
+    | CustomBinDimension
+    | CompiledCustomSqlDimension;
+
+export const isCompiledCustomSqlDimension = (
+    value: any,
+): value is CompiledCustomSqlDimension =>
+    isCustomSqlDimension(value) && 'compiledSql' in value;
 
 export type ItemsMap = Record<
     string,
@@ -130,10 +177,11 @@ export enum TableCalculationType {
     TIMESTAMP = 'timestamp',
     BOOLEAN = 'boolean',
 }
+
 export type TableCalculation = {
     index?: number;
     name: string;
-    displayName: string;
+    displayName: string; // This is a unique property of the table calculation
     sql: string;
     format?: CustomFormat;
     type?: TableCalculationType;
@@ -144,34 +192,27 @@ export type TableCalculationMetadata = {
     name: string;
 };
 
-export interface TableCalculationField extends Field {
-    fieldType: FieldType.TABLE_CALCULATION;
-    type: TableCalculationType;
-    index?: number;
-    name: string;
-    displayName: string;
-    sql: string;
+export enum FieldType {
+    METRIC = 'metric',
+    DIMENSION = 'dimension',
 }
 
+// This type check is a little fragile because it's based on
+// 'displayName'. Ideally these would all have fieldTypes.
 export const isTableCalculation = (
-    item: Item | AdditionalMetric | TableCalculationField,
+    item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'table' | 'name'>,
 ): item is TableCalculation =>
     item
-        ? !('binType' in item) &&
-          !!item.sql &&
+        ? !isCustomDimension(item) &&
+          !!('sql' in item && item.sql) &&
           !('description' in item) &&
-          !('tableName' in item)
+          !('tableName' in item) &&
+          'displayName' in item
         : false;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;
 };
-
-export enum FieldType {
-    METRIC = 'metric',
-    DIMENSION = 'dimension',
-    TABLE_CALCULATION = 'table_calculation',
-}
 
 export type FieldUrl = {
     url: string;
@@ -203,8 +244,6 @@ export const isField = (field: any): field is Field =>
 
 // Field ids are unique across the project
 export type FieldId = string;
-export const fieldId = (field: Pick<Field, 'table' | 'name'>): FieldId =>
-    `${field.table}_${field.name.replaceAll('.', '__')}`;
 
 export const convertFieldRefToFieldId = (
     fieldRef: string,
@@ -260,11 +299,6 @@ export interface Dimension extends Field {
     colors?: Record<string, string>;
 }
 
-export const isTableCalculationField = (
-    field: any,
-): field is TableCalculationField =>
-    isField(field) && field.fieldType === FieldType.TABLE_CALCULATION;
-
 export interface CompiledDimension extends Dimension {
     compiledSql: string; // sql string with resolved template variables
     tablesReferences: Array<string> | undefined;
@@ -298,34 +332,6 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.TIMESTAMP
         | DimensionType.BOOLEAN;
 }
-
-export const isFilterableDimension = (
-    dimension: Dimension,
-): dimension is FilterableDimension =>
-    [
-        DimensionType.STRING,
-        DimensionType.NUMBER,
-        DimensionType.DATE,
-        DimensionType.TIMESTAMP,
-        DimensionType.BOOLEAN,
-    ].includes(dimension.type);
-export type FilterableField =
-    | FilterableDimension
-    | Metric
-    | TableCalculationField;
-export const isFilterableField = (
-    field: Field | Dimension | Metric | TableCalculationField,
-): field is FilterableField =>
-    isDimension(field) ? isFilterableDimension(field) : true;
-
-export type FilterableItem =
-    | FilterableField
-    | TableCalculationField
-    | TableCalculation;
-export const isFilterableItem = (
-    item: ItemsMap[string] | TableCalculationField,
-): item is FilterableItem =>
-    isDimension(item) ? isFilterableDimension(item) : true;
 
 export type FieldRef = string;
 export const getFieldRef = (field: Pick<Field, 'table' | 'name'>): FieldRef =>
@@ -406,8 +412,12 @@ const NonAggregateMetricTypes = [
     MetricType.BOOLEAN,
 ];
 
-export const isMetric = (field: Field | undefined): field is Metric =>
-    field ? field.fieldType === FieldType.METRIC : false;
+export const isMetric = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is Metric =>
+    field
+        ? 'fieldType' in field && field.fieldType === FieldType.METRIC
+        : false;
 
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
@@ -423,6 +433,37 @@ export interface Metric extends Field {
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
 }
+
+export const isFilterableDimension = (
+    dimension: Dimension,
+): dimension is FilterableDimension =>
+    [
+        DimensionType.STRING,
+        DimensionType.NUMBER,
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+        DimensionType.BOOLEAN,
+    ].includes(dimension.type);
+
+// TODO: FilterableField === FilterableItem, we should remove one of them, as well as one of the type guards
+export type FilterableField =
+    | TableCalculation
+    | Metric
+    | FilterableDimension
+    | CustomSqlDimension;
+export const isFilterableField = (
+    field: Dimension | ItemsMap[string],
+): field is FilterableField =>
+    (isDimension(field) && isFilterableDimension(field)) ||
+    isCustomSqlDimension(field) ||
+    isMetric(field) ||
+    isTableCalculation(field);
+
+export type FilterableItem = FilterableField;
+export const isFilterableItem = (
+    item: ItemsMap[string] | TableCalculation,
+): item is FilterableItem =>
+    isDimension(item) ? isFilterableDimension(item) : true;
 
 export const defaultSql = (columnName: string): string =>
     // eslint-disable-next-line no-useless-escape

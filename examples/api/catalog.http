@@ -1,0 +1,34 @@
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Catalog endpoint
+
+#### Get tables
+GET http://localhost:8080/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?type=table
+
+#### Get Fields
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?type=field
+
+#### Search
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=customer
+
+#### Search dimension
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=payment_method
+
+#### Search metric
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=dbt_derived
+
+#### Search field without attribute access (age)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=age
+
+#### Search table without attribute access (memberships)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=memberships
+
+#### Search field in table without attribute access (plan)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=plan

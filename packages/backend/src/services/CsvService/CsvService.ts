@@ -8,23 +8,23 @@ import {
     DownloadCsvPayload,
     DownloadFileType,
     DownloadMetricCsv,
-    FeatureFlags,
     ForbiddenError,
     formatItemValue,
     friendlyName,
-    getCustomDimensionId,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
     getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
+    isCustomSqlDimension,
     isDashboardChartTileType,
     isField,
     isMomentInput,
     isTableChartConfig,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -53,9 +53,8 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread } from '../../utils';
+import { runWorkerThread, sanitizeStringParam } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -207,16 +206,20 @@ export class CsvService extends BaseService {
         });
     }
 
+    static sanitizeFileName(name: string): string {
+        return name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
+            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+    }
+
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
         time: moment.Moment = moment(),
     ): string {
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');
-        const sanitizedFileName = fileName
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric characters with underscores
-            .replace(/_{2,}/g, '_'); // Replace multiple underscores with a single one
+        const sanitizedFileName = CsvService.sanitizeFileName(fileName);
         const fileId = `csv-${
             truncated ? 'incomplete_results-' : ''
         }${sanitizedFileName}-${timestamp}.csv`;
@@ -246,7 +249,6 @@ export class CsvService extends BaseService {
             ...metricQuery.metrics,
             ...metricQuery.dimensions,
             ...metricQuery.tableCalculations.map((tc: any) => tc.name),
-            ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
         ].filter((id) => !hiddenFields.includes(id));
 
         Logger.debug(
@@ -411,19 +413,10 @@ export class CsvService extends BaseService {
                   )
                 : undefined;
 
-        const isDashboardFilterOverrideEnabled: boolean =
-            await isFeatureFlagEnabled(
-                FeatureFlags.DashboardFilterOverridesChartFilters,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                },
-            );
         const metricQueryWithDashboardFilters = dashboardFiltersForTile
             ? addDashboardFiltersToMetricQuery(
                   metricQuery,
                   dashboardFiltersForTile,
-                  isDashboardFilterOverrideEnabled,
               )
             : metricQuery;
 
@@ -666,6 +659,23 @@ export class CsvService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (
+            csvOptions.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: csvOptions.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
+        }
+
         // If the user can't change the csv limit, default csvLimit to undefined
         // csvLimit undefined means that we will be using the limit from the metricQuery
         // csvLimit null means all rows
@@ -717,6 +727,21 @@ export class CsvService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot run queries with custom SQL dimensions',
+            );
         }
 
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
@@ -838,7 +863,7 @@ export class CsvService extends BaseService {
         dashboardFilters: DashboardFilters,
     ) {
         if (!this.s3Client.isEnabled()) {
-            throw new Error('Cloud storage is not enabled');
+            throw new MissingConfigError('Cloud storage is not enabled');
         }
         const options: SchedulerCsvOptions = {
             formatted: true,
@@ -918,9 +943,11 @@ export class CsvService extends BaseService {
             },
         });
 
+        const zipFileName = CsvService.sanitizeFileName(dashboard.name);
+        const timestamp = moment().format('YYYY-MM-DD-HH-mm-ss-SSSS');
         return this.s3Client.uploadZip(
             fs.createReadStream(zipFile),
-            `${dashboard.name}.zip`,
+            `${zipFileName}-${timestamp}.zip`,
         );
     }
 }

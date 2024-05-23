@@ -6,6 +6,7 @@ import {
     DimensionType,
     findCompactConfig,
     Format,
+    isCustomSqlDimension,
     isDimension,
     isTableCalculation,
     MetricType,
@@ -21,6 +22,7 @@ import {
 import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { getItemType } from './item';
 
 dayjs.extend(timezone);
 
@@ -394,8 +396,9 @@ export function formatItemValue(
     if (value === undefined) return '-';
 
     if (item) {
-        if ('type' in item) {
-            switch (item.type) {
+        if (isCustomSqlDimension(item) || 'type' in item) {
+            const type = getItemType(item);
+            switch (type) {
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
                 case MetricType.STRING:

@@ -1,6 +1,5 @@
 import { type Explore } from '../types/explore';
 import {
-    fieldId,
     type CompiledDimension,
     type CompiledField,
     type CompiledMetric,
@@ -10,7 +9,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '../types/field';
-import { getCustomDimensionId, type MetricQuery } from '../types/metricQuery';
+import { type MetricQuery } from '../types/metricQuery';
 import { convertAdditionalMetric } from './additionalMetrics';
 import { getItemId } from './item';
 
@@ -35,25 +34,25 @@ export const getFieldsFromMetricQuery = (
     const fields = [...metricQuery.dimensions, ...metricQuery.metrics].reduce<
         Record<string, Dimension | Metric>
     >((acc, metricField) => {
-        const field = exploreFields.find((f) => metricField === fieldId(f));
+        const field = exploreFields.find((f) => metricField === getItemId(f));
         if (field) {
             return { ...acc, [metricField]: field };
         }
         return acc;
     }, {});
-    const additionalMetrics = (metricQuery.additionalMetrics || []).reduce<
-        Record<string, Metric>
-    >((acc, additionalMetric) => {
-        const table = explore.tables[additionalMetric.table];
-        if (table) {
-            const metric = convertAdditionalMetric({
-                additionalMetric,
-                table,
-            });
-            return { ...acc, [getItemId(additionalMetric)]: metric };
-        }
-        return acc;
-    }, {});
+    const additionalMetrics = (metricQuery.additionalMetrics || [])
+        .filter((cd) => metricQuery.metrics.includes(getItemId(cd)))
+        .reduce<Record<string, Metric>>((acc, additionalMetric) => {
+            const table = explore.tables[additionalMetric.table];
+            if (table) {
+                const metric = convertAdditionalMetric({
+                    additionalMetric,
+                    table,
+                });
+                return { ...acc, [getItemId(additionalMetric)]: metric };
+            }
+            return acc;
+        }, {});
     const tableCalculations = metricQuery.tableCalculations.reduce<
         Record<string, TableCalculation>
     >(
@@ -63,15 +62,15 @@ export const getFieldsFromMetricQuery = (
         }),
         {},
     );
-    const customDimensions = metricQuery.customDimensions?.reduce<
-        Record<string, CustomDimension>
-    >(
-        (acc, customDimension) => ({
-            ...acc,
-            [getCustomDimensionId(customDimension)]: customDimension,
-        }),
-        {},
-    );
+    const customDimensions = metricQuery.customDimensions
+        ?.filter((cd) => metricQuery.dimensions.includes(getItemId(cd)))
+        .reduce<Record<string, CustomDimension>>(
+            (acc, customDimension) => ({
+                ...acc,
+                [getItemId(customDimension)]: customDimension,
+            }),
+            {},
+        );
     return {
         ...fields,
         ...tableCalculations,

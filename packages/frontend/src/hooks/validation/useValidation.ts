@@ -4,13 +4,18 @@ import {
     type ApiJobScheduledResponse,
     type ValidationResponse,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryResult,
+} from '@tanstack/react-query';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../toaster/useToaster';
 import { useProject } from '../useProject';
-import useUser from '../user/useUser';
+import useUser, { type UserWithAbility } from '../user/useUser';
 
 const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
 
@@ -26,12 +31,24 @@ const getValidation = async (
 
 export const useValidation = (
     projectUuid: string,
+    user: UseQueryResult<UserWithAbility, ApiError>,
     fromSettings: boolean = false,
 ) => {
     const [lastValidationNotification, setLastValidationNotification] =
         useLocalStorageState<string>(LAST_VALIDATION_NOTIFICATION_KEY);
+    const organizationUuid = user.data?.organizationUuid;
+
+    // Check if the user can manage validation feature
+    const canManageValidation = user.data?.ability.can(
+        'manage',
+        subject('Validation', {
+            organizationUuid,
+            projectUuid,
+        }),
+    );
 
     return useQuery<ValidationResponse[], ApiError>({
+        enabled: canManageValidation,
         queryKey: ['validation', fromSettings],
         queryFn: () => getValidation(projectUuid, fromSettings),
         retry: (_, error) => error.error.statusCode !== 403,
@@ -73,7 +90,8 @@ export const useValidationMutation = (
     onComplete: () => void,
 ) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
 
     return useMutation<ApiJobScheduledResponse['results'], ApiError>({
         mutationKey: ['validation', projectUuid],
@@ -96,11 +114,10 @@ export const useValidationMutation = (
                     });
                 });
         },
-        onError: (error) => {
-            const [title, ...rest] = error.error.message.split('\n');
-            showToastError({
-                title,
-                subtitle: rest.join('\n'),
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update validation',
+                apiError: error,
             });
         },
     });
@@ -154,7 +171,7 @@ const deleteValidation = async (
 
 export const useDeleteValidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, number>(
         (validationId) => deleteValidation(projectUuid, validationId),
         {
@@ -165,11 +182,10 @@ export const useDeleteValidation = (projectUuid: string) => {
                     title: 'Validation dismissed',
                 });
             },
-            onError: async (error1) => {
-                const [title, ...rest] = error1.error.message.split('\n');
-                showToastError({
-                    title,
-                    subtitle: rest.join('\n'),
+            onError: async ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to dismiss validation',
+                    apiError: error,
                 });
             },
         },

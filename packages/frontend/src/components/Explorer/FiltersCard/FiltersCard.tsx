@@ -1,7 +1,7 @@
 import {
     ConditionalOperator,
     countTotalFilterRules,
-    fieldId,
+    getItemId,
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
@@ -42,6 +42,10 @@ const FiltersCard: FC = memo(() => {
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
     );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
     const tableCalculations = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
@@ -67,6 +71,7 @@ const FiltersCard: FC = memo(() => {
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData: data,
         queryResults,
+        customDimensions,
         additionalMetrics,
         tableCalculations,
     });
@@ -78,7 +83,7 @@ const FiltersCard: FC = memo(() => {
         (filterRule: FilterRule) => {
             const fields: Field[] = data ? getVisibleFields(data) : [];
             const field = fields.find(
-                (f) => fieldId(f) === filterRule.target.fieldId,
+                (f) => getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
                 const filterRuleLabels = getConditionalRuleLabel(
@@ -159,7 +164,7 @@ const FiltersCard: FC = memo(() => {
         >
             <FiltersProvider
                 projectUuid={projectUuid}
-                fieldsMap={fieldsWithSuggestions}
+                itemsMap={fieldsWithSuggestions}
                 startOfWeek={
                     project.data?.warehouseConnection?.startOfWeek ?? undefined
                 }

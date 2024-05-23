@@ -94,6 +94,11 @@ models:
       joins:
         - join: customers
           sql_on: ${customers.customer_id} = ${orders.customer_id}
+      metrics:
+        completion_percentage:
+          type: number
+          sql: ${total_completed_order_amount}/${total_order_amount}
+          format: percent
     columns:
       - name: order_id
         tests:

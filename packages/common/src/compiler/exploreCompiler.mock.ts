@@ -1,9 +1,12 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { type Explore, type Table } from '../types/explore';
 import {
+    CustomDimensionType,
     DimensionType,
     FieldType,
     MetricType,
+    type CompiledCustomSqlDimension,
+    type CustomSqlDimension,
     type Source,
 } from '../types/field';
 import { FilterOperator } from '../types/filter';
@@ -1592,3 +1595,35 @@ export const compiledSimpleJoinedExploreWithAlwaysTrue: Explore = {
         },
     ],
 };
+
+export const customSqlDimensionWithNoReferences: CustomSqlDimension = {
+    id: 'test',
+    name: 'Test',
+    table: 'orders',
+    type: CustomDimensionType.SQL,
+    sql: '`orders`.`id`',
+    dimensionType: DimensionType.STRING,
+};
+
+export const expectedCompiledCustomSqlDimensionWithNoReferences: CompiledCustomSqlDimension =
+    {
+        ...customSqlDimensionWithNoReferences,
+        compiledSql: '`orders`.`id`',
+        tablesReferences: [],
+    };
+
+export const customSqlDimensionWithReferences: CustomSqlDimension = {
+    id: 'test',
+    name: 'Test',
+    table: 'orders',
+    type: CustomDimensionType.SQL,
+    sql: '${a.dim1} + ${b.dim1}',
+    dimensionType: DimensionType.STRING,
+};
+
+export const expectedCompiledCustomSqlDimensionWithReferences: CompiledCustomSqlDimension =
+    {
+        ...customSqlDimensionWithReferences,
+        compiledSql: '("a".dim1) + ("b".dim1)',
+        tablesReferences: ['a', 'b'],
+    };

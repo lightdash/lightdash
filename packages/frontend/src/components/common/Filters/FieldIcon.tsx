@@ -2,7 +2,8 @@ import {
     DimensionType,
     getItemColor,
     getItemIcon,
-    isCustomDimension,
+    isCustomBinDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isMetric,
@@ -58,8 +59,11 @@ const getItemIconName = (
 const getFieldIcon = (
     field: Field | TableCalculation | AdditionalMetric | CustomDimension,
 ) => {
-    if (isCustomDimension(field)) {
+    if (isCustomBinDimension(field)) {
         return 'citation';
+    }
+    if (isCustomSqlDimension(field)) {
+        return getItemIconName(field.dimensionType);
     }
     if (
         (isField(field) && (isDimension(field) || isMetric(field))) ||

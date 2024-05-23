@@ -1,7 +1,7 @@
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
-import * as Tracing from '@sentry/tracing';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -226,19 +226,25 @@ export default class App {
             App.initNodeProcessMonitor();
         }
 
-        const expressApp = await this.initExpress();
-        this.initSentry(expressApp);
-        this.initSlack().catch((e) => {
+        const expressApp = express();
+
+        // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
+        this.initSlack(expressApp).catch((e) => {
             Logger.error('Error starting slack bot', e);
         });
+
+        // NOTE: Sentry must be initialized before any handlers or middleware that should be traced
+        this.initSentry(expressApp);
+
+        // Load Lightdash middleware/routes last
+        await this.initExpress(expressApp);
+
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
         }
     }
 
-    private async initExpress() {
-        const expressApp = express();
-
+    private async initExpress(expressApp: Express) {
         const KnexSessionStore = connectSessionKnex(expressSession);
 
         const store = new KnexSessionStore({
@@ -396,6 +402,10 @@ export default class App {
                         name: errorResponse.name,
                         message: errorResponse.message,
                         data: errorResponse.data,
+                        id:
+                            errorResponse.statusCode === 500
+                                ? Sentry.lastEventId()
+                                : undefined,
                     },
                 });
             },
@@ -453,14 +463,14 @@ export default class App {
         return expressApp;
     }
 
-    private async initSlack() {
+    private async initSlack(expressApp: Express) {
         const slackBot = this.slackBotFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
             serviceRepository: this.serviceRepository,
             models: this.models,
         });
-        await slackBot.start();
+        await slackBot.start(expressApp);
     }
 
     private initSentry(expressApp: Express) {
@@ -473,9 +483,12 @@ export default class App {
                     : this.lightdashConfig.mode,
             integrations: [
                 new Sentry.Integrations.Http({ tracing: true }),
-                new Tracing.Integrations.Express({
+                new Sentry.Integrations.Express({
                     app: expressApp,
                 }),
+                new Sentry.Integrations.Postgres({ usePgNative: true }),
+                nodeProfilingIntegration(),
+                ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {
@@ -491,8 +504,12 @@ export default class App {
                 ) {
                     return 0.0;
                 }
+                if (context.parentSampled !== undefined) {
+                    return context.parentSampled;
+                }
                 return 0.2;
             },
+            profilesSampleRate: 0.2, // 20% of samples will be profiled
             beforeBreadcrumb(breadcrumb) {
                 if (
                     breadcrumb.category === 'http' &&

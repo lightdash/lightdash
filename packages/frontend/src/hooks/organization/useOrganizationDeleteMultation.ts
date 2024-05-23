@@ -11,15 +11,15 @@ const deleteDashboard = async (id: string) =>
     });
 
 export const useDeleteOrganizationMutation = () => {
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(deleteDashboard, {
         onSuccess: async () => {
             window.location.href = '/register';
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete organization`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });

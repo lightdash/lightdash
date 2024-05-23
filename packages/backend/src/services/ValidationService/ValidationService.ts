@@ -6,11 +6,9 @@ import {
     CreateDashboardValidation,
     CreateTableValidation,
     CreateValidation,
-    DashboardFilterRule,
     DashboardTileTarget,
     Explore,
     ExploreError,
-    fieldId as getFieldId,
     ForbiddenError,
     getCustomMetricDimensionId,
     getFilterRules,
@@ -280,7 +278,10 @@ export class ValidationService extends BaseService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: availableDimensionIds,
+                        fieldIds: [
+                            ...availableDimensionIds,
+                            ...availableCustomDimensionIds,
+                        ],
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -314,7 +315,10 @@ export class ValidationService extends BaseService {
                         return acc;
                     return containsFieldId({
                         acc,
-                        fieldIds: availableDimensionIds,
+                        fieldIds: [
+                            ...availableDimensionIds,
+                            ...availableCustomDimensionIds, // Custom dimensions can be used as base dimensions for custom metrics
+                        ],
                         fieldId: dimensionId,
                         error: `Custom metric error: the base dimension '${field.baseDimensionName}' no longer exists`,
                         errorType: ValidationErrorType.CustomMetric,
@@ -325,11 +329,9 @@ export class ValidationService extends BaseService {
                 [],
             );
 
-            const fieldsWithTableCalculationFilters = [
+            const fieldIds = [
                 ...allItemIdsAvailableInChart,
-                ...chartTableCalculationIds.map(
-                    (tc) => `table_calculation_${tc}`,
-                ),
+                ...chartTableCalculationIds,
             ];
             const filterErrors = getFilterRules(
                 chart.metricQuery.filters,
@@ -337,7 +339,7 @@ export class ValidationService extends BaseService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: fieldsWithTableCalculationFilters,
+                        fieldIds,
                         fieldId: field.target.fieldId,
                         error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
                         errorType: ValidationErrorType.Filter,
@@ -407,7 +409,7 @@ export class ValidationService extends BaseService {
         existingFields: CompiledField[],
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
     ): Promise<CreateDashboardValidation[]> {
-        const existingFieldIds = existingFields.map(getFieldId);
+        const existingFieldIds = existingFields.map(getItemId);
 
         const dashboardSummaries = await this.dashboardModel.getAllByProject(
             projectUuid,
@@ -562,8 +564,8 @@ export class ValidationService extends BaseService {
                 return {
                     ...acc,
                     [explore.baseTable]: {
-                        dimensionIds: dimensions.map(getFieldId),
-                        metricIds: metrics.map(getFieldId),
+                        dimensionIds: dimensions.map(getItemId),
+                        metricIds: metrics.map(getItemId),
                     },
                 };
             }, {}) || {};

@@ -4,7 +4,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     type DashboardFilterRule,
-    type FilterableField,
+    type FilterableDimension,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -28,7 +28,7 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/util
 interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
-    field: FilterableField;
+    field: FilterableDimension;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;

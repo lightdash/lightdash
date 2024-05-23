@@ -1,11 +1,12 @@
 import {
-    fieldId as getFieldId,
     formatDate,
+    getItemId,
     isCustomDimension,
     isDateItem,
     isDimension,
     isField,
     isNumericItem,
+    isTableCalculation,
     TimeFrames,
     type CompiledDimension,
     type CustomDimension,
@@ -169,7 +170,12 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
     return (
         <TextInput
-            disabled={!isNumericItem(field) || disabled}
+            disabled={
+                (!isNumericItem(field) &&
+                    // We treat untyped table calculations as numeric
+                    !(field && isTableCalculation(field) && !field.type)) ||
+                disabled
+            }
             size="xs"
             title={
                 isNumericItem(field)
@@ -211,7 +217,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
             ...(dirtyLayout?.yField || []),
         ];
         return items.filter((item) => {
-            const fieldId = isField(item) ? getFieldId(item) : item.name;
+            const fieldId = isField(item) ? getItemId(item) : item.name;
             // Filter numeric and date fields (remove if we start supporting other types)
 
             // TODO implement reference lines for custom dimensions
@@ -245,7 +251,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     const selectedFieldDefault = useMemo(() => {
         if (markLineKey === undefined) return;
         return fieldsInAxes.find((field) => {
-            const fieldId = isField(field) ? getFieldId(field) : field.name;
+            const fieldId = isField(field) ? getItemId(field) : field.name;
             return fieldId === referenceLine.fieldId;
         });
     }, [fieldsInAxes, markLineKey, referenceLine.fieldId]);
@@ -287,7 +293,11 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         ],
     );
 
-    const isNumericField = selectedField && isNumericItem(selectedField);
+    const isNumericField =
+        selectedField &&
+        (isNumericItem(selectedField) ||
+            // We treat untyped table calculations as numeric
+            (isTableCalculation(selectedField) && !selectedField.type));
 
     const averageAvailable = isNumericField && markLineKey === 'yAxis';
     const controlLabel = `Line ${index}`;

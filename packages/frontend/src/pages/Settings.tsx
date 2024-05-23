@@ -8,6 +8,7 @@ import {
     IconCloudSearch,
     IconDatabase,
     IconDatabaseCog,
+    IconDatabaseExport,
     IconKey,
     IconLock,
     IconPalette,
@@ -121,7 +122,6 @@ const Settings: FC = () => {
         health.auth.oidc.enabled;
 
     const isGroupManagementEnabled = health.hasGroups;
-
     return (
         <Page
             withFullHeight
@@ -424,6 +424,26 @@ const Settings: FC = () => {
                                         />
                                     ) : null}
 
+                                    {user.ability?.can(
+                                        'promote',
+                                        subject('SavedChart', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Data ops"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/dataOps`}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabaseExport}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
                                     {isCustomSQLEnabled && (
                                         <RouterNavLink
                                             label="Custom SQL"
@@ -582,16 +602,18 @@ const Settings: FC = () => {
                     <AccessTokensPanel />
                 </Route>
 
-                {(health.hasSlack || health.hasGithub) &&
-                    user.ability.can('manage', 'Organization') && (
-                        <Route exact path="/generalSettings/integrations">
-                            <Stack>
-                                <Title order={4}>Integrations</Title>
-                                {health.hasSlack && <SlackSettingsPanel />}
-                                {health.hasGithub && <GithubSettingsPanel />}
-                            </Stack>
-                        </Route>
-                    )}
+                {user.ability.can('manage', 'Organization') && (
+                    <Route exact path="/generalSettings/integrations">
+                        <Stack>
+                            <Title order={4}>Integrations</Title>
+                            {!health.hasSlack &&
+                                !health.hasGithub &&
+                                'No integrations available'}
+                            {health.hasSlack && <SlackSettingsPanel />}
+                            {health.hasGithub && <GithubSettingsPanel />}
+                        </Stack>
+                    </Route>
+                )}
 
                 <Route exact path="/generalSettings">
                     <SettingsGridCard>

@@ -1,7 +1,7 @@
 import { type Ability, type ForcedSubject } from '@casl/ability';
 import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
 
-type Action = 'manage' | 'update' | 'view' | 'create' | 'delete';
+type Action = 'manage' | 'update' | 'view' | 'create' | 'delete' | 'promote';
 
 interface Project {
     organizationUuid: string;
@@ -36,6 +36,7 @@ type Subject =
     | 'ChangeCsvResults'
     | 'ScheduledDeliveries'
     | 'DashboardComments'
+    | 'CustomSql'
     | 'all';
 
 type PossibleAbilities = [

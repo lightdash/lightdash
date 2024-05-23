@@ -322,6 +322,7 @@ export type SavedChart = {
     colorPalette: string[];
     isPrivate: boolean;
     access: SpaceShare[];
+    slug: string;
 };
 
 type CreateChartBase = Pick<
@@ -365,6 +366,7 @@ export type CreateSavedChartVersion = Omit<
     | 'colorPalette'
     | 'isPrivate'
     | 'access'
+    | 'slug'
 > &
     // For Charts created within a dashboard
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
@@ -617,4 +619,9 @@ export type CalculateTotalFromQuery = {
 export type ApiCalculateTotalResponse = {
     status: 'ok';
     results: Record<string, number>;
+};
+
+export type ApiPromoteChartResponse = {
+    status: 'ok';
+    results: SavedChartDAO;
 };

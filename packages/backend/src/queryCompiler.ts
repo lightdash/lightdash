@@ -107,9 +107,16 @@ export const compileMetricQuery = ({
             }),
     );
 
+    const compiler = new ExploreCompiler(warehouseClient);
+    const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
+        (customDimension) =>
+            compiler.compileCustomDimension(customDimension, explore.tables),
+    );
+
     return {
         ...metricQuery,
         compiledTableCalculations,
         compiledAdditionalMetrics,
+        compiledCustomDimensions,
     };
 };

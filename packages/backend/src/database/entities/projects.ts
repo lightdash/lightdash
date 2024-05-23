@@ -44,6 +44,7 @@ type UpdateDbProject = Partial<
         | 'table_selection_type'
         | 'table_selection_value'
         | 'dbt_version'
+        | 'copied_from_project_uuid'
     >
 >;
 

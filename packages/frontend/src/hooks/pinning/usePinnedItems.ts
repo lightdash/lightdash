@@ -38,7 +38,7 @@ export const usePinnedItems = (
 
 export const useReorder = (projectUuid: string, pinnedlistUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastError } = useToaster();
+    const { showToastApiError } = useToaster();
     return useMutation<PinnedItems, ApiError, PinnedItems>(
         (pinnedItems) => {
             queryClient.setQueryData(
@@ -65,9 +65,10 @@ export const useReorder = (projectUuid: string, pinnedlistUuid: string) => {
                     pinnedlistUuid,
                 ]);
             },
-            onError: (error) => {
-                showToastError({
-                    title: `Could not re-order pinned items. Please try again. Error: ${error.error}`,
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Could not re-order pinned items`,
+                    apiError: error,
                 });
             },
         },

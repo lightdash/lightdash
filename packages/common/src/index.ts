@@ -12,10 +12,11 @@ import { type DbtCloudIntegration } from './types/dbtCloud';
 import { type Explore, type SummaryExplore } from './types/explore';
 import {
     DimensionType,
-    fieldId,
     friendlyName,
+    isCustomDimension,
     isDimension,
     isField,
+    isFilterableDimension,
     isMetric,
     isTableCalculation,
     type CompiledField,
@@ -23,18 +24,13 @@ import {
     type Dimension,
     type Field,
     type FieldId,
+    type FilterableDimension,
     type FilterableField,
     type ItemsMap,
     type Metric,
     type TableCalculation,
 } from './types/field';
-import {
-    getCustomDimensionId,
-    isAdditionalMetric,
-    isCustomDimension,
-    type AdditionalMetric,
-    type MetricQuery,
-} from './types/metricQuery';
+import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
 import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
@@ -140,6 +136,7 @@ export * from './types/api/notifications';
 export * from './types/api/share';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/catalog';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
@@ -203,6 +200,7 @@ export * from './utils/item';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
@@ -356,7 +354,7 @@ export const findFieldByIdInExplore = (
     explore: Explore,
     id: FieldId,
 ): Field | undefined =>
-    getFields(explore).find((field) => fieldId(field) === id);
+    getFields(explore).find((field) => getItemId(field) === id);
 
 export const snakeCaseName = (text: string): string =>
     text
@@ -434,6 +432,9 @@ export type UpdateProjectMember = {
     role: ProjectMemberRole;
 };
 
+export type UpdateMetadata = {
+    upstreamProjectUuid?: string | null; // null means we unset this value
+};
 export type ApiCompiledQueryResults = string;
 
 export type ApiExploresResults = SummaryExplore[];
@@ -638,11 +639,12 @@ export type ApiResponse<T extends ApiResults = ApiResults> = {
     results: T;
 };
 
-type ApiErrorDetail = {
+export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
     data: { [key: string]: string };
+    id?: string;
 };
 export type ApiError = {
     status: 'error';
@@ -728,6 +730,10 @@ export type HealthState = {
     intercom: {
         appId: string;
         apiBase: string;
+    };
+    pylon: {
+        appId: string;
+        verificationHash?: string;
     };
     staticIp: string;
     query: {
@@ -884,7 +890,7 @@ export function getFieldMap(
     return [...getFields(explore), ...additionalMetrics].reduce(
         (sum, field) => ({
             ...sum,
-            [fieldId(field)]: field,
+            [getItemId(field)]: field,
         }),
         {},
     );
@@ -917,7 +923,7 @@ export function getItemMap(
     ].reduce(
         (acc, item) => ({
             ...acc,
-            [isAdditionalMetric(item) ? fieldId(item) : getItemId(item)]: item,
+            [getItemId(item)]: item,
         }),
         {},
     );
@@ -932,6 +938,17 @@ export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
         }
         return acc;
     }, {});
+
+export const getFilterableDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
+    Object.entries(itemsMap).reduce<Record<string, FilterableDimension>>(
+        (acc, [key, value]) => {
+            if (isDimension(value) && isFilterableDimension(value)) {
+                return { ...acc, [key]: value };
+            }
+            return acc;
+        },
+        {},
+    );
 
 export const getMetricsFromItemsMap = (
     itemsMap: ItemsMap,
@@ -967,7 +984,6 @@ export function itemsInMetricQuery(
               ...metricQuery.metrics,
               ...metricQuery.dimensions,
               ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
-              ...(metricQuery.customDimensions || []).map(getCustomDimensionId),
           ];
 }
 

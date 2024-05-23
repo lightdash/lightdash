@@ -3,6 +3,8 @@ import {
     CartesianSeriesType,
     ChartType,
     ConditionalOperator,
+    CustomDimensionType,
+    generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
@@ -30,6 +32,9 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                'How much revenue do we have per payment method?',
+            ),
             name: 'How much revenue do we have per payment method?',
             description:
                 'Total revenue received via coupons, gift cards, bank transfers, and credit cards',
@@ -101,6 +106,8 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(`What's our total revenue to date?`),
+
             name: `What's our total revenue to date?`,
             description: `A single number showing the sum of all historical revenue`,
             tableName: 'payments',
@@ -145,6 +152,8 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(`How many orders we have over time ?`),
+
             name: 'How many orders we have over time ?',
             description:
                 'Time series of orders received per day and total orders over time',
@@ -218,6 +227,8 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(`What's the average spend per customer?`),
+
             name: "What's the average spend per customer?",
             description: 'Average order size for each customer id',
             tableName: 'orders',
@@ -270,6 +281,10 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                `Which customers have not recently ordered an item?`,
+            ),
+
             name: 'Which customers have not recently ordered an item?',
             description:
                 'A table of the 20 customers that least recently placed an order with us',
@@ -316,6 +331,8 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(`How many orders did we get on February?`),
+
             name: 'How many orders did we get on February?',
             description:
                 'A single value of the total number of orders received in February',
@@ -371,6 +388,10 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(
+                `How much revenue do we have per payment method each month?`,
+            ),
+
             name: 'How much revenue do we have per payment method each month?',
             description: 'A pivot table sample',
             tableName: 'payments',
@@ -435,6 +456,8 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
+            slug: generateSlug(`How many users were created each month ?`),
+
             name: 'How many users were created each month ?',
             description: 'A pivot table sample',
             tableName: 'customers',
@@ -487,12 +510,16 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
         SEED_ORG_1_ADMIN.user_uuid,
         {
-            name: 'How do payment methods vary across different amount ranges?"',
+            slug: generateSlug(
+                `How do payment methods vary across different amount ranges?`,
+            ),
+
+            name: 'How do payment methods vary across different amount ranges?',
             description: 'Payment range by amount',
             tableName: 'payments',
             metricQuery: {
                 exploreName: 'payments',
-                dimensions: ['payments_payment_method'],
+                dimensions: ['payments_payment_method', 'amount_range'],
                 metrics: ['orders_total_order_amount'],
                 filters: {},
                 sorts: [
@@ -505,6 +532,7 @@ export async function seed(knex: Knex): Promise<void> {
                     {
                         id: 'amount_range',
                         name: 'amount range',
+                        type: CustomDimensionType.BIN,
                         dimensionId: 'payments_amount',
                         binType: BinType.FIXED_NUMBER,
                         binNumber: 5,

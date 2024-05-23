@@ -21,7 +21,11 @@ type ExploreTreeProps = {
     selectedNodes: Set<string>;
     customDimensions?: CustomDimension[];
     selectedDimensions?: string[];
-    missingFields?: string[];
+    missingFields?: {
+        all: string[];
+        customDimensions: CustomDimension[] | undefined;
+        customMetrics: AdditionalMetric[] | undefined;
+    };
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -70,13 +74,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             );
     }, [explore, searchHasResults, isSearching]);
 
-    const missingCustomMetrics = useMemo(() => {
-        const allTables = Object.keys(explore.tables);
-        return additionalMetrics.filter(
-            (metric) => !allTables.includes(metric.table),
-        );
-    }, [explore, additionalMetrics]);
-
     return (
         <>
             <TextInput
@@ -114,8 +111,15 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             onSelectedNodeChange={onSelectedFieldChange}
                             customDimensions={customDimensions}
                             missingCustomMetrics={
-                                table.name === explore.baseTable
-                                    ? missingCustomMetrics
+                                table.name === explore.baseTable &&
+                                missingFields?.customMetrics
+                                    ? missingFields.customMetrics
+                                    : []
+                            }
+                            missingCustomDimensions={
+                                table.name === explore.baseTable &&
+                                missingFields?.customDimensions
+                                    ? missingFields.customDimensions
                                     : []
                             }
                             missingFields={missingFields}

@@ -20,6 +20,7 @@ import { DashboardService } from './DashboardService';
 import {
     chart,
     createDashboard,
+    createDashboardWithSlug,
     createDashboardWithTileIds,
     dashboard,
     dashboardsDetails,
@@ -112,7 +113,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
         expect(dashboardModel.create).toHaveBeenCalledWith(
             space.space_uuid,
-            createDashboard,
+            createDashboardWithSlug,
             user,
             projectUuid,
         );

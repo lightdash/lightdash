@@ -43,6 +43,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
         searchResults,
         searchQuery,
         missingCustomMetrics,
+        missingCustomDimensions,
         onItemClick,
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
@@ -73,14 +74,18 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
             : item.name;
 
     const isMissing =
-        isAdditionalMetric(item) &&
-        missingCustomMetrics &&
-        missingCustomMetrics.includes(item);
+        (isAdditionalMetric(item) &&
+            missingCustomMetrics &&
+            missingCustomMetrics.includes(item)) ||
+        (isCustomDimension(item) &&
+            missingCustomDimensions &&
+            missingCustomDimensions.includes(item));
+
     const description = isField(item) ? item.description : undefined;
 
     const bgColor = getItemBgColor(item);
 
-    // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION, and TABLE_CALCULATION)
+    // TODO: Add getFieldType function to common which should return FieldType enum (which should also have CUSTOM_METRIC, CUSTOM_DIMENSION)
     const getFieldIconColor = (field: Item | AdditionalMetric) => {
         if (isCustomDimension(field) || isDimension(field)) return 'blue.9';
         if (isAdditionalMetric(field)) return 'yellow.9';

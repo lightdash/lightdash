@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     ChartType,
-    getCustomDimensionId,
     isDimension,
     type ApiQueryResults,
     type ChartConfig,
@@ -189,9 +188,6 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                           ...metricQuery.tableCalculations.map(
                               ({ name }) => name,
                           ),
-                          ...(metricQuery.customDimensions?.map(
-                              getCustomDimensionId,
-                          ) || []),
                       ]
                     : [];
             return metricQueryFields;

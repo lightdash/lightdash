@@ -9,9 +9,14 @@ import {
 } from '../types/explore';
 import {
     friendlyName,
+    isCustomBinDimension,
     isNonAggregateMetric,
+    type CompiledCustomDimension,
+    type CompiledCustomSqlDimension,
     type CompiledDimension,
     type CompiledMetric,
+    type CustomDimension,
+    type CustomSqlDimension,
     type Dimension,
     type Metric,
 } from '../types/field';
@@ -48,14 +53,16 @@ const getParsedReference = (ref: string, currentTable: string): Reference => {
     return { refTable, refName };
 };
 
+export const getAllReferences = (raw: string): string[] =>
+    (raw.match(lightdashVariablePattern) || []).map(
+        (value) => value.slice(2, value.length - 1), // value without brackets
+    );
+
 export const parseAllReferences = (
     raw: string,
     currentTable: string,
 ): Reference[] =>
-    (raw.match(lightdashVariablePattern) || []).map((value) => {
-        const valueWithoutBrackets = value.slice(2, value.length - 1);
-        return getParsedReference(valueWithoutBrackets, currentTable);
-    });
+    getAllReferences(raw).map((ref) => getParsedReference(ref, currentTable));
 
 export type UncompiledExplore = {
     name: string;
@@ -513,6 +520,59 @@ export class ExploreCompiler {
             return compiledReference.sql;
         });
         return { sql, tablesReferences };
+    }
+
+    compileCustomDimensionSql(
+        dimension: CustomSqlDimension,
+        tables: Record<string, Table>,
+    ): Pick<CompiledCustomSqlDimension, 'compiledSql' | 'tablesReferences'> {
+        const currentRef = dimension.id;
+        let tablesReferences = new Set<string>([]);
+        const compiledSql = dimension.sql.replace(
+            lightdashVariablePattern,
+            (_, p1) => {
+                if (currentRef === p1) {
+                    throw new CompileError(
+                        `Dimension "${dimension.name}" in table "${dimension.table}" has a sql string referencing itself: "${dimension.sql}"`,
+                        {},
+                    );
+                }
+
+                const compiledReference = this.compileDimensionReference(
+                    p1,
+                    tables,
+                    dimension.table,
+                );
+                tablesReferences = new Set([
+                    ...tablesReferences,
+                    ...compiledReference.tablesReferences,
+                ]);
+                return compiledReference.sql;
+            },
+        );
+        return {
+            compiledSql,
+            tablesReferences: Array.from(tablesReferences),
+        };
+    }
+
+    compileCustomDimension(
+        customDimension: CustomDimension,
+        tables: Record<string, Table>,
+    ): CompiledCustomDimension {
+        if (isCustomBinDimension(customDimension)) {
+            return customDimension;
+        }
+
+        const compiledCustomDimensionSql = this.compileCustomDimensionSql(
+            customDimension,
+            tables,
+        );
+
+        return {
+            ...customDimension,
+            ...compiledCustomDimensionSql,
+        };
     }
 
     compileDimensionReference(

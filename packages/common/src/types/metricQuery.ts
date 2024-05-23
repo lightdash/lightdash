@@ -1,7 +1,11 @@
 import {
     BinType,
     friendlyName,
+    isCustomBinDimension,
+    isCustomDimension,
+    isCustomSqlDimension,
     type CompactOrAlias,
+    type CompiledCustomDimension,
     type CompiledDimension,
     type CompiledMetric,
     type CompiledTableCalculation,
@@ -34,11 +38,11 @@ export interface AdditionalMetric {
     formatOptions?: CustomFormat;
 }
 
-export const getCustomDimensionId = (dimension: CustomDimension) =>
-    dimension.id;
-
 export const isAdditionalMetric = (value: any): value is AdditionalMetric =>
-    value?.table && value?.name && !value?.fieldType && !value.binType;
+    value?.table &&
+    value?.name &&
+    !value?.fieldType &&
+    !isCustomDimension(value);
 
 export const hasFormatOptions = (
     value: any,
@@ -47,9 +51,6 @@ export const hasFormatOptions = (
 
 export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
     `${metric.table}_${metric.baseDimensionName}`;
-
-export const isCustomDimension = (value: any): value is CustomDimension =>
-    value !== undefined && 'binType' in value;
 
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
@@ -67,9 +68,10 @@ export type MetricQuery = {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name'>;
     };
 };
-export type CompiledMetricQuery = MetricQuery & {
+export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
     compiledTableCalculations: CompiledTableCalculation[];
     compiledAdditionalMetrics: CompiledMetric[];
+    compiledCustomDimensions: CompiledCustomDimension[];
 };
 // Sort by
 export type SortField = {
@@ -114,13 +116,26 @@ export const countCustomDimensionsInMetricQuery = (
 ) => ({
     numFixedWidthBinCustomDimensions:
         metricQuery.customDimensions?.filter(
-            (dimension) => dimension.binType === BinType.FIXED_NUMBER,
+            (dimension) =>
+                isCustomBinDimension(dimension) &&
+                dimension.binType === BinType.FIXED_NUMBER,
         ).length || 0,
     numFixedBinsBinCustomDimensions:
         metricQuery.customDimensions?.filter(
-            (dimension) => dimension.binType === BinType.FIXED_WIDTH,
+            (dimension) =>
+                isCustomBinDimension(dimension) &&
+                dimension.binType === BinType.FIXED_WIDTH,
         ).length || 0,
-    numCustomRangeBinCustomDimensions: 0, // TODO complete when custom range bin is implemented
+    numCustomRangeBinCustomDimensions:
+        metricQuery.customDimensions?.filter(
+            (dimension) =>
+                isCustomBinDimension(dimension) &&
+                dimension.binType === BinType.CUSTOM_RANGE,
+        ).length || 0,
+    numCustomSqlDimensions:
+        metricQuery.customDimensions?.filter((dimension) =>
+            isCustomSqlDimension(dimension),
+        ).length || 0,
 });
 
 export const hasCustomDimension = (metricQuery: MetricQuery | undefined) =>

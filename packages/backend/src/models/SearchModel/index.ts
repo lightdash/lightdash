@@ -327,7 +327,7 @@ export class SearchModel {
         return [];
     }
 
-    private static searchTablesAndFields(
+    static searchTablesAndFields(
         query: string,
         explores: Explore[],
         filters?: SearchFilters,

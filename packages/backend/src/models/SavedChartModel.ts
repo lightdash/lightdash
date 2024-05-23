@@ -1,16 +1,22 @@
 import {
     AdditionalMetric,
+    BinType,
     ChartConfig,
     ChartKind,
     ChartSummary,
     ChartVersionSummary,
     CreateSavedChart,
     CreateSavedChartVersion,
+    CustomBinDimension,
+    CustomDimensionType,
+    CustomSqlDimension,
     DBFieldTypes,
     ECHARTS_DEFAULT_COLORS,
     getChartKind,
     getChartType,
-    getCustomDimensionId,
+    getItemId,
+    isCustomBinDimension,
+    isCustomSqlDimension,
     isFormat,
     LightdashUser,
     NotFoundError,
@@ -41,10 +47,12 @@ import {
     DBFilteredAdditionalMetrics,
     DbSavedChartAdditionalMetricInsert,
     DbSavedChartCustomDimensionInsert,
+    DbSavedChartCustomSqlDimension,
     DbSavedChartTableCalculationInsert,
     InsertChart,
     SavedChartAdditionalMetricTableName,
     SavedChartCustomDimensionsTableName,
+    SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
@@ -110,6 +118,16 @@ const createSavedChartVersionCustomDimension = async (
     data: DbSavedChartCustomDimensionInsert,
 ) => {
     const results = await trx('saved_queries_version_custom_dimensions')
+        .insert(data)
+        .returning('*');
+    return results[0];
+};
+
+const createSavedChartVersionCustomSqlDimension = async (
+    trx: Knex,
+    data: DbSavedChartCustomSqlDimension,
+) => {
+    const results = await trx(SavedChartCustomSqlDimensionsTableName)
         .insert(data)
         .returning('*');
     return results[0];
@@ -211,29 +229,46 @@ const createSavedChartVersion = async (
                 }),
             );
         });
-
         customDimensions?.forEach((customDimension) => {
-            promises.push(
-                createSavedChartVersionCustomDimension(trx, {
-                    saved_queries_version_id: version.saved_queries_version_id,
-                    id: customDimension.id,
-                    name: customDimension.name,
-                    dimension_id: customDimension.dimensionId,
-                    table: customDimension.table,
-                    bin_type: customDimension.binType,
-                    bin_number: customDimension.binNumber || null,
-                    bin_width: customDimension.binWidth || null,
-                    custom_range:
-                        customDimension.customRange &&
-                        customDimension.customRange.length > 0
-                            ? JSON.stringify(customDimension.customRange)
-                            : null,
-                    order: tableConfig.columnOrder.findIndex(
-                        (column) =>
-                            column === getCustomDimensionId(customDimension), // TODO test if it works
-                    ),
-                }),
-            );
+            if (isCustomBinDimension(customDimension)) {
+                promises.push(
+                    createSavedChartVersionCustomDimension(trx, {
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
+                        id: customDimension.id,
+                        name: customDimension.name,
+                        dimension_id: customDimension.dimensionId,
+                        table: customDimension.table,
+                        bin_type: customDimension.binType,
+                        bin_number: customDimension.binNumber || null,
+                        bin_width: customDimension.binWidth || null,
+                        custom_range:
+                            customDimension.customRange &&
+                            customDimension.customRange.length > 0
+                                ? JSON.stringify(customDimension.customRange)
+                                : null,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) => column === getItemId(customDimension),
+                        ),
+                    }),
+                );
+            }
+            if (isCustomSqlDimension(customDimension)) {
+                promises.push(
+                    createSavedChartVersionCustomSqlDimension(trx, {
+                        saved_queries_version_id:
+                            version.saved_queries_version_id,
+                        id: customDimension.id,
+                        name: customDimension.name,
+                        table: customDimension.table,
+                        order: tableConfig.columnOrder.findIndex(
+                            (column) => column === getItemId(customDimension),
+                        ),
+                        sql: customDimension.sql,
+                        dimension_type: customDimension.dimensionType,
+                    }),
+                );
+            }
         });
         additionalMetrics?.forEach((additionalMetric) => {
             promises.push(
@@ -282,7 +317,8 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
         dashboardUuid,
-    }: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        slug,
+    }: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
@@ -293,6 +329,7 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
+            slug,
         };
         if (dashboardUuid) {
             chart = {
@@ -301,15 +338,31 @@ export const createSavedChart = async (
                 space_id: null,
             };
         } else {
-            const spaceId = spaceUuid
-                ? await SpaceModel.getSpaceId(trx, spaceUuid)
-                : (
-                      await SpaceModel.getFirstAccessibleSpace(
-                          trx,
-                          projectUuid,
-                          userUuid,
-                      )
-                  ).space_id;
+            const getSpaceIdAndName = async () => {
+                if (spaceUuid) {
+                    const space = await SpaceModel.getSpaceIdAndName(
+                        trx,
+                        spaceUuid,
+                    );
+                    if (space === undefined)
+                        throw Error(`Missing space with uuid ${spaceUuid}`);
+                    return {
+                        spaceId: space.spaceId,
+                        name: space.name,
+                    };
+                }
+                const firstSpace = await SpaceModel.getFirstAccessibleSpace(
+                    trx,
+                    projectUuid,
+                    userUuid,
+                );
+                return {
+                    spaceId: firstSpace.space_id,
+                    name: firstSpace.name,
+                };
+            };
+            const { spaceId, name: spaceName } = await getSpaceIdAndName();
+
             if (!spaceId) throw new NotFoundError('No space found');
             chart = {
                 ...baseChart,
@@ -464,7 +517,7 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        data: CreateSavedChart & { updatedByUser: UpdatedByUser },
+        data: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
@@ -513,10 +566,12 @@ export class SavedChartModel {
             .update({
                 name: data.name,
                 description: data.description,
-                space_id: await SpaceModel.getSpaceId(
-                    this.database,
-                    data.spaceUuid,
-                ),
+                space_id: (
+                    await SpaceModel.getSpaceIdAndName(
+                        this.database,
+                        data.spaceUuid,
+                    )
+                )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
             })
             .where('saved_query_uuid', savedChartUuid);
@@ -532,10 +587,12 @@ export class SavedChartModel {
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: await SpaceModel.getSpaceId(
-                            trx,
-                            savedChart.spaceUuid,
-                        ),
+                        space_id: (
+                            await SpaceModel.getSpaceIdAndName(
+                                trx,
+                                savedChart.spaceUuid,
+                            )
+                        )?.spaceId,
                     })
                     .where('saved_query_uuid', savedChart.uuid),
             );
@@ -620,6 +677,7 @@ export class SavedChartModel {
                         spaceName: string;
                         dashboardName: string | null;
                         chart_colors: string[] | null;
+                        slug: string;
                     })[]
                 >([
                     `${ProjectTableName}.project_uuid`,
@@ -628,6 +686,7 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.name`,
                     `${SavedChartsTableName}.description`,
                     `${SavedChartsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.slug`,
                     `${DashboardsTableName}.name as dashboardName`,
                     'saved_queries_versions.saved_queries_version_id',
                     'saved_queries_versions.explore_name',
@@ -712,8 +771,11 @@ export class SavedChartModel {
                 ])
                 .where('saved_queries_version_id', savedQueriesVersionId);
 
-            const customDimensionsQuery = this.database(
+            const customBinDimensionsQuery = this.database(
                 SavedChartCustomDimensionsTableName,
+            ).where('saved_queries_version_id', savedQueriesVersionId);
+            const customSqlDimensionsQuery = this.database(
+                SavedChartCustomSqlDimensionsTableName,
             ).where('saved_queries_version_id', savedQueriesVersionId);
 
             const [
@@ -721,13 +783,15 @@ export class SavedChartModel {
                 sorts,
                 tableCalculations,
                 additionalMetricsRows,
-                customDimensionsRows,
+                customBinDimensionsRows,
+                customSqlDimensionsRows,
             ] = await Promise.all([
                 fieldsQuery,
                 sortsQuery,
                 tableCalculationsQuery,
                 additionalMetricsQuery,
-                customDimensionsQuery,
+                customBinDimensionsQuery,
+                customSqlDimensionsQuery,
             ]);
 
             // Filters out "null" fields
@@ -783,7 +847,8 @@ export class SavedChartModel {
             const columnOrder: string[] = [
                 ...fields,
                 ...tableCalculations,
-                ...customDimensionsRows,
+                ...customBinDimensionsRows,
+                ...customSqlDimensionsRows,
             ]
                 .sort((a, b) => a.order - b.order)
                 .map((x) => x.name);
@@ -825,16 +890,31 @@ export class SavedChartModel {
                         }),
                     ),
                     additionalMetrics,
-                    customDimensions: customDimensionsRows?.map((cd) => ({
-                        id: cd.id,
-                        name: cd.name,
-                        dimensionId: cd.dimension_id,
-                        table: cd.table,
-                        binType: cd.bin_type,
-                        binNumber: cd.bin_number,
-                        binWidth: cd.bin_width,
-                        customRange: cd.custom_range,
-                    })),
+                    customDimensions: [
+                        ...(
+                            customBinDimensionsRows || []
+                        ).map<CustomBinDimension>((cd) => ({
+                            id: cd.id,
+                            name: cd.name,
+                            type: CustomDimensionType.BIN,
+                            dimensionId: cd.dimension_id,
+                            table: cd.table,
+                            binType: cd.bin_type as BinType,
+                            binNumber: cd.bin_number || undefined,
+                            binWidth: cd.bin_width || undefined,
+                            customRange: cd.custom_range || undefined,
+                        })),
+                        ...(
+                            customSqlDimensionsRows || []
+                        ).map<CustomSqlDimension>((cd) => ({
+                            id: cd.id,
+                            name: cd.name,
+                            type: CustomDimensionType.SQL,
+                            table: cd.table,
+                            sql: cd.sql,
+                            dimensionType: cd.dimension_type,
+                        })),
+                    ],
                     timezone: savedQuery.timezone,
                 },
                 chartConfig,
@@ -852,6 +932,7 @@ export class SavedChartModel {
                 dashboardUuid: savedQuery.dashboard_uuid,
                 dashboardName: savedQuery.dashboardName,
                 colorPalette: savedQuery.chart_colors ?? ECHARTS_DEFAULT_COLORS,
+                slug: savedQuery.slug,
             };
         } finally {
             span?.finish();
@@ -885,6 +966,7 @@ export class SavedChartModel {
     async find(filters: {
         projectUuid?: string;
         spaceUuids?: string[];
+        slug?: string;
     }): Promise<ChartSummary[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -902,6 +984,9 @@ export class SavedChartModel {
                 void query
                     .whereNotNull(`${SavedChartsTableName}.space_id`)
                     .whereIn('spaces.space_uuid', filters.spaceUuids);
+            }
+            if (filters.slug) {
+                void query.where('saved_queries.slug', filters.slug);
             }
             const chartSummaries = await query;
             return chartSummaries.map((chart) => ({

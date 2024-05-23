@@ -3,11 +3,11 @@ import {
     ChartType,
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
-    fieldId,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
     getHiddenTableFields,
+    getItemId,
     getItemMap,
     getVisibleFields,
     hasCustomDimension,
@@ -427,7 +427,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             const fields = explore ? getFields(explore) : [];
             const field = fields.find(
-                (f) => fieldId(f) === filter.target.fieldId,
+                (f) => getItemId(f) === filter.target.fieldId,
             );
 
             track({
@@ -479,7 +479,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 return;
             }
             const dimensions = getDimensions(explore).filter((dimension) =>
-                e.dimensionNames.includes(fieldId(dimension)),
+                e.dimensionNames.includes(getItemId(dimension)),
             );
 
             const dimensionOptions = dimensions.map((dimension) =>
@@ -487,7 +487,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     field: dimension,
                     availableTileFilters: {},
                     isTemporary: true,
-                    value: e.data[fieldId(dimension)],
+                    value: e.data[getItemId(dimension)],
                 }),
             );
             const serie = series[e.seriesIndex];
@@ -627,7 +627,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                 const field = fields.find(
                                                     (f) => {
                                                         return (
-                                                            fieldId(f) ===
+                                                            getItemId(f) ===
                                                             filterRule.target
                                                                 .fieldId
                                                         );

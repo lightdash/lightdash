@@ -632,6 +632,8 @@ export class SchedulerModel {
             .orderBy('scheduled_time', 'desc')
             .returning('*');
 
+        if (jobs.length === 0) throw new NotFoundError('Job not found');
+
         const job = jobs.sort(
             (a, b) =>
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),

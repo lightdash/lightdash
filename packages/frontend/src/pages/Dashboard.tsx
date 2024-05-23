@@ -1,6 +1,5 @@
 import {
     DashboardTileTypes,
-    FeatureFlags,
     isDashboardChartTileType,
     ResourceViewItemType,
     type Dashboard as IDashboard,
@@ -11,7 +10,6 @@ import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useHistory, useParams } from 'react-router-dom';
@@ -83,11 +81,6 @@ export const getResponsiveGridLayoutProps = ({
 });
 
 const Dashboard: FC = () => {
-    const isLazyLoadFeatureFlagEnabled = useFeatureFlagEnabled(
-        FeatureFlags.LazyLoadDashboardTiles,
-    );
-    const isLazyLoadEnabled =
-        !!isLazyLoadFeatureFlagEnabled && !(window as any).Cypress; // disable lazy load for e2e test
     const history = useHistory();
     const { projectUuid, dashboardUuid, mode, tabUuid } = useParams<{
         projectUuid: string;
@@ -216,30 +209,67 @@ const Dashboard: FC = () => {
         const unsavedDashboardTilesRaw = sessionStorage.getItem(
             'unsavedDashboardTiles',
         );
-        if (!unsavedDashboardTilesRaw) return;
+        if (unsavedDashboardTilesRaw) {
+            sessionStorage.removeItem('unsavedDashboardTiles');
 
-        sessionStorage.removeItem('unsavedDashboardTiles');
+            try {
+                const unsavedDashboardTiles = JSON.parse(
+                    unsavedDashboardTilesRaw,
+                );
+                // If there are unsaved tiles, add them to the dashboard
+                setDashboardTiles(unsavedDashboardTiles);
 
-        try {
-            const unsavedDashboardTiles = JSON.parse(unsavedDashboardTilesRaw);
-            // If there are unsaved tiles, add them to the dashboard
-            setDashboardTiles(unsavedDashboardTiles);
+                setHaveTilesChanged(!!unsavedDashboardTiles);
+            } catch {
+                showToastError({
+                    title: 'Error parsing chart',
+                    subtitle: 'Unable to save chart in dashboard',
+                });
+                captureException(
+                    `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
+                );
+            }
+        }
 
-            setHaveTilesChanged(!!unsavedDashboardTiles);
-        } catch {
-            showToastError({
-                title: 'Error parsing chart',
-                subtitle: 'Unable to save chart in dashboard',
-            });
-            captureException(
-                `Error parsing chart in dashboard. Attempted to parse: ${unsavedDashboardTilesRaw} `,
-            );
+        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
+
+        sessionStorage.removeItem('dashboardTabs');
+
+        if (unsavedDashboardTabsRaw) {
+            try {
+                const unsavedDashboardTabs = JSON.parse(
+                    unsavedDashboardTabsRaw,
+                );
+                setDashboardTabs(unsavedDashboardTabs);
+                setHaveTabsChanged(!!unsavedDashboardTabs);
+                if (activeTab === undefined) {
+                    // set up the active tab to previously selected tab
+                    const activeTabUuid =
+                        sessionStorage.getItem('activeTabUuid');
+                    setActiveTab(
+                        unsavedDashboardTabs.find(
+                            (tab: DashboardTab) => tab.uuid === activeTabUuid,
+                        ) ?? unsavedDashboardTabs[0],
+                    );
+                }
+            } catch {
+                showToastError({
+                    title: 'Error parsing tabs',
+                    subtitle: 'Unable to save tabs in dashboard',
+                });
+                captureException(
+                    `Error parsing tabs in dashboard. Attempted to parse: ${unsavedDashboardTabsRaw} `,
+                );
+            }
         }
     }, [
         isDashboardLoading,
         dashboardTiles,
+        activeTab,
         setHaveTilesChanged,
         setDashboardTiles,
+        setDashboardTabs,
+        setHaveTabsChanged,
         clearIsEditingDashboardChart,
         showToastError,
     ]);
@@ -606,6 +636,7 @@ const Dashboard: FC = () => {
                         isFullscreen={isFullscreen}
                         isPinned={isPinned}
                         activeTabUuid={activeTab?.uuid}
+                        dashboardTabs={dashboardTabs}
                         onToggleFullscreen={handleToggleFullscreen}
                         hasDashboardChanged={
                             haveTilesChanged ||
@@ -647,7 +678,10 @@ const Dashboard: FC = () => {
             >
                 <Group position="apart" align="flex-start" noWrap>
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
-                        <DashboardFilter isEditMode={isEditMode} />
+                        <DashboardFilter
+                            isEditMode={isEditMode}
+                            activeTabUuid={activeTab?.uuid}
+                        />
                     )}
                     {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
                 </Group>
@@ -656,7 +690,6 @@ const Dashboard: FC = () => {
                     hasRequiredDashboardFiltersToSet={
                         hasRequiredDashboardFiltersToSet
                     }
-                    isLazyLoadEnabled={isLazyLoadEnabled}
                     addingTab={addingTab}
                     dashboardTiles={dashboardTiles}
                     handleAddTiles={handleAddTiles}

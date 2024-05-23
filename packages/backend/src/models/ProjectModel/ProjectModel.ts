@@ -1,5 +1,8 @@
 import {
     AlreadyExistsError,
+    CatalogType,
+    CompiledDimension,
+    CompiledMetric,
     CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
@@ -7,6 +10,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    generateSlug,
     isExploreError,
     NotExistsError,
     OrganizationProject,
@@ -23,6 +27,7 @@ import {
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
+    UpdateMetadata,
     UpdateProject,
     WarehouseCredentials,
     WarehouseTypes,
@@ -36,6 +41,11 @@ import { Knex } from 'knex';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
+import {
+    CatalogTableName,
+    DbCatalog,
+    DbCatalogIn,
+} from '../../database/entities/catalog';
 import {
     DashboardViewsTableName,
     DbDashboard,
@@ -52,18 +62,24 @@ import {
     CachedExploresTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
+    DbCachedExplore,
     DbCachedExplores,
     DbCachedWarehouse,
     DbProject,
     ProjectTableName,
 } from '../../database/entities/projects';
-import { DbSavedChart, InsertChart } from '../../database/entities/savedCharts';
+import {
+    DbSavedChart,
+    InsertChart,
+    SavedChartCustomSqlDimensionsTableName,
+} from '../../database/entities/savedCharts';
 import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
 import { wrapOtelSpan } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 type ProjectModelArguments = {
@@ -295,6 +311,7 @@ export class ProjectModel {
                 project_id: project.project_id,
                 name: 'Shared',
                 is_private: false,
+                slug: generateSlug('Shared'),
             });
 
             return project.project_uuid;
@@ -353,6 +370,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
             | {
                   name: string;
@@ -363,6 +381,7 @@ export class ProjectModel {
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
+                  copied_from_project_uuid?: string;
               }
         )[];
         return wrapOtelSpan(
@@ -408,6 +427,9 @@ export class ProjectModel {
                         this.database
                             .ref('dbt_version')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('copied_from_project_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -440,6 +462,7 @@ export class ProjectModel {
                     dbtConnection: dbtSensitiveCredentials,
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
+                    upstreamProjectUuid: project.copied_from_project_uuid,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -472,12 +495,19 @@ export class ProjectModel {
                 'organizations.organization_id',
             )
             .select<
-                Pick<DbProject, 'name' | 'project_uuid' | 'project_type'> &
+                Pick<
+                    DbProject,
+                    | 'name'
+                    | 'project_uuid'
+                    | 'project_type'
+                    | 'copied_from_project_uuid'
+                > &
                     Pick<DbOrganization, 'organization_uuid'>
             >([
                 `${ProjectTableName}.name`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.copied_from_project_uuid`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();
@@ -491,6 +521,7 @@ export class ProjectModel {
             projectUuid: project.project_uuid,
             name: project.name,
             type: project.project_type,
+            upstreamProjectUuid: project.copied_from_project_uuid || undefined,
         };
     }
 
@@ -521,6 +552,7 @@ export class ProjectModel {
             warehouseConnection: nonSensitiveCredentials,
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
+            upstreamProjectUuid: project.upstreamProjectUuid || undefined,
         };
     }
 
@@ -697,6 +729,51 @@ export class ProjectModel {
         );
     }
 
+    async indexCatalog(
+        projectUuid: string,
+        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    ) {
+        if (cachedExplores.length === 0) return;
+        const catalogItems = await convertExploresToCatalog(
+            projectUuid,
+            cachedExplores,
+        );
+        await this.database.transaction(async (trx) => {
+            await trx(CatalogTableName)
+                .where('project_uuid', projectUuid)
+                .delete();
+            await trx(CatalogTableName).insert(catalogItems);
+        });
+    }
+
+    static getExploresWithCacheUuids(
+        explores: (Explore | ExploreError)[],
+        cachedExplore: { name: string; cached_explore_uuid: string }[],
+    ) {
+        return explores.reduce<(Explore & { cachedExploreUuid: string })[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) return acc;
+                const cachedExploreUuid = cachedExplore.find(
+                    (cached) => cached.name === explore.name,
+                )?.cached_explore_uuid;
+                if (!cachedExploreUuid) {
+                    Logger.error(
+                        `Could not find cached explore uuid for explore ${explore.name}`,
+                    );
+                    return acc;
+                }
+                return [
+                    ...acc,
+                    {
+                        ...explore,
+                        cachedExploreUuid,
+                    },
+                ];
+            },
+            [],
+        );
+    }
+
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
@@ -717,7 +794,9 @@ export class ProjectModel {
                 );
 
                 // cache explores individually
-                await this.database(CachedExploreTableName)
+                const cachedExplore = await this.database(
+                    CachedExploreTableName,
+                )
                     .insert(
                         uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
@@ -727,7 +806,18 @@ export class ProjectModel {
                         })),
                     )
                     .onConflict(['project_uuid', 'name'])
-                    .merge();
+                    .merge()
+                    .returning(['name', 'cached_explore_uuid']);
+
+                const exploresWithCachedExploreUuid =
+                    ProjectModel.getExploresWithCacheUuids(
+                        explores,
+                        cachedExplore,
+                    );
+                await this.indexCatalog(
+                    projectUuid,
+                    exploresWithCachedExploreUuid,
+                );
 
                 // cache explores together
                 const [cachedExplores] = await this.database(
@@ -740,6 +830,7 @@ export class ProjectModel {
                     .onConflict('project_uuid')
                     .merge()
                     .returning('*');
+
                 return cachedExplores;
             },
         );
@@ -931,6 +1022,17 @@ export class ProjectModel {
             `,
             { projectUuid, userUuid, role },
         );
+    }
+
+    async updateMetadata(
+        projectUuid: string,
+        data: UpdateMetadata,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                copied_from_project_uuid: data.upstreamProjectUuid, // if upstreamProjectUuid is undefined, it will do nothing, if it is null, it will be unset
+            })
+            .where('project_uuid', projectUuid);
     }
 
     async deleteProjectAccess(
@@ -1356,6 +1458,10 @@ export class ProjectModel {
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
                 { custom_range: (value: any) => JSON.stringify(value) },
+            );
+            await copyChartVersionContent(
+                SavedChartCustomSqlDimensionsTableName,
+                [],
             );
             await copyChartVersionContent('saved_queries_version_sorts', [
                 'saved_queries_version_sort_id',

@@ -5,15 +5,18 @@ import {
     getFiltersFromGroup,
     getItemsFromFilterGroup,
     isAndFilterGroup,
+    isCustomSqlDimension,
     isDimension,
     isFilterGroup,
     isMetric,
-    isTableCalculationField,
+    isTableCalculation,
+    type CustomSqlDimension,
     type FilterableDimension,
     type FilterableField,
     type FilterGroup,
     type FilterRule,
     type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Box,
@@ -29,7 +32,6 @@ import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
-import { type FieldWithSuggestions } from './FiltersProvider';
 
 type Props = {
     hideButtons?: boolean;
@@ -56,12 +58,19 @@ const FilterGroupForm: FC<Props> = ({
     const [conditionLabel, setConditionLabel] = useState('');
 
     const [dimensions, metrics, tableCalculations] = useMemo<
-        [FilterableDimension[], Metric[], FieldWithSuggestions[]]
+        [
+            Array<FilterableDimension | CustomSqlDimension>,
+            Metric[],
+            TableCalculation[],
+        ]
     >(() => {
         return [
-            fields.filter(isDimension),
+            [
+                ...fields.filter(isDimension),
+                ...fields.filter(isCustomSqlDimension),
+            ],
             fields.filter(isMetric),
-            fields.filter(isTableCalculationField),
+            fields.filter(isTableCalculation),
         ];
     }, [fields]);
 

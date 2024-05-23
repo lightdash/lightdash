@@ -1,29 +1,32 @@
 import {
     assertUnreachable,
     BinType,
+    CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
+    CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
     Explore,
-    fieldId,
     FieldId,
     FieldReferenceError,
     FieldType,
     FilterGroup,
     FilterRule,
     ForbiddenError,
-    getCustomDimensionId,
     getCustomMetricDimensionId,
     getDateDimension,
     getDimensions,
     getFieldQuoteChar,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
+    getItemId,
     getMetrics,
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isAndFilterGroup,
+    isCompiledCustomSqlDimension,
+    isCustomBinDimension,
     isFilterGroup,
     ItemsMap,
     parseAllReferences,
@@ -31,6 +34,7 @@ import {
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
+    TimeFrames,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
@@ -45,7 +49,7 @@ const getDimensionFromId = (
     startOfWeek: WeekDay | null | undefined,
 ): CompiledDimension => {
     const dimensions = getDimensions(explore);
-    const dimension = dimensions.find((d) => fieldId(d) === dimId);
+    const dimension = dimensions.find((d) => getItemId(d) === dimId);
 
     if (dimension === undefined) {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
@@ -78,6 +82,27 @@ const getDimensionFromId = (
     return dimension;
 };
 
+const getDimensionFromFilterTargetId = (
+    filterTargetId: FieldId,
+    explore: Explore,
+    compiledCustomDimensions: CompiledCustomSqlDimension[],
+    adapterType: SupportedDbtAdapter,
+    startOfWeek: WeekDay | null | undefined,
+): CompiledDimension | CompiledCustomSqlDimension => {
+    const dim = compiledCustomDimensions.find(
+        (cd) => getItemId(cd) === filterTargetId,
+    );
+    if (dim && isCompiledCustomSqlDimension(dim)) {
+        return dim;
+    }
+    return getDimensionFromId(
+        filterTargetId,
+        explore,
+        adapterType,
+        startOfWeek,
+    );
+};
+
 const getMetricFromId = (
     metricId: FieldId,
     explore: Explore,
@@ -87,7 +112,7 @@ const getMetricFromId = (
         ...getMetrics(explore),
         ...(compiledMetricQuery.compiledAdditionalMetrics || []),
     ];
-    const metric = metrics.find((m) => fieldId(m) === metricId);
+    const metric = metrics.find((m) => getItemId(m) === metricId);
     if (metric === undefined)
         throw new FieldReferenceError(
             `Tried to reference metric with unknown field id: ${metricId}`,
@@ -205,14 +230,6 @@ export const assertValidDimensionRequiredAttribute = (
         });
 };
 
-export type BuildQueryProps = {
-    explore: Explore;
-    compiledMetricQuery: CompiledMetricQuery;
-    warehouseClient: WarehouseClient;
-    userAttributes?: UserAttributeValueMap;
-    intrinsicUserAttributes: IntrinsicUserAttributes;
-};
-
 const getJoinType = (type: DbtModelJoinType = 'left') => {
     switch (type) {
         case 'inner':
@@ -228,22 +245,86 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const getCustomDimensionSql = ({
+export const sortMonthName = (dimension: CompiledDimension) => {
+    const fieldSql = `${dimension.compiledSql}`;
+    return `(
+        CASE
+            WHEN ${fieldSql} = 'January' THEN 1
+            WHEN ${fieldSql} = 'February' THEN 2
+            WHEN ${fieldSql} = 'March' THEN 3
+            WHEN ${fieldSql} = 'April' THEN 4
+            WHEN ${fieldSql} = 'May' THEN 5
+            WHEN ${fieldSql} = 'June' THEN 6
+            WHEN ${fieldSql} = 'July' THEN 7
+            WHEN ${fieldSql} = 'August' THEN 8
+            WHEN ${fieldSql} = 'September' THEN 9
+            WHEN ${fieldSql} = 'October' THEN 10
+            WHEN ${fieldSql} = 'November' THEN 11
+            WHEN ${fieldSql} = 'December' THEN 12
+            ELSE 0
+        END
+        )`;
+};
+export const sortDayOfWeekName = (
+    dimension: CompiledDimension,
+    startOfWeek: WeekDay | null | undefined,
+) => {
+    const fieldSql = `${dimension.compiledSql}`;
+    const calculateDayIndex = (dayNumber: number) => {
+        if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
+        return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
+    };
+    return `(
+        CASE
+            WHEN ${fieldSql} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldSql} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldSql} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldSql} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldSql} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldSql} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldSql} = 'Saturday' THEN ${calculateDayIndex(7)}
+            ELSE 0
+        END
+    )`;
+};
+
+export const getCustomSqlDimensionSql = ({
+    warehouseClient,
+    customDimensions,
+}: {
+    warehouseClient: WarehouseClient;
+    customDimensions: CompiledCustomSqlDimension[] | undefined;
+}): { selects: string[]; tables: string[] } | undefined => {
+    if (customDimensions === undefined || customDimensions.length === 0) {
+        return undefined;
+    }
+    const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
+    const selects = customDimensions.map<string>(
+        (customDimension) =>
+            `  (${customDimension.compiledSql}) AS ${fieldQuoteChar}${customDimension.id}${fieldQuoteChar}`,
+    );
+
+    return {
+        selects,
+        tables: customDimensions.flatMap((d) => d.tablesReferences),
+    };
+};
+
+export const getCustomBinDimensionSql = ({
     warehouseClient,
     explore,
-    compiledMetricQuery,
+    customDimensions,
     userAttributes = {},
     sorts = [],
 }: {
     warehouseClient: WarehouseClient;
     explore: Explore;
-    compiledMetricQuery: CompiledMetricQuery;
+    customDimensions: CustomBinDimension[] | undefined;
     userAttributes: UserAttributeValueMap | undefined;
     sorts: SortField[] | undefined;
 }):
     | { ctes: string[]; joins: string[]; tables: string[]; selects: string[] }
     | undefined => {
-    const { customDimensions } = compiledMetricQuery;
     const startOfWeek = warehouseClient.getStartOfWeek();
 
     const fieldQuoteChar = getFieldQuoteChar(warehouseClient.credentials.type);
@@ -251,7 +332,7 @@ export const getCustomDimensionSql = ({
         return undefined;
 
     const getCteReference = (customDimension: CustomDimension) =>
-        `${getCustomDimensionId(customDimension)}_cte`;
+        `${getItemId(customDimension)}_cte`;
 
     const adapterType: SupportedDbtAdapter = warehouseClient.getAdapterType();
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
@@ -327,10 +408,10 @@ export const getCustomDimensionSql = ({
                 `custom dimension: "${customDimension.name}"`,
             );
 
-            const customDimensionName = `${fieldQuoteChar}${getCustomDimensionId(
+            const customDimensionName = `${fieldQuoteChar}${getItemId(
                 customDimension,
             )}${fieldQuoteChar}`;
-            const customDimensionOrder = `${fieldQuoteChar}${getCustomDimensionId(
+            const customDimensionOrder = `${fieldQuoteChar}${getItemId(
                 customDimension,
             )}_order${fieldQuoteChar}`;
             const cte = `${getCteReference(customDimension)}`;
@@ -341,8 +422,7 @@ export const getCustomDimensionSql = ({
                 sorts.length > 0 &&
                 sorts.find(
                     (sortField) =>
-                        getCustomDimensionId(customDimension) ===
-                        sortField.fieldId,
+                        getItemId(customDimension) === sortField.fieldId,
                 );
             const quoteChar = warehouseClient.getStringQuoteChar();
             const dash = `${quoteChar} - ${quoteChar}`;
@@ -562,12 +642,22 @@ export type CompiledQuery = {
     fields: ItemsMap;
 };
 
+export type BuildQueryProps = {
+    explore: Explore;
+    compiledMetricQuery: CompiledMetricQuery;
+    warehouseClient: WarehouseClient;
+    userAttributes?: UserAttributeValueMap;
+    intrinsicUserAttributes: IntrinsicUserAttributes;
+    timezone: string;
+};
+
 export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
     intrinsicUserAttributes,
     userAttributes = {},
+    timezone,
 }: BuildQueryProps): CompiledQuery => {
     let hasExampleMetric: boolean = false;
     const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
@@ -579,8 +669,7 @@ export const buildQuery = ({
         sorts,
         limit,
         additionalMetrics,
-        customDimensions,
-        timezone,
+        compiledCustomDimensions,
     } = compiledMetricQuery;
 
     const baseTable = explore.tables[explore.baseTable].sqlTable;
@@ -589,29 +678,45 @@ export const buildQuery = ({
     const escapeStringQuoteChar = warehouseClient.getEscapeStringQuoteChar();
     const startOfWeek = warehouseClient.getStartOfWeek();
 
-    const dimensionSelects = dimensions.map((field) => {
-        const alias = field;
-        const dimension = getDimensionFromId(
-            field,
-            explore,
-            adapterType,
-            startOfWeek,
-        );
+    // dimensions contains a mix of Dimensions and CustomDimensions,
+    // we want to filter customDimensions from this list as we will handle them separately
+    const excludeCustomDimensions = (field: string) =>
+        !compiledCustomDimensions.map((cd) => cd.id).includes(field);
+    const dimensionSelects = dimensions
+        .filter(excludeCustomDimensions)
+        .map((field) => {
+            const alias = field;
+            const dimension = getDimensionFromId(
+                field,
+                explore,
+                adapterType,
+                startOfWeek,
+            );
 
-        assertValidDimensionRequiredAttribute(
-            dimension,
-            userAttributes,
-            `dimension: "${field}"`,
-        );
-        return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
-    });
+            assertValidDimensionRequiredAttribute(
+                dimension,
+                userAttributes,
+                `dimension: "${field}"`,
+            );
+            return `  ${dimension.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+        });
 
-    const customDimensionSql = getCustomDimensionSql({
+    const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
+        dimensions.includes(cd.id),
+    );
+    const customBinDimensionSql = getCustomBinDimensionSql({
         warehouseClient,
         explore,
-        compiledMetricQuery,
+        customDimensions:
+            selectedCustomDimensions?.filter(isCustomBinDimension),
         userAttributes,
         sorts,
+    });
+    const customSqlDimensionSql = getCustomSqlDimensionSql({
+        warehouseClient,
+        customDimensions: selectedCustomDimensions?.filter(
+            isCompiledCustomSqlDimension,
+        ),
     });
 
     const sqlFrom = `FROM ${baseTable} AS ${fieldQuoteChar}${explore.baseTable}${fieldQuoteChar}`;
@@ -652,21 +757,27 @@ export const buildQuery = ({
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
             return [...acc, ...(metric.tablesReferences || [metric.table])];
         }, []),
-        ...dimensions.reduce<string[]>((acc, field) => {
-            const dim = getDimensionFromId(
-                field,
-                explore,
-                adapterType,
-                startOfWeek,
-            );
-            return [...acc, ...(dim.tablesReferences || [dim.table])];
-        }, []),
-        ...(customDimensionSql?.tables || []),
+        ...dimensions
+            .filter(excludeCustomDimensions)
+            .reduce<string[]>((acc, field) => {
+                const dim = getDimensionFromId(
+                    field,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+                return [...acc, ...(dim.tablesReferences || [dim.table])];
+            }, []),
+        ...(customBinDimensionSql?.tables || []),
+        ...(customSqlDimensionSql?.tables || []),
         ...getFilterRulesFromGroup(filters.dimensions).reduce<string[]>(
             (acc, filterRule) => {
-                const dim = getDimensionFromId(
+                const dim = getDimensionFromFilterTargetId(
                     filterRule.target.fieldId,
                     explore,
+                    compiledCustomDimensions.filter(
+                        isCompiledCustomSqlDimension,
+                    ),
                     adapterType,
                     startOfWeek,
                 );
@@ -756,25 +867,31 @@ export const buildQuery = ({
 
     const sqlSelect = `SELECT\n${[
         ...dimensionSelects,
-        ...(customDimensionSql?.selects || []),
+        ...(customBinDimensionSql?.selects || []),
+        ...(customSqlDimensionSql?.selects || []),
         ...metricSelects,
         ...filteredMetricSelects,
     ].join(',\n')}`;
 
     const groups = [
         ...(dimensionSelects.length > 0 ? dimensionSelects : []),
-        ...(customDimensionSql?.selects || []),
+        ...(customBinDimensionSql?.selects || []),
+        ...(customSqlDimensionSql?.selects || []),
     ];
     const sqlGroupBy =
         groups.length > 0
             ? `GROUP BY ${groups.map((val, i) => i + 1).join(',')}`
             : '';
+
+    const compiledDimensions = getDimensions(explore);
+
     const fieldOrders = sorts.map((sort) => {
         if (
-            customDimensions &&
-            customDimensions.find(
+            compiledCustomDimensions &&
+            compiledCustomDimensions.find(
                 (customDimension) =>
-                    getCustomDimensionId(customDimension) === sort.fieldId,
+                    getItemId(customDimension) === sort.fieldId &&
+                    isCustomBinDimension(customDimension),
             )
         ) {
             // Custom dimensions will have a separate `select` for ordering,
@@ -784,17 +901,33 @@ export const buildQuery = ({
                 sort.descending ? ' DESC' : ''
             }`;
         }
+        const sortedDimension = compiledDimensions.find(
+            (d) => getItemId(d) === sort.fieldId,
+        );
+
+        if (
+            sortedDimension &&
+            sortedDimension.timeInterval === TimeFrames.MONTH_NAME
+        ) {
+            return sortMonthName(sortedDimension);
+        }
+        if (
+            sortedDimension &&
+            sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
+        ) {
+            return sortDayOfWeekName(sortedDimension, startOfWeek);
+        }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
             sort.descending ? ' DESC' : ''
         }`;
     });
+
     const sqlOrderBy =
         fieldOrders.length > 0 ? `ORDER BY ${fieldOrders.join(', ')}` : '';
-    const sqlFilterRule = (filter: FilterRule, fieldType: FieldType) => {
-        if (fieldType === FieldType.TABLE_CALCULATION) {
+    const sqlFilterRule = (filter: FilterRule, fieldType?: FieldType) => {
+        if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
-                (tc) =>
-                    `table_calculation_${tc.name}` === filter.target.fieldId,
+                (tc) => getItemId(tc) === filter.target.fieldId,
             );
             return renderTableCalculationFilterRuleSql(
                 filter,
@@ -804,14 +937,18 @@ export const buildQuery = ({
                 escapeStringQuoteChar,
                 adapterType,
                 startOfWeek,
+                timezone,
             );
         }
 
         const field =
             fieldType === FieldType.DIMENSION
-                ? getDimensions(explore).find(
-                      (d) => fieldId(d) === filter.target.fieldId,
-                  )
+                ? [
+                      ...getDimensions(explore),
+                      ...compiledCustomDimensions.filter(
+                          isCompiledCustomSqlDimension,
+                      ),
+                  ].find((d) => getItemId(d) === filter.target.fieldId)
                 : getMetricFromId(
                       filter.target.fieldId,
                       explore,
@@ -837,7 +974,7 @@ export const buildQuery = ({
 
     const getNestedFilterSQLFromGroup = (
         filterGroup: FilterGroup | undefined,
-        fieldType: FieldType,
+        fieldType?: FieldType,
     ): string | undefined => {
         if (filterGroup) {
             const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
@@ -891,7 +1028,6 @@ export const buildQuery = ({
 
     const tableCalculationFilters = getNestedFilterSQLFromGroup(
         filters.tableCalculations,
-        FieldType.TABLE_CALCULATION,
     );
 
     const sqlLimit = `LIMIT ${limit}`;
@@ -904,8 +1040,8 @@ export const buildQuery = ({
             sqlSelect,
             sqlFrom,
             sqlJoins,
-            customDimensionSql && customDimensionSql.joins.length > 0
-                ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+            customBinDimensionSql && customBinDimensionSql.joins.length > 0
+                ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
                 : undefined,
             sqlWhere,
             sqlGroupBy,
@@ -914,7 +1050,7 @@ export const buildQuery = ({
             .join('\n');
         const cteName = 'metrics';
         const ctes = [
-            ...(customDimensionSql?.ctes || []),
+            ...(customBinDimensionSql?.ctes || []),
             `${cteName} AS (\n${cteSql}\n)`,
         ];
         const tableCalculationSelects =
@@ -953,14 +1089,14 @@ export const buildQuery = ({
     }
 
     const metricQuerySql = [
-        customDimensionSql && customDimensionSql.ctes.length > 0
-            ? `WITH ${customDimensionSql.ctes.join(',\n')}`
+        customBinDimensionSql && customBinDimensionSql.ctes.length > 0
+            ? `WITH ${customBinDimensionSql.ctes.join(',\n')}`
             : undefined,
         sqlSelect,
         sqlFrom,
         sqlJoins,
-        customDimensionSql && customDimensionSql.joins.length > 0
-            ? `CROSS JOIN ${customDimensionSql.joins.join(',\n')}`
+        customBinDimensionSql && customBinDimensionSql.joins.length > 0
+            ? `CROSS JOIN ${customBinDimensionSql.joins.join(',\n')}`
             : undefined,
         sqlWhere,
         sqlGroupBy,

@@ -12,6 +12,7 @@ import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplorerAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { useApp } from '../../../providers/AppProvider';
+import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
 
 import { useLocalStorage } from '@mantine/hooks';
@@ -27,7 +28,7 @@ type Props = {
     isFullScreen: boolean;
 };
 
-const SqlEditor = styled(AceEditor)<
+export const SqlEditor = styled(AceEditor)<
     IAceEditorProps & { isFullScreen: boolean; gutterBackgroundColor: string }
 >`
     width: 100%;
@@ -53,6 +54,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
     });
     const { health } = useApp();
     const { setAceEditor } = useExplorerAceEditorCompleter();
+    const { setAceEditor } = useTableCalculationAceEditorCompleter();
 
     return (
         <>

@@ -1,9 +1,9 @@
 import {
     CartesianSeriesType,
-    getCustomDimensionId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
+    isNumericItem,
     type ApiQueryResults,
     type CartesianChart,
     type CompleteCartesianChartLayout,
@@ -450,6 +450,25 @@ const useCartesianChartConfig = ({
     );
 
     useEffect(() => {
+        // If the xField is a table calculation and its type is a number, do not stack
+        // This is computed on first load and also when the table calculation is updated in edit mode
+        if (stacking === false) return;
+        const tableCalculation =
+            resultsData?.metricQuery.tableCalculations?.find(
+                (tc) => tc.name === dirtyLayout?.xField,
+            );
+        if (tableCalculation) {
+            const isNumber = isNumericItem(tableCalculation);
+            if (isNumber) setStacking(false);
+        }
+    }, [
+        dirtyLayout?.xField,
+        resultsData?.metricQuery.tableCalculations,
+        stacking,
+        setStacking,
+    ]);
+
+    useEffect(() => {
         if (stacking !== undefined) {
             setStacking(stacking);
         }
@@ -470,18 +489,10 @@ const useCartesianChartConfig = ({
                 resultsData?.metricQuery.tableCalculations.map(
                     ({ name }) => name,
                 ) || [];
-            const customDimensions =
-                resultsData?.metricQuery.customDimensions?.map(
-                    getCustomDimensionId,
-                ) || [];
+
             return [
-                [
-                    ...sortedDimensions,
-                    ...metrics,
-                    ...tableCalculations,
-                    ...customDimensions,
-                ],
-                [...sortedDimensions, ...customDimensions],
+                [...sortedDimensions, ...metrics, ...tableCalculations],
+                [...sortedDimensions],
                 metrics,
             ];
         }, [resultsData, sortedDimensions]);
@@ -833,6 +844,7 @@ const useCartesianChartConfig = ({
         },
         [],
     );
+
     return {
         validConfig,
         dirtyChartType,

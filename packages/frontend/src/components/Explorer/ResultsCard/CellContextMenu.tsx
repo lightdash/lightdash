@@ -3,6 +3,7 @@ import {
     hasCustomDimension,
     isCustomDimension,
     isDimension,
+    isDimensionValueInvalidDate,
     isField,
     isFilterableField,
     type Field,
@@ -86,12 +87,18 @@ const CellContextMenu: FC<
     ]);
 
     const handleFilterByValue = useCallback(() => {
-        if (!isField(item) || !isFilterableField(item)) return;
+        if (!item || !isFilterableField(item)) return;
 
         track({
             name: EventName.ADD_FILTER_CLICKED,
         });
-        addFilter(item, value.raw === undefined ? null : value.raw, true);
+
+        const filterValue =
+            value.raw === undefined || isDimensionValueInvalidDate(item, value)
+                ? null // Set as null if value is invalid date or undefined
+                : value.raw;
+
+        addFilter(item, filterValue, true);
     }, [track, addFilter, item, value]);
 
     let parseResult: null | object = null;
@@ -164,7 +171,7 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode && isField(item) && isFilterableField(item) && (
+                {isEditMode && item && isFilterableField(item) && (
                     <Menu.Item
                         icon={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}

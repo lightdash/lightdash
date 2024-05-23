@@ -140,11 +140,24 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'CustomSql', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Validation', {
             projectUuid: member.projectUuid,
+        });
+
+        can('promote', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
         });
     },
     admin(member, { can }) {

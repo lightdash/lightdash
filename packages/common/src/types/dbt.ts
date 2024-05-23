@@ -1,5 +1,6 @@
 import { DepGraph } from 'dependency-graph';
 import assertUnreachable from '../utils/assertUnreachable';
+import { getItemId } from '../utils/item';
 import {
     type ColumnInfo,
     type CompiledModelNode,
@@ -7,7 +8,6 @@ import {
 } from './dbtFromSchema';
 import { DbtError, ParseError } from './errors';
 import {
-    fieldId,
     FieldType,
     friendlyName,
     type CompactOrAlias,
@@ -444,7 +444,7 @@ export const convertColumnMetric = ({
         source,
         tableLabel,
         dimensionReference: dimensionName
-            ? fieldId({ table: modelName, name: dimensionName })
+            ? getItemId({ table: modelName, name: dimensionName })
             : undefined,
         requiredAttributes,
     });

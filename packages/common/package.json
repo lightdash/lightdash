@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1077.0",
+    "version": "0.1102.1",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -23,6 +23,7 @@
         "liquidjs": "^10.0.0",
         "lodash": "^4.17.21",
         "moment": "^2.29.4",
+        "moment-timezone": "^0.5.45",
         "pegjs": "^0.10.0",
         "sanitize-html": "^2.12.1",
         "uuid": "^8.3.2",

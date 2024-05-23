@@ -36,7 +36,15 @@ const HelpMenu: FC = () => {
             <Menu.Dropdown>
                 {isCloudCustomer && (
                     <LargeMenuItem
-                        onClick={() => showIntercom()}
+                        onClick={() => {
+                            // @ts-ignore
+                            if (window.Pylon) {
+                                // @ts-ignore
+                                window.Pylon('show');
+                            } else {
+                                showIntercom();
+                            }
+                        }}
                         title="Contact support"
                         description="Drop us a message and we’ll get back to you asap!"
                         icon={IconMessages}

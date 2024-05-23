@@ -1,15 +1,15 @@
 import { SlackChannel, SlackSettings } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { App, Block, LogLevel } from '@slack/bolt';
+import { Block } from '@slack/bolt';
 import {
     ChatPostMessageArguments,
     ConversationsListResponse,
     UsersListResponse,
+    WebClient,
 } from '@slack/web-api';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
-import { slackOptions } from './SlackOptions';
 
 type SlackClientArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -27,8 +27,6 @@ export class SlackClient {
 
     lightdashConfig: LightdashConfig;
 
-    slackApp: App | undefined;
-
     public isEnabled: boolean = false;
 
     constructor({
@@ -37,35 +35,21 @@ export class SlackClient {
     }: SlackClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.slackAuthenticationModel = slackAuthenticationModel;
-
-        void this.start();
+        if (this.lightdashConfig.slack?.clientId) {
+            this.isEnabled = true;
+        }
     }
 
-    async start() {
-        if (this.lightdashConfig.slack?.appToken) {
-            try {
-                this.slackApp = new App({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                    },
-                    logLevel: LogLevel.INFO,
-                    port: this.lightdashConfig.slack.port,
-                    socketMode: true,
-                    appToken: this.lightdashConfig.slack.appToken,
-                });
-            } catch (e: unknown) {
-                Logger.error(`Unable to start Slack client ${e}`);
-            }
-            this.isEnabled = true;
-        } else {
-            Logger.warn(
-                `Missing "SLACK_APP_TOKEN", Slack client will not work`,
-            );
+    private async getWebClient(organizationUuid: string): Promise<WebClient> {
+        if (!this.isEnabled) {
+            throw new Error('Slack is not configured');
         }
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        return new WebClient(installation?.token);
     }
 
     async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
@@ -80,17 +64,10 @@ export class SlackClient {
 
         Logger.debug('Fetching channels from Slack API');
 
-        if (this.slackApp === undefined) {
-            throw new Error('Slack app is not configured');
-        }
-
-        const installation =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
-
         let nextCursor: string | undefined;
         let allChannels: ConversationsListResponse['channels'] = [];
+
+        const webClient = await this.getWebClient(organizationUuid);
 
         do {
             try {
@@ -100,8 +77,7 @@ export class SlackClient {
 
                 const conversations: ConversationsListResponse =
                     // eslint-disable-next-line no-await-in-loop
-                    await this.slackApp.client.conversations.list({
-                        token: installation?.token,
+                    await webClient.conversations.list({
                         types: 'public_channel',
                         limit: 900,
                         cursor: nextCursor,
@@ -127,8 +103,7 @@ export class SlackClient {
 
                 const users: UsersListResponse =
                     // eslint-disable-next-line no-await-in-loop
-                    await this.slackApp.client.users.list({
-                        token: installation?.token,
+                    await webClient.users.list({
                         limit: 900,
                         cursor: nextCursor,
                     });
@@ -169,19 +144,12 @@ export class SlackClient {
     async joinChannels(organizationUuid: string, channels: string[]) {
         if (channels.length === 0) return;
         try {
-            if (this.slackApp === undefined) {
-                throw new Error('Slack app is not configured');
-            }
-            const installation =
-                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                    organizationUuid,
-                );
+            const webClient = await this.getWebClient(organizationUuid);
             const joinPromises = channels.map((channel) => {
                 // Don't need to join user channels (DM)
                 if (channel.startsWith('U')) return undefined;
 
-                return this.slackApp?.client.conversations.join({
-                    token: installation?.token,
+                return webClient.conversations.join({
                     channel,
                 });
             });
@@ -198,19 +166,10 @@ export class SlackClient {
             organizationUuid: string;
         } & ChatPostMessageArguments,
     ) {
-        if (this.slackApp === undefined) {
-            throw new Error('Slack app is not configured');
-        }
-
         const { organizationUuid, ...slackMessageArgs } = message;
-        const installation =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
-
-        return this.slackApp.client.chat
+        const webClient = await this.getWebClient(organizationUuid);
+        return webClient.chat
             .postMessage({
-                token: installation?.token,
                 ...slackMessageArgs,
             })
             .catch((e: any) => {
@@ -226,20 +185,7 @@ export class SlackClient {
         organizationUuid: string,
         channelId: string | null,
     ) {
-        if (this.slackApp === undefined) {
-            throw new Error('Slack app is not configured');
-        }
-
-        const installation =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                organizationUuid,
-            );
-
-        if (installation === undefined) {
-            throw new Error(
-                `Unable to find slack installation for organization ${organizationUuid}`,
-            );
-        }
+        const webClient = await this.getWebClient(organizationUuid);
 
         await this.slackAuthenticationModel.updateNotificationChannelFromOrganizationUuid(
             organizationUuid,
@@ -247,9 +193,8 @@ export class SlackClient {
         );
 
         if (channelId) {
-            await this.slackApp.client.chat
+            await webClient.chat
                 .postMessage({
-                    token: installation?.token,
                     channel: channelId,
                     text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''

@@ -1,6 +1,5 @@
 import {
     FieldType,
-    getCustomDimensionId,
     type MetricQuery,
     type PivotConfig,
     type PivotData,
@@ -210,10 +209,7 @@ export const pivotQueryResults = ({
         return !hiddenMetricFieldIds.includes(id);
     });
 
-    const dimensions = [
-        ...metricQuery.dimensions,
-        ...(metricQuery.customDimensions?.map(getCustomDimensionId) || []),
-    ];
+    const dimensions = [...metricQuery.dimensions];
 
     // Headers (column index)
     const headerDimensions = pivotConfig.pivotDimensions.filter(

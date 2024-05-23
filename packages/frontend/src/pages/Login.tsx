@@ -1,38 +1,6 @@
-import {
-    FeatureFlags,
-    getEmailSchema,
-    LightdashMode,
-    OpenIdIdentityIssuerType,
-    SEED_ORG_1_ADMIN_EMAIL,
-    SEED_ORG_1_ADMIN_PASSWORD,
-    type ApiError,
-    type LightdashUser,
-} from '@lightdash/common';
-import {
-    Anchor,
-    Button,
-    Card,
-    Center,
-    Divider,
-    Header,
-    Image,
-    PasswordInput,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
-import { useMutation } from '@tanstack/react-query';
-import { useEffect, type FC } from 'react';
-import { Redirect, useLocation } from 'react-router-dom';
-
-import { z } from 'zod';
-import { lightdashApi } from '../api';
+import { Stack } from '@mantine/core';
+import { type FC } from 'react';
 import Page from '../components/common/Page/Page';
-import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
-import { NAVBAR_HEIGHT } from '../components/NavBar';
-import PageSpinner from '../components/PageSpinner';
 import LoginLanding from '../features/users/components/LoginLanding';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
@@ -232,43 +200,14 @@ const LoginContent: FC = () => {
 };
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
-    // FEATURE FLAG
-    const useNewLogin = useFeatureFlagEnabled(FeatureFlags.newLoginEnabled);
-
     return minimal ? (
         <Stack m="xl">
-            <LoginContent />
+            <LoginLanding />
         </Stack>
     ) : (
-        <Page
-            title="Login"
-            withCenteredContent
-            header={
-                useNewLogin && (
-                    <Header
-                        height={NAVBAR_HEIGHT}
-                        styles={(theme) => ({
-                            root: {
-                                display: 'flex',
-                                justifyContent: 'center',
-                                backgroundColor: theme.colors.blue['6'],
-                                color: 'white',
-                            },
-                        })}
-                    >
-                        <Center mx="sm">
-                            <Text weight={500} ta="center">
-                                Our login page looks different! We’ve made
-                                changes to login to improve your experience.
-                                Please provide your email below.
-                            </Text>
-                        </Center>
-                    </Header>
-                )
-            }
-        >
+        <Page title="Login" withCenteredContent>
             <Stack w={400} mt="4xl">
-                {useNewLogin ? <LoginLanding /> : <LoginContent />}
+                <LoginLanding />
             </Stack>
         </Page>
     );

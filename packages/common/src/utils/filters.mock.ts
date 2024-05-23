@@ -1,9 +1,15 @@
 import { ConditionalOperator } from '../types/conditionalRule';
 import {
+    CustomDimensionType,
+    DimensionType,
+    type CustomSqlDimension,
+} from '../types/field';
+import {
     FilterOperator,
     type AndFilterGroup,
     type DashboardFilters,
     type FilterRule,
+    type Filters,
     type OrFilterGroup,
 } from '../types/filter';
 import type { MetricQuery } from '../types/metricQuery';
@@ -133,49 +139,6 @@ export const dashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-export const expectedChartWithMergedDashboardFilters: MetricQuery = {
-    exploreName: 'test',
-    dimensions: ['a_dim1'],
-    limit: 501,
-    metrics: [],
-    sorts: [],
-    tableCalculations: [],
-    filters: {
-        dimensions: {
-            and: [
-                {
-                    id: 'root',
-                    and: [
-                        {
-                            id: '1',
-                            target: {
-                                fieldId: 'a_dim1',
-                            },
-                            operator: FilterOperator.EQUALS,
-                            values: [0],
-                        },
-                    ],
-                },
-                {
-                    id: '4',
-                    target: { fieldId: 'a_dim1' },
-                    operator: ConditionalOperator.EQUALS,
-                    values: ['1', '2', '3'],
-                },
-            ],
-            id: 'uuid',
-        },
-        metrics: {
-            and: [],
-            id: 'uuid',
-        },
-        tableCalculations: {
-            and: [],
-            id: 'uuid',
-        },
-    },
-};
-
 export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
     exploreName: 'test',
     dimensions: ['a_dim1'],
@@ -242,5 +205,30 @@ export const expectedChartWithOverrideDashboardORFilters: MetricQuery = {
             and: [],
             id: 'uuid',
         },
+    },
+};
+
+export const customSqlDimension: CustomSqlDimension = {
+    id: 'custom-sql-dimension',
+    name: 'Custom SQL Dimension',
+    table: 'custom_sql',
+    type: CustomDimensionType.SQL,
+    sql: '${table.field}',
+    dimensionType: DimensionType.STRING,
+};
+
+export const expectedFiltersWithCustomSqlDimension: Filters = {
+    dimensions: {
+        and: [
+            {
+                id: 'uuid',
+                operator: ConditionalOperator.EQUALS,
+                target: {
+                    fieldId: 'custom-sql-dimension',
+                },
+                values: [],
+            },
+        ],
+        id: 'uuid',
     },
 };

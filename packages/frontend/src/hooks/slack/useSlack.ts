@@ -35,7 +35,7 @@ const deleteSlack = async () =>
 
 export const useDeleteSlack = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, undefined>(deleteSlack, {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['slack']);
@@ -44,10 +44,10 @@ export const useDeleteSlack = () => {
                 title: `Deleted! Slack integration was deleted`,
             });
         },
-        onError: (error) => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: `Failed to delete Slack integration`,
-                subtitle: error.error.message,
+                apiError: error,
             });
         },
     });
@@ -78,7 +78,7 @@ const updateSlackNotificationChannel = async (channelId: string | null) =>
 
 export const useUpdateSlackNotificationChannelMutation = () => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, { channelId: string | null }>(
         ({ channelId }) => updateSlackNotificationChannel(channelId),
         {
@@ -89,10 +89,10 @@ export const useUpdateSlackNotificationChannelMutation = () => {
                     title: `Success! Slack notification channel updated`,
                 });
             },
-            onError: (error) => {
-                showToastError({
+            onError: ({ error }) => {
+                showToastApiError({
                     title: `Failed to update Slack notification channel`,
-                    subtitle: error.error.message,
+                    apiError: error,
                 });
             },
         },

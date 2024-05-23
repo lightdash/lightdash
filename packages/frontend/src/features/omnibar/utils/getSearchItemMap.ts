@@ -1,7 +1,7 @@
 import {
     ChartType,
-    fieldId,
     FieldType,
+    getItemId,
     isTableErrorSearchResult,
     SearchItemType,
     type SearchResults,
@@ -84,11 +84,11 @@ export const getSearchItemMap = (
                     exploreName: item.explore,
                     dimensions:
                         item.fieldType === FieldType.DIMENSION
-                            ? [fieldId(item)]
+                            ? [getItemId(item)]
                             : [],
                     metrics:
                         item.fieldType === FieldType.METRIC
-                            ? [fieldId(item)]
+                            ? [getItemId(item)]
                             : [],
                     filters: {},
                     sorts: [],

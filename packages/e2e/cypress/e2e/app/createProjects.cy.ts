@@ -1,4 +1,8 @@
-import { ResultRow, SEED_PROJECT } from '@lightdash/common';
+import {
+    CustomDimensionType,
+    ResultRow,
+    SEED_PROJECT,
+} from '@lightdash/common';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -333,12 +337,12 @@ const createCustomDimensionChart = (projectUuid) => {
         url: `${apiUrl}/projects/${projectUuid}/saved`,
         method: 'POST',
         body: {
-            name: 'How do payment methods vary across different amount ranges?"',
+            name: 'How do payment methods vary across different amount ranges?',
             description: 'Payment range by amount',
             tableName: 'payments',
             metricQuery: {
                 exploreName: 'payments',
-                dimensions: ['payments_payment_method'],
+                dimensions: ['payments_payment_method', 'amount_range'],
                 metrics: ['orders_total_order_amount'],
                 filters: {},
                 sorts: [
@@ -351,6 +355,7 @@ const createCustomDimensionChart = (projectUuid) => {
                     {
                         id: 'amount_range',
                         name: 'amount range',
+                        type: CustomDimensionType.BIN,
                         dimensionId: 'payments_amount',
                         binType: 'fixed_number',
                         binNumber: 5,
