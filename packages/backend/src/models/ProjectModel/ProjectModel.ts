@@ -82,7 +82,7 @@ import {
 } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
-type ProjectModelArguments = {
+export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
