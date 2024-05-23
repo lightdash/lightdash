@@ -16,7 +16,7 @@ export function getFullTextSearchRankCalcSql({
     return database.raw(
         `ROUND(
             ts_rank_cd(
-                :searchVectorColumn,
+                :searchVectorColumn:,
                 websearch_to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
