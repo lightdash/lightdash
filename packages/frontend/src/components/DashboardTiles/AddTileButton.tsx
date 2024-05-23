@@ -32,6 +32,7 @@ type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
+    dashboardTabs?: Dashboard['tabs'];
 } & Pick<ButtonProps, 'disabled'>;
 
 const AddTileButton: FC<Props> = ({
@@ -39,6 +40,7 @@ const AddTileButton: FC<Props> = ({
     setAddingTab,
     disabled,
     activeTabUuid,
+    dashboardTabs,
 }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
@@ -102,6 +104,7 @@ const AddTileButton: FC<Props> = ({
                                 dashboard?.uuid,
                                 dashboard?.name,
                                 activeTabUuid,
+                                dashboardTabs,
                             );
                             history.push(`/projects/${projectUuid}/tables`);
                         }}
