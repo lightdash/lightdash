@@ -1,4 +1,5 @@
 import { ActionIcon, Box, Button, Group, Image } from '@mantine/core';
+import { IconAdjustments } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
 import Omnibar from '../../features/omnibar';
@@ -39,12 +40,9 @@ export const MainNavBarContent: FC<Props> = ({
                     {health.data?.siteLogo ? (
                         <Image
                             src={health.data?.siteLogo}
-                            width={36}
-                            height={36}
+                            width={'100%'}
                             alt={
-                                health.data?.siteLogoAlt
-                                    ? health.data?.siteLogoAlt
-                                    : 'logo'
+                                (health.data?.siteName ? health.data?.siteName : 'Lightdash')+' logo'
                             }
                         />
                     ) : (

@@ -3,8 +3,10 @@ import React, { type FC } from 'react';
 import Step1 from '../../../svgs/onboarding1.svg';
 import Step2 from '../../../svgs/onboarding2.svg';
 import Step3 from '../../../svgs/onboarding3.svg';
+import { useApp } from '../../../providers/AppProvider';
 import { EventName } from '../../../types/Events';
 import MantineLinkButton from '../../common/MantineLinkButton';
+import { Helmet } from 'react-helmet';
 
 interface Props {
     projectUuid: string;
@@ -30,14 +32,19 @@ const onboardingSteps = [
 ];
 
 const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
+    const { health } = useApp();
     return (
+        <>
+        <Helmet>
+            <title>{`${health.data?.siteName}`}</title>
+        </Helmet>
         <Stack justify="flex-start" spacing="xs" mt="4xl">
             <Title order={3}>
-                {`Welcome${userName ? ', ' + userName : ' to Lightdash'}! 👋`}
+                {`Welcome${userName ? ', ' + userName : ' to ' + health.data?.siteName }! 👋`}
             </Title>
             <Text color="gray.7">
                 You&apos;re ready to start exploring. Here&apos;s what you can
-                do with Lightdash:
+                do with {`${health.data?.siteName}`}:
             </Text>
             <Paper withBorder p="xl" mt="lg">
                 <Group position="center">
@@ -69,6 +76,7 @@ const OnboardingPanel: FC<Props> = ({ projectUuid, userName }) => {
                 </Group>
             </Paper>
         </Stack>
+        </>
     );
 };
 

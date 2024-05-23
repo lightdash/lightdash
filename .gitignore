@@ -58,6 +58,9 @@ package-lock.json
 /docs/build
 /docs/.docusaurus
 
+# docker
+/docker/prod-entrypoint.sh.local
+
 # credentials
 credentials.json
 
