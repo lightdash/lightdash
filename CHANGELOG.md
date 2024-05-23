@@ -1,3 +1,10 @@
+## [0.1102.1](https://github.com/lightdash/lightdash/compare/0.1102.0...0.1102.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* check correctly missing custom dimensions against explore's tables ([#10131](https://github.com/lightdash/lightdash/issues/10131)) ([13f2b0b](https://github.com/lightdash/lightdash/commit/13f2b0b37026ac50ca808beaf1c7d434c14dd851))
+
 # [0.1102.0](https://github.com/lightdash/lightdash/compare/0.1101.4...0.1102.0) (2024-05-23)
 
 
