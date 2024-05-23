@@ -14,6 +14,7 @@ export type Space = {
     projectUuid: string;
     dashboards: SpaceDashboard[];
     access: SpaceShare[];
+    groupsAccess: SpaceGroup[];
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     slug: string;
@@ -55,7 +56,18 @@ export type SpaceShare = {
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
-    inheritedFrom: 'organization' | 'project' | 'group' | undefined;
+    inheritedFrom:
+        | 'organization'
+        | 'project'
+        | 'group'
+        | 'space_group'
+        | undefined;
+};
+
+export type SpaceGroup = {
+    groupUuid: string;
+    groupName: string;
+    spaceRole: SpaceMemberRole;
 };
 
 export enum SpaceMemberRole {
@@ -76,5 +88,10 @@ export type ApiSpaceResponse = {
 
 export type AddSpaceUserAccess = {
     userUuid: string;
+    spaceRole: SpaceMemberRole;
+};
+
+export type AddSpaceGroupAccess = {
+    groupUuid: string;
     spaceRole: SpaceMemberRole;
 };

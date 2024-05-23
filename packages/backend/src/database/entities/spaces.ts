@@ -39,3 +39,22 @@ export type SpaceUserAccessTable = Knex.CompositeTableType<
 >;
 
 export const SpaceUserAccessTableName = 'space_user_access';
+
+export type DbSpaceGroupAccess = {
+    group_uuid: string;
+    space_uuid: string;
+    space_role: string;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type CreateDbSpaceGroupAccess = Pick<
+    DbSpaceGroupAccess,
+    'group_uuid' | 'space_uuid' | 'space_role'
+>;
+
+export type SpaceGroupAccessTable = Knex.CompositeTableType<
+    DbSpaceGroupAccess | CreateDbSpaceGroupAccess
+>;
+
+export const SpaceGroupAccessTableName = 'space_group_access';
