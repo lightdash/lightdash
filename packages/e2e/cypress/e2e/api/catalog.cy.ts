@@ -20,6 +20,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 name: 'users',
                 description: 'users table',
                 type: 'table',
+                joinedTables: [],
             });
         });
     });
