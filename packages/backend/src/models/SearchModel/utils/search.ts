@@ -4,14 +4,10 @@ import { compact, escapeRegExp } from 'lodash';
 
 export function getFullTextSearchRankCalcSql({
     database,
-    tableName,
-    searchVectorColumnName,
-    searchQuery,
+    variables,
 }: {
     database: Knex;
-    tableName: string;
-    searchVectorColumnName: string;
-    searchQuery: string;
+    variables: Record<string, string>;
 }) {
     return database.raw(
         `ROUND(
@@ -22,10 +18,7 @@ export function getFullTextSearchRankCalcSql({
             )::numeric,
             6
         )::float`,
-        {
-            searchVectorColumn: `${tableName}.${searchVectorColumnName}`,
-            searchQuery,
-        },
+        variables,
     );
 }
 
