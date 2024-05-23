@@ -89,7 +89,14 @@ export const dbtList = async (
         const { stdout, stderr } = await execa('dbt', ['ls', ...args]);
         const models = stdout
             .split('\n')
-            .map<string>((line) => JSON.parse(line).unique_id)
+            .map<string>((line) => {
+                try {
+                    return JSON.parse(line).unique_id;
+                } catch {
+                    // ignore non-json lines
+                    return '';
+                }
+            })
             .filter((modelId) => modelId.startsWith('model.')); // filter models by name because "--models" and "--resource_type" are mutually exclusive arguments
         GlobalState.debug(`> Models: ${models.join(' ')}`);
         console.error(stderr);
