@@ -5,6 +5,7 @@ import { useToggle } from 'react-use';
 import { useTracking } from '../../../../providers/TrackingProvider';
 import { EventName } from '../../../../types/Events';
 import MantineIcon from '../../../common/MantineIcon';
+import { Config } from '../../common/Config';
 
 type Props = {
     label: string;
@@ -31,6 +32,7 @@ export const AxisMinMax: FC<Props> = ({
     setMax,
     setMaxOffset,
 }) => {
+    const isSettingOffset = !!(setMinOffset && setMaxOffset);
     const [isAuto, toggleAuto] = useToggle(
         !(min || max || minOffset || maxOffset),
     );
@@ -48,7 +50,11 @@ export const AxisMinMax: FC<Props> = ({
     }, [isAuto, setMin, setMinOffset, setMax, setMaxOffset]);
 
     return (
-        <Group noWrap spacing="xs" align="baseline">
+        <Group
+            noWrap
+            spacing="xs"
+            align={setMinOffset && setMaxOffset ? 'baseline' : 'center'}
+        >
             <Switch
                 label={isAuto && label}
                 checked={isAuto}
@@ -73,10 +79,14 @@ export const AxisMinMax: FC<Props> = ({
                 }}
             />
             {!isAuto && (
-                <Group spacing="one">
-                    <Group spacing="xs" noWrap>
+                <Group
+                    spacing={isSettingOffset ? 'one' : 'xs'}
+                    noWrap={!isSettingOffset}
+                >
+                    <Group spacing="xs" noWrap={!isSettingOffset}>
+                        {!isSettingOffset && <Config.Label>Min</Config.Label>}
                         <TextInput
-                            label="Min"
+                            label={isSettingOffset ? 'Min' : undefined}
                             placeholder="Min"
                             defaultValue={min || undefined}
                             onBlur={(e) => setMin(e.currentTarget.value)}
@@ -107,9 +117,11 @@ export const AxisMinMax: FC<Props> = ({
                         )}
                     </Group>
 
-                    <Group spacing="xs" noWrap>
+                    <Group spacing="xs" noWrap={!isSettingOffset}>
+                        {!isSettingOffset && <Config.Label>Max</Config.Label>}
+
                         <TextInput
-                            label="Max"
+                            label={isSettingOffset ? 'Max' : undefined}
                             placeholder="Max"
                             defaultValue={max || undefined}
                             onBlur={(e) => setMax(e.currentTarget.value)}
