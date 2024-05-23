@@ -1167,9 +1167,15 @@ const getEchartAxes = ({
                 min !== undefined &&
                 max !== undefined
             ) {
+                const minX = xAxisConfiguration?.[0]?.min
+                    ? parseFloat(xAxisConfiguration?.[0]?.min)
+                    : min;
+                const maxX = xAxisConfiguration?.[0]?.max
+                    ? parseFloat(xAxisConfiguration?.[0]?.max)
+                    : max;
                 return {
-                    min: min - (bottomAxisOffset.minOffset ?? 0),
-                    max: max + (bottomAxisOffset.maxOffset ?? 0),
+                    min: minX - (bottomAxisOffset.minOffset ?? 0),
+                    max: maxX + (bottomAxisOffset.maxOffset ?? 0),
                 };
             }
             return {
