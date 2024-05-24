@@ -850,56 +850,18 @@ const getWeekAxisConfig = (
     }
 };
 
-// Gets the min and max values for an axis based on the first and last values of the rows data
-const findMinAndMaxForAxis = (
-    rows: ApiQueryResults['rows'],
-    name: string,
-): { minValue: number | undefined; maxValue: number | undefined } => {
-    if (rows.length === 0) {
-        return {
-            minValue: undefined,
-            maxValue: undefined,
-        };
-    }
-
-    const parseValue = (raw: unknown) => {
-        if (typeof raw === 'number') return raw;
-        const parsed = typeof raw === 'string' ? parseFloat(raw) : undefined;
-        return parsed !== undefined && isNaN(parsed) ? undefined : parsed;
-    };
-
-    const firstValue = parseValue(rows[0][name]?.value?.raw);
-    const lastValue = parseValue(rows[rows.length - 1][name]?.value?.raw);
-
-    if (firstValue === undefined || lastValue === undefined) {
-        return {
-            minValue: undefined,
-            maxValue: undefined,
-        };
-    }
-
-    return {
-        minValue:
-            firstValue !== undefined
-                ? Math.min(firstValue, lastValue)
-                : undefined,
-        maxValue:
-            lastValue !== undefined
-                ? Math.max(firstValue, lastValue)
-                : undefined,
-    };
-};
-
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
     series,
     resultsData,
+    minsAndMaxes,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
     series: EChartSeries[];
     resultsData: ApiQueryResults | undefined;
+    minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -941,6 +903,8 @@ const getEchartAxes = ({
         },
         [true, true],
     );
+
+    console.log({ series });
 
     const getAxisFormatter = ({
         axisItem,
@@ -1200,6 +1164,7 @@ const getEchartAxes = ({
                 xAxisConfiguration?.[0]?.min ??
                 referenceLineMinX ??
                 maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange);
+
             const initialBottomAxisMax =
                 xAxisConfiguration?.[0]?.max ??
                 referenceLineMaxX ??
@@ -1238,9 +1203,15 @@ const getEchartAxes = ({
     };
 
     const { minValue: bottomAxisMinValue, maxValue: bottomAxisMaxValue } =
-        bottomAxisOffset.enabled && xAxisItemId
+        bottomAxisOffset.enabled &&
+        xAxisItemId &&
+        minsAndMaxes &&
+        minsAndMaxes[xAxisItemId]
             ? // Find the min and max values for the axis if the offset is enabled
-              findMinAndMaxForAxis(resultsData?.rows || [], xAxisItemId)
+              {
+                  minValue: minsAndMaxes[xAxisItemId].min,
+                  maxValue: minsAndMaxes[xAxisItemId].max,
+              }
             : {
                   minValue: undefined,
                   maxValue: undefined,
@@ -1619,6 +1590,11 @@ const useEchartsCartesianConfig = (
         );
     }, [validCartesianConfig, resultsData, itemsMap, pivotDimensions]);
 
+    const resultsAndMinsAndMaxes = useMemo(
+        () => getResultValueArray(rows, true, true),
+        [rows],
+    );
+
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
             return { xAxis: [], yAxis: [] };
@@ -1629,8 +1605,15 @@ const useEchartsCartesianConfig = (
             series,
             validCartesianConfig,
             resultsData,
+            minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
         });
-    }, [itemsMap, series, validCartesianConfig, resultsData]);
+    }, [
+        itemsMap,
+        validCartesianConfig,
+        series,
+        resultsData,
+        resultsAndMinsAndMaxes.minsAndMaxes,
+    ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
@@ -1664,11 +1647,12 @@ const useEchartsCartesianConfig = (
     const sortedResults = useMemo(() => {
         const results =
             validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                ? getResultValueArray(rows, true).map((s) => ({
+                ? resultsAndMinsAndMaxes.results.map((s) => ({
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
                   }))
-                : getResultValueArray(rows, true);
+                : resultsAndMinsAndMaxes.results;
+
         try {
             if (!itemsMap) return results;
             const xFieldId = validCartesianConfig?.layout.flipAxes
@@ -1757,9 +1741,9 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.yField,
         validCartesianConfig?.eChartsConfig?.series,
-        rows,
+        resultsAndMinsAndMaxes.results,
         itemsMap,
-        axes,
+        axes.xAxis,
         resultsData?.metricQuery.sorts,
     ]);
 
