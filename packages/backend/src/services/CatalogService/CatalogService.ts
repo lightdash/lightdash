@@ -9,6 +9,7 @@ import {
     Explore,
     ExploreError,
     ForbiddenError,
+    getBasicType,
     isDimension,
     isExploreError,
     SessionUser,
@@ -17,6 +18,7 @@ import {
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
@@ -61,23 +63,6 @@ export class CatalogService extends BaseService {
         this.catalogModel = catalogModel;
     }
 
-    private static parseFieldsFromCompiledTable(
-        table: CompiledTable,
-    ): CatalogField[] {
-        const tableFields = [
-            ...Object.values(table.dimensions),
-            ...Object.values(table.metrics),
-        ];
-        return tableFields.map((d) => ({
-            name: d.name,
-            description: d.description,
-            tableLabel: d.tableLabel,
-            fieldType: d.fieldType,
-            basicType: isDimension(d) ? d.type : 'number', // TODO convert metrics into types
-            type: CatalogType.Field,
-        }));
-    }
-
     private static async getCatalogFields(
         explores: (Explore | ExploreError)[],
         userAttributes: UserAttributeValueMap,
@@ -89,9 +74,7 @@ export class CatalogService extends BaseService {
             if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
-                ).flatMap((t) =>
-                    CatalogService.parseFieldsFromCompiledTable(t),
-                );
+                ).flatMap((t) => parseFieldsFromCompiledTable(t));
 
                 return [...acc, ...fields];
             }
@@ -241,17 +224,42 @@ export class CatalogService extends BaseService {
         // Right now we return the full cached explore based on name
         // We could extract some data to only return what we need instead
         // to make this request more lightweight
-
-        // TODO permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explore = await this.catalogModel.getMetadata(projectUuid, table);
-        const baseTable = explore.tables?.[explore.baseTable];
 
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+            throw new ForbiddenError(
+                `You don't have access to the explore ${explore.name}`,
+            );
+        }
+
+        const baseTable = explore.tables?.[explore.baseTable];
+        const fields = parseFieldsFromCompiledTable(baseTable);
+        const filteredFields = fields.filter((field) =>
+            hasUserAttributes(field.requiredAttributes, userAttributes),
+        );
         const metadata: CatalogMetadata = {
             name: explore.label,
             description: baseTable.description,
             modelName: explore.name,
             source: explore.ymlPath,
-            fields: CatalogService.parseFieldsFromCompiledTable(baseTable),
+            fields: filteredFields,
         };
         return metadata;
     }

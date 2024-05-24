@@ -1,5 +1,13 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type InlineError } from './explore';
-import { type Dimension, type Field } from './field';
+import {
+    DimensionType,
+    MetricType,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Dimension,
+    type Field,
+} from './field';
 import { type TableBase } from './table';
 
 export enum CatalogType {
@@ -17,7 +25,7 @@ export type CatalogField = Pick<
 > &
     Pick<Dimension, 'requiredAttributes'> & {
         type: CatalogType.Field;
-        basicType: string; // string, number, timestamp...
+        basicType?: string; // string, number, timestamp... used in metadata
     };
 
 export type CatalogTable = Pick<
@@ -41,3 +49,37 @@ export type CatalogMetadata = {
     fields: CatalogField[];
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
+
+export const getBasicType = (
+    field: CompiledDimension | CompiledMetric,
+): string => {
+    const { type } = field;
+    switch (type) {
+        case DimensionType.STRING:
+        case MetricType.STRING:
+            return 'string';
+
+        case DimensionType.NUMBER:
+        case MetricType.NUMBER:
+        case MetricType.PERCENTILE:
+        case MetricType.MEDIAN:
+        case MetricType.AVERAGE:
+        case MetricType.COUNT:
+        case MetricType.COUNT_DISTINCT:
+        case MetricType.SUM:
+        case MetricType.MIN:
+        case MetricType.MAX:
+            return 'number';
+        case DimensionType.DATE:
+        case MetricType.DATE:
+            return 'date';
+        case DimensionType.TIMESTAMP:
+        case MetricType.TIMESTAMP:
+            return 'timestamp';
+        case DimensionType.BOOLEAN:
+        case MetricType.BOOLEAN:
+            return 'boolean';
+        default:
+            return assertUnreachable(type, `Invalid field type ${type}`);
+    }
+};
