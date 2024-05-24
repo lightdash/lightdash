@@ -113,18 +113,19 @@ describe('Lightdash catalog search', () => {
         });
     });
 
-    it('Should search for a metric (dbt_derived)', () => {
+    it('Should search for a metric (total_revenue)', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=dbt_derived`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.length.gt(0);
+            expect(resp.body.results).to.have.length(1);
 
             const field = resp.body.results[0];
             expect(field).to.deep.eq({
-                name: 'dbt_derived',
-                tableLabel: 'customers',
+                name: 'total_revenue',
+                description: 'Sum of all payments',
+                tableLabel: 'payments',
                 type: 'field',
                 fieldType: 'metric',
             });
