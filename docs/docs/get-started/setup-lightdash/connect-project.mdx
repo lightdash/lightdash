@@ -569,15 +569,24 @@ This controls what day is the start of the week in Lightdash. `Auto` sets it to 
 
 ### Trino
 
-You can see more details in [dbt's documentation](https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration).
+We only support [LDAP authentication with Trino](https://trino.io/docs/current/security/ldap.html). You can see more details in [dbt's documentation](https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration).
 
 #### Host
 
-This is the hostname to connect to.
+The hostname of your cluster. E.g. `mycluster.mydomain.com`
+
+Don't include the http:// or https:// prefix.
 
 #### User
 
-This is the username for authentication.
+The username (of the account) to log in to your cluster. When connecting to Starburst Galaxy clusters, you must include the role of the user as a suffix to the username.
+
+Format for Starburst Enterprise or Trino:
+`user.name`
+`user.name@mydomain.com`
+
+Format for Starburst Galaxy:
+`user.name@mydomain.com/role`
 
 #### Password
 
@@ -585,11 +594,15 @@ This is the password for authentication.
 
 #### DB name
 
-Specify the name of the database that your dbt models are built into.
+Specify the name of the database that your dbt models are built into. This is the name of a catalog in your cluster.
+
+e.g. `my_postgres_catalog`
 
 #### Port
 
-The port to connect to the host on.
+The port to connect to your cluster. By default, it's 443 for TLS enabled clusters.
+
+e.g. `443`
 
 #### SSL mode
 
