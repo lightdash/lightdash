@@ -4,9 +4,15 @@ type Args = {
     defaultWidth: number;
     minWidth: number;
     maxWidth: number;
+    position: 'left' | 'right';
 };
 
-const useSidebarResize = ({ maxWidth, minWidth, defaultWidth }: Args) => {
+const useSidebarResize = ({
+    maxWidth,
+    minWidth,
+    defaultWidth,
+    position,
+}: Args) => {
     const sidebarRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(defaultWidth);
@@ -25,12 +31,17 @@ const useSidebarResize = ({ maxWidth, minWidth, defaultWidth }: Args) => {
             if (!isResizing || !sidebarRef.current) return;
             event.preventDefault();
 
-            const newWidth =
-                event.clientX - sidebarRef.current.getBoundingClientRect().left;
+            const sidebarRect = sidebarRef.current.getBoundingClientRect();
+            let newWidth;
+            if (position === 'left') {
+                newWidth = event.clientX - sidebarRect.left;
+            } else {
+                newWidth = sidebarRect.right - event.clientX;
+            }
 
             setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
         },
-        [isResizing, minWidth, maxWidth],
+        [isResizing, minWidth, maxWidth, position],
     );
 
     useLayoutEffect(() => {

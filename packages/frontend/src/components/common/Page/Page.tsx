@@ -3,6 +3,7 @@ import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
+import { useLockBodyScroll } from 'react-use';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
@@ -11,7 +12,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar from './Sidebar';
+import Sidebar, { type SidebarWidthProps } from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
@@ -23,8 +24,11 @@ type StyleProps = {
     withNavbar?: boolean;
     withPaddedContent?: boolean;
     withSidebar?: boolean;
+    withRightSidebar?: boolean;
     withSidebarFooter?: boolean;
+    withRightSidebarFooter?: boolean;
     hasBanner?: boolean;
+    lockScroll?: boolean;
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
@@ -56,7 +60,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       overflowY: 'auto',
                   }),
 
-            ...(params.withSidebar
+            ...(params.withSidebar || params.withRightSidebar
                 ? {
                       display: 'flex',
                       flexDirection: 'row',
@@ -71,7 +75,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
             width: '100%',
             minWidth: PAGE_CONTENT_WIDTH,
 
-            ...(params.withSidebar
+            ...(params.withSidebar || params.withRightSidebar
                 ? {
                       minWidth: PAGE_MIN_CONTENT_WIDTH,
                   }
@@ -133,16 +137,24 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
 type Props = {
     title?: string;
+    lockScroll?: boolean;
     sidebar?: React.ReactNode;
+    rightSidebar?: React.ReactNode;
+    rightSidebarWidthProps?: SidebarWidthProps;
     isSidebarOpen?: boolean;
+    isRightSidebarOpen?: boolean;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
 const Page: FC<React.PropsWithChildren<Props>> = ({
+    lockScroll = false,
     title,
     header,
     sidebar,
     isSidebarOpen = true,
+    rightSidebar,
+    rightSidebarWidthProps,
+    isRightSidebarOpen = false,
 
     withCenteredContent = false,
     withFitContent = false,
@@ -152,9 +164,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
+    withRightSidebarFooter = false,
 
     children,
 }) => {
+    useLockBodyScroll(lockScroll);
     const { activeProjectUuid } = useActiveProjectUuid({
         refetchOnMount: true,
     });
@@ -176,8 +190,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withNavbar,
             withPaddedContent,
             withSidebar: !!sidebar,
+            withRightSidebar: !!rightSidebar,
             withSidebarFooter,
+            withRightSidebarFooter,
             hasBanner: isCurrentProjectPreview,
+            lockScroll,
         },
         { name: 'Page' },
     );
@@ -194,7 +211,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 {sidebar ? (
-                    <Sidebar isOpen={isSidebarOpen}>
+                    <Sidebar isOpen={isSidebarOpen} position="left">
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {sidebar}
                         </ErrorBoundary>
@@ -210,8 +227,22 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </TrackSection>
                 </Box>
 
-                {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
+                {rightSidebar ? (
+                    <Sidebar
+                        isOpen={isRightSidebarOpen}
+                        position="right"
+                        widthProps={rightSidebarWidthProps}
+                    >
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            {rightSidebar}
+                        </ErrorBoundary>
+                        {withRightSidebarFooter ? (
+                            <AboutFooter minimal />
+                        ) : null}
+                    </Sidebar>
+                ) : null}
             </Box>
+            {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
         </>
     );
 };

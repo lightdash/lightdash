@@ -20,33 +20,52 @@ const SIDEBAR_MAX_WIDTH = 600;
 
 const SIDEBAR_RESIZE_HANDLE_WIDTH = 6;
 
+export type SidebarWidthProps = {
+    defaultWidth?: number;
+    minWidth?: number;
+    maxWidth?: number;
+};
+
 type Props = {
     isOpen?: boolean;
     containerProps?: FlexProps;
     cardProps?: CardProps;
+    position?: 'left' | 'right';
+    widthProps?: SidebarWidthProps;
 };
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
+    position = 'left',
     containerProps,
     cardProps,
     children,
+    widthProps = {},
 }) => {
+    const {
+        defaultWidth = SIDEBAR_DEFAULT_WIDTH,
+        minWidth = SIDEBAR_MIN_WIDTH,
+        maxWidth = SIDEBAR_MAX_WIDTH,
+    } = widthProps;
+
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
-            defaultWidth: SIDEBAR_DEFAULT_WIDTH,
-            minWidth: SIDEBAR_MIN_WIDTH,
-            maxWidth: SIDEBAR_MAX_WIDTH,
+            defaultWidth,
+            minWidth,
+            maxWidth,
+            position,
         });
 
     const transition: MantineTransition = {
         in: {
             opacity: 1,
-            marginLeft: 0,
+            ...(position === 'left' ? { marginLeft: 0 } : { marginRight: 0 }),
         },
         out: {
             opacity: 0,
-            marginLeft: -sidebarWidth,
+            ...(position === 'left'
+                ? { marginLeft: -sidebarWidth }
+                : { marginRight: -sidebarWidth }),
         },
         transitionProperty: 'opacity, margin',
     };
@@ -87,12 +106,13 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 w={SIDEBAR_RESIZE_HANDLE_WIDTH}
                                 pos="absolute"
                                 top={0}
-                                right={-SIDEBAR_RESIZE_HANDLE_WIDTH}
+                                {...(position === 'left'
+                                    ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
+                                    : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
                                 onMouseDown={startResizing}
                                 {...cardProps}
                                 sx={(theme) => ({
                                     cursor: 'col-resize',
-
                                     ...(isResizing
                                         ? {
                                               background:
