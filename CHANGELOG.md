@@ -1,3 +1,15 @@
+# [0.1104.0](https://github.com/lightdash/lightdash/compare/0.1103.1...0.1104.0) (2024-05-24)
+
+
+### Bug Fixes
+
+* allowed email domain project access updates ([#10172](https://github.com/lightdash/lightdash/issues/10172)) ([4947846](https://github.com/lightdash/lightdash/commit/4947846cf473e944fc4ebeda5f1ff8c719452863))
+
+
+### Features
+
+* catalog metadata ([#10176](https://github.com/lightdash/lightdash/issues/10176)) ([242e870](https://github.com/lightdash/lightdash/commit/242e870e9cae833e1ad82bde69657cc33a004b6a))
+
 ## [0.1103.1](https://github.com/lightdash/lightdash/compare/0.1103.0...0.1103.1) (2024-05-24)
 
 
