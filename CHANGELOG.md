@@ -1,3 +1,10 @@
+# [0.1103.0](https://github.com/lightdash/lightdash/compare/0.1102.3...0.1103.0) (2024-05-24)
+
+
+### Features
+
+* dbt 1.8 ([#10180](https://github.com/lightdash/lightdash/issues/10180)) ([379e902](https://github.com/lightdash/lightdash/commit/379e90268581a88e2e834f2e0fcfa937841d6764))
+
 ## [0.1102.3](https://github.com/lightdash/lightdash/compare/0.1102.2...0.1102.3) (2024-05-24)
 
 
