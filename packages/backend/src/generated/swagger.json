@@ -63,6 +63,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Pick_Dimension.requiredAttributes_": {
+                "properties": {
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "CatalogType.Field": {
                 "enum": ["field"],
                 "type": "string"
@@ -73,20 +87,32 @@
                         "$ref": "#/components/schemas/Pick_Field.name-or-fieldType-or-tableLabel-or-description_"
                     },
                     {
+                        "$ref": "#/components/schemas/Pick_Dimension.requiredAttributes_"
+                    },
+                    {
                         "properties": {
+                            "basicType": {
+                                "type": "string"
+                            },
                             "type": {
                                 "$ref": "#/components/schemas/CatalogType.Field"
                             }
                         },
-                        "required": ["type"],
+                        "required": ["basicType", "type"],
                         "type": "object"
                     }
                 ]
             },
-            "Pick_Explore.name-or-groupLabel_": {
+            "Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_": {
                 "properties": {
                     "name": {
                         "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
                     },
                     "groupLabel": {
                         "type": "string"
@@ -119,7 +145,7 @@
             "CatalogTable": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Explore.name-or-groupLabel_"
+                        "$ref": "#/components/schemas/Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_"
                     },
                     {
                         "properties": {
@@ -134,9 +160,6 @@
                                     "$ref": "#/components/schemas/InlineError"
                                 },
                                 "type": "array"
-                            },
-                            "description": {
-                                "type": "string"
                             }
                         },
                         "required": ["type"],
@@ -163,6 +186,33 @@
             "CatalogType": {
                 "enum": ["table", "field"],
                 "type": "string"
+            },
+            "CatalogMetadata": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogField"
+                        },
+                        "type": "array"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "modelName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "modelName", "name"],
+                "type": "object"
+            },
+            "ApiCatalogMetadataResults": {
+                "$ref": "#/components/schemas/CatalogMetadata"
             },
             "ApiCreateComment": {
                 "properties": {
@@ -524,11 +574,6 @@
             "OrderFieldsByStrategy": {
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
-            },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "TableBase": {
                 "properties": {
@@ -3673,7 +3718,12 @@
                 "properties": {
                     "inheritedFrom": {
                         "type": "string",
-                        "enum": ["organization", "project", "group"]
+                        "enum": [
+                            "organization",
+                            "project",
+                            "group",
+                            "space_group"
+                        ]
                     },
                     "inheritedRole": {
                         "anyOf": [
@@ -6098,6 +6148,21 @@
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
+            "SpaceGroup": {
+                "properties": {
+                    "spaceRole": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "groupName": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["spaceRole", "groupName", "groupUuid"],
+                "type": "object"
+            },
             "Space": {
                 "properties": {
                     "slug": {
@@ -6111,6 +6176,12 @@
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "groupsAccess": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceGroup"
+                        },
+                        "type": "array"
                     },
                     "access": {
                         "items": {
@@ -6150,6 +6221,7 @@
                     "slug",
                     "pinnedListOrder",
                     "pinnedListUuid",
+                    "groupsAccess",
                     "access",
                     "dashboards",
                     "projectUuid",
@@ -7107,7 +7179,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1100.0",
+        "version": "0.1102.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7182,6 +7254,66 @@
                         "required": false,
                         "schema": {
                             "$ref": "#/components/schemas/CatalogType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{table}/metadata": {
+            "get": {
+                "operationId": "getMetadata",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogMetadataResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog metadata",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Table name to get metadata for",
+                        "in": "path",
+                        "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -11699,7 +11831,7 @@
                         }
                     }
                 },
-                "description": "Grant a user access to a space",
+                "description": "Grant a group access to a space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -11713,6 +11845,7 @@
                         }
                     },
                     {
+                        "description": "The uuid of the space to update",
                         "in": "path",
                         "name": "spaceUuid",
                         "required": true,
@@ -11758,7 +11891,7 @@
                         }
                     }
                 },
-                "description": "Remove a user's access to a space",
+                "description": "Remove a group's access to a space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -11781,6 +11914,7 @@
                         }
                     },
                     {
+                        "description": "The uuid of the group to revoke access from",
                         "in": "path",
                         "name": "groupUuid",
                         "required": true,

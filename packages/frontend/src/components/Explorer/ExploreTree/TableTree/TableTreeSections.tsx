@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -8,7 +7,6 @@ import {
 } from '@lightdash/common';
 import { Button, Center, Group, Text, Tooltip } from '@mantine/core';
 import { IconAlertTriangle, IconPlus } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApp } from '../../../../providers/AppProvider';
@@ -50,9 +48,6 @@ const TableTreeSections: FC<Props> = ({
             organizationUuid: user.data.organizationUuid,
             projectUuid,
         }),
-    );
-    const isCustomSqlDimensionFeatureFlagEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CustomSqlDimensions,
     );
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
@@ -156,8 +151,11 @@ const TableTreeSections: FC<Props> = ({
                         Dimensions
                     </Text>
 
-                    {canManageCustomSql &&
-                        isCustomSqlDimensionFeatureFlagEnabled && (
+                    {canManageCustomSql && (
+                        <Tooltip
+                            label="Add a custom dimension with SQL"
+                            variant="xs"
+                        >
                             <Button
                                 size="xs"
                                 variant={'subtle'}
@@ -173,7 +171,8 @@ const TableTreeSections: FC<Props> = ({
                             >
                                 Add
                             </Button>
-                        )}
+                        </Tooltip>
+                    )}
                 </Group>
             )}
 

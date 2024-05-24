@@ -1,3 +1,50 @@
+## [0.1104.1](https://github.com/lightdash/lightdash/compare/0.1104.0...0.1104.1) (2024-05-24)
+
+
+### Bug Fixes
+
+* allow safari to copy to clipboard on async values ([#10178](https://github.com/lightdash/lightdash/issues/10178)) ([2a87368](https://github.com/lightdash/lightdash/commit/2a873684e1c2ef39b2ba83029f80a634e0934149))
+
+# [0.1104.0](https://github.com/lightdash/lightdash/compare/0.1103.1...0.1104.0) (2024-05-24)
+
+
+### Bug Fixes
+
+* allowed email domain project access updates ([#10172](https://github.com/lightdash/lightdash/issues/10172)) ([4947846](https://github.com/lightdash/lightdash/commit/4947846cf473e944fc4ebeda5f1ff8c719452863))
+
+
+### Features
+
+* catalog metadata ([#10176](https://github.com/lightdash/lightdash/issues/10176)) ([242e870](https://github.com/lightdash/lightdash/commit/242e870e9cae833e1ad82bde69657cc33a004b6a))
+
+## [0.1103.1](https://github.com/lightdash/lightdash/compare/0.1103.0...0.1103.1) (2024-05-24)
+
+
+### Bug Fixes
+
+* wrap cell values in element to prevent errors from browser extensions ([#10169](https://github.com/lightdash/lightdash/issues/10169)) ([a60da7e](https://github.com/lightdash/lightdash/commit/a60da7ebccb980bb0a020fb93439a9f41120b2af))
+
+# [0.1103.0](https://github.com/lightdash/lightdash/compare/0.1102.3...0.1103.0) (2024-05-24)
+
+
+### Features
+
+* dbt 1.8 ([#10180](https://github.com/lightdash/lightdash/issues/10180)) ([379e902](https://github.com/lightdash/lightdash/commit/379e90268581a88e2e834f2e0fcfa937841d6764))
+
+## [0.1102.3](https://github.com/lightdash/lightdash/compare/0.1102.2...0.1102.3) (2024-05-24)
+
+
+### Bug Fixes
+
+* index catalog error ([#10183](https://github.com/lightdash/lightdash/issues/10183)) ([6cfba40](https://github.com/lightdash/lightdash/commit/6cfba400bcf78668a07e6cdfd28f8e572e75467b))
+
+## [0.1102.2](https://github.com/lightdash/lightdash/compare/0.1102.1...0.1102.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* to tsquery ([#10181](https://github.com/lightdash/lightdash/issues/10181)) ([8f2d5a9](https://github.com/lightdash/lightdash/commit/8f2d5a9b929a05d7284ec0cc4e8eed7bc3b25e4f))
+
 ## [0.1102.1](https://github.com/lightdash/lightdash/compare/0.1102.0...0.1102.1) (2024-05-23)
 
 

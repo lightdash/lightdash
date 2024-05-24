@@ -12,10 +12,13 @@ import {
     type CustomDimension,
     type Field,
     type ItemsMap,
+    type ResultRow,
+    type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
 import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
+import { type CellContext } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import {
@@ -40,6 +43,20 @@ export const getItemBgColor = (
     } else {
         return '#d2dfd7';
     }
+};
+
+export const getFormattedValueCell = (
+    info: CellContext<ResultRow, { value: ResultValue }>,
+) => <span>{info.getValue()?.value.formatted || '-'}</span>;
+
+export const getRawValueCell = (
+    info: CellContext<ResultRow, { value: ResultValue }>,
+) => {
+    let raw = info.getValue()?.value.raw;
+    if (raw === null) return '∅';
+    if (raw === undefined) return '-';
+    if (raw instanceof Date) return <span>{raw.toISOString()}</span>;
+    return <span>{`${raw}`}</span>;
 };
 
 export const useColumns = (): TableColumn[] => {
@@ -161,7 +178,7 @@ export const useColumns = (): TableColumn[] => {
                             )}
                         </TableHeaderLabelContainer>
                     ),
-                    cell: (info) => info.getValue()?.value.formatted || '-',
+                    cell: getFormattedValueCell,
                     footer: () =>
                         totals?.[fieldId]
                             ? formatItemValue(item, totals[fieldId])
@@ -212,7 +229,7 @@ export const useColumns = (): TableColumn[] => {
                                 </TableHeaderBoldLabel>
                             </Group>
                         ),
-                        cell: (info) => info.getValue()?.value.formatted || '-',
+                        cell: getFormattedValueCell,
                         meta: {
                             isInvalidItem: true,
                         },

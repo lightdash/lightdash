@@ -107,6 +107,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Dimension.requiredAttributes_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                requiredAttributes: {
+                    ref: 'Record_string.string-or-string-Array_',
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'CatalogType.Field': {
         dataType: 'refEnum',
         enums: ['field'],
@@ -120,9 +142,11 @@ const models: TsoaRoute.Models = {
                 {
                     ref: 'Pick_Field.name-or-fieldType-or-tableLabel-or-description_',
                 },
+                { ref: 'Pick_Dimension.requiredAttributes_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        basicType: { dataType: 'string', required: true },
                         type: { ref: 'CatalogType.Field', required: true },
                     },
                 },
@@ -131,12 +155,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Explore.name-or-groupLabel_': {
+    'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                requiredAttributes: {
+                    ref: 'Record_string.string-or-string-Array_',
+                },
                 groupLabel: { dataType: 'string' },
             },
             validators: {},
@@ -170,7 +198,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'Pick_Explore.name-or-groupLabel_' },
+                {
+                    ref: 'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_',
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -180,7 +210,6 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'InlineError' },
                         },
-                        description: { dataType: 'string' },
                     },
                 },
             ],
@@ -209,6 +238,44 @@ const models: TsoaRoute.Models = {
     CatalogType: {
         dataType: 'refEnum',
         enums: ['table', 'field'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fields: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'CatalogField' },
+                    required: true,
+                },
+                source: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                modelName: { dataType: 'string', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCatalogMetadataResults: {
+        dataType: 'refAlias',
+        type: { ref: 'CatalogMetadata', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
@@ -552,15 +619,6 @@ const models: TsoaRoute.Models = {
     OrderFieldsByStrategy: {
         dataType: 'refEnum',
         enums: ['LABEL', 'INDEX'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-string-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TableBase: {
@@ -3313,6 +3371,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['organization'] },
                         { dataType: 'enum', enums: ['project'] },
                         { dataType: 'enum', enums: ['group'] },
+                        { dataType: 'enum', enums: ['space_group'] },
                         { dataType: 'undefined' },
                     ],
                     required: true,
@@ -5438,6 +5497,19 @@ const models: TsoaRoute.Models = {
         type: { ref: 'DashboardBasicDetails', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                spaceRole: { ref: 'SpaceMemberRole', required: true },
+                groupName: { dataType: 'string', required: true },
+                groupUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Space: {
         dataType: 'refAlias',
         type: {
@@ -5458,6 +5530,11 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
+                },
+                groupsAccess: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SpaceGroup' },
                     required: true,
                 },
                 access: {
@@ -6384,6 +6461,68 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.getCatalog.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/dataCatalog/:table/metadata',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.getMetadata,
+        ),
+
+        async function CatalogController_getMetadata(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                table: {
+                    in: 'path',
+                    name: 'table',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CatalogController>(
+                    CatalogController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getMetadata.apply(
                     controller,
                     validatedArgs as any,
                 );

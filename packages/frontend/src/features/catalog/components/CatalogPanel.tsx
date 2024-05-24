@@ -1,12 +1,9 @@
-import {
-    CatalogType,
-    type CatalogField,
-    type CatalogTable,
-} from '@lightdash/common';
+import { CatalogType, type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
+    Flex,
     Group,
     SegmentedControl,
     Stack,
@@ -15,14 +12,17 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogGroup } from './CatalogGroup';
 import { CatalogListItem } from './CatalogListItem';
+import { CatalogMetadata } from './CatalogMetadata';
 
 type Props = {
     projectUuid: string;
@@ -41,6 +41,42 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         search: debouncedSearch,
     });
 
+    const [selectedTable, setSelectedTable] = useState<string>();
+    const {
+        mutate: getMetadata,
+        data: metadata,
+        reset: closeMetadata,
+    } = useCatalogMetadata(projectUuid);
+
+    const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
+        if (catalogResults) {
+            const results = catalogResults.reduce<
+                [Record<string, CatalogItem[]>, CatalogItem[]]
+            >(
+                (acc, item) => {
+                    if ('groupLabel' in item && item.groupLabel) {
+                        return [
+                            {
+                                ...acc[0],
+                                [item.groupLabel]: acc[0][item.groupLabel]
+                                    ? [...acc[0][item.groupLabel], item]
+                                    : [item],
+                            },
+                            acc[1],
+                        ];
+                    }
+                    return [acc[0], [...acc[1], item]];
+                },
+                [{}, []],
+            );
+            return [
+                results[0],
+                results[1].sort((a, b) => a.name.localeCompare(b.name)),
+            ];
+        }
+        return [{}, []];
+    }, [catalogResults]);
+
     const handleSearchChange = useCallback(
         (searchString: string) => {
             setSearch(searchString);
@@ -51,153 +87,228 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     // TODO: should this transform be in the backend?
     // This could be more efficient. It does two passes on the data at the moment:
     // one to group tables and fields, and another to group tables by groupLabel
-    const catalogTree = useMemo(() => {
-        if (catalogResults) {
-            const tablesWithFields = catalogResults.reduce<{
-                [key: string]:
-                    | (CatalogTable & { fields: CatalogField[] })
-                    | { fields: CatalogField[]; type: CatalogType };
-            }>((acc, item) => {
-                if (item.type === CatalogType.Table) {
-                    if (!acc[item.name]) {
-                        acc[item.name] = { ...item, fields: [] };
-                    } else {
-                        acc[item.name] = {
-                            ...acc[item.name],
-                            ...item,
-                        };
+    // const catalogTree = useMemo(() => {
+    //     if (catalogResults) {
+    //         const tablesWithFields = catalogResults.reduce<{
+    //             [key: string]:
+    //                 | (CatalogTable & { fields: CatalogField[] })
+    //                 | { fields: CatalogField[]; type: CatalogType };
+    //         }>((acc, item) => {
+    //             if (item.type === CatalogType.Table) {
+    //                 if (!acc[item.name]) {
+    //                     acc[item.name] = { ...item, fields: [] };
+    //                 } else {
+    //                     acc[item.name] = {
+    //                         ...acc[item.name],
+    //                         ...item,
+    //                     };
+    //                 }
+    //             } else if (item.type === CatalogType.Field) {
+    //                 if (acc[item.tableLabel]) {
+    //                     acc[item.tableLabel].fields.push(item);
+    //                 } else {
+    //                     acc[item.tableLabel] = {
+    //                         fields: [item],
+    //                         type: CatalogType.Table,
+    //                     };
+    //                 }
+    //             }
+    //             return acc;
+    //         }, {});
+    //         const groupsWithTables = Object.keys(tablesWithFields).reduce<{
+    //             [key: string]: Array<
+    //                 | (CatalogTable & { fields: CatalogField[] })
+    //                 | {
+    //                       name: string;
+    //                       fields: CatalogField[];
+    //                       type: CatalogType;
+    //                   }
+    //             >;
+    //         }>((acc, tableName) => {
+    //             const table = tablesWithFields[tableName];
+
+    //             // TODO: fields whose table is not returned need the grouping data from the BE
+    //             // Without it, fields whose table is not returned will be grouped under 'Ungrouped tables'
+    //             const groupLabel =
+    //                 'groupLabel' in table && table.groupLabel
+    //                     ? table.groupLabel
+    //                     : 'Ungrouped tables';
+
+    //             if (acc[groupLabel]) {
+    //                 acc[groupLabel] = [
+    //                     ...acc[groupLabel],
+    //                     { name: tableName, ...table },
+    //                 ];
+    //             } else {
+    //                 acc[groupLabel] = [{ name: tableName, ...table }];
+    //             }
+    //             return acc;
+    //         }, {});
+    //         return groupsWithTables;
+    //     }
+    //     return {};
+    // }, [catalogResults]);
+
+    const selectAndGetMetadata = useCallback(
+        (tableName: string) => {
+            // For optimization purposes, we could only make this request if metadata panel is open
+            setSelectedTable(tableName);
+
+            if (catalogResults) {
+                const table = catalogResults.find(
+                    (item) => item.name === tableName,
+                );
+                if (table && table.type === CatalogType.Table)
+                    getMetadata(tableName);
+                else console.warn('Metadata not available for fields');
+            }
+        },
+        [catalogResults, getMetadata],
+    );
+
+    const history = useHistory();
+    // Keyboard navigation
+    useHotkeys(
+        [
+            [
+                'ArrowDown',
+                () => {
+                    //FIXME fix bug when multiple "fields" have the same name in search and you can't move
+                    if (selectedTable) {
+                        //TODO move around grouped items
+                        const selectedIndex = ungroupedCatalogItems.findIndex(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (
+                            selectedIndex !== undefined &&
+                            selectedIndex < ungroupedCatalogItems.length
+                        ) {
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[selectedIndex + 1].name,
+                            );
+                        }
+                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                },
+            ],
+            [
+                'ArrowUp',
+                () => {
+                    if (selectedTable) {
+                        //TODO move around grouped items
+                        const selectedIndex = ungroupedCatalogItems.findIndex(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (selectedIndex !== undefined && selectedIndex > 0)
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[selectedIndex - 1].name,
+                            );
+                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                },
+            ],
+            [
+                'Enter',
+                () => {
+                    if (catalogResults) {
+                        const selectedItem = catalogResults.find(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (
+                            selectedItem &&
+                            selectedItem.type === CatalogType.Table
+                        )
+                            history.push(
+                                `/projects/${projectUuid}/tables/${selectedItem.name}`,
+                            );
+                        else console.warn('Explore not available for fields');
                     }
-                } else if (item.type === CatalogType.Field) {
-                    if (acc[item.tableLabel]) {
-                        acc[item.tableLabel].fields.push(item);
-                    } else {
-                        acc[item.tableLabel] = {
-                            fields: [item],
-                            type: CatalogType.Table,
-                        };
-                    }
-                }
-                return acc;
-            }, {});
-            const groupsWithTables = Object.keys(tablesWithFields).reduce<{
-                [key: string]: Array<
-                    | (CatalogTable & { fields: CatalogField[] })
-                    | {
-                          name: string;
-                          fields: CatalogField[];
-                          type: CatalogType;
-                      }
-                >;
-            }>((acc, tableName) => {
-                const table = tablesWithFields[tableName];
-
-                // TODO: fields whose table is not returned need the grouping data from the BE
-                // Without it, fields whose table is not returned will be grouped under 'Ungrouped tables'
-                const groupLabel =
-                    'groupLabel' in table && table.groupLabel
-                        ? table.groupLabel
-                        : 'Ungrouped tables';
-
-                if (acc[groupLabel]) {
-                    acc[groupLabel] = [
-                        ...acc[groupLabel],
-                        { name: tableName, ...table },
-                    ];
-                } else {
-                    acc[groupLabel] = [{ name: tableName, ...table }];
-                }
-                return acc;
-            }, {});
-            return groupsWithTables;
-        }
-        return {};
-    }, [catalogResults]);
-
-    /*
-    if (exploresResult.status === 'loading') {
-        return <LoadingSkeleton />;
-    }
-
-    if (exploresResult.status === 'error') {
-        return (
-            <SuboptimalState
-                icon={IconAlertCircle}
-                title="Could not load explores"
-            />
-        );
-    }*/
+                },
+            ],
+        ],
+        [],
+    );
 
     return (
-        <Stack>
-            <Box>
-                <Title order={4} mt="xxl">
-                    {projectData?.name}
-                </Title>
-                <Text color="gray">
-                    Select a table or field to start exploring.
-                </Text>
-            </Box>
-            <Group position="apart">
-                <TextInput
-                    w={'40%'}
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search tables"
-                    value={search}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                />{' '}
-                <Group>
-                    <SegmentedControl
-                        w={200}
-                        disabled // TODO: remove when implemented
-                        defaultValue={'tables'}
-                        data={[
-                            {
-                                value: 'tables',
-                                label: 'Tables',
-                            },
-                            {
-                                value: 'fields',
-                                label: 'Fields',
-                            },
-                        ]}
-                        onChange={() => {
-                            // NYI
-                        }}
-                    />
-                    <Button
-                        variant="default"
-                        disabled // TODO: remove when implemented
-                        leftIcon={<MantineIcon icon={IconFilter} />}
-                    >
-                        Filters
-                    </Button>
+        <Flex>
+            <Stack>
+                <Box>
+                    <Title order={4} mt="xxl">
+                        {projectData?.name}
+                    </Title>
+                    <Text color="gray">
+                        Select a table or field to start exploring.
+                    </Text>
+                </Box>
+                <Group position="apart">
+                    <TextInput
+                        w={'40%'}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon onClick={() => setSearch('')}>
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search tables"
+                        value={search}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                    />{' '}
+                    <Group>
+                        <SegmentedControl
+                            w={200}
+                            disabled // TODO: remove when implemented
+                            defaultValue={'tables'}
+                            data={[
+                                {
+                                    value: 'tables',
+                                    label: 'Tables',
+                                },
+                                {
+                                    value: 'fields',
+                                    label: 'Fields',
+                                },
+                            ]}
+                            onChange={() => {
+                                // NYI
+                            }}
+                        />
+                        <Button
+                            variant="default"
+                            disabled // TODO: remove when implemented
+                            leftIcon={<MantineIcon icon={IconFilter} />}
+                        >
+                            Filters
+                        </Button>
+                    </Group>
                 </Group>
-            </Group>
-            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                {catalogTree &&
-                    Object.keys(catalogTree)
+                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                    {Object.keys(catalogGroupMap)
                         .sort((a, b) => a.localeCompare(b))
                         .map((groupLabel, idx) => (
                             <CatalogGroup label={groupLabel} key={groupLabel}>
                                 <Table>
                                     <tbody>
-                                        {catalogTree[groupLabel]
+                                        {catalogGroupMap[groupLabel]
                                             .sort((a, b) =>
                                                 a.name.localeCompare(b.name),
                                             )
                                             .map((item) => (
                                                 <CatalogListItem
                                                     key={`${item.name}-${idx}`}
+                                                    onClick={() => {
+                                                        selectAndGetMetadata(
+                                                            item.name,
+                                                        );
+                                                    }}
                                                     catalogItem={item}
                                                     searchString={
                                                         debouncedSearch
+                                                    }
+                                                    isSelected={
+                                                        metadata !==
+                                                            undefined &&
+                                                        item.name ===
+                                                            selectedTable
                                                     }
                                                     tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                                 />
@@ -206,7 +317,49 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 </Table>
                             </CatalogGroup>
                         ))}
+
+                    <Table h="100%">
+                        <tbody>
+                            {ungroupedCatalogItems.map((item, idx) => (
+                                <CatalogListItem
+                                    key={`${item.name}-${idx}`}
+                                    catalogItem={item}
+                                    searchString={debouncedSearch}
+                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                    isSelected={
+                                        metadata !== undefined &&
+                                        item.name === selectedTable
+                                    }
+                                    onClick={() => {
+                                        selectAndGetMetadata(item.name);
+                                    }}
+                                />
+                            ))}
+                        </tbody>
+                    </Table>
+                </Stack>
             </Stack>
-        </Stack>
+            <Stack>
+                <Button
+                    onClick={() => {
+                        if (metadata) closeMetadata();
+                        else if (selectedTable === undefined)
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[0]?.name,
+                            );
+                        else selectAndGetMetadata(selectedTable);
+                    }}
+                >
+                    {metadata ? 'Show metadata' : 'Hide metadata'}
+                </Button>
+
+                {metadata && (
+                    <CatalogMetadata
+                        data={metadata}
+                        projectUuid={projectUuid}
+                    />
+                )}
+            </Stack>
+        </Flex>
     );
 };
