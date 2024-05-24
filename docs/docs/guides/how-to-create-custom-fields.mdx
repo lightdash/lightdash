@@ -77,10 +77,21 @@ You can add filters to limit the rows included in your metric aggregation. You c
 
 ## Custom dimensions
 
-Custom dimensions are helpful to use when you want to group or bin your data based on an existing dimension. To create a custom dimension, you just need to:
+Dimensions are used to group results in your query, or filter values from your results. 
+
+Sometimes, a group or filter that you need hasn't been added to your project, so you can use a custom dimension to create a grouping or filter on-the-fly. 
+
+These dimensions are not saved to the table permanently. They are only available in the saved chart or query that they were created in.
+
+
+### Bin
+
+Bins are used to split out values of a numeric dimension into custom sets of ranges. Bins can only be used with dimensions that are numeric. Fixed bins (fixed number and fixed width) will update automatically if the min or max values of your dimension change.
+
+To create a bin custom dimension, you just need to:
 
 1. Click on a dimension's three-dot `options` menu
-2. Click on one of the custom dimension options available (e.g. `Bin`)
+2. Click on the `bin` option
 3. Setup + create your dimension
 
 <img
@@ -92,10 +103,6 @@ Custom dimensions are helpful to use when you want to group or bin your data bas
 
 Then, your new dimension will be added to your results table automatically and will appear in the `custom dimensions` space in your sidebar.
 
-### Bin
-
-Bins are used to split out values of a numeric dimension into custom sets of ranges. Bins can only be used with dimensions that are numeric. Fixed bins (fixed number and fixed width) will update automatically if the min or max values of your dimension change.
-
 <img
   src={CustomDimensionBins}
   width="624"
@@ -103,7 +110,7 @@ Bins are used to split out values of a numeric dimension into custom sets of ran
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-There are three ways that you can create bins:
+There are three ways that you can set up your bins:
 
 **1. Fixed number of bins**
 
@@ -119,9 +126,11 @@ You manually define the min and max values for each bin. The custom range option
 
 ---
 
-### SQL
+### custom SQL
 
-You can use SQL to create a custom dimension. This is useful when you want to create a custom dimension on the fly. You can use SQL to create a custom dimension based on the values of an existing dimension.
+You can use completely custom SQL to create a custom dimension.  
+
+The SQL you use to create these custom dimensions can reference other dimensions from the main table and joined tables in your explore. 
 
 In this example, let's explore the `orders` table and create a custom dimension that categorizes my orders' totals into three categories: `low`, `medium`, and `high`.
 
