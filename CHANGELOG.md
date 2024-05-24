@@ -1,3 +1,10 @@
+## [0.1102.3](https://github.com/lightdash/lightdash/compare/0.1102.2...0.1102.3) (2024-05-24)
+
+
+### Bug Fixes
+
+* index catalog error ([#10183](https://github.com/lightdash/lightdash/issues/10183)) ([6cfba40](https://github.com/lightdash/lightdash/commit/6cfba400bcf78668a07e6cdfd28f8e572e75467b))
+
 ## [0.1102.2](https://github.com/lightdash/lightdash/compare/0.1102.1...0.1102.2) (2024-05-23)
 
 
