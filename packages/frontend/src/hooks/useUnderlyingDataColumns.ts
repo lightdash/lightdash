@@ -10,6 +10,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import { getFormattedValueCell } from './useColumns';
 import useColumnTotals from './useColumnTotals';
 
 type Args = {
@@ -35,8 +36,7 @@ const useUnderlyingDataColumns = ({
                         columnHeader !== undefined
                             ? columnHeader(dimension)
                             : dimension.label,
-                    cell: (info: any) =>
-                        info.getValue()?.value.formatted || '-',
+                    cell: getFormattedValueCell,
                     footer: () =>
                         totals[fieldId]
                             ? formatItemValue(dimension, totals[fieldId])
