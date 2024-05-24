@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogItem } from '@lightdash/common';
-import { ActionIcon, Group, Highlight } from '@mantine/core';
+import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
 import {
     IconAbc,
     IconExternalLink,
@@ -33,8 +33,7 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
             style={
                 isSelected
                     ? {
-                          backgroundColor: 'cyan',
-                          border: '1px solid blue',
+                          backgroundColor: '#ebf1ff',
                       }
                     : {
                           height: 55,
@@ -98,6 +97,11 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
                             <MantineIcon icon={IconSearch} />
                         </ActionIcon>
                     </Group>
+                    {isSelected && (
+                        <Group>
+                            <Text>Previewing</Text>
+                        </Group>
+                    )}
                 </Group>
             </td>
         </tr>

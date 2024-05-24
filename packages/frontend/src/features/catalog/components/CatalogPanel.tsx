@@ -12,9 +12,10 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
@@ -41,13 +42,13 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     });
 
     const [isMetadataOpen, setIsMetadataOpen] = useState<boolean>(false);
-    const [selectedTable, setSelectedTable] = useState<string>('');
+    const [selectedTable, setSelectedTable] = useState<string>();
     const { mutate: getMetadata, data: metadata } =
         useCatalogMetadata(projectUuid);
 
     const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
         if (catalogResults) {
-            return catalogResults.reduce<
+            const results = catalogResults.reduce<
                 [Record<string, CatalogItem[]>, CatalogItem[]]
             >(
                 (acc, item) => {
@@ -66,6 +67,10 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 },
                 [{}, []],
             );
+            return [
+                results[0],
+                results[1].sort((a, b) => a.name.localeCompare(b.name)),
+            ];
         }
         return [{}, []];
     }, [catalogResults]);
@@ -75,6 +80,84 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
             setSearch(searchString);
         },
         [setSearch],
+    );
+
+    const selectAndGetMetadata = useCallback(
+        (tableName: string) => {
+            // For optimization purposes, we could only make this request if metadata panel is open
+            setSelectedTable(tableName);
+
+            if (catalogResults) {
+                const table = catalogResults.find(
+                    (item) => item.name === tableName,
+                );
+                if (table && table.type === CatalogType.Table)
+                    getMetadata(tableName);
+                else console.warn('Metadata not available for fields');
+            }
+        },
+        [catalogResults, getMetadata],
+    );
+
+    const history = useHistory();
+    // Keyboard navigation
+    useHotkeys(
+        [
+            [
+                'ArrowDown',
+                () => {
+                    //FIXME fix bug when multiple "fields" have the same name in search and you can't move
+                    if (selectedTable) {
+                        //TODO move around grouped items
+                        const selectedIndex = ungroupedCatalogItems.findIndex(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (
+                            selectedIndex !== undefined &&
+                            selectedIndex < ungroupedCatalogItems.length
+                        ) {
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[selectedIndex + 1].name,
+                            );
+                        }
+                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                },
+            ],
+            [
+                'ArrowUp',
+                () => {
+                    if (selectedTable) {
+                        //TODO move around grouped items
+                        const selectedIndex = ungroupedCatalogItems.findIndex(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (selectedIndex !== undefined && selectedIndex > 0)
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[selectedIndex - 1].name,
+                            );
+                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                },
+            ],
+            [
+                'Enter',
+                () => {
+                    if (catalogResults) {
+                        const selectedItem = catalogResults.find(
+                            (item) => item.name === selectedTable,
+                        );
+                        if (
+                            selectedItem &&
+                            selectedItem.type === CatalogType.Table
+                        )
+                            history.push(
+                                `/projects/${projectUuid}/tables/${selectedItem.name}`,
+                            );
+                        else console.warn('Explore not available for fields');
+                    }
+                },
+            ],
+        ],
+        [],
     );
 
     return (
@@ -146,18 +229,19 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                                 <CatalogListItem
                                                     key={`${item.name}-${idx}`}
                                                     onClick={() => {
-                                                        setSelectedTable(
+                                                        selectAndGetMetadata(
                                                             item.name,
                                                         );
-                                                        getMetadata(item.name);
                                                     }}
                                                     catalogItem={item}
                                                     searchString={
                                                         debouncedSearch
                                                     }
                                                     isSelected={
+                                                        // Don't select the table if metadata is not open
+                                                        isMetadataOpen &&
                                                         item.name ===
-                                                        selectedTable
+                                                            selectedTable
                                                     }
                                                     tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                                 />
@@ -169,32 +253,44 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
                     <Table h="100%">
                         <tbody>
-                            {ungroupedCatalogItems
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map((item, idx) => (
-                                    <CatalogListItem
-                                        key={`${item.name}-${idx}`}
-                                        catalogItem={item}
-                                        searchString={debouncedSearch}
-                                        tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                        isSelected={item.name === selectedTable}
-                                        onClick={() => {
-                                            setSelectedTable(item.name);
-                                            getMetadata(item.name);
-                                        }}
-                                    />
-                                ))}
+                            {ungroupedCatalogItems.map((item, idx) => (
+                                <CatalogListItem
+                                    key={`${item.name}-${idx}`}
+                                    catalogItem={item}
+                                    searchString={debouncedSearch}
+                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                    isSelected={
+                                        isMetadataOpen &&
+                                        item.name === selectedTable
+                                    }
+                                    onClick={() => {
+                                        selectAndGetMetadata(item.name);
+                                    }}
+                                />
+                            ))}
                         </tbody>
                     </Table>
                 </Stack>
             </Stack>
             <Stack>
-                <Button onClick={() => setIsMetadataOpen((prev) => !prev)}>
+                <Button
+                    onClick={() => {
+                        setIsMetadataOpen((prev) => !prev);
+
+                        if (selectedTable === undefined)
+                            selectAndGetMetadata(
+                                ungroupedCatalogItems[0]?.name,
+                            );
+                    }}
+                >
                     Show metadata
                 </Button>
 
                 {isMetadataOpen && metadata && (
-                    <CatalogMetadata data={metadata} />
+                    <CatalogMetadata
+                        data={metadata}
+                        projectUuid={projectUuid}
+                    />
                 )}
             </Stack>
         </Flex>
