@@ -240,7 +240,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                                         debouncedSearch
                                                     }
                                                     isSelected={
-                                                        metadata &&
+                                                        metadata !==
+                                                            undefined &&
                                                         item.name ===
                                                             selectedTable
                                                     }
@@ -261,7 +262,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                     searchString={debouncedSearch}
                                     tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                     isSelected={
-                                        metadata && item.name === selectedTable
+                                        metadata !== undefined &&
+                                        item.name === selectedTable
                                     }
                                     onClick={() => {
                                         selectAndGetMetadata(item.name);
