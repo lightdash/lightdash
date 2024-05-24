@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogItem } from '@lightdash/common';
-import { ActionIcon, Group, Highlight } from '@mantine/core';
+import { ActionIcon, Group, Highlight, Text } from '@mantine/core';
 import {
     IconAbc,
     IconExternalLink,
@@ -14,24 +14,37 @@ type Props = {
     catalogItem: CatalogItem;
     tableUrl: string;
     searchString?: string;
+    isSelected: boolean;
+    onClick: () => void;
 };
 
 export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
     catalogItem,
     tableUrl,
     searchString = '',
+    isSelected,
+    onClick,
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
 
     return (
         <tr
             key={catalogItem.name}
-            style={{
-                height: 55,
-                backgroundColor: hovered ? 'rgba(0, 0, 0, 0.05)' : undefined,
-            }}
+            style={
+                isSelected
+                    ? {
+                          backgroundColor: '#ebf1ff',
+                      }
+                    : {
+                          height: 55,
+                          backgroundColor: hovered
+                              ? 'rgba(0, 0, 0, 0.05)'
+                              : undefined,
+                      }
+            }
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={onClick}
         >
             <td>
                 <MantineIcon
@@ -84,6 +97,11 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
                             <MantineIcon icon={IconSearch} />
                         </ActionIcon>
                     </Group>
+                    {isSelected && (
+                        <Group>
+                            <Text>Previewing</Text>
+                        </Group>
+                    )}
                 </Group>
             </td>
         </tr>

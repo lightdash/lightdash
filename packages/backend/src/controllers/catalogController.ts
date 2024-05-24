@@ -1,4 +1,5 @@
 import {
+    ApiCatalogMetadataResults,
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
@@ -50,6 +51,32 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getCatalog(req.user!, projectUuid, query);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get catalog metadata
+     * @param projectUuid
+     * @param table Table name to get metadata for
+     * @returns
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{table}/metadata')
+    @OperationId('getMetadata')
+    async getMetadata(
+        @Path() projectUuid: string,
+        @Path() table: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiCatalogMetadataResults }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetadata(req.user!, projectUuid, table);
         return {
             status: 'ok',
             results,
