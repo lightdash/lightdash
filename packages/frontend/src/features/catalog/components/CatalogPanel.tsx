@@ -41,10 +41,12 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         search: debouncedSearch,
     });
 
-    const [isMetadataOpen, setIsMetadataOpen] = useState<boolean>(false);
     const [selectedTable, setSelectedTable] = useState<string>();
-    const { mutate: getMetadata, data: metadata } =
-        useCatalogMetadata(projectUuid);
+    const {
+        mutate: getMetadata,
+        data: metadata,
+        reset: closeMetadata,
+    } = useCatalogMetadata(projectUuid);
 
     const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
         if (catalogResults) {
@@ -238,8 +240,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                                         debouncedSearch
                                                     }
                                                     isSelected={
-                                                        // Don't select the table if metadata is not open
-                                                        isMetadataOpen &&
+                                                        metadata &&
                                                         item.name ===
                                                             selectedTable
                                                     }
@@ -260,8 +261,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                     searchString={debouncedSearch}
                                     tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
                                     isSelected={
-                                        isMetadataOpen &&
-                                        item.name === selectedTable
+                                        metadata && item.name === selectedTable
                                     }
                                     onClick={() => {
                                         selectAndGetMetadata(item.name);
@@ -275,18 +275,18 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
             <Stack>
                 <Button
                     onClick={() => {
-                        setIsMetadataOpen((prev) => !prev);
-
-                        if (selectedTable === undefined)
+                        if (metadata) closeMetadata();
+                        else if (selectedTable === undefined)
                             selectAndGetMetadata(
                                 ungroupedCatalogItems[0]?.name,
                             );
+                        else selectAndGetMetadata(selectedTable);
                     }}
                 >
-                    Show metadata
+                    {metadata ? 'Show metadata' : 'Hide metadata'}
                 </Button>
 
-                {isMetadataOpen && metadata && (
+                {metadata && (
                     <CatalogMetadata
                         data={metadata}
                         projectUuid={projectUuid}
