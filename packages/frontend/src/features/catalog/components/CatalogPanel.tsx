@@ -1,9 +1,8 @@
-import { CatalogType, type CatalogItem } from '@lightdash/common';
+import { CatalogType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
-    Flex,
     Group,
     SegmentedControl,
     Stack,
@@ -39,41 +38,17 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         search: debouncedSearch,
     });
 
-    const [selectedTable, setSelectedTable] = useState<string>();
+    // TODO: add field
+    const [selection, setSelection] = useState<{
+        group: string;
+        table: string;
+    }>();
+
     const {
         mutate: getMetadata,
         data: metadata,
         reset: closeMetadata,
     } = useCatalogMetadata(projectUuid);
-
-    const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
-        if (catalogResults) {
-            const results = catalogResults.reduce<
-                [Record<string, CatalogItem[]>, CatalogItem[]]
-            >(
-                (acc, item) => {
-                    if ('groupLabel' in item && item.groupLabel) {
-                        return [
-                            {
-                                ...acc[0],
-                                [item.groupLabel]: acc[0][item.groupLabel]
-                                    ? [...acc[0][item.groupLabel], item]
-                                    : [item],
-                            },
-                            acc[1],
-                        ];
-                    }
-                    return [acc[0], [...acc[1], item]];
-                },
-                [{}, []],
-            );
-            return [
-                results[0],
-                results[1].sort((a, b) => a.name.localeCompare(b.name)),
-            ];
-        }
-        return [{}, []];
-    }, [catalogResults]);
 
     const handleSearchChange = useCallback(
         (searchString: string) => {
@@ -81,8 +56,6 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         },
         [setSearch],
     );
-
-    console.log({ catalogResults, catalogGroupMap, ungroupedCatalogItems });
 
     // TODO: should this transform be in the backend?
     const catalogTree = useMemo(() => {
@@ -98,7 +71,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     if (!acc[groupName]) {
                         acc[groupName] = { name: groupName, tables: {} };
                     }
-                    acc[groupName].tables[item.name] = { ...item, fields: [] };
+                    acc[groupName].tables[item.name] = {
+                        ...item,
+                        groupName: groupName,
+                        fields: [],
+                    };
                 } else if (item.type === CatalogType.Field) {
                     const groupName =
                         'tableGroupLabel' in item && item.tableGroupLabel
@@ -110,6 +87,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     if (!acc[groupName].tables[item.tableName]) {
                         acc[groupName].tables[item.tableName] = {
                             name: item.tableName,
+                            type: CatalogType.Table,
                             fields: [],
                         };
                     }
@@ -122,9 +100,9 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     }, [catalogResults]);
 
     const selectAndGetMetadata = useCallback(
-        (tableName: string) => {
+        (tableName: string, groupName: string) => {
             // For optimization purposes, we could only make this request if metadata panel is open
-            setSelectedTable(tableName);
+            setSelection({ table: tableName, group: groupName });
 
             if (catalogResults) {
                 const table = catalogResults.find(
@@ -146,35 +124,60 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 'ArrowDown',
                 () => {
                     //FIXME fix bug when multiple "fields" have the same name in search and you can't move
-                    if (selectedTable) {
+                    if (selection) {
                         //TODO move around grouped items
-                        const selectedIndex = ungroupedCatalogItems.findIndex(
-                            (item) => item.name === selectedTable,
+                        //TODO also, this sort could go somewhere else
+                        const sortedGroupTables = Object.keys(
+                            catalogTree[selection.group].tables,
+                        ).sort(([a], [b]) => a.localeCompare(b));
+
+                        const selectedIndex = sortedGroupTables.findIndex(
+                            (name) => name === selection.table,
                         );
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < ungroupedCatalogItems.length
+                            selectedIndex < sortedGroupTables.length
                         ) {
                             selectAndGetMetadata(
-                                ungroupedCatalogItems[selectedIndex + 1].name,
+                                sortedGroupTables[selectedIndex + 1],
+                                selection.group,
                             );
                         }
-                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                    } else
+                        selectAndGetMetadata(
+                            catalogTree[Object.keys(catalogTree)[0]].tables[0]
+                                .name,
+                            Object.keys(catalogTree)[0],
+                        );
                 },
             ],
             [
                 'ArrowUp',
                 () => {
-                    if (selectedTable) {
+                    if (selection) {
                         //TODO move around grouped items
-                        const selectedIndex = ungroupedCatalogItems.findIndex(
-                            (item) => item.name === selectedTable,
+                        const sortedGroupTables = Object.keys(
+                            catalogTree[selection.group].tables,
+                        ).sort(([a], [b]) => a.localeCompare(b));
+
+                        const selectedIndex = sortedGroupTables.findIndex(
+                            (name) => name === selection.table,
                         );
-                        if (selectedIndex !== undefined && selectedIndex > 0)
+                        if (
+                            selectedIndex !== undefined &&
+                            selectedIndex < sortedGroupTables.length
+                        ) {
                             selectAndGetMetadata(
-                                ungroupedCatalogItems[selectedIndex - 1].name,
+                                sortedGroupTables[selectedIndex - 1],
+                                selection.group,
                             );
-                    } else selectAndGetMetadata(ungroupedCatalogItems[0]?.name);
+                        }
+                    } else
+                        selectAndGetMetadata(
+                            catalogTree[Object.keys(catalogTree)[0]].tables[0]
+                                .name,
+                            Object.keys(catalogTree)[0],
+                        );
                 },
             ],
             [
@@ -182,7 +185,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 () => {
                     if (catalogResults) {
                         const selectedItem = catalogResults.find(
-                            (item) => item.name === selectedTable,
+                            (item) => item.name === selection?.table,
                         );
                         if (
                             selectedItem &&
@@ -199,11 +202,9 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         [],
     );
 
-    // console.log('catalogTree -> ', { catalogResults, catalogTree });
-
     return (
-        <Flex>
-            <Stack>
+        <Group noWrap align="start">
+            <Stack w={selection ? '70%' : '100%'}>
                 <Box>
                     <Title order={4} mt="xxl">
                         {projectData?.name}
@@ -256,89 +257,47 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     </Group>
                 </Group>
                 <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                    {/* {Object.keys(catalogGroupMap)
-                        .sort((a, b) => a.localeCompare(b))
-                        .map((groupLabel, idx) => (
-                            <CatalogGroup label={groupLabel} key={groupLabel}>
-                                <Table>
-                                    <tbody>
-                                        {catalogGroupMap[groupLabel]
-                                            .sort((a, b) =>
-                                                a.name.localeCompare(b.name),
-                                            )
-                                            .map((item) => (
-                                                <CatalogListItem
-                                                    key={`${item.name}-${idx}`}
-                                                    onClick={() => {
-                                                        selectAndGetMetadata(
-                                                            item.name,
-                                                        );
-                                                    }}
-                                                    catalogItem={item}
-                                                    searchString={
-                                                        debouncedSearch
-                                                    }
-                                                    isSelected={
-                                                        metadata !==
-                                                            undefined &&
-                                                        item.name ===
-                                                            selectedTable
-                                                    }
-                                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                                />
-                                            ))}
-                                    </tbody>
-                                </Table>
-                            </CatalogGroup>
-                        ))}
-
-                    <Table h="100%">
-                        <tbody>
-                            {ungroupedCatalogItems.map((item, idx) => (
-                                <CatalogListItem
-                                    key={`${item.name}-${idx}`}
-                                    catalogItem={item}
-                                    searchString={debouncedSearch}
-                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                    isSelected={
-                                        metadata !== undefined &&
-                                        item.name === selectedTable
-                                    }
-                                    onClick={() => {
-                                        selectAndGetMetadata(item.name);
-                                    }}
-                                />
-                            ))}
-                        </tbody>
-                    </Table> */}
                     <CatalogTree
                         tree={catalogTree}
                         projectUuid={projectUuid}
                         searchString={debouncedSearch}
+                        selection={selection}
+                        onTableClick={selectAndGetMetadata}
                     />
                 </Stack>
             </Stack>
-            <Stack>
-                <Button
-                    onClick={() => {
-                        if (metadata) closeMetadata();
-                        else if (selectedTable === undefined)
-                            selectAndGetMetadata(
-                                ungroupedCatalogItems[0]?.name,
-                            );
-                        else selectAndGetMetadata(selectedTable);
-                    }}
-                >
-                    {metadata ? 'Hide metadata' : 'Show metadata'}
-                </Button>
+            {selection && (
+                <Stack w="30%">
+                    <Button
+                        onClick={() => {
+                            if (metadata) {
+                                closeMetadata();
+                                setSelection(undefined);
+                            } else if (selection === undefined)
+                                selectAndGetMetadata(
+                                    catalogTree[Object.keys(catalogTree)[0]]
+                                        .tables[0].name,
+                                    catalogTree[Object.keys(catalogTree)[0]]
+                                        .name,
+                                );
+                            else
+                                selectAndGetMetadata(
+                                    selection.table,
+                                    selection.group,
+                                );
+                        }}
+                    >
+                        {metadata ? 'Hide metadata' : 'Show metadata'}
+                    </Button>
 
-                {metadata && (
-                    <CatalogMetadata
-                        data={metadata}
-                        projectUuid={projectUuid}
-                    />
-                )}
-            </Stack>
-        </Flex>
+                    {metadata && (
+                        <CatalogMetadata
+                            data={metadata}
+                            projectUuid={projectUuid}
+                        />
+                    )}
+                </Stack>
+            )}
+        </Group>
     );
 };
