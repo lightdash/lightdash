@@ -1,3 +1,10 @@
+## [0.1104.2](https://github.com/lightdash/lightdash/compare/0.1104.1...0.1104.2) (2024-05-24)
+
+
+### Bug Fixes
+
+* e2e catalog metric ([#10192](https://github.com/lightdash/lightdash/issues/10192)) ([d6f9247](https://github.com/lightdash/lightdash/commit/d6f924756dfc85ddcbe1ad99ddb0924272af123e))
+
 ## [0.1104.1](https://github.com/lightdash/lightdash/compare/0.1104.0...0.1104.1) (2024-05-24)
 
 
