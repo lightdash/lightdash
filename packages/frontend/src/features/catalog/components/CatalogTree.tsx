@@ -13,11 +13,18 @@ const renderTreeNode = (
     projectUuid: string,
     searchString?: string,
 ) => {
-    console.log(node);
+    console.log({ node });
 
     return (
         <Box data-testid="anode">
             <Text>{node.name}</Text>
+            {node.tables && (
+                <Stack>
+                    {Object.entries(node.tables).map(([_, value]) =>
+                        renderTreeNode(value, projectUuid, searchString),
+                    )}
+                </Stack>
+            )}
             {node.fields && (
                 <Stack>
                     {node.fields.map((child: any) =>
@@ -34,44 +41,19 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
     searchString,
     projectUuid,
 }) => {
-    console.log(tree);
+    if (!tree) {
+        return null;
+    }
+    console.log({ tree });
 
     return (
         <Stack
             sx={{ maxHeight: '900px', overflow: 'scroll' }}
             data-testid="tree"
         >
-            {tree &&
-                Object.keys(tree)
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((groupLabel) => (
-                        // <CatalogGroup label={groupLabel} key={groupLabel}>
-                        //     <Table>
-                        //         <tbody>
-                        //             {tree[groupLabel]
-                        //                 .sort((a, b) =>
-                        //                     a.name.localeCompare(b.name),
-                        //                 )
-                        //                 .map((item) => (
-                        //                     <CatalogListItem
-                        //                         key={`${item.name}-${idx}`}
-                        //                         catalogItem={item}
-                        //                         searchString={searchString}
-                        //                         tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                        //                     />
-                        //                 ))}
-                        //         </tbody>
-                        //     </Table>
-                        // </CatalogGroup>
-                        <>
-                            <Text key={groupLabel}>{groupLabel}</Text>
-                            {renderTreeNode(
-                                tree[groupLabel],
-                                projectUuid,
-                                searchString,
-                            )}
-                        </>
-                    ))}
+            {Object.entries(tree).map(([_, value]) =>
+                renderTreeNode(value, projectUuid, searchString),
+            )}
         </Stack>
     );
 };

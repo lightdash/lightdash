@@ -7,7 +7,6 @@ import {
     Group,
     SegmentedControl,
     Stack,
-    Table,
     Text,
     TextInput,
     Title,
@@ -20,9 +19,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
-import { CatalogGroup } from './CatalogGroup';
-import { CatalogListItem } from './CatalogListItem';
 import { CatalogMetadata } from './CatalogMetadata';
+import { CatalogTree } from './CatalogTree';
 
 type Props = {
     projectUuid: string;
@@ -84,70 +82,44 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         [setSearch],
     );
 
+    console.log({ catalogResults, catalogGroupMap, ungroupedCatalogItems });
+
     // TODO: should this transform be in the backend?
-    // This could be more efficient. It does two passes on the data at the moment:
-    // one to group tables and fields, and another to group tables by groupLabel
-    // const catalogTree = useMemo(() => {
-    //     if (catalogResults) {
-    //         const tablesWithFields = catalogResults.reduce<{
-    //             [key: string]:
-    //                 | (CatalogTable & { fields: CatalogField[] })
-    //                 | { fields: CatalogField[]; type: CatalogType };
-    //         }>((acc, item) => {
-    //             if (item.type === CatalogType.Table) {
-    //                 if (!acc[item.name]) {
-    //                     acc[item.name] = { ...item, fields: [] };
-    //                 } else {
-    //                     acc[item.name] = {
-    //                         ...acc[item.name],
-    //                         ...item,
-    //                     };
-    //                 }
-    //             } else if (item.type === CatalogType.Field) {
-    //                 if (acc[item.tableLabel]) {
-    //                     acc[item.tableLabel].fields.push(item);
-    //                 } else {
-    //                     acc[item.tableLabel] = {
-    //                         fields: [item],
-    //                         type: CatalogType.Table,
-    //                     };
-    //                 }
-    //             }
-    //             return acc;
-    //         }, {});
-    //         const groupsWithTables = Object.keys(tablesWithFields).reduce<{
-    //             [key: string]: Array<
-    //                 | (CatalogTable & { fields: CatalogField[] })
-    //                 | {
-    //                       name: string;
-    //                       fields: CatalogField[];
-    //                       type: CatalogType;
-    //                   }
-    //             >;
-    //         }>((acc, tableName) => {
-    //             const table = tablesWithFields[tableName];
-
-    //             // TODO: fields whose table is not returned need the grouping data from the BE
-    //             // Without it, fields whose table is not returned will be grouped under 'Ungrouped tables'
-    //             const groupLabel =
-    //                 'groupLabel' in table && table.groupLabel
-    //                     ? table.groupLabel
-    //                     : 'Ungrouped tables';
-
-    //             if (acc[groupLabel]) {
-    //                 acc[groupLabel] = [
-    //                     ...acc[groupLabel],
-    //                     { name: tableName, ...table },
-    //                 ];
-    //             } else {
-    //                 acc[groupLabel] = [{ name: tableName, ...table }];
-    //             }
-    //             return acc;
-    //         }, {});
-    //         return groupsWithTables;
-    //     }
-    //     return {};
-    // }, [catalogResults]);
+    const catalogTree = useMemo(() => {
+        if (catalogResults) {
+            return catalogResults.reduce<{
+                [key: string]: any;
+            }>((acc, item) => {
+                if (item.type === CatalogType.Table) {
+                    const groupName =
+                        'groupLabel' in item && item.groupLabel
+                            ? item.groupLabel
+                            : 'Ungrouped tables';
+                    if (!acc[groupName]) {
+                        acc[groupName] = { name: groupName, tables: {} };
+                    }
+                    acc[groupName].tables[item.name] = { ...item, fields: [] };
+                } else if (item.type === CatalogType.Field) {
+                    const groupName =
+                        'tableGroupLabel' in item && item.tableGroupLabel
+                            ? item.tableGroupLabel
+                            : 'Ungrouped tables';
+                    if (!acc[groupName]) {
+                        acc[groupName] = { name: groupName, tables: {} };
+                    }
+                    if (!acc[groupName].tables[item.tableName]) {
+                        acc[groupName].tables[item.tableName] = {
+                            name: item.tableName,
+                            fields: [],
+                        };
+                    }
+                    acc[groupName].tables[item.tableName].fields.push(item);
+                }
+                return acc;
+            }, {});
+        }
+        return {};
+    }, [catalogResults]);
 
     const selectAndGetMetadata = useCallback(
         (tableName: string) => {
@@ -227,6 +199,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         [],
     );
 
+    // console.log('catalogTree -> ', { catalogResults, catalogTree });
+
     return (
         <Flex>
             <Stack>
@@ -282,7 +256,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     </Group>
                 </Group>
                 <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                    {Object.keys(catalogGroupMap)
+                    {/* {Object.keys(catalogGroupMap)
                         .sort((a, b) => a.localeCompare(b))
                         .map((groupLabel, idx) => (
                             <CatalogGroup label={groupLabel} key={groupLabel}>
@@ -336,7 +310,12 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 />
                             ))}
                         </tbody>
-                    </Table>
+                    </Table> */}
+                    <CatalogTree
+                        tree={catalogTree}
+                        projectUuid={projectUuid}
+                        searchString={debouncedSearch}
+                    />
                 </Stack>
             </Stack>
             <Stack>
@@ -350,7 +329,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                         else selectAndGetMetadata(selectedTable);
                     }}
                 >
-                    {metadata ? 'Show metadata' : 'Hide metadata'}
+                    {metadata ? 'Hide metadata' : 'Show metadata'}
                 </Button>
 
                 {metadata && (
