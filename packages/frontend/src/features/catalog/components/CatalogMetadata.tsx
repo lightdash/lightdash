@@ -63,14 +63,14 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
 
             <Table>
                 <thead>
-                    <th>
-                        <td>field name</td>
-                        <td>type</td>
-                    </th>
+                    <tr>
+                        <th>field name</th>
+                        <th>type</th>
+                    </tr>
                 </thead>
                 <tbody>
                     {data.fields?.map((field) => (
-                        <tr key="">
+                        <tr key={field.name}>
                             <td>{field.name}</td>
                             <td>{field.basicType}</td>
                         </tr>

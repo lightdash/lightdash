@@ -26,6 +26,8 @@ export type CatalogField = Pick<
     Pick<Dimension, 'requiredAttributes'> & {
         type: CatalogType.Field;
         basicType?: string; // string, number, timestamp... used in metadata
+        tableName: string;
+        tableGroupLabel?: string;
     };
 
 export type CatalogTable = Pick<

@@ -146,7 +146,9 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        basicType: { dataType: 'string', required: true },
+                        tableGroupLabel: { dataType: 'string' },
+                        tableName: { dataType: 'string', required: true },
+                        basicType: { dataType: 'string' },
                         type: { ref: 'CatalogType.Field', required: true },
                     },
                 },
@@ -3115,7 +3117,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SupportedDbtVersions: {
         dataType: 'refEnum',
-        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7'],
+        enums: ['v1.4', 'v1.5', 'v1.6', 'v1.7', 'v1.8'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Project: {
