@@ -125,9 +125,10 @@ describe('Lightdash catalog search', () => {
             expect(field).to.deep.eq({
                 name: 'total_revenue',
                 description: 'Sum of all payments',
-                tableLabel: 'payments',
-                type: 'field',
+                tableLabel: 'Payments',
                 fieldType: 'metric',
+                basicType: 'number',
+                type: 'field',
             });
         });
     });
