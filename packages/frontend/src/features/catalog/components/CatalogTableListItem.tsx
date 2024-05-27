@@ -101,14 +101,19 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         {table.name || ''}
                     </Highlight>
                 </Box>
-                {countJoinedTables > 0 && (
-                    <Tooltip label={`${countJoinedTables} joined tables`}>
-                        <Group noWrap spacing="xs">
-                            <MantineIcon color="gray" icon={IconLayersLinked} />
-                            <Text color="gray">{countJoinedTables}</Text>
-                        </Group>
-                    </Tooltip>
-                )}
+                <Box w={50}>
+                    {countJoinedTables > 0 && (
+                        <Tooltip label={`${countJoinedTables} joined tables`}>
+                            <Group noWrap spacing="xs">
+                                <MantineIcon
+                                    color="gray"
+                                    icon={IconLayersLinked}
+                                />
+                                <Text color="gray">{countJoinedTables}</Text>
+                            </Group>
+                        </Tooltip>
+                    )}
+                </Box>
                 <Highlight
                     w="100%"
                     lineClamp={2}
