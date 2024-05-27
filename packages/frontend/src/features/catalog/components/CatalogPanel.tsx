@@ -19,6 +19,7 @@ import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogGroup } from './CatalogGroup';
 import { CatalogListItem } from './CatalogListItem';
@@ -47,6 +48,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         data: metadata,
         reset: closeMetadata,
     } = useCatalogMetadata(projectUuid);
+    const {
+        mutate: getAnalytics,
+        isLoading: isAnalyticsLoading,
+        data: analytics,
+    } = useCatalogAnalytics(projectUuid);
 
     const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
         if (catalogResults) {
@@ -93,12 +99,13 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 const table = catalogResults.find(
                     (item) => item.name === tableName,
                 );
-                if (table && table.type === CatalogType.Table)
+                if (table && table.type === CatalogType.Table) {
                     getMetadata(tableName);
-                else console.warn('Metadata not available for fields');
+                    getAnalytics(tableName);
+                } else console.warn('Metadata not available for fields');
             }
         },
-        [catalogResults, getMetadata],
+        [catalogResults, getMetadata, getAnalytics],
     );
 
     const history = useHistory();
@@ -290,7 +297,9 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
                 {metadata && (
                     <CatalogMetadata
-                        data={metadata}
+                        metadataResults={metadata}
+                        analyticResults={analytics}
+                        isAnalyticsLoading={isAnalyticsLoading}
                         projectUuid={projectUuid}
                     />
                 )}

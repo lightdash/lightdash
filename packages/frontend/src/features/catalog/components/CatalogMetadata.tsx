@@ -1,5 +1,8 @@
-import { type ApiCatalogMetadataResults } from '@lightdash/common';
-import { Flex, Stack, Table, Text } from '@mantine/core';
+import {
+    type ApiCatalogAnalyticsResults,
+    type ApiCatalogMetadataResults,
+} from '@lightdash/common';
+import { Flex, Stack, Table, Tabs, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
@@ -8,15 +11,20 @@ import {
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 type Props = {
     projectUuid: string;
-    data: ApiCatalogMetadataResults;
+    metadataResults: ApiCatalogMetadataResults;
+    analyticResults?: ApiCatalogAnalyticsResults;
+    isAnalyticsLoading: boolean;
 };
 
 export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
-    data,
+    metadataResults,
+    analyticResults,
+    isAnalyticsLoading,
 }) => {
     const history = useHistory();
     return (
@@ -27,56 +35,78 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                 weight={700}
                 onDoubleClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/tables/${data.modelName}`,
+                        `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
                     );
                 }}
             >
-                {data.name}
+                {metadataResults.name}
             </Text>
             <MarkdownPreview
                 style={{ fontSize: 'small' }}
-                source={data.description}
+                source={metadataResults.description}
             />
+            <Tabs defaultValue="overview">
+                <Tabs.List>
+                    <Tabs.Tab value={'overview'} mx="md">
+                        Overview
+                    </Tabs.Tab>
+                    <Tabs.Tab value={'analytics'} mx="md">
+                        {/* TODO replace loading with spinner ?*/}
+                        analytics (
+                        {isAnalyticsLoading
+                            ? '.'
+                            : analyticResults?.charts.length || '0'}
+                        )
+                    </Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Panel value="overview">
+                    <Flex justify="space-between">
+                        <Text>Model name </Text>
+                        <Text
+                            underline={true}
+                            weight={700}
+                            onDoubleClick={() => {
+                                history.push(
+                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
+                                );
+                            }}
+                        >
+                            {metadataResults.modelName}
+                        </Text>
+                    </Flex>
+                    <Flex justify="space-between">
+                        <Text>Source </Text>
+                        <Text>{metadataResults.source}</Text>
+                    </Flex>
 
-            <Text> Overview</Text>
-            {/* TODO make this a tab*/}
-
-            <Text>Tags</Text>
-            <Flex justify="space-between">
-                <Text>Model name </Text>
-                <Text
-                    underline={true}
-                    weight={700}
-                    onDoubleClick={() => {
-                        history.push(
-                            `/projects/${projectUuid}/tables/${data.modelName}`,
-                        );
-                    }}
-                >
-                    {data.modelName}
-                </Text>
-            </Flex>
-            <Flex justify="space-between">
-                <Text>Source </Text>
-                <Text>{data.source}</Text>
-            </Flex>
-
-            <Table>
-                <thead>
-                    <th>
-                        <td>field name</td>
-                        <td>type</td>
-                    </th>
-                </thead>
-                <tbody>
-                    {data.fields?.map((field) => (
-                        <tr key="">
-                            <td>{field.name}</td>
-                            <td>{field.basicType}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </Table>
+                    <Table>
+                        <thead>
+                            <th>
+                                <td>field name</td>
+                                <td>type</td>
+                            </th>
+                        </thead>
+                        <tbody>
+                            {metadataResults.fields?.map((field) => (
+                                <tr key="">
+                                    <td>{field.name}</td>
+                                    <td>{field.basicType}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </Tabs.Panel>
+                <Tabs.Panel value="analytics" w={300}>
+                    <>
+                        {analyticResults && (
+                            <CatalogAnalyticCharts
+                                projectUuid={projectUuid}
+                                analyticResults={analyticResults}
+                            />
+                        )}
+                    </>
+                </Tabs.Panel>
+            </Tabs>
 
             <Stack
                 p={10}
