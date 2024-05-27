@@ -1,4 +1,8 @@
-import { CatalogType } from '@lightdash/common';
+import {
+    CatalogType,
+    type CatalogField,
+    type CatalogTable,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -24,6 +28,48 @@ import { CatalogTree } from './CatalogTree';
 type Props = {
     projectUuid: string;
 };
+
+type CatalogTreeType = {
+    [key: string]: {
+        name: string;
+        tables: {
+            [key: string]: CatalogTable & { fields: CatalogField[] };
+        };
+    };
+};
+
+function sortTree(tree: CatalogTreeType): CatalogTreeType {
+    const sortedTree: CatalogTreeType = {};
+
+    const sortedKeys = Object.keys(tree).sort((a, b) => a.localeCompare(b));
+
+    sortedKeys.forEach((key) => {
+        const value = tree[key];
+
+        const sortedTables: typeof value.tables = {};
+        const sortedTableKeys = Object.keys(value.tables).sort((a, b) =>
+            a.localeCompare(b),
+        );
+
+        sortedTableKeys.forEach((tableKey) => {
+            const tableValue = value.tables[tableKey];
+            sortedTables[tableKey] = {
+                ...tableValue,
+                fields: tableValue.fields.sort((a, b) => {
+                    return a.name.localeCompare(b.name);
+                }),
+            };
+        });
+
+        // Assign the sorted tables to the sorted tree
+        sortedTree[key] = {
+            ...value,
+            tables: sortedTables,
+        };
+    });
+
+    return sortedTree;
+}
 
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
@@ -58,9 +104,9 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     );
 
     // TODO: should this transform be in the backend?
-    const catalogTree = useMemo(() => {
+    const catalogTree: CatalogTreeType = useMemo(() => {
         if (catalogResults) {
-            return catalogResults.reduce<{
+            const unsortedTree = catalogResults.reduce<{
                 [key: string]: any;
             }>((acc, item) => {
                 if (item.type === CatalogType.Table) {
@@ -95,6 +141,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 }
                 return acc;
             }, {});
+
+            return sortTree(unsortedTree);
         }
         return {};
     }, [catalogResults]);
@@ -125,29 +173,32 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 () => {
                     if (selection) {
                         //TODO move around grouped items
-                        //TODO also, this sort could go somewhere else
-                        const sortedGroupTables = Object.keys(
+                        const treeKeys = Object.keys(
                             catalogTree[selection.group].tables,
-                        ).sort(([a], [b]) => a.localeCompare(b));
+                        );
 
-                        const selectedIndex = sortedGroupTables.findIndex(
+                        const selectedIndex = treeKeys.findIndex(
                             (name) => name === selection.table,
                         );
+
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < sortedGroupTables.length
+                            selectedIndex < treeKeys.length
                         ) {
                             selectAndGetMetadata(
-                                sortedGroupTables[selectedIndex + 1],
+                                treeKeys[(selectedIndex + 1) % treeKeys.length],
                                 selection.group,
                             );
                         }
-                    } else
+                    } else {
+                        // Get the first table in the first group
                         selectAndGetMetadata(
-                            catalogTree[Object.keys(catalogTree)[0]].tables[0]
-                                .name,
+                            Object.entries(
+                                Object.entries(catalogTree)[0][1].tables,
+                            )[0][1].name,
                             Object.keys(catalogTree)[0],
                         );
+                    }
                 },
             ],
             [
@@ -155,28 +206,34 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 () => {
                     if (selection) {
                         //TODO move around grouped items
-                        const sortedGroupTables = Object.keys(
+                        const treeKeys = Object.keys(
                             catalogTree[selection.group].tables,
-                        ).sort(([a], [b]) => a.localeCompare(b));
+                        );
 
-                        const selectedIndex = sortedGroupTables.findIndex(
+                        const selectedIndex = treeKeys.findIndex(
                             (name) => name === selection.table,
                         );
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < sortedGroupTables.length
+                            selectedIndex < treeKeys.length
                         ) {
                             selectAndGetMetadata(
-                                sortedGroupTables[selectedIndex - 1],
+                                treeKeys[
+                                    (selectedIndex - 1 + treeKeys.length) %
+                                        treeKeys.length
+                                ],
                                 selection.group,
                             );
                         }
-                    } else
+                    } else {
+                        // Get the first table in the first group
                         selectAndGetMetadata(
-                            catalogTree[Object.keys(catalogTree)[0]].tables[0]
-                                .name,
+                            Object.entries(
+                                Object.entries(catalogTree)[0][1].tables,
+                            )[0][1].name,
                             Object.keys(catalogTree)[0],
                         );
+                    }
                 },
             ],
             [

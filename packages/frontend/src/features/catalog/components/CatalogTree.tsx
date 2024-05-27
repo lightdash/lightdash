@@ -25,22 +25,23 @@ const renderTreeNode = (
         return (
             <CatalogGroup
                 label={node.name}
-                key={node.name}
-                startOpen={node.name === 'Ungrouped tables'}
+                key={node.name + `${selection?.group === node.name}`}
+                startOpen={
+                    node.name === 'Ungrouped tables' ||
+                    selection?.group === node.name
+                }
             >
                 {Object.keys(node.tables).length > 0 && (
                     <Stack spacing={3}>
-                        {Object.entries(node.tables)
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([_, value]) =>
-                                renderTreeNode(
-                                    value,
-                                    projectUuid,
-                                    onTableClick,
-                                    selection,
-                                    searchString,
-                                ),
-                            )}
+                        {Object.entries(node.tables).map(([_, value]) =>
+                            renderTreeNode(
+                                value,
+                                projectUuid,
+                                onTableClick,
+                                selection,
+                                searchString,
+                            ),
+                        )}
                     </Stack>
                 )}
             </CatalogGroup>
@@ -74,7 +75,7 @@ const renderTreeNode = (
     } else if (node.type === CatalogType.Field) {
         return (
             <CatalogFieldListItem
-                key={node.name}
+                key={node.tableName + node.name}
                 field={node}
                 searchString={searchString}
             />
@@ -99,17 +100,15 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
             spacing="xs"
             key={`catalog-tree-${searchString}`}
         >
-            {Object.entries(tree)
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([_, value]) =>
-                    renderTreeNode(
-                        value,
-                        projectUuid,
-                        onTableClick,
-                        selection,
-                        searchString,
-                    ),
-                )}
+            {Object.entries(tree).map(([_, value]) =>
+                renderTreeNode(
+                    value,
+                    projectUuid,
+                    onTableClick,
+                    selection,
+                    searchString,
+                ),
+            )}
         </Stack>
     );
 };

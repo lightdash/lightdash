@@ -86,12 +86,12 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         highlightColor="violet"
                         fw={600}
                     >
-                        {table.name}
+                        {table.name || ''}
                     </Highlight>
                 </Box>
                 <Highlight
                     w="100%"
-                    lineClamp={1}
+                    lineClamp={2}
                     highlight={searchString}
                     highlightColor="violet"
                 >

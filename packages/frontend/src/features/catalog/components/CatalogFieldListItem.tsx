@@ -46,7 +46,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         highlightColor="violet"
                         fw={600}
                     >
-                        {field.name}
+                        {field.name || ''}
                     </Highlight>
                 </Box>
             </Group>
