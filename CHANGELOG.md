@@ -1,3 +1,10 @@
+## [0.1104.3](https://github.com/lightdash/lightdash/compare/0.1104.2...0.1104.3) (2024-05-27)
+
+
+### Bug Fixes
+
+* route slack/events to backend ([#10156](https://github.com/lightdash/lightdash/issues/10156)) ([4a0a0c8](https://github.com/lightdash/lightdash/commit/4a0a0c8af7f25cfe1ec169c48e155abd58b4d84a))
+
 ## [0.1104.2](https://github.com/lightdash/lightdash/compare/0.1104.1...0.1104.2) (2024-05-24)
 
 
