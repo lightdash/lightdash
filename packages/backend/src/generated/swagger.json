@@ -98,7 +98,7 @@
                                 "$ref": "#/components/schemas/CatalogType.Field"
                             }
                         },
-                        "required": ["basicType", "type"],
+                        "required": ["type"],
                         "type": "object"
                     }
                 ]
@@ -213,6 +213,37 @@
             },
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
+            },
+            "Pick_SavedChart.uuid-or-name-or-spaceName_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid", "spaceName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogAnalytics": {
+                "properties": {
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SavedChart.uuid-or-name-or-spaceName_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["charts"],
+                "type": "object"
+            },
+            "ApiCatalogAnalyticsResults": {
+                "$ref": "#/components/schemas/CatalogAnalytics"
             },
             "ApiCreateComment": {
                 "properties": {
@@ -2585,10 +2616,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -2609,8 +2640,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -3443,7 +3474,7 @@
                 ]
             },
             "SupportedDbtVersions": {
-                "enum": ["v1.4", "v1.5", "v1.6", "v1.7"],
+                "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8"],
                 "type": "string"
             },
             "Project": {
@@ -3508,10 +3539,13 @@
                     "description": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -3524,9 +3558,6 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "spaceName": {
-                        "type": "string"
-                    },
                     "dashboardUuid": {
                         "type": "string",
                         "nullable": true
@@ -3538,12 +3569,12 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "spaceName",
+                    "organizationUuid",
                     "projectUuid",
                     "spaceUuid",
                     "pinnedListUuid",
-                    "spaceName",
                     "dashboardUuid",
                     "dashboardName"
                 ],
@@ -3672,10 +3703,10 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "projectUuid": {
@@ -3699,8 +3730,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "projectUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -5197,10 +5228,13 @@
                     "description": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -5224,9 +5258,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "spaceName": {
-                        "type": "string"
                     },
                     "dashboardUuid": {
                         "type": "string",
@@ -5281,14 +5312,14 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "spaceName",
+                    "organizationUuid",
                     "updatedAt",
                     "projectUuid",
                     "spaceUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
-                    "spaceName",
                     "dashboardUuid",
                     "dashboardName",
                     "slug",
@@ -6067,10 +6098,10 @@
                     "description": {
                         "type": "string"
                     },
-                    "organizationUuid": {
+                    "uuid": {
                         "type": "string"
                     },
-                    "uuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "updatedAt": {
@@ -6114,8 +6145,8 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
+                    "organizationUuid",
                     "updatedAt",
                     "projectUuid",
                     "spaceUuid",
@@ -7179,7 +7210,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1102.1",
+        "version": "0.1104.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7309,6 +7340,66 @@
                     },
                     {
                         "description": "Table name to get metadata for",
+                        "in": "path",
+                        "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{table}/analytics": {
+            "get": {
+                "operationId": "getAnalytics",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogAnalyticsResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog analytics",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Table name to get analytics for",
                         "in": "path",
                         "name": "table",
                         "required": true,
