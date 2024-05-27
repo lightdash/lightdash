@@ -1,5 +1,5 @@
 import { CatalogType } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -95,20 +95,22 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         return null;
     }
     return (
-        <Stack
-            sx={{ maxHeight: '900px', overflow: 'scroll' }}
-            spacing="xs"
-            key={`catalog-tree-${searchString}`}
-        >
-            {Object.entries(tree).map(([_, value]) =>
-                renderTreeNode(
-                    value,
-                    projectUuid,
-                    onTableClick,
-                    selection,
-                    searchString,
-                ),
-            )}
-        </Stack>
+        <Tooltip.Group>
+            <Stack
+                sx={{ maxHeight: '900px', overflow: 'scroll' }}
+                spacing="xs"
+                key={`catalog-tree-${searchString}`}
+            >
+                {Object.entries(tree).map(([_, value]) =>
+                    renderTreeNode(
+                        value,
+                        projectUuid,
+                        onTableClick,
+                        selection,
+                        searchString,
+                    ),
+                )}
+            </Stack>
+        </Tooltip.Group>
     );
 };
