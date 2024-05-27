@@ -1,4 +1,6 @@
 import AllowedEmailDomains from './../snippets/allowed-email-domains.mdx';
+import AddUsersSpace from './assets/add-users-space.png';
+
 
 # Roles and permissions
 
@@ -59,6 +61,13 @@ copy spaces/charts/dashboards from the source project they have access to.
 
 There are three space roles: `Full Access`, `Can Edit`, `Can View`
 
+| Action               | Full Access | Can Edit | Can View |
+| :------------------- | :---------: | :------: | :------: |
+| View space content   |     ✅      |    ✅    |    ✅    |
+| Manage space content |     ✅      |    ✅    |    ❌    |
+| Manage space access  |     ✅      |    ❌    |    ❌    |
+| Manage space details |     ✅      |    ❌    |    ❌    |
+
 Users with `Full Access` to a space can restrict and increase a user’s inherited project permissions in a space (e.g. you can make project editors into `can view` in a space). Space permissions determine which users can edit space contents (charts and dashboards), view the contents in a space, and change a space's settings:
 
 - A user needs to have at least the `Can view` access level to a space to see that the space exists and to see the charts and dashboards inside it.
@@ -73,12 +82,23 @@ This means:
 - an interactive viewer who is given `Can edit` space permissions can save content in that space but not in any other space (unless given `edit` access to another space)
 - an editor who is given `Can view` space permissions cannot edit the content in that space, but they can create/edit content in other parts of the project (unless they're given `Can view` access).
 
-| Action               | Full Access | Can Edit | Can View |
-| :------------------- | :---------: | :------: | :------: |
-| View space content   |     ✅      |    ✅    |    ✅    |
-| Manage space content |     ✅      |    ✅    |    ❌    |
-| Manage space access  |     ✅      |    ❌    |    ❌    |
-| Manage space details |     ✅      |    ❌    |    ❌    |
+#### Ajusting space permissions
+
+You can adjust an individual user's permissions, or the permissions of a group in a Space. 
+
+<img
+  src={AddUsersSpace}
+  width="400"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+If a user is part of multiple groups that have been given access to the space, the user will inherit the highest level of access from their groups.
+
+E.g. Priyanka is a `Project Interactive Viewer`. She is a member of the `Finance` group and the `Design` group. The `Finance` group is given `Can View` access to the space. The `Design` group is given `Can Edit` access to the space. Priyanka has `Can Edit` access to the space (inherited from the `Design` group).
+
+You can override a user's group access by adjusting their specific user access. 
+
+E.g. Priyanka is a `Project Interactive Viewer`. She is a member of the `Design` group. The `Design` group is given `Can Edit` access to the space. I set Priyanka's user access in the space to be `Can View`. Priyanka has `Can View` access to the space (her assigned user access to the space overrides her group access).
 
 ## Allowed email domains to join organization automatically
 
