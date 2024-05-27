@@ -236,6 +236,25 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                         Edit tile content
                                                     </Menu.Item>
                                                 </Box>
+                                                {tabs && tabs.length > 1 && (
+                                                    <Menu.Item
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconArrowAutofitContent
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            setIsMovingTabs(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Move to another tab
+                                                    </Menu.Item>
+                                                )}
+                                                <Menu.Divider />
                                                 {belongsToDashboard ? (
                                                     <Menu.Item
                                                         color="red"
@@ -248,44 +267,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                                         Delete chart
                                                     </Menu.Item>
                                                 ) : (
-                                                    <>
-                                                        {tabs &&
-                                                            tabs.length > 1 && (
-                                                                <Menu.Item
-                                                                    icon={
-                                                                        <MantineIcon
-                                                                            icon={
-                                                                                IconArrowAutofitContent
-                                                                            }
-                                                                        />
-                                                                    }
-                                                                    onClick={() =>
-                                                                        setIsMovingTabs(
-                                                                            true,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Move to
-                                                                    another tab
-                                                                </Menu.Item>
-                                                            )}
-                                                        <Menu.Divider />
-                                                        <Menu.Item
-                                                            color="red"
-                                                            icon={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconTrash
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                onDelete(tile)
-                                                            }
-                                                        >
-                                                            Remove tile
-                                                        </Menu.Item>
-                                                    </>
+                                                    <Menu.Item
+                                                        color="red"
+                                                        icon={
+                                                            <MantineIcon
+                                                                icon={IconTrash}
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            onDelete(tile)
+                                                        }
+                                                    >
+                                                        Remove tile
+                                                    </Menu.Item>
                                                 )}
                                             </>
                                         )}

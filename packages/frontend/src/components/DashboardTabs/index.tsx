@@ -428,6 +428,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     isEditMode={isEditMode}
                     setAddingTab={setAddingTab}
                     activeTabUuid={activeTab?.uuid}
+                    dashboardTabs={dashboardTabs}
                 />
             )}
             <TabAddModal

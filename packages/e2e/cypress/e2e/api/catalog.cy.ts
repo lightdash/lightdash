@@ -16,7 +16,7 @@ describe('Lightdash catalog all tables and fields', () => {
             const userTable = resp.body.results.find(
                 (table) => table.name === 'users',
             );
-            expect(userTable).to.deep.eq({
+            expect(userTable).to.eql({
                 name: 'users',
                 description: 'users table',
                 type: 'table',
@@ -38,11 +38,12 @@ describe('Lightdash catalog all tables and fields', () => {
                     field.name === 'payment_method' &&
                     field.tableLabel === 'Payments',
             );
-            expect(dimension).to.deep.eq({
+            expect(dimension).to.eql({
                 name: 'payment_method',
                 description: 'Method of payment used, for example credit card',
                 tableLabel: 'Payments',
                 fieldType: 'dimension',
+                basicType: 'string',
                 type: 'field',
             });
 
@@ -51,11 +52,12 @@ describe('Lightdash catalog all tables and fields', () => {
                     field.name === 'total_revenue' &&
                     field.tableLabel === 'Payments',
             );
-            expect(metric).to.deep.eq({
+            expect(metric).to.eql({
                 name: 'total_revenue',
                 description: 'Sum of all payments',
                 tableLabel: 'Payments',
                 fieldType: 'metric',
+                basicType: 'number',
                 type: 'field',
             });
         });
@@ -73,8 +75,12 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length.gt(10);
-            const table = resp.body.results.find((t) => t.name === 'customers');
-            expect(table).to.deep.eq({
+
+            const table = resp.body.results.find(
+                (t) => t.name === 'customers' && t.type === 'table',
+            );
+
+            expect(table).to.eql({
                 name: 'customers',
                 description:
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
@@ -82,13 +88,15 @@ describe('Lightdash catalog search', () => {
             });
 
             const field = resp.body.results.find(
-                (f) => f.name === 'customer_id' && f.tableLabel === 'users',
+                (f) => f.name === 'customer_id' && f.tableLabel === 'Users',
             );
-            expect(field).to.deep.eq({
+
+            expect(field).to.eql({
                 name: 'customer_id',
-                tableLabel: 'users',
+                tableLabel: 'Users',
                 description: 'This is a unique identifier for a customer',
                 type: 'field',
+                basicType: 'number',
                 fieldType: 'dimension',
             });
         });
@@ -102,31 +110,94 @@ describe('Lightdash catalog search', () => {
             expect(resp.body.results).to.have.length(2); // payment and stg_payments
 
             const field = resp.body.results.find(
-                (f) => f.tableLabel === 'payments',
+                (f) =>
+                    f.name === 'payment_method' && f.tableLabel === 'Payments',
             );
-            expect(field).to.deep.eq({
+            expect(field).to.eql({
                 name: 'payment_method',
-                tableLabel: 'payments',
                 description: 'Method of payment used, for example credit card',
-                type: 'field',
+                tableLabel: 'Payments',
                 fieldType: 'dimension',
+                basicType: 'string',
+                type: 'field',
             });
         });
     });
 
-    it('Should search for a metric (dbt_derived)', () => {
+    it('Should search for a metric (total_revenue)', () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         cy.request(
-            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=dbt_derived`,
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=revenue`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length(1);
+
+            const field = resp.body.results[0];
+            expect(field).to.eql({
+                name: 'total_revenue',
+                description: 'Sum of all payments',
+                tableLabel: 'Payments',
+                fieldType: 'metric',
+                basicType: 'number',
+                type: 'field',
+            });
+        });
+    });
+
+    it('Should search with partial word (cust)', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=cust`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length.gt(0);
 
-            const field = resp.body.results[0];
-            expect(field).to.deep.eq({
-                name: 'dbt_derived',
-                tableLabel: 'customers',
+            // Check for a returned field
+            const matchingField = resp.body.results.find(
+                (f) =>
+                    f.name === 'customer_id' &&
+                    f.tableLabel === 'Users' &&
+                    f.type === 'field',
+            );
+            expect(matchingField).to.eql({
+                name: 'customer_id',
+                tableLabel: 'Users',
+                description: 'This is a unique identifier for a customer',
                 type: 'field',
+                basicType: 'number',
+                fieldType: 'dimension',
+            });
+
+            // Check for a table
+            const matchingTable = resp.body.results.find(
+                (t) => t.name === 'customers',
+            );
+            expect(matchingTable).to.eql({
+                name: 'customers',
+                description:
+                    "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
+                type: 'table',
+            });
+        });
+    });
+
+    it('Should search with multiple words (order date)', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog?search=order%20date`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results).to.have.length.gt(0);
+
+            const matchingField = resp.body.results.find(
+                (f) => f.name === 'date_of_first_order' && f.type === 'field',
+            );
+            expect(matchingField).to.eql({
+                name: 'date_of_first_order',
+                tableLabel: 'Orders',
+                description: 'Min of Order date',
+                type: 'field',
+                basicType: 'number',
                 fieldType: 'metric',
             });
         });

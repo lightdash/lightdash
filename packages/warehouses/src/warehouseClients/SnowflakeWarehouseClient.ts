@@ -22,7 +22,7 @@ import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
 // Prevent snowflake sdk from flooding the output with info logs
-configure({ logLevel: 'WARN' });
+configure({ logLevel: 'ERROR' });
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',

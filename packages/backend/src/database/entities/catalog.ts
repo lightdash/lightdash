@@ -8,16 +8,17 @@ export type DbCatalog = {
     description: string | null;
     type: CatalogType;
     search_vector: string;
+    embedding_vector?: string;
 };
 
 export type DbCatalogIn = Pick<
     DbCatalog,
-    'project_uuid' | 'name' | 'description' | 'type'
+    'cached_explore_uuid' | 'project_uuid' | 'name' | 'description' | 'type'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
-export type DbCatalogUpdate = Pick<DbCatalog, 'name' | 'description'>;
+export type DbCatalogUpdate = Pick<DbCatalog, 'embedding_vector'>;
 
-export type EmailTable = Knex.CompositeTableType<
+export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,
     DbCatalogIn,
     DbCatalogUpdate

@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import { Block } from '@slack/bolt';
 import {
     ChatPostMessageArguments,
+    ChatUpdateArguments,
     ConversationsListResponse,
     UsersListResponse,
     WebClient,
@@ -243,6 +244,68 @@ export class SlackClient {
             text,
             channel: channelId,
             blocks,
+        });
+    }
+
+    async updateMessage({
+        organizationUuid,
+        text,
+        blocks,
+        channelId,
+        messageTs,
+    }: {
+        organizationUuid: string;
+        text: string;
+        blocks?: ChatUpdateArguments['blocks'];
+        channelId: string;
+        messageTs: string;
+    }) {
+        const webClient = await this.getWebClient(organizationUuid);
+        return webClient.chat.update({
+            channel: channelId,
+            text,
+            blocks,
+            ts: messageTs,
+        });
+    }
+
+    async deleteMessage({
+        organizationUuid,
+        channelId,
+        messageTs,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        messageTs: string;
+    }) {
+        const webClient = await this.getWebClient(organizationUuid);
+        return webClient.chat.delete({
+            channel: channelId,
+            ts: messageTs,
+        });
+    }
+
+    /**
+     *
+     * @param args.filename - you must provide an extension for slack to recognize the file type
+     */
+    async postFileToThread(args: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        file: Buffer;
+        title: string;
+        comment: string;
+        filename: string;
+    }): Promise<void> {
+        const webClient = await this.getWebClient(args.organizationUuid);
+        await webClient.files.uploadV2({
+            channel_id: args.channelId,
+            thread_ts: args.threadTs,
+            file: args.file,
+            title: args.title,
+            initial_comment: args.comment,
+            filename: args.filename,
         });
     }
 }

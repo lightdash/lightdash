@@ -32,3 +32,6 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 
 #### Search field in table without attribute access (plan)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=plan
+
+### Get metadata
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/customers/metadata

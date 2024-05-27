@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    getItemId,
     NumberSeparator,
     TableCalculationType,
     type CustomFormat,
@@ -57,6 +58,10 @@ const TableCalculationModal: FC<Props> = ({
         (context) =>
             context.state.unsavedChartVersion.metricQuery.tableCalculations,
     );
+    const customDimensions = useExplorerContext(
+        (context) =>
+            context.state.unsavedChartVersion.metricQuery.customDimensions,
+    );
 
     const form = useForm<TableCalculationFormInputs>({
         initialValues: {
@@ -74,6 +79,31 @@ const TableCalculationModal: FC<Props> = ({
                 compact: tableCalculation?.format?.compact,
                 prefix: tableCalculation?.format?.prefix,
                 suffix: tableCalculation?.format?.suffix,
+            },
+        },
+        validate: {
+            name: (label) => {
+                if (!label) return null;
+
+                if (
+                    tableCalculation &&
+                    tableCalculation.displayName === label
+                ) {
+                    return null;
+                }
+
+                const isInvalid = [
+                    ...tableCalculations,
+                    ...(customDimensions ?? []),
+                ].some(
+                    (i) =>
+                        getItemId(i).toLowerCase().trim() ===
+                        label.toLowerCase().trim(),
+                );
+
+                return isInvalid
+                    ? 'Table calculation/Dimension with this label already exists'
+                    : null;
             },
         },
     });

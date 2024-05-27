@@ -93,6 +93,7 @@ type ModelFactoryMethod<T extends ModelManifest> = {
 type ModelProvider<T extends ModelManifest> = (providerArgs: {
     repository: ModelRepository;
     database: Knex;
+    utils: UtilRepository;
 }) => T[keyof T];
 
 /**
@@ -482,6 +483,7 @@ export class ModelRepository
                 modelInstance = this.providers[modelName]!({
                     repository: this,
                     database: this.database,
+                    utils: this.utils,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();

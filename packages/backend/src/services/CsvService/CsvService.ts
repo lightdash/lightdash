@@ -83,7 +83,7 @@ const isRowValueDate = (
     isMomentInput(value) && field.type === DimensionType.DATE;
 
 export const convertSqlToCsv = (
-    results: ApiSqlQueryResults,
+    results: Pick<ApiSqlQueryResults, 'rows' | 'fields'>,
     customLabels: Record<string, string> = {},
 ): Promise<string> => {
     const csvHeader = Object.keys(results.rows[0]).map(

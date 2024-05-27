@@ -2,11 +2,15 @@ import { subject } from '@casl/ability';
 import {
     ApiCatalogSearch,
     CatalogField,
+    CatalogMetadata,
     CatalogTable,
     CatalogType,
+    CompiledTable,
     Explore,
     ExploreError,
     ForbiddenError,
+    getBasicType,
+    isDimension,
     isExploreError,
     SessionUser,
     UserAttributeValueMap,
@@ -14,6 +18,7 @@ import {
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
@@ -24,15 +29,17 @@ import {
     hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 
-type CatalogArguments = {
+export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
-    catalogModel: CatalogModel;
+    catalogModel: T;
 };
 
-export class CatalogService extends BaseService {
+export class CatalogService<
+    T extends CatalogModel = CatalogModel,
+> extends BaseService {
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -41,7 +48,7 @@ export class CatalogService extends BaseService {
 
     userAttributesModel: UserAttributesModel;
 
-    catalogModel: CatalogModel;
+    catalogModel: T;
 
     constructor({
         lightdashConfig,
@@ -49,7 +56,7 @@ export class CatalogService extends BaseService {
         projectModel,
         userAttributesModel,
         catalogModel,
-    }: CatalogArguments) {
+    }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -69,19 +76,7 @@ export class CatalogService extends BaseService {
             if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
-                ).flatMap((t) => {
-                    const tableFields = [
-                        ...Object.values(t.dimensions),
-                        ...Object.values(t.metrics),
-                    ];
-                    return tableFields.map((d) => ({
-                        name: d.name,
-                        description: d.description,
-                        tableLabel: d.tableLabel,
-                        fieldType: d.fieldType,
-                        type: CatalogType.Field,
-                    }));
-                });
+                ).flatMap((t) => parseFieldsFromCompiledTable(t));
 
                 return [...acc, ...fields];
             }
@@ -142,7 +137,11 @@ export class CatalogService extends BaseService {
                 const catalog = await wrapSentryTransaction(
                     'CatalogService.searchCatalog.modelSearch',
                     {},
-                    async () => this.catalogModel.search(projectUuid, query),
+                    async () =>
+                        this.catalogModel.search({
+                            projectUuid,
+                            searchQuery: query,
+                        }),
                 );
 
                 // Filter required attributes
@@ -227,5 +226,49 @@ export class CatalogService extends BaseService {
             filteredExplores,
             userAttributes,
         );
+    }
+
+    async getMetadata(user: SessionUser, projectUuid: string, table: string) {
+        // Right now we return the full cached explore based on name
+        // We could extract some data to only return what we need instead
+        // to make this request more lightweight
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const explore = await this.catalogModel.getMetadata(projectUuid, table);
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        if (!doesExploreMatchRequiredAttributes(explore, userAttributes)) {
+            throw new ForbiddenError(
+                `You don't have access to the explore ${explore.name}`,
+            );
+        }
+
+        const baseTable = explore.tables?.[explore.baseTable];
+        const fields = parseFieldsFromCompiledTable(baseTable);
+        const filteredFields = fields.filter((field) =>
+            hasUserAttributes(field.requiredAttributes, userAttributes),
+        );
+        const metadata: CatalogMetadata = {
+            name: explore.label,
+            description: baseTable.description,
+            modelName: explore.name,
+            source: explore.ymlPath,
+            fields: filteredFields,
+        };
+        return metadata;
     }
 }

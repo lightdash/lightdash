@@ -34,27 +34,3 @@ Once you're connected, you can head over to the explorer and you'll see a new si
 Once you've selected your dimensions and metrics, Lightdash will automatically generate visualizations for you. You can use the full power of the Lightdash visualization library to change and customize these entirely.
 
 The dbt Semantic Layer integration with Lightdash is actively being developed and we're always open to feedback on how it can be improved. Report any bugs [directly on our GitHub repository](https://github.com/lightdash/lightdash/issues/new?assignees=&labels=%F0%9F%90%9B+bug&projects=&template=bug_report.md&title=) or [join the community](https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A) to join the discussion with the team and have your say on the future feature roadmap for Lightdash.
-
-### Configuration for self-hosted users
-
-1. Add these `dbt semantic layer` environment variables to your Lightdash deployment https://docs.lightdash.com/self-host/customize-deployment/environment-variables
-
-   1. `DBT_CLOUD_DOMAIN` (optional): set this if your domain is different from `https://semantic-layer.cloud.getdbt.com`
-   2. `DBT_CLOUD_ENVIRONMENT_ID`: If your dbt URL ends with .../environments/1234, your environmentId is 1234
-   3. `DBT_CLOUD_BEARER_TOKEN`: https://docs.getdbt.com/docs/dbt-cloud-apis/service-tokens
-
-2. Restart server/lightdash
-3. Click `New` and then `Query using dbt semantic layer`, like so:
-
-<img
-  src={QueryUsingDbtSemanticLayer}
-  width="300"
-  height="883"
-  style={{ display: 'block', margin: '0 auto 20px auto' }}
-/>
-
-:::warning
-
-Once the integration is completed, the dbt semantic layer will be enabled for all organizations and projects.
-
-:::

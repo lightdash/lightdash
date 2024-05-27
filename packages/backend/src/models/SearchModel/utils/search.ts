@@ -2,25 +2,39 @@ import { CompiledField, CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
-export function getFullTextSearchRankCalcSql(
-    database: Knex,
-    tableName: string,
-    searchVectorColumnName: string,
-    query: string,
-) {
+// To query multiple words with tsquery, we need to split the query and add `:*` to each word
+export function getFullTextSearchQuery(searchQuery: string) {
+    return searchQuery
+        .split(' ')
+        .map((word) => word.trim())
+        .filter((word) => word.length > 0)
+        .filter((word, index, self) => self.indexOf(word) === index)
+        .map((word) => word.concat(':*'))
+        .join(' & ');
+}
+
+export function getFullTextSearchRankCalcSql({
+    database,
+    variables,
+}: {
+    database: Knex;
+    variables: Record<string, string>;
+}) {
+    const updatedVariables = {
+        ...variables,
+        searchQuery: getFullTextSearchQuery(variables.searchQuery),
+    };
+
     return database.raw(
         `ROUND(
             ts_rank_cd(
                 :searchVectorColumn:,
-                websearch_to_tsquery('lightdash_english_config', :query),
+                to_tsquery('lightdash_english_config', :searchQuery),
                 32
             )::numeric,
             6
         )::float`,
-        {
-            searchVectorColumn: `${tableName}.${searchVectorColumnName}`,
-            query,
-        },
+        updatedVariables,
     );
 }
 

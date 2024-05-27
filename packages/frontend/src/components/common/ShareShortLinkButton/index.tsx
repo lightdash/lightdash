@@ -1,42 +1,36 @@
 import { ActionIcon } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router-dom';
-import useToaster from '../../../hooks/toaster/useToaster';
+import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
 import MantineIcon from '../MantineIcon';
 
 const ShareShortLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
-    const clipboard = useClipboard({ timeout: 500 });
-    const { showToastSuccess } = useToaster();
-
     const location = useLocation();
-    const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
 
+    const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
     const isDisabled = disabled || isLoading;
 
-    const handleCopyClick = async () => {
-        const { shareUrl } = await createShareUrl({
+    const getSharedUrl = async () => {
+        const response = await createShareUrl({
             path: location.pathname,
             params: location.search,
         });
-        clipboard.copy(shareUrl || '');
-        showToastSuccess({
-            title: 'Link copied to clipboard',
-        });
+        return response.shareUrl;
     };
+    const { handleCopy, copied } = useAsyncClipboard(getSharedUrl);
 
     return (
         <ActionIcon
             variant="default"
-            onClick={handleCopyClick}
+            onClick={handleCopy}
             disabled={isDisabled}
             color="gray"
         >
             <MantineIcon
-                icon={clipboard.copied ? IconCheck : IconLink}
-                color={clipboard.copied ? 'green' : undefined}
+                icon={copied ? IconCheck : IconLink}
+                color={copied ? 'green' : undefined}
             />
         </ActionIcon>
     );

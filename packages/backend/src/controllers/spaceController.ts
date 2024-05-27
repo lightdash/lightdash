@@ -1,4 +1,5 @@
 import {
+    AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
     ApiSpaceResponse,
@@ -210,6 +211,76 @@ export class SpaceController extends BaseController {
         await this.services
             .getSpaceService()
             .removeSpaceUserAccess(req.user!, spaceUuid, userUuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Grant a group access to a space
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to update
+     * @param groupUuid The uuid of the group to grant access to
+     * @param spaceRole The role for the group in the space
+     * @param req
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{spaceUuid}/group/share')
+    @OperationId('AddSpaceGroupAccess')
+    @Tags('Roles & Permissions')
+    async addSpaceGroupAccess(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Body() body: AddSpaceGroupAccess,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSpaceService()
+            .addSpaceGroupAccess(
+                req.user!,
+                spaceUuid,
+                body.groupUuid,
+                body.spaceRole,
+            );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Remove a group's access to a space
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to update
+     * @param groupUuid The uuid of the group to revoke access from
+     * @param req
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{spaceUuid}/group/share/{groupUuid}')
+    @OperationId('RevokeGroupSpaceAccess')
+    @Tags('Roles & Permissions')
+    async revokeGroupSpaceAccess(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Path() groupUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSpaceService()
+            .removeSpaceGroupAccess(req.user!, spaceUuid, groupUuid);
         return {
             status: 'ok',
             results: undefined,

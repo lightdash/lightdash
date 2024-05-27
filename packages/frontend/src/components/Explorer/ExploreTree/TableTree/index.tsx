@@ -72,7 +72,11 @@ type Props = {
     missingCustomMetrics: AdditionalMetric[];
     customDimensions?: CustomDimension[];
     missingCustomDimensions?: CustomDimension[];
-    missingFields?: string[];
+    missingFields?: {
+        all: string[];
+        customDimensions: CustomDimension[] | undefined;
+        customMetrics: AdditionalMetric[] | undefined;
+    };
     selectedDimensions?: string[];
 };
 
@@ -126,8 +130,6 @@ const TableTree: FC<Props> = ({
                         searchQuery={searchQuery}
                         additionalMetrics={additionalMetrics}
                         customDimensions={customDimensions}
-                        missingCustomMetrics={missingCustomMetrics}
-                        missingCustomDimensions={missingCustomDimensions}
                         missingFields={missingFields}
                         selectedDimensions={selectedDimensions}
                         {...rest}
