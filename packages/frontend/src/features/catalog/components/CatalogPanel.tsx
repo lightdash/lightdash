@@ -260,7 +260,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Group noWrap align="start">
-            <Stack w={selection ? '70%' : '100%'}>
+            <Stack w={selection ? '70%' : '100%'} spacing="xs">
                 <Box>
                     <Title order={4} mt="xxl">
                         {projectData?.name}
@@ -269,7 +269,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                         Select a table or field to start exploring.
                     </Text>
                 </Box>
-                <Group position="apart">
+                <Group position="apart" align="start" h={55}>
                     <TextInput
                         w={'40%'}
                         icon={<MantineIcon icon={IconSearch} />}
@@ -280,10 +280,21 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 </ActionIcon>
                             ) : null
                         }
-                        placeholder="Search tables"
+                        placeholder="Search tables and fields"
+                        description={
+                            search && search.length < 3
+                                ? 'Enter at least 3 characters to search'
+                                : undefined
+                        }
                         value={search}
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                    />{' '}
+                    />
                     <Group>
                         <SegmentedControl
                             w={200}
