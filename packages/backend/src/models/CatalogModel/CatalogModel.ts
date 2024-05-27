@@ -11,7 +11,10 @@ import { Knex } from 'knex';
 import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { wrapSentryTransaction } from '../../utils';
-import { getFullTextSearchRankCalcSql } from '../SearchModel/utils/search';
+import {
+    getFullTextSearchQuery,
+    getFullTextSearchRankCalcSql,
+} from '../SearchModel/utils/search';
 import { parseCatalog } from './utils/parser';
 
 type SearchModelArguments = {
@@ -46,17 +49,11 @@ export class CatalogModel {
             variables: Record<string, string>;
         }) => Knex.Raw<any>;
     }): Promise<(CatalogTable | CatalogField)[]> {
-        // To query multiple words with tsquery, we need to split the query and add `:*` to each word
-        const fullTextSearchQuery = searchQuery
-            .split(' ')
-            .map((word) => word.replace(/[^a-zA-Z0-9]/g, '').concat(':*'))
-            .join(' | ');
-
         const searchRankRawSql = searchRankFunction({
             database: this.database,
             variables: {
                 searchVectorColumn: `${CatalogTableName}.search_vector`,
-                searchQuery: fullTextSearchQuery,
+                searchQuery,
             },
         });
 
@@ -94,7 +91,7 @@ export class CatalogModel {
         if (excludeUnmatched) {
             catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                fullTextSearchQuery,
+                getFullTextSearchQuery(searchQuery),
             );
         }
 
