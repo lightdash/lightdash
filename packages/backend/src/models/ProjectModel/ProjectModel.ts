@@ -35,15 +35,11 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import { map, omit, zip } from 'lodash';
+import { omit } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
-import {
-    CatalogTableName,
-    DbCatalog,
-    DbCatalogIn,
-} from '../../database/entities/catalog';
+import { CatalogTableName, DbCatalogIn } from '../../database/entities/catalog';
 import {
     DashboardViewsTableName,
     DbDashboard,
@@ -93,7 +89,7 @@ const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 export class ProjectModel {
     protected database: Knex;
 
-    private lightdashConfig: LightdashConfig;
+    protected lightdashConfig: LightdashConfig;
 
     private encryptionUtil: EncryptionUtil;
 
@@ -732,11 +728,13 @@ export class ProjectModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ) {
-        if (cachedExplores.length === 0) return;
+    ): Promise<[DbCatalogIn, ExploreCatalog][]> {
+        if (cachedExplores.length === 0) {
+            return [];
+        }
 
         try {
-            await wrapSentryTransaction(
+            const wrapped = await wrapSentryTransaction(
                 'indexCatalog',
                 { projectUuid, cachedExploresSize: cachedExplores.length },
                 async () => {
@@ -752,41 +750,42 @@ export class ProjectModel {
                                 cachedExplores,
                             ),
                     );
-                    await wrapSentryTransaction(
+
+                    const transactionInserts = await wrapSentryTransaction(
                         'indexCatalog.insert',
                         { projectUuid, catalogSize: catalogItems.length },
-                        async () =>
+                        () =>
                             this.database.transaction(async (trx) => {
                                 await trx(CatalogTableName)
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
-                                // Insert in chunks to avoid having a massive insert query
-                                const chunkSize = 1000;
-                                const chunkedInsertPromises = [];
-                                for (
-                                    let i = 0;
-                                    i < catalogItems.length;
-                                    i += chunkSize
-                                ) {
-                                    const chunk = catalogItems
-                                        .slice(i, i + chunkSize)
-                                        .map((catalogItem) => ({
+                                const inserts = await this.database
+                                    .batchInsert(
+                                        CatalogTableName,
+                                        catalogItems.map((catalogItem) => ({
                                             ...omit(catalogItem, [
                                                 'field_type',
                                             ]),
-                                        }));
-                                    chunkedInsertPromises.push(
-                                        trx(CatalogTableName).insert(chunk),
-                                    );
-                                }
-                                await Promise.all(chunkedInsertPromises);
+                                        })),
+                                    )
+                                    .returning('*')
+                                    .transacting(trx);
+
+                                return inserts;
                             }),
                     );
+
+                    return transactionInserts.map<
+                        [DbCatalogIn, ExploreCatalog]
+                    >((insert, index) => [insert, catalogItems[index]]);
                 },
             );
+
+            return wrapped;
         } catch (e) {
             Logger.error(`Failed to index catalog ${projectUuid}, ${e}`);
+            return [];
         }
     }
 
