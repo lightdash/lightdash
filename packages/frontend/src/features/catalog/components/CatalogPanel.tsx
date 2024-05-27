@@ -123,7 +123,6 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
             [
                 'ArrowDown',
                 () => {
-                    //FIXME fix bug when multiple "fields" have the same name in search and you can't move
                     if (selection) {
                         //TODO move around grouped items
                         //TODO also, this sort could go somewhere else
