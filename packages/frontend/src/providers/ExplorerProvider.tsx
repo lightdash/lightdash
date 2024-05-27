@@ -204,7 +204,7 @@ type Action =
           type: ActionType.EDIT_CUSTOM_DIMENSION;
           payload: {
               customDimension: CustomDimension;
-              previousCustomDimensionName: string;
+              previousCustomDimensionId: string;
           };
       }
     | {
@@ -305,7 +305,7 @@ export interface ExplorerContext {
         addCustomDimension: (customDimension: CustomDimension) => void;
         editCustomDimension: (
             customDimension: CustomDimension,
-            previousCustomDimensionName: string,
+            previousCustomDimensionId: string,
         ) => void;
         removeCustomDimension: (key: FieldId) => void;
         toggleCustomDimensionModal: (
@@ -861,8 +861,7 @@ function reducer(
             const dimensions = [
                 ...state.unsavedChartVersion.metricQuery.dimensions.filter(
                     (dimension) =>
-                        dimension !==
-                        action.payload.previousCustomDimensionName,
+                        dimension !== action.payload.previousCustomDimensionId,
                 ),
                 getItemId(action.payload.customDimension),
             ];
@@ -877,7 +876,7 @@ function reducer(
                             state.unsavedChartVersion.metricQuery.customDimensions?.map(
                                 (customDimension) =>
                                     customDimension.name ===
-                                    action.payload.previousCustomDimensionName
+                                    action.payload.previousCustomDimensionId
                                         ? action.payload.customDimension
                                         : customDimension,
                             ),
@@ -1629,11 +1628,11 @@ export const ExplorerProvider: FC<
     const editCustomDimension = useCallback(
         (
             customDimension: CustomDimension,
-            previousCustomDimensionName: string,
+            previousCustomDimensionId: string,
         ) => {
             dispatch({
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
-                payload: { customDimension, previousCustomDimensionName },
+                payload: { customDimension, previousCustomDimensionId },
             });
             // TODO: add dispatch toggle
         },

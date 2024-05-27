@@ -191,6 +191,7 @@ export enum SupportedDbtVersions {
     V1_5 = 'v1.5',
     V1_6 = 'v1.6',
     V1_7 = 'v1.7',
+    V1_8 = 'v1.8',
 }
 
 export const GetDbtManifestVersion = (
@@ -205,6 +206,8 @@ export const GetDbtManifestVersion = (
             return DbtManifestVersion.V10;
         case SupportedDbtVersions.V1_7:
             return DbtManifestVersion.V11;
+        case SupportedDbtVersions.V1_8:
+            return DbtManifestVersion.V12;
         default:
             assertUnreachable(
                 dbtVersion,

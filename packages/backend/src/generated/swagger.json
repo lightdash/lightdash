@@ -40,6 +40,180 @@
                 "type": "object",
                 "description": "The Error object is returned from the api any time there is an error.\nThe message contains"
             },
+            "FieldType": {
+                "enum": ["metric", "dimension"],
+                "type": "string"
+            },
+            "Pick_Field.name-or-fieldType-or-tableLabel-or-description_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "fieldType", "tableLabel"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Pick_Dimension.requiredAttributes_": {
+                "properties": {
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogType.Field": {
+                "enum": ["field"],
+                "type": "string"
+            },
+            "CatalogField": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Field.name-or-fieldType-or-tableLabel-or-description_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_Dimension.requiredAttributes_"
+                    },
+                    {
+                        "properties": {
+                            "basicType": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/CatalogType.Field"
+                            }
+                        },
+                        "required": ["basicType", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "InlineErrorType": {
+                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
+            "CatalogType.Table": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "CatalogTable": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_"
+                    },
+                    {
+                        "properties": {
+                            "groupLabel": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/CatalogType.Table"
+                            },
+                            "errors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/InlineError"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "CatalogItem": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CatalogField"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CatalogTable"
+                    }
+                ]
+            },
+            "ApiCatalogResults": {
+                "items": {
+                    "$ref": "#/components/schemas/CatalogItem"
+                },
+                "type": "array"
+            },
+            "CatalogType": {
+                "enum": ["table", "field"],
+                "type": "string"
+            },
+            "CatalogMetadata": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogField"
+                        },
+                        "type": "array"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "modelName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fields", "modelName", "name"],
+                "type": "object"
+            },
+            "ApiCatalogMetadataResults": {
+                "$ref": "#/components/schemas/CatalogMetadata"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -250,6 +424,9 @@
                     "name": {
                         "type": "string"
                     },
+                    "groupLabel": {
+                        "type": "string"
+                    },
                     "label": {
                         "type": "string"
                     },
@@ -258,9 +435,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -282,25 +456,12 @@
                 "required": ["databaseName", "schemaName"],
                 "type": "object"
             },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
-            },
             "Pick_ExploreError.SummaryExploreErrorFields_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
                         "type": "string"
                     },
                     "label": {
@@ -311,9 +472,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "groupLabel": {
-                        "type": "string"
                     },
                     "errors": {
                         "items": {
@@ -416,11 +574,6 @@
             "OrderFieldsByStrategy": {
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
-            },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "TableBase": {
                 "properties": {
@@ -3565,7 +3718,12 @@
                 "properties": {
                     "inheritedFrom": {
                         "type": "string",
-                        "enum": ["organization", "project", "group"]
+                        "enum": [
+                            "organization",
+                            "project",
+                            "group",
+                            "space_group"
+                        ]
                     },
                     "inheritedRole": {
                         "anyOf": [
@@ -5990,6 +6148,21 @@
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
+            "SpaceGroup": {
+                "properties": {
+                    "spaceRole": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "groupName": {
+                        "type": "string"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["spaceRole", "groupName", "groupUuid"],
+                "type": "object"
+            },
             "Space": {
                 "properties": {
                     "slug": {
@@ -6003,6 +6176,12 @@
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "groupsAccess": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceGroup"
+                        },
+                        "type": "array"
                     },
                     "access": {
                         "items": {
@@ -6042,6 +6221,7 @@
                     "slug",
                     "pinnedListOrder",
                     "pinnedListUuid",
+                    "groupsAccess",
                     "access",
                     "dashboards",
                     "projectUuid",
@@ -6120,6 +6300,18 @@
                     }
                 },
                 "required": ["spaceRole", "userUuid"],
+                "type": "object"
+            },
+            "AddSpaceGroupAccess": {
+                "properties": {
+                    "spaceRole": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "groupUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -6987,7 +7179,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1092.0",
+        "version": "0.1102.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7000,6 +7192,133 @@
     },
     "openapi": "3.0.0",
     "paths": {
+        "/api/v1/projects/{projectUuid}/dataCatalog": {
+            "get": {
+                "operationId": "getCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog items",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "type",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/CatalogType"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{table}/metadata": {
+            "get": {
+                "operationId": "getMetadata",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogMetadataResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog metadata",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Table name to get metadata for",
+                        "in": "path",
+                        "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {
             "post": {
                 "operationId": "createComment",
@@ -11479,6 +11798,125 @@
                         "description": "The uuid of the user to revoke access from",
                         "in": "path",
                         "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/group/share": {
+            "post": {
+                "operationId": "AddSpaceGroupAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Grant a group access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to update",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddSpaceGroupAccess"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/group/share/{groupUuid}": {
+            "delete": {
+                "operationId": "RevokeGroupSpaceAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a group's access to a space",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to update",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the group to revoke access from",
+                        "in": "path",
+                        "name": "groupUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

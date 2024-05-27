@@ -1,6 +1,8 @@
 version: 2
 models:
   - name: stg_customers
+    meta: 
+      group_label: "staging"
     columns:
       - name: customer_id
         tests:
@@ -14,6 +16,8 @@ models:
       - name: created
         description: ""
   - name: stg_orders
+    meta: 
+      group_label: "staging"
     columns:
       - name: order_id
         tests:
@@ -35,6 +39,8 @@ models:
       - name: order_date
         description: ""
   - name: stg_payments
+    meta: 
+      group_label: "staging"
     columns:
       - name: payment_id
         tests:

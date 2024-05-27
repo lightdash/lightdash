@@ -1,9 +1,5 @@
 import {
-    convertFieldRefToFieldId,
-    getAllReferences,
     getItemId,
-    isCustomBinDimension,
-    isCustomSqlDimension,
     type AdditionalMetric,
     type CompiledTable,
     type CustomDimension,
@@ -25,7 +21,11 @@ type ExploreTreeProps = {
     selectedNodes: Set<string>;
     customDimensions?: CustomDimension[];
     selectedDimensions?: string[];
-    missingFields?: string[];
+    missingFields?: {
+        all: string[];
+        customDimensions: CustomDimension[] | undefined;
+        customMetrics: AdditionalMetric[] | undefined;
+    };
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -74,39 +74,6 @@ const ExploreTree: FC<ExploreTreeProps> = ({
             );
     }, [explore, searchHasResults, isSearching]);
 
-    const missingCustomMetrics = useMemo(() => {
-        return additionalMetrics.filter((metric) => {
-            const table = explore.tables[metric.table];
-            return (
-                !table ||
-                (metric.baseDimensionName &&
-                    !table.dimensions[metric.baseDimensionName])
-            );
-        });
-    }, [explore, additionalMetrics]);
-
-    const missingCustomDimensions = useMemo(() => {
-        return customDimensions?.filter((customDimension) => {
-            const table = explore.tables[customDimension.table];
-
-            if (!table) return true;
-
-            const dimIds = Object.values(table.dimensions).map(getItemId);
-
-            const isCustomBinDimensionMissing =
-                isCustomBinDimension(customDimension) &&
-                !dimIds.includes(customDimension.dimensionId);
-
-            const isCustomSqlDimensionMissing =
-                isCustomSqlDimension(customDimension) &&
-                getAllReferences(customDimension.sql)
-                    .map((ref) => convertFieldRefToFieldId(ref))
-                    .some((refFieldId) => !dimIds.includes(refFieldId));
-
-            return isCustomBinDimensionMissing || isCustomSqlDimensionMissing;
-        });
-    }, [customDimensions, explore.tables]);
-
     return (
         <>
             <TextInput
@@ -144,13 +111,15 @@ const ExploreTree: FC<ExploreTreeProps> = ({
                             onSelectedNodeChange={onSelectedFieldChange}
                             customDimensions={customDimensions}
                             missingCustomMetrics={
-                                table.name === explore.baseTable
-                                    ? missingCustomMetrics
+                                table.name === explore.baseTable &&
+                                missingFields?.customMetrics
+                                    ? missingFields.customMetrics
                                     : []
                             }
                             missingCustomDimensions={
-                                table.name === explore.baseTable
-                                    ? missingCustomDimensions
+                                table.name === explore.baseTable &&
+                                missingFields?.customDimensions
+                                    ? missingFields.customDimensions
                                     : []
                             }
                             missingFields={missingFields}

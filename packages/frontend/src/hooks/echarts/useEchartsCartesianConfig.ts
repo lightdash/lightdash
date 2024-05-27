@@ -9,6 +9,7 @@ import {
     getCustomFormatFromLegacy,
     getDateGroupLabel,
     getItemLabelWithoutTableName,
+    getItemType,
     getResultValueArray,
     hashFieldReference,
     isCompleteLayout,
@@ -91,9 +92,7 @@ const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
             isTableCalculation(item) ||
             isCustomSqlDimension(item))
     ) {
-        const type = isCustomSqlDimension(item)
-            ? item.dimensionType
-            : item.type;
+        const type = getItemType(item);
         switch (type) {
             case TableCalculationType.NUMBER:
             case DimensionType.NUMBER:

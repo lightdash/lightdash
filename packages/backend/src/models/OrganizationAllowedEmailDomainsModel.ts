@@ -102,24 +102,26 @@ export class OrganizationAllowedEmailDomainsModel {
             if (!allowedEmailDomain) {
                 throw new Error('Failed to upsert allowed email domains');
             }
-            const insertPromises: Promise<unknown>[] = [];
-            data.projects.forEach((project) => {
-                insertPromises.push(
-                    trx(OrganizationAllowedEmailDomainProjectsTableName)
-                        .insert({
-                            allowed_email_domains_uuid:
-                                allowedEmailDomain.allowed_email_domains_uuid,
-                            project_uuid: project.projectUuid,
-                            role: project.role,
-                        })
-                        .onConflict([
-                            'project_uuid',
-                            'allowed_email_domains_uuid',
-                        ])
-                        .merge(),
+
+            await trx(OrganizationAllowedEmailDomainProjectsTableName)
+                .where(
+                    'allowed_email_domains_uuid',
+                    allowedEmailDomain.allowed_email_domains_uuid,
+                )
+                .delete();
+
+            if (data.projects.length > 0) {
+                await trx(
+                    OrganizationAllowedEmailDomainProjectsTableName,
+                ).insert(
+                    data.projects.map((project) => ({
+                        allowed_email_domains_uuid:
+                            allowedEmailDomain.allowed_email_domains_uuid,
+                        project_uuid: project.projectUuid,
+                        role: project.role,
+                    })),
                 );
-            });
-            await Promise.all(insertPromises);
+            }
         });
 
         return this.getAllowedEmailDomains(data.organizationUuid);

@@ -1,3 +1,142 @@
+## [0.1104.2](https://github.com/lightdash/lightdash/compare/0.1104.1...0.1104.2) (2024-05-24)
+
+
+### Bug Fixes
+
+* e2e catalog metric ([#10192](https://github.com/lightdash/lightdash/issues/10192)) ([d6f9247](https://github.com/lightdash/lightdash/commit/d6f924756dfc85ddcbe1ad99ddb0924272af123e))
+
+## [0.1104.1](https://github.com/lightdash/lightdash/compare/0.1104.0...0.1104.1) (2024-05-24)
+
+
+### Bug Fixes
+
+* allow safari to copy to clipboard on async values ([#10178](https://github.com/lightdash/lightdash/issues/10178)) ([2a87368](https://github.com/lightdash/lightdash/commit/2a873684e1c2ef39b2ba83029f80a634e0934149))
+
+# [0.1104.0](https://github.com/lightdash/lightdash/compare/0.1103.1...0.1104.0) (2024-05-24)
+
+
+### Bug Fixes
+
+* allowed email domain project access updates ([#10172](https://github.com/lightdash/lightdash/issues/10172)) ([4947846](https://github.com/lightdash/lightdash/commit/4947846cf473e944fc4ebeda5f1ff8c719452863))
+
+
+### Features
+
+* catalog metadata ([#10176](https://github.com/lightdash/lightdash/issues/10176)) ([242e870](https://github.com/lightdash/lightdash/commit/242e870e9cae833e1ad82bde69657cc33a004b6a))
+
+## [0.1103.1](https://github.com/lightdash/lightdash/compare/0.1103.0...0.1103.1) (2024-05-24)
+
+
+### Bug Fixes
+
+* wrap cell values in element to prevent errors from browser extensions ([#10169](https://github.com/lightdash/lightdash/issues/10169)) ([a60da7e](https://github.com/lightdash/lightdash/commit/a60da7ebccb980bb0a020fb93439a9f41120b2af))
+
+# [0.1103.0](https://github.com/lightdash/lightdash/compare/0.1102.3...0.1103.0) (2024-05-24)
+
+
+### Features
+
+* dbt 1.8 ([#10180](https://github.com/lightdash/lightdash/issues/10180)) ([379e902](https://github.com/lightdash/lightdash/commit/379e90268581a88e2e834f2e0fcfa937841d6764))
+
+## [0.1102.3](https://github.com/lightdash/lightdash/compare/0.1102.2...0.1102.3) (2024-05-24)
+
+
+### Bug Fixes
+
+* index catalog error ([#10183](https://github.com/lightdash/lightdash/issues/10183)) ([6cfba40](https://github.com/lightdash/lightdash/commit/6cfba400bcf78668a07e6cdfd28f8e572e75467b))
+
+## [0.1102.2](https://github.com/lightdash/lightdash/compare/0.1102.1...0.1102.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* to tsquery ([#10181](https://github.com/lightdash/lightdash/issues/10181)) ([8f2d5a9](https://github.com/lightdash/lightdash/commit/8f2d5a9b929a05d7284ec0cc4e8eed7bc3b25e4f))
+
+## [0.1102.1](https://github.com/lightdash/lightdash/compare/0.1102.0...0.1102.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* check correctly missing custom dimensions against explore's tables ([#10131](https://github.com/lightdash/lightdash/issues/10131)) ([13f2b0b](https://github.com/lightdash/lightdash/commit/13f2b0b37026ac50ca808beaf1c7d434c14dd851))
+
+# [0.1102.0](https://github.com/lightdash/lightdash/compare/0.1101.4...0.1102.0) (2024-05-23)
+
+
+### Features
+
+* allow space group access ([#10082](https://github.com/lightdash/lightdash/issues/10082)) ([760b087](https://github.com/lightdash/lightdash/commit/760b087358c39b48a4f248007182c75c670ddfbf))
+
+## [0.1101.4](https://github.com/lightdash/lightdash/compare/0.1101.3...0.1101.4) (2024-05-23)
+
+
+### Bug Fixes
+
+* allow new charts to be moved around tabs ([#10153](https://github.com/lightdash/lightdash/issues/10153)) ([a4fef33](https://github.com/lightdash/lightdash/commit/a4fef3328de7b9bf2bbae84be72ceb9208e3d8f7))
+* check against tcs when creating custom sql dim ([#10140](https://github.com/lightdash/lightdash/issues/10140)) ([1f1dc9e](https://github.com/lightdash/lightdash/commit/1f1dc9eb005ce47cb6928e456688a0fb09cb134d))
+
+## [0.1101.3](https://github.com/lightdash/lightdash/compare/0.1101.2...0.1101.3) (2024-05-23)
+
+
+### Bug Fixes
+
+* save temp dashboard tabs to session storage when creating new chart ([#10093](https://github.com/lightdash/lightdash/issues/10093)) ([c90bfbf](https://github.com/lightdash/lightdash/commit/c90bfbf19ff90ee8ef7e4622679280697235b4b3))
+
+## [0.1101.2](https://github.com/lightdash/lightdash/compare/0.1101.1...0.1101.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* use utc time display in series config ([#10142](https://github.com/lightdash/lightdash/issues/10142)) ([91302ad](https://github.com/lightdash/lightdash/commit/91302ad959e52ce78a9d9a9aedff6444883938d4))
+
+## [0.1101.1](https://github.com/lightdash/lightdash/compare/0.1101.0...0.1101.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* catalog table typo ([#10163](https://github.com/lightdash/lightdash/issues/10163)) ([f7dff5a](https://github.com/lightdash/lightdash/commit/f7dff5a9df171efb9c0c4fef582d88eb0be8690a))
+
+# [0.1101.0](https://github.com/lightdash/lightdash/compare/0.1100.0...0.1101.0) (2024-05-22)
+
+
+### Features
+
+* catalog search ([#10139](https://github.com/lightdash/lightdash/issues/10139)) ([bfb24e4](https://github.com/lightdash/lightdash/commit/bfb24e4fc259f78337276a526f8b9ddbc62c791d))
+
+# [0.1100.0](https://github.com/lightdash/lightdash/compare/0.1099.5...0.1100.0) (2024-05-22)
+
+
+### Features
+
+* catalog page ([#10115](https://github.com/lightdash/lightdash/issues/10115)) ([283f52f](https://github.com/lightdash/lightdash/commit/283f52f75c99e138f8503c592943d40e227a025a))
+
+## [0.1099.5](https://github.com/lightdash/lightdash/compare/0.1099.4...0.1099.5) (2024-05-21)
+
+
+### Bug Fixes
+
+* use http mode for slackbot ([#10123](https://github.com/lightdash/lightdash/issues/10123)) ([c53cc34](https://github.com/lightdash/lightdash/commit/c53cc34a96702ab2d01841a50a686a2097a115e1))
+
+## [0.1099.4](https://github.com/lightdash/lightdash/compare/0.1099.3...0.1099.4) (2024-05-21)
+
+
+### Bug Fixes
+
+* make compile query public ([#10129](https://github.com/lightdash/lightdash/issues/10129)) ([fb3e132](https://github.com/lightdash/lightdash/commit/fb3e1327452c4c459dd65a18c442067722e87e34))
+
+## [0.1099.3](https://github.com/lightdash/lightdash/compare/0.1099.2...0.1099.3) (2024-05-21)
+
+
+### Bug Fixes
+
+* get correct id when editing a custom dimension ([#10127](https://github.com/lightdash/lightdash/issues/10127)) ([f3f8235](https://github.com/lightdash/lightdash/commit/f3f8235544aa96554e51cc2b3850c87ad868bcb8))
+
+## [0.1099.2](https://github.com/lightdash/lightdash/compare/0.1099.1...0.1099.2) (2024-05-21)
+
+
+### Bug Fixes
+
+* validate custom dimensions if field is custom dim ([#10121](https://github.com/lightdash/lightdash/issues/10121)) ([278bd3a](https://github.com/lightdash/lightdash/commit/278bd3aed86bf3b38b9f76d6c0e8d97bd37a2871))
+
 ## [0.1099.1](https://github.com/lightdash/lightdash/compare/0.1099.0...0.1099.1) (2024-05-20)
 
 

@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
+import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
@@ -74,6 +75,7 @@ export type ModelManifest = {
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     validationModel: ValidationModel;
+    catalogModel: CatalogModel;
 
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
@@ -91,6 +93,7 @@ type ModelFactoryMethod<T extends ModelManifest> = {
 type ModelProvider<T extends ModelManifest> = (providerArgs: {
     repository: ModelRepository;
     database: Knex;
+    utils: UtilRepository;
 }) => T[keyof T];
 
 /**
@@ -443,6 +446,13 @@ export class ModelRepository
         );
     }
 
+    public getCatalogModel(): CatalogModel {
+        return this.getModel(
+            'catalogModel',
+            () => new CatalogModel({ database: this.database }),
+        );
+    }
+
     public getAiModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiModel');
     }
@@ -473,6 +483,7 @@ export class ModelRepository
                 modelInstance = this.providers[modelName]!({
                     repository: this,
                     database: this.database,
+                    utils: this.utils,
                 }) as T;
             } else if (factory != null) {
                 modelInstance = factory();

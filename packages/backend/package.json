@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.1099.1",
+    "version": "0.1104.2",
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
@@ -33,8 +33,8 @@
         "@aws-sdk/s3-request-presigner": "^3.272.0",
         "@casl/ability": "^5.4.3",
         "@godaddy/terminus": "^4.12.0",
-        "@lightdash/common": "^0.1099.1",
-        "@lightdash/warehouses": "^0.1099.1",
+        "@lightdash/common": "^0.1104.2",
+        "@lightdash/warehouses": "^0.1104.2",
         "@octokit/app": "^14.0.2",
         "@octokit/auth-app": "^6.0.3",
         "@octokit/auth-token": "^4.0.0",
@@ -71,8 +71,6 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
-        "duckdb": "^0.9.2",
-        "duckdb-async": "^0.9.2",
         "execa": "^5.0.0",
         "express": "^4.19.2",
         "express-handlebars": "^7.1.2",

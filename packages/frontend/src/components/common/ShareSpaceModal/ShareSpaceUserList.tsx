@@ -3,6 +3,7 @@ import {
     SpaceMemberRole,
     type LightdashUser,
     type Space,
+    type SpaceGroup,
     type SpaceShare,
 } from '@lightdash/common';
 import {
@@ -25,12 +26,15 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconDatabase,
+    IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { forwardRef, useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
+    useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
+    useDeleteSpaceGroupAccessMutation,
     useDeleteSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
@@ -285,6 +289,91 @@ const UserAccessList: FC<UserAccessListProps> = ({
     );
 };
 
+type GroupAccessListProps = {
+    isPrivate: boolean;
+    groupsAccess: SpaceGroup[];
+    onAccessChange: (
+        action: UserAccessAction,
+        currentGroupAccess: SpaceGroup,
+    ) => void;
+};
+const GroupsAccessList: FC<GroupAccessListProps> = ({
+    isPrivate,
+    onAccessChange,
+    groupsAccess,
+}) => {
+    return (
+        <Stack spacing="sm">
+            {groupsAccess.map((group) => {
+                const userAccessTypes = UserAccessOptions.map((accessType) =>
+                    accessType.value === UserAccessAction.DELETE
+                        ? {
+                              ...accessType,
+                              title: { isPrivate }
+                                  ? 'Remove access'
+                                  : 'Reset access',
+                              selectDescription: { isPrivate }
+                                  ? `Remove group's access`
+                                  : `Reset group's access`,
+                          }
+                        : accessType,
+                );
+
+                return (
+                    <Group
+                        key={group.groupUuid}
+                        spacing="sm"
+                        position="apart"
+                        noWrap
+                    >
+                        <Group>
+                            <Avatar size={'sm'} radius="xl" color="blue">
+                                <MantineIcon
+                                    icon={IconUsers}
+                                    size={'sm'}
+                                    radius="xl"
+                                />
+                            </Avatar>
+                            <Text fw={600} fz="sm">
+                                {group.groupName}
+                            </Text>
+                        </Group>
+
+                        <Select
+                            styles={{
+                                input: {
+                                    fontWeight: 500,
+                                    textAlign: 'right',
+                                },
+                                rightSection: {
+                                    pointerEvents: 'none',
+                                },
+                            }}
+                            size="xs"
+                            variant="unstyled"
+                            withinPortal
+                            data={userAccessTypes.map((u) => ({
+                                label: u.title,
+                                ...u,
+                            }))}
+                            value={group.spaceRole}
+                            itemComponent={UserAccessSelectItem}
+                            onChange={(userAccessOption) => {
+                                if (userAccessOption) {
+                                    onAccessChange(
+                                        userAccessOption as UserAccessAction,
+                                        group,
+                                    );
+                                }
+                            }}
+                        />
+                    </Group>
+                );
+            })}
+        </Stack>
+    );
+};
+
 type SpaceAccessByType = {
     project: SpaceShare[];
     organisation: SpaceShare[];
@@ -303,6 +392,14 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     );
 
     const { mutate: shareSpaceMutation } = useAddSpaceShareMutation(
+        projectUuid,
+        space.uuid,
+    );
+
+    const { mutate: unshareGroupSpaceAccessMutation } =
+        useDeleteSpaceGroupAccessMutation(projectUuid, space.uuid);
+
+    const { mutate: shareGroupSpaceMutation } = useAddGroupSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
@@ -332,6 +429,37 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             }
         },
         [unshareSpaceMutation, shareSpaceMutation, showToastError],
+    );
+
+    const handleGroupAccessChange = useCallback(
+        (userAccessOption: UserAccessAction, group: SpaceGroup) => {
+            if (userAccessOption === UserAccessAction.DELETE) {
+                unshareGroupSpaceAccessMutation(group.groupUuid);
+            } else {
+                if (
+                    group.spaceRole === SpaceMemberRole.ADMIN &&
+                    userAccessOption !== UserAccessAction.ADMIN
+                ) {
+                    showToastError({
+                        title: `Failed to update user access`,
+                        subtitle: `An admin can not be a space ${userAccessOption}`,
+                    });
+                    return;
+                }
+
+                shareGroupSpaceMutation([
+                    group.groupUuid,
+                    userAccessOption
+                        ? userAccessOption
+                        : SpaceMemberRole.VIEWER, // default to viewer role for new private space member
+                ]);
+            }
+        },
+        [
+            unshareGroupSpaceAccessMutation,
+            shareGroupSpaceMutation,
+            showToastError,
+        ],
     );
 
     const accessByType = useMemo<SpaceAccessByType>(() => {
@@ -389,6 +517,18 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         onAccessChange={handleAccessChange}
                     />
                 </ListCollapse>
+            )}
+            {space.access.length > 0 && (
+                <>
+                    <Text fw={400} span c="gray.6">
+                        Group access
+                    </Text>
+                    <GroupsAccessList
+                        isPrivate={space.isPrivate}
+                        groupsAccess={space.groupsAccess}
+                        onAccessChange={handleGroupAccessChange}
+                    />
+                </>
             )}
             {accessByType.direct.length > 0 && (
                 <>

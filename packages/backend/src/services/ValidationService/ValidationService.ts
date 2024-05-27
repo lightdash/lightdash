@@ -278,7 +278,10 @@ export class ValidationService extends BaseService {
                 (acc, field) =>
                     containsFieldId({
                         acc,
-                        fieldIds: availableDimensionIds,
+                        fieldIds: [
+                            ...availableDimensionIds,
+                            ...availableCustomDimensionIds,
+                        ],
                         fieldId: field,
                         error: `Dimension error: the field '${field}' no longer exists`,
                         errorType: ValidationErrorType.Dimension,
@@ -312,7 +315,10 @@ export class ValidationService extends BaseService {
                         return acc;
                     return containsFieldId({
                         acc,
-                        fieldIds: availableDimensionIds,
+                        fieldIds: [
+                            ...availableDimensionIds,
+                            ...availableCustomDimensionIds, // Custom dimensions can be used as base dimensions for custom metrics
+                        ],
                         fieldId: dimensionId,
                         error: `Custom metric error: the base dimension '${field.baseDimensionName}' no longer exists`,
                         errorType: ValidationErrorType.CustomMetric,

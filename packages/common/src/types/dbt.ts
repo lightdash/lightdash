@@ -484,6 +484,7 @@ export enum DbtManifestVersion {
     V9 = 'v9',
     V10 = 'v10',
     V11 = 'v11',
+    V12 = 'v12',
 }
 
 export enum DbtExposureType {

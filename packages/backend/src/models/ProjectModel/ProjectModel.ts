@@ -35,9 +35,15 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import { map, omit, zip } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../../config/parseConfig';
+import {
+    CatalogTableName,
+    DbCatalog,
+    DbCatalogIn,
+} from '../../database/entities/catalog';
 import {
     DashboardViewsTableName,
     DbDashboard,
@@ -68,11 +74,15 @@ import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
-import { wrapOtelSpan } from '../../utils';
+import { wrapOtelSpan, wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    convertExploresToCatalog,
+    ExploreCatalog,
+} from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
-type ProjectModelArguments = {
+export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
@@ -81,7 +91,7 @@ type ProjectModelArguments = {
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
 export class ProjectModel {
-    private database: Knex;
+    protected database: Knex;
 
     private lightdashConfig: LightdashConfig;
 
@@ -719,6 +729,95 @@ export class ProjectModel {
         );
     }
 
+    async indexCatalog(
+        projectUuid: string,
+        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    ) {
+        if (cachedExplores.length === 0) return;
+
+        try {
+            await wrapSentryTransaction(
+                'indexCatalog',
+                { projectUuid, cachedExploresSize: cachedExplores.length },
+                async () => {
+                    const catalogItems = await wrapSentryTransaction(
+                        'indexCatalog.convertExploresToCatalog',
+                        {
+                            projectUuid,
+                            cachedExploresLength: cachedExplores.length,
+                        },
+                        async () =>
+                            convertExploresToCatalog(
+                                projectUuid,
+                                cachedExplores,
+                            ),
+                    );
+                    await wrapSentryTransaction(
+                        'indexCatalog.insert',
+                        { projectUuid, catalogSize: catalogItems.length },
+                        async () =>
+                            this.database.transaction(async (trx) => {
+                                await trx(CatalogTableName)
+                                    .where('project_uuid', projectUuid)
+                                    .delete();
+
+                                // Insert in chunks to avoid having a massive insert query
+                                const chunkSize = 1000;
+                                const chunkedInsertPromises = [];
+                                for (
+                                    let i = 0;
+                                    i < catalogItems.length;
+                                    i += chunkSize
+                                ) {
+                                    const chunk = catalogItems
+                                        .slice(i, i + chunkSize)
+                                        .map((catalogItem) => ({
+                                            ...omit(catalogItem, [
+                                                'field_type',
+                                            ]),
+                                        }));
+                                    chunkedInsertPromises.push(
+                                        trx(CatalogTableName).insert(chunk),
+                                    );
+                                }
+                                await Promise.all(chunkedInsertPromises);
+                            }),
+                    );
+                },
+            );
+        } catch (e) {
+            Logger.error(`Failed to index catalog ${projectUuid}, ${e}`);
+        }
+    }
+
+    static getExploresWithCacheUuids(
+        explores: (Explore | ExploreError)[],
+        cachedExplore: { name: string; cached_explore_uuid: string }[],
+    ) {
+        return explores.reduce<(Explore & { cachedExploreUuid: string })[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) return acc;
+                const cachedExploreUuid = cachedExplore.find(
+                    (cached) => cached.name === explore.name,
+                )?.cached_explore_uuid;
+                if (!cachedExploreUuid) {
+                    Logger.error(
+                        `Could not find cached explore uuid for explore ${explore.name}`,
+                    );
+                    return acc;
+                }
+                return [
+                    ...acc,
+                    {
+                        ...explore,
+                        cachedExploreUuid,
+                    },
+                ];
+            },
+            [],
+        );
+    }
+
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
@@ -739,7 +838,9 @@ export class ProjectModel {
                 );
 
                 // cache explores individually
-                await this.database(CachedExploreTableName)
+                const cachedExplore = await this.database(
+                    CachedExploreTableName,
+                )
                     .insert(
                         uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
@@ -749,7 +850,18 @@ export class ProjectModel {
                         })),
                     )
                     .onConflict(['project_uuid', 'name'])
-                    .merge();
+                    .merge()
+                    .returning(['name', 'cached_explore_uuid']);
+
+                const exploresWithCachedExploreUuid =
+                    ProjectModel.getExploresWithCacheUuids(
+                        explores,
+                        cachedExplore,
+                    );
+                await this.indexCatalog(
+                    projectUuid,
+                    exploresWithCachedExploreUuid,
+                );
 
                 // cache explores together
                 const [cachedExplores] = await this.database(
@@ -762,6 +874,7 @@ export class ProjectModel {
                     .onConflict('project_uuid')
                     .merge()
                     .returning('*');
+
                 return cachedExplores;
             },
         );

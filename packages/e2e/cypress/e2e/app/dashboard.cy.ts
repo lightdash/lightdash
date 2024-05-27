@@ -187,6 +187,7 @@ describe('Dashboard', () => {
         cy.findByText('You are creating this chart from within "Title"').should(
             'exist',
         );
+        cy.findByText('staging').click();
         cy.findByText('Stg payments').click();
         cy.findByText('Payment method').click();
         cy.findByText('Amount').click();

@@ -281,6 +281,64 @@ export class SpaceService extends BaseService {
         await this.spaceModel.removeSpaceAccess(spaceUuid, shareWithUserUuid);
     }
 
+    async addSpaceGroupAccess(
+        user: SessionUser,
+        spaceUuid: string,
+        shareWithGroupUuid: string,
+        spaceRole: SpaceMemberRole,
+    ): Promise<void> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Space', {
+                    ...space,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.spaceModel.addSpaceGroupAccess(
+            spaceUuid,
+            shareWithGroupUuid,
+            spaceRole,
+        );
+    }
+
+    async removeSpaceGroupAccess(
+        user: SessionUser,
+        spaceUuid: string,
+        shareWithGroupUuid: string,
+    ): Promise<void> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Space', {
+                    ...space,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.spaceModel.removeSpaceGroupAccess(
+            spaceUuid,
+            shareWithGroupUuid,
+        );
+    }
+
     async togglePinning(user: SessionUser, spaceUuid: string): Promise<Space> {
         const existingSpace = await this.spaceModel.get(spaceUuid);
         const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;

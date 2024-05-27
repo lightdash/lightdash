@@ -20,6 +20,7 @@ import {
     type TableColumn,
     type TableHeader,
 } from '../../components/common/Table/types';
+import { getFormattedValueCell } from '../useColumns';
 
 type Args = {
     itemsMap: ItemsMap;
@@ -141,8 +142,7 @@ const getDataAndColumns = ({
                             )}
                         </TableHeaderLabelContainer>
                     ),
-                    cell: (info: any) =>
-                        info.getValue()?.value.formatted || '-',
+                    cell: getFormattedValueCell,
 
                     footer: () =>
                         totals?.[itemId]

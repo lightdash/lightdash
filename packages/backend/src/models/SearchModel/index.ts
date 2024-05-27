@@ -61,12 +61,13 @@ export class SearchModel {
             return [];
         }
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql(
-            this.database,
-            SpaceTableName,
-            'search_vector',
-            query,
-        );
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SpaceTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
 
         let subquery = this.database(SpaceTableName)
             .innerJoin(
@@ -111,12 +112,13 @@ export class SearchModel {
             return [];
         }
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql(
-            this.database,
-            DashboardsTableName,
-            'search_vector',
-            query,
-        );
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${DashboardsTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
 
         let subquery = this.database(DashboardsTableName)
             .leftJoin(
@@ -198,12 +200,13 @@ export class SearchModel {
             return [];
         }
 
-        const searchRankRawSql = getFullTextSearchRankCalcSql(
-            this.database,
-            SavedChartsTableName,
-            'search_vector',
-            query,
-        );
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(SavedChartsTableName)
@@ -327,7 +330,7 @@ export class SearchModel {
         return [];
     }
 
-    private static searchTablesAndFields(
+    static searchTablesAndFields(
         query: string,
         explores: Explore[],
         filters?: SearchFilters,
