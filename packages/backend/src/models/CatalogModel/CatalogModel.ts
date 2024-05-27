@@ -99,8 +99,6 @@ export class CatalogModel {
             .orderBy('search_rank', 'desc')
             .limit(limit ?? 50);
 
-        console.log('catalogItemsQuery', catalogItemsQuery.toString());
-
         const catalogItems = await catalogItemsQuery;
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
