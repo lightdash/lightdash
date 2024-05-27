@@ -8,6 +8,7 @@ export function getFullTextSearchQuery(searchQuery: string) {
         .split(' ')
         .map((word) => word.trim())
         .filter((word) => word.length > 0)
+        .filter((word, index, self) => self.indexOf(word) === index)
         .map((word) => word.concat(':*'))
         .join(' & ');
 }
@@ -41,7 +42,7 @@ export function getRegexFromUserQuery(query: string) {
     const sanitizedQuery = escapeRegExp(query);
     const splitQuery = compact(Array.from(new Set(sanitizedQuery.split(' '))));
 
-    return new RegExp(splitQuery.join('&'), 'ig');
+    return new RegExp(splitQuery.join('|'), 'ig');
 }
 
 export function getTableOrFieldMatchCount(
