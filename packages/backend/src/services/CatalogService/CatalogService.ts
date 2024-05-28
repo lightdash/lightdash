@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     ApiCatalogSearch,
+    CatalogAnalytics,
     CatalogField,
     CatalogMetadata,
     CatalogTable,
     CatalogType,
+    ChartSummary,
     CompiledTable,
     Explore,
     ExploreError,
@@ -24,6 +26,8 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedChartModel } from '../../models/SavedChartModel';
+import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
@@ -39,6 +43,8 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     catalogModel: T;
+    savedChartModel: SavedChartModel;
+    spaceModel: SpaceModel;
 };
 
 export class CatalogService<
@@ -54,12 +60,18 @@ export class CatalogService<
 
     catalogModel: T;
 
+    savedChartModel: SavedChartModel;
+
+    spaceModel: SpaceModel;
+
     constructor({
         lightdashConfig,
         analytics,
         projectModel,
         userAttributesModel,
         catalogModel,
+        savedChartModel,
+        spaceModel,
     }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -67,6 +79,8 @@ export class CatalogService<
         this.projectModel = projectModel;
         this.userAttributesModel = userAttributesModel;
         this.catalogModel = catalogModel;
+        this.savedChartModel = savedChartModel;
+        this.spaceModel = spaceModel;
     }
 
     private static async getCatalogFields(
@@ -319,5 +333,78 @@ export class CatalogService<
             fields: filteredFields,
         };
         return metadata;
+    }
+
+    private filterChartsWithAccess = async (
+        user: SessionUser,
+        projectUuid: string,
+        chatSummaries: ChartSummary[],
+    ) => {
+        // TODO move to space utils ?
+        const spaces = await this.spaceModel.find({ projectUuid });
+
+        const hasSpaceAccess = await Promise.all(
+            spaces.map(async (space) =>
+                user.ability.can(
+                    'view',
+                    subject('Space', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                        isPrivate: space.isPrivate,
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            space.uuid,
+                        ),
+                    }),
+                ),
+            ),
+        );
+
+        const allowedSpaceUuids = spaces
+            .filter((_, index) => hasSpaceAccess[index])
+            .map(({ uuid }) => uuid);
+
+        return chatSummaries.filter((chart) =>
+            allowedSpaceUuids.includes(chart.spaceUuid),
+        );
+    };
+
+    async getAnalytics(
+        user: SessionUser,
+        projectUuid: string,
+        table: string,
+    ): Promise<CatalogAnalytics> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+            exploreName: table,
+        });
+        const chartsWithAccess = await this.filterChartsWithAccess(
+            user,
+            projectUuid,
+            chartSummaries,
+        );
+        const chartAnalytics: CatalogAnalytics['charts'] = chartsWithAccess.map(
+            (chart) => ({
+                name: chart.name,
+                uuid: chart.uuid,
+                spaceUuid: chart.spaceUuid,
+                spaceName: chart.spaceName,
+                dashboardName: chart.dashboardName,
+                dashboardUuid: chart.dashboardUuid,
+            }),
+        );
+        return { charts: chartAnalytics };
     }
 }

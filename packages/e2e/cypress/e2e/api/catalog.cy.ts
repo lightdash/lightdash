@@ -1,4 +1,9 @@
 import { SEED_PROJECT } from '@lightdash/common';
+import {
+    chartMock,
+    createChartAndUpdateDashboard,
+    createDashboard,
+} from './dashboard.cy';
 
 const apiUrl = '/api/v1';
 
@@ -251,6 +256,101 @@ describe('Lightdash catalog search', () => {
         ).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(resp.body.results).to.have.length(0);
+        });
+    });
+});
+
+describe.only('Lightdash analytics', () => {
+    beforeEach(() => {
+        cy.login();
+    });
+    it('Should get analytics for customers table', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/customers/analytics`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results.charts).to.have.length.gte(1);
+
+            const chart = resp.body.results.charts.find(
+                (c) => c.name === 'How many users were created each month ?',
+            );
+
+            expect(chart).to.have.property('dashboardName', null);
+            expect(chart).to.have.property('spaceName', 'Jaffle shop');
+            expect(chart).to.have.property(
+                'name',
+                'How many users were created each month ?',
+            );
+            expect(chart).to.have.property('uuid');
+            expect(chart).to.have.property('spaceUuid');
+        });
+    });
+
+    it('Should get analytics for payments table', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/payments/analytics`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results.charts).to.have.length.gte(2); // at least 2
+
+            const chart = resp.body.results.charts.find(
+                (c) =>
+                    c.name ===
+                    'How much revenue do we have per payment method?',
+            );
+            expect(chart).to.have.property('dashboardName', null);
+            expect(chart).to.have.property('spaceName', 'Jaffle shop');
+            expect(chart).to.have.property(
+                'name',
+                'How much revenue do we have per payment method?',
+            );
+            expect(chart).to.have.property('uuid');
+            expect(chart).to.have.property('spaceUuid');
+        });
+    });
+
+    it('Should get analytics for charts within dashboards', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const time = new Date().getTime();
+        const dashboardName = `Dashboard ${time}`;
+        const chartName = `Chart within dashboard ${time}`;
+        // create dashboard
+        createDashboard(projectUuid, {
+            name: dashboardName,
+            tiles: [],
+            tabs: [],
+        }).then((newDashboard) => {
+            // update dashboard with chart
+            createChartAndUpdateDashboard(projectUuid, {
+                ...chartMock,
+                name: chartName,
+                dashboardUuid: newDashboard.uuid,
+                spaceUuid: null,
+            }).then(({ dashboard: updatedDashboard }) => {
+                cy.request(
+                    `${apiUrl}/projects/${projectUuid}/dataCatalog/${chartMock.tableName}/analytics`,
+                ).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    expect(resp.body.results.charts).to.have.length.gte(1);
+
+                    const chart = resp.body.results.charts.find(
+                        (c) => c.name === chartName,
+                    );
+                    expect(chart).to.have.property(
+                        'dashboardName',
+                        dashboardName,
+                    );
+                    expect(chart).to.have.property('spaceName', 'Jaffle shop'); // default space
+                    expect(chart).to.have.property('name', chartName);
+                    expect(chart).to.have.property('uuid');
+                    expect(chart).to.have.property(
+                        'spaceUuid',
+                        updatedDashboard.spaceUuid,
+                    );
+                });
+            });
         });
     });
 });

@@ -268,6 +268,55 @@
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
             },
+            "Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "dashboardUuid",
+                    "dashboardName"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogAnalytics": {
+                "properties": {
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["charts"],
+                "type": "object"
+            },
+            "ApiCatalogAnalyticsResults": {
+                "$ref": "#/components/schemas/CatalogAnalytics"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -2404,15 +2453,19 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
                     },
                     "views": {
                         "type": "number",
@@ -2430,10 +2483,6 @@
                         ],
                         "nullable": true
                     },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
@@ -2449,11 +2498,11 @@
                 "required": [
                     "name",
                     "uuid",
-                    "updatedAt",
                     "spaceUuid",
+                    "pinnedListUuid",
+                    "updatedAt",
                     "views",
                     "firstViewedAt",
-                    "pinnedListUuid",
                     "pinnedListOrder"
                 ],
                 "type": "object",
@@ -2512,15 +2561,19 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
                     },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
                     },
                     "views": {
                         "type": "number",
@@ -2536,10 +2589,6 @@
                                 "type": "string"
                             }
                         ],
-                        "nullable": true
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
                         "nullable": true
                     },
                     "pinnedListOrder": {
@@ -2563,11 +2612,11 @@
                 "required": [
                     "name",
                     "uuid",
-                    "updatedAt",
                     "spaceUuid",
+                    "pinnedListUuid",
+                    "updatedAt",
                     "views",
                     "firstViewedAt",
-                    "pinnedListUuid",
                     "pinnedListOrder"
                 ],
                 "type": "object",
@@ -2597,13 +2646,13 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
                     "uuid": {
                         "type": "string"
                     },
                     "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -2621,9 +2670,9 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
                     "projectUuid",
+                    "organizationUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "isPrivate"
@@ -3520,24 +3569,24 @@
                     "description": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
                     "uuid": {
                         "type": "string"
                     },
-                    "projectUuid": {
+                    "spaceName": {
                         "type": "string"
                     },
                     "spaceUuid": {
                         "type": "string"
                     },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "spaceName": {
-                        "type": "string"
                     },
                     "dashboardUuid": {
                         "type": "string",
@@ -3550,12 +3599,12 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
-                    "projectUuid",
-                    "spaceUuid",
-                    "pinnedListUuid",
                     "spaceName",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
                     "dashboardUuid",
                     "dashboardName"
                 ],
@@ -3684,13 +3733,13 @@
                     "name": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
                     "uuid": {
                         "type": "string"
                     },
                     "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
@@ -3711,9 +3760,9 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
                     "projectUuid",
+                    "organizationUuid",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "isPrivate",
@@ -5209,36 +5258,24 @@
                     "description": {
                         "type": "string"
                     },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
                     "uuid": {
                         "type": "string"
                     },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
                     },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
+                    "organizationUuid": {
                         "type": "string"
                     },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "spaceName": {
-                        "type": "string"
                     },
                     "dashboardUuid": {
                         "type": "string",
@@ -5246,6 +5283,18 @@
                     },
                     "dashboardName": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
                         "nullable": true
                     },
                     "slug": {
@@ -5293,16 +5342,16 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
-                    "updatedAt",
-                    "projectUuid",
-                    "spaceUuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
                     "spaceName",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
                     "dashboardUuid",
                     "dashboardName",
+                    "updatedAt",
+                    "pinnedListOrder",
                     "slug",
                     "tableName",
                     "metricQuery",
@@ -6079,24 +6128,28 @@
                     "description": {
                         "type": "string"
                     },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
                     "organizationUuid": {
                         "type": "string"
                     },
-                    "uuid": {
-                        "type": "string"
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
                     },
-                    "projectUuid": {
-                        "type": "string"
-                    },
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
                     },
                     "views": {
                         "type": "number",
@@ -6114,10 +6167,6 @@
                         ],
                         "nullable": true
                     },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
@@ -6126,14 +6175,14 @@
                 },
                 "required": [
                     "name",
-                    "organizationUuid",
                     "uuid",
-                    "updatedAt",
-                    "projectUuid",
                     "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "updatedAt",
                     "views",
                     "firstViewedAt",
-                    "pinnedListUuid",
                     "pinnedListOrder"
                 ],
                 "type": "object",
@@ -7080,10 +7129,10 @@
             },
             "Pick_ValidationResponseBase.Exclude_keyofValidationResponseBase.name__": {
                 "properties": {
-                    "projectUuid": {
+                    "spaceUuid": {
                         "type": "string"
                     },
-                    "spaceUuid": {
+                    "projectUuid": {
                         "type": "string"
                     },
                     "validationId": {
@@ -7321,6 +7370,66 @@
                     },
                     {
                         "description": "Table name to get metadata for",
+                        "in": "path",
+                        "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{table}/analytics": {
+            "get": {
+                "operationId": "getAnalytics",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogAnalyticsResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog analytics",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Table name to get analytics for",
                         "in": "path",
                         "name": "table",
                         "required": true,
