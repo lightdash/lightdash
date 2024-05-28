@@ -30,13 +30,12 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
             <UnstyledButton
                 onClick={toggleOpen}
                 sx={(theme) => ({
-                    backgroundColor: theme.colors.gray[3],
                     borderRadius: theme.radius.sm,
                     padding: theme.spacing.xs,
                     width: '100%',
                 })}
             >
-                <Group spacing={'sm'}>
+                <Group spacing={'xs'}>
                     <MantineIcon
                         icon={IconChevronRight}
                         size={14}
@@ -47,7 +46,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                         }}
                     />
                     <MantineIcon
-                        size={'xl'}
+                        size={'md'}
                         color="gray"
                         icon={IconBoxMultiple}
                     />
@@ -60,7 +59,15 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                 </Group>
             </UnstyledButton>
             <Collapse in={isOpen} pl="md">
-                <Box>{children}</Box>
+                <Box
+                    sx={(theme) => ({
+                        border: `1px solid ${theme.colors.gray[2]}`,
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: 'white',
+                    })}
+                >
+                    {children}
+                </Box>
             </Collapse>
         </>
     );

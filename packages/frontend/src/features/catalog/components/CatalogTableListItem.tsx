@@ -1,17 +1,16 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Collapse,
     Group,
     Highlight,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
-    IconChevronRight,
     IconExternalLink,
-    IconLayersLinked,
+    IconLayersIntersect,
     IconTable,
 } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
@@ -53,15 +52,12 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
             <Group
                 noWrap
                 position="apart"
-                py="sm"
+                spacing="xs"
                 px="xs"
                 sx={(theme) => ({
                     minHeight: 40,
-                    borderRadius: theme.radius.sm,
-                    padding: theme.spacing.md,
-                    backgroundColor: hovered
-                        ? theme.colors.gray[2]
-                        : theme.colors.gray[1],
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    backgroundColor: hovered ? theme.colors.gray[1] : 'white',
                     border: isSelected
                         ? `2px solid ${theme.colors.blue[6]}`
                         : undefined,
@@ -70,51 +66,49 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
+                pos="relative"
             >
-                <Group w={55} noWrap spacing="xs">
-                    <ActionIcon
-                        onClick={handleOpenClick}
-                        disabled={table.fields.length === 0}
-                    >
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            style={{
-                                margin: 1,
-                                transition: 'transform 200ms ease',
-                                transform: isOpen ? 'rotate(90deg)' : undefined,
-                            }}
-                        />
-                    </ActionIcon>
+                <UnstyledButton onClick={handleOpenClick} miw={150}>
+                    <Group noWrap spacing="xs">
+                        <Group noWrap>
+                            <MantineIcon
+                                icon={IconTable}
+                                color="grape"
+                                size="md"
+                            />
 
-                    <MantineIcon
-                        icon={IconTable}
-                        color="gray"
-                        size="lg"
-                    ></MantineIcon>
-                </Group>
-                <Box miw={150}>
-                    <Highlight
-                        highlight={searchString}
-                        highlightColor="violet"
-                        fw={600}
-                    >
-                        {table.name || ''}
-                    </Highlight>
-                </Box>
+                            <Highlight
+                                highlight={searchString}
+                                highlightColor="violet"
+                                fz="sm"
+                                fw={600}
+                            >
+                                {table.name || ''}
+                            </Highlight>
+                        </Group>
+                    </Group>
+                </UnstyledButton>
+
                 <Box w={50}>
                     {countJoinedTables > 0 && (
-                        <Tooltip label={`${countJoinedTables} joined tables`}>
-                            <Group noWrap spacing="xs">
+                        <Tooltip
+                            variant="xs"
+                            label={`${countJoinedTables} joined tables`}
+                        >
+                            <Group noWrap spacing="one">
                                 <MantineIcon
                                     color="gray"
-                                    icon={IconLayersLinked}
+                                    icon={IconLayersIntersect}
                                 />
-                                <Text color="gray">{countJoinedTables}</Text>
+                                <Text fw={500} fz="xs" color="gray">
+                                    {countJoinedTables}
+                                </Text>
                             </Group>
                         </Tooltip>
                     )}
                 </Box>
                 <Highlight
+                    fz="xs"
                     w="100%"
                     lineClamp={2}
                     highlight={searchString}
@@ -123,13 +117,30 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     {table.description || ''}
                 </Highlight>
                 {hovered && (
-                    <Box>
+                    <Box
+                        pos={'absolute'}
+                        right={10}
+                        sx={{
+                            zIndex: 20,
+                        }}
+                    >
                         <MantineLinkButton
+                            size="xs"
                             href={url}
-                            variant="subtle"
                             target="_blank"
                             compact
-                            rightIcon={<MantineIcon icon={IconExternalLink} />}
+                            rightIcon={
+                                <MantineIcon
+                                    size="sm"
+                                    icon={IconExternalLink}
+                                />
+                            }
+                            sx={(theme) => ({
+                                backgroundColor: theme.colors.gray[8],
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[9],
+                                },
+                            })}
                         >
                             Use table
                         </MantineLinkButton>

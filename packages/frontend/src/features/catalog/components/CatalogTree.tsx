@@ -1,5 +1,5 @@
-import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Stack, Tooltip } from '@mantine/core';
+import { type CatalogSelection, type CatalogType } from '@lightdash/common';
+import { Box, Paper, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -36,7 +36,7 @@ const renderTreeNode = ({
                 tableCount={Object.keys(node.tables).length}
             >
                 {Object.keys(node.tables).length > 0 && (
-                    <Stack spacing={3}>
+                    <Stack spacing={0}>
                         {Object.entries(node.tables).map(([_, value]) =>
                             renderTreeNode({
                                 node: value,
@@ -117,21 +117,23 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Tooltip.Group>
-            <Stack
-                sx={{ maxHeight: '900px', overflow: 'scroll' }}
-                spacing="xs"
-                key={`catalog-tree-${searchString}`}
-            >
-                {Object.entries(tree).map(([_, value]) =>
-                    renderTreeNode({
-                        node: value,
-                        projectUuid,
-                        onItemClick,
-                        selection,
-                        searchString,
-                    }),
-                )}
-            </Stack>
+            <Paper withBorder bg="gray.0">
+                <Box
+                    sx={{ maxHeight: '900px', overflow: 'scroll' }}
+                    p="xs"
+                    key={`catalog-tree-${searchString}`}
+                >
+                    {Object.entries(tree).map(([_, value]) =>
+                        renderTreeNode(
+                            value,
+                            projectUuid,
+                            onItemClick,
+                            selection,
+                            searchString,
+                        ),
+                    )}
+                </Box>
+            </Paper>
         </Tooltip.Group>
     );
 };
