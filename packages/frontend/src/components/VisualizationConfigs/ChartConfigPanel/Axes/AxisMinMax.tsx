@@ -8,30 +8,18 @@ import { Config } from '../../common/Config';
 type Props = {
     label: string;
     min: string | undefined;
-    minOffset?: string | undefined;
     max: string | undefined;
-    maxOffset?: string | undefined;
     setMin: (value: string | undefined) => void;
-    setMinOffset?: (value: string | undefined) => void;
     setMax: (value: string | undefined) => void;
-    setMaxOffset?: (value: string | undefined) => void;
 };
 
-export const AxisMinMax: FC<Props> = ({
-    label,
-    min,
-    max,
-    setMin,
-
-    setMax,
-}) => {
+export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
     const [isAuto, toggleAuto] = useToggle(!(min || max));
     const { track } = useTracking();
 
     const clearRange = useCallback(() => {
         if (!isAuto) {
             setMin(undefined);
-
             setMax(undefined);
         }
         return;
@@ -43,9 +31,7 @@ export const AxisMinMax: FC<Props> = ({
                 label={isAuto && label}
                 checked={isAuto}
                 onChange={() => {
-                    toggleAuto((prev: boolean) => {
-                        return !prev;
-                    });
+                    toggleAuto((prev: boolean) => !prev);
 
                     clearRange();
                     track({
@@ -57,7 +43,7 @@ export const AxisMinMax: FC<Props> = ({
                 }}
             />
             {!isAuto && (
-                <Group spacing={'xs'} noWrap>
+                <Group noWrap spacing="xs">
                     <Config.Label>Min</Config.Label>
                     <TextInput
                         placeholder="Min"
