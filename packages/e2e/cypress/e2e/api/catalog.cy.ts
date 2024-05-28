@@ -251,7 +251,7 @@ describe('Lightdash catalog search', () => {
     });
 });
 
-describe.only('Lightdash analytics', () => {
+describe('Lightdash analytics', () => {
     beforeEach(() => {
         cy.login();
     });
@@ -342,6 +342,30 @@ describe.only('Lightdash analytics', () => {
                     );
                 });
             });
+        });
+    });
+
+    it('Should get analytics for fields', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/payments/analytics/payment_method`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+            expect(resp.body.results.charts).to.have.length.gte(3); // at least 3
+
+            const chart = resp.body.results.charts.find(
+                (c) =>
+                    c.name ===
+                    'How much revenue do we have per payment method?',
+            );
+            expect(chart).to.have.property('dashboardName', null);
+            expect(chart).to.have.property('spaceName', 'Jaffle shop');
+            expect(chart).to.have.property(
+                'name',
+                'How much revenue do we have per payment method?',
+            );
+            expect(chart).to.have.property('uuid');
+            expect(chart).to.have.property('spaceUuid');
         });
     });
 });

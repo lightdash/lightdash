@@ -59,7 +59,7 @@ export class CatalogController extends BaseController {
     }
 
     /**
-     * Get catalog metadata
+     * Get catalog metadata for tables
      * @param projectUuid
      * @param table Table name to get metadata for
      * @returns
@@ -85,7 +85,7 @@ export class CatalogController extends BaseController {
     }
 
     /**
-     * Get catalog analytics
+     * Get catalog analytics for tables
      * @param projectUuid
      * @param table Table name to get analytics for
      * @returns
@@ -104,6 +104,33 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getAnalytics(req.user!, projectUuid, table);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get catalog analytics for fields
+     * @param projectUuid
+     * @param field Field name to get analytics for
+     * @param table Table where this field belongs
+     * @returns
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{table}/analytics/{field}')
+    @OperationId('getAnalyticsField')
+    async getAnalyticsField(
+        @Path() projectUuid: string,
+        @Path() table: string,
+        @Path() field: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiCatalogAnalyticsResults }> {
+        this.setStatus(200);
+        const results = await this.services
+            .getCatalogService()
+            .getFieldAnalytics(req.user!, projectUuid, table, field);
         return {
             status: 'ok',
             results,

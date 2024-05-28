@@ -4698,6 +4698,12 @@
                     "inverse": {
                         "type": "boolean"
                     },
+                    "maxOffset": {
+                        "type": "string"
+                    },
+                    "minOffset": {
+                        "type": "string"
+                    },
                     "max": {
                         "type": "string"
                     },
@@ -7240,7 +7246,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1104.3",
+        "version": "0.1106.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7356,7 +7362,7 @@
                         }
                     }
                 },
-                "description": "Get catalog metadata",
+                "description": "Get catalog metadata for tables",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -7416,7 +7422,7 @@
                         }
                     }
                 },
-                "description": "Get catalog analytics",
+                "description": "Get catalog analytics for tables",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -7432,6 +7438,75 @@
                         "description": "Table name to get analytics for",
                         "in": "path",
                         "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{table}/analytics/{field}": {
+            "get": {
+                "operationId": "getAnalyticsField",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCatalogAnalyticsResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get catalog analytics for fields",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Table where this field belongs",
+                        "in": "path",
+                        "name": "table",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Field name to get analytics for",
+                        "in": "path",
+                        "name": "field",
                         "required": true,
                         "schema": {
                             "type": "string"
