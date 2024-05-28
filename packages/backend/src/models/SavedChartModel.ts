@@ -964,7 +964,7 @@ export class SavedChartModel {
         }
     }
 
-    async findChartItemIds(projectUuid: string): Promise<
+    async findChartsForValidation(projectUuid: string): Promise<
         Array<{
             uuid: string;
             name: string;

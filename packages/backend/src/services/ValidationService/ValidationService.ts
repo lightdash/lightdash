@@ -207,7 +207,9 @@ export class ValidationService extends BaseService {
             { dimensionIds: string[]; metricIds: string[] }
         >,
     ): Promise<CreateChartValidation[]> {
-        const charts = await this.savedChartModel.findChartItemIds(projectUuid);
+        const charts = await this.savedChartModel.findChartsForValidation(
+            projectUuid,
+        );
 
         const results = charts.flatMap(
             ({
