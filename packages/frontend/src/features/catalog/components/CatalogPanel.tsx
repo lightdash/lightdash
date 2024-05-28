@@ -75,8 +75,13 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
 }) => {
+    // There are 3 search varialbes:
+    // - search: the current search string
+    // - completeSearch: the 3+ char search string that gets sent to the backend
+    // - debouncedSearch: the complete search string debounced
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [completeSearch, setCompleteSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
     const { data: projectData } = useProject(projectUuid);
 
     const { data: catalogResults } = useCatalog({
@@ -105,6 +110,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     const handleSearchChange = useCallback(
         (searchString: string) => {
             setSearch(searchString);
+            if (searchString.length >= 3) {
+                setCompleteSearch(searchString);
+            } else {
+                setCompleteSearch('');
+            }
         },
         [setSearch],
     );
@@ -267,7 +277,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Group noWrap align="start">
-            <Stack w={selection ? '70%' : '100%'}>
+            <Stack w={selection ? '70%' : '100%'} spacing="xs">
                 <Box>
                     <Title order={4} mt="xxl">
                         {projectData?.name}
@@ -276,7 +286,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                         Select a table or field to start exploring.
                     </Text>
                 </Box>
-                <Group position="apart">
+                <Group position="apart" align="start" h={55}>
                     <TextInput
                         w={'40%'}
                         icon={<MantineIcon icon={IconSearch} />}
@@ -287,10 +297,21 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 </ActionIcon>
                             ) : null
                         }
-                        placeholder="Search tables"
+                        placeholder="Search tables and fields"
+                        description={
+                            search && search.length < 3
+                                ? 'Enter at least 3 characters to search'
+                                : undefined
+                        }
                         value={search}
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                    />{' '}
+                    />
                     <Group>
                         <SegmentedControl
                             w={200}

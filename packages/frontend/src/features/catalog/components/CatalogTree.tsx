@@ -30,6 +30,7 @@ const renderTreeNode = (
                     node.name === 'Ungrouped tables' ||
                     selection?.group === node.name
                 }
+                tableCount={Object.keys(node.tables).length}
             >
                 {Object.keys(node.tables).length > 0 && (
                     <Stack spacing={3}>
