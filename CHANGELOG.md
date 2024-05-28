@@ -1,3 +1,10 @@
+## [0.1106.1](https://github.com/lightdash/lightdash/compare/0.1106.0...0.1106.1) (2024-05-28)
+
+
+### Bug Fixes
+
+* show validation error ([#10217](https://github.com/lightdash/lightdash/issues/10217)) ([2739c63](https://github.com/lightdash/lightdash/commit/2739c634e7ec8ada89a81a07a56e34b159105996))
+
 # [0.1106.0](https://github.com/lightdash/lightdash/compare/0.1105.1...0.1106.0) (2024-05-28)
 
 
