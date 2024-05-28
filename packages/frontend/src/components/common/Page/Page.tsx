@@ -11,7 +11,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar from './Sidebar';
+import Sidebar, { SidebarPosition } from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
@@ -24,6 +24,7 @@ type StyleProps = {
     withPaddedContent?: boolean;
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
+    withRightSidebar?: boolean;
     hasBanner?: boolean;
 };
 
@@ -56,7 +57,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       overflowY: 'auto',
                   }),
 
-            ...(params.withSidebar
+            ...(params.withSidebar || params.withRightSidebar
                 ? {
                       display: 'flex',
                       flexDirection: 'row',
@@ -71,7 +72,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
             width: '100%',
             minWidth: PAGE_CONTENT_WIDTH,
 
-            ...(params.withSidebar
+            ...(params.withSidebar || params.withRightSidebar
                 ? {
                       minWidth: PAGE_MIN_CONTENT_WIDTH,
                   }
@@ -135,6 +136,8 @@ type Props = {
     title?: string;
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
+    rightSidebar?: React.ReactNode;
+    isRightSidebarOpen?: boolean;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
@@ -143,6 +146,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
+    rightSidebar,
+    isRightSidebarOpen = false,
 
     withCenteredContent = false,
     withFitContent = false,
@@ -177,6 +182,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withPaddedContent,
             withSidebar: !!sidebar,
             withSidebarFooter,
+            withRightSidebar: !!rightSidebar,
             hasBanner: isCurrentProjectPreview,
         },
         { name: 'Page' },
@@ -210,8 +216,18 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </TrackSection>
                 </Box>
 
-                {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
+                {rightSidebar ? (
+                    <Sidebar
+                        isOpen={isRightSidebarOpen}
+                        position={SidebarPosition.RIGHT}
+                    >
+                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                            {rightSidebar}
+                        </ErrorBoundary>
+                    </Sidebar>
+                ) : null}
             </Box>
+            {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
         </>
     );
 };
