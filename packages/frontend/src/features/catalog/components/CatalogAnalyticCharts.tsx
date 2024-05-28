@@ -1,6 +1,7 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
 import { Anchor, Flex, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { ChartIcon } from '../../../components/common/ResourceIcon';
 
 type Props = {
     projectUuid: string;
@@ -40,6 +41,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                     {chartsInSpace.map((chart) => {
                         return (
                             <Flex key={chart.uuid}>
+                                <ChartIcon chartKind={chart.chartKind} />
                                 <Anchor
                                     href={`/projects/${projectUuid}/spaces/${chart.spaceUuid}`}
                                 >
@@ -64,6 +66,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                     {chartsWithinDashboard.map((chart) => {
                         return (
                             <Flex key={chart.uuid}>
+                                <ChartIcon chartKind={chart.chartKind} />
                                 <Anchor
                                     target="_blank"
                                     href={`/projects/${projectUuid}/dashboards/${chart.dashboardUuid}`}

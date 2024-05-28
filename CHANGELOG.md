@@ -1,3 +1,24 @@
+# [0.1107.0](https://github.com/lightdash/lightdash/compare/0.1106.1...0.1107.0) (2024-05-28)
+
+
+### Features
+
+* add catalog chart kind to analytics ([#10220](https://github.com/lightdash/lightdash/issues/10220)) ([2daf9ea](https://github.com/lightdash/lightdash/commit/2daf9ea884d329f9b83bf8b7847589ebbe068165))
+
+## [0.1106.1](https://github.com/lightdash/lightdash/compare/0.1106.0...0.1106.1) (2024-05-28)
+
+
+### Bug Fixes
+
+* show validation error ([#10217](https://github.com/lightdash/lightdash/issues/10217)) ([2739c63](https://github.com/lightdash/lightdash/commit/2739c634e7ec8ada89a81a07a56e34b159105996))
+
+# [0.1106.0](https://github.com/lightdash/lightdash/compare/0.1105.1...0.1106.0) (2024-05-28)
+
+
+### Features
+
+* add right sidebar to page component ([#10212](https://github.com/lightdash/lightdash/issues/10212)) ([38ee604](https://github.com/lightdash/lightdash/commit/38ee604eaae211a32b25d84a56f781de236f3bb8))
+
 ## [0.1105.1](https://github.com/lightdash/lightdash/compare/0.1105.0...0.1105.1) (2024-05-28)
 
 

@@ -335,7 +335,23 @@ const models: TsoaRoute.Models = {
         type: { ref: 'CatalogMetadata', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_':
+    ChartKind: {
+        dataType: 'refEnum',
+        enums: [
+            'line',
+            'horizontal_bar',
+            'vertical_bar',
+            'scatter',
+            'area',
+            'mixed',
+            'pie',
+            'table',
+            'big_number',
+            'custom',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_':
         {
             dataType: 'refAlias',
             type: {
@@ -361,6 +377,13 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    chartKind: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ChartKind' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
                 validators: {},
             },
@@ -375,7 +398,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_',
+                        ref: 'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_',
                     },
                     required: true,
                 },
@@ -2369,22 +2392,6 @@ const models: TsoaRoute.Models = {
         enums: ['cartesian', 'table', 'big_number', 'pie', 'custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartKind: {
-        dataType: 'refEnum',
-        enums: [
-            'line',
-            'horizontal_bar',
-            'vertical_bar',
-            'scatter',
-            'area',
-            'mixed',
-            'pie',
-            'table',
-            'big_number',
-            'custom',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_':
         {
             dataType: 'refAlias',
@@ -2402,6 +2409,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
+                    },
+                    chartKind: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ChartKind' },
+                            { dataType: 'undefined' },
+                        ],
                     },
                     updatedAt: { dataType: 'datetime', required: true },
                     updatedByUser: { ref: 'UpdatedByUser' },
@@ -2434,13 +2448,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'ChartType' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    chartKind: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ChartKind' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -4252,6 +4259,20 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 rotate: { dataType: 'double' },
                 inverse: { dataType: 'boolean' },
+                maxOffset: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                minOffset: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 max: {
                     dataType: 'union',
                     subSchemas: [
