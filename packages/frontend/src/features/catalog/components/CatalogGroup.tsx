@@ -6,13 +6,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
     label: string;
+    startOpen?: boolean;
 };
 
 export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     label,
+    startOpen = false,
     children,
 }) => {
-    const [isOpen, toggleOpen] = useToggle(false);
+    const [isOpen, toggleOpen] = useToggle(startOpen);
 
     return (
         <>
@@ -45,7 +47,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     </Text>
                 </Group>
             </UnstyledButton>
-            <Collapse in={isOpen} pl="xl">
+            <Collapse in={isOpen} pl="md">
                 <Box>{children}</Box>
             </Collapse>
         </>

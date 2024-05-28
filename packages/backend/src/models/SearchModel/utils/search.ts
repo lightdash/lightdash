@@ -2,6 +2,17 @@ import { CompiledField, CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
+// To query multiple words with tsquery, we need to split the query and add `:*` to each word
+export function getFullTextSearchQuery(searchQuery: string) {
+    return searchQuery
+        .split(' ')
+        .map((word) => word.trim())
+        .filter((word) => word.length > 0)
+        .filter((word, index, self) => self.indexOf(word) === index)
+        .map((word) => word.concat(':*'))
+        .join(' & ');
+}
+
 export function getFullTextSearchRankCalcSql({
     database,
     variables,
@@ -9,13 +20,9 @@ export function getFullTextSearchRankCalcSql({
     database: Knex;
     variables: Record<string, string>;
 }) {
-    // To query multiple words with tsquery, we need to split the query and add `:*` to each word
     const updatedVariables = {
         ...variables,
-        searchQuery: variables.searchQuery
-            .split(' ')
-            .map((word) => word.replace(/[^a-zA-Z0-9]/g, '').concat(':*'))
-            .join(' | '),
+        searchQuery: getFullTextSearchQuery(variables.searchQuery),
     };
 
     return database.raw(

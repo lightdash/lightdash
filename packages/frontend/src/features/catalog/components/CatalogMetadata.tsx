@@ -60,6 +60,10 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                     </Tabs.Tab>
                 </Tabs.List>
                 <Tabs.Panel value="overview">
+                    <Text> Overview</Text>
+                    {/* TODO make this a tab*/}
+
+                    <Text>Tags</Text>
                     <Flex justify="space-between">
                         <Text>Model name </Text>
                         <Text
@@ -67,28 +71,28 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                             weight={700}
                             onDoubleClick={() => {
                                 history.push(
-                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
+                                    `/projects/${projectUuid}/tables/${data.modelName}`,
                                 );
                             }}
                         >
-                            {metadataResults.modelName}
+                            {data.modelName}
                         </Text>
                     </Flex>
                     <Flex justify="space-between">
                         <Text>Source </Text>
-                        <Text>{metadataResults.source}</Text>
+                        <Text>{data.source}</Text>
                     </Flex>
 
                     <Table>
                         <thead>
-                            <th>
-                                <td>field name</td>
-                                <td>type</td>
-                            </th>
+                            <tr>
+                                <th>field name</th>
+                                <th>type</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {metadataResults.fields?.map((field) => (
-                                <tr key="">
+                            {data.fields?.map((field) => (
+                                <tr key={field.name}>
                                     <td>{field.name}</td>
                                     <td>{field.basicType}</td>
                                 </tr>
@@ -107,7 +111,6 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                     </>
                 </Tabs.Panel>
             </Tabs>
-
             <Stack
                 p={10}
                 style={{

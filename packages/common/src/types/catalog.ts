@@ -1,5 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type InlineError } from './explore';
+import { type CompiledExploreJoin, type InlineError } from './explore';
 import {
     DimensionType,
     MetricType,
@@ -27,6 +27,8 @@ export type CatalogField = Pick<
     Pick<Dimension, 'requiredAttributes'> & {
         type: CatalogType.Field;
         basicType?: string; // string, number, timestamp... used in metadata
+        tableName: string;
+        tableGroupLabel?: string;
     };
 
 export type CatalogTable = Pick<
@@ -36,6 +38,7 @@ export type CatalogTable = Pick<
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
+    joinedTables?: CompiledExploreJoin[]; // Matched type in explore
 };
 
 export type CatalogItem = CatalogField | CatalogTable;

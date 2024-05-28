@@ -17,6 +17,8 @@ const parseFieldFromMetricOrDimension = (
     name: field.name,
     description: field.description,
     tableLabel: field.tableLabel,
+    tableName: table.name,
+    tableGroupLabel: table.groupLabel,
     fieldType: field.fieldType,
     basicType: getBasicType(field),
     type: CatalogType.Field,

@@ -92,6 +92,10 @@ export default defineConfig({
                 target: 'http://localhost:8080',
                 changeOrigin: true,
             },
+            '/slack/events': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+            },
         },
     },
     clearScreen: false,
