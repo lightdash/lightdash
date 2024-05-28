@@ -1183,11 +1183,19 @@ const getEchartAxes = ({
                         ? parseFloat(xAxisConfiguration?.[0]?.max)
                         : max;
 
-                const range = maxX - minX;
-                const minOffset =
-                    ((bottomAxisOffset.minOffset ?? 0) / 100) * range;
-                const maxOffset =
-                    ((bottomAxisOffset.maxOffset ?? 0) / 100) * range;
+                // Apply logarithmic scaling to the range to determine offsets
+                // This is helpful when the range is very large, but also accomodates small ranges
+                const logRange = Number(Math.log1p(maxX - minX).toFixed(0));
+
+                // Baseline offset to ensure minimum value
+                const baselineOffset = 0.5;
+
+                let minOffset =
+                    ((bottomAxisOffset.minOffset ?? 0) / 100) * logRange +
+                    baselineOffset;
+                let maxOffset =
+                    ((bottomAxisOffset.maxOffset ?? 0) / 100) * logRange +
+                    baselineOffset;
 
                 return {
                     min: minX - minOffset,
