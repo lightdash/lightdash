@@ -1,5 +1,8 @@
-import { type ApiCatalogMetadataResults } from '@lightdash/common';
-import { Flex, Stack, Table, Text } from '@mantine/core';
+import {
+    type ApiCatalogMetadataResults,
+    type CatalogSelection,
+} from '@lightdash/common';
+import { Flex, Stack, Table, Text, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
@@ -12,13 +15,16 @@ import { useHistory } from 'react-router-dom';
 type Props = {
     projectUuid: string;
     data: ApiCatalogMetadataResults;
+    selection?: CatalogSelection;
 };
 
 export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     data,
+    selection,
 }) => {
     const history = useHistory();
+    const theme = useMantineTheme();
     return (
         <Stack style={{ position: 'relative', minHeight: '100vh' }}>
             <Text
@@ -70,7 +76,17 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                 </thead>
                 <tbody>
                     {data.fields?.map((field) => (
-                        <tr key={field.name}>
+                        <tr
+                            key={field.name}
+                            style={{
+                                border:
+                                    selection &&
+                                    selection?.field &&
+                                    selection.field === field.name
+                                        ? `2px solid ${theme.colors.blue[6]}`
+                                        : undefined,
+                            }}
+                        >
                             <td>{field.name}</td>
                             <td>{field.basicType}</td>
                         </tr>

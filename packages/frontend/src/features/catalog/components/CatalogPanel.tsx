@@ -1,6 +1,7 @@
 import {
     CatalogType,
     type CatalogField,
+    type CatalogSelection,
     type CatalogTable,
 } from '@lightdash/common';
 import {
@@ -61,7 +62,6 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
             };
         });
 
-        // Assign the sorted tables to the sorted tree
         sortedTree[key] = {
             ...value,
             tables: sortedTables,
@@ -69,6 +69,29 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
     });
 
     return sortedTree;
+}
+
+// TODO: this could become a linked list if we need the performance
+function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
+    const selectionList: CatalogSelection[] = [];
+
+    Object.keys(tree).forEach((group) => {
+        Object.keys(tree[group].tables).forEach((table) => {
+            selectionList.push({
+                table,
+                group,
+            });
+            tree[group].tables[table].fields.forEach((field) => {
+                selectionList.push({
+                    table,
+                    group,
+                    field: field.name,
+                });
+            });
+        });
+    });
+
+    return selectionList;
 }
 
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
@@ -85,10 +108,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     });
 
     // TODO: add field
-    const [selection, setSelection] = useState<{
-        group: string;
-        table: string;
-    }>();
+    const [selection, setSelection] = useState<CatalogSelection>();
 
     const {
         mutate: getMetadata,
@@ -147,18 +167,28 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         return {};
     }, [catalogResults]);
 
+    const selectionList = useMemo(
+        () => getSelectionList(catalogTree),
+        [catalogTree],
+    );
+
     const selectAndGetMetadata = useCallback(
-        (tableName: string, groupName: string) => {
+        (selectedItem: CatalogSelection) => {
+            if (!selectedItem.table) return;
+
             // For optimization purposes, we could only make this request if metadata panel is open
-            setSelection({ table: tableName, group: groupName });
+            setSelection({
+                table: selectedItem.table,
+                group: selectedItem.group || 'Ungrouped tables',
+                field: selectedItem.field,
+            });
 
             if (catalogResults) {
                 const table = catalogResults.find(
-                    (item) => item.name === tableName,
+                    (item) => item.name === selectedItem.table,
                 );
                 if (table && table.type === CatalogType.Table)
-                    getMetadata(tableName);
-                else console.warn('Metadata not available for fields');
+                    getMetadata(selectedItem.table);
             }
         },
         [catalogResults, getMetadata],
@@ -172,32 +202,25 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 'ArrowDown',
                 () => {
                     if (selection) {
-                        //TODO move around grouped items
-                        const treeKeys = Object.keys(
-                            catalogTree[selection.group].tables,
+                        const selectedIndex = selectionList.findIndex(
+                            (item) =>
+                                item.table === selection.table &&
+                                item.group === selection.group &&
+                                item.field === selection.field,
                         );
-
-                        const selectedIndex = treeKeys.findIndex(
-                            (name) => name === selection.table,
-                        );
-
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < treeKeys.length
+                            selectedIndex < selectionList.length
                         ) {
                             selectAndGetMetadata(
-                                treeKeys[(selectedIndex + 1) % treeKeys.length],
-                                selection.group,
+                                selectionList[
+                                    (selectedIndex + 1) % selectionList.length
+                                ],
                             );
                         }
                     } else {
                         // Get the first table in the first group
-                        selectAndGetMetadata(
-                            Object.entries(
-                                Object.entries(catalogTree)[0][1].tables,
-                            )[0][1].name,
-                            Object.keys(catalogTree)[0],
-                        );
+                        selectAndGetMetadata(selectionList[0]);
                     }
                 },
             ],
@@ -205,33 +228,26 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 'ArrowUp',
                 () => {
                     if (selection) {
-                        //TODO move around grouped items
-                        const treeKeys = Object.keys(
-                            catalogTree[selection.group].tables,
-                        );
-
-                        const selectedIndex = treeKeys.findIndex(
-                            (name) => name === selection.table,
+                        const selectedIndex = selectionList.findIndex(
+                            (item) =>
+                                item.table === selection.table &&
+                                item.group === selection.group &&
+                                item.field === selection.field,
                         );
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < treeKeys.length
+                            selectedIndex < selectionList.length
                         ) {
                             selectAndGetMetadata(
-                                treeKeys[
-                                    (selectedIndex - 1 + treeKeys.length) %
-                                        treeKeys.length
+                                selectionList[
+                                    (selectedIndex - 1 + selectionList.length) %
+                                        selectionList.length
                                 ],
-                                selection.group,
                             );
                         }
                     } else {
-                        // Get the first table in the first group
                         selectAndGetMetadata(
-                            Object.entries(
-                                Object.entries(catalogTree)[0][1].tables,
-                            )[0][1].name,
-                            Object.keys(catalogTree)[0],
+                            selectionList[selectionList.length - 1],
                         );
                     }
                 },
@@ -318,7 +334,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                         projectUuid={projectUuid}
                         searchString={debouncedSearch}
                         selection={selection}
-                        onTableClick={selectAndGetMetadata}
+                        onItemClick={selectAndGetMetadata}
                     />
                 </Stack>
             </Stack>
@@ -330,17 +346,8 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                                 closeMetadata();
                                 setSelection(undefined);
                             } else if (selection === undefined)
-                                selectAndGetMetadata(
-                                    catalogTree[Object.keys(catalogTree)[0]]
-                                        .tables[0].name,
-                                    catalogTree[Object.keys(catalogTree)[0]]
-                                        .name,
-                                );
-                            else
-                                selectAndGetMetadata(
-                                    selection.table,
-                                    selection.group,
-                                );
+                                selectAndGetMetadata(selectionList[0]);
+                            else selectAndGetMetadata(selection);
                         }}
                     >
                         {metadata ? 'Hide metadata' : 'Show metadata'}
@@ -350,6 +357,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                         <CatalogMetadata
                             data={metadata}
                             projectUuid={projectUuid}
+                            selection={selection}
                         />
                     )}
                 </Stack>
