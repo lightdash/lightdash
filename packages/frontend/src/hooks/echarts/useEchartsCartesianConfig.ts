@@ -904,8 +904,6 @@ const getEchartAxes = ({
         [true, true],
     );
 
-    console.log({ series });
-
     const getAxisFormatter = ({
         axisItem,
         longestLabelWidth,
