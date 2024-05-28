@@ -11,6 +11,7 @@ import {
     NumberInput,
     SegmentedControl,
     Stack,
+    Switch,
     TextInput,
 } from '@mantine/core';
 import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
@@ -25,6 +26,8 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
+const DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE = '5';
+
 export const Axes: FC<Props> = ({ itemsMap }) => {
     const { visualizationConfig } = useVisualizationContext();
 
@@ -38,7 +41,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setYMinValue,
         setYMaxValue,
         setXMinValue,
+        setXMinOffsetValue,
         setXMaxValue,
+        setXMaxOffsetValue,
         setShowGridX,
         setShowGridY,
         setInverseX,
@@ -101,6 +106,35 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setMin={(newValue) => setXMinValue(0, newValue)}
                             setMax={(newValue) => setXMaxValue(0, newValue)}
                         />
+                    )}
+
+                    {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
+                        <>
+                            <Switch
+                                label="Truncate x-axis"
+                                checked={
+                                    dirtyEchartsConfig?.xAxis?.[0]
+                                        ?.minOffset !== undefined ||
+                                    dirtyEchartsConfig?.xAxis?.[0]
+                                        ?.maxOffset !== undefined
+                                }
+                                onChange={(e) => {
+                                    if (e.target.checked) {
+                                        setXMaxOffsetValue(
+                                            0,
+                                            DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
+                                        );
+                                        setXMinOffsetValue(
+                                            0,
+                                            DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE,
+                                        );
+                                    } else {
+                                        setXMaxOffsetValue(0, undefined);
+                                        setXMinOffsetValue(0, undefined);
+                                    }
+                                }}
+                            />
+                        </>
                     )}
                     <Group spacing="xs">
                         <Group spacing="xs">
