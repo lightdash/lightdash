@@ -13,6 +13,7 @@ import { DbCatalog } from '../../../database/entities/catalog';
 const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
+    tags: string[],
 ): CatalogField => ({
     name: field.name,
     description: field.description,
@@ -23,6 +24,7 @@ const parseFieldFromMetricOrDimension = (
     basicType: getBasicType(field),
     type: CatalogType.Field,
     requiredAttributes: field?.requiredAttributes || table.requiredAttributes,
+    tags,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -33,7 +35,7 @@ export const parseFieldsFromCompiledTable = (
         ...Object.values(table.metrics),
     ];
     return tableFields.map((field) =>
-        parseFieldFromMetricOrDimension(table, field),
+        parseFieldFromMetricOrDimension(table, field, []),
     );
 };
 
@@ -49,6 +51,7 @@ export const parseCatalog = (
             description: dbCatalog.description || undefined,
             type: CatalogType.Table,
             requiredAttributes: baseTable.requiredAttributes,
+            tags: dbCatalog.explore.tags,
         };
     }
 
@@ -67,5 +70,9 @@ export const parseCatalog = (
             `Field ${dbCatalog.name} not found in explore ${dbCatalog.explore.name}`,
         );
     }
-    return parseFieldFromMetricOrDimension(baseTable, findField);
+    return parseFieldFromMetricOrDimension(
+        baseTable,
+        findField,
+        dbCatalog.explore.tags,
+    );
 };
