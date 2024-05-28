@@ -1,3 +1,10 @@
+# [0.1106.0](https://github.com/lightdash/lightdash/compare/0.1105.1...0.1106.0) (2024-05-28)
+
+
+### Features
+
+* add right sidebar to page component ([#10212](https://github.com/lightdash/lightdash/issues/10212)) ([38ee604](https://github.com/lightdash/lightdash/commit/38ee604eaae211a32b25d84a56f781de236f3bb8))
+
 ## [0.1105.1](https://github.com/lightdash/lightdash/compare/0.1105.0...0.1105.1) (2024-05-28)
 
 
