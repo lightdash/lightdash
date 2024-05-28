@@ -16,7 +16,6 @@ import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 type Props = {
     projectUuid: string;
-    data: ApiCatalogMetadataResults;
     selection?: CatalogSelection;
     metadataResults: ApiCatalogMetadataResults;
     analyticResults?: ApiCatalogAnalyticsResults;
