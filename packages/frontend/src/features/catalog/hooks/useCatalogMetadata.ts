@@ -21,13 +21,17 @@ const fetchCatalogMetadata = async ({
         body: undefined,
     });
 
-export const useCatalogMetadata = (projectUuid: string) => {
+export const useCatalogMetadata = (
+    projectUuid: string,
+    onSuccess: (data: ApiCatalogMetadataResults) => void,
+) => {
     const setErrorResponse = useQueryError();
 
     return useMutation<ApiCatalogMetadataResults, ApiError, string>(
         (table) => fetchCatalogMetadata({ projectUuid, table }),
         {
             mutationKey: ['catalog_metadata', projectUuid],
+            onSuccess: (data) => onSuccess(data),
             onError: (result) => setErrorResponse(result),
         },
     );

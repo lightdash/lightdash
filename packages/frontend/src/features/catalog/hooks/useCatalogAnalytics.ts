@@ -21,13 +21,17 @@ const fetchCatalogAnalytics = async ({
         body: undefined,
     });
 
-export const useCatalogAnalytics = (projectUuid: string) => {
+export const useCatalogAnalytics = (
+    projectUuid: string,
+    onSuccess: (data: ApiCatalogAnalyticsResults) => void,
+) => {
     const setErrorResponse = useQueryError();
 
     return useMutation<ApiCatalogAnalyticsResults, ApiError, string>(
         (table) => fetchCatalogAnalytics({ projectUuid, table }),
         {
             mutationKey: ['catalog_analytics', projectUuid],
+            onSuccess: (data) => onSuccess(data),
             onError: (result) => setErrorResponse(result),
         },
     );

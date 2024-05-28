@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
@@ -96,27 +96,25 @@ export const CatalogPanel: FC = () => {
         mutate: getMetadata,
         data: metadata,
         reset: closeMetadata,
-        isSuccess,
-    } = useCatalogMetadata(projectUuid);
-    const {
-        mutate: getAnalytics,
-        data: analytics,
-        isSuccess: isAnalyticsSuccess,
-    } = useCatalogAnalytics(projectUuid);
+    } = useCatalogMetadata(projectUuid, (data) => {
+        console.log('metadata', data);
 
-    useEffect(() => {
-        if (isSuccess) {
-            setMetadata(metadata);
+        if (data) {
+            setMetadata(data);
         }
 
-        if (!isSidebarOpen && metadata) {
+        if (!isSidebarOpen && data) {
             setSidebarOpen(true);
         }
-    }, [isSidebarOpen, isSuccess, metadata, setMetadata, setSidebarOpen]);
-
-    useEffect(() => {
-        setAnalyticsResults(analytics);
-    }, [isAnalyticsSuccess, analytics, setAnalyticsResults]);
+    });
+    const { mutate: getAnalytics } = useCatalogAnalytics(
+        projectUuid,
+        (data) => {
+            if (data) {
+                setAnalyticsResults(data);
+            }
+        },
+    );
 
     const handleSearchChange = useCallback(
         (searchString: string) => {

@@ -12,17 +12,20 @@ import {
     IconArrowUp,
     IconCornerDownLeft,
 } from '@tabler/icons-react';
+import { useIsFetching } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
-    // TODO: fix
-    const [isAnalyticsLoading] = useState(false);
     const { projectUuid, metadata, analyticsResults } = useCatalogContext();
+
+    const isFetchingAnalytics = useIsFetching({
+        queryKey: ['catalog_analytics', projectUuid],
+    });
     const history = useHistory();
 
     if (!metadata) return null;
@@ -60,7 +63,7 @@ export const CatalogMetadata: FC = () => {
                         <Tabs.Tab value={'analytics'} mx="md">
                             {/* TODO replace loading with spinner ?*/}
                             analytics (
-                            {isAnalyticsLoading
+                            {isFetchingAnalytics
                                 ? '.'
                                 : analyticsResults?.charts.length || '0'}
                             )
@@ -69,6 +72,7 @@ export const CatalogMetadata: FC = () => {
                     <Tabs.Panel value="overview">
                         <Text> Overview</Text>
                         {/* TODO make this a tab*/}
+
                         <Text>Tags</Text>
                         <Flex justify="space-between">
                             <Text>Model name </Text>
@@ -88,50 +92,7 @@ export const CatalogMetadata: FC = () => {
                             <Text>Source </Text>
                             <Text>{metadata.source}</Text>
                         </Flex>
-                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
-                        );
-                        <Text>{metadata.name}</Text>
-                        <MarkdownPreview
-                            style={{ fontSize: 'small' }}
-                            source={metadata.description}
-                        />
-                        <Text> Overview</Text>
-                        {/* TODO make this a tab*/}
-                        <Text>Tags</Text>
-                        <Flex justify="space-between">
-                            <Text>Model name </Text>
-                            <Text
-                                underline={true}
-                                weight={700}
-                                onDoubleClick={() => {
-                                    history.push(
-                                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
-                                    );
-                                }}
-                            >
-                                {metadata.modelName}
-                            </Text>
-                        </Flex>
-                        <Flex justify="space-between">
-                            <Text>Source </Text>
-                            <Text>{metadata.source}</Text>
-                        </Flex>
-                        <Table>
-                            <thead>
-                                <tr>
-                                    <th>field name</th>
-                                    <th>type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {metadata.fields?.map((field) => (
-                                    <tr key={field.name}>
-                                        <td>{field.name}</td>
-                                        <td>{field.basicType}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
+
                         <Table>
                             <thead>
                                 <tr>
