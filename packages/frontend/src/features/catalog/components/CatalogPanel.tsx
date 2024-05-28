@@ -16,19 +16,15 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
-import { CatalogMetadata } from './CatalogMetadata';
 import { CatalogTree } from './CatalogTree';
-
-type Props = {
-    projectUuid: string;
-};
 
 type CatalogTreeType = {
     [key: string]: {
@@ -72,9 +68,14 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
     return sortedTree;
 }
 
-export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
-    projectUuid,
-}) => {
+export const CatalogPanel: FC = () => {
+    const {
+        setMetadata,
+        isSidebarOpen,
+        setAnalyticsResults,
+        setSidebarOpen,
+        projectUuid,
+    } = useCatalogContext();
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data: projectData } = useProject(projectUuid);
@@ -95,12 +96,27 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         mutate: getMetadata,
         data: metadata,
         reset: closeMetadata,
+        isSuccess,
     } = useCatalogMetadata(projectUuid);
     const {
         mutate: getAnalytics,
-        isLoading: isAnalyticsLoading,
         data: analytics,
+        isSuccess: isAnalyticsSuccess,
     } = useCatalogAnalytics(projectUuid);
+
+    useEffect(() => {
+        if (isSuccess) {
+            setMetadata(metadata);
+        }
+
+        if (!isSidebarOpen && metadata) {
+            setSidebarOpen(true);
+        }
+    }, [isSidebarOpen, isSuccess, metadata, setMetadata, setSidebarOpen]);
+
+    useEffect(() => {
+        setAnalyticsResults(analytics);
+    }, [isAnalyticsSuccess, analytics, setAnalyticsResults]);
 
     const handleSearchChange = useCallback(
         (searchString: string) => {
@@ -267,15 +283,44 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Group noWrap align="start">
-            <Stack w={selection ? '70%' : '100%'}>
-                <Box>
-                    <Title order={4} mt="xxl">
-                        {projectData?.name}
-                    </Title>
-                    <Text color="gray">
-                        Select a table or field to start exploring.
-                    </Text>
-                </Box>
+            <Stack>
+                <Group position="apart" align="flex-start">
+                    <Box>
+                        <Title order={4} mt="xxl">
+                            {projectData?.name}
+                        </Title>
+                        <Text color="gray">
+                            Select a table or field to start exploring.
+                        </Text>
+                    </Box>
+                    {selection && (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            onClick={() => {
+                                setSidebarOpen((prev) => !prev);
+                                if (metadata) {
+                                    closeMetadata();
+                                    setSelection(undefined);
+                                } else if (selection === undefined)
+                                    selectAndGetMetadata(
+                                        catalogTree[Object.keys(catalogTree)[0]]
+                                            .tables[0].name,
+                                        catalogTree[Object.keys(catalogTree)[0]]
+                                            .name,
+                                    );
+                                else
+                                    selectAndGetMetadata(
+                                        selection.table,
+                                        selection.group,
+                                    );
+                            }}
+                        >
+                            {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
+                        </Button>
+                    )}
+                </Group>
+
                 <Group position="apart">
                     <TextInput
                         w={'40%'}
@@ -329,40 +374,6 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                     />
                 </Stack>
             </Stack>
-            {selection && (
-                <Stack w="30%">
-                    <Button
-                        onClick={() => {
-                            if (metadata) {
-                                closeMetadata();
-                                setSelection(undefined);
-                            } else if (selection === undefined)
-                                selectAndGetMetadata(
-                                    catalogTree[Object.keys(catalogTree)[0]]
-                                        .tables[0].name,
-                                    catalogTree[Object.keys(catalogTree)[0]]
-                                        .name,
-                                );
-                            else
-                                selectAndGetMetadata(
-                                    selection.table,
-                                    selection.group,
-                                );
-                        }}
-                    >
-                        {metadata ? 'Hide metadata' : 'Show metadata'}
-                    </Button>
-
-                    {metadata && (
-                        <CatalogMetadata
-                            metadataResults={metadata}
-                            projectUuid={projectUuid}
-                            analyticResults={analytics}
-                            isAnalyticsLoading={isAnalyticsLoading}
-                        />
-                    )}
-                </Stack>
-            )}
         </Group>
     );
 };

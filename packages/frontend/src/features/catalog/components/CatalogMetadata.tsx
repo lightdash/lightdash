@@ -1,134 +1,187 @@
 import {
-    type ApiCatalogAnalyticsResults,
-    type ApiCatalogMetadataResults,
-} from '@lightdash/common';
-import { Flex, Stack, Table, Tabs, Text } from '@mantine/core';
+    Flex,
+    Group,
+    ScrollArea,
+    Stack,
+    Table,
+    Tabs,
+    Text,
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
     IconCornerDownLeft,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useCatalogContext } from '../context/CatalogProvider';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
-type Props = {
-    projectUuid: string;
-    metadataResults: ApiCatalogMetadataResults;
-    analyticResults?: ApiCatalogAnalyticsResults;
-    isAnalyticsLoading: boolean;
-};
-
-export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
-    projectUuid,
-    metadataResults,
-    analyticResults,
-    isAnalyticsLoading,
-}) => {
+export const CatalogMetadata: FC = () => {
+    // TODO: fix
+    const [isAnalyticsLoading] = useState(false);
+    const { projectUuid, metadata, analyticsResults } = useCatalogContext();
     const history = useHistory();
+
+    if (!metadata) return null;
+
     return (
-        <Stack style={{ position: 'relative', minHeight: '100vh' }}>
+        <Stack h="100vh">
             <Text
                 underline={true}
                 size="l"
                 weight={700}
                 onDoubleClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
+                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
                     );
                 }}
             >
-                {metadataResults.name}
+                {metadata.name}
             </Text>
-            <MarkdownPreview
-                style={{ fontSize: 'small' }}
-                source={metadataResults.description}
-            />
-            <Tabs defaultValue="overview">
-                <Tabs.List>
-                    <Tabs.Tab value={'overview'} mx="md">
-                        Overview
-                    </Tabs.Tab>
-                    <Tabs.Tab value={'analytics'} mx="md">
-                        {/* TODO replace loading with spinner ?*/}
-                        analytics (
-                        {isAnalyticsLoading
-                            ? '.'
-                            : analyticResults?.charts.length || '0'}
-                        )
-                    </Tabs.Tab>
-                </Tabs.List>
-                <Tabs.Panel value="overview">
-                    <Text> Overview</Text>
-                    {/* TODO make this a tab*/}
+            <ScrollArea
+                variant="primary"
+                className="only-vertical"
+                offsetScrollbars
+                scrollbarSize={8}
+            >
+                <MarkdownPreview
+                    style={{ fontSize: 'small' }}
+                    source={metadata.description}
+                />
 
-                    <Text>Tags</Text>
-                    <Flex justify="space-between">
-                        <Text>Model name </Text>
-                        <Text
-                            underline={true}
-                            weight={700}
-                            onDoubleClick={() => {
-                                history.push(
-                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
-                                );
-                            }}
-                        >
-                            {metadataResults.modelName}
-                        </Text>
-                    </Flex>
-                    <Flex justify="space-between">
-                        <Text>Source </Text>
-                        <Text>{metadataResults.source}</Text>
-                    </Flex>
-
-                    <Table>
-                        <thead>
-                            <tr>
-                                <th>field name</th>
-                                <th>type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {metadataResults.fields?.map((field) => (
-                                <tr key={field.name}>
-                                    <td>{field.name}</td>
-                                    <td>{field.basicType}</td>
+                <Tabs defaultValue="overview">
+                    <Tabs.List>
+                        <Tabs.Tab value={'overview'} mx="md">
+                            Overview
+                        </Tabs.Tab>
+                        <Tabs.Tab value={'analytics'} mx="md">
+                            {/* TODO replace loading with spinner ?*/}
+                            analytics (
+                            {isAnalyticsLoading
+                                ? '.'
+                                : analyticsResults?.charts.length || '0'}
+                            )
+                        </Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="overview">
+                        <Text> Overview</Text>
+                        {/* TODO make this a tab*/}
+                        <Text>Tags</Text>
+                        <Flex justify="space-between">
+                            <Text>Model name </Text>
+                            <Text
+                                underline={true}
+                                weight={700}
+                                onDoubleClick={() => {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                                    );
+                                }}
+                            >
+                                {metadata.modelName}
+                            </Text>
+                        </Flex>
+                        <Flex justify="space-between">
+                            <Text>Source </Text>
+                            <Text>{metadata.source}</Text>
+                        </Flex>
+                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                        );
+                        <Text>{metadata.name}</Text>
+                        <MarkdownPreview
+                            style={{ fontSize: 'small' }}
+                            source={metadata.description}
+                        />
+                        <Text> Overview</Text>
+                        {/* TODO make this a tab*/}
+                        <Text>Tags</Text>
+                        <Flex justify="space-between">
+                            <Text>Model name </Text>
+                            <Text
+                                underline={true}
+                                weight={700}
+                                onDoubleClick={() => {
+                                    history.push(
+                                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                                    );
+                                }}
+                            >
+                                {metadata.modelName}
+                            </Text>
+                        </Flex>
+                        <Flex justify="space-between">
+                            <Text>Source </Text>
+                            <Text>{metadata.source}</Text>
+                        </Flex>
+                        <Table>
+                            <thead>
+                                <tr>
+                                    <th>field name</th>
+                                    <th>type</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </Tabs.Panel>
-                <Tabs.Panel value="analytics" w={300}>
-                    <>
-                        {analyticResults && (
-                            <CatalogAnalyticCharts
-                                projectUuid={projectUuid}
-                                analyticResults={analyticResults}
-                            />
-                        )}
-                    </>
-                </Tabs.Panel>
-            </Tabs>
+                            </thead>
+                            <tbody>
+                                {metadata.fields?.map((field) => (
+                                    <tr key={field.name}>
+                                        <td>{field.name}</td>
+                                        <td>{field.basicType}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                        <Table>
+                            <thead>
+                                <tr>
+                                    <th>field name</th>
+                                    <th>type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {metadata.fields?.map((field) => (
+                                    <tr key={field.name}>
+                                        <td>{field.name}</td>
+                                        <td>{field.basicType}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="analytics" w={300}>
+                        <>
+                            {analyticsResults && (
+                                <CatalogAnalyticCharts
+                                    projectUuid={projectUuid}
+                                    analyticResults={analyticsResults}
+                                />
+                            )}
+                        </>
+                    </Tabs.Panel>
+                </Tabs>
+            </ScrollArea>
             <Stack
                 p={10}
-                style={{
-                    backgroundColor: 'lightgray',
+                sx={(theme) => ({
+                    backgroundColor: theme.colors.gray[0],
+                    border: `1px solid ${theme.colors.gray[4]}`,
+                    borderLeft: 0,
                     position: 'absolute',
                     bottom: 0,
+                    left: 0,
                     width: '100%',
                     color: 'gray',
-                }}
+                })}
             >
-                <Flex>
-                    <IconArrowUp />
-                    <IconArrowDown />
+                <Group>
+                    <MantineIcon icon={IconArrowUp} />
+                    <MantineIcon icon={IconArrowDown} />
                     <Text>Navigate</Text>
 
-                    <IconCornerDownLeft />
+                    <MantineIcon icon={IconCornerDownLeft} />
                     <Text>Use</Text>
-                </Flex>
+                </Group>
             </Stack>
         </Stack>
     );
