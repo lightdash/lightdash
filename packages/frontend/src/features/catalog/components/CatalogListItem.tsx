@@ -33,6 +33,7 @@ export const CatalogListItem: FC<React.PropsWithChildren<Props>> = ({
             style={
                 isSelected
                     ? {
+                          height: 55,
                           backgroundColor: '#ebf1ff',
                       }
                     : {

@@ -5,6 +5,7 @@ import {
     Button,
     Flex,
     Group,
+    Paper,
     SegmentedControl,
     Stack,
     Table,
@@ -14,15 +15,15 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
+import { useCatalogContext } from '../providers';
 import { CatalogGroup } from './CatalogGroup';
 import { CatalogListItem } from './CatalogListItem';
-import { CatalogMetadata } from './CatalogMetadata';
 
 type Props = {
     projectUuid: string;
@@ -31,6 +32,7 @@ type Props = {
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
 }) => {
+    const { setMetadata, isSidebarOpen, setSidebarOpen } = useCatalogContext();
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data: projectData } = useProject(projectUuid);
@@ -46,7 +48,18 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         mutate: getMetadata,
         data: metadata,
         reset: closeMetadata,
+        isSuccess,
     } = useCatalogMetadata(projectUuid);
+
+    useEffect(() => {
+        if (isSuccess) {
+            setMetadata(metadata);
+        }
+
+        if (!isSidebarOpen && metadata) {
+            setSidebarOpen(true);
+        }
+    }, [isSidebarOpen, isSuccess, metadata, setMetadata, setSidebarOpen]);
 
     const [catalogGroupMap, ungroupedCatalogItems] = useMemo(() => {
         if (catalogResults) {
@@ -165,14 +178,30 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     return (
         <Flex>
             <Stack>
-                <Box>
-                    <Title order={4} mt="xxl">
-                        {projectData?.name}
-                    </Title>
-                    <Text color="gray">
-                        Select a table or field to start exploring.
-                    </Text>
-                </Box>
+                <Group position="apart" align="flex-start">
+                    <Box>
+                        <Title order={4}>{projectData?.name}</Title>
+                        <Text color="gray">
+                            Select a table or field to start exploring.
+                        </Text>
+                    </Box>
+                    <Button
+                        variant="default"
+                        size="xs"
+                        onClick={() => {
+                            setSidebarOpen(!isSidebarOpen);
+
+                            if (metadata) closeMetadata();
+                            else if (selectedTable === undefined)
+                                selectAndGetMetadata(
+                                    ungroupedCatalogItems[0]?.name,
+                                );
+                            else selectAndGetMetadata(selectedTable);
+                        }}
+                    >
+                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
+                    </Button>
+                </Group>
                 <Group position="apart">
                     <TextInput
                         w={'40%'}
@@ -253,47 +282,34 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                             </CatalogGroup>
                         ))}
 
-                    <Table h="100%">
-                        <tbody>
-                            {ungroupedCatalogItems.map((item, idx) => (
-                                <CatalogListItem
-                                    key={`${item.name}-${idx}`}
-                                    catalogItem={item}
-                                    searchString={debouncedSearch}
-                                    tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
-                                    isSelected={
-                                        metadata !== undefined &&
-                                        item.name === selectedTable
-                                    }
-                                    onClick={() => {
-                                        selectAndGetMetadata(item.name);
-                                    }}
-                                />
-                            ))}
-                        </tbody>
-                    </Table>
+                    <Paper
+                        withBorder
+                        sx={{
+                            maxHeight: '600px',
+                            overflow: 'scroll',
+                        }}
+                    >
+                        <Table withBorder>
+                            <tbody>
+                                {ungroupedCatalogItems.map((item, idx) => (
+                                    <CatalogListItem
+                                        key={`${item.name}-${idx}`}
+                                        catalogItem={item}
+                                        searchString={debouncedSearch}
+                                        tableUrl={`/projects/${projectUuid}/tables/${item.name}`}
+                                        isSelected={
+                                            metadata !== undefined &&
+                                            item.name === selectedTable
+                                        }
+                                        onClick={() => {
+                                            selectAndGetMetadata(item.name);
+                                        }}
+                                    />
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Paper>
                 </Stack>
-            </Stack>
-            <Stack>
-                <Button
-                    onClick={() => {
-                        if (metadata) closeMetadata();
-                        else if (selectedTable === undefined)
-                            selectAndGetMetadata(
-                                ungroupedCatalogItems[0]?.name,
-                            );
-                        else selectAndGetMetadata(selectedTable);
-                    }}
-                >
-                    {metadata ? 'Show metadata' : 'Hide metadata'}
-                </Button>
-
-                {metadata && (
-                    <CatalogMetadata
-                        data={metadata}
-                        projectUuid={projectUuid}
-                    />
-                )}
             </Stack>
         </Flex>
     );
