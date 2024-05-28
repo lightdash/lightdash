@@ -8,6 +8,7 @@ import {
     type Dimension,
     type Field,
 } from './field';
+import { type ChartSummary } from './savedCharts';
 import { type TableBase } from './table';
 
 export enum CatalogType {
@@ -58,6 +59,20 @@ export type CatalogMetadata = {
     fields: CatalogField[];
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
+
+export type CatalogAnalytics = {
+    charts: Pick<
+        ChartSummary,
+        | 'uuid'
+        | 'name'
+        | 'spaceUuid'
+        | 'spaceName'
+        | 'dashboardName'
+        | 'dashboardUuid'
+        | 'chartKind'
+    >[];
+};
+export type ApiCatalogAnalyticsResults = CatalogAnalytics;
 
 export const getBasicType = (
     field: CompiledDimension | CompiledMetric,

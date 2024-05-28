@@ -88,6 +88,7 @@ const updateValidation = async (
 export const useValidationMutation = (
     projectUuid: string,
     onComplete: () => void,
+    onError: () => void,
 ) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError, showToastApiError } =
@@ -108,6 +109,7 @@ export const useValidationMutation = (
                     showToastSuccess({ title: 'Validation completed' });
                 })
                 .catch((error: Error) => {
+                    onError();
                     showToastError({
                         title: 'Unable to update validation',
                         subtitle: error.message,
@@ -115,6 +117,7 @@ export const useValidationMutation = (
                 });
         },
         onError: ({ error }) => {
+            onError();
             showToastApiError({
                 title: 'Failed to update validation',
                 apiError: error,

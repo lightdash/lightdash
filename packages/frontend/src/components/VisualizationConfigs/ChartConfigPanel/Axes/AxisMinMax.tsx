@@ -32,6 +32,7 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
                 checked={isAuto}
                 onChange={() => {
                     toggleAuto((prev: boolean) => !prev);
+
                     clearRange();
                     track({
                         name: EventName.CUSTOM_AXIS_RANGE_TOGGLE_CLICKED,

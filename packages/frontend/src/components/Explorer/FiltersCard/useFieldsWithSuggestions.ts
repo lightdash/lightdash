@@ -77,7 +77,7 @@ export const useFieldsWithSuggestions = ({
                                     getResultValueArray(
                                         queryResults.rows,
                                         true,
-                                    ).reduce<string[]>((acc, row) => {
+                                    ).results.reduce<string[]>((acc, row) => {
                                         const value = row[getItemId(field)];
                                         if (typeof value === 'string') {
                                             return [...acc, value];

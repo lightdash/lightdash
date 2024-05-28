@@ -782,6 +782,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: { error: e.message },
             });
+            throw e;
         }
     }
 

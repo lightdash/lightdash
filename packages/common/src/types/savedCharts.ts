@@ -236,6 +236,8 @@ type Axis = {
     name?: string;
     min?: string | undefined;
     max?: string | undefined;
+    minOffset?: string | undefined;
+    maxOffset?: string | undefined;
     inverse?: boolean;
     rotate?: number;
 };

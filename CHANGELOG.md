@@ -1,3 +1,45 @@
+# [0.1108.0](https://github.com/lightdash/lightdash/compare/0.1107.0...0.1108.0) (2024-05-28)
+
+
+### Features
+
+* disable custom viz actions ([#10211](https://github.com/lightdash/lightdash/issues/10211)) ([721b575](https://github.com/lightdash/lightdash/commit/721b5752e37bce900044906ac38432e3517137da))
+
+# [0.1107.0](https://github.com/lightdash/lightdash/compare/0.1106.1...0.1107.0) (2024-05-28)
+
+
+### Features
+
+* add catalog chart kind to analytics ([#10220](https://github.com/lightdash/lightdash/issues/10220)) ([2daf9ea](https://github.com/lightdash/lightdash/commit/2daf9ea884d329f9b83bf8b7847589ebbe068165))
+
+## [0.1106.1](https://github.com/lightdash/lightdash/compare/0.1106.0...0.1106.1) (2024-05-28)
+
+
+### Bug Fixes
+
+* show validation error ([#10217](https://github.com/lightdash/lightdash/issues/10217)) ([2739c63](https://github.com/lightdash/lightdash/commit/2739c634e7ec8ada89a81a07a56e34b159105996))
+
+# [0.1106.0](https://github.com/lightdash/lightdash/compare/0.1105.1...0.1106.0) (2024-05-28)
+
+
+### Features
+
+* add right sidebar to page component ([#10212](https://github.com/lightdash/lightdash/issues/10212)) ([38ee604](https://github.com/lightdash/lightdash/commit/38ee604eaae211a32b25d84a56f781de236f3bb8))
+
+## [0.1105.1](https://github.com/lightdash/lightdash/compare/0.1105.0...0.1105.1) (2024-05-28)
+
+
+### Bug Fixes
+
+* allow setting offset to avoid bars overlapping/falling outside of range ([#10162](https://github.com/lightdash/lightdash/issues/10162)) ([cb8bb6f](https://github.com/lightdash/lightdash/commit/cb8bb6f54bcc148058f756b46f02a47d8ea155cc))
+
+# [0.1105.0](https://github.com/lightdash/lightdash/compare/0.1104.3...0.1105.0) (2024-05-28)
+
+
+### Features
+
+* catalog analytics ([#10204](https://github.com/lightdash/lightdash/issues/10204)) ([623932e](https://github.com/lightdash/lightdash/commit/623932e5393a839f0e9fc0c9d66d5cc04359b438))
+
 ## [0.1104.3](https://github.com/lightdash/lightdash/compare/0.1104.2...0.1104.3) (2024-05-27)
 
 

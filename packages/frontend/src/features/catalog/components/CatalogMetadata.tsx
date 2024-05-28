@@ -1,8 +1,9 @@
 import {
+    type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
     type CatalogSelection,
 } from '@lightdash/common';
-import { Flex, Stack, Table, Text, useMantineTheme } from '@mantine/core';
+import { Flex, Stack, Table, Tabs, Text, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
@@ -11,17 +12,23 @@ import {
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 type Props = {
     projectUuid: string;
     data: ApiCatalogMetadataResults;
     selection?: CatalogSelection;
+    metadataResults: ApiCatalogMetadataResults;
+    analyticResults?: ApiCatalogAnalyticsResults;
+    isAnalyticsLoading: boolean;
 };
 
 export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
-    data,
     selection,
+    metadataResults,
+    analyticResults,
+    isAnalyticsLoading,
 }) => {
     const history = useHistory();
     const theme = useMantineTheme();
@@ -33,67 +40,92 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                 weight={700}
                 onDoubleClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/tables/${data.modelName}`,
+                        `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
                     );
                 }}
             >
-                {data.name}
+                {metadataResults.name}
             </Text>
             <MarkdownPreview
                 style={{ fontSize: 'small' }}
-                source={data.description}
+                source={metadataResults.description}
             />
+            <Tabs defaultValue="overview">
+                <Tabs.List>
+                    <Tabs.Tab value={'overview'} mx="md">
+                        Overview
+                    </Tabs.Tab>
+                    <Tabs.Tab value={'analytics'} mx="md">
+                        {/* TODO replace loading with spinner ?*/}
+                        analytics (
+                        {isAnalyticsLoading
+                            ? '.'
+                            : analyticResults?.charts.length || '0'}
+                        )
+                    </Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Panel value="overview">
+                    <Text> Overview</Text>
+                    {/* TODO make this a tab*/}
 
-            <Text> Overview</Text>
-            {/* TODO make this a tab*/}
-
-            <Text>Tags</Text>
-            <Flex justify="space-between">
-                <Text>Model name </Text>
-                <Text
-                    underline={true}
-                    weight={700}
-                    onDoubleClick={() => {
-                        history.push(
-                            `/projects/${projectUuid}/tables/${data.modelName}`,
-                        );
-                    }}
-                >
-                    {data.modelName}
-                </Text>
-            </Flex>
-            <Flex justify="space-between">
-                <Text>Source </Text>
-                <Text>{data.source}</Text>
-            </Flex>
-
-            <Table>
-                <thead>
-                    <tr>
-                        <th>field name</th>
-                        <th>type</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.fields?.map((field) => (
-                        <tr
-                            key={field.name}
-                            style={{
-                                border:
-                                    selection &&
-                                    selection?.field &&
-                                    selection.field === field.name
-                                        ? `2px solid ${theme.colors.blue[6]}`
-                                        : undefined,
+                    <Text>Tags</Text>
+                    <Flex justify="space-between">
+                        <Text>Model name </Text>
+                        <Text
+                            underline={true}
+                            weight={700}
+                            onDoubleClick={() => {
+                                history.push(
+                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
+                                );
                             }}
                         >
-                            <td>{field.name}</td>
-                            <td>{field.basicType}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </Table>
+                            {metadataResults.modelName}
+                        </Text>
+                    </Flex>
+                    <Flex justify="space-between">
+                        <Text>Source </Text>
+                        <Text>{metadataResults.source}</Text>
+                    </Flex>
 
+                    <Table>
+                        <thead>
+                            <tr>
+                                <th>field name</th>
+                                <th>type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {metadataResults.fields?.map((field) => (
+                                <tr
+                                    key={field.name}
+                                    style={{
+                                        border:
+                                            selection &&
+                                            selection?.field &&
+                                            selection.field === field.name
+                                                ? `2px solid ${theme.colors.blue[6]}`
+                                                : undefined,
+                                    }}
+                                >
+                                    <td>{field.name}</td>
+                                    <td>{field.basicType}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </Tabs.Panel>
+                <Tabs.Panel value="analytics" w={300}>
+                    <>
+                        {analyticResults && (
+                            <CatalogAnalyticCharts
+                                projectUuid={projectUuid}
+                                analyticResults={analyticResults}
+                            />
+                        )}
+                    </>
+                </Tabs.Panel>
+            </Tabs>
             <Stack
                 p={10}
                 style={{

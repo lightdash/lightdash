@@ -83,6 +83,7 @@ const CustomVisualization: FC<Props> = (props) => {
                         data: { name: 'values' },
                     }}
                     data={data}
+                    actions={false}
                 />
             </Suspense>
         </div>

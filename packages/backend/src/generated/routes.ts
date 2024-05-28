@@ -335,6 +335,83 @@ const models: TsoaRoute.Models = {
         type: { ref: 'CatalogMetadata', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartKind: {
+        dataType: 'refEnum',
+        enums: [
+            'line',
+            'horizontal_bar',
+            'vertical_bar',
+            'scatter',
+            'area',
+            'mixed',
+            'pie',
+            'table',
+            'big_number',
+            'custom',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                    spaceName: { dataType: 'string', required: true },
+                    spaceUuid: { dataType: 'string', required: true },
+                    dashboardUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    dashboardName: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    chartKind: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ChartKind' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogAnalytics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                charts: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCatalogAnalyticsResults: {
+        dataType: 'refAlias',
+        type: { ref: 'CatalogAnalytics', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
         dataType: 'refAlias',
         type: {
@@ -2243,22 +2320,22 @@ const models: TsoaRoute.Models = {
                     name: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
                     uuid: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
-                    updatedByUser: { ref: 'UpdatedByUser' },
                     spaceUuid: { dataType: 'string', required: true },
-                    views: { dataType: 'double', required: true },
-                    firstViewedAt: {
+                    pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
                     },
-                    pinnedListUuid: {
+                    updatedAt: { dataType: 'datetime', required: true },
+                    updatedByUser: { ref: 'UpdatedByUser' },
+                    views: { dataType: 'double', required: true },
+                    firstViewedAt: {
                         dataType: 'union',
                         subSchemas: [
+                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
@@ -2315,22 +2392,6 @@ const models: TsoaRoute.Models = {
         enums: ['cartesian', 'table', 'big_number', 'pie', 'custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartKind: {
-        dataType: 'refEnum',
-        enums: [
-            'line',
-            'horizontal_bar',
-            'vertical_bar',
-            'scatter',
-            'area',
-            'mixed',
-            'pie',
-            'table',
-            'big_number',
-            'custom',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_':
         {
             dataType: 'refAlias',
@@ -2340,22 +2401,29 @@ const models: TsoaRoute.Models = {
                     name: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
                     uuid: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
-                    updatedByUser: { ref: 'UpdatedByUser' },
                     spaceUuid: { dataType: 'string', required: true },
-                    views: { dataType: 'double', required: true },
-                    firstViewedAt: {
+                    pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
                     },
-                    pinnedListUuid: {
+                    chartKind: {
                         dataType: 'union',
                         subSchemas: [
+                            { ref: 'ChartKind' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    updatedAt: { dataType: 'datetime', required: true },
+                    updatedByUser: { ref: 'UpdatedByUser' },
+                    views: { dataType: 'double', required: true },
+                    firstViewedAt: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
@@ -2380,13 +2448,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'ChartType' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    chartKind: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ChartKind' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -2423,9 +2484,9 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -3166,10 +3227,11 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
-                    projectUuid: { dataType: 'string', required: true },
+                    spaceName: { dataType: 'string', required: true },
                     spaceUuid: { dataType: 'string', required: true },
+                    projectUuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -3178,7 +3240,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    spaceName: { dataType: 'string', required: true },
                     dashboardUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -3338,9 +3399,9 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     projectUuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
                     pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -4198,6 +4259,20 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 rotate: { dataType: 'double' },
                 inverse: { dataType: 'boolean' },
+                maxOffset: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                minOffset: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 max: {
                     dataType: 'union',
                     subSchemas: [
@@ -4700,12 +4775,11 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 name: { dataType: 'string', required: true },
                 description: { dataType: 'string' },
-                organizationUuid: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
-                updatedAt: { dataType: 'datetime', required: true },
-                projectUuid: { dataType: 'string', required: true },
-                updatedByUser: { ref: 'UpdatedByUser' },
+                spaceName: { dataType: 'string', required: true },
                 spaceUuid: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
                 pinnedListUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -4714,15 +4788,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                pinnedListOrder: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'double' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                spaceName: { dataType: 'string', required: true },
                 dashboardUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -4735,6 +4800,16 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                updatedAt: { dataType: 'datetime', required: true },
+                updatedByUser: { ref: 'UpdatedByUser' },
+                pinnedListOrder: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -5439,25 +5514,25 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
-                    organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
-                    projectUuid: { dataType: 'string', required: true },
-                    updatedByUser: { ref: 'UpdatedByUser' },
                     spaceUuid: { dataType: 'string', required: true },
-                    views: { dataType: 'double', required: true },
-                    firstViewedAt: {
+                    projectUuid: { dataType: 'string', required: true },
+                    organizationUuid: { dataType: 'string', required: true },
+                    pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
                     },
-                    pinnedListUuid: {
+                    updatedAt: { dataType: 'datetime', required: true },
+                    updatedByUser: { ref: 'UpdatedByUser' },
+                    views: { dataType: 'double', required: true },
+                    firstViewedAt: {
                         dataType: 'union',
                         subSchemas: [
+                            { dataType: 'datetime' },
                             { dataType: 'string' },
                             { dataType: 'enum', enums: [null] },
                         ],
@@ -6328,8 +6403,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                projectUuid: { dataType: 'string', required: true },
                 spaceUuid: { dataType: 'string' },
+                projectUuid: { dataType: 'string', required: true },
                 validationId: { dataType: 'double', required: true },
                 createdAt: { dataType: 'datetime', required: true },
                 error: { dataType: 'string', required: true },
@@ -6532,6 +6607,68 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.getMetadata.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/dataCatalog/:table/analytics',
+        ...fetchMiddlewares<RequestHandler>(CatalogController),
+        ...fetchMiddlewares<RequestHandler>(
+            CatalogController.prototype.getAnalytics,
+        ),
+
+        async function CatalogController_getAnalytics(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                table: {
+                    in: 'path',
+                    name: 'table',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<CatalogController>(
+                    CatalogController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getAnalytics.apply(
                     controller,
                     validatedArgs as any,
                 );

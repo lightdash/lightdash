@@ -1,4 +1,5 @@
 import {
+    ApiCatalogAnalyticsResults,
     ApiCatalogMetadataResults,
     ApiCatalogResults,
     ApiCatalogSearch,
@@ -77,6 +78,32 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetadata(req.user!, projectUuid, table);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get catalog analytics
+     * @param projectUuid
+     * @param table Table name to get analytics for
+     * @returns
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{table}/analytics')
+    @OperationId('getAnalytics')
+    async getAnalytics(
+        @Path() projectUuid: string,
+        @Path() table: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: ApiCatalogAnalyticsResults }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getAnalytics(req.user!, projectUuid, table);
         return {
             status: 'ok',
             results,

@@ -372,7 +372,12 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.userUuid },
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                exploreId: payload.exploreId,
+                metricQuery: payload.metricQuery,
+            },
         });
 
         return { jobId };
@@ -394,7 +399,12 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.userUuid },
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                exploreId: payload.exploreId,
+                metricQuery: payload.metricQuery,
+            },
         });
 
         return { jobId };
@@ -416,7 +426,12 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: {},
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+                context: payload.context,
+            },
         });
 
         return jobId;
@@ -438,7 +453,14 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.createdByUserUuid },
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                requestMethod: payload.requestMethod,
+                isPreview: payload.isPreview,
+                jobUuid: payload.jobUuid,
+            },
         });
 
         return { jobId };
@@ -460,7 +482,14 @@ export class SchedulerClient {
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
-            details: { createdByUserUuid: payload.createdByUserUuid },
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                requestMethod: payload.requestMethod,
+                isPreview: payload.isPreview,
+                jobUuid: payload.jobUuid,
+            },
         });
 
         return { jobId };

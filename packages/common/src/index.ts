@@ -110,7 +110,10 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
-import { type ApiCatalogMetadataResults } from './types/catalog';
+import {
+    type ApiCatalogAnalyticsResults,
+    type ApiCatalogMetadataResults,
+} from './types/catalog';
 import { TimeFrames } from './types/timeFrames';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -634,7 +637,8 @@ type ApiResults =
     | ApiCreateProjectResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
-    | ApiCatalogMetadataResults;
+    | ApiCatalogMetadataResults
+    | ApiCatalogAnalyticsResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -791,19 +795,48 @@ export type UpdateProject = Omit<
 export const getResultValueArray = (
     rows: ResultRow[],
     preferRaw: boolean = false,
-): Record<string, unknown>[] =>
-    rows.map((row) =>
+    calculateMinAndMax: boolean = false,
+): {
+    results: Record<string, unknown>[];
+    minsAndMaxes?: Record<string, { min: number; max: number }>;
+} => {
+    const minMax: Record<string, { min: number; max: number }> = {};
+
+    const results = rows.map((row) =>
         Object.keys(row).reduce<Record<string, unknown>>((acc, key) => {
             const rawWithFallback =
-                row[key]?.value.raw ?? row[key]?.value.formatted; // using nulish coalescing operator to handle null and undefined only
+                row[key]?.value.raw ?? row[key]?.value.formatted; // using nullish coalescing operator to handle null and undefined only
             const formattedWithFallback =
                 row[key]?.value.formatted || row[key]?.value.raw;
 
             const value = preferRaw ? rawWithFallback : formattedWithFallback;
 
-            return { ...acc, [key]: value };
+            acc[key] = value;
+
+            if (calculateMinAndMax) {
+                const numericValue = Number(value);
+                if (!Number.isNaN(numericValue)) {
+                    if (!minMax[key]) {
+                        minMax[key] = { min: numericValue, max: numericValue };
+                    } else {
+                        minMax[key].min = Math.min(
+                            minMax[key].min,
+                            numericValue,
+                        );
+                        minMax[key].max = Math.max(
+                            minMax[key].max,
+                            numericValue,
+                        );
+                    }
+                }
+            }
+
+            return acc;
         }, {}),
     );
+
+    return calculateMinAndMax ? { results, minsAndMaxes: minMax } : { results };
+};
 
 export const getDateGroupLabel = (axisItem: ItemsMap[string]) => {
     if (
