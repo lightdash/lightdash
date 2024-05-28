@@ -21,6 +21,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 description: 'users table',
                 type: 'table',
                 joinedTables: [],
+                tags: [],
             });
         });
     });
@@ -42,9 +43,12 @@ describe('Lightdash catalog all tables and fields', () => {
                 name: 'payment_method',
                 description: 'Method of payment used, for example credit card',
                 tableLabel: 'Payments',
+                tableName: 'payments',
+
                 fieldType: 'dimension',
                 basicType: 'string',
                 type: 'field',
+                tags: [],
             });
 
             const metric = resp.body.results.find(
@@ -56,9 +60,11 @@ describe('Lightdash catalog all tables and fields', () => {
                 name: 'total_revenue',
                 description: 'Sum of all payments',
                 tableLabel: 'Payments',
+                tableName: 'payments',
                 fieldType: 'metric',
                 basicType: 'number',
                 type: 'field',
+                tags: [],
             });
         });
     });
@@ -85,6 +91,7 @@ describe('Lightdash catalog search', () => {
                 description:
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',
+                tags: [],
             });
 
             const field = resp.body.results.find(
@@ -94,10 +101,12 @@ describe('Lightdash catalog search', () => {
             expect(field).to.eql({
                 name: 'customer_id',
                 tableLabel: 'Users',
+                tableName: 'users',
                 description: 'This is a unique identifier for a customer',
                 type: 'field',
                 basicType: 'number',
                 fieldType: 'dimension',
+                tags: [],
             });
         });
     });
@@ -117,9 +126,12 @@ describe('Lightdash catalog search', () => {
                 name: 'payment_method',
                 description: 'Method of payment used, for example credit card',
                 tableLabel: 'Payments',
+                tableName: 'payments',
+
                 fieldType: 'dimension',
                 basicType: 'string',
                 type: 'field',
+                tags: [],
             });
         });
     });
@@ -137,9 +149,12 @@ describe('Lightdash catalog search', () => {
                 name: 'total_revenue',
                 description: 'Sum of all payments',
                 tableLabel: 'Payments',
+                tableName: 'payments',
+
                 fieldType: 'metric',
                 basicType: 'number',
                 type: 'field',
+                tags: [],
             });
         });
     });
@@ -162,10 +177,13 @@ describe('Lightdash catalog search', () => {
             expect(matchingField).to.eql({
                 name: 'customer_id',
                 tableLabel: 'Users',
+                tableName: 'users',
+
                 description: 'This is a unique identifier for a customer',
                 type: 'field',
                 basicType: 'number',
                 fieldType: 'dimension',
+                tags: [],
             });
 
             // Check for a table
@@ -177,6 +195,7 @@ describe('Lightdash catalog search', () => {
                 description:
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',
+                tags: [],
             });
         });
     });
@@ -195,10 +214,13 @@ describe('Lightdash catalog search', () => {
             expect(matchingField).to.eql({
                 name: 'date_of_first_order',
                 tableLabel: 'Orders',
+                tableName: 'orders',
+
                 description: 'Min of Order date',
                 type: 'field',
                 basicType: 'number',
                 fieldType: 'metric',
+                tags: [],
             });
         });
     });
