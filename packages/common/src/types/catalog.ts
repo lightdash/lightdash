@@ -63,6 +63,7 @@ export type CatalogAnalytics = {
         | 'spaceName'
         | 'dashboardName'
         | 'dashboardUuid'
+        | 'chartKind'
     >[];
 };
 export type ApiCatalogAnalyticsResults = CatalogAnalytics;
