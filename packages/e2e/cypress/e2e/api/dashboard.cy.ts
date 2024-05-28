@@ -17,7 +17,7 @@ import {
 
 const apiUrl = '/api/v1';
 
-const chartMock: CreateSavedChart = {
+export const chartMock: CreateSavedChart = {
     name: 'chart in dashboard',
     tableName: 'orders',
     metricQuery: {
@@ -43,7 +43,7 @@ const dashboardMock: CreateDashboard = {
     tabs: [],
 };
 
-const createDashboard = (
+export const createDashboard = (
     projectUuid: string,
     body: CreateDashboard,
 ): Cypress.Chainable<Dashboard> =>
@@ -75,7 +75,7 @@ const updateDashboard = (
             return response.body.results;
         });
 
-const createChartAndUpdateDashboard = (
+export const createChartAndUpdateDashboard = (
     projectUuid: string,
     body: CreateChartInDashboard,
     dashboard?: UpdateDashboard,
@@ -91,7 +91,7 @@ const createChartAndUpdateDashboard = (
         .then((response) => {
             expect(response.status).to.eq(200);
             const newChart = response.body.results;
-            expect(newChart.name).to.eq(chartMock.name);
+            expect(newChart.name).to.eq(body.name);
             expect(newChart.dashboardUuid).to.eq(body.dashboardUuid);
             return updateDashboard(body.dashboardUuid, {
                 ...dashboard,

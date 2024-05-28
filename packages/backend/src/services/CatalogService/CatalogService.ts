@@ -337,14 +337,14 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chatSummaries = await this.savedChartModel.find({
+        const chartSummaries = await this.savedChartModel.find({
             projectUuid,
             exploreName: table,
         });
         const chartsWithAccess = await this.filterChartsWithAccess(
             user,
             projectUuid,
-            chatSummaries,
+            chartSummaries,
         );
         const chartAnalytics: CatalogAnalytics['charts'] = chartsWithAccess.map(
             (chart) => ({
