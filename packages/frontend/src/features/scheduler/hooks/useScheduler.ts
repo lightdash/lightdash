@@ -71,6 +71,8 @@ const getJobStatus = async (
         .then((data) => {
             if (data.status === SchedulerJobStatus.COMPLETED) {
                 return onComplete();
+            } else if (data.status === SchedulerJobStatus.ERROR) {
+                onError(new Error(data.details?.error || 'Job failed'));
             } else {
                 setTimeout(
                     () => getJobStatus(jobId, onComplete, onError),

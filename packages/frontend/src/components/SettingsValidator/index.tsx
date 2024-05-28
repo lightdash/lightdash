@@ -27,8 +27,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
 
     const { user } = useApp();
     const { data } = useValidation(projectUuid, user, true); // Note: Users that land on this page can always manage validations
-    const { mutate: validateProject } = useValidationMutation(projectUuid, () =>
-        setIsValidating(false),
+    const { mutate: validateProject } = useValidationMutation(
+        projectUuid,
+        () => setIsValidating(false),
+        () => setIsValidating(false),
     );
 
     return (
