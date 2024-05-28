@@ -97,8 +97,6 @@ export const CatalogPanel: FC = () => {
         data: metadata,
         reset: closeMetadata,
     } = useCatalogMetadata(projectUuid, (data) => {
-        console.log('metadata', data);
-
         if (data) {
             setMetadata(data);
         }
