@@ -71,16 +71,16 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                             weight={700}
                             onDoubleClick={() => {
                                 history.push(
-                                    `/projects/${projectUuid}/tables/${data.modelName}`,
+                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
                                 );
                             }}
                         >
-                            {data.modelName}
+                            {metadataResults.modelName}
                         </Text>
                     </Flex>
                     <Flex justify="space-between">
                         <Text>Source </Text>
-                        <Text>{data.source}</Text>
+                        <Text>{metadataResults.source}</Text>
                     </Flex>
 
                     <Table>
@@ -91,7 +91,7 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {data.fields?.map((field) => (
+                            {metadataResults.fields?.map((field) => (
                                 <tr key={field.name}>
                                     <td>{field.name}</td>
                                     <td>{field.basicType}</td>
