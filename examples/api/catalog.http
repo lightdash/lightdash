@@ -35,3 +35,9 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 
 ### Get metadata
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/customers/metadata
+
+### Get analytics
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/customers/analytics
+
+### Get analytics
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/payments/analytics

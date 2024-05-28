@@ -602,6 +602,8 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
                     catalogModel: this.models.getCatalogModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }

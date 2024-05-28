@@ -1,4 +1,5 @@
 import {
+    CatalogAnalytics,
     CatalogField,
     CatalogTable,
     CatalogType,
@@ -10,8 +11,12 @@ import {
 import { Knex } from 'knex';
 import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
+import { SavedChartVersionsTableName } from '../../database/entities/savedCharts';
 import { wrapSentryTransaction } from '../../utils';
-import { getFullTextSearchRankCalcSql } from '../SearchModel/utils/search';
+import {
+    getFullTextSearchQuery,
+    getFullTextSearchRankCalcSql,
+} from '../SearchModel/utils/search';
 import { parseCatalog } from './utils/parser';
 
 type SearchModelArguments = {
@@ -88,7 +93,7 @@ export class CatalogModel {
         if (excludeUnmatched) {
             catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
-                searchQuery,
+                getFullTextSearchQuery(searchQuery),
             );
         }
 

@@ -1,8 +1,17 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
-import { ActionIcon, Box, Collapse, Group, Highlight } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Collapse,
+    Group,
+    Highlight,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconChevronRight,
     IconExternalLink,
+    IconLayersLinked,
     IconTable,
 } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
@@ -35,6 +44,9 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
         event.stopPropagation();
         toggleOpen();
     };
+
+    const countJoinedTables =
+        'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
 
     return (
         <>
@@ -88,6 +100,19 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     >
                         {table.name || ''}
                     </Highlight>
+                </Box>
+                <Box w={50}>
+                    {countJoinedTables > 0 && (
+                        <Tooltip label={`${countJoinedTables} joined tables`}>
+                            <Group noWrap spacing="xs">
+                                <MantineIcon
+                                    color="gray"
+                                    icon={IconLayersLinked}
+                                />
+                                <Text color="gray">{countJoinedTables}</Text>
+                            </Group>
+                        </Tooltip>
+                    )}
                 </Box>
                 <Highlight
                     w="100%"

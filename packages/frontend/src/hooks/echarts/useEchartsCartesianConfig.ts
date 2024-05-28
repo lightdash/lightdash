@@ -855,11 +855,13 @@ const getEchartAxes = ({
     validCartesianConfig,
     series,
     resultsData,
+    minsAndMaxes,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
     series: EChartSeries[];
     resultsData: ApiQueryResults | undefined;
+    minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1135,6 +1137,105 @@ const getEchartAxes = ({
         resultsData?.rows,
     );
 
+    const bottomAxisOffset = {
+        enabled:
+            !!xAxisConfiguration?.[0]?.minOffset ||
+            !!xAxisConfiguration?.[0]?.maxOffset,
+        minOffset:
+            xAxisConfiguration?.[0]?.minOffset !== undefined
+                ? parseFloat(xAxisConfiguration?.[0].minOffset)
+                : undefined,
+        maxOffset:
+            xAxisConfiguration?.[0]?.maxOffset !== undefined
+                ? parseFloat(xAxisConfiguration?.[0].maxOffset)
+                : undefined,
+    };
+
+    // Get the min and max values for the bottom X axis
+    const getMinAndMaxFromBottomAxisBounds = (
+        axisType: 'value' | 'category' | 'time' | string,
+        min?: number,
+        max?: number,
+    ) => {
+        if (axisType === 'value') {
+            const initialBottomAxisMin =
+                xAxisConfiguration?.[0]?.min ??
+                referenceLineMinX ??
+                maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange);
+
+            const initialBottomAxisMax =
+                xAxisConfiguration?.[0]?.max ??
+                referenceLineMaxX ??
+                maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange);
+
+            // Apply offset to the min and max values of the axis
+            if (
+                bottomAxisOffset.enabled &&
+                min !== undefined &&
+                max !== undefined
+            ) {
+                const minX =
+                    xAxisConfiguration?.[0]?.min !== undefined
+                        ? parseFloat(xAxisConfiguration?.[0]?.min)
+                        : min;
+                const maxX =
+                    xAxisConfiguration?.[0]?.max !== undefined
+                        ? parseFloat(xAxisConfiguration?.[0]?.max)
+                        : max;
+
+                // Apply logarithmic scaling to the range to determine offsets
+                // This is helpful when the range is very large, but also accomodates small ranges
+                const logRange = Number(Math.log1p(maxX - minX).toFixed(0));
+
+                // Baseline offset to ensure minimum value
+                const baselineOffset = 0.5;
+
+                let minOffset =
+                    ((bottomAxisOffset.minOffset ?? 0) / 100) * logRange +
+                    baselineOffset;
+                let maxOffset =
+                    ((bottomAxisOffset.maxOffset ?? 0) / 100) * logRange +
+                    baselineOffset;
+
+                return {
+                    min: minX - minOffset,
+                    max: maxX + maxOffset,
+                };
+            }
+            return {
+                min: initialBottomAxisMin,
+                max: initialBottomAxisMax,
+            };
+        }
+
+        // For category and time axis, we don't need to apply the offset
+        return {
+            min: undefined,
+            max: undefined,
+        };
+    };
+
+    const { minValue: bottomAxisMinValue, maxValue: bottomAxisMaxValue } =
+        bottomAxisOffset.enabled &&
+        xAxisItemId &&
+        minsAndMaxes &&
+        minsAndMaxes[xAxisItemId]
+            ? // Find the min and max values for the axis if the offset is enabled
+              {
+                  minValue: minsAndMaxes[xAxisItemId].min,
+                  maxValue: minsAndMaxes[xAxisItemId].max,
+              }
+            : {
+                  minValue: undefined,
+                  maxValue: undefined,
+              };
+
+    const bottomAxisBounds = getMinAndMaxFromBottomAxisBounds(
+        bottomAxisType,
+        bottomAxisMinValue,
+        bottomAxisMaxValue,
+    );
+
     return {
         xAxis: [
             {
@@ -1154,22 +1255,6 @@ const getEchartAxes = ({
                           ? getDateGroupLabel(xAxisItem) ||
                             getItemLabelWithoutTableName(xAxisItem)
                           : undefined),
-                min:
-                    bottomAxisType === 'value'
-                        ? xAxisConfiguration?.[0]?.min ||
-                          referenceLineMinX ||
-                          maybeGetAxisDefaultMinValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
-                max:
-                    bottomAxisType === 'value'
-                        ? xAxisConfiguration?.[0]?.max ||
-                          referenceLineMaxX ||
-                          maybeGetAxisDefaultMaxValue(
-                              allowFirstAxisDefaultRange,
-                          )
-                        : undefined,
                 nameLocation: 'center',
                 nameTextStyle: {
                     fontWeight: 'bold',
@@ -1189,6 +1274,7 @@ const getEchartAxes = ({
                 },
                 inverse: !!xAxisConfiguration?.[0].inverse,
                 ...bottomAxisExtraConfig,
+                ...bottomAxisBounds,
             },
             {
                 type: topAxisType,
@@ -1517,6 +1603,11 @@ const useEchartsCartesianConfig = (
         );
     }, [validCartesianConfig, resultsData, itemsMap, pivotDimensions]);
 
+    const resultsAndMinsAndMaxes = useMemo(
+        () => getResultValueArray(rows, true, true),
+        [rows],
+    );
+
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
             return { xAxis: [], yAxis: [] };
@@ -1527,8 +1618,15 @@ const useEchartsCartesianConfig = (
             series,
             validCartesianConfig,
             resultsData,
+            minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
         });
-    }, [itemsMap, series, validCartesianConfig, resultsData]);
+    }, [
+        itemsMap,
+        validCartesianConfig,
+        series,
+        resultsData,
+        resultsAndMinsAndMaxes.minsAndMaxes,
+    ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
@@ -1562,11 +1660,12 @@ const useEchartsCartesianConfig = (
     const sortedResults = useMemo(() => {
         const results =
             validCartesianConfig?.layout?.xField === EMPTY_X_AXIS
-                ? getResultValueArray(rows, true).map((s) => ({
+                ? resultsAndMinsAndMaxes.results.map((s) => ({
                       ...s,
                       [EMPTY_X_AXIS]: ' ',
                   }))
-                : getResultValueArray(rows, true);
+                : resultsAndMinsAndMaxes.results;
+
         try {
             if (!itemsMap) return results;
             const xFieldId = validCartesianConfig?.layout.flipAxes
@@ -1655,9 +1754,9 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.yField,
         validCartesianConfig?.eChartsConfig?.series,
-        rows,
+        resultsAndMinsAndMaxes.results,
         itemsMap,
-        axes,
+        axes.xAxis,
         resultsData?.metricQuery.sorts,
     ]);
 

@@ -21,6 +21,7 @@ import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
 import { useCatalog } from '../hooks/useCatalog';
+import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogMetadata } from './CatalogMetadata';
 import { CatalogTree } from './CatalogTree';
@@ -95,6 +96,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         data: metadata,
         reset: closeMetadata,
     } = useCatalogMetadata(projectUuid);
+    const {
+        mutate: getAnalytics,
+        isLoading: isAnalyticsLoading,
+        data: analytics,
+    } = useCatalogAnalytics(projectUuid);
 
     const handleSearchChange = useCallback(
         (searchString: string) => {
@@ -156,12 +162,13 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 const table = catalogResults.find(
                     (item) => item.name === tableName,
                 );
-                if (table && table.type === CatalogType.Table)
+                if (table && table.type === CatalogType.Table) {
                     getMetadata(tableName);
-                else console.warn('Metadata not available for fields');
+                    getAnalytics(tableName);
+                } else console.warn('Metadata not available for fields');
             }
         },
-        [catalogResults, getMetadata],
+        [catalogResults, getMetadata, getAnalytics],
     );
 
     const history = useHistory();
@@ -359,8 +366,10 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
 
                     {metadata && (
                         <CatalogMetadata
-                            data={metadata}
+                            metadataResults={metadata}
                             projectUuid={projectUuid}
+                            analyticResults={analytics}
+                            isAnalyticsLoading={isAnalyticsLoading}
                         />
                     )}
                 </Stack>

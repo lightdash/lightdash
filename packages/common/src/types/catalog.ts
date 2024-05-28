@@ -1,5 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type InlineError } from './explore';
+import { type CompiledExploreJoin, type InlineError } from './explore';
 import {
     DimensionType,
     MetricType,
@@ -8,6 +8,7 @@ import {
     type Dimension,
     type Field,
 } from './field';
+import { type ChartSummary } from './savedCharts';
 import { type TableBase } from './table';
 
 export enum CatalogType {
@@ -37,6 +38,7 @@ export type CatalogTable = Pick<
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
+    joinedTables?: CompiledExploreJoin[]; // Matched type in explore
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
@@ -51,6 +53,20 @@ export type CatalogMetadata = {
     fields: CatalogField[];
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
+
+export type CatalogAnalytics = {
+    charts: Pick<
+        ChartSummary,
+        | 'uuid'
+        | 'name'
+        | 'spaceUuid'
+        | 'spaceName'
+        | 'dashboardName'
+        | 'dashboardUuid'
+        | 'chartKind'
+    >[];
+};
+export type ApiCatalogAnalyticsResults = CatalogAnalytics;
 
 export const getBasicType = (
     field: CompiledDimension | CompiledMetric,

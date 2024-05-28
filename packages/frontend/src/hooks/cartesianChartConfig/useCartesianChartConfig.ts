@@ -239,6 +239,25 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    const setXMinOffsetValue = useCallback(
+        (index: number, value: string | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    xAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, minOffset: value }
+                            : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
     const setXMaxValue = useCallback(
         (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
@@ -255,6 +274,26 @@ const useCartesianChartConfig = ({
         },
         [],
     );
+
+    const setXMaxOffsetValue = useCallback(
+        (index: number, value: string | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    xAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, maxOffset: value }
+                            : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
     const setXField = useCallback((xField: string | undefined) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -867,7 +906,9 @@ const useCartesianChartConfig = ({
         setYMinValue,
         setYMaxValue,
         setXMinValue,
+        setXMinOffsetValue,
         setXMaxValue,
+        setXMaxOffsetValue,
         setLegend,
         setGrid,
         setShowGridX,
