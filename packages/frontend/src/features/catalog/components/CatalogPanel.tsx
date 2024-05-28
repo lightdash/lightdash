@@ -75,8 +75,13 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
 export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
 }) => {
+    // There are 3 search varialbes:
+    // - search: the current search string
+    // - completeSearch: the 3+ char search string that gets sent to the backend
+    // - debouncedSearch: the complete search string debounced
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [completeSearch, setCompleteSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
     const { data: projectData } = useProject(projectUuid);
 
     const { data: catalogResults } = useCatalog({
@@ -105,6 +110,11 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     const handleSearchChange = useCallback(
         (searchString: string) => {
             setSearch(searchString);
+            if (searchString.length >= 3) {
+                setCompleteSearch(searchString);
+            } else {
+                setCompleteSearch('');
+            }
         },
         [setSearch],
     );
