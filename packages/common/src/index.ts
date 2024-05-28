@@ -110,7 +110,10 @@ import {
 import { type UserWarehouseCredentials } from './types/userWarehouseCredentials';
 import { type ValidationResponse } from './types/validation';
 
-import { type ApiCatalogMetadataResults } from './types/catalog';
+import {
+    type ApiCatalogAnalyticsResults,
+    type ApiCatalogMetadataResults,
+} from './types/catalog';
 import { TimeFrames } from './types/timeFrames';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -634,7 +637,8 @@ type ApiResults =
     | ApiCreateProjectResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
-    | ApiCatalogMetadataResults;
+    | ApiCatalogMetadataResults
+    | ApiCatalogAnalyticsResults;
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

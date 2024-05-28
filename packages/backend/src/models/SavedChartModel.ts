@@ -967,6 +967,7 @@ export class SavedChartModel {
         projectUuid?: string;
         spaceUuids?: string[];
         slug?: string;
+        exploreName?: string;
     }): Promise<ChartSummary[]> {
         const transaction = Sentry.getCurrentHub()
             ?.getScope()
@@ -987,6 +988,20 @@ export class SavedChartModel {
             }
             if (filters.slug) {
                 void query.where('saved_queries.slug', filters.slug);
+            }
+            if (filters.exploreName) {
+                // TODO: Explore name is not an index in saved_queries_versions
+                // This is something we could easily optimize (requires migration)
+                void query
+                    .leftJoin(
+                        SavedChartVersionsTableName,
+                        `${SavedChartVersionsTableName}.saved_query_id`,
+                        `${SavedChartsTableName}.saved_query_id`,
+                    )
+                    .where(
+                        'saved_queries_versions.explore_name',
+                        filters.exploreName,
+                    );
             }
             const chartSummaries = await query;
             return chartSummaries.map((chart) => ({
