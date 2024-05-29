@@ -1,6 +1,9 @@
-import { type CatalogField } from '@lightdash/common';
+import { FieldType, type CatalogField } from '@lightdash/common';
 import { Box, Group, Highlight } from '@mantine/core';
-import { IconAbc } from '@tabler/icons-react';
+import {
+    IconCircleDashedNumber0,
+    IconCircleLetterS,
+} from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
@@ -10,6 +13,20 @@ type Props = {
     isSelected?: boolean;
 
     onClick?: () => void;
+};
+
+const CatalogIcon = ({ item }: { item: CatalogField }) => {
+    switch (item.fieldType) {
+        case FieldType.DIMENSION:
+            return <MantineIcon color="blue.5" icon={IconCircleLetterS} />;
+        case FieldType.METRIC:
+            return (
+                <MantineIcon color="violet.5" icon={IconCircleDashedNumber0} />
+            );
+
+        default:
+            return null;
+    }
 };
 
 export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
@@ -26,11 +43,12 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 noWrap
                 py="xs"
                 sx={(theme) => ({
+                    minHeight: 32,
                     borderRadius: theme.radius.sm,
                     padding: theme.spacing.md,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
-                        : theme.colors.gray[0],
+                        : 'transparent',
                     border: isSelected
                         ? `2px solid ${theme.colors.blue[6]}`
                         : undefined,
@@ -39,21 +57,27 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
             >
-                <Group noWrap spacing="xs">
-                    <MantineIcon
-                        icon={IconAbc}
-                        color="gray"
-                        size="lg"
-                    ></MantineIcon>
-                </Group>
                 <Box miw={150}>
-                    <Highlight
-                        highlight={searchString}
-                        highlightColor="violet"
-                        fw={600}
+                    <Group
+                        spacing="two"
+                        noWrap
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.gray[3]}`,
+                            borderRadius: theme.radius.sm,
+                            padding: 5,
+                            width: 'fit-content',
+                        })}
                     >
-                        {field.name || ''}
-                    </Highlight>
+                        <CatalogIcon item={field} />
+
+                        <Highlight
+                            highlight={searchString}
+                            highlightColor="yellow.1"
+                            fw={500}
+                        >
+                            {field.name || ''}
+                        </Highlight>
+                    </Group>
                 </Box>
             </Group>
         </>

@@ -5,7 +5,6 @@ import {
     Collapse,
     Group,
     Highlight,
-    Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -99,16 +98,13 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     {countJoinedTables > 0 && (
                         <Tooltip
                             variant="xs"
-                            label={`${countJoinedTables} joined tables`}
+                            label={`${countJoinedTables} joined table(s)`}
                         >
                             <Group noWrap spacing="one">
                                 <MantineIcon
                                     color="gray"
                                     icon={IconLayersIntersect}
                                 />
-                                <Text fw={500} fz="xs" color="gray">
-                                    {countJoinedTables}
-                                </Text>
                             </Group>
                         </Tooltip>
                     )}

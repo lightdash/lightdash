@@ -86,7 +86,7 @@ const renderTreeNode = ({
                                 selection,
                                 searchString,
                                 index: fieldIndex,
-                                length: Object.keys(node.tables).length,
+                                length: Object.keys(node.fields).length,
                             }),
                         )}
                     </Stack>
