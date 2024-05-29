@@ -1,5 +1,6 @@
 import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
+    Flex,
     Group,
     ScrollArea,
     Stack,
@@ -15,7 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { useIsFetching } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCatalogContext } from '../context/CatalogProvider';
@@ -35,10 +36,19 @@ export const CatalogMetadata: FC = () => {
     });
     const history = useHistory();
 
+    const [selectedFieldInTable, setSelectedFieldInTable] = useState<
+        string | undefined
+    >();
+
+    useEffect(() => {
+        setSelectedFieldInTable(undefined);
+    }, [selection]);
+
     const metadata = useMemo(() => {
-        if (selection?.field !== undefined && metadataResults) {
+        const fieldSelected = selection?.field || selectedFieldInTable;
+        if (fieldSelected && metadataResults) {
             const field = metadataResults?.fields?.find(
-                (f) => f.name === selection.field,
+                (f) => f.name === fieldSelected,
             );
             if (!field) return undefined;
             const catalogMetadata: CatalogMetadataType = {
@@ -51,24 +61,39 @@ export const CatalogMetadata: FC = () => {
         } else {
             return metadataResults;
         }
-    }, [metadataResults, selection]);
+    }, [metadataResults, selection, selectedFieldInTable]);
 
     if (!metadata) return null;
 
     return (
         <Stack h="100vh">
-            <Text
-                underline={true}
-                size="l"
-                weight={700}
-                onDoubleClick={() => {
-                    history.push(
-                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
-                    );
-                }}
-            >
-                {metadata.name}
-            </Text>
+            <Flex>
+                {selectedFieldInTable && (
+                    <>
+                        <Text
+                            color={colors.blue[6]}
+                            sx={{ cursor: 'pointer' }}
+                            onClick={() => setSelectedFieldInTable(undefined)}
+                        >
+                            {' '}
+                            {selection?.table}
+                        </Text>
+                        {' > '}
+                    </>
+                )}
+                <Text
+                    underline={true}
+                    size="l"
+                    weight={700}
+                    onDoubleClick={() => {
+                        history.push(
+                            `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                        );
+                    }}
+                >
+                    {metadata.name}
+                </Text>
+            </Flex>
             <ScrollArea
                 variant="primary"
                 className="only-vertical"
@@ -98,33 +123,46 @@ export const CatalogMetadata: FC = () => {
                         <Text> Overview</Text>
                         {/* TODO make this a tab*/}
 
-                        {selection?.field === undefined && (
-                            <Table>
-                                <thead>
-                                    <tr>
-                                        <th>field name</th>
-                                        <th>type</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {metadata.fields.map((field) => (
-                                        <tr
-                                            key={field.name}
-                                            style={{
-                                                border:
-                                                    selection?.field ===
-                                                    field.name
-                                                        ? `2px solid ${colors.blue[6]}`
-                                                        : undefined,
-                                            }}
-                                        >
-                                            <td>{field.name}</td>
-                                            <td>{field.basicType}</td>
+                        {selection?.field === undefined &&
+                            selectedFieldInTable === undefined && (
+                                <Table>
+                                    <thead>
+                                        <tr>
+                                            <th>field name</th>
+                                            <th>type</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        )}
+                                    </thead>
+                                    <tbody>
+                                        {metadata.fields.map((field) => (
+                                            <tr
+                                                key={field.name}
+                                                style={{
+                                                    border:
+                                                        selection?.field ===
+                                                        field.name
+                                                            ? `2px solid ${colors.blue[6]}`
+                                                            : undefined,
+                                                }}
+                                            >
+                                                <td
+                                                    style={{
+                                                        color: `${colors.blue[6]}`,
+                                                        cursor: 'pointer',
+                                                    }}
+                                                    onClick={() => {
+                                                        setSelectedFieldInTable(
+                                                            field.name,
+                                                        );
+                                                    }}
+                                                >
+                                                    {field.name}
+                                                </td>
+                                                <td>{field.basicType}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            )}
                     </Tabs.Panel>
                     <Tabs.Panel value="analytics" w={300}>
                         <>
