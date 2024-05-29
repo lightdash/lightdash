@@ -106,6 +106,16 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   }
                 : {}),
 
+            ...(params.withRightSidebar
+                ? {
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                      flexShrink: 1,
+                      // TODO: this is a hack to make the width larger when theres a right sidebar.
+                      width: PAGE_CONTENT_WIDTH * 1.3,
+                  }
+                : {}),
+
             ...(params.withFitContent
                 ? {
                       width: 'fit-content',
