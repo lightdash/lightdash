@@ -211,17 +211,10 @@ export const CatalogPanel: FC = () => {
                 field: selectedItem.field,
             });
 
-            if (catalogResults) {
-                const table = catalogResults.find(
-                    (item) => item.name === selectedItem.table,
-                );
-                if (table && table.type === CatalogType.Table) {
-                    getMetadata(selectedItem.table);
-                    getAnalytics(selectedItem.table);
-                }
-            }
+            getMetadata(selectedItem.table);
+            getAnalytics(selectedItem.table);
         },
-        [setSelection, catalogResults, getMetadata, getAnalytics],
+        [setSelection, getMetadata, getAnalytics],
     );
 
     const history = useHistory();
