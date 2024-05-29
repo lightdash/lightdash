@@ -110,14 +110,15 @@ export const CatalogMetadata: FC = () => {
                         overflowY: 'scroll',
                     },
                     tab: {
-                        paddingRight: theme.spacing.xs,
+                        paddingRight: theme.spacing.sm,
                         paddingLeft: 0,
                         fontSize: theme.fontSizes.sm,
                         fontWeight: 500,
-                        '&[aria-selected="true"]': {
+                        '&[data-active="true"]': {
                             color: theme.colors.gray[9],
                         },
-                        '&[aria-selected="false"]': {
+
+                        '&:not([data-active])': {
                             color: theme.colors.gray[6],
                         },
                     },
