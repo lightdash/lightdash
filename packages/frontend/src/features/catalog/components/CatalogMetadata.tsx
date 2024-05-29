@@ -88,9 +88,7 @@ export const CatalogMetadata: FC = () => {
                                         key={field.name}
                                         style={{
                                             border:
-                                                selection &&
-                                                selection?.field &&
-                                                selection.field === field.name
+                                                selection?.field === field.name
                                                     ? `2px solid ${colors.blue[6]}`
                                                     : undefined,
                                         }}
