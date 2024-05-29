@@ -372,7 +372,7 @@ export const convertToGroups = (
         if (typeof dbtGroups === 'string') {
             groups = [dbtGroups];
         } else {
-            groups = dbtGroups || [];
+            groups = [...dbtGroups];
         }
     } else if (dbtGroupLabel) {
         groups = [dbtGroupLabel];
