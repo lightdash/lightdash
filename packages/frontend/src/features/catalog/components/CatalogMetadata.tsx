@@ -1,3 +1,4 @@
+import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
     Group,
     ScrollArea,
@@ -35,16 +36,18 @@ export const CatalogMetadata: FC = () => {
     const history = useHistory();
 
     const metadata = useMemo(() => {
-        if (selection?.field !== undefined) {
+        if (selection?.field !== undefined && metadataResults) {
             const field = metadataResults?.fields?.find(
                 (f) => f.name === selection.field,
             );
-            return {
-                name: field?.name,
-                description: field?.description,
-                modelName: field?.tableName,
+            if (!field) return undefined;
+            const catalogMetadata: CatalogMetadataType = {
+                ...metadataResults,
+                name: field.name,
+                description: field.description,
                 fields: [],
             };
+            return catalogMetadata;
         } else {
             return metadataResults;
         }
