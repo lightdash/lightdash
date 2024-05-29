@@ -1,3 +1,10 @@
+## [0.1111.1](https://github.com/lightdash/lightdash/compare/0.1111.0...0.1111.1) (2024-05-29)
+
+
+### Bug Fixes
+
+* reduce amount on queries needed to validate charts ([#10226](https://github.com/lightdash/lightdash/issues/10226)) ([4da179b](https://github.com/lightdash/lightdash/commit/4da179b8f2d7a003f8b0808cb56b0003c50a769d))
+
 # [0.1111.0](https://github.com/lightdash/lightdash/compare/0.1110.1...0.1111.0) (2024-05-29)
 
 
