@@ -1,8 +1,9 @@
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
+    type CatalogSelection,
 } from '@lightdash/common';
-import { Flex, Stack, Table, Tabs, Text } from '@mantine/core';
+import { Flex, Stack, Table, Tabs, Text, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
@@ -15,6 +16,7 @@ import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 type Props = {
     projectUuid: string;
+    selection?: CatalogSelection;
     metadataResults: ApiCatalogMetadataResults;
     analyticResults?: ApiCatalogAnalyticsResults;
     isAnalyticsLoading: boolean;
@@ -22,11 +24,13 @@ type Props = {
 
 export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
+    selection,
     metadataResults,
     analyticResults,
     isAnalyticsLoading,
 }) => {
     const history = useHistory();
+    const theme = useMantineTheme();
     return (
         <Stack style={{ position: 'relative', minHeight: '100vh' }}>
             <Text
@@ -92,7 +96,17 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                         </thead>
                         <tbody>
                             {metadataResults.fields?.map((field) => (
-                                <tr key={field.name}>
+                                <tr
+                                    key={field.name}
+                                    style={{
+                                        border:
+                                            selection &&
+                                            selection?.field &&
+                                            selection.field === field.name
+                                                ? `2px solid ${theme.colors.blue[6]}`
+                                                : undefined,
+                                    }}
+                                >
                                     <td>{field.name}</td>
                                     <td>{field.basicType}</td>
                                 </tr>

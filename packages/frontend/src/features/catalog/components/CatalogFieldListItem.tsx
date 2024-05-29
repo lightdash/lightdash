@@ -7,12 +7,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 type Props = {
     field: CatalogField;
     searchString?: string;
+    isSelected?: boolean;
+
     onClick?: () => void;
 };
 
 export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     field,
     searchString = '',
+    isSelected = false,
     onClick,
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
@@ -28,6 +31,9 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
                         : theme.colors.gray[0],
+                    border: isSelected
+                        ? `2px solid ${theme.colors.blue[6]}`
+                        : undefined,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}

@@ -1,3 +1,17 @@
+# [0.1108.0](https://github.com/lightdash/lightdash/compare/0.1107.0...0.1108.0) (2024-05-28)
+
+
+### Features
+
+* disable custom viz actions ([#10211](https://github.com/lightdash/lightdash/issues/10211)) ([721b575](https://github.com/lightdash/lightdash/commit/721b5752e37bce900044906ac38432e3517137da))
+
+# [0.1107.0](https://github.com/lightdash/lightdash/compare/0.1106.1...0.1107.0) (2024-05-28)
+
+
+### Features
+
+* add catalog chart kind to analytics ([#10220](https://github.com/lightdash/lightdash/issues/10220)) ([2daf9ea](https://github.com/lightdash/lightdash/commit/2daf9ea884d329f9b83bf8b7847589ebbe068165))
+
 ## [0.1106.1](https://github.com/lightdash/lightdash/compare/0.1106.0...0.1106.1) (2024-05-28)
 
 

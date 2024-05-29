@@ -354,6 +354,7 @@ export class CatalogService<
                 spaceName: chart.spaceName,
                 dashboardName: chart.dashboardName,
                 dashboardUuid: chart.dashboardUuid,
+                chartKind: chart.chartKind,
             }),
         );
         return { charts: chartAnalytics };

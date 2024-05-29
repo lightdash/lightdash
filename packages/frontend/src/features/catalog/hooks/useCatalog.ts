@@ -22,11 +22,11 @@ const fetchCatalog = async ({ projectUuid, search, type }: GetCatalogParams) =>
 
 export const useCatalog = ({ projectUuid, search, type }: GetCatalogParams) => {
     const setErrorResponse = useQueryError();
-
     return useQuery<ApiCatalogResults, ApiError>({
         queryKey: ['catalog', projectUuid, type, search],
         queryFn: () => fetchCatalog({ projectUuid, search, type }),
         retry: false,
+        enabled: !search || search.length > 2,
         onError: (result) => setErrorResponse(result),
     });
 };

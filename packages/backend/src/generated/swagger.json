@@ -268,7 +268,22 @@
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
             },
-            "Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_": {
+            "ChartKind": {
+                "enum": [
+                    "line",
+                    "horizontal_bar",
+                    "vertical_bar",
+                    "scatter",
+                    "area",
+                    "mixed",
+                    "pie",
+                    "table",
+                    "big_number",
+                    "custom"
+                ],
+                "type": "string"
+            },
+            "Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -289,6 +304,9 @@
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
                     }
                 },
                 "required": [
@@ -306,7 +324,7 @@
                 "properties": {
                     "charts": {
                         "items": {
-                            "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid_"
+                            "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
                         },
                         "type": "array"
                     }
@@ -2535,21 +2553,6 @@
                 "enum": ["cartesian", "table", "big_number", "pie", "custom"],
                 "type": "string"
             },
-            "ChartKind": {
-                "enum": [
-                    "line",
-                    "horizontal_bar",
-                    "vertical_bar",
-                    "scatter",
-                    "area",
-                    "mixed",
-                    "pie",
-                    "table",
-                    "big_number",
-                    "custom"
-                ],
-                "type": "string"
-            },
             "Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_": {
                 "properties": {
                     "name": {
@@ -2567,6 +2570,9 @@
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
                     },
                     "updatedAt": {
                         "type": "string",
@@ -2604,9 +2610,6 @@
                     },
                     "chartType": {
                         "$ref": "#/components/schemas/ChartType"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
                     }
                 },
                 "required": [

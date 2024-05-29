@@ -1,16 +1,25 @@
-import { Box, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
+import {
+    Badge,
+    Box,
+    Collapse,
+    Group,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import { IconBoxMultiple, IconChevronRight } from '@tabler/icons-react';
-import { type FC } from 'react';
+import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
     label: string;
+    tableCount: number;
     startOpen?: boolean;
 };
 
 export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     label,
+    tableCount,
     startOpen = false,
     children,
 }) => {
@@ -45,6 +54,9 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     <Text fw={600} fz={14}>
                         {label}
                     </Text>
+                    <Badge color="blue" variant="light">
+                        {tableCount}
+                    </Badge>
                 </Group>
             </UnstyledButton>
             <Collapse in={isOpen} pl="md">

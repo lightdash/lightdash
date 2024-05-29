@@ -16,6 +16,12 @@ export enum CatalogType {
     Field = 'field',
 }
 
+export type CatalogSelection = {
+    group: string;
+    table?: string;
+    field?: string;
+};
+
 export type ApiCatalogSearch = {
     search?: string;
     type?: CatalogType;
@@ -63,6 +69,7 @@ export type CatalogAnalytics = {
         | 'spaceName'
         | 'dashboardName'
         | 'dashboardUuid'
+        | 'chartKind'
     >[];
 };
 export type ApiCatalogAnalyticsResults = CatalogAnalytics;
