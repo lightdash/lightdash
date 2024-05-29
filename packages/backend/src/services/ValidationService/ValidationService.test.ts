@@ -8,8 +8,8 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ValidationService } from './ValidationService';
 import {
-    chart,
-    chartWithJoinedField,
+    chartForValidation,
+    chartForValidationWithJoinedField,
     config,
     dashboard,
     explore,
@@ -22,8 +22,7 @@ import {
 } from './ValidationService.mock';
 
 const savedChartModel = {
-    find: jest.fn(async () => [{}]),
-    get: jest.fn(async () => chart),
+    findChartsForValidation: jest.fn(async () => [chartForValidation]),
 };
 const projectModel = {
     getExploresFromCache: jest.fn(async () => [explore]),
@@ -57,7 +56,7 @@ describe('validation', () => {
 
     it('Should validate project without errors', async () => {
         expect(
-            await validationService.generateValidation(chart.projectUuid),
+            await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
     });
     it('Should validate project with dimension errors', async () => {
@@ -66,7 +65,7 @@ describe('validation', () => {
         );
 
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
@@ -85,7 +84,7 @@ describe('validation', () => {
             "Dimension error: the field 'table_dimension' no longer exists",
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
-            "Custom metric error: the base dimension 'dimension' no longer exists",
+            "Custom metric error: the base dimension 'table_dimension' no longer exists",
             "The chart 'Test chart' is broken on this dashboard.",
         ];
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -97,7 +96,7 @@ describe('validation', () => {
         );
 
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
@@ -126,7 +125,7 @@ describe('validation', () => {
         );
 
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
 
         const tableErrors = errors.filter((ve) => ve.source === 'table');
@@ -160,7 +159,7 @@ describe('validation', () => {
             },
         }));
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
@@ -187,7 +186,7 @@ describe('validation', () => {
             },
         }));
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
@@ -211,12 +210,14 @@ describe('validation', () => {
         (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
             async () => [explore, exploreWithJoin],
         );
-        (savedChartModel.get as jest.Mock).mockImplementationOnce(
-            async () => chartWithJoinedField,
-        );
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            chartForValidationWithJoinedField,
+        ]);
 
         const errors = await validationService.generateValidation(
-            chart.projectUuid,
+            'projectUuid',
         );
 
         expect(errors.length).toEqual(0);
