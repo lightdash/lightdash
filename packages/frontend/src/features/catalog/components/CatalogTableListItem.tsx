@@ -1,5 +1,6 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
+    Avatar,
     Box,
     Collapse,
     Group,
@@ -8,15 +9,12 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import {
-    IconExternalLink,
-    IconLayersIntersect,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconExternalLink, IconLayersIntersect } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import DataCatalogTableIcon from '../../../svgs/data-catalog-table.svg';
 
 type Props = {
     table: CatalogTable & { fields: CatalogField[] };
@@ -82,12 +80,8 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
             >
                 <UnstyledButton onClick={handleOpenClick} miw={150}>
                     <Group noWrap spacing="xs">
-                        <Group noWrap>
-                            <MantineIcon
-                                icon={IconTable}
-                                color="indigo"
-                                size="md"
-                            />
+                        <Group noWrap spacing="xs">
+                            <Avatar src={DataCatalogTableIcon} size="xs" />
 
                             <Highlight
                                 highlight={searchString}

@@ -336,7 +336,7 @@ export const CatalogPanel: FC = () => {
 
                         <Box>
                             <Title order={4}>Start exploring</Title>
-                            <Text color="gray.6">
+                            <Text color="gray.6" fw={500}>
                                 Select a table or field to start exploring.
                             </Text>
                         </Box>
