@@ -10,7 +10,7 @@ import {
     IconCornerDownLeft,
 } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
@@ -31,6 +31,18 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const history = useHistory();
     const theme = useMantineTheme();
+
+    const metadata = useMemo(() => {
+        if (selection?.field !== undefined) {
+            const field = metadataResults.fields?.find(
+                (f) => f.name === selection.field,
+            );
+            return field;
+        } else {
+            return metadataResults;
+        }
+    }, [metadataResults, selection]);
+
     return (
         <Stack style={{ position: 'relative', minHeight: '100vh' }}>
             <Text
@@ -43,11 +55,11 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                     );
                 }}
             >
-                {metadataResults.name}
+                {metadata?.name}
             </Text>
             <MarkdownPreview
                 style={{ fontSize: 'small' }}
-                source={metadataResults.description}
+                source={metadata?.description}
             />
             <Tabs defaultValue="overview">
                 <Tabs.List>
@@ -87,32 +99,34 @@ export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
                         <Text>{metadataResults.source}</Text>
                     </Flex>
 
-                    <Table>
-                        <thead>
-                            <tr>
-                                <th>field name</th>
-                                <th>type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {metadataResults.fields?.map((field) => (
-                                <tr
-                                    key={field.name}
-                                    style={{
-                                        border:
-                                            selection &&
-                                            selection?.field &&
-                                            selection.field === field.name
-                                                ? `2px solid ${theme.colors.blue[6]}`
-                                                : undefined,
-                                    }}
-                                >
-                                    <td>{field.name}</td>
-                                    <td>{field.basicType}</td>
+                    {selection?.field === undefined && (
+                        <Table>
+                            <thead>
+                                <tr>
+                                    <th>field name</th>
+                                    <th>type</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </Table>
+                            </thead>
+                            <tbody>
+                                {metadataResults.fields?.map((field) => (
+                                    <tr
+                                        key={field.name}
+                                        style={{
+                                            border:
+                                                selection &&
+                                                selection?.field &&
+                                                selection.field === field.name
+                                                    ? `2px solid ${theme.colors.blue[6]}`
+                                                    : undefined,
+                                        }}
+                                    >
+                                        <td>{field.name}</td>
+                                        <td>{field.basicType}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    )}
                 </Tabs.Panel>
                 <Tabs.Panel value="analytics" w={300}>
                     <>

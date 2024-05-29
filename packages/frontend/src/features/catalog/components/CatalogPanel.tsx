@@ -199,13 +199,21 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 field: selectedItem.field,
             });
 
-            if (catalogResults) {
-                const table = catalogResults.find(
-                    (item) => item.name === selectedItem.table,
-                );
-                if (table && table.type === CatalogType.Table) {
+            if (catalogResults && selectedItem.table) {
+                if (selectedItem.field) {
+                    // Get metadata and analytics for field
+                    getMetadata(selectedItem.table); // all metadata for the field is returned in the table
+                    getAnalytics({
+                        table: selectedItem.table,
+                        field: selectedItem.field,
+                    });
+                } else {
+                    // Get metadata and analytics for table
                     getMetadata(selectedItem.table);
-                    getAnalytics(selectedItem.table);
+                    getAnalytics({
+                        table: selectedItem.table,
+                        field: undefined,
+                    });
                 }
             }
         },
