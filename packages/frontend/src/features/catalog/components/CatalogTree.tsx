@@ -1,4 +1,4 @@
-import { CatalogType } from '@lightdash/common';
+import { CatalogType, type CatalogSelection } from '@lightdash/common';
 import { Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
@@ -8,19 +8,22 @@ import { CatalogTableListItem } from './CatalogTableListItem';
 type Props = {
     tree: any;
     projectUuid: string;
-    onTableClick: (tableName: string, groupName: string) => void;
-    selection?: { table: string; group: string };
+    onItemClick: (item: CatalogSelection) => void;
+    selection?: CatalogSelection;
     searchString?: string;
 };
 
-const renderTreeNode = (
-    node: any,
-    projectUuid: string,
-    onTableClick: (tableName: string, groupName: string) => void,
-    selection?: { table: string; group: string },
+type NodeProps = Omit<Props, 'tree'> & {
+    node: any;
+};
 
-    searchString?: string,
-) => {
+const renderTreeNode = ({
+    node,
+    projectUuid,
+    onItemClick,
+    selection,
+    searchString,
+}: NodeProps) => {
     if (!node.type) {
         return (
             <CatalogGroup
@@ -30,17 +33,18 @@ const renderTreeNode = (
                     node.name === 'Ungrouped tables' ||
                     selection?.group === node.name
                 }
+                tableCount={Object.keys(node.tables).length}
             >
                 {Object.keys(node.tables).length > 0 && (
                     <Stack spacing={3}>
                         {Object.entries(node.tables).map(([_, value]) =>
-                            renderTreeNode(
-                                value,
+                            renderTreeNode({
+                                node: value,
                                 projectUuid,
-                                onTableClick,
+                                onItemClick,
                                 selection,
                                 searchString,
-                            ),
+                            }),
                         )}
                     </Stack>
                 )}
@@ -53,20 +57,25 @@ const renderTreeNode = (
                 table={node}
                 startOpen={node.fields.length > 0}
                 searchString={searchString}
-                onClick={() => onTableClick(node.name, node.groupName)}
-                isSelected={selection?.table === node.name}
+                onClick={() =>
+                    onItemClick({
+                        table: node.name,
+                        group: node.groupName,
+                    })
+                }
+                isSelected={selection?.table === node.name && !selection?.field}
                 url={`/projects/${projectUuid}/tables/${node.name}`}
             >
                 {Object.keys(node.fields).length > 0 && (
                     <Stack spacing={0}>
                         {node.fields.map((child: any) =>
-                            renderTreeNode(
-                                child,
+                            renderTreeNode({
+                                node: child,
                                 projectUuid,
-                                onTableClick,
+                                onItemClick,
                                 selection,
                                 searchString,
-                            ),
+                            }),
                         )}
                     </Stack>
                 )}
@@ -78,6 +87,17 @@ const renderTreeNode = (
                 key={node.tableName + node.name}
                 field={node}
                 searchString={searchString}
+                isSelected={
+                    selection?.field === node.name &&
+                    selection?.table === node.tableName
+                }
+                onClick={() =>
+                    onItemClick({
+                        table: node.tableName,
+                        group: node.groupName,
+                        field: node.name,
+                    })
+                }
             />
         );
     }
@@ -89,11 +109,12 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
     searchString,
     projectUuid,
     selection,
-    onTableClick,
+    onItemClick,
 }) => {
     if (!tree) {
         return null;
     }
+
     return (
         <Tooltip.Group>
             <Stack
@@ -102,13 +123,13 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                 key={`catalog-tree-${searchString}`}
             >
                 {Object.entries(tree).map(([_, value]) =>
-                    renderTreeNode(
-                        value,
+                    renderTreeNode({
+                        node: value,
                         projectUuid,
-                        onTableClick,
+                        onItemClick,
                         selection,
                         searchString,
-                    ),
+                    }),
                 )}
             </Stack>
         </Tooltip.Group>

@@ -1,6 +1,7 @@
 import {
     CatalogType,
     type CatalogField,
+    type CatalogSelection,
     type CatalogTable,
 } from '@lightdash/common';
 import {
@@ -58,7 +59,6 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
             };
         });
 
-        // Assign the sorted tables to the sorted tree
         sortedTree[key] = {
             ...value,
             tables: sortedTables,
@@ -68,6 +68,29 @@ function sortTree(tree: CatalogTreeType): CatalogTreeType {
     return sortedTree;
 }
 
+// TODO: this could become a linked list if we need the performance
+function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
+    const selectionList: CatalogSelection[] = [];
+
+    Object.keys(tree).forEach((group) => {
+        Object.keys(tree[group].tables).forEach((table) => {
+            selectionList.push({
+                table,
+                group,
+            });
+            tree[group].tables[table].fields.forEach((field) => {
+                selectionList.push({
+                    table,
+                    group,
+                    field: field.name,
+                });
+            });
+        });
+    });
+
+    return selectionList;
+}
+
 export const CatalogPanel: FC = () => {
     const {
         setMetadata,
@@ -75,9 +98,17 @@ export const CatalogPanel: FC = () => {
         setAnalyticsResults,
         setSidebarOpen,
         projectUuid,
+        // TODO: Add field
+        selection,
+        setSelection,
     } = useCatalogContext();
+    // There are 3 search variables:
+    // - search: the current search string
+    // - completeSearch: the 3+ char search string that gets sent to the backend
+    // - debouncedSearch: the complete search string debounced
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [completeSearch, setCompleteSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
     const { data: projectData } = useProject(projectUuid);
 
     const { data: catalogResults } = useCatalog({
@@ -85,12 +116,6 @@ export const CatalogPanel: FC = () => {
         type: CatalogType.Table,
         search: debouncedSearch,
     });
-
-    // TODO: add field
-    const [selection, setSelection] = useState<{
-        group: string;
-        table: string;
-    }>();
 
     const {
         mutate: getMetadata,
@@ -117,6 +142,11 @@ export const CatalogPanel: FC = () => {
     const handleSearchChange = useCallback(
         (searchString: string) => {
             setSearch(searchString);
+            if (searchString.length >= 3) {
+                setCompleteSearch(searchString);
+            } else {
+                setCompleteSearch('');
+            }
         },
         [setSearch],
     );
@@ -165,22 +195,33 @@ export const CatalogPanel: FC = () => {
         return {};
     }, [catalogResults]);
 
+    const selectionList = useMemo(
+        () => getSelectionList(catalogTree),
+        [catalogTree],
+    );
+
     const selectAndGetMetadata = useCallback(
-        (tableName: string, groupName: string) => {
+        (selectedItem: CatalogSelection) => {
+            if (!selectedItem.table) return;
+
             // For optimization purposes, we could only make this request if metadata panel is open
-            setSelection({ table: tableName, group: groupName });
+            setSelection({
+                table: selectedItem.table,
+                group: selectedItem.group || 'Ungrouped tables',
+                field: selectedItem.field,
+            });
 
             if (catalogResults) {
                 const table = catalogResults.find(
-                    (item) => item.name === tableName,
+                    (item) => item.name === selectedItem.table,
                 );
                 if (table && table.type === CatalogType.Table) {
-                    getMetadata(tableName);
-                    getAnalytics(tableName);
-                } else console.warn('Metadata not available for fields');
+                    getMetadata(selectedItem.table);
+                    getAnalytics(selectedItem.table);
+                }
             }
         },
-        [catalogResults, getMetadata, getAnalytics],
+        [setSelection, catalogResults, getMetadata, getAnalytics],
     );
 
     const history = useHistory();
@@ -191,32 +232,25 @@ export const CatalogPanel: FC = () => {
                 'ArrowDown',
                 () => {
                     if (selection) {
-                        //TODO move around grouped items
-                        const treeKeys = Object.keys(
-                            catalogTree[selection.group].tables,
+                        const selectedIndex = selectionList.findIndex(
+                            (item) =>
+                                item.table === selection.table &&
+                                item.group === selection.group &&
+                                item.field === selection.field,
                         );
-
-                        const selectedIndex = treeKeys.findIndex(
-                            (name) => name === selection.table,
-                        );
-
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < treeKeys.length
+                            selectedIndex < selectionList.length
                         ) {
                             selectAndGetMetadata(
-                                treeKeys[(selectedIndex + 1) % treeKeys.length],
-                                selection.group,
+                                selectionList[
+                                    (selectedIndex + 1) % selectionList.length
+                                ],
                             );
                         }
                     } else {
                         // Get the first table in the first group
-                        selectAndGetMetadata(
-                            Object.entries(
-                                Object.entries(catalogTree)[0][1].tables,
-                            )[0][1].name,
-                            Object.keys(catalogTree)[0],
-                        );
+                        selectAndGetMetadata(selectionList[0]);
                     }
                 },
             ],
@@ -224,33 +258,26 @@ export const CatalogPanel: FC = () => {
                 'ArrowUp',
                 () => {
                     if (selection) {
-                        //TODO move around grouped items
-                        const treeKeys = Object.keys(
-                            catalogTree[selection.group].tables,
-                        );
-
-                        const selectedIndex = treeKeys.findIndex(
-                            (name) => name === selection.table,
+                        const selectedIndex = selectionList.findIndex(
+                            (item) =>
+                                item.table === selection.table &&
+                                item.group === selection.group &&
+                                item.field === selection.field,
                         );
                         if (
                             selectedIndex !== undefined &&
-                            selectedIndex < treeKeys.length
+                            selectedIndex < selectionList.length
                         ) {
                             selectAndGetMetadata(
-                                treeKeys[
-                                    (selectedIndex - 1 + treeKeys.length) %
-                                        treeKeys.length
+                                selectionList[
+                                    (selectedIndex - 1 + selectionList.length) %
+                                        selectionList.length
                                 ],
-                                selection.group,
                             );
                         }
                     } else {
-                        // Get the first table in the first group
                         selectAndGetMetadata(
-                            Object.entries(
-                                Object.entries(catalogTree)[0][1].tables,
-                            )[0][1].name,
-                            Object.keys(catalogTree)[0],
+                            selectionList[selectionList.length - 1],
                         );
                     }
                 },
@@ -278,98 +305,96 @@ export const CatalogPanel: FC = () => {
     );
 
     return (
-        <Group noWrap align="start">
-            <Stack>
-                <Group position="apart" align="flex-start">
-                    <Box>
-                        <Title order={4} mt="xxl">
-                            {projectData?.name}
-                        </Title>
-                        <Text color="gray">
-                            Select a table or field to start exploring.
-                        </Text>
-                    </Box>
-                    {selection && (
-                        <Button
-                            variant="default"
-                            size="xs"
-                            onClick={() => {
-                                setSidebarOpen((prev) => !prev);
-                                if (metadata) {
-                                    closeMetadata();
-                                    setSelection(undefined);
-                                } else if (selection === undefined)
-                                    selectAndGetMetadata(
-                                        catalogTree[Object.keys(catalogTree)[0]]
-                                            .tables[0].name,
-                                        catalogTree[Object.keys(catalogTree)[0]]
-                                            .name,
-                                    );
-                                else
-                                    selectAndGetMetadata(
-                                        selection.table,
-                                        selection.group,
-                                    );
-                            }}
-                        >
-                            {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
-                        </Button>
-                    )}
-                </Group>
+        <Stack>
+            <Group position="apart" align="flex-start">
+                <Box>
+                    <Title order={4}>{projectData?.name}</Title>
+                    <Text color="gray">
+                        Select a table or field to start exploring.
+                    </Text>
+                </Box>
+                {selection && (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        onClick={() => {
+                            setSidebarOpen((prev) => !prev);
+                            if (metadata) {
+                                closeMetadata();
+                                setSelection(undefined);
+                            } else if (selection === undefined)
+                                selectAndGetMetadata(selectionList[0]);
+                            else selectAndGetMetadata(selection);
+                        }}
+                    >
+                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
+                    </Button>
+                )}
+            </Group>
 
-                <Group position="apart">
-                    <TextInput
-                        w={'40%'}
-                        icon={<MantineIcon icon={IconSearch} />}
-                        rightSection={
-                            search ? (
-                                <ActionIcon onClick={() => setSearch('')}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                    />{' '}
-                    <Group>
-                        <SegmentedControl
-                            w={200}
-                            disabled // TODO: remove when implemented
-                            defaultValue={'tables'}
-                            data={[
-                                {
-                                    value: 'tables',
-                                    label: 'Tables',
-                                },
-                                {
-                                    value: 'fields',
-                                    label: 'Fields',
-                                },
-                            ]}
-                            onChange={() => {
-                                // NYI
-                            }}
-                        />
-                        <Button
-                            variant="default"
-                            disabled // TODO: remove when implemented
-                            leftIcon={<MantineIcon icon={IconFilter} />}
-                        >
-                            Filters
-                        </Button>
-                    </Group>
-                </Group>
-                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                    <CatalogTree
-                        tree={catalogTree}
-                        projectUuid={projectUuid}
-                        searchString={debouncedSearch}
-                        selection={selection}
-                        onTableClick={selectAndGetMetadata}
+            <Group position="apart" align="start" h={55}>
+                <TextInput
+                    w={'40%'}
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables and fields"
+                    description={
+                        search && search.length < 3
+                            ? 'Enter at least 3 characters to search'
+                            : undefined
+                    }
+                    value={search}
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'description',
+                        'error',
+                    ]}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <Group>
+                    <SegmentedControl
+                        w={200}
+                        disabled // TODO: remove when implemented
+                        defaultValue={'tables'}
+                        data={[
+                            {
+                                value: 'tables',
+                                label: 'Tables',
+                            },
+                            {
+                                value: 'fields',
+                                label: 'Fields',
+                            },
+                        ]}
+                        onChange={() => {
+                            // NYI
+                        }}
                     />
-                </Stack>
+                    <Button
+                        variant="default"
+                        disabled // TODO: remove when implemented
+                        leftIcon={<MantineIcon icon={IconFilter} />}
+                    >
+                        Filters
+                    </Button>
+                </Group>
+            </Group>
+            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                <CatalogTree
+                    tree={catalogTree}
+                    projectUuid={projectUuid}
+                    searchString={debouncedSearch}
+                    selection={selection}
+                    onItemClick={selectAndGetMetadata}
+                />
             </Stack>
-        </Group>
+        </Stack>
     );
 };

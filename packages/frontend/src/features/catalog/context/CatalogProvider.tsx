@@ -1,4 +1,8 @@
-import { type CatalogAnalytics, type CatalogMetadata } from '@lightdash/common';
+import {
+    type CatalogAnalytics,
+    type CatalogMetadata,
+    type CatalogSelection,
+} from '@lightdash/common';
 import {
     createContext,
     useContext,
@@ -12,6 +16,8 @@ type CatalogContextValues = {
     projectUuid: string;
     metadata: CatalogMetadata | undefined;
     setMetadata: Dispatch<SetStateAction<CatalogMetadata | undefined>>;
+    selection: CatalogSelection | undefined;
+    setSelection: Dispatch<SetStateAction<CatalogSelection | undefined>>;
     analyticsResults: CatalogAnalytics | undefined;
     setAnalyticsResults: Dispatch<SetStateAction<CatalogAnalytics | undefined>>;
     isSidebarOpen: boolean;
@@ -33,6 +39,7 @@ export const CatalogProvider: FC<
     const [metadata, setMetadata] = useState<CatalogMetadata>();
     const [analyticsResults, setAnalyticsResults] =
         useState<CatalogAnalytics>();
+    const [selection, setSelection] = useState<CatalogSelection>();
 
     return (
         <CatalogContext.Provider
@@ -40,6 +47,8 @@ export const CatalogProvider: FC<
                 projectUuid,
                 metadata,
                 setMetadata,
+                selection,
+                setSelection,
                 analyticsResults,
                 setAnalyticsResults,
                 isSidebarOpen,

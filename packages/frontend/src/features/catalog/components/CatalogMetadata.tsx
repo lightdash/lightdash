@@ -1,11 +1,11 @@
 import {
-    Flex,
     Group,
     ScrollArea,
     Stack,
     Table,
     Tabs,
     Text,
+    useMantineTheme,
 } from '@mantine/core';
 import {
     IconArrowDown,
@@ -21,7 +21,9 @@ import { useCatalogContext } from '../context/CatalogProvider';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
-    const { projectUuid, metadata, analyticsResults } = useCatalogContext();
+    const { colors } = useMantineTheme();
+    const { projectUuid, metadata, analyticsResults, selection } =
+        useCatalogContext();
 
     const isFetchingAnalytics = useIsFetching({
         queryKey: ['catalog_analytics', projectUuid],
@@ -73,26 +75,6 @@ export const CatalogMetadata: FC = () => {
                         <Text> Overview</Text>
                         {/* TODO make this a tab*/}
 
-                        <Text>Tags</Text>
-                        <Flex justify="space-between">
-                            <Text>Model name </Text>
-                            <Text
-                                underline={true}
-                                weight={700}
-                                onDoubleClick={() => {
-                                    history.push(
-                                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
-                                    );
-                                }}
-                            >
-                                {metadata.modelName}
-                            </Text>
-                        </Flex>
-                        <Flex justify="space-between">
-                            <Text>Source </Text>
-                            <Text>{metadata.source}</Text>
-                        </Flex>
-
                         <Table>
                             <thead>
                                 <tr>
@@ -102,7 +84,17 @@ export const CatalogMetadata: FC = () => {
                             </thead>
                             <tbody>
                                 {metadata.fields?.map((field) => (
-                                    <tr key={field.name}>
+                                    <tr
+                                        key={field.name}
+                                        style={{
+                                            border:
+                                                selection &&
+                                                selection?.field &&
+                                                selection.field === field.name
+                                                    ? `2px solid ${colors.blue[6]}`
+                                                    : undefined,
+                                        }}
+                                    >
                                         <td>{field.name}</td>
                                         <td>{field.basicType}</td>
                                     </tr>
