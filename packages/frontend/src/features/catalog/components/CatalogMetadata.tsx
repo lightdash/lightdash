@@ -265,7 +265,7 @@ export const CatalogMetadata: FC = () => {
                         )}
                     </Stack>
                 </Tabs.Panel>
-                <Tabs.Panel value="analytics" w={300}>
+                <Tabs.Panel value="analytics">
                     <>
                         {analyticsResults && (
                             <CatalogAnalyticCharts

@@ -38,25 +38,9 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
     }
 
     return (
-        <Stack w="100%">
-            <Paper
-                maw="50%"
-                withBorder
-                p="xs"
-                px="lg"
-                sx={(theme) => ({
-                    backgroundColor: theme.colors.gray[0],
-                })}
-            >
-                <Text c="gray.6" fw={500} fz="xs">
-                    Charts
-                </Text>
-                <Text fw={700} fz="xl">
-                    {charts.length}
-                </Text>
-            </Paper>
+        <Stack>
             {chartsInSpace.length > 0 && (
-                <Stack w="100%">
+                <Stack>
                     {chartsInSpace.map((chart) => {
                         return (
                             <Paper key={chart.uuid} withBorder w="100%" p="xs">
@@ -66,11 +50,11 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                             icon={getChartIcon(chart.chartKind)}
                                         />
                                     </Avatar>
-                                    <Stack spacing="xs">
+                                    <Stack spacing="two">
                                         <RouterNavLink
                                             to={`/projects/${projectUuid}/saved/${chart.uuid}`}
                                             label={
-                                                <Text fz="xs" fw={500}>
+                                                <Text fz="sm" fw={500}>
                                                     {chart.name}
                                                 </Text>
                                             }
@@ -94,6 +78,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                     <Text fz="xs">
                                                         {chart.spaceName}
                                                     </Text>
+                                                    // TODO add for charts that belong to dashboard
                                                 }
                                                 p={0}
                                                 c="gray.6"
