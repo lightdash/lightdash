@@ -378,9 +378,20 @@ export const CatalogPanel: FC = () => {
                             ) : null
                         }
                         placeholder="Search"
+                        description={
+                            search && search.length < 3
+                                ? 'Enter at least 3 characters to search'
+                                : undefined
+                        }
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
                         value={search}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                    />{' '}
+                    />
                     <Group>
                         <Popover shadow="xs">
                             <Popover.Target>
