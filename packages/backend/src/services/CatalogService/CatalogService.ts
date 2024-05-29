@@ -359,4 +359,56 @@ export class CatalogService<
         );
         return { charts: chartAnalytics };
     }
+
+    async getFieldAnalytics(
+        user: SessionUser,
+        projectUuid: string,
+        table: string,
+        field: string,
+    ): Promise<CatalogAnalytics> {
+        const { organizationUuid } = user;
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const chartSummaries = await this.savedChartModel.find({
+            projectUuid,
+            exploreName: table,
+        });
+
+        const chartsWithAccess = await this.filterChartsWithAccess(
+            user,
+            projectUuid,
+            chartSummaries,
+        );
+
+        const chartsPromises = chartsWithAccess.map((chart) =>
+            this.savedChartModel.get(chart.uuid),
+        );
+        const charts = await Promise.all(chartsPromises);
+        const chartsWithFields = charts.filter((chart) => {
+            const fields = [
+                ...chart.metricQuery.dimensions,
+                ...chart.metricQuery.metrics,
+            ];
+            const fieldRef = `${table}_${field}`;
+            return fields.includes(fieldRef);
+        });
+        const chartAnalytics: CatalogAnalytics['charts'] = chartsWithFields.map(
+            (chart) => ({
+                name: chart.name,
+                uuid: chart.uuid,
+                spaceUuid: chart.spaceUuid,
+                spaceName: chart.spaceName,
+                dashboardName: chart.dashboardName,
+                dashboardUuid: chart.dashboardUuid,
+            }),
+        );
+        return { charts: chartAnalytics };
+    }
 }

@@ -1,3 +1,4 @@
+import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
     Group,
     ScrollArea,
@@ -14,7 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { useIsFetching } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCatalogContext } from '../context/CatalogProvider';
@@ -22,13 +23,35 @@ import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
     const { colors } = useMantineTheme();
-    const { projectUuid, metadata, analyticsResults, selection } =
-        useCatalogContext();
+    const {
+        projectUuid,
+        metadata: metadataResults,
+        analyticsResults,
+        selection,
+    } = useCatalogContext();
 
     const isFetchingAnalytics = useIsFetching({
         queryKey: ['catalog_analytics', projectUuid],
     });
     const history = useHistory();
+
+    const metadata = useMemo(() => {
+        if (selection?.field !== undefined && metadataResults) {
+            const field = metadataResults?.fields?.find(
+                (f) => f.name === selection.field,
+            );
+            if (!field) return undefined;
+            const catalogMetadata: CatalogMetadataType = {
+                ...metadataResults,
+                name: field.name,
+                description: field.description,
+                fields: [],
+            };
+            return catalogMetadata;
+        } else {
+            return metadataResults;
+        }
+    }, [metadataResults, selection]);
 
     if (!metadata) return null;
 
@@ -75,30 +98,33 @@ export const CatalogMetadata: FC = () => {
                         <Text> Overview</Text>
                         {/* TODO make this a tab*/}
 
-                        <Table>
-                            <thead>
-                                <tr>
-                                    <th>field name</th>
-                                    <th>type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {metadata.fields?.map((field) => (
-                                    <tr
-                                        key={field.name}
-                                        style={{
-                                            border:
-                                                selection?.field === field.name
-                                                    ? `2px solid ${colors.blue[6]}`
-                                                    : undefined,
-                                        }}
-                                    >
-                                        <td>{field.name}</td>
-                                        <td>{field.basicType}</td>
+                        {selection?.field === undefined && (
+                            <Table>
+                                <thead>
+                                    <tr>
+                                        <th>field name</th>
+                                        <th>type</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </Table>
+                                </thead>
+                                <tbody>
+                                    {metadata.fields.map((field) => (
+                                        <tr
+                                            key={field.name}
+                                            style={{
+                                                border:
+                                                    selection?.field ===
+                                                    field.name
+                                                        ? `2px solid ${colors.blue[6]}`
+                                                        : undefined,
+                                            }}
+                                        >
+                                            <td>{field.name}</td>
+                                            <td>{field.basicType}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        )}
                     </Tabs.Panel>
                     <Tabs.Panel value="analytics" w={300}>
                         <>
