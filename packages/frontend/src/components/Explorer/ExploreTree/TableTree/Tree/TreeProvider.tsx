@@ -36,6 +36,9 @@ const isBaseDimensionWithIntervalDefined = (item: Item): boolean => {
         return false;
     }
 };
+
+const MAX_GROUP_DEPTH = 2;
+
 const addNodeToGroup = (
     node: NodeMap,
     item: Node,
@@ -125,11 +128,23 @@ const getNodeMapFromItemsMap = (
                     isLegacyInterval = true;
                 }
                 const tableGroupDetails = groupDetails || {};
+
                 if (!isBaseDimensionWithIntervalDefined(item)) {
+                    // Limit group nesting levels
+                    const groupsWithMaxDepth = groups.slice(0, MAX_GROUP_DEPTH);
+                    if (
+                        groups.length > 2 &&
+                        isDimension(item) &&
+                        item.timeInterval
+                    ) {
+                        // append time interval group
+                        groupsWithMaxDepth.push(groups[groups.length - 1]);
+                    }
+
                     addNodeToGroup(
                         root,
                         node,
-                        groups,
+                        groupsWithMaxDepth,
                         tableGroupDetails,
                         isLegacyInterval,
                     );
