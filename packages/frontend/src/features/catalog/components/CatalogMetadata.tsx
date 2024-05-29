@@ -1,148 +1,138 @@
 import {
-    type ApiCatalogAnalyticsResults,
-    type ApiCatalogMetadataResults,
-    type CatalogSelection,
-} from '@lightdash/common';
-import { Flex, Stack, Table, Tabs, Text, useMantineTheme } from '@mantine/core';
+    Group,
+    ScrollArea,
+    Stack,
+    Table,
+    Tabs,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
     IconCornerDownLeft,
 } from '@tabler/icons-react';
+import { useIsFetching } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useCatalogContext } from '../context/CatalogProvider';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
-type Props = {
-    projectUuid: string;
-    selection?: CatalogSelection;
-    metadataResults: ApiCatalogMetadataResults;
-    analyticResults?: ApiCatalogAnalyticsResults;
-    isAnalyticsLoading: boolean;
-};
+export const CatalogMetadata: FC = () => {
+    const { colors } = useMantineTheme();
+    const { projectUuid, metadata, analyticsResults, selection } =
+        useCatalogContext();
 
-export const CatalogMetadata: FC<React.PropsWithChildren<Props>> = ({
-    projectUuid,
-    selection,
-    metadataResults,
-    analyticResults,
-    isAnalyticsLoading,
-}) => {
+    const isFetchingAnalytics = useIsFetching({
+        queryKey: ['catalog_analytics', projectUuid],
+    });
     const history = useHistory();
-    const theme = useMantineTheme();
+
+    if (!metadata) return null;
+
     return (
-        <Stack style={{ position: 'relative', minHeight: '100vh' }}>
+        <Stack h="100vh">
             <Text
                 underline={true}
                 size="l"
                 weight={700}
                 onDoubleClick={() => {
                     history.push(
-                        `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
+                        `/projects/${projectUuid}/tables/${metadata.modelName}`,
                     );
                 }}
             >
-                {metadataResults.name}
+                {metadata.name}
             </Text>
-            <MarkdownPreview
-                style={{ fontSize: 'small' }}
-                source={metadataResults.description}
-            />
-            <Tabs defaultValue="overview">
-                <Tabs.List>
-                    <Tabs.Tab value={'overview'} mx="md">
-                        Overview
-                    </Tabs.Tab>
-                    <Tabs.Tab value={'analytics'} mx="md">
-                        {/* TODO replace loading with spinner ?*/}
-                        analytics (
-                        {isAnalyticsLoading
-                            ? '.'
-                            : analyticResults?.charts.length || '0'}
-                        )
-                    </Tabs.Tab>
-                </Tabs.List>
-                <Tabs.Panel value="overview">
-                    <Text> Overview</Text>
-                    {/* TODO make this a tab*/}
+            <ScrollArea
+                variant="primary"
+                className="only-vertical"
+                offsetScrollbars
+                scrollbarSize={8}
+            >
+                <MarkdownPreview
+                    style={{ fontSize: 'small' }}
+                    source={metadata.description}
+                />
 
-                    <Text>Tags</Text>
-                    <Flex justify="space-between">
-                        <Text>Model name </Text>
-                        <Text
-                            underline={true}
-                            weight={700}
-                            onDoubleClick={() => {
-                                history.push(
-                                    `/projects/${projectUuid}/tables/${metadataResults.modelName}`,
-                                );
-                            }}
-                        >
-                            {metadataResults.modelName}
-                        </Text>
-                    </Flex>
-                    <Flex justify="space-between">
-                        <Text>Source </Text>
-                        <Text>{metadataResults.source}</Text>
-                    </Flex>
+                <Tabs defaultValue="overview">
+                    <Tabs.List>
+                        <Tabs.Tab value={'overview'} mx="md">
+                            Overview
+                        </Tabs.Tab>
+                        <Tabs.Tab value={'analytics'} mx="md">
+                            {/* TODO replace loading with spinner ?*/}
+                            analytics (
+                            {isFetchingAnalytics
+                                ? '.'
+                                : analyticsResults?.charts.length || '0'}
+                            )
+                        </Tabs.Tab>
+                    </Tabs.List>
+                    <Tabs.Panel value="overview">
+                        <Text> Overview</Text>
+                        {/* TODO make this a tab*/}
 
-                    <Table>
-                        <thead>
-                            <tr>
-                                <th>field name</th>
-                                <th>type</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {metadataResults.fields?.map((field) => (
-                                <tr
-                                    key={field.name}
-                                    style={{
-                                        border:
-                                            selection &&
-                                            selection?.field &&
-                                            selection.field === field.name
-                                                ? `2px solid ${theme.colors.blue[6]}`
-                                                : undefined,
-                                    }}
-                                >
-                                    <td>{field.name}</td>
-                                    <td>{field.basicType}</td>
+                        <Table>
+                            <thead>
+                                <tr>
+                                    <th>field name</th>
+                                    <th>type</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </Tabs.Panel>
-                <Tabs.Panel value="analytics" w={300}>
-                    <>
-                        {analyticResults && (
-                            <CatalogAnalyticCharts
-                                projectUuid={projectUuid}
-                                analyticResults={analyticResults}
-                            />
-                        )}
-                    </>
-                </Tabs.Panel>
-            </Tabs>
+                            </thead>
+                            <tbody>
+                                {metadata.fields?.map((field) => (
+                                    <tr
+                                        key={field.name}
+                                        style={{
+                                            border:
+                                                selection?.field === field.name
+                                                    ? `2px solid ${colors.blue[6]}`
+                                                    : undefined,
+                                        }}
+                                    >
+                                        <td>{field.name}</td>
+                                        <td>{field.basicType}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="analytics" w={300}>
+                        <>
+                            {analyticsResults && (
+                                <CatalogAnalyticCharts
+                                    projectUuid={projectUuid}
+                                    analyticResults={analyticsResults}
+                                />
+                            )}
+                        </>
+                    </Tabs.Panel>
+                </Tabs>
+            </ScrollArea>
             <Stack
                 p={10}
-                style={{
-                    backgroundColor: 'lightgray',
+                sx={(theme) => ({
+                    backgroundColor: theme.colors.gray[0],
+                    border: `1px solid ${theme.colors.gray[4]}`,
+                    borderLeft: 0,
                     position: 'absolute',
                     bottom: 0,
+                    left: 0,
                     width: '100%',
                     color: 'gray',
-                }}
+                })}
             >
-                <Flex>
-                    <IconArrowUp />
-                    <IconArrowDown />
+                <Group>
+                    <MantineIcon icon={IconArrowUp} />
+                    <MantineIcon icon={IconArrowDown} />
                     <Text>Navigate</Text>
 
-                    <IconCornerDownLeft />
+                    <MantineIcon icon={IconCornerDownLeft} />
                     <Text>Use</Text>
-                </Flex>
+                </Group>
             </Stack>
         </Stack>
     );
