@@ -115,7 +115,8 @@ export const CatalogPanel: FC = () => {
     // - completeSearch: the 3+ char search string that gets sent to the backend
     // - debouncedSearch: the complete search string debounced
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [completeSearch, setCompleteSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
     const { data: catalogResults } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
@@ -355,17 +356,8 @@ export const CatalogPanel: FC = () => {
                                     closeMetadata();
                                     setSelection(undefined);
                                 } else if (selection === undefined)
-                                    selectAndGetMetadata(
-                                        catalogTree[Object.keys(catalogTree)[0]]
-                                            .tables[0].name,
-                                        catalogTree[Object.keys(catalogTree)[0]]
-                                            .name,
-                                    );
-                                else
-                                    selectAndGetMetadata(
-                                        selection.table,
-                                        selection.group,
-                                    );
+                                    selectAndGetMetadata(selectionList[0]);
+                                else selectAndGetMetadata(selection);
                             }}
                         >
                             {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
@@ -516,25 +508,9 @@ export const CatalogPanel: FC = () => {
                         projectUuid={projectUuid}
                         searchString={debouncedSearch}
                         selection={selection}
-                        onTableClick={selectAndGetMetadata}
+                        onItemClick={selectAndGetMetadata}
                     />
-                    <Button
-                        variant="default"
-                        disabled // TODO: remove when implemented
-                        leftIcon={<MantineIcon icon={IconFilter} />}
-                    >
-                        Filters
-                    </Button>
-                </Group>
-            </Group>
-            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                <CatalogTree
-                    tree={catalogTree}
-                    projectUuid={projectUuid}
-                    searchString={debouncedSearch}
-                    selection={selection}
-                    onItemClick={selectAndGetMetadata}
-                />
+                </Stack>
             </Stack>
         </Box>
     );

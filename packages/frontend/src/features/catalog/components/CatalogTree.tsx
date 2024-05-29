@@ -1,4 +1,4 @@
-import { type CatalogSelection, type CatalogType } from '@lightdash/common';
+import { CatalogType, type CatalogSelection } from '@lightdash/common';
 import { Box, Paper, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
@@ -124,13 +124,13 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     key={`catalog-tree-${searchString}`}
                 >
                     {Object.entries(tree).map(([_, value]) =>
-                        renderTreeNode(
-                            value,
+                        renderTreeNode({
+                            node: value,
                             projectUuid,
                             onItemClick,
                             selection,
                             searchString,
-                        ),
+                        }),
                     )}
                 </Box>
             </Paper>
