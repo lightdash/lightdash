@@ -25,7 +25,10 @@ const fetchCatalogAnalytics = async ({
         body: undefined,
     });
 
-export const useCatalogAnalytics = (projectUuid: string) => {
+export const useCatalogAnalytics = (
+    projectUuid: string,
+    onSuccess: (data: ApiCatalogAnalyticsResults) => void,
+) => {
     const setErrorResponse = useQueryError();
 
     return useMutation<
@@ -37,6 +40,7 @@ export const useCatalogAnalytics = (projectUuid: string) => {
             fetchCatalogAnalytics({ projectUuid, table, field }),
         {
             mutationKey: ['catalog_analytics', projectUuid],
+            onSuccess: (data) => onSuccess(data),
             onError: (result) => setErrorResponse(result),
         },
     );

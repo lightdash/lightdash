@@ -1,3 +1,10 @@
+## [0.1108.1](https://github.com/lightdash/lightdash/compare/0.1108.0...0.1108.1) (2024-05-29)
+
+
+### Bug Fixes
+
+* duplicated versions chart analytics ([#10227](https://github.com/lightdash/lightdash/issues/10227)) ([9f39f63](https://github.com/lightdash/lightdash/commit/9f39f63ca16c57170b0409a31d6976cd32fbe58c))
+
 # [0.1108.0](https://github.com/lightdash/lightdash/compare/0.1107.0...0.1108.0) (2024-05-28)
 
 

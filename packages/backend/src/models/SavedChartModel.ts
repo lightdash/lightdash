@@ -1001,7 +1001,8 @@ export class SavedChartModel {
                     .where(
                         'saved_queries_versions.explore_name',
                         filters.exploreName,
-                    );
+                    )
+                    .distinctOn('saved_queries.saved_query_uuid');
             }
             const chartSummaries = await query;
             return chartSummaries.map((chart) => ({

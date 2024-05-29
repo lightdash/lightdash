@@ -21,15 +21,11 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
-import { CatalogMetadata } from './CatalogMetadata';
 import { CatalogTree } from './CatalogTree';
-
-type Props = {
-    projectUuid: string;
-};
 
 type CatalogTreeType = {
     [key: string]: {
@@ -95,10 +91,18 @@ function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
     return selectionList;
 }
 
-export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
-    projectUuid,
-}) => {
-    // There are 3 search varialbes:
+export const CatalogPanel: FC = () => {
+    const {
+        setMetadata,
+        isSidebarOpen,
+        setAnalyticsResults,
+        setSidebarOpen,
+        projectUuid,
+        // TODO: Add field
+        selection,
+        setSelection,
+    } = useCatalogContext();
+    // There are 3 search variables:
     // - search: the current search string
     // - completeSearch: the 3+ char search string that gets sent to the backend
     // - debouncedSearch: the complete search string debounced
@@ -113,19 +117,27 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
         search: debouncedSearch,
     });
 
-    // TODO: add field
-    const [selection, setSelection] = useState<CatalogSelection>();
-
     const {
         mutate: getMetadata,
         data: metadata,
         reset: closeMetadata,
-    } = useCatalogMetadata(projectUuid);
-    const {
-        mutate: getAnalytics,
-        isLoading: isAnalyticsLoading,
-        data: analytics,
-    } = useCatalogAnalytics(projectUuid);
+    } = useCatalogMetadata(projectUuid, (data) => {
+        if (data) {
+            setMetadata(data);
+        }
+
+        if (!isSidebarOpen && data) {
+            setSidebarOpen(true);
+        }
+    });
+    const { mutate: getAnalytics } = useCatalogAnalytics(
+        projectUuid,
+        (data) => {
+            if (data) {
+                setAnalyticsResults(data);
+            }
+        },
+    );
 
     const handleSearchChange = useCallback(
         (searchString: string) => {
@@ -217,7 +229,7 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                 }
             }
         },
-        [catalogResults, getMetadata, getAnalytics],
+        [setSelection, catalogResults, getMetadata, getAnalytics],
     );
 
     const history = useHistory();
@@ -301,84 +313,20 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
     );
 
     return (
-        <Group noWrap align="start">
-            <Stack w={selection ? '70%' : '100%'} spacing="xs">
+        <Stack>
+            <Group position="apart" align="flex-start">
                 <Box>
-                    <Title order={4} mt="xxl">
-                        {projectData?.name}
-                    </Title>
+                    <Title order={4}>{projectData?.name}</Title>
                     <Text color="gray">
                         Select a table or field to start exploring.
                     </Text>
                 </Box>
-                <Group position="apart" align="start" h={55}>
-                    <TextInput
-                        w={'40%'}
-                        icon={<MantineIcon icon={IconSearch} />}
-                        rightSection={
-                            search ? (
-                                <ActionIcon onClick={() => setSearch('')}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search tables and fields"
-                        description={
-                            search && search.length < 3
-                                ? 'Enter at least 3 characters to search'
-                                : undefined
-                        }
-                        value={search}
-                        inputWrapperOrder={[
-                            'label',
-                            'input',
-                            'description',
-                            'error',
-                        ]}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                    />
-                    <Group>
-                        <SegmentedControl
-                            w={200}
-                            disabled // TODO: remove when implemented
-                            defaultValue={'tables'}
-                            data={[
-                                {
-                                    value: 'tables',
-                                    label: 'Tables',
-                                },
-                                {
-                                    value: 'fields',
-                                    label: 'Fields',
-                                },
-                            ]}
-                            onChange={() => {
-                                // NYI
-                            }}
-                        />
-                        <Button
-                            variant="default"
-                            disabled // TODO: remove when implemented
-                            leftIcon={<MantineIcon icon={IconFilter} />}
-                        >
-                            Filters
-                        </Button>
-                    </Group>
-                </Group>
-                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                    <CatalogTree
-                        tree={catalogTree}
-                        projectUuid={projectUuid}
-                        searchString={debouncedSearch}
-                        selection={selection}
-                        onItemClick={selectAndGetMetadata}
-                    />
-                </Stack>
-            </Stack>
-            {selection && (
-                <Stack w="30%">
+                {selection && (
                     <Button
+                        variant="default"
+                        size="xs"
                         onClick={() => {
+                            setSidebarOpen((prev) => !prev);
                             if (metadata) {
                                 closeMetadata();
                                 setSelection(undefined);
@@ -387,20 +335,74 @@ export const CatalogPanel: FC<React.PropsWithChildren<Props>> = ({
                             else selectAndGetMetadata(selection);
                         }}
                     >
-                        {metadata ? 'Hide metadata' : 'Show metadata'}
+                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
                     </Button>
+                )}
+            </Group>
 
-                    {metadata && (
-                        <CatalogMetadata
-                            metadataResults={metadata}
-                            projectUuid={projectUuid}
-                            selection={selection}
-                            analyticResults={analytics}
-                            isAnalyticsLoading={isAnalyticsLoading}
-                        />
-                    )}
-                </Stack>
-            )}
-        </Group>
+            <Group position="apart" align="start" h={55}>
+                <TextInput
+                    w={'40%'}
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables and fields"
+                    description={
+                        search && search.length < 3
+                            ? 'Enter at least 3 characters to search'
+                            : undefined
+                    }
+                    value={search}
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'description',
+                        'error',
+                    ]}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <Group>
+                    <SegmentedControl
+                        w={200}
+                        disabled // TODO: remove when implemented
+                        defaultValue={'tables'}
+                        data={[
+                            {
+                                value: 'tables',
+                                label: 'Tables',
+                            },
+                            {
+                                value: 'fields',
+                                label: 'Fields',
+                            },
+                        ]}
+                        onChange={() => {
+                            // NYI
+                        }}
+                    />
+                    <Button
+                        variant="default"
+                        disabled // TODO: remove when implemented
+                        leftIcon={<MantineIcon icon={IconFilter} />}
+                    >
+                        Filters
+                    </Button>
+                </Group>
+            </Group>
+            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
+                <CatalogTree
+                    tree={catalogTree}
+                    projectUuid={projectUuid}
+                    searchString={debouncedSearch}
+                    selection={selection}
+                    onItemClick={selectAndGetMetadata}
+                />
+            </Stack>
+        </Stack>
     );
 };
