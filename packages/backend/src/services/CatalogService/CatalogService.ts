@@ -366,9 +366,7 @@ export class CatalogService<
         table: string,
         field: string,
     ): Promise<CatalogAnalytics> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } = user;
         if (
             user.ability.cannot(
                 'view',
