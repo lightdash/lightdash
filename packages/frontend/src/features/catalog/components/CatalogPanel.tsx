@@ -319,210 +319,192 @@ export const CatalogPanel: FC = () => {
     );
 
     return (
-        <Box>
-            <Stack>
-                <Group position="apart" align="flex-start">
-                    <Box>
-                        <Group>
-                            <Paper
-                                p="sm"
-                                withBorder
-                                radius="md"
-                                sx={(theme) => ({
-                                    boxShadow: theme.shadows.xs,
-                                })}
-                            >
-                                <MantineIcon
-                                    size={24}
-                                    icon={IconReportSearch}
-                                />
-                            </Paper>
-
-                            <Box>
-                                <Title order={4}>Start exploring</Title>
-                                <Text color="gray.6">
-                                    Select a table or field to start exploring.
-                                </Text>
-                            </Box>
-                        </Group>
-                    </Box>
-                    {selection && (
-                        <Button
-                            variant="default"
-                            size="xs"
-                            onClick={() => {
-                                setSidebarOpen((prev) => !prev);
-                                if (metadata) {
-                                    closeMetadata();
-                                    setSelection(undefined);
-                                } else if (selection === undefined)
-                                    selectAndGetMetadata(selectionList[0]);
-                                else selectAndGetMetadata(selection);
-                            }}
-                        >
-                            {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
-                        </Button>
-                    )}
-                </Group>
-
-                <Group spacing="xs">
-                    <TextInput
-                        size="xs"
-                        w={'50%'}
-                        icon={<MantineIcon icon={IconSearch} />}
-                        rightSection={
-                            search ? (
-                                <ActionIcon onClick={() => setSearch('')}>
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search"
-                        description={
-                            search && search.length < 3
-                                ? 'Enter at least 3 characters to search'
-                                : undefined
-                        }
-                        inputWrapperOrder={[
-                            'label',
-                            'input',
-                            'description',
-                            'error',
-                        ]}
-                        value={search}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                    />
+        <Stack>
+            <Group position="apart" align="flex-start">
+                <Box>
                     <Group>
-                        <Popover shadow="xs">
-                            <Popover.Target>
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    leftIcon={
-                                        <MantineIcon icon={IconFilters} />
-                                    }
-                                >
-                                    Filter
-                                </Button>
-                            </Popover.Target>
+                        <Paper
+                            p="sm"
+                            withBorder
+                            radius="md"
+                            sx={(theme) => ({
+                                boxShadow: theme.shadows.xs,
+                            })}
+                        >
+                            <MantineIcon size={24} icon={IconReportSearch} />
+                        </Paper>
 
-                            <Popover.Dropdown fz="xs">
-                                <Stack spacing="sm">
-                                    <Text c="gray.6" fw={500}>
-                                        Result type
-                                    </Text>
-                                    <Checkbox.Group>
-                                        <Stack spacing="xs">
-                                            <Checkbox
-                                                label={
-                                                    <Badge
-                                                        fw={500}
-                                                        radius="md"
-                                                        color="indigo"
-                                                        styles={{
-                                                            root: {
-                                                                textTransform:
-                                                                    'none',
-                                                            },
-                                                        }}
-                                                    >
-                                                        Dimensions
-                                                    </Badge>
-                                                }
-                                            />
+                        <Box>
+                            <Title order={4}>Start exploring</Title>
+                            <Text color="gray.6">
+                                Select a table or field to start exploring.
+                            </Text>
+                        </Box>
+                    </Group>
+                </Box>
+                {selection && (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        onClick={() => {
+                            setSidebarOpen((prev) => !prev);
+                            if (metadata) {
+                                closeMetadata();
+                                setSelection(undefined);
+                            } else if (selection === undefined)
+                                selectAndGetMetadata(selectionList[0]);
+                            else selectAndGetMetadata(selection);
+                        }}
+                    >
+                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
+                    </Button>
+                )}
+            </Group>
 
-                                            <Checkbox
-                                                label={
-                                                    <Badge
-                                                        fw={500}
-                                                        color="orange"
-                                                        styles={{
-                                                            root: {
-                                                                textTransform:
-                                                                    'none',
-                                                            },
-                                                        }}
-                                                    >
-                                                        Metrics
-                                                    </Badge>
-                                                }
-                                            />
+            <Group spacing="xs">
+                <TextInput
+                    w={'50%'}
+                    icon={<MantineIcon icon={IconSearch} />}
+                    rightSection={
+                        search ? (
+                            <ActionIcon onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search"
+                    description={
+                        search && search.length < 3
+                            ? 'Enter at least 3 characters to search'
+                            : undefined
+                    }
+                    inputWrapperOrder={[
+                        'label',
+                        'input',
+                        'description',
+                        'error',
+                    ]}
+                    value={search}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <Group>
+                    <Popover shadow="xs">
+                        <Popover.Target>
+                            <Button
+                                variant="default"
+                                size="sm"
+                                leftIcon={<MantineIcon icon={IconFilters} />}
+                            >
+                                Filter
+                            </Button>
+                        </Popover.Target>
 
-                                            <Checkbox
-                                                label={
-                                                    <Badge
-                                                        fw={500}
-                                                        color="gray"
-                                                        styles={{
-                                                            root: {
-                                                                textTransform:
-                                                                    'none',
-                                                            },
-                                                        }}
-                                                    >
-                                                        Descriptions
-                                                    </Badge>
-                                                }
-                                            />
-                                        </Stack>
-                                    </Checkbox.Group>
-
-                                    <Divider c="gray.1" />
+                        <Popover.Dropdown fz="xs">
+                            <Stack spacing="sm">
+                                <Text c="gray.6" fw={500}>
+                                    Result type
+                                </Text>
+                                <Checkbox.Group>
                                     <Stack spacing="xs">
                                         <Checkbox
                                             label={
-                                                <Text
-                                                    fz="xs"
+                                                <Badge
                                                     fw={500}
-                                                    c="gray.7"
+                                                    radius="md"
+                                                    color="indigo"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
                                                 >
-                                                    Hide base tables
-                                                </Text>
+                                                    Dimensions
+                                                </Badge>
                                             }
                                         />
+
                                         <Checkbox
                                             label={
-                                                <Text
-                                                    fz="xs"
+                                                <Badge
                                                     fw={500}
-                                                    c="gray.7"
+                                                    color="orange"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
                                                 >
-                                                    Hide grouped tables
-                                                </Text>
+                                                    Metrics
+                                                </Badge>
+                                            }
+                                        />
+
+                                        <Checkbox
+                                            label={
+                                                <Badge
+                                                    fw={500}
+                                                    color="gray"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Descriptions
+                                                </Badge>
                                             }
                                         />
                                     </Stack>
-                                    <Divider c="gray.1" />
+                                </Checkbox.Group>
 
-                                    <Button
-                                        size="xs"
-                                        ml="auto"
-                                        sx={(theme) => ({
-                                            backgroundColor:
-                                                theme.colors.gray[8],
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[9],
-                                            },
-                                        })}
-                                    >
-                                        Apply
-                                    </Button>
+                                <Divider c="gray.1" />
+                                <Stack spacing="xs">
+                                    <Checkbox
+                                        label={
+                                            <Text fz="xs" fw={500} c="gray.7">
+                                                Hide base tables
+                                            </Text>
+                                        }
+                                    />
+                                    <Checkbox
+                                        label={
+                                            <Text fz="xs" fw={500} c="gray.7">
+                                                Hide grouped tables
+                                            </Text>
+                                        }
+                                    />
                                 </Stack>
-                            </Popover.Dropdown>
-                        </Popover>
-                    </Group>
+                                <Divider c="gray.1" />
+
+                                <Button
+                                    size="xs"
+                                    ml="auto"
+                                    sx={(theme) => ({
+                                        backgroundColor: theme.colors.gray[8],
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[9],
+                                        },
+                                    })}
+                                >
+                                    Apply
+                                </Button>
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
                 </Group>
-                <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                    <CatalogTree
-                        tree={catalogTree}
-                        projectUuid={projectUuid}
-                        searchString={debouncedSearch}
-                        selection={selection}
-                        onItemClick={selectAndGetMetadata}
-                    />
-                </Stack>
-            </Stack>
-        </Box>
+            </Group>
+
+            <CatalogTree
+                tree={catalogTree}
+                projectUuid={projectUuid}
+                searchString={debouncedSearch}
+                selection={selection}
+                onItemClick={selectAndGetMetadata}
+            />
+        </Stack>
     );
 };

@@ -25,6 +25,8 @@ type Props = {
     isSelected?: boolean;
     url: string;
     onClick?: () => void;
+    isFirst: boolean;
+    isLast: boolean;
 };
 
 export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
@@ -33,6 +35,8 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     searchString = '',
     isSelected = false,
     url,
+    isFirst,
+    isLast,
     onClick,
     children,
 }) => {
@@ -55,13 +59,21 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 spacing="xs"
                 px="xs"
                 sx={(theme) => ({
-                    minHeight: 40,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
-                    backgroundColor: hovered ? theme.colors.gray[1] : 'white',
+                    minHeight: 48,
+                    borderBottom: isLast
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    backgroundColor: hovered
+                        ? theme.colors.gray[1]
+                        : 'transparent',
                     border: isSelected
                         ? `2px solid ${theme.colors.blue[6]}`
                         : undefined,
                     cursor: 'pointer',
+                    borderTopLeftRadius: isFirst ? theme.radius.lg : 0,
+                    borderTopRightRadius: isFirst ? theme.radius.lg : 0,
+                    borderBottomLeftRadius: isLast ? theme.radius.lg : 0,
+                    borderBottomRightRadius: isLast ? theme.radius.lg : 0,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
@@ -73,7 +85,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         <Group noWrap>
                             <MantineIcon
                                 icon={IconTable}
-                                color="grape"
+                                color="indigo"
                                 size="md"
                             />
 

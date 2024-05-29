@@ -1,4 +1,3 @@
-import { Stack } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -28,9 +27,7 @@ const Catalog: FC = () => {
                     maxWidth: 800,
                 }}
             >
-                <Stack>
-                    <CatalogPanel />
-                </Stack>
+                <CatalogPanel />
             </Page>
         </CatalogProvider>
     );
