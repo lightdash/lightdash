@@ -1,3 +1,10 @@
+## [0.1110.1](https://github.com/lightdash/lightdash/compare/0.1110.0...0.1110.1) (2024-05-29)
+
+
+### Bug Fixes
+
+* invite user without org ([#10143](https://github.com/lightdash/lightdash/issues/10143)) ([87a1c83](https://github.com/lightdash/lightdash/commit/87a1c830b5b864838aba58a8aeedc7d6b0d8a123))
+
 # [0.1110.0](https://github.com/lightdash/lightdash/compare/0.1109.0...0.1110.0) (2024-05-29)
 
 
