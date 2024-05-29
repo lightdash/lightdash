@@ -1,8 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
+    CreateInviteLink,
     InviteLink,
+    LightdashUser,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
+    Organization,
     OrganizationMemberRole,
     SessionUser,
     type OpenIdUser,
@@ -38,7 +41,7 @@ export const sessionUser: SessionUser = {
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
-    ability: new Ability([]),
+    ability: new Ability([{ subject: 'InviteLink', action: ['create'] }]),
     isActive: true,
     abilityRules: [],
 };
@@ -64,4 +67,44 @@ export const inviteLink: InviteLink = {
     inviteUrl: 'inviteUrl',
     organizationUuid: 'organizationUuid',
     userUuid: 'userUuid',
+};
+
+export const inviteUser: CreateInviteLink = {
+    expiresAt: new Date(),
+    email: openIdUser.openId.email,
+    role: OrganizationMemberRole.ADMIN,
+};
+
+export const newUser: SessionUser = {
+    userUuid: 'newUserUuid',
+    email: inviteUser.email,
+    firstName: 'firstName',
+    lastName: 'lastName',
+    organizationUuid: 'organizationUuid',
+    organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: false,
+    userId: 0,
+    role: inviteUser.role,
+    ability: new Ability([]),
+    isActive: false,
+    abilityRules: [],
+};
+
+export const organisation: Organization = {
+    organizationUuid: 'organizationUuid',
+    name: 'organizationName',
+};
+
+export const userWithoutOrg: LightdashUser = {
+    userUuid: 'newUserUuid',
+    email: inviteUser.email,
+    firstName: 'firstName',
+    lastName: 'lastName',
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: false,
+    isActive: false,
 };
