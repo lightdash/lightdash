@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCatalogContext } from '../context/CatalogProvider';
+import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
@@ -29,6 +30,7 @@ export const CatalogMetadata: FC = () => {
         metadata: metadataResults,
         analyticsResults,
         selection,
+        setAnalyticsResults,
     } = useCatalogContext();
 
     const isFetchingAnalytics = useIsFetching({
@@ -43,6 +45,15 @@ export const CatalogMetadata: FC = () => {
     useEffect(() => {
         setSelectedFieldInTable(undefined);
     }, [selection]);
+
+    const { mutate: getAnalytics } = useCatalogAnalytics(
+        projectUuid,
+        (data) => {
+            if (data) {
+                setAnalyticsResults(data);
+            }
+        },
+    );
 
     const metadata = useMemo(() => {
         const fieldSelected = selection?.field || selectedFieldInTable;
@@ -73,7 +84,11 @@ export const CatalogMetadata: FC = () => {
                         <Text
                             color={colors.blue[6]}
                             sx={{ cursor: 'pointer' }}
-                            onClick={() => setSelectedFieldInTable(undefined)}
+                            onClick={() => {
+                                setSelectedFieldInTable(undefined);
+                                if (selection?.table)
+                                    getAnalytics({ table: selection.table }); //Restore table analytics
+                            }}
                         >
                             {' '}
                             {selection?.table}
@@ -153,6 +168,11 @@ export const CatalogMetadata: FC = () => {
                                                         setSelectedFieldInTable(
                                                             field.name,
                                                         );
+                                                        if (selection?.table)
+                                                            getAnalytics({
+                                                                table: selection.table,
+                                                                field: field.name,
+                                                            });
                                                     }}
                                                 >
                                                     {field.name}
