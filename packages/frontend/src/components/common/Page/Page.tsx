@@ -11,7 +11,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar, { SidebarPosition } from './Sidebar';
+import Sidebar, { SidebarPosition, type SidebarWidthProps } from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
@@ -138,6 +138,7 @@ type Props = {
     isSidebarOpen?: boolean;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
+    rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
@@ -148,6 +149,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     isSidebarOpen = true,
     rightSidebar,
     isRightSidebarOpen = false,
+    rightSidebarWidthProps,
 
     withCenteredContent = false,
     withFitContent = false,
@@ -220,6 +222,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     <Sidebar
                         isOpen={isRightSidebarOpen}
                         position={SidebarPosition.RIGHT}
+                        widthProps={rightSidebarWidthProps}
                     >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {rightSidebar}
