@@ -118,7 +118,7 @@ export class CatalogService<
         if (type === TableSelectionType.WITH_NAMES) {
             return (value || []).includes(explore.name);
         }
-        return false;
+        return true;
     }
 
     private async getCatalogTables(
