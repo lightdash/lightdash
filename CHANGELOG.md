@@ -1,3 +1,10 @@
+# [0.1109.0](https://github.com/lightdash/lightdash/compare/0.1108.1...0.1109.0) (2024-05-29)
+
+
+### Features
+
+* add metadata to right sidebar ([#10219](https://github.com/lightdash/lightdash/issues/10219)) ([097abe0](https://github.com/lightdash/lightdash/commit/097abe0b9c66733ace7d0af98de786a0ff853a77))
+
 ## [0.1108.1](https://github.com/lightdash/lightdash/compare/0.1108.0...0.1108.1) (2024-05-29)
 
 
