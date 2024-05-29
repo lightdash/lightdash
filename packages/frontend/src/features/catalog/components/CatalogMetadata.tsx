@@ -1,3 +1,4 @@
+import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
     Avatar,
     Badge,
