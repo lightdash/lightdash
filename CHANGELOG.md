@@ -1,3 +1,10 @@
+## [0.1113.1](https://github.com/lightdash/lightdash/compare/0.1113.0...0.1113.1) (2024-05-30)
+
+
+### Bug Fixes
+
+* refactor charts for validation SQL to use a cte instead of sub query ([#10251](https://github.com/lightdash/lightdash/issues/10251)) ([9c09269](https://github.com/lightdash/lightdash/commit/9c09269eef36c9ead531c7e3fa6a4b100257c183))
+
 # [0.1113.0](https://github.com/lightdash/lightdash/compare/0.1112.1...0.1113.0) (2024-05-30)
 
 
