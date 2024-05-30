@@ -3,6 +3,7 @@ import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
+import { useElementSize } from '@mantine/hooks';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
@@ -11,7 +12,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar, { SidebarPosition } from './Sidebar';
+import Sidebar, { SidebarPosition, type SidebarWidthProps } from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
@@ -29,7 +30,8 @@ type StyleProps = {
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
-const PAGE_MIN_CONTENT_WIDTH = 600;
+const PAGE_CONTENT_WIDTH_LARGE = 1200;
+export const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     let containerHeight = '100vh';
@@ -114,6 +116,12 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   }
                 : {}),
 
+            ...(params.withRightSidebar
+                ? {
+                      width: PAGE_CONTENT_WIDTH_LARGE,
+                  }
+                : {}),
+
             ...(params.withPaddedContent
                 ? {
                       paddingLeft: theme.spacing.lg,
@@ -138,6 +146,7 @@ type Props = {
     isSidebarOpen?: boolean;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
+    rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
@@ -148,6 +157,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     isSidebarOpen = true,
     rightSidebar,
     isRightSidebarOpen = false,
+    rightSidebarWidthProps,
 
     withCenteredContent = false,
     withFitContent = false,
@@ -160,6 +170,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     children,
 }) => {
+    const { ref: mainRef, width: mainWidth } = useElementSize();
     const { activeProjectUuid } = useActiveProjectUuid({
         refetchOnMount: true,
     });
@@ -208,7 +219,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </Sidebar>
                 ) : null}
 
-                <Box component="main" className={classes.content}>
+                <Box component="main" className={classes.content} ref={mainRef}>
                     <TrackSection name={SectionName.PAGE_CONTENT}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {children}
@@ -220,6 +231,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     <Sidebar
                         isOpen={isRightSidebarOpen}
                         position={SidebarPosition.RIGHT}
+                        widthProps={rightSidebarWidthProps}
+                        mainWidth={mainWidth}
                     >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {rightSidebar}

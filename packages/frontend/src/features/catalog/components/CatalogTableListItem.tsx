@@ -1,17 +1,15 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Collapse,
     Group,
     Highlight,
-    Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
-    IconChevronRight,
     IconExternalLink,
-    IconLayersLinked,
+    IconLayersIntersect,
     IconTable,
 } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
@@ -26,6 +24,8 @@ type Props = {
     isSelected?: boolean;
     url: string;
     onClick?: () => void;
+    isFirst: boolean;
+    isLast: boolean;
 };
 
 export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
@@ -34,16 +34,13 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     searchString = '',
     isSelected = false,
     url,
+    isFirst,
+    isLast,
     onClick,
     children,
 }) => {
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
-
-    const handleOpenClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.stopPropagation();
-        toggleOpen();
-    };
 
     const countJoinedTables =
         'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
@@ -53,68 +50,64 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
             <Group
                 noWrap
                 position="apart"
-                py="sm"
+                spacing="xs"
                 px="xs"
                 sx={(theme) => ({
-                    minHeight: 40,
-                    borderRadius: theme.radius.sm,
-                    padding: theme.spacing.md,
+                    minHeight: 48,
+                    borderBottom: isLast
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
                     backgroundColor: hovered
-                        ? theme.colors.gray[2]
-                        : theme.colors.gray[1],
+                        ? theme.colors.gray[1]
+                        : 'transparent',
                     border: isSelected
                         ? `2px solid ${theme.colors.blue[6]}`
                         : undefined,
                     cursor: 'pointer',
+                    borderTopLeftRadius: isFirst ? theme.radius.lg : 0,
+                    borderTopRightRadius: isFirst ? theme.radius.lg : 0,
+                    borderBottomLeftRadius:
+                        isLast && !isOpen ? theme.radius.lg : 0,
+                    borderBottomRightRadius:
+                        isLast && !isOpen ? theme.radius.lg : 0,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
+                pos="relative"
             >
-                <Group w={55} noWrap spacing="xs">
-                    <ActionIcon
-                        onClick={handleOpenClick}
-                        disabled={table.fields.length === 0}
-                    >
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            style={{
-                                margin: 1,
-                                transition: 'transform 200ms ease',
-                                transform: isOpen ? 'rotate(90deg)' : undefined,
-                            }}
-                        />
-                    </ActionIcon>
+                <UnstyledButton onClick={() => toggleOpen()} miw={150}>
+                    <Group noWrap spacing="xs">
+                        <MantineIcon icon={IconTable} color="gray" size="sm" />
 
-                    <MantineIcon
-                        icon={IconTable}
-                        color="gray"
-                        size="lg"
-                    ></MantineIcon>
-                </Group>
-                <Box miw={150}>
-                    <Highlight
-                        highlight={searchString}
-                        highlightColor="violet"
-                        fw={600}
-                    >
-                        {table.name || ''}
-                    </Highlight>
-                </Box>
+                        <Highlight
+                            highlight={searchString}
+                            highlightColor="violet"
+                            fz="sm"
+                            fw={600}
+                        >
+                            {table.name || ''}
+                        </Highlight>
+                    </Group>
+                </UnstyledButton>
+
                 <Box w={50}>
                     {countJoinedTables > 0 && (
-                        <Tooltip label={`${countJoinedTables} joined tables`}>
-                            <Group noWrap spacing="xs">
+                        <Tooltip
+                            variant="xs"
+                            label={`${countJoinedTables} joined table(s)`}
+                        >
+                            <Group noWrap spacing="one">
                                 <MantineIcon
                                     color="gray"
-                                    icon={IconLayersLinked}
+                                    icon={IconLayersIntersect}
                                 />
-                                <Text color="gray">{countJoinedTables}</Text>
                             </Group>
                         </Tooltip>
                     )}
                 </Box>
                 <Highlight
+                    fz="xs"
                     w="100%"
                     lineClamp={2}
                     highlight={searchString}
@@ -123,13 +116,31 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     {table.description || ''}
                 </Highlight>
                 {hovered && (
-                    <Box>
+                    <Box
+                        pos={'absolute'}
+                        right={10}
+                        sx={{
+                            zIndex: 20,
+                        }}
+                    >
                         <MantineLinkButton
+                            size="xs"
                             href={url}
-                            variant="subtle"
                             target="_blank"
                             compact
-                            rightIcon={<MantineIcon icon={IconExternalLink} />}
+                            rightIcon={
+                                <MantineIcon
+                                    size="sm"
+                                    icon={IconExternalLink}
+                                />
+                            }
+                            sx={(theme) => ({
+                                backgroundColor: theme.colors.gray[8],
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[9],
+                                },
+                            })}
+                            onClick={(e) => e.stopPropagation()}
                         >
                             Use table
                         </MantineLinkButton>

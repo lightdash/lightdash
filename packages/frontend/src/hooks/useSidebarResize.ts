@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { PAGE_MIN_CONTENT_WIDTH } from '../components/common/Page/Page';
 import { SidebarPosition } from '../components/common/Page/Sidebar';
 
 type Args = {
@@ -6,6 +7,7 @@ type Args = {
     minWidth: number;
     maxWidth: number;
     position: SidebarPosition;
+    mainWidth?: number;
 };
 
 const useSidebarResize = ({
@@ -13,6 +15,7 @@ const useSidebarResize = ({
     minWidth,
     defaultWidth,
     position,
+    mainWidth,
 }: Args) => {
     const sidebarRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
@@ -34,14 +37,22 @@ const useSidebarResize = ({
 
             const sidebarRect = sidebarRef.current.getBoundingClientRect();
             let newWidth;
+
             if (position === SidebarPosition.LEFT) {
                 newWidth = event.clientX - sidebarRect.left;
             } else {
                 newWidth = sidebarRect.right - event.clientX;
+                if (mainWidth && mainWidth < PAGE_MIN_CONTENT_WIDTH) {
+                    // Allow shrinking but prevent growing when mainWidth < PAGE_MIN_CONTENT_WIDTH
+                    if (newWidth > sidebarRect.width) {
+                        return;
+                    }
+                }
             }
+
             setSidebarWidth(Math.min(maxWidth, Math.max(minWidth, newWidth)));
         },
-        [isResizing, position, maxWidth, minWidth],
+        [isResizing, position, maxWidth, minWidth, mainWidth],
     );
 
     useLayoutEffect(() => {

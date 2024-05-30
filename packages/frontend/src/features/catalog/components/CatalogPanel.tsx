@@ -12,6 +12,7 @@ import {
     Checkbox,
     Divider,
     Group,
+    Paper,
     Popover,
     Stack,
     Text,
@@ -19,11 +20,16 @@ import {
     Title,
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
-import { IconFilters, IconSearch, IconX } from '@tabler/icons-react';
+
+import {
+    IconFilters,
+    IconReportSearch,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useProject } from '../../../hooks/useProject';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -143,7 +149,6 @@ export const CatalogPanel: FC = () => {
 
     const [filters, setFilters] = useState(() => ({ ...draftFilters }));
 
-    const { data: projectData } = useProject(projectUuid);
     const { data: catalogResults } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
@@ -388,10 +393,25 @@ export const CatalogPanel: FC = () => {
         <Stack>
             <Group position="apart" align="flex-start">
                 <Box>
-                    <Title order={4}>{projectData?.name}</Title>
-                    <Text color="gray">
-                        Select a table or field to start exploring.
-                    </Text>
+                    <Group>
+                        <Paper
+                            p="sm"
+                            withBorder
+                            radius="md"
+                            sx={(theme) => ({
+                                boxShadow: theme.shadows.xs,
+                            })}
+                        >
+                            <MantineIcon size={24} icon={IconReportSearch} />
+                        </Paper>
+
+                        <Box>
+                            <Title order={4}>Start exploring</Title>
+                            <Text color="gray.6" fw={500}>
+                                Select a table or field to start exploring.
+                            </Text>
+                        </Box>
+                    </Group>
                 </Box>
                 {selection && (
                     <Button
@@ -412,19 +432,18 @@ export const CatalogPanel: FC = () => {
                 )}
             </Group>
 
-            <Group align="start" h={40}>
+            <Group spacing="xs">
                 <TextInput
-                    w={'40%'}
-                    size="xs"
+                    w={'50%'}
                     icon={<MantineIcon icon={IconSearch} />}
                     rightSection={
                         search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
+                            <ActionIcon onClick={() => handleSearchChange('')}>
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         ) : null
                     }
-                    placeholder="Search tables and fields"
+                    placeholder="Search"
                     description={
                         search && search.length < 3
                             ? 'Enter at least 3 characters to search'
@@ -569,15 +588,14 @@ export const CatalogPanel: FC = () => {
                     </Popover.Dropdown>
                 </Popover>
             </Group>
-            <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
-                <CatalogTree
-                    tree={catalogTree}
-                    projectUuid={projectUuid}
-                    searchString={debouncedSearch}
-                    selection={selection}
-                    onItemClick={selectAndGetMetadata}
-                />
-            </Stack>
+
+            <CatalogTree
+                tree={catalogTree}
+                projectUuid={projectUuid}
+                searchString={debouncedSearch}
+                selection={selection}
+                onItemClick={selectAndGetMetadata}
+            />
         </Stack>
     );
 };

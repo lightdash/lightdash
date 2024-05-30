@@ -94,6 +94,7 @@ export const explore: Explore = {
                     tablesReferences: ['table1'],
                     source: sourceMock,
                     hidden: false,
+                    groups: [],
                 },
             },
             metrics: {
@@ -110,6 +111,7 @@ export const explore: Explore = {
                     hidden: false,
                     compiledSql: 'AVG("table1".metric1)',
                     tablesReferences: ['table1'],
+                    groups: [],
                 },
             },
             lineageGraph: {},

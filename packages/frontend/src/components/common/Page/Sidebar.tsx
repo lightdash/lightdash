@@ -25,11 +25,19 @@ export enum SidebarPosition {
     RIGHT = 'right',
 }
 
+export type SidebarWidthProps = {
+    defaultWidth?: number;
+    minWidth?: number;
+    maxWidth?: number;
+};
+
 type Props = {
     isOpen?: boolean;
     containerProps?: FlexProps;
     cardProps?: CardProps;
     position?: SidebarPosition;
+    widthProps?: SidebarWidthProps;
+    mainWidth?: number;
 };
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
@@ -37,14 +45,22 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     containerProps,
     cardProps,
     position = SidebarPosition.LEFT,
+    widthProps = {},
+    mainWidth,
     children,
 }) => {
+    const {
+        defaultWidth = SIDEBAR_DEFAULT_WIDTH,
+        minWidth = SIDEBAR_MIN_WIDTH,
+        maxWidth = SIDEBAR_MAX_WIDTH,
+    } = widthProps;
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
-            defaultWidth: SIDEBAR_DEFAULT_WIDTH,
-            minWidth: SIDEBAR_MIN_WIDTH,
-            maxWidth: SIDEBAR_MAX_WIDTH,
+            defaultWidth,
+            minWidth,
+            maxWidth,
             position,
+            mainWidth,
         });
 
     const transition: MantineTransition = {

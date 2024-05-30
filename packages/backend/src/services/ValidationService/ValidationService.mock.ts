@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    ChartType,
     Dashboard,
     DashboardTileTypes,
     DimensionType,
@@ -12,14 +11,13 @@ import {
     LightdashMode,
     MetricType,
     OrganizationMemberRole,
-    SavedChart,
     SessionUser,
-    ShareUrl,
     SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type SavedChartModel } from '../../models/SavedChartModel';
 
 export const config = {
     mode: LightdashMode.DEFAULT,
@@ -50,132 +48,60 @@ export const user: SessionUser = {
     abilityRules: [],
 };
 
-export const chart: SavedChart = {
+export const chartForValidation: Awaited<
+    ReturnType<SavedChartModel['findChartsForValidation']>
+>[number] = {
     uuid: 'chartUuid',
-    projectUuid: 'projectUuid',
-    dashboardUuid: null,
-    dashboardName: null,
     name: 'Test chart',
-    slug: 'test-chart',
     tableName: 'table',
-    updatedAt: new Date('2021-01-01'),
-    updatedByUser: {
-        userUuid: 'userUuid',
-        firstName: 'David',
-        lastName: 'Attenborough',
-    },
-    metricQuery: {
-        exploreName: 'table',
-        dimensions: ['table_dimension'],
-        metrics: ['table_metric'],
-        filters: {
-            dimensions: {
-                id: 'dimensionFilterUuid',
-                and: [
-                    {
-                        id: '',
-                        target: { fieldId: 'table_dimension' },
-                        values: ['2018-01-01'],
-                        operator: FilterOperator.EQUALS,
-                    },
-                ],
-            },
-            metrics: {
-                id: 'metricFilterUuid',
-                or: [
-                    {
-                        id: '',
-                        target: { fieldId: 'table_metric' },
-                        values: ['2018-01-01'],
-                        operator: FilterOperator.EQUALS,
-                    },
-                    {
-                        id: '',
-                        target: { fieldId: 'table_custom_metric' },
-                        values: [10],
-                        operator: FilterOperator.EQUALS,
-                    },
-                ],
-            },
-        },
-        sorts: [
-            {
-                fieldId: 'table_dimension',
-                descending: false,
-            },
-        ],
-        tableCalculations: [
-            {
-                name: 'table_calculation',
-                displayName: 'myTableCalculation',
-                sql: '1 + ${table_dimension} + ${table_metric}',
-            },
-        ],
-        additionalMetrics: [
-            {
-                table: 'table',
-                name: 'custom_metric',
-                type: MetricType.MAX,
-                label: 'Count of dimension',
-                description: 'Count of dimension',
-                sql: '${TABLE}.dimension',
-                baseDimensionName: 'dimension',
-            },
-        ],
-        limit: 10,
-    },
-    chartConfig: {
-        type: ChartType.CARTESIAN,
-        config: {
-            layout: {
-                xField: 'payments_payment_method',
-                yField: [
-                    'payments_total_revenue',
-                    'payments_unique_payment_count',
-                ],
-                flipAxes: true,
-            },
-            eChartsConfig: {
-                legend: {
-                    show: true,
-                    orient: 'horizontal',
+    filters: {
+        dimensions: {
+            id: 'dimensionFilterUuid',
+            and: [
+                {
+                    id: '',
+                    target: { fieldId: 'table_dimension' },
+                    values: ['2018-01-01'],
+                    operator: FilterOperator.EQUALS,
                 },
-                series: [],
-            },
+            ],
+        },
+        metrics: {
+            id: 'metricFilterUuid',
+            or: [
+                {
+                    id: '',
+                    target: { fieldId: 'table_metric' },
+                    values: ['2018-01-01'],
+                    operator: FilterOperator.EQUALS,
+                },
+                {
+                    id: '',
+                    target: { fieldId: 'table_custom_metric' },
+                    values: [10],
+                    operator: FilterOperator.EQUALS,
+                },
+            ],
         },
     },
-    tableConfig: {
-        columnOrder: [
-            'table_dimension',
-            'table_metric',
-            'table_custom_metric',
-            'table_calculation',
-        ],
-    },
-    organizationUuid: 'orgUuid',
-    spaceUuid: 'spaceUuid',
-    spaceName: 'space name',
-    pinnedListUuid: null,
-    pinnedListOrder: null,
-    colorPalette: [],
-    isPrivate: false,
-    access: [],
+    dimensions: ['table_dimension'],
+    metrics: ['table_metric'],
+    tableCalculations: ['table_calculation'],
+    customMetrics: ['table_custom_metric'],
+    customMetricsBaseDimensions: ['table_dimension'],
+    customBinDimensions: [],
+    customSqlDimensions: [],
+    sorts: ['table_dimension'],
 };
 
-export const chartWithJoinedField: SavedChart = {
-    ...chart,
+export const chartForValidationWithJoinedField: Awaited<
+    ReturnType<SavedChartModel['findChartsForValidation']>
+>[number] = {
+    ...chartForValidation,
     tableName: 'another_table',
-    metricQuery: {
-        ...chart.metricQuery,
-        dimensions: ['table_dimension', 'another_table_dimension'],
-        metrics: ['table_metric', 'another_table_metric'],
-        sorts: [
-            {
-                fieldId: 'another_table_dimension',
-                descending: false,
-            },
-        ],
-    },
+    dimensions: ['table_dimension', 'another_table_dimension'],
+    metrics: ['table_metric', 'another_table_metric'],
+    sorts: ['another_table_dimension'],
 };
 
 export const dashboard: Dashboard = {

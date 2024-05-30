@@ -18,10 +18,16 @@ const Catalog: FC = () => {
             setSidebarOpen={setSidebarOpen}
         >
             <Page
+                withFitContent
                 withPaddedContent
                 withRightSidebar
                 isRightSidebarOpen={isSidebarOpen}
                 rightSidebar={<CatalogMetadata />}
+                rightSidebarWidthProps={{
+                    defaultWidth: 600,
+                    minWidth: 600,
+                    maxWidth: 800,
+                }}
             >
                 <Stack>
                     <CatalogPanel />

@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Stack, Tooltip } from '@mantine/core';
+import { Box, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -16,6 +16,8 @@ type Props = {
 type NodeProps = Omit<Props, 'tree'> & {
     node: any;
     hideGroupedTables?: boolean;
+    index: number;
+    length: number;
 };
 
 const renderTreeNode = ({
@@ -25,6 +27,8 @@ const renderTreeNode = ({
     selection,
     searchString,
     hideGroupedTables = false,
+    index,
+    length,
 }: NodeProps) => {
     if (!node) {
         return null;
@@ -41,19 +45,23 @@ const renderTreeNode = ({
                 }
                 tableCount={Object.keys(node.tables).length}
                 hidden={hideGroupedTables && node.name === 'Ungrouped tables'}
+                isLast={index === length - 1}
             >
                 {Object.keys(node.tables).length > 0 && (
-                    <Stack spacing={3}>
-                        {Object.entries(node.tables).map(([_, value]) =>
-                            renderTreeNode({
-                                node: value,
-                                projectUuid,
-                                onItemClick,
-                                selection,
-                                searchString,
-                            }),
+                    <Box>
+                        {Object.entries(node.tables).map(
+                            ([_, value], tableIndex) =>
+                                renderTreeNode({
+                                    node: value,
+                                    projectUuid,
+                                    onItemClick,
+                                    selection,
+                                    searchString,
+                                    index: tableIndex,
+                                    length: Object.keys(node.tables).length,
+                                }),
                         )}
-                    </Stack>
+                    </Box>
                 )}
             </CatalogGroup>
         );
@@ -72,16 +80,20 @@ const renderTreeNode = ({
                 }
                 isSelected={selection?.table === node.name && !selection?.field}
                 url={`/projects/${projectUuid}/tables/${node.name}`}
+                isFirst={index === 0}
+                isLast={index === length - 1}
             >
                 {Object.keys(node.fields).length > 0 && (
                     <Stack spacing={0}>
-                        {node.fields.map((child: any) =>
+                        {node.fields.map((child: any, fieldIndex: number) =>
                             renderTreeNode({
                                 node: child,
                                 projectUuid,
                                 onItemClick,
                                 selection,
                                 searchString,
+                                index: fieldIndex,
+                                length: Object.keys(node.fields).length,
                             }),
                         )}
                     </Stack>
@@ -127,22 +139,40 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Tooltip.Group>
-            <Stack
-                sx={{ maxHeight: '900px', overflow: 'scroll' }}
-                spacing="xs"
-                key={`catalog-tree-${searchString}`}
+            <Box
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.gray[3]}`,
+                    backgroundColor: theme.fn.lighten(
+                        theme.colors.gray[0],
+                        0.5,
+                    ),
+                    borderRadius: theme.radius.lg,
+                    padding: theme.spacing.lg,
+                    boxShadow: `0 0 0 1px ${theme.colors.gray[0]},
+                    0 2px 3px -2px ${theme.colors.gray[0]},
+                    0 3px 12px -4px ${theme.colors.gray[2]},
+                    0 4px 16px -8px ${theme.colors.gray[2]}`,
+                })}
             >
-                {Object.entries(tree).map(([_, value]) =>
-                    renderTreeNode({
-                        node: value,
-                        projectUuid,
-                        onItemClick,
-                        selection,
-                        searchString,
-                        hideGroupedTables,
-                    }),
-                )}
-            </Stack>
+                <Box
+                    sx={{ maxHeight: '900px', overflowY: 'scroll' }}
+                    key={`catalog-tree-${searchString}`}
+                >
+                    {Object.entries(tree).map(([_, value], index) =>
+                        renderTreeNode({
+                            node: value,
+                            projectUuid,
+                            onItemClick,
+                            selection,
+                            searchString,
+                            hideGroupedTables,
+
+                            index,
+                            length: Object.keys(tree).length,
+                        }),
+                    )}
+                </Box>
+            </Box>
         </Tooltip.Group>
     );
 };

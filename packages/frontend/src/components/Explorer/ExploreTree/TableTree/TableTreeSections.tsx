@@ -182,6 +182,7 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={dimensions}
                     selectedItems={selectedItems}
+                    groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
                     <TreeRoot />
@@ -230,6 +231,7 @@ const TableTreeSections: FC<Props> = ({
                     searchQuery={searchQuery}
                     itemsMap={metrics}
                     selectedItems={selectedItems}
+                    groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
                     <TreeRoot />
@@ -272,6 +274,7 @@ const TableTreeSections: FC<Props> = ({
                     itemsMap={customMetrics}
                     selectedItems={selectedItems}
                     missingCustomMetrics={missingFields?.customMetrics}
+                    groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, false)}
                 >
                     <TreeRoot />
@@ -315,6 +318,7 @@ const TableTreeSections: FC<Props> = ({
                     itemsMap={customDimensionsMap}
                     missingCustomDimensions={missingFields?.customDimensions}
                     selectedItems={selectedItems}
+                    groupDetails={table.groupDetails}
                     onItemClick={(key) => onSelectedNodeChange(key, true)}
                 >
                     <TreeRoot />
