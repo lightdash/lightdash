@@ -325,12 +325,16 @@ export class CatalogService<
         const filteredFields = fields.filter((field) =>
             hasUserAttributes(field.requiredAttributes, userAttributes),
         );
+
         const metadata: CatalogMetadata = {
             name: explore.label,
             description: baseTable.description,
             modelName: explore.name,
             source: explore.ymlPath,
             fields: filteredFields,
+            joinedTables: explore.joinedTables.map(
+                (joinedTable) => joinedTable.table,
+            ),
         };
         return metadata;
     }
