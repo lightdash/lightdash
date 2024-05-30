@@ -77,7 +77,14 @@ const renderTreeNode = ({
                 isLast={index === length - 1}
             >
                 {Object.keys(node.fields).length > 0 && (
-                    <Stack spacing={0}>
+                    <Stack
+                        spacing={0}
+                        my="xs"
+                        pl="xs"
+                        sx={(theme) => ({
+                            borderLeft: `1px solid ${theme.colors.gray[2]}`,
+                        })}
+                    >
                         {node.fields.map((child: any, fieldIndex: number) =>
                             renderTreeNode({
                                 node: child,

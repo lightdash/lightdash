@@ -54,9 +54,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 px="xs"
                 sx={(theme) => ({
                     minHeight: 48,
-                    borderBottom: isLast
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom:
+                        isLast || isOpen
+                            ? 'none'
+                            : `1px solid ${theme.colors.gray[2]}`,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
                         : 'transparent',
