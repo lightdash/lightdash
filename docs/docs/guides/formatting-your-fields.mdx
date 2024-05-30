@@ -57,11 +57,9 @@ By default, all of your dimensions and metrics have been set to `hidden: false`.
 You can group related metrics and dimensions together using the model meta `groups` block in combination with the `group` property in your .yaml files.
 You can as well add descriptions to your groups using the property `description` that will be displayed when hovering over the group label.
 
-:::note Property Deprecated
+:::note Max grouping levels
 
-The property `group_label` will be deprecated in favor of the above `groups` functionality.
-
-The `group_label` property will still work, but it is recommended to use the `groups` property.
+There is a max of 2 levels of grouping in the sidebar.
 
 :::
 
@@ -113,6 +111,14 @@ models:
   height="124"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+
+:::warning Property Deprecated
+
+The property `group_label` will be deprecated in favor of the above `groups` functionality.
+
+The `group_label` property will still work, but it is recommended to use the `groups` property.
+
+:::
 
 You can also group related metrics and dimensions together using the `group_label` property in your .yml files.
 For example, you might want to group together all of the fields related to your user's `product activity`. To do this, you'd add the same `group_label` to all of the fields you want grouped together, like so:
