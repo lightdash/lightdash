@@ -78,7 +78,11 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
             >
                 <UnstyledButton onClick={() => toggleOpen()} miw={150}>
                     <Group noWrap spacing="xs">
-                        <MantineIcon icon={IconTable} color="gray" size="sm" />
+                        <MantineIcon
+                            icon={IconTable}
+                            color="gray.6"
+                            size="md"
+                        />
 
                         <Highlight
                             highlight={searchString}
