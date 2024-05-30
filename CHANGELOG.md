@@ -1,3 +1,10 @@
+# [0.1112.0](https://github.com/lightdash/lightdash/compare/0.1111.3...0.1112.0) (2024-05-30)
+
+
+### Features
+
+* Allow for nested grouping in group_label meta property ([#10119](https://github.com/lightdash/lightdash/issues/10119)) ([fe5e254](https://github.com/lightdash/lightdash/commit/fe5e25404672821982d13c779b3949a8796fda7b))
+
 ## [0.1111.3](https://github.com/lightdash/lightdash/compare/0.1111.2...0.1111.3) (2024-05-30)
 
 
