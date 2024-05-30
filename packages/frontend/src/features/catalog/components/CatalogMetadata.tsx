@@ -93,7 +93,7 @@ export const CatalogMetadata: FC = () => {
     if (!metadata) return null;
 
     return (
-        <Stack h="100vh" spacing="xl" pos="relative">
+        <Stack h="100vh" spacing="xl">
             <Button
                 variant="default"
                 size="xs"
@@ -173,7 +173,7 @@ export const CatalogMetadata: FC = () => {
                     },
                     panel: {
                         paddingTop: theme.spacing.xl,
-                        height: `calc(100vh - 220px)`,
+                        height: `calc(100vh - 230px)`,
                         overflowY: 'scroll',
                     },
                     tab: {
@@ -366,17 +366,19 @@ export const CatalogMetadata: FC = () => {
             </Tabs>
 
             <Stack
+                h={72}
+                justify="center"
                 p="sm"
+                c="gray"
+                w="100%"
+                pos="absolute"
+                bottom={0}
+                left={0}
                 sx={(theme) => ({
                     backgroundColor: theme.colors.gray[0],
                     border: `1px solid ${theme.colors.gray[4]}`,
                     borderLeft: 0,
                     borderRight: 0,
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: '100%',
-                    color: 'gray',
                 })}
             >
                 <Group position="apart">
@@ -428,7 +430,7 @@ export const CatalogMetadata: FC = () => {
                         </Group>
                     </Group>
                     <Button
-                        size="xs"
+                        size="sm"
                         sx={(theme) => ({
                             backgroundColor: theme.colors.gray[8],
                             '&:hover': {
