@@ -1,3 +1,10 @@
+## [0.1111.3](https://github.com/lightdash/lightdash/compare/0.1111.2...0.1111.3) (2024-05-30)
+
+
+### Bug Fixes
+
+* add search params when swicthing tab ([#10174](https://github.com/lightdash/lightdash/issues/10174)) ([a73062a](https://github.com/lightdash/lightdash/commit/a73062aca364e631729069853d84457971c70e88))
+
 ## [0.1111.2](https://github.com/lightdash/lightdash/compare/0.1111.1...0.1111.2) (2024-05-30)
 
 
