@@ -19,6 +19,7 @@ import {
     type FC,
 } from 'react';
 import { useScroll } from 'react-use';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useTableCellStyles,
     useTableRowStyles,
@@ -60,6 +61,7 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
               },
               renderFn: () => JSX.Element,
           ) => JSX.Element);
+    withValue?: string;
 };
 
 interface TableCompoundComponents {
@@ -329,6 +331,7 @@ const BaseCell = (cellType: CellType) => {
                 withColor = false,
                 withBackground = false,
                 withMenu = false,
+                withValue = undefined,
                 ...rest
             },
             ref,
@@ -342,9 +345,12 @@ const BaseCell = (cellType: CellType) => {
 
             const isSelected = selectedCell === cellId;
 
+            const { showToastSuccess } = useToaster();
+
             const handleCopy = useCallback(() => {
-                clipboard.copy(children);
-            }, [clipboard, children]);
+                clipboard.copy(withValue === undefined ? '' : withValue);
+                showToastSuccess({ title: 'Copied to clipboard!' });
+            }, [clipboard, withValue, showToastSuccess]);
 
             useEffect(() => {
                 const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
