@@ -121,11 +121,7 @@ export const CatalogPanel: FC = () => {
         search: debouncedSearch,
     });
 
-    const {
-        mutate: getMetadata,
-        data: metadata,
-        reset: closeMetadata,
-    } = useCatalogMetadata(projectUuid, (data) => {
+    const { mutate: getMetadata } = useCatalogMetadata(projectUuid, (data) => {
         if (data) {
             setMetadata(data);
         }
@@ -344,23 +340,6 @@ export const CatalogPanel: FC = () => {
                             </Box>
                         </Group>
                     </Box>
-                    {selection && (
-                        <Button
-                            variant="default"
-                            size="xs"
-                            onClick={() => {
-                                setSidebarOpen((prev) => !prev);
-                                if (metadata) {
-                                    closeMetadata();
-                                    setSelection(undefined);
-                                } else if (selection === undefined)
-                                    selectAndGetMetadata(selectionList[0]);
-                                else selectAndGetMetadata(selection);
-                            }}
-                        >
-                            {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
-                        </Button>
-                    )}
                 </Group>
 
                 <Group spacing="xs">

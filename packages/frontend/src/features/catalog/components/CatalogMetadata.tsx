@@ -19,6 +19,7 @@ import {
     IconArrowUp,
     IconCornerDownLeft,
     IconDatabase,
+    IconLayoutSidebarRightCollapse,
     IconLink,
     IconTable,
 } from '@tabler/icons-react';
@@ -30,6 +31,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
+import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
@@ -38,10 +40,14 @@ export const CatalogMetadata: FC = () => {
     const {
         projectUuid,
         metadata: metadataResults,
+        setSidebarOpen,
         analyticsResults,
         selection,
         setAnalyticsResults,
+        setSelection,
     } = useCatalogContext();
+
+    const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
 
     const isFetchingAnalytics = useIsFetching({
         queryKey: ['catalog_analytics', projectUuid],
@@ -87,7 +93,31 @@ export const CatalogMetadata: FC = () => {
     if (!metadata) return null;
 
     return (
-        <Stack h="100vh" spacing="xl">
+        <Stack h="100vh" spacing="xl" pos="relative">
+            <Button
+                variant="default"
+                size="xs"
+                pos="absolute"
+                right={0}
+                top={0}
+                compact
+                rightIcon={
+                    <MantineIcon
+                        color="gray.6"
+                        icon={IconLayoutSidebarRightCollapse}
+                    />
+                }
+                onClick={() => {
+                    setSidebarOpen(false);
+
+                    if (metadata) {
+                        resetMetadata();
+                        setSelection(undefined);
+                    }
+                }}
+            >
+                Close
+            </Button>
             <Group spacing="xs">
                 <Avatar
                     size="sm"
