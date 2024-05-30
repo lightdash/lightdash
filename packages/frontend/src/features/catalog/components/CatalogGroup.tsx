@@ -16,6 +16,7 @@ type Props = {
     label: string;
     tableCount: number;
     startOpen?: boolean;
+    hidden?: boolean;
     isLast: boolean;
 };
 
@@ -23,6 +24,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     label,
     tableCount,
     startOpen = false,
+    hidden = false,
     isLast,
     children,
 }) => {
@@ -30,68 +32,72 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <>
-            <UnstyledButton
-                onClick={toggleOpen}
-                p="sm"
-                w="100%"
-                pos="relative"
-                sx={(theme) => ({
-                    paddingBottom: !isLast ? theme.spacing.xs : 0,
-                    ...(!isLast && !isOpen
-                        ? // Adds offset to the bottom border of all groups except the last one (aligns with chevron icon)
-                          {
-                              '&::after': {
-                                  content: '""',
-                                  position: `absolute`,
-                                  top: '90%',
-                                  left: '12px',
-                                  width: '100%',
-                                  height: '1px',
-                                  background: theme.colors.gray[3],
-                              },
-                          }
-                        : {}),
-                })}
-            >
-                <Group spacing={'xs'} noWrap align="center">
-                    <Avatar
-                        radius="xl"
-                        color="gray"
-                        size="xs"
-                        styles={(theme) => ({
-                            placeholder: {
-                                backgroundColor: theme.colors.gray[2],
-                            },
-                        })}
-                    >
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            size={14}
-                            style={{
-                                margin: 1,
-                                transition: 'transform 200ms ease',
-                                transform: isOpen ? 'rotate(90deg)' : undefined,
-                            }}
-                        />
-                    </Avatar>
-
-                    <Group w="100%">
-                        <Text fw={600} fz={14}>
-                            {label}
-                        </Text>
-                        <Badge
+            {!hidden && (
+                <UnstyledButton
+                    onClick={toggleOpen}
+                    p="sm"
+                    w="100%"
+                    pos="relative"
+                    sx={(theme) => ({
+                        paddingBottom: !isLast ? theme.spacing.xs : 0,
+                        ...(!isLast && !isOpen
+                            ? // Adds offset to the bottom border of all groups except the last one (aligns with chevron icon)
+                              {
+                                  '&::after': {
+                                      content: '""',
+                                      position: `absolute`,
+                                      top: '90%',
+                                      left: '12px',
+                                      width: '100%',
+                                      height: '1px',
+                                      background: theme.colors.gray[3],
+                                  },
+                              }
+                            : {}),
+                    })}
+                >
+                    <Group spacing={'xs'} noWrap align="center">
+                        <Avatar
+                            radius="xl"
                             color="gray"
                             size="xs"
-                            radius="xl"
-                            sx={(theme) => ({
-                                backgroundColor: theme.colors.gray[2],
+                            styles={(theme) => ({
+                                placeholder: {
+                                    backgroundColor: theme.colors.gray[2],
+                                },
                             })}
                         >
-                            {tableCount}
-                        </Badge>
+                            <MantineIcon
+                                icon={IconChevronRight}
+                                size={14}
+                                style={{
+                                    margin: 1,
+                                    transition: 'transform 200ms ease',
+                                    transform: isOpen
+                                        ? 'rotate(90deg)'
+                                        : undefined,
+                                }}
+                            />
+                        </Avatar>
+
+                        <Group w="100%">
+                            <Text fw={600} fz={14}>
+                                {label}
+                            </Text>
+                            <Badge
+                                color="gray"
+                                size="xs"
+                                radius="xl"
+                                sx={(theme) => ({
+                                    backgroundColor: theme.colors.gray[2],
+                                })}
+                            >
+                                {tableCount}
+                            </Badge>
+                        </Group>
                     </Group>
-                </Group>
-            </UnstyledButton>
+                </UnstyledButton>
+            )}
             <Collapse in={isOpen}>
                 <Box
                     mb="sm"

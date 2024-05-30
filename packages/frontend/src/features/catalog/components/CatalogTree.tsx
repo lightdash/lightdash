@@ -15,6 +15,7 @@ type Props = {
 
 type NodeProps = Omit<Props, 'tree'> & {
     node: any;
+    hideGroupedTables?: boolean;
     index: number;
     length: number;
 };
@@ -25,9 +26,14 @@ const renderTreeNode = ({
     onItemClick,
     selection,
     searchString,
+    hideGroupedTables = false,
     index,
     length,
 }: NodeProps) => {
+    if (!node) {
+        return null;
+    }
+
     if (!node.type) {
         return (
             <CatalogGroup
@@ -38,6 +44,7 @@ const renderTreeNode = ({
                     selection?.group === node.name
                 }
                 tableCount={Object.keys(node.tables).length}
+                hidden={hideGroupedTables && node.name === 'Ungrouped tables'}
                 isLast={index === length - 1}
             >
                 {Object.keys(node.tables).length > 0 && (
@@ -134,6 +141,10 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         return null;
     }
 
+    // If the only group is 'Ungrouped tables', hide the group label
+    const hideGroupedTables =
+        Object.keys(tree).length === 1 && tree['Ungrouped tables'];
+
     return (
         <Tooltip.Group>
             <Box
@@ -162,6 +173,8 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                             onItemClick,
                             selection,
                             searchString,
+                            hideGroupedTables,
+
                             index,
                             length: Object.keys(tree).length,
                         }),
