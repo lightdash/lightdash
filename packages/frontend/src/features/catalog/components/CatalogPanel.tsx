@@ -119,7 +119,11 @@ export const CatalogPanel: FC = () => {
     const [completeSearch, setCompleteSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
 
-    const { data: catalogResults, isFetched: catalogFetched } = useCatalog({
+    const {
+        data: catalogResults,
+        isFetched: catalogFetched,
+        isFetching: catalogFetching,
+    } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
         search: debouncedSearch,
@@ -325,8 +329,11 @@ export const CatalogPanel: FC = () => {
         [],
     );
 
-    const noResults = catalogFetched && Object.keys(catalogTree).length === 0;
-    const noTables = noResults && completeSearch.length === 0;
+    const noResults =
+        !catalogFetching &&
+        catalogFetched &&
+        Object.keys(catalogTree).length === 0;
+    const noTables = noResults && debouncedSearch.length === 0;
 
     return (
         <Stack>
@@ -425,16 +432,17 @@ export const CatalogPanel: FC = () => {
                     </Button>
                 </Group>
             </Group>
+
             {noResults ? (
-                noTables ? (
-                    <Paper
-                        p="xl"
-                        radius="lg"
-                        sx={(theme) => ({
-                            backgroundColor: theme.colors.gray[1],
-                            border: `1px solid ${theme.colors.gray[3]}`,
-                        })}
-                    >
+                <Paper
+                    p="xl"
+                    radius="lg"
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[1],
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    {noTables ? (
                         <SuboptimalState
                             icon={IconTable}
                             title="No tables found in this project"
@@ -451,16 +459,7 @@ export const CatalogPanel: FC = () => {
                                 </LinkButton>
                             }
                         />
-                    </Paper>
-                ) : (
-                    <Paper
-                        p="xl"
-                        radius="lg"
-                        sx={(theme) => ({
-                            backgroundColor: theme.colors.gray[1],
-                            border: `1px solid ${theme.colors.gray[3]}`,
-                        })}
-                    >
+                    ) : (
                         <SuboptimalState
                             icon={IconSearch}
                             title="No search results"
@@ -478,8 +477,8 @@ export const CatalogPanel: FC = () => {
                                 </Button>
                             }
                         />
-                    </Paper>
-                )
+                    )}
+                </Paper>
             ) : (
                 <CatalogTree
                     tree={catalogTree}
