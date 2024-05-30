@@ -317,102 +317,109 @@ export const CatalogPanel: FC = () => {
     );
 
     return (
-        <Stack>
-            <Group position="apart" align="flex-start">
-                <Box>
-                    <Group>
-                        <Paper
-                            p="sm"
-                            withBorder
-                            radius="md"
-                            sx={(theme) => ({
-                                boxShadow: theme.shadows.xs,
-                            })}
+        <Stack spacing="xxl">
+            <Stack>
+                <Group position="apart" align="flex-start">
+                    <Box mt="xl">
+                        <Group>
+                            <Paper
+                                p="sm"
+                                withBorder
+                                radius="md"
+                                sx={(theme) => ({
+                                    boxShadow: theme.shadows.xs,
+                                })}
+                            >
+                                <MantineIcon
+                                    size={24}
+                                    icon={IconReportSearch}
+                                />
+                            </Paper>
+
+                            <Box>
+                                <Title order={4}>Start exploring</Title>
+                                <Text color="gray.6" fw={500}>
+                                    Select a table or field to start exploring.
+                                </Text>
+                            </Box>
+                        </Group>
+                    </Box>
+                    {selection && (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            onClick={() => {
+                                setSidebarOpen((prev) => !prev);
+                                if (metadata) {
+                                    closeMetadata();
+                                    setSelection(undefined);
+                                } else if (selection === undefined)
+                                    selectAndGetMetadata(selectionList[0]);
+                                else selectAndGetMetadata(selection);
+                            }}
                         >
-                            <MantineIcon size={24} icon={IconReportSearch} />
-                        </Paper>
-
-                        <Box>
-                            <Title order={4}>Start exploring</Title>
-                            <Text color="gray.6" fw={500}>
-                                Select a table or field to start exploring.
-                            </Text>
-                        </Box>
-                    </Group>
-                </Box>
-                {selection && (
-                    <Button
-                        variant="default"
-                        size="xs"
-                        onClick={() => {
-                            setSidebarOpen((prev) => !prev);
-                            if (metadata) {
-                                closeMetadata();
-                                setSelection(undefined);
-                            } else if (selection === undefined)
-                                selectAndGetMetadata(selectionList[0]);
-                            else selectAndGetMetadata(selection);
-                        }}
-                    >
-                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
-                    </Button>
-                )}
-            </Group>
-
-            <Group spacing="xs">
-                <TextInput
-                    w={'50%'}
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => handleSearchChange('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search"
-                    description={
-                        search && search.length < 3
-                            ? 'Enter at least 3 characters to search'
-                            : undefined
-                    }
-                    value={search}
-                    inputWrapperOrder={[
-                        'label',
-                        'input',
-                        'description',
-                        'error',
-                    ]}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                />
-                <Group>
-                    <SegmentedControl
-                        w={200}
-                        disabled // TODO: remove when implemented
-                        defaultValue={'tables'}
-                        data={[
-                            {
-                                value: 'tables',
-                                label: 'Tables',
-                            },
-                            {
-                                value: 'fields',
-                                label: 'Fields',
-                            },
-                        ]}
-                        onChange={() => {
-                            // NYI
-                        }}
-                    />
-                    <Button
-                        variant="default"
-                        disabled // TODO: remove when implemented
-                        leftIcon={<MantineIcon icon={IconFilter} />}
-                    >
-                        Filters
-                    </Button>
+                            {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
+                        </Button>
+                    )}
                 </Group>
-            </Group>
+
+                <Group spacing="xs">
+                    <TextInput
+                        w={'50%'}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon
+                                    onClick={() => handleSearchChange('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search"
+                        description={
+                            search && search.length < 3
+                                ? 'Enter at least 3 characters to search'
+                                : undefined
+                        }
+                        value={search}
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                    />
+                    <Group>
+                        <SegmentedControl
+                            w={200}
+                            disabled // TODO: remove when implemented
+                            defaultValue={'tables'}
+                            data={[
+                                {
+                                    value: 'tables',
+                                    label: 'Tables',
+                                },
+                                {
+                                    value: 'fields',
+                                    label: 'Fields',
+                                },
+                            ]}
+                            onChange={() => {
+                                // NYI
+                            }}
+                        />
+                        <Button
+                            variant="default"
+                            disabled // TODO: remove when implemented
+                            leftIcon={<MantineIcon icon={IconFilter} />}
+                        >
+                            Filters
+                        </Button>
+                    </Group>
+                </Group>
+            </Stack>
 
             <CatalogTree
                 tree={catalogTree}
