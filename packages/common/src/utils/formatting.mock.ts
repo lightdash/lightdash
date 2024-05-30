@@ -17,6 +17,7 @@ export const dimension: Dimension = {
     tableLabel: 'tableLabel',
     sql: 'sql',
     hidden: false,
+    groups: [],
 };
 
 export const metric: Metric = {

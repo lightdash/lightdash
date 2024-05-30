@@ -234,7 +234,11 @@ export interface Field {
     compact?: CompactOrAlias;
     round?: number;
     format?: Format;
+    /**
+     * @deprecated Use groups property instead.
+     */
     groupLabel?: string;
+    groups?: string[];
     urls?: FieldUrl[];
     index?: number;
 }
@@ -292,11 +296,15 @@ export enum DimensionType {
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
+    /**
+     * @deprecated Use groups property instead.
+     */
     group?: string;
     requiredAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
+    isIntervalBase?: boolean;
 }
 
 export interface CompiledDimension extends Dimension {
@@ -485,4 +493,10 @@ export const friendlyName = (text: string): string => {
         capitalize(first.toLowerCase()),
         ...rest.map((word) => word.toLowerCase()),
     ].join(' ');
+};
+
+export const intervalGroupFriendlyName = (text: string): string => {
+    const words = friendlyName(text).split(' ');
+    words.pop();
+    return words.join(' ');
 };
