@@ -41,6 +41,10 @@ version: 2
 models:
   - name: sales_stats
     meta:
+      groups:
+        finance: 
+          label: Finance
+          description: Finance-related fields.
       joins:
         - join: web_sessions
           sql_on: ${web_sessions.date} = ${sales_stats.date}
@@ -56,7 +60,7 @@ models:
             hidden: false
             round: 2
             format: 'gbp'
-            group_label: 'Revenue'
+            group: ['finance']
       - name: forecast_date
         description: 'Date of the forecasting.'
         meta:
