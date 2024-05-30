@@ -196,9 +196,11 @@ const GeneralSettings: FC = () => {
                 <Config.Section>
                     <Config.Heading>Metrics</Config.Heading>
                     <Tooltip
-                        disabled={!!isPivotTableEnabled}
+                        disabled={!!isPivotTableEnabled && !showSubtotals}
                         label={
-                            'To use metrics as rows, you need to move a dimension to "Columns"'
+                            showSubtotals
+                                ? 'Metrics as rows are not available when subtotals are enabled'
+                                : 'To use metrics as rows, you need to move a dimension to "Columns"'
                         }
                         w={300}
                         multiline
@@ -207,7 +209,7 @@ const GeneralSettings: FC = () => {
                     >
                         <Box>
                             <Switch
-                                disabled={!isPivotTableEnabled}
+                                disabled={!isPivotTableEnabled || showSubtotals}
                                 label="Show metrics as rows"
                                 labelPosition="right"
                                 checked={metricsAsRows}
@@ -269,11 +271,13 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Tooltip
-                    disabled={!isPivotTableEnabled && canUseSubtotals}
+                    disabled={canUseSubtotals}
                     label={
-                        !canUseSubtotals
-                            ? 'Subtotals can only be used on tables with at least two dimensions'
-                            : "Subtotals can only be used on tables that aren't pivoted"
+                        metricsAsRows
+                            ? 'Subtotals cannot be used with metrics as rows'
+                            : `Subtotals can only be used on tables with at least two ${
+                                  isPivotTableEnabled ? 'un-pivoted' : ''
+                              } dimensions`
                     }
                     w={300}
                     multiline
@@ -285,13 +289,13 @@ const GeneralSettings: FC = () => {
                             label="Show subtotals"
                             checked={
                                 canUseSubtotals &&
-                                !isPivotTableEnabled &&
+                                !metricsAsRows &&
                                 showSubtotals
                             }
                             onChange={() => {
                                 setShowSubtotals(!showSubtotals);
                             }}
-                            disabled={!!isPivotTableEnabled || !canUseSubtotals}
+                            disabled={!canUseSubtotals || metricsAsRows}
                         />
                     </Box>
                 </Tooltip>
