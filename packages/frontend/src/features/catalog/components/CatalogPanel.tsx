@@ -369,6 +369,12 @@ export const CatalogPanel: FC = () => {
                             'error',
                         ]}
                         onChange={(e) => handleSearchChange(e.target.value)}
+                        styles={(theme) => ({
+                            input: {
+                                borderRadius: theme.radius.md,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        })}
                     />
                     <Group>
                         <SegmentedControl
