@@ -1,6 +1,6 @@
-import { type CatalogField } from '@lightdash/common';
+import { FieldType, type CatalogField } from '@lightdash/common';
 import { Box, Group, Highlight } from '@mantine/core';
-import { IconAbc } from '@tabler/icons-react';
+import { IconAbc, IconNumber } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
@@ -24,36 +24,57 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
         <>
             <Group
                 noWrap
-                py="xs"
                 sx={(theme) => ({
+                    cursor: 'pointer',
                     borderRadius: theme.radius.sm,
-                    padding: theme.spacing.md,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
-                        : theme.colors.gray[0],
-                    border: isSelected
-                        ? `2px solid ${theme.colors.blue[6]}`
-                        : undefined,
+                        : 'transparent',
+                    border: `2px solid ${
+                        isSelected ? theme.colors.blue[6] : 'transparent'
+                    }`,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
+                py="two"
+                mr="xs"
             >
-                <Group noWrap spacing="xs">
-                    <MantineIcon
-                        icon={IconAbc}
-                        color="gray"
-                        size="lg"
-                    ></MantineIcon>
-                </Group>
                 <Box miw={150}>
-                    <Highlight
-                        highlight={searchString}
-                        highlightColor="violet"
-                        fw={600}
+                    <Group
+                        spacing="xs"
+                        noWrap
+                        w="fit-content"
+                        px="xs"
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                            borderRadius: theme.radius.md,
+                        })}
                     >
-                        {field.name || ''}
-                    </Highlight>
+                        <MantineIcon
+                            icon={
+                                // TODO: Add icon for field type and for subtype
+                                field.fieldType === FieldType.DIMENSION
+                                    ? IconAbc
+                                    : IconNumber
+                            }
+                            // TODO: update when new icons are added
+                            color={
+                                field.fieldType === FieldType.DIMENSION
+                                    ? 'blue'
+                                    : 'orange'
+                            }
+                        />
+
+                        <Highlight
+                            highlight={searchString}
+                            highlightColor="violet"
+                            fw={500}
+                            fz="sm"
+                        >
+                            {field.name || ''}
+                        </Highlight>
+                    </Group>
                 </Box>
             </Group>
         </>
