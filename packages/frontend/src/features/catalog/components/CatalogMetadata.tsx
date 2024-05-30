@@ -233,7 +233,7 @@ export const CatalogMetadata: FC = () => {
                             </Text>
                         </Group>
 
-                        <Group position="apart">
+                        <Group position="apart" noWrap>
                             <Group spacing="xs">
                                 <MantineIcon
                                     color={colors.gray[5]}
@@ -243,9 +243,11 @@ export const CatalogMetadata: FC = () => {
                                     Joins
                                 </Text>
                             </Group>
-                            <Text fw={500} fz={13} c="blue">
-                                {/* TODO: get tables */}
-                                Table 1, Table 2
+                            <Text fw={500} fz={13} c="blue" truncate w="50%">
+                                {metadata.joinedTables &&
+                                metadata.joinedTables.length > 0
+                                    ? metadata.joinedTables.join(', ')
+                                    : 'None'}
                             </Text>
                         </Group>
 

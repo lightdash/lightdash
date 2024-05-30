@@ -302,6 +302,11 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                joinedTables: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
                 fields: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'CatalogField' },
