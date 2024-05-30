@@ -15,50 +15,54 @@ type Props = {
     label: string;
     tableCount: number;
     startOpen?: boolean;
+    hidden?: boolean;
 };
 
 export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
     label,
     tableCount,
     startOpen = false,
+    hidden = false,
     children,
 }) => {
     const [isOpen, toggleOpen] = useToggle(startOpen);
 
     return (
         <>
-            <UnstyledButton
-                onClick={toggleOpen}
-                sx={(theme) => ({
-                    backgroundColor: theme.colors.gray[3],
-                    borderRadius: theme.radius.sm,
-                    padding: theme.spacing.xs,
-                    width: '100%',
-                })}
-            >
-                <Group spacing={'sm'}>
-                    <MantineIcon
-                        icon={IconChevronRight}
-                        size={14}
-                        style={{
-                            margin: 1,
-                            transition: 'transform 200ms ease',
-                            transform: isOpen ? 'rotate(90deg)' : undefined,
-                        }}
-                    />
-                    <MantineIcon
-                        size={'xl'}
-                        color="gray"
-                        icon={IconBoxMultiple}
-                    />
-                    <Text fw={600} fz={14}>
-                        {label}
-                    </Text>
-                    <Badge color="blue" variant="light">
-                        {tableCount}
-                    </Badge>
-                </Group>
-            </UnstyledButton>
+            {!hidden && (
+                <UnstyledButton
+                    onClick={toggleOpen}
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[3],
+                        borderRadius: theme.radius.sm,
+                        padding: theme.spacing.xs,
+                        width: '100%',
+                    })}
+                >
+                    <Group spacing={'sm'}>
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={14}
+                            style={{
+                                margin: 1,
+                                transition: 'transform 200ms ease',
+                                transform: isOpen ? 'rotate(90deg)' : undefined,
+                            }}
+                        />
+                        <MantineIcon
+                            size={'xl'}
+                            color="gray"
+                            icon={IconBoxMultiple}
+                        />
+                        <Text fw={600} fz={14}>
+                            {label}
+                        </Text>
+                        <Badge color="blue" variant="light">
+                            {tableCount}
+                        </Badge>
+                    </Group>
+                </UnstyledButton>
+            )}
             <Collapse in={isOpen} pl="md">
                 <Box>{children}</Box>
             </Collapse>

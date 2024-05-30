@@ -6,17 +6,20 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
+    Checkbox,
+    Divider,
     Group,
-    SegmentedControl,
+    Popover,
     Stack,
     Text,
     TextInput,
     Title,
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
-import { IconFilter, IconSearch, IconX } from '@tabler/icons-react';
+import { IconFilters, IconSearch, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -91,6 +94,22 @@ function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
     return selectionList;
 }
 
+enum FilterType {
+    Dimensions = 'dimensions',
+    Metrics = 'metrics',
+    Descriptions = 'descriptions',
+    HideBaseTables = 'hideBaseTables',
+    HideGroupedTables = 'hideGroupedTables',
+}
+
+type FilterState = {
+    dimensions: boolean;
+    metrics: boolean;
+    descriptions: boolean;
+    hideBaseTables: boolean;
+    hideGroupedTables: boolean;
+};
+
 export const CatalogPanel: FC = () => {
     const {
         setMetadata,
@@ -102,6 +121,7 @@ export const CatalogPanel: FC = () => {
         selection,
         setSelection,
     } = useCatalogContext();
+
     // There are 3 search variables:
     // - search: the current search string
     // - completeSearch: the 3+ char search string that gets sent to the backend
@@ -109,8 +129,21 @@ export const CatalogPanel: FC = () => {
     const [search, setSearch] = useState<string>('');
     const [completeSearch, setCompleteSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
-    const { data: projectData } = useProject(projectUuid);
 
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    // Filters filter TO the value when selected. dimensions=true filters out all non-dimensions,
+    // metrics=true AND dimensions=true will show metrics and dimensions
+    const [draftFilters, setDraftFilters] = useState<FilterState>({
+        dimensions: true,
+        metrics: true,
+        descriptions: true,
+        hideBaseTables: false,
+        hideGroupedTables: false,
+    });
+
+    const [filters, setFilters] = useState(() => ({ ...draftFilters }));
+
+    const { data: projectData } = useProject(projectUuid);
     const { data: catalogResults } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
@@ -151,6 +184,21 @@ export const CatalogPanel: FC = () => {
         [setSearch],
     );
 
+    const toggleFilter = useCallback(
+        (filter: FilterType) => {
+            setDraftFilters((prev: FilterState) => ({
+                ...prev,
+                [filter]: !prev[filter],
+            }));
+        },
+        [setDraftFilters],
+    );
+
+    const applyFilters = useCallback(() => {
+        setFilters(draftFilters);
+        setFiltersOpen(false);
+    }, [draftFilters]);
+
     // TODO: should this transform be in the backend?
     const catalogTree: CatalogTreeType = useMemo(() => {
         if (catalogResults) {
@@ -162,6 +210,18 @@ export const CatalogPanel: FC = () => {
                         'groupLabel' in item && item.groupLabel
                             ? item.groupLabel
                             : 'Ungrouped tables';
+                    // If grouped tables are hidden, don't add them to the tree
+                    if (
+                        groupName !== 'Ungrouped tables' &&
+                        filters.hideGroupedTables
+                    ) {
+                        return acc;
+                    }
+                    // If descriptions are not included, the name has to match
+                    // to be included.
+                    if (!filters.descriptions && !item.name.includes(search)) {
+                        return acc;
+                    }
                     if (!acc[groupName]) {
                         acc[groupName] = { name: groupName, tables: {} };
                     }
@@ -175,6 +235,11 @@ export const CatalogPanel: FC = () => {
                         'tableGroupLabel' in item && item.tableGroupLabel
                             ? item.tableGroupLabel
                             : 'Ungrouped tables';
+                    // Filter out dimensions and metrics based on filter state
+                    if (!filters.metrics && item.fieldType === 'metric')
+                        return acc;
+                    if (!filters.dimensions && item.fieldType === 'dimension')
+                        return acc;
                     if (!acc[groupName]) {
                         acc[groupName] = { name: groupName, tables: {} };
                     }
@@ -193,7 +258,14 @@ export const CatalogPanel: FC = () => {
             return sortTree(unsortedTree);
         }
         return {};
-    }, [catalogResults]);
+    }, [
+        catalogResults,
+        filters.descriptions,
+        filters.dimensions,
+        filters.hideGroupedTables,
+        filters.metrics,
+        search,
+    ]);
 
     const selectionList = useMemo(
         () => getSelectionList(catalogTree),
@@ -340,9 +412,10 @@ export const CatalogPanel: FC = () => {
                 )}
             </Group>
 
-            <Group position="apart" align="start" h={55}>
+            <Group align="start" h={40}>
                 <TextInput
                     w={'40%'}
+                    size="xs"
                     icon={<MantineIcon icon={IconSearch} />}
                     rightSection={
                         search ? (
@@ -366,33 +439,135 @@ export const CatalogPanel: FC = () => {
                     ]}
                     onChange={(e) => handleSearchChange(e.target.value)}
                 />
-                <Group>
-                    <SegmentedControl
-                        w={200}
-                        disabled // TODO: remove when implemented
-                        defaultValue={'tables'}
-                        data={[
-                            {
-                                value: 'tables',
-                                label: 'Tables',
-                            },
-                            {
-                                value: 'fields',
-                                label: 'Fields',
-                            },
-                        ]}
-                        onChange={() => {
-                            // NYI
-                        }}
-                    />
-                    <Button
-                        variant="default"
-                        disabled // TODO: remove when implemented
-                        leftIcon={<MantineIcon icon={IconFilter} />}
-                    >
-                        Filters
-                    </Button>
-                </Group>
+                <Popover shadow="xs" opened={filtersOpen}>
+                    <Popover.Target>
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconFilters} />}
+                            onClick={() => {
+                                setFiltersOpen((prev) => !prev);
+                            }}
+                        >
+                            Filter
+                        </Button>
+                    </Popover.Target>
+
+                    <Popover.Dropdown fz="xs">
+                        <Stack spacing="sm">
+                            <Text c="gray.6" fw={500}>
+                                Result type
+                            </Text>
+                            <Stack spacing="xs">
+                                <Checkbox
+                                    checked={draftFilters.dimensions}
+                                    onChange={() => {
+                                        toggleFilter(FilterType.Dimensions);
+                                    }}
+                                    label={
+                                        <Badge
+                                            fw={500}
+                                            radius="md"
+                                            color="indigo"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Dimensions
+                                        </Badge>
+                                    }
+                                />
+
+                                <Checkbox
+                                    checked={draftFilters.metrics}
+                                    onChange={() => {
+                                        toggleFilter(FilterType.Metrics);
+                                    }}
+                                    label={
+                                        <Badge
+                                            fw={500}
+                                            color="orange"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Metrics
+                                        </Badge>
+                                    }
+                                />
+
+                                <Checkbox
+                                    checked={draftFilters.descriptions}
+                                    onChange={() => {
+                                        toggleFilter(FilterType.Descriptions);
+                                    }}
+                                    label={
+                                        <Badge
+                                            fw={500}
+                                            color="gray"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Descriptions
+                                        </Badge>
+                                    }
+                                />
+                            </Stack>
+
+                            <Divider c="gray.1" />
+                            <Stack spacing="xs">
+                                {/* 
+                                TODO: Don't know how this is supposed to work yet
+                                <Checkbox
+                                    checked={draftFilters.hideBaseTables}
+                                    onChange={() => {
+                                        toggleFilter(FilterType.HideBaseTables);
+                                    }}
+                                    label={
+                                        <Text fz="xs" fw={500} c="gray.7">
+                                            Hide base tables
+                                        </Text>
+                                    }
+                                /> */}
+                                <Checkbox
+                                    checked={draftFilters.hideGroupedTables}
+                                    onChange={() => {
+                                        toggleFilter(
+                                            FilterType.HideGroupedTables,
+                                        );
+                                    }}
+                                    label={
+                                        <Text fz="xs" fw={500} c="gray.7">
+                                            Hide grouped tables
+                                        </Text>
+                                    }
+                                />
+                            </Stack>
+                            <Divider c="gray.1" />
+
+                            <Button
+                                size="xs"
+                                ml="auto"
+                                sx={(theme) => ({
+                                    backgroundColor: theme.colors.gray[8],
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[9],
+                                    },
+                                })}
+                                onClick={applyFilters}
+                            >
+                                Apply
+                            </Button>
+                        </Stack>
+                    </Popover.Dropdown>
+                </Popover>
             </Group>
             <Stack sx={{ maxHeight: '900px', overflow: 'scroll' }}>
                 <CatalogTree
