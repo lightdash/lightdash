@@ -66,8 +66,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     cursor: 'pointer',
                     borderTopLeftRadius: isFirst ? theme.radius.lg : 0,
                     borderTopRightRadius: isFirst ? theme.radius.lg : 0,
-                    borderBottomLeftRadius: isLast ? theme.radius.lg : 0,
-                    borderBottomRightRadius: isLast ? theme.radius.lg : 0,
+                    borderBottomLeftRadius:
+                        isLast && !isOpen ? theme.radius.lg : 0,
+                    borderBottomRightRadius:
+                        isLast && !isOpen ? theme.radius.lg : 0,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
