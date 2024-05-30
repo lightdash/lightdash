@@ -51,7 +51,8 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 noWrap
                 position="apart"
                 spacing="xs"
-                px="xs"
+                p="xs"
+                px="sm"
                 sx={(theme) => ({
                     minHeight: 48,
                     borderBottom: isLast
