@@ -41,11 +41,10 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
         <>
             <Group
                 noWrap
-                py="xs"
                 sx={(theme) => ({
                     minHeight: 32,
                     borderRadius: theme.radius.sm,
-                    padding: theme.spacing.md,
+                    padding: theme.spacing.two,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
                         : 'transparent',
@@ -71,6 +70,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         <CatalogIcon item={field} />
 
                         <Highlight
+                            fz="xs"
                             highlight={searchString}
                             highlightColor="yellow.1"
                             fw={500}
