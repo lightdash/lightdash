@@ -168,7 +168,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                     }
                     onClick={onCopy}
                 >
-                    Copy
+                    Copy value
                 </Menu.Item>
 
                 {item &&
