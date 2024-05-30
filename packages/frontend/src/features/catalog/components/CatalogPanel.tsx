@@ -346,7 +346,7 @@ export const CatalogPanel: FC = () => {
                     icon={<MantineIcon icon={IconSearch} />}
                     rightSection={
                         search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
+                            <ActionIcon onClick={() => handleSearchChange('')}>
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         ) : null
