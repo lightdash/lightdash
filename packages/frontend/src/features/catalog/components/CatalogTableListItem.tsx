@@ -98,7 +98,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         >
                             <Group noWrap spacing="one">
                                 <MantineIcon
-                                    color="gray"
+                                    color="gray.5"
                                     icon={IconLayersIntersect}
                                 />
                             </Group>
