@@ -103,7 +103,6 @@ function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
 enum FilterType {
     Dimensions = 'dimensions',
     Metrics = 'metrics',
-    Descriptions = 'descriptions',
     HideBaseTables = 'hideBaseTables',
     HideGroupedTables = 'hideGroupedTables',
 }
@@ -111,7 +110,6 @@ enum FilterType {
 type FilterState = {
     dimensions: boolean;
     metrics: boolean;
-    descriptions: boolean;
     hideBaseTables: boolean;
     hideGroupedTables: boolean;
 };
@@ -137,17 +135,13 @@ export const CatalogPanel: FC = () => {
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
 
     const [filtersOpen, setFiltersOpen] = useState(false);
-    // Filters filter TO the value when selected. dimensions=true filters out all non-dimensions,
-    // metrics=true AND dimensions=true will show metrics and dimensions
-    const [draftFilters, setDraftFilters] = useState<FilterState>({
-        dimensions: true,
-        metrics: true,
-        descriptions: true,
+
+    const [filters, setFilters] = useState({
+        dimensions: false,
+        metrics: false,
         hideBaseTables: false,
         hideGroupedTables: false,
     });
-
-    const [filters, setFilters] = useState(() => ({ ...draftFilters }));
 
     const { data: catalogResults } = useCatalog({
         projectUuid,
@@ -191,18 +185,22 @@ export const CatalogPanel: FC = () => {
 
     const toggleFilter = useCallback(
         (filter: FilterType) => {
-            setDraftFilters((prev: FilterState) => ({
+            setFilters((prev: FilterState) => ({
                 ...prev,
                 [filter]: !prev[filter],
             }));
         },
-        [setDraftFilters],
+        [setFilters],
     );
 
-    const applyFilters = useCallback(() => {
-        setFilters(draftFilters);
-        setFiltersOpen(false);
-    }, [draftFilters]);
+    const clearFilters = useCallback(() => {
+        setFilters({
+            dimensions: false,
+            metrics: false,
+            hideBaseTables: false,
+            hideGroupedTables: false,
+        });
+    }, [setFilters]);
 
     // TODO: should this transform be in the backend?
     const catalogTree: CatalogTreeType = useMemo(() => {
@@ -222,11 +220,7 @@ export const CatalogPanel: FC = () => {
                     ) {
                         return acc;
                     }
-                    // If descriptions are not included, the name has to match
-                    // to be included.
-                    if (!filters.descriptions && !item.name.includes(search)) {
-                        return acc;
-                    }
+                    // Add to the tree if not filtered out
                     if (!acc[groupName]) {
                         acc[groupName] = { name: groupName, tables: {} };
                     }
@@ -240,11 +234,32 @@ export const CatalogPanel: FC = () => {
                         'tableGroupLabel' in item && item.tableGroupLabel
                             ? item.tableGroupLabel
                             : 'Ungrouped tables';
-                    // Filter out dimensions and metrics based on filter state
-                    if (!filters.metrics && item.fieldType === 'metric')
+                    // Filter out dimensions and metrics if
+                    // the filter for the other is active
+                    if (
+                        filters.dimensions &&
+                        !filters.metrics &&
+                        item.fieldType === 'metric'
+                    ) {
                         return acc;
-                    if (!filters.dimensions && item.fieldType === 'dimension')
+                    }
+                    if (
+                        filters.metrics &&
+                        !filters.dimensions &&
+                        item.fieldType === 'dimension'
+                    ) {
                         return acc;
+                    }
+                    // Filter out ungrouped tables
+                    if (
+                        groupName !== 'Ungrouped tables' &&
+                        filters.hideGroupedTables
+                    ) {
+                        {
+                            return acc;
+                        }
+                    }
+                    // Add to the tree if not filtered out
                     if (!acc[groupName]) {
                         acc[groupName] = { name: groupName, tables: {} };
                     }
@@ -265,11 +280,9 @@ export const CatalogPanel: FC = () => {
         return {};
     }, [
         catalogResults,
-        filters.descriptions,
         filters.dimensions,
         filters.hideGroupedTables,
         filters.metrics,
-        search,
     ]);
 
     const selectionList = useMemo(
@@ -435,6 +448,7 @@ export const CatalogPanel: FC = () => {
             <Group spacing="xs">
                 <TextInput
                     w={'50%'}
+                    size="xs"
                     icon={<MantineIcon icon={IconSearch} />}
                     rightSection={
                         search ? (
@@ -458,19 +472,80 @@ export const CatalogPanel: FC = () => {
                     ]}
                     onChange={(e) => handleSearchChange(e.target.value)}
                 />
-                <Popover shadow="xs" opened={filtersOpen}>
-                    <Popover.Target>
+                <Popover
+                    shadow="xs"
+                    position="bottom-start"
+                    opened={filtersOpen}
+                    onClose={() => setFiltersOpen(false)}
+                >
+                    <Button.Group>
+                        <Popover.Target>
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconFilters} />}
+                                onClick={() => {
+                                    setFiltersOpen((prev) => !prev);
+                                }}
+                            >
+                                <Group noWrap spacing="xs">
+                                    <Text>Filter</Text>
+                                    {filters.dimensions && (
+                                        <Badge
+                                            fw={500}
+                                            size="xs"
+                                            radius="md"
+                                            color="indigo"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Dimensions
+                                        </Badge>
+                                    )}
+                                    {filters.metrics && (
+                                        <Badge
+                                            fw={500}
+                                            size="xs"
+                                            color="orange"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Metrics
+                                        </Badge>
+                                    )}
+
+                                    {filters.hideGroupedTables && (
+                                        <Badge
+                                            fw={500}
+                                            size="xs"
+                                            color="gray.8"
+                                            styles={{
+                                                root: {
+                                                    textTransform: 'none',
+                                                },
+                                            }}
+                                        >
+                                            Hide grouped tables
+                                        </Badge>
+                                    )}
+                                </Group>
+                            </Button>
+                        </Popover.Target>
                         <Button
                             variant="default"
                             size="xs"
-                            leftIcon={<MantineIcon icon={IconFilters} />}
-                            onClick={() => {
-                                setFiltersOpen((prev) => !prev);
-                            }}
+                            onClick={clearFilters}
+                            p="xs"
                         >
-                            Filter
+                            <MantineIcon color="gray" icon={IconX} />
                         </Button>
-                    </Popover.Target>
+                    </Button.Group>
 
                     <Popover.Dropdown fz="xs">
                         <Stack spacing="sm">
@@ -479,7 +554,7 @@ export const CatalogPanel: FC = () => {
                             </Text>
                             <Stack spacing="xs">
                                 <Checkbox
-                                    checked={draftFilters.dimensions}
+                                    checked={filters.dimensions}
                                     onChange={() => {
                                         toggleFilter(FilterType.Dimensions);
                                     }}
@@ -500,7 +575,7 @@ export const CatalogPanel: FC = () => {
                                 />
 
                                 <Checkbox
-                                    checked={draftFilters.metrics}
+                                    checked={filters.metrics}
                                     onChange={() => {
                                         toggleFilter(FilterType.Metrics);
                                     }}
@@ -518,26 +593,6 @@ export const CatalogPanel: FC = () => {
                                         </Badge>
                                     }
                                 />
-
-                                <Checkbox
-                                    checked={draftFilters.descriptions}
-                                    onChange={() => {
-                                        toggleFilter(FilterType.Descriptions);
-                                    }}
-                                    label={
-                                        <Badge
-                                            fw={500}
-                                            color="gray"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Descriptions
-                                        </Badge>
-                                    }
-                                />
                             </Stack>
 
                             <Divider c="gray.1" />
@@ -545,7 +600,7 @@ export const CatalogPanel: FC = () => {
                                 {/* 
                                 TODO: Don't know how this is supposed to work yet
                                 <Checkbox
-                                    checked={draftFilters.hideBaseTables}
+                                    checked={filters.hideBaseTables}
                                     onChange={() => {
                                         toggleFilter(FilterType.HideBaseTables);
                                     }}
@@ -556,7 +611,7 @@ export const CatalogPanel: FC = () => {
                                     }
                                 /> */}
                                 <Checkbox
-                                    checked={draftFilters.hideGroupedTables}
+                                    checked={filters.hideGroupedTables}
                                     onChange={() => {
                                         toggleFilter(
                                             FilterType.HideGroupedTables,
@@ -580,9 +635,9 @@ export const CatalogPanel: FC = () => {
                                         backgroundColor: theme.colors.gray[9],
                                     },
                                 })}
-                                onClick={applyFilters}
+                                onClick={() => setFiltersOpen(false)}
                             >
-                                Apply
+                                Close
                             </Button>
                         </Stack>
                     </Popover.Dropdown>
