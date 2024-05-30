@@ -108,8 +108,9 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     )}
                 </Box>
                 <Highlight
-                    fz="xs"
+                    fz="13px"
                     w="100%"
+                    c="gray.7"
                     lineClamp={2}
                     highlight={searchString}
                     highlightColor="violet"
