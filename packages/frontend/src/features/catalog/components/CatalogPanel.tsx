@@ -18,7 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 import {
-    IconFilter,
+    IconAdjustmentsHorizontal,
     IconReportSearch,
     IconSearch,
     IconX,
@@ -392,7 +392,9 @@ export const CatalogPanel: FC = () => {
                         <Button
                             variant="default"
                             disabled // TODO: remove when implemented
-                            leftIcon={<MantineIcon icon={IconFilter} />}
+                            leftIcon={
+                                <MantineIcon icon={IconAdjustmentsHorizontal} />
+                            }
                         >
                             Filters
                         </Button>
