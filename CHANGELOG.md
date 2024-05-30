@@ -1,3 +1,10 @@
+## [0.1112.1](https://github.com/lightdash/lightdash/compare/0.1112.0...0.1112.1) (2024-05-30)
+
+
+### Bug Fixes
+
+* clear search catalog ([#10244](https://github.com/lightdash/lightdash/issues/10244)) ([0db1be2](https://github.com/lightdash/lightdash/commit/0db1be2420d8251e1ae8186bb33095d533f1e237))
+
 # [0.1112.0](https://github.com/lightdash/lightdash/compare/0.1111.3...0.1112.0) (2024-05-30)
 
 
