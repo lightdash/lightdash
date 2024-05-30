@@ -42,11 +42,6 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
 
-    const handleOpenClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.stopPropagation();
-        toggleOpen();
-    };
-
     const countJoinedTables =
         'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
 
@@ -79,24 +74,18 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 onClick={onClick}
                 pos="relative"
             >
-                <UnstyledButton onClick={handleOpenClick} miw={150}>
+                <UnstyledButton onClick={() => toggleOpen()} miw={150}>
                     <Group noWrap spacing="xs">
-                        <Group noWrap spacing="xs">
-                            <MantineIcon
-                                icon={IconTable}
-                                color="gray"
-                                size="sm"
-                            />
+                        <MantineIcon icon={IconTable} color="gray" size="sm" />
 
-                            <Highlight
-                                highlight={searchString}
-                                highlightColor="violet"
-                                fz="sm"
-                                fw={600}
-                            >
-                                {table.name || ''}
-                            </Highlight>
-                        </Group>
+                        <Highlight
+                            highlight={searchString}
+                            highlightColor="violet"
+                            fz="sm"
+                            fw={600}
+                        >
+                            {table.name || ''}
+                        </Highlight>
                     </Group>
                 </UnstyledButton>
 
@@ -149,6 +138,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                                     backgroundColor: theme.colors.gray[9],
                                 },
                             })}
+                            onClick={(e) => e.stopPropagation()}
                         >
                             Use table
                         </MantineLinkButton>
