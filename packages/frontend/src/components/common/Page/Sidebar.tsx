@@ -37,6 +37,7 @@ type Props = {
     cardProps?: CardProps;
     position?: SidebarPosition;
     widthProps?: SidebarWidthProps;
+    mainWidth?: number;
 };
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
@@ -45,6 +46,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     cardProps,
     position = SidebarPosition.LEFT,
     widthProps = {},
+    mainWidth,
     children,
 }) => {
     const {
@@ -58,6 +60,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             minWidth,
             maxWidth,
             position,
+            mainWidth,
         });
 
     const transition: MantineTransition = {
