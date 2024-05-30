@@ -7,11 +7,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import {
-    IconExternalLink,
-    IconLayersIntersect,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -126,16 +122,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         }}
                     >
                         <MantineLinkButton
-                            size="xs"
+                            size="sm"
                             href={url}
                             target="_blank"
                             compact
-                            rightIcon={
-                                <MantineIcon
-                                    size="sm"
-                                    icon={IconExternalLink}
-                                />
-                            }
                             sx={(theme) => ({
                                 backgroundColor: theme.colors.gray[8],
                                 '&:hover': {
