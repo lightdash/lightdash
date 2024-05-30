@@ -15,21 +15,25 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     analyticResults: { charts },
 }) => {
+    /**
+     * Sort charts by space name, then by whether they are part of a dashboard, then by name
+     */
     const sortedCharts = useMemo(
         () =>
-            charts
-                .filter((chart) => !chart.dashboardUuid)
-                .sort((a, b) => a.spaceName.localeCompare(b.spaceName))
-                .concat(
-                    charts
-                        .filter((chart) => chart.dashboardUuid)
-                        .sort((a, b) =>
-                            a.dashboardName && b.dashboardName
-                                ? a.dashboardName.localeCompare(b.dashboardName)
-                                : 0,
-                        ),
-                ),
+            charts.sort((a, b) => {
+                if (a.spaceName !== b.spaceName) {
+                    return a.spaceName.localeCompare(b.spaceName);
+                }
 
+                if (!a.dashboardUuid && b.dashboardUuid) {
+                    return -1;
+                }
+                if (a.dashboardUuid && !b.dashboardUuid) {
+                    return 1;
+                }
+
+                return a.name.localeCompare(b.name);
+            }),
         [charts],
     );
 
