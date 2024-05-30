@@ -1,5 +1,5 @@
 import { FieldType, type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, UnstyledButton } from '@mantine/core';
+import { Box, Group, Highlight } from '@mantine/core';
 import { IconAbc, IconNumber } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -22,8 +22,10 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <>
-            <UnstyledButton
+            <Group
+                noWrap
                 sx={(theme) => ({
+                    cursor: 'pointer',
                     borderRadius: theme.radius.sm,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
@@ -36,6 +38,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
                 py="two"
+                mr="xs"
             >
                 <Box miw={150}>
                     <Group
@@ -73,7 +76,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         </Highlight>
                     </Group>
                 </Box>
-            </UnstyledButton>
+            </Group>
         </>
     );
 };
