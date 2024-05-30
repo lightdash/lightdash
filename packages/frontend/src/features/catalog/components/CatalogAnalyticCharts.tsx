@@ -1,12 +1,9 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
-import { Anchor, Avatar, Flex, Group, Paper, Stack, Text } from '@mantine/core';
-import { IconFolder } from '@tabler/icons-react';
+import { Avatar, Group, Paper, Stack, Text } from '@mantine/core';
+import { IconFolder, IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    ChartIcon,
-    getChartIcon,
-} from '../../../components/common/ResourceIcon';
+import { getChartIcon } from '../../../components/common/ResourceIcon';
 import RouterNavLink from '../../../components/common/RouterNavLink';
 
 type Props = {
@@ -18,32 +15,41 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
     projectUuid,
     analyticResults: { charts },
 }) => {
-    const [chartsInSpace, chartsWithinDashboard] = useMemo(() => {
-        return [
+    const sortedCharts = useMemo(
+        () =>
             charts
                 .filter((chart) => !chart.dashboardUuid)
-                .sort((a, b) => a.spaceName.localeCompare(b.spaceName)),
-            charts
-                .filter((chart) => chart.dashboardUuid)
-                .sort((a, b) =>
-                    a.dashboardName && b.dashboardName
-                        ? a.dashboardName.localeCompare(b.dashboardName)
-                        : 0,
+                .sort((a, b) => a.spaceName.localeCompare(b.spaceName))
+                .concat(
+                    charts
+                        .filter((chart) => chart.dashboardUuid)
+                        .sort((a, b) =>
+                            a.dashboardName && b.dashboardName
+                                ? a.dashboardName.localeCompare(b.dashboardName)
+                                : 0,
+                        ),
                 ),
-        ];
-    }, [charts]);
+
+        [charts],
+    );
 
     if (charts.length === 0) {
         return <Text>No charts found</Text>;
     }
 
     return (
-        <Stack>
-            {chartsInSpace.length > 0 && (
-                <Stack>
-                    {chartsInSpace.map((chart) => {
+        <>
+            {sortedCharts.length > 0 && (
+                <Stack spacing="xs">
+                    {sortedCharts.map((chart) => {
                         return (
-                            <Paper key={chart.uuid} withBorder w="100%" p="xs">
+                            <Paper
+                                key={chart.uuid}
+                                withBorder
+                                w="100%"
+                                p="xs"
+                                radius="md"
+                            >
                                 <Group noWrap>
                                     <Avatar size="sm" color="blue" radius="xl">
                                         <MantineIcon
@@ -67,28 +73,63 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                             p={0}
                                         />
 
-                                        <Group spacing="two" noWrap>
-                                            <MantineIcon
-                                                color="gray.6"
-                                                icon={IconFolder}
-                                            />
-                                            <RouterNavLink
-                                                to={`/projects/${projectUuid}/spaces/${chart.spaceUuid}`}
-                                                label={
-                                                    <Text fz="xs">
-                                                        {chart.spaceName}
+                                        <Group spacing="two">
+                                            <Group noWrap spacing="two">
+                                                <MantineIcon
+                                                    color="gray.6"
+                                                    icon={IconFolder}
+                                                />
+                                                <RouterNavLink
+                                                    to={`/projects/${projectUuid}/spaces/${chart.spaceUuid}`}
+                                                    label={
+                                                        <Text fz="xs">
+                                                            {chart.spaceName}
+                                                        </Text>
+                                                    }
+                                                    p={0}
+                                                    c="gray.6"
+                                                    sx={{
+                                                        '&:hover': {
+                                                            backgroundColor:
+                                                                'transparent',
+                                                        },
+                                                    }}
+                                                />
+                                            </Group>
+                                            {chart.dashboardUuid && (
+                                                <Group noWrap spacing="two">
+                                                    <Text
+                                                        color="gray.6"
+                                                        mr="two"
+                                                    >
+                                                        {'/'}
                                                     </Text>
-                                                    // TODO add for charts that belong to dashboard
-                                                }
-                                                p={0}
-                                                c="gray.6"
-                                                sx={{
-                                                    '&:hover': {
-                                                        backgroundColor:
-                                                            'transparent',
-                                                    },
-                                                }}
-                                            />
+                                                    <MantineIcon
+                                                        color="gray.6"
+                                                        icon={
+                                                            IconLayoutDashboard
+                                                        }
+                                                    />
+                                                    <RouterNavLink
+                                                        to={`/projects/${projectUuid}/dashboards/${chart.dashboardUuid}`}
+                                                        label={
+                                                            <Text fz="xs">
+                                                                {
+                                                                    chart.dashboardName
+                                                                }
+                                                            </Text>
+                                                        }
+                                                        p={0}
+                                                        c="gray.6"
+                                                        sx={{
+                                                            '&:hover': {
+                                                                backgroundColor:
+                                                                    'transparent',
+                                                            },
+                                                        }}
+                                                    />
+                                                </Group>
+                                            )}
                                         </Group>
                                     </Stack>
                                 </Group>
@@ -97,33 +138,6 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                     })}
                 </Stack>
             )}
-            {chartsWithinDashboard.length > 0 && (
-                <Stack>
-                    <Text weight={700}>
-                        Used in {chartsWithinDashboard.length} charts in spaces
-                    </Text>
-                    {chartsWithinDashboard.map((chart) => {
-                        return (
-                            <Flex key={chart.uuid}>
-                                <ChartIcon chartKind={chart.chartKind} />
-                                <Anchor
-                                    target="_blank"
-                                    href={`/projects/${projectUuid}/dashboards/${chart.dashboardUuid}`}
-                                >
-                                    {chart.dashboardName}
-                                </Anchor>
-                                /
-                                <Anchor
-                                    target="_blank"
-                                    href={`/projects/${projectUuid}/saved/${chart.uuid}`}
-                                >
-                                    {chart.name}
-                                </Anchor>
-                            </Flex>
-                        );
-                    })}
-                </Stack>
-            )}
-        </Stack>
+        </>
     );
 };
