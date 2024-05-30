@@ -1,5 +1,6 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Collapse,
     Group,
@@ -45,7 +46,6 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
         <>
             <Group
                 noWrap
-                position="apart"
                 spacing="xs"
                 p="xs"
                 px="sm"
@@ -54,12 +54,14 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     borderBottom: isLast
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
-                    backgroundColor: hovered
+                    backgroundColor: isSelected
                         ? theme.colors.gray[1]
+                        : hovered
+                        ? theme.colors.gray[2]
                         : 'transparent',
-                    border: isSelected
-                        ? `2px solid ${theme.colors.blue[6]}`
-                        : undefined,
+                    border: `2px solid ${
+                        isSelected ? theme.colors.blue[6] : 'transparent'
+                    }`,
                     cursor: 'pointer',
                     borderTopLeftRadius: isFirst ? theme.radius.md : 0,
                     borderTopRightRadius: isFirst ? theme.radius.md : 0,
@@ -103,17 +105,24 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         </Tooltip>
                     )}
                 </Box>
-                <Highlight
-                    fz="13px"
-                    w="100%"
-                    c="gray.7"
-                    lineClamp={2}
-                    highlight={searchString}
-                    highlightColor="violet"
-                >
-                    {table.description || ''}
-                </Highlight>
-                {hovered && (
+                {!isSelected ? (
+                    <Highlight
+                        fz="13px"
+                        w="100%"
+                        c="gray.7"
+                        lineClamp={2}
+                        highlight={searchString}
+                        highlightColor="violet"
+                        sx={{
+                            lineHeight: '1.2',
+                        }}
+                    >
+                        {table.description || ''}
+                    </Highlight>
+                ) : (
+                    <Badge color="violet">previewing</Badge>
+                )}
+                {(hovered || isSelected) && (
                     <Box
                         pos={'absolute'}
                         right={10}
