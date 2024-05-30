@@ -103,14 +103,12 @@ function getSelectionList(tree: CatalogTreeType): CatalogSelection[] {
 enum FilterType {
     Dimensions = 'dimensions',
     Metrics = 'metrics',
-    HideBaseTables = 'hideBaseTables',
     HideGroupedTables = 'hideGroupedTables',
 }
 
 type FilterState = {
     dimensions: boolean;
     metrics: boolean;
-    hideBaseTables: boolean;
     hideGroupedTables: boolean;
 };
 
@@ -139,7 +137,6 @@ export const CatalogPanel: FC = () => {
     const [filters, setFilters] = useState({
         dimensions: false,
         metrics: false,
-        hideBaseTables: false,
         hideGroupedTables: false,
     });
 
@@ -197,7 +194,6 @@ export const CatalogPanel: FC = () => {
         setFilters({
             dimensions: false,
             metrics: false,
-            hideBaseTables: false,
             hideGroupedTables: false,
         });
     }, [setFilters]);
@@ -537,14 +533,18 @@ export const CatalogPanel: FC = () => {
                                 </Group>
                             </Button>
                         </Popover.Target>
-                        <Button
-                            variant="default"
-                            size="xs"
-                            onClick={clearFilters}
-                            p="xs"
-                        >
-                            <MantineIcon color="gray" icon={IconX} />
-                        </Button>
+                        {(filters.dimensions ||
+                            filters.metrics ||
+                            filters.hideGroupedTables) && (
+                            <Button
+                                variant="default"
+                                size="xs"
+                                onClick={clearFilters}
+                                p="xs"
+                            >
+                                <MantineIcon color="gray" icon={IconX} />
+                            </Button>
+                        )}
                     </Button.Group>
 
                     <Popover.Dropdown fz="xs">
@@ -597,19 +597,6 @@ export const CatalogPanel: FC = () => {
 
                             <Divider c="gray.1" />
                             <Stack spacing="xs">
-                                {/* 
-                                TODO: Don't know how this is supposed to work yet
-                                <Checkbox
-                                    checked={filters.hideBaseTables}
-                                    onChange={() => {
-                                        toggleFilter(FilterType.HideBaseTables);
-                                    }}
-                                    label={
-                                        <Text fz="xs" fw={500} c="gray.7">
-                                            Hide base tables
-                                        </Text>
-                                    }
-                                /> */}
                                 <Checkbox
                                     checked={filters.hideGroupedTables}
                                     onChange={() => {
@@ -624,7 +611,6 @@ export const CatalogPanel: FC = () => {
                                     }
                                 />
                             </Stack>
-                            <Divider c="gray.1" />
 
                             <Button
                                 size="xs"
