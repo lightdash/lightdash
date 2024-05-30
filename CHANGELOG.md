@@ -1,3 +1,10 @@
+# [0.1113.0](https://github.com/lightdash/lightdash/compare/0.1112.1...0.1113.0) (2024-05-30)
+
+
+### Features
+
+* select field in table ([#10233](https://github.com/lightdash/lightdash/issues/10233)) ([e3ee9c5](https://github.com/lightdash/lightdash/commit/e3ee9c5382032a2a84b43111bf81854237c98927))
+
 ## [0.1112.1](https://github.com/lightdash/lightdash/compare/0.1112.0...0.1112.1) (2024-05-30)
 
 
