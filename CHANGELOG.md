@@ -1,3 +1,17 @@
+# [0.1114.0](https://github.com/lightdash/lightdash/compare/0.1113.2...0.1114.0) (2024-05-30)
+
+
+### Features
+
+* display joined tables in metadata sidebar ([#10225](https://github.com/lightdash/lightdash/issues/10225)) ([26e78d4](https://github.com/lightdash/lightdash/commit/26e78d4bc3cb56ca7c78199a48583d9e75bb0325))
+
+## [0.1113.2](https://github.com/lightdash/lightdash/compare/0.1113.1...0.1113.2) (2024-05-30)
+
+
+### Bug Fixes
+
+* merge charts in analytics and display breadcrumb if within dashboard ([#10252](https://github.com/lightdash/lightdash/issues/10252)) ([bc55822](https://github.com/lightdash/lightdash/commit/bc55822ac0f7ac67351bde356888e638c5abfa79))
+
 ## [0.1113.1](https://github.com/lightdash/lightdash/compare/0.1113.0...0.1113.1) (2024-05-30)
 
 

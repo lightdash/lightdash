@@ -59,6 +59,7 @@ export type CatalogMetadata = {
     modelName: string;
     source: string | undefined;
     fields: CatalogField[];
+    joinedTables: string[];
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
 
