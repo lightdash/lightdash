@@ -35,6 +35,7 @@ export type CatalogField = Pick<
         basicType?: string; // string, number, timestamp... used in metadata
         tableName: string;
         tableGroupLabel?: string;
+        tags?: string[]; // Tags from table, for filtering
     };
 
 export type CatalogTable = Pick<
@@ -44,6 +45,7 @@ export type CatalogTable = Pick<
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
+    tags?: string[];
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
 };
 

@@ -12,9 +12,13 @@ import {
     ExploreError,
     ForbiddenError,
     getBasicType,
+    hasIntersection,
     isDimension,
     isExploreError,
     SessionUser,
+    SummaryExplore,
+    TablesConfiguration,
+    TableSelectionType,
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -98,10 +102,32 @@ export class CatalogService<
         }, []);
     }
 
-    private static async getCatalogTables(
+    private static isExploreFiltered(
+        tablesConfiguration: TablesConfiguration,
+        explore: Pick<SummaryExplore, 'tags' | 'name'>,
+    ) {
+        // Optimization tip:
+        // Perhaps we should filter these in catalong on `index` rather than in real time (requires dbt refresh on table config changes)
+        const {
+            tableSelection: { type, value },
+        } = tablesConfiguration;
+
+        if (type === TableSelectionType.WITH_TAGS) {
+            return hasIntersection(explore.tags || [], value || []);
+        }
+        if (type === TableSelectionType.WITH_NAMES) {
+            return (value || []).includes(explore.name);
+        }
+        return true;
+    }
+
+    private async getCatalogTables(
+        projectUuid: string,
         explores: (Explore | ExploreError)[],
         userAttributes: UserAttributeValueMap,
     ): Promise<CatalogTable[]> {
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
         return explores.reduce<CatalogTable[]>((acc, explore) => {
             if (isExploreError(explore)) {
                 return [
@@ -118,6 +144,12 @@ export class CatalogService<
                     },
                 ];
             }
+
+            if (
+                !CatalogService.isExploreFiltered(tablesConfiguration, explore)
+            ) {
+                return acc;
+            }
             if (doesExploreMatchRequiredAttributes(explore, userAttributes)) {
                 return [
                     ...acc,
@@ -128,6 +160,7 @@ export class CatalogService<
                         type: CatalogType.Table,
                         groupLabel: explore.groupLabel,
                         joinedTables: explore.joinedTables,
+                        tags: explore.tags,
                     },
                 ];
             }
@@ -140,6 +173,9 @@ export class CatalogService<
         query: string,
         userAttributes: UserAttributeValueMap,
     ): Promise<(CatalogTable | CatalogField)[]> {
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
             {
@@ -157,6 +193,18 @@ export class CatalogService<
                             searchQuery: query,
                         }),
                 );
+                // Filter table selection
+                const catalogFiltered = catalog.filter((c) => {
+                    if (c.type === CatalogType.Table)
+                        return CatalogService.isExploreFiltered(
+                            tablesConfiguration,
+                            c,
+                        );
+                    return CatalogService.isExploreFiltered(
+                        tablesConfiguration,
+                        { name: c.tableName, tags: c.tags },
+                    );
+                });
 
                 // Filter required attributes
                 return wrapSentryTransaction(
@@ -165,7 +213,7 @@ export class CatalogService<
                         catalogSize: catalog.length,
                     },
                     async () =>
-                        catalog.filter((c) =>
+                        catalogFiltered.filter((c) =>
                             hasUserAttributes(
                                 c.requiredAttributes,
                                 userAttributes,
@@ -236,7 +284,8 @@ export class CatalogService<
             );
 
         // all tables
-        return CatalogService.getCatalogTables(
+        return this.getCatalogTables(
+            projectUuid,
             filteredExplores,
             userAttributes,
         );
