@@ -37,14 +37,26 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     onClick={toggleOpen}
                     p="sm"
                     w="100%"
+                    pos="relative"
                     sx={(theme) => ({
-                        borderBottom:
-                            !isLast && !isOpen
-                                ? `1px solid ${theme.colors.gray[3]}`
-                                : undefined,
+                        paddingBottom: !isLast ? theme.spacing.xs : 0,
+                        ...(!isLast && !isOpen
+                            ? // Adds offset to the bottom border of all groups except the last one (aligns with chevron icon)
+                              {
+                                  '&::after': {
+                                      content: '""',
+                                      position: `absolute`,
+                                      top: '90%',
+                                      left: '12px',
+                                      width: '100%',
+                                      height: '1px',
+                                      background: theme.colors.gray[3],
+                                  },
+                              }
+                            : {}),
                     })}
                 >
-                    <Group spacing={'xs'}>
+                    <Group spacing={'xs'} noWrap align="center">
                         <Avatar
                             radius="xl"
                             color="gray"
@@ -68,19 +80,21 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                             />
                         </Avatar>
 
-                        <Text fw={600} fz={14}>
-                            {label}
-                        </Text>
-                        <Badge
-                            color="gray"
-                            size="xs"
-                            radius="xl"
-                            sx={(theme) => ({
-                                backgroundColor: theme.colors.gray[2],
-                            })}
-                        >
-                            {tableCount}
-                        </Badge>
+                        <Group w="100%">
+                            <Text fw={600} fz={14}>
+                                {label}
+                            </Text>
+                            <Badge
+                                color="gray"
+                                size="xs"
+                                radius="xl"
+                                sx={(theme) => ({
+                                    backgroundColor: theme.colors.gray[2],
+                                })}
+                            >
+                                {tableCount}
+                            </Badge>
+                        </Group>
                     </Group>
                 </UnstyledButton>
             )}
@@ -90,7 +104,7 @@ export const CatalogGroup: FC<React.PropsWithChildren<Props>> = ({
                     ml="sm"
                     sx={(theme) => ({
                         border: `1px solid ${theme.colors.gray[2]}`,
-                        borderRadius: theme.radius.lg,
+                        borderRadius: theme.radius.md,
                         backgroundColor: 'white',
                     })}
                 >

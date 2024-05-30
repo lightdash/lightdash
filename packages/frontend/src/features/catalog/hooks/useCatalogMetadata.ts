@@ -23,7 +23,7 @@ const fetchCatalogMetadata = async ({
 
 export const useCatalogMetadata = (
     projectUuid: string,
-    onSuccess: (data: ApiCatalogMetadataResults) => void,
+    onSuccess?: (data: ApiCatalogMetadataResults) => void,
 ) => {
     const setErrorResponse = useQueryError();
 
@@ -31,7 +31,7 @@ export const useCatalogMetadata = (
         (table) => fetchCatalogMetadata({ projectUuid, table }),
         {
             mutationKey: ['catalog_metadata', projectUuid],
-            onSuccess: (data) => onSuccess(data),
+            onSuccess: (data) => onSuccess?.(data),
             onError: (result) => setErrorResponse(result),
         },
     );

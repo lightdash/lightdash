@@ -22,7 +22,7 @@ import {
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
 
 import {
-    IconFilters,
+    IconAdjustmentsHorizontal,
     IconReportSearch,
     IconSearch,
     IconX,
@@ -146,11 +146,7 @@ export const CatalogPanel: FC = () => {
         search: debouncedSearch,
     });
 
-    const {
-        mutate: getMetadata,
-        data: metadata,
-        reset: closeMetadata,
-    } = useCatalogMetadata(projectUuid, (data) => {
+    const { mutate: getMetadata } = useCatalogMetadata(projectUuid, (data) => {
         if (data) {
             setMetadata(data);
         }
@@ -399,236 +395,255 @@ export const CatalogPanel: FC = () => {
     );
 
     return (
-        <Stack>
-            <Group position="apart" align="flex-start">
-                <Box>
-                    <Group>
-                        <Paper
-                            p="sm"
-                            withBorder
-                            radius="md"
-                            sx={(theme) => ({
-                                boxShadow: theme.shadows.xs,
-                            })}
-                        >
-                            <MantineIcon size={24} icon={IconReportSearch} />
-                        </Paper>
-
-                        <Box>
-                            <Title order={4}>Start exploring</Title>
-                            <Text color="gray.6" fw={500}>
-                                Select a table or field to start exploring.
-                            </Text>
-                        </Box>
-                    </Group>
-                </Box>
-                {selection && (
-                    <Button
-                        variant="default"
-                        size="xs"
-                        onClick={() => {
-                            setSidebarOpen((prev) => !prev);
-                            if (metadata) {
-                                closeMetadata();
-                                setSelection(undefined);
-                            } else if (selection === undefined)
-                                selectAndGetMetadata(selectionList[0]);
-                            else selectAndGetMetadata(selection);
-                        }}
-                    >
-                        {isSidebarOpen ? 'Hide metadata' : 'Show metadata'}
-                    </Button>
-                )}
-            </Group>
-
-            <Group spacing="xs">
-                <TextInput
-                    w={'50%'}
-                    size="xs"
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        search ? (
-                            <ActionIcon onClick={() => handleSearchChange('')}>
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search"
-                    description={
-                        search && search.length < 3
-                            ? 'Enter at least 3 characters to search'
-                            : undefined
-                    }
-                    value={search}
-                    inputWrapperOrder={[
-                        'label',
-                        'input',
-                        'description',
-                        'error',
-                    ]}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                />
-                <Popover
-                    shadow="xs"
-                    position="bottom-start"
-                    opened={filtersOpen}
-                    onClose={() => setFiltersOpen(false)}
-                >
-                    <Button.Group>
-                        <Popover.Target>
-                            <Button
-                                variant="default"
-                                size="xs"
-                                leftIcon={<MantineIcon icon={IconFilters} />}
-                                onClick={() => {
-                                    setFiltersOpen((prev) => !prev);
-                                }}
-                            >
-                                <Group noWrap spacing="xs">
-                                    <Text>Filter</Text>
-                                    {filters.dimensions && (
-                                        <Badge
-                                            fw={500}
-                                            size="xs"
-                                            radius="md"
-                                            color="indigo"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Dimensions
-                                        </Badge>
-                                    )}
-                                    {filters.metrics && (
-                                        <Badge
-                                            fw={500}
-                                            size="xs"
-                                            color="orange"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Metrics
-                                        </Badge>
-                                    )}
-
-                                    {filters.hideGroupedTables && (
-                                        <Badge
-                                            fw={500}
-                                            size="xs"
-                                            color="gray.8"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Hide grouped tables
-                                        </Badge>
-                                    )}
-                                </Group>
-                            </Button>
-                        </Popover.Target>
-                        {(filters.dimensions ||
-                            filters.metrics ||
-                            filters.hideGroupedTables) && (
-                            <Button
-                                variant="default"
-                                size="xs"
-                                onClick={clearFilters}
-                                p="xs"
-                            >
-                                <MantineIcon color="gray" icon={IconX} />
-                            </Button>
-                        )}
-                    </Button.Group>
-
-                    <Popover.Dropdown fz="xs">
-                        <Stack spacing="sm">
-                            <Text c="gray.6" fw={500}>
-                                Result type
-                            </Text>
-                            <Stack spacing="xs">
-                                <Checkbox
-                                    checked={filters.dimensions}
-                                    onChange={() => {
-                                        toggleFilter(FilterType.Dimensions);
-                                    }}
-                                    label={
-                                        <Badge
-                                            fw={500}
-                                            radius="md"
-                                            color="indigo"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Dimensions
-                                        </Badge>
-                                    }
-                                />
-
-                                <Checkbox
-                                    checked={filters.metrics}
-                                    onChange={() => {
-                                        toggleFilter(FilterType.Metrics);
-                                    }}
-                                    label={
-                                        <Badge
-                                            fw={500}
-                                            color="orange"
-                                            styles={{
-                                                root: {
-                                                    textTransform: 'none',
-                                                },
-                                            }}
-                                        >
-                                            Metrics
-                                        </Badge>
-                                    }
-                                />
-                            </Stack>
-
-                            <Divider c="gray.1" />
-                            <Stack spacing="xs">
-                                <Checkbox
-                                    checked={filters.hideGroupedTables}
-                                    onChange={() => {
-                                        toggleFilter(
-                                            FilterType.HideGroupedTables,
-                                        );
-                                    }}
-                                    label={
-                                        <Text fz="xs" fw={500} c="gray.7">
-                                            Hide grouped tables
-                                        </Text>
-                                    }
-                                />
-                            </Stack>
-
-                            <Button
-                                size="xs"
-                                ml="auto"
+        <Stack spacing="xxl">
+            <Stack>
+                <Group position="apart" align="flex-start">
+                    <Box mt="xl">
+                        <Group>
+                            <Paper
+                                p="sm"
+                                withBorder
+                                radius="md"
                                 sx={(theme) => ({
-                                    backgroundColor: theme.colors.gray[8],
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.gray[9],
-                                    },
+                                    boxShadow: theme.shadows.xs,
                                 })}
-                                onClick={() => setFiltersOpen(false)}
                             >
-                                Close
-                            </Button>
-                        </Stack>
-                    </Popover.Dropdown>
-                </Popover>
-            </Group>
+                                <MantineIcon
+                                    size={24}
+                                    icon={IconReportSearch}
+                                />
+                            </Paper>
+
+                            <Box>
+                                <Title order={4}>Start exploring</Title>
+                                <Text color="gray.6" fw={500}>
+                                    Select a table or field to start exploring.
+                                </Text>
+                            </Box>
+                        </Group>
+                    </Box>
+                </Group>
+
+                <Group spacing="xs">
+                    <TextInput
+                        w={'50%'}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            search ? (
+                                <ActionIcon
+                                    onClick={() => handleSearchChange('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search"
+                        description={
+                            search && search.length < 3
+                                ? 'Enter at least 3 characters to search'
+                                : undefined
+                        }
+                        value={search}
+                        inputWrapperOrder={[
+                            'label',
+                            'input',
+                            'description',
+                            'error',
+                        ]}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        styles={(theme) => ({
+                            input: {
+                                borderRadius: theme.radius.md,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        })}
+                    />
+                    <Group>
+                        <Popover
+                            shadow="xs"
+                            position="bottom-start"
+                            opened={filtersOpen}
+                            onClose={() => setFiltersOpen(false)}
+                        >
+                            <Button.Group>
+                                <Popover.Target>
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        leftIcon={
+                                            <MantineIcon
+                                                icon={IconAdjustmentsHorizontal}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            setFiltersOpen((prev) => !prev);
+                                        }}
+                                    >
+                                        <Group noWrap spacing="xs">
+                                            <Text>Filter</Text>
+                                            {filters.dimensions && (
+                                                <Badge
+                                                    fw={500}
+                                                    size="xs"
+                                                    radius="md"
+                                                    color="indigo"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Dimensions
+                                                </Badge>
+                                            )}
+                                            {filters.metrics && (
+                                                <Badge
+                                                    fw={500}
+                                                    size="xs"
+                                                    color="orange"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Metrics
+                                                </Badge>
+                                            )}
+
+                                            {filters.hideGroupedTables && (
+                                                <Badge
+                                                    fw={500}
+                                                    size="xs"
+                                                    color="gray.8"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Hide grouped tables
+                                                </Badge>
+                                            )}
+                                        </Group>
+                                    </Button>
+                                </Popover.Target>
+                                {(filters.dimensions ||
+                                    filters.metrics ||
+                                    filters.hideGroupedTables) && (
+                                    <Button
+                                        variant="default"
+                                        size="xs"
+                                        onClick={clearFilters}
+                                        p="xs"
+                                    >
+                                        <MantineIcon
+                                            color="gray"
+                                            icon={IconX}
+                                        />
+                                    </Button>
+                                )}
+                            </Button.Group>
+
+                            <Popover.Dropdown fz="xs">
+                                <Stack spacing="sm">
+                                    <Text c="gray.6" fw={500}>
+                                        Result type
+                                    </Text>
+                                    <Stack spacing="xs">
+                                        <Checkbox
+                                            checked={filters.dimensions}
+                                            onChange={() => {
+                                                toggleFilter(
+                                                    FilterType.Dimensions,
+                                                );
+                                            }}
+                                            label={
+                                                <Badge
+                                                    fw={500}
+                                                    radius="md"
+                                                    color="indigo"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Dimensions
+                                                </Badge>
+                                            }
+                                        />
+
+                                        <Checkbox
+                                            checked={filters.metrics}
+                                            onChange={() => {
+                                                toggleFilter(
+                                                    FilterType.Metrics,
+                                                );
+                                            }}
+                                            label={
+                                                <Badge
+                                                    fw={500}
+                                                    color="orange"
+                                                    styles={{
+                                                        root: {
+                                                            textTransform:
+                                                                'none',
+                                                        },
+                                                    }}
+                                                >
+                                                    Metrics
+                                                </Badge>
+                                            }
+                                        />
+                                    </Stack>
+
+                                    <Divider c="gray.1" />
+                                    <Stack spacing="xs">
+                                        <Checkbox
+                                            checked={filters.hideGroupedTables}
+                                            onChange={() => {
+                                                toggleFilter(
+                                                    FilterType.HideGroupedTables,
+                                                );
+                                            }}
+                                            label={
+                                                <Text
+                                                    fz="xs"
+                                                    fw={500}
+                                                    c="gray.7"
+                                                >
+                                                    Hide grouped tables
+                                                </Text>
+                                            }
+                                        />
+                                    </Stack>
+
+                                    <Button
+                                        size="xs"
+                                        ml="auto"
+                                        sx={(theme) => ({
+                                            backgroundColor:
+                                                theme.colors.gray[8],
+                                            '&:hover': {
+                                                backgroundColor:
+                                                    theme.colors.gray[9],
+                                            },
+                                        })}
+                                        onClick={() => setFiltersOpen(false)}
+                                    >
+                                        Close
+                                    </Button>
+                                </Stack>
+                            </Popover.Dropdown>
+                        </Popover>
+                    </Group>
+                </Group>
+            </Stack>
 
             <CatalogTree
                 tree={catalogTree}

@@ -1,5 +1,6 @@
 import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Collapse,
     Group,
@@ -7,11 +8,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import {
-    IconExternalLink,
-    IconLayersIntersect,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -49,27 +46,30 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
         <>
             <Group
                 noWrap
-                position="apart"
                 spacing="xs"
-                px="xs"
+                p="xs"
+                px="sm"
                 sx={(theme) => ({
                     minHeight: 48,
-                    borderBottom: isLast
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom:
+                        isLast || isOpen
+                            ? 'none'
+                            : `1px solid ${theme.colors.gray[2]}`,
                     backgroundColor: hovered
                         ? theme.colors.gray[1]
+                        : hovered
+                        ? theme.colors.gray[2]
                         : 'transparent',
-                    border: isSelected
-                        ? `2px solid ${theme.colors.blue[6]}`
-                        : undefined,
+                    border: `2px solid ${
+                        isSelected ? theme.colors.blue[6] : 'transparent'
+                    }`,
                     cursor: 'pointer',
-                    borderTopLeftRadius: isFirst ? theme.radius.lg : 0,
-                    borderTopRightRadius: isFirst ? theme.radius.lg : 0,
+                    borderTopLeftRadius: isFirst ? theme.radius.md : 0,
+                    borderTopRightRadius: isFirst ? theme.radius.md : 0,
                     borderBottomLeftRadius:
-                        isLast && !isOpen ? theme.radius.lg : 0,
+                        isLast && !isOpen ? theme.radius.md : 0,
                     borderBottomRightRadius:
-                        isLast && !isOpen ? theme.radius.lg : 0,
+                        isLast && !isOpen ? theme.radius.md : 0,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
@@ -78,7 +78,11 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
             >
                 <UnstyledButton onClick={() => toggleOpen()} miw={150}>
                     <Group noWrap spacing="xs">
-                        <MantineIcon icon={IconTable} color="gray" size="sm" />
+                        <MantineIcon
+                            icon={IconTable}
+                            color="gray.6"
+                            size="md"
+                        />
 
                         <Highlight
                             highlight={searchString}
@@ -99,23 +103,31 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         >
                             <Group noWrap spacing="one">
                                 <MantineIcon
-                                    color="gray"
+                                    color="gray.5"
                                     icon={IconLayersIntersect}
                                 />
                             </Group>
                         </Tooltip>
                     )}
                 </Box>
-                <Highlight
-                    fz="xs"
-                    w="100%"
-                    lineClamp={2}
-                    highlight={searchString}
-                    highlightColor="violet"
-                >
-                    {table.description || ''}
-                </Highlight>
-                {hovered && (
+                {!isSelected ? (
+                    <Highlight
+                        fz="13px"
+                        w="100%"
+                        c="gray.7"
+                        lineClamp={2}
+                        highlight={searchString}
+                        highlightColor="violet"
+                        sx={{
+                            lineHeight: '1.2',
+                        }}
+                    >
+                        {table.description || ''}
+                    </Highlight>
+                ) : (
+                    <Badge color="violet">previewing</Badge>
+                )}
+                {(hovered || isSelected) && (
                     <Box
                         pos={'absolute'}
                         right={10}
@@ -124,16 +136,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         }}
                     >
                         <MantineLinkButton
-                            size="xs"
+                            size="sm"
                             href={url}
                             target="_blank"
                             compact
-                            rightIcon={
-                                <MantineIcon
-                                    size="sm"
-                                    icon={IconExternalLink}
-                                />
-                            }
                             sx={(theme) => ({
                                 backgroundColor: theme.colors.gray[8],
                                 '&:hover': {
