@@ -120,7 +120,7 @@ export const CatalogMetadata: FC = () => {
             </Button>
             <Group spacing="xs">
                 <Avatar
-                    size="sm"
+                    size="md"
                     radius="xl"
                     styles={(theme) => ({
                         root: {
@@ -152,7 +152,7 @@ export const CatalogMetadata: FC = () => {
                     </>
                 )}
                 <Text
-                    fs="lg"
+                    fz="lg"
                     fw={600}
                     onDoubleClick={() => {
                         history.push(
