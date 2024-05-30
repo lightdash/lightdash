@@ -1,3 +1,10 @@
+## [0.1111.2](https://github.com/lightdash/lightdash/compare/0.1111.1...0.1111.2) (2024-05-30)
+
+
+### Bug Fixes
+
+* filter table selection ([#10213](https://github.com/lightdash/lightdash/issues/10213)) ([27bbfea](https://github.com/lightdash/lightdash/commit/27bbfea1352fae5f4d1d719b712146dbe53c2b38))
+
 ## [0.1111.1](https://github.com/lightdash/lightdash/compare/0.1111.0...0.1111.1) (2024-05-29)
 
 
