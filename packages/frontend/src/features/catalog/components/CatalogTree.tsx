@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Stack, Tooltip } from '@mantine/core';
+import { Box, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -117,21 +117,36 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Tooltip.Group>
-            <Stack
-                sx={{ maxHeight: '900px', overflow: 'scroll' }}
-                spacing="xs"
-                key={`catalog-tree-${searchString}`}
+            <Box
+                sx={(theme) => ({
+                    border: `1px solid ${theme.colors.gray[3]}`,
+                    backgroundColor: theme.fn.lighten(
+                        theme.colors.gray[0],
+                        0.5,
+                    ),
+                    borderRadius: theme.radius.lg,
+                    padding: theme.spacing.lg,
+                    boxShadow: `0 0 0 1px ${theme.colors.gray[0]},
+                    0 2px 3px -2px ${theme.colors.gray[0]},
+                    0 3px 12px -4px ${theme.colors.gray[2]},
+                    0 4px 16px -8px ${theme.colors.gray[2]}`,
+                })}
             >
-                {Object.entries(tree).map(([_, value]) =>
-                    renderTreeNode({
-                        node: value,
-                        projectUuid,
-                        onItemClick,
-                        selection,
-                        searchString,
-                    }),
-                )}
-            </Stack>
+                <Box
+                    sx={{ maxHeight: '900px', overflowY: 'scroll' }}
+                    key={`catalog-tree-${searchString}`}
+                >
+                    {Object.entries(tree).map(([_, value]) =>
+                        renderTreeNode({
+                            node: value,
+                            projectUuid,
+                            onItemClick,
+                            selection,
+                            searchString,
+                        }),
+                    )}
+                </Box>
+            </Box>
         </Tooltip.Group>
     );
 };
