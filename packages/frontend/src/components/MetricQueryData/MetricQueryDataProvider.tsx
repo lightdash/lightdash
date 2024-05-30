@@ -84,7 +84,8 @@ export const getDataFromChartClick = (
         e.data,
     ).reduce((acc, entry) => {
         const [key, val] = entry;
-        return { ...acc, [key]: { raw: val, formatted: val } };
+        const raw = val === '∅' ? null : val; // convert ∅ values back to null. Echarts doesn't support null formatting https://github.com/apache/echarts/issues/15821
+        return { ...acc, [key]: { raw, formatted: val } };
     }, {});
 
     return {
