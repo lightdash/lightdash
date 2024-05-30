@@ -21,11 +21,14 @@ import {
     IconFilter,
     IconReportSearch,
     IconSearch,
+    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -107,6 +110,7 @@ export const CatalogPanel: FC = () => {
         selection,
         setSelection,
     } = useCatalogContext();
+
     // There are 3 search variables:
     // - search: the current search string
     // - completeSearch: the 3+ char search string that gets sent to the backend
@@ -115,7 +119,7 @@ export const CatalogPanel: FC = () => {
     const [completeSearch, setCompleteSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
 
-    const { data: catalogResults } = useCatalog({
+    const { data: catalogResults, isFetched: catalogFetched } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
         search: debouncedSearch,
@@ -154,6 +158,11 @@ export const CatalogPanel: FC = () => {
         },
         [setSearch],
     );
+
+    const clearSearch = useCallback(() => {
+        setSearch('');
+        setCompleteSearch('');
+    }, [setSearch, setCompleteSearch]);
 
     // TODO: should this transform be in the backend?
     const catalogTree: CatalogTreeType = useMemo(() => {
@@ -316,6 +325,9 @@ export const CatalogPanel: FC = () => {
         [],
     );
 
+    const noResults = catalogFetched && Object.keys(catalogTree).length === 0;
+    const noTables = noResults && completeSearch.length === 0;
+
     return (
         <Stack>
             <Group position="apart" align="flex-start">
@@ -413,14 +425,68 @@ export const CatalogPanel: FC = () => {
                     </Button>
                 </Group>
             </Group>
-
-            <CatalogTree
-                tree={catalogTree}
-                projectUuid={projectUuid}
-                searchString={debouncedSearch}
-                selection={selection}
-                onItemClick={selectAndGetMetadata}
-            />
+            {noResults ? (
+                <Paper
+                    p="xl"
+                    radius="lg"
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[1],
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    <SuboptimalState
+                        icon={IconSearch}
+                        title="No search results"
+                        description={
+                            'Try using different keywords or adjusting your filters.'
+                        }
+                        action={
+                            <Button
+                                variant="default"
+                                onClick={clearSearch}
+                                mt="sm"
+                                radius="md"
+                            >
+                                Clear search
+                            </Button>
+                        }
+                    />
+                </Paper>
+            ) : noTables ? (
+                <Paper
+                    p="xl"
+                    radius="lg"
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[1],
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    <SuboptimalState
+                        icon={IconTable}
+                        title="No tables found in this project"
+                        description={
+                            "Tables are the starting point to any data exploration in Lightdash. They come from dbt models that have been defined in your dbt project's .yml files."
+                        }
+                        action={
+                            <LinkButton
+                                color="dark"
+                                href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
+                                mt="md"
+                            >
+                                Learn more
+                            </LinkButton>
+                        }
+                    />
+                </Paper>
+            ) : (
+                <CatalogTree
+                    tree={catalogTree}
+                    projectUuid={projectUuid}
+                    searchString={debouncedSearch}
+                    selection={selection}
+                    onItemClick={selectAndGetMetadata}
+                />
+            )}
         </Stack>
     );
 };
