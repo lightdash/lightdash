@@ -7,6 +7,7 @@ import {
     Divider,
     Group,
     Loader,
+    LoadingOverlay,
     Paper,
     Stack,
     Table,
@@ -90,7 +91,7 @@ export const CatalogMetadata: FC = () => {
         }
     }, [metadataResults, selection, selectedFieldInTable]);
 
-    if (!metadata) return null;
+    if (!metadata) return <LoadingOverlay visible />;
 
     return (
         <Stack h="100vh" spacing="xl">
