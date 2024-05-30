@@ -1,7 +1,13 @@
 import { type ApiCatalogAnalyticsResults } from '@lightdash/common';
-import { Anchor, Flex, Stack, Text } from '@mantine/core';
+import { Anchor, Avatar, Flex, Group, Paper, Stack, Text } from '@mantine/core';
+import { IconFolder } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { ChartIcon } from '../../../components/common/ResourceIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    ChartIcon,
+    getChartIcon,
+} from '../../../components/common/ResourceIcon';
+import RouterNavLink from '../../../components/common/RouterNavLink';
 
 type Props = {
     projectUuid: string;
@@ -35,25 +41,58 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
         <Stack>
             {chartsInSpace.length > 0 && (
                 <Stack>
-                    <Text weight={700}>
-                        Used in {chartsInSpace.length} charts in spaces
-                    </Text>
                     {chartsInSpace.map((chart) => {
                         return (
-                            <Flex key={chart.uuid}>
-                                <ChartIcon chartKind={chart.chartKind} />
-                                <Anchor
-                                    href={`/projects/${projectUuid}/spaces/${chart.spaceUuid}`}
-                                >
-                                    {chart.spaceName}
-                                </Anchor>
-                                /
-                                <Anchor
-                                    href={`/projects/${projectUuid}/saved/${chart.uuid}`}
-                                >
-                                    {chart.name}
-                                </Anchor>
-                            </Flex>
+                            <Paper key={chart.uuid} withBorder w="100%" p="xs">
+                                <Group noWrap>
+                                    <Avatar size="sm" color="blue" radius="xl">
+                                        <MantineIcon
+                                            icon={getChartIcon(chart.chartKind)}
+                                        />
+                                    </Avatar>
+                                    <Stack spacing="two">
+                                        <RouterNavLink
+                                            to={`/projects/${projectUuid}/saved/${chart.uuid}`}
+                                            label={
+                                                <Text fz="sm" fw={500}>
+                                                    {chart.name}
+                                                </Text>
+                                            }
+                                            sx={{
+                                                '&:hover': {
+                                                    backgroundColor:
+                                                        'transparent',
+                                                },
+                                            }}
+                                            p={0}
+                                        />
+
+                                        <Group spacing="two" noWrap>
+                                            <MantineIcon
+                                                color="gray.6"
+                                                icon={IconFolder}
+                                            />
+                                            <RouterNavLink
+                                                to={`/projects/${projectUuid}/spaces/${chart.spaceUuid}`}
+                                                label={
+                                                    <Text fz="xs">
+                                                        {chart.spaceName}
+                                                    </Text>
+                                                    // TODO add for charts that belong to dashboard
+                                                }
+                                                p={0}
+                                                c="gray.6"
+                                                sx={{
+                                                    '&:hover': {
+                                                        backgroundColor:
+                                                            'transparent',
+                                                    },
+                                                }}
+                                            />
+                                        </Group>
+                                    </Stack>
+                                </Group>
+                            </Paper>
                         );
                     })}
                 </Stack>

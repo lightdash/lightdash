@@ -1,8 +1,13 @@
 import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
-    Flex,
+    Avatar,
+    Badge,
+    Box,
+    Button,
+    Divider,
     Group,
-    ScrollArea,
+    Loader,
+    Paper,
     Stack,
     Table,
     Tabs,
@@ -13,17 +18,22 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconCornerDownLeft,
+    IconDatabase,
+    IconLink,
+    IconTable,
 } from '@tabler/icons-react';
 import { useIsFetching } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
+    const { classes, cx } = useTableStyles();
     const { colors } = useMantineTheme();
     const {
         projectUuid,
@@ -36,6 +46,7 @@ export const CatalogMetadata: FC = () => {
     const isFetchingAnalytics = useIsFetching({
         queryKey: ['catalog_analytics', projectUuid],
     });
+
     const history = useHistory();
 
     const [selectedFieldInTable, setSelectedFieldInTable] = useState<
@@ -54,7 +65,6 @@ export const CatalogMetadata: FC = () => {
             }
         },
     );
-
     const metadata = useMemo(() => {
         const fieldSelected = selection?.field || selectedFieldInTable;
         if (fieldSelected && metadataResults) {
@@ -77,8 +87,23 @@ export const CatalogMetadata: FC = () => {
     if (!metadata) return null;
 
     return (
-        <Stack h="100vh">
-            <Flex>
+        <Stack h="100vh" spacing="xl">
+            <Group spacing="xs">
+                <Avatar
+                    size="sm"
+                    radius="xl"
+                    styles={(theme) => ({
+                        root: {
+                            border: `1px solid ${theme.colors.gray[1]}`,
+                        },
+                        placeholder: {
+                            color: theme.colors.gray[7],
+                            backgroundColor: 'white',
+                        },
+                    })}
+                >
+                    <MantineIcon icon={IconTable} />
+                </Avatar>
                 {selectedFieldInTable && (
                     <>
                         <Text
@@ -97,9 +122,8 @@ export const CatalogMetadata: FC = () => {
                     </>
                 )}
                 <Text
-                    underline={true}
-                    size="l"
-                    weight={700}
+                    fs="lg"
+                    fw={600}
                     onDoubleClick={() => {
                         history.push(
                             `/projects/${projectUuid}/tables/${metadata.modelName}`,
@@ -108,47 +132,141 @@ export const CatalogMetadata: FC = () => {
                 >
                     {metadata.name}
                 </Text>
-            </Flex>
-            <ScrollArea
-                variant="primary"
-                className="only-vertical"
-                offsetScrollbars
-                scrollbarSize={8}
+            </Group>
+
+            <Tabs
+                color="dark"
+                defaultValue="overview"
+                styles={(theme) => ({
+                    tabsList: {
+                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    },
+                    panel: {
+                        paddingTop: theme.spacing.xl,
+                        height: `calc(100vh - 220px)`,
+                        overflowY: 'scroll',
+                    },
+                    tab: {
+                        paddingRight: theme.spacing.sm,
+                        paddingLeft: 0,
+                        fontSize: theme.fontSizes.sm,
+                        fontWeight: 500,
+                        '&[data-active="true"]': {
+                            color: theme.colors.gray[9],
+                        },
+
+                        '&:not([data-active])': {
+                            color: theme.colors.gray[6],
+                        },
+                    },
+                })}
             >
-                <MarkdownPreview
-                    style={{ fontSize: 'small' }}
-                    source={metadata.description}
-                />
-
-                <Tabs defaultValue="overview">
-                    <Tabs.List>
-                        <Tabs.Tab value={'overview'} mx="md">
-                            Overview
-                        </Tabs.Tab>
-                        <Tabs.Tab value={'analytics'} mx="md">
+                <Tabs.List>
+                    <Tabs.Tab value={'overview'}>Overview</Tabs.Tab>
+                    <Tabs.Tab value={'analytics'}>
+                        <Group spacing="xs">
                             {/* TODO replace loading with spinner ?*/}
-                            analytics (
-                            {isFetchingAnalytics
-                                ? '.'
-                                : analyticsResults?.charts.length || '0'}
-                            )
-                        </Tabs.Tab>
-                    </Tabs.List>
-                    <Tabs.Panel value="overview">
-                        <Text> Overview</Text>
-                        {/* TODO make this a tab*/}
+                            Usage Analytics
+                            {isFetchingAnalytics ? (
+                                <Loader
+                                    color="gray"
+                                    size="xs"
+                                    speed={1}
+                                    radius="xl"
+                                    ml="xs"
+                                />
+                            ) : (
+                                <Avatar
+                                    radius="xl"
+                                    size="xs"
+                                    fz="md"
+                                    styles={(theme) => ({
+                                        placeholder: {
+                                            fontSize: theme.fontSizes.xs,
+                                            color: theme.colors.gray[7],
+                                            backgroundColor:
+                                                theme.colors.gray[1],
+                                        },
+                                    })}
+                                >
+                                    {analyticsResults?.charts.length || '0'}
+                                </Avatar>
+                            )}
+                        </Group>
+                    </Tabs.Tab>
+                </Tabs.List>
 
-                        {selection?.field === undefined &&
-                            selectedFieldInTable === undefined && (
-                                <Table>
+                <Tabs.Panel value="overview">
+                    <Stack>
+                        <Box
+                            sx={(theme) => ({
+                                padding: theme.spacing.sm,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                borderRadius: theme.radius.sm,
+                                backgroundColor: theme.colors.gray[0],
+                                fontSize: theme.fontSizes.sm,
+                            })}
+                        >
+                            <MarkdownPreview
+                                style={{
+                                    backgroundColor: colors.gray[0],
+                                    fontSize: 'small',
+                                }}
+                                source={metadata.description}
+                            />
+                        </Box>
+
+                        <Divider />
+
+                        <Group position="apart">
+                            <Group spacing="xs">
+                                <MantineIcon
+                                    color={colors.gray[5]}
+                                    icon={IconDatabase}
+                                />
+                                <Text fw={500} fz={13} c="gray.7">
+                                    Source
+                                </Text>
+                            </Group>
+                            <Text fw={500} fz={13} c="gray.7">
+                                {metadata.source}
+                            </Text>
+                        </Group>
+
+                        <Group position="apart">
+                            <Group spacing="xs">
+                                <MantineIcon
+                                    color={colors.gray[5]}
+                                    icon={IconLink}
+                                />
+                                <Text fw={500} fz={13} c="gray.7">
+                                    Joins
+                                </Text>
+                            </Group>
+                            <Text fw={500} fz={13} c="blue">
+                                {/* TODO: get tables */}
+                                Table 1, Table 2
+                            </Text>
+                        </Group>
+
+                        <Divider />
+
+                        {selection?.field === undefined && (
+                            <Paper withBorder>
+                                <Table
+                                    className={cx(
+                                        classes.root,
+                                        classes.smallPadding,
+                                    )}
+                                >
                                     <thead>
                                         <tr>
-                                            <th>field name</th>
-                                            <th>type</th>
+                                            <th>Field</th>
+                                            <th>Type</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {metadata.fields.map((field) => (
+                                        {metadata.fields?.map((field) => (
                                             <tr
                                                 key={field.name}
                                                 style={{
@@ -177,31 +295,50 @@ export const CatalogMetadata: FC = () => {
                                                 >
                                                     {field.name}
                                                 </td>
-                                                <td>{field.basicType}</td>
+                                                <td>
+                                                    <Badge
+                                                        color="gray.4"
+                                                        radius="lg"
+                                                        size="xs"
+                                                        fz="xs"
+                                                        fw={500}
+                                                        style={{
+                                                            textTransform:
+                                                                'none',
+                                                            color: colors
+                                                                .gray[6],
+                                                        }}
+                                                    >
+                                                        {field.basicType}
+                                                    </Badge>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </Table>
-                            )}
-                    </Tabs.Panel>
-                    <Tabs.Panel value="analytics" w={300}>
-                        <>
-                            {analyticsResults && (
-                                <CatalogAnalyticCharts
-                                    projectUuid={projectUuid}
-                                    analyticResults={analyticsResults}
-                                />
-                            )}
-                        </>
-                    </Tabs.Panel>
-                </Tabs>
-            </ScrollArea>
+                            </Paper>
+                        )}
+                    </Stack>
+                </Tabs.Panel>
+                <Tabs.Panel value="analytics">
+                    <>
+                        {analyticsResults && (
+                            <CatalogAnalyticCharts
+                                projectUuid={projectUuid}
+                                analyticResults={analyticsResults}
+                            />
+                        )}
+                    </>
+                </Tabs.Panel>
+            </Tabs>
+
             <Stack
-                p={10}
+                p="sm"
                 sx={(theme) => ({
                     backgroundColor: theme.colors.gray[0],
                     border: `1px solid ${theme.colors.gray[4]}`,
                     borderLeft: 0,
+                    borderRight: 0,
                     position: 'absolute',
                     bottom: 0,
                     left: 0,
@@ -209,13 +346,70 @@ export const CatalogMetadata: FC = () => {
                     color: 'gray',
                 })}
             >
-                <Group>
-                    <MantineIcon icon={IconArrowUp} />
-                    <MantineIcon icon={IconArrowDown} />
-                    <Text>Navigate</Text>
+                <Group position="apart">
+                    <Group>
+                        <Group spacing="xs">
+                            <Paper
+                                withBorder
+                                sx={(theme) => ({
+                                    backgroundColor: 'white',
+                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    borderRadius: theme.radius.sm,
+                                    padding: 4,
+                                })}
+                            >
+                                <MantineIcon icon={IconCornerDownLeft} />
+                            </Paper>
+                            <Text fz="xs" fw={500} c="gray.6">
+                                Select Table
+                            </Text>
+                        </Group>
 
-                    <MantineIcon icon={IconCornerDownLeft} />
-                    <Text>Use</Text>
+                        <Group spacing="xs">
+                            <Paper
+                                withBorder
+                                sx={(theme) => ({
+                                    backgroundColor: 'white',
+                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    borderRadius: theme.radius.sm,
+                                    padding: 4,
+                                })}
+                            >
+                                <MantineIcon icon={IconArrowDown} />
+                            </Paper>
+
+                            <Paper
+                                withBorder
+                                sx={(theme) => ({
+                                    backgroundColor: 'white',
+                                    border: `1px solid ${theme.colors.gray[9]}`,
+                                    borderRadius: theme.radius.sm,
+                                    padding: 4,
+                                })}
+                            >
+                                <MantineIcon icon={IconArrowUp} />
+                            </Paper>
+                            <Text fz="xs" fw={500} c="gray.6">
+                                Navigate
+                            </Text>
+                        </Group>
+                    </Group>
+                    <Button
+                        size="xs"
+                        sx={(theme) => ({
+                            backgroundColor: theme.colors.gray[8],
+                            '&:hover': {
+                                backgroundColor: theme.colors.gray[9],
+                            },
+                        })}
+                        onClick={() => {
+                            history.push(
+                                `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                            );
+                        }}
+                    >
+                        Select table
+                    </Button>
                 </Group>
             </Stack>
         </Stack>
