@@ -426,58 +426,60 @@ export const CatalogPanel: FC = () => {
                 </Group>
             </Group>
             {noResults ? (
-                <Paper
-                    p="xl"
-                    radius="lg"
-                    sx={(theme) => ({
-                        backgroundColor: theme.colors.gray[1],
-                        border: `1px solid ${theme.colors.gray[3]}`,
-                    })}
-                >
-                    <SuboptimalState
-                        icon={IconSearch}
-                        title="No search results"
-                        description={
-                            'Try using different keywords or adjusting your filters.'
-                        }
-                        action={
-                            <Button
-                                variant="default"
-                                onClick={clearSearch}
-                                mt="sm"
-                                radius="md"
-                            >
-                                Clear search
-                            </Button>
-                        }
-                    />
-                </Paper>
-            ) : noTables ? (
-                <Paper
-                    p="xl"
-                    radius="lg"
-                    sx={(theme) => ({
-                        backgroundColor: theme.colors.gray[1],
-                        border: `1px solid ${theme.colors.gray[3]}`,
-                    })}
-                >
-                    <SuboptimalState
-                        icon={IconTable}
-                        title="No tables found in this project"
-                        description={
-                            "Tables are the starting point to any data exploration in Lightdash. They come from dbt models that have been defined in your dbt project's .yml files."
-                        }
-                        action={
-                            <LinkButton
-                                color="dark"
-                                href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
-                                mt="md"
-                            >
-                                Learn more
-                            </LinkButton>
-                        }
-                    />
-                </Paper>
+                noTables ? (
+                    <Paper
+                        p="xl"
+                        radius="lg"
+                        sx={(theme) => ({
+                            backgroundColor: theme.colors.gray[1],
+                            border: `1px solid ${theme.colors.gray[3]}`,
+                        })}
+                    >
+                        <SuboptimalState
+                            icon={IconTable}
+                            title="No tables found in this project"
+                            description={
+                                "Tables are the starting point to any data exploration in Lightdash. They come from dbt models that have been defined in your dbt project's .yml files."
+                            }
+                            action={
+                                <LinkButton
+                                    color="dark"
+                                    href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
+                                    mt="md"
+                                >
+                                    Learn more
+                                </LinkButton>
+                            }
+                        />
+                    </Paper>
+                ) : (
+                    <Paper
+                        p="xl"
+                        radius="lg"
+                        sx={(theme) => ({
+                            backgroundColor: theme.colors.gray[1],
+                            border: `1px solid ${theme.colors.gray[3]}`,
+                        })}
+                    >
+                        <SuboptimalState
+                            icon={IconSearch}
+                            title="No search results"
+                            description={
+                                'Try using different keywords or adjusting your filters.'
+                            }
+                            action={
+                                <Button
+                                    variant="default"
+                                    onClick={clearSearch}
+                                    mt="sm"
+                                    radius="md"
+                                >
+                                    Clear search
+                                </Button>
+                            }
+                        />
+                    </Paper>
+                )
             ) : (
                 <CatalogTree
                     tree={catalogTree}
