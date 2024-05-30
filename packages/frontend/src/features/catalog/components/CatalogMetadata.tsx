@@ -173,7 +173,7 @@ export const CatalogMetadata: FC = () => {
                     },
                     panel: {
                         paddingTop: theme.spacing.xl,
-                        height: `calc(100vh - 230px)`,
+                        height: `calc(100vh - 240px)`,
                         overflowY: 'scroll',
                     },
                     tab: {
