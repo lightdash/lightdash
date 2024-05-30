@@ -95,18 +95,13 @@ export const CatalogMetadata: FC = () => {
     return (
         <Stack h="100vh" spacing="xl">
             <Button
-                variant="default"
+                variant="light"
                 size="xs"
                 pos="absolute"
-                right={10}
+                left={0}
                 top={10}
                 compact
-                rightIcon={
-                    <MantineIcon
-                        color="gray.6"
-                        icon={IconLayoutSidebarRightCollapse}
-                    />
-                }
+                leftIcon={<MantineIcon icon={IconLayoutSidebarRightCollapse} />}
                 onClick={() => {
                     setSidebarOpen(false);
 
@@ -115,10 +110,15 @@ export const CatalogMetadata: FC = () => {
                         setSelection(undefined);
                     }
                 }}
+                sx={{
+                    borderLeft: 'none',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                }}
             >
                 Close
             </Button>
-            <Group spacing="xs">
+            <Group spacing="xs" mt="lg">
                 <Avatar
                     size="md"
                     radius="xl"
@@ -173,7 +173,7 @@ export const CatalogMetadata: FC = () => {
                     },
                     panel: {
                         paddingTop: theme.spacing.xl,
-                        height: `calc(100vh - 240px)`,
+                        height: `calc(100vh - 260px)`,
                         overflowY: 'scroll',
                     },
                     tab: {
