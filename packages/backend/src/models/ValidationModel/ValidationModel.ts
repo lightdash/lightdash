@@ -25,8 +25,6 @@ import {
 import {
     SavedChartsTableName,
     SavedChartTable,
-    SavedChartVersionsTable,
-    SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
 import { DbSpace, SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
@@ -50,9 +48,9 @@ export class ValidationModel {
         validations: CreateValidation[],
         jobId?: string,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
-            const insertPromises = validations.map((validation) =>
-                trx(ValidationTableName).insert({
+        if (validations.length > 0) {
+            await this.database(ValidationTableName).insert(
+                validations.map((validation) => ({
                     project_uuid: validation.projectUuid,
                     error: validation.error,
                     job_id: jobId ?? null,
@@ -72,11 +70,9 @@ export class ValidationModel {
                         chart_name: validation.chartName ?? null,
                         model_name: validation.name,
                     }),
-                }),
+                })),
             );
-
-            await Promise.all(insertPromises);
-        });
+        }
     }
 
     async delete(projectUuid: string): Promise<void> {
