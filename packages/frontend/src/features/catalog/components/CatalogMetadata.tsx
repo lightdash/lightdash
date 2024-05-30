@@ -137,7 +137,8 @@ export const CatalogMetadata: FC = () => {
                 {selectedFieldInTable && (
                     <>
                         <Text
-                            color={colors.blue[6]}
+                            color={colors.blue[4]}
+                            fz="md"
                             sx={{ cursor: 'pointer' }}
                             onClick={() => {
                                 setSelectedFieldInTable(undefined);
@@ -148,7 +149,7 @@ export const CatalogMetadata: FC = () => {
                             {' '}
                             {selection?.table}
                         </Text>
-                        {' > '}
+                        {' / '}
                     </>
                 )}
                 <Text
