@@ -134,6 +134,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         return null;
     }
 
+    // If the only group is 'Ungrouped tables', hide the group label
     const hideGroupedTables =
         Object.keys(tree).length === 1 && tree['Ungrouped tables'];
 
