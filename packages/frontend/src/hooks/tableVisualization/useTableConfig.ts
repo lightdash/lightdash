@@ -180,7 +180,9 @@ const useTableConfig = (
         });
     }, [columnOrder, itemsMap]);
 
-    const canUseSubtotals = dimensions.length > 1;
+    const canUseSubtotals =
+        !metricsAsRows &&
+        dimensions.length - (pivotDimensions?.length || 0) > 1;
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
