@@ -98,8 +98,8 @@ export const CatalogMetadata: FC = () => {
                 variant="default"
                 size="xs"
                 pos="absolute"
-                right={0}
-                top={0}
+                right={10}
+                top={10}
                 compact
                 rightIcon={
                     <MantineIcon
