@@ -35,7 +35,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 onClick={onClick}
-                py="xs"
+                py="two"
             >
                 <Box miw={150}>
                     <Group
