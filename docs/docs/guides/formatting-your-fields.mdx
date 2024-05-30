@@ -71,6 +71,9 @@ models:
   - name: events
     meta:
       groups:
+        events: 
+          label: Events
+          description: Event-related fields.
         percentile:
           label: Percentiles
           description: Grouping of percentiles
@@ -86,7 +89,7 @@ models:
         meta:
           dimension:
             type: number
-            group_label: 'Events'
+            group: ['events']
           metrics:
             percentile_25:
               type: percentile
@@ -100,9 +103,6 @@ models:
               type: percentile
               percentile: 75
               group: ['percentile', 'over']
-            median:
-              type: median
-              group_label: 'Median Metrics group'
 ```
 
 <img
