@@ -18,6 +18,7 @@ const Catalog: FC = () => {
             setSidebarOpen={setSidebarOpen}
         >
             <Page
+                withFitContent
                 withPaddedContent
                 withRightSidebar
                 isRightSidebarOpen={isSidebarOpen}
