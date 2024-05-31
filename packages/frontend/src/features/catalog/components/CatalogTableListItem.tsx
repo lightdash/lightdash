@@ -5,6 +5,7 @@ import {
     Collapse,
     Group,
     Highlight,
+    Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -110,24 +111,32 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         </Tooltip>
                     )}
                 </Box>
-                {!isSelected ? (
-                    <Highlight
-                        fz="13px"
-                        w="100%"
-                        c="gray.7"
-                        lineClamp={2}
-                        highlight={searchString}
-                        highlightColor="violet"
-                        sx={{
-                            lineHeight: '1.2',
-                        }}
-                    >
-                        {table.description || ''}
-                    </Highlight>
+                {table.errors && table.errors.length > 0 ? (
+                    <Text fz="xs" w="100%" color="gray">
+                        {table.errors[0].message}
+                    </Text>
                 ) : (
-                    <Badge color="violet">previewing</Badge>
+                    <>
+                        {!isSelected ? (
+                            <Highlight
+                                fz="13px"
+                                w="100%"
+                                c="gray.7"
+                                lineClamp={2}
+                                highlight={searchString}
+                                highlightColor="violet"
+                                sx={{
+                                    lineHeight: '1.2',
+                                }}
+                            >
+                                {table.description || ''}
+                            </Highlight>
+                        ) : (
+                            <Badge color="violet">previewing</Badge>
+                        )}{' '}
+                    </>
                 )}
-                {(hovered || isSelected) && (
+                {(hovered || isSelected) && table.errors === undefined && (
                     <Box
                         pos={'absolute'}
                         right={10}

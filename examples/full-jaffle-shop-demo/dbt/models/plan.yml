@@ -9,9 +9,9 @@ models:
       - name: plan_name
       - name: metadata
         meta:
-          additional_dimensions:
+          additional_dimension:
             created_by:
-              type: string
+              type: text
               sql: ${plan.metadata}->>'created_by'
             created_by_first_name:
               type: string
