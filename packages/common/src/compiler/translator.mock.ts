@@ -274,7 +274,7 @@ export const MODEL_WITH_GROUPS_BLOCK: DbtModelNode & { relation_name: string } =
     {
         ...model,
         meta: {
-            groups: {
+            group_details: {
                 revenue: {
                     label: 'Revenue',
                     description: 'Revenue description',
@@ -289,7 +289,7 @@ export const MODEL_WITH_GROUPS_BLOCK: DbtModelNode & { relation_name: string } =
                     metrics: {
                         user_id_count: {
                             type: MetricType.COUNT_DISTINCT,
-                            group: ['revenue'],
+                            groups: ['revenue'],
                         },
                     },
                 },

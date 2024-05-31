@@ -54,7 +54,7 @@ By default, all of your dimensions and metrics have been set to `hidden: false`.
 
 ### Grouping your metrics and dimensions in the sidebar
 
-You can group related metrics and dimensions together using the model meta `groups` block in combination with the `group` property in your .yaml files.
+You can group related metrics and dimensions together using the model meta `group_details` block in combination with the `groups` property in your .yaml files.
 You can as well add descriptions to your groups using the property `description` that will be displayed when hovering over the group label.
 
 :::note Max grouping levels
@@ -70,7 +70,7 @@ version: 2
 models:
   - name: events
     meta:
-      groups:
+      group_details:
         events:
           label: Events
           description: Event-related fields.
@@ -89,20 +89,20 @@ models:
         meta:
           dimension:
             type: number
-            group: ['events']
+            groups: ['events']
           metrics:
             percentile_25:
               type: percentile
               percentile: 25
-              group: ['percentile', 'sub']
+              groups: ['percentile', 'sub']
             percentile_50:
               type: percentile
               percentile: 50
-              group: ['percentile', 'over']
+              groups: ['percentile', 'over']
             percentile_75:
               type: percentile
               percentile: 75
-              group: ['percentile', 'over']
+              groups: ['percentile', 'over']
 ```
 
 <img
