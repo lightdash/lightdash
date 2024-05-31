@@ -1,3 +1,10 @@
+## [0.1115.4](https://github.com/lightdash/lightdash/compare/0.1115.3...0.1115.4) (2024-05-31)
+
+
+### Bug Fixes
+
+* compile explore with join with fields and groups ([#10275](https://github.com/lightdash/lightdash/issues/10275)) ([58cea9f](https://github.com/lightdash/lightdash/commit/58cea9f5d7fae4edb606c95964d8a0ae71de1c78))
+
 ## [0.1115.3](https://github.com/lightdash/lightdash/compare/0.1115.2...0.1115.3) (2024-05-31)
 
 
