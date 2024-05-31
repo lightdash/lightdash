@@ -6,6 +6,7 @@ import {
     Grid,
     Group,
     Highlight,
+    Text,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -134,7 +135,11 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 </Grid.Col>
 
                 <Grid.Col span={'auto'}>
-                    {!isSelected ? (
+                    {table.errors && table.errors.length > 0 ? (
+                        <Text fz="13px" c="gray.7" w="100%" lineClamp={2}>
+                            {table.errors[0].message}
+                        </Text>
+                    ) : !isSelected ? (
                         <Highlight
                             fz="13px"
                             w="auto"
@@ -149,7 +154,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         <Badge color="violet">previewing</Badge>
                     )}
                 </Grid.Col>
-                {(hovered || isSelected) && (
+                {(hovered || isSelected) && table.errors === undefined && (
                     <Box
                         pos={'absolute'}
                         right={10}
