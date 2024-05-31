@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
+import { Box, Center, Loader, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -12,9 +12,10 @@ type Props = {
     selection?: CatalogSelection;
     searchString?: string;
     isLoading?: boolean;
+    isSearching?: boolean;
 };
 
-type NodeProps = Omit<Props, 'tree' | 'isLoading'> & {
+type NodeProps = Omit<Props, 'tree' | 'isLoading' | 'isSearching'> & {
     node: any;
     hideGroupedTables?: boolean;
     index: number;
@@ -133,6 +134,7 @@ const renderTreeNode = ({
 
 export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
     isLoading,
+    isSearching,
     tree,
     searchString,
     projectUuid,
@@ -168,13 +170,10 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     sx={{ maxHeight: '900px', overflowY: 'scroll' }}
                     key={`catalog-tree-${searchString}`}
                 >
-                    {isLoading ? (
-                        <Stack p="lg" justify="center" align="center">
+                    {isLoading || isSearching ? (
+                        <Center p="lg">
                             <Loader size="sm" variant="bars" color="dark" />
-                            <Text fw={500} fz="md" c="gray.6">
-                                Initializing your data catalog...
-                            </Text>
-                        </Stack>
+                        </Center>
                     ) : (
                         Object.entries(tree).map(([_, value], index) =>
                             renderTreeNode({

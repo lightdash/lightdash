@@ -731,6 +731,7 @@ export const CatalogPanel: FC = () => {
             ) : (
                 <CatalogTree
                     isLoading={catalogLoading}
+                    isSearching={catalogLoading && debouncedSearch.length > 2}
                     tree={catalogTree}
                     projectUuid={projectUuid}
                     searchString={debouncedSearch}
