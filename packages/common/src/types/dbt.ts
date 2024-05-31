@@ -64,7 +64,7 @@ type DbtModelLightdashConfig = {
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
     required_attributes?: Record<string, string | string[]>;
-    groups?: Record<string, DbtModelGroup>;
+    group_details?: Record<string, DbtModelGroup>;
 };
 
 export type DbtModelGroup = {
@@ -105,7 +105,7 @@ type DbtColumnLightdashDimension = {
     compact?: CompactOrAlias;
     format?: Format;
     group_label?: string;
-    group?: string[] | string;
+    groups?: string[] | string;
     colors?: Record<string, string>;
     urls?: FieldUrl[];
     required_attributes?: Record<string, string | string[]>;
@@ -126,7 +126,7 @@ export type DbtColumnLightdashMetric = {
     compact?: CompactOrAlias;
     format?: Format;
     group_label?: string;
-    group?: string[];
+    groups?: string[];
     urls?: FieldUrl[];
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
@@ -277,7 +277,7 @@ export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
 export type DbtMetricLightdashMetadata = {
     hidden?: boolean;
     group_label?: string;
-    group?: string[];
+    groups?: string[];
     show_underlying_values?: string[];
     filters: Record<string, any>[];
 };
@@ -415,7 +415,7 @@ export const convertModelMetric = ({
     dimensionReference,
     requiredAttributes,
 }: ConvertModelMetricArgs): Metric => {
-    const groups = convertToGroups(metric.group, metric.group_label);
+    const groups = convertToGroups(metric.groups, metric.group_label);
     return {
         fieldType: FieldType.METRIC,
         name,

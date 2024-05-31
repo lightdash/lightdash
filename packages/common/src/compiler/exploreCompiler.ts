@@ -181,12 +181,10 @@ export class ExploreCompiler {
 
                             const isTimeIntervalBaseDimensionVisible =
                                 dimension.timeInterval &&
-                                dimension.groups &&
+                                dimension.timeIntervalBaseDimensionName &&
                                 join.fields
                                     ? join.fields.includes(
-                                          dimension.groups[
-                                              dimension.groups.length - 1
-                                          ],
+                                          dimension.timeIntervalBaseDimensionName,
                                       )
                                     : false;
 

@@ -1,6 +1,11 @@
 version: 2
 models:
   - name: events
+    meta:
+      group_details:
+        events:
+          label: Events
+          description: Events that happened in the Jaffle Shop
     columns:
       - name: timestamp_tz
         description: ""
@@ -54,7 +59,7 @@ models:
         meta:
           dimension:
             type: string
-            group_label: 'Events'
+            groups: ['events']
           metrics:
             count:
               type: count
@@ -63,7 +68,7 @@ models:
         meta:
           dimension:
             type: number
-            group_label: 'Events'
+            groups: ['events']
           metrics:
             in_gbp:
               type: sum
