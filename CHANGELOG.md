@@ -1,3 +1,10 @@
+## [0.1115.1](https://github.com/lightdash/lightdash/compare/0.1115.0...0.1115.1) (2024-05-31)
+
+
+### Bug Fixes
+
+* underlying data with null filter ([#10263](https://github.com/lightdash/lightdash/issues/10263)) ([7af9dec](https://github.com/lightdash/lightdash/commit/7af9dec9d1d6b156320593efde59c81d104def41))
+
 # [0.1115.0](https://github.com/lightdash/lightdash/compare/0.1114.0...0.1115.0) (2024-05-30)
 
 
