@@ -434,7 +434,7 @@ export const CatalogPanel: FC = () => {
                     </Box>
                 </Group>
 
-                <Group spacing="xs">
+                <Group spacing="xs" align="start">
                     <TextInput
                         w={'50%'}
                         icon={<MantineIcon icon={IconSearch} />}
@@ -479,7 +479,7 @@ export const CatalogPanel: FC = () => {
                                 <Popover.Target>
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         leftIcon={
                                             <MantineIcon
                                                 icon={IconAdjustmentsHorizontal}
@@ -546,7 +546,7 @@ export const CatalogPanel: FC = () => {
                                     filters.hideGroupedTables) && (
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         onClick={clearFilters}
                                         p="xs"
                                     >
