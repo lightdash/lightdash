@@ -313,6 +313,7 @@ export const CatalogPanel: FC = () => {
             if (!selectedItem.table) return;
             if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
                 setSidebarOpen(false);
+                setSelection(undefined);
                 return; // no metadata for tables with errors
             }
             if (!isSidebarOpen) {
