@@ -18,6 +18,7 @@ import {
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
@@ -53,11 +54,7 @@ import {
     SavedChartTable,
 } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
-import {
-    DbUser,
-    UserTable,
-    UserTableName,
-} from '../../database/entities/users';
+import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -407,6 +404,77 @@ export class DashboardModel {
                     }),
                 ),
             }),
+        );
+    }
+
+    async findDashboardsForValidation(projectUuid: string): Promise<
+        Array<{
+            dashboardUuid: string;
+            name: string;
+            filters: DashboardFilters;
+            chartUuids: string[];
+        }>
+    > {
+        const cteName = 'dashboard_last_version_cte';
+        return (
+            this.database
+                // cte to get the last version of each dashboard in the project
+                .with(cteName, (qb) => {
+                    void qb
+                        .select({
+                            dashboard_uuid: 'dashboards.dashboard_uuid',
+                            name: 'dashboards.name',
+                            dashboard_version_id: this.database.raw(
+                                'MAX(dashboard_versions.dashboard_version_id)',
+                            ),
+                        })
+                        .from(DashboardsTableName)
+                        .leftJoin(
+                            SpaceTableName,
+                            'dashboards.space_id',
+                            'spaces.space_id',
+                        )
+                        .leftJoin(
+                            ProjectTableName,
+                            'spaces.project_id',
+                            'projects.project_id',
+                        )
+                        .leftJoin(
+                            DashboardVersionsTableName,
+                            `${DashboardsTableName}.dashboard_id`,
+                            `${DashboardVersionsTableName}.dashboard_id`,
+                        )
+                        .where('projects.project_uuid', projectUuid)
+                        .groupBy(
+                            'dashboards.dashboard_uuid',
+                            'dashboards.name',
+                        );
+                })
+                .select({
+                    dashboardUuid: `${cteName}.dashboard_uuid`,
+                    name: `${cteName}.name`,
+                    filters: `${DashboardViewsTableName}.filters`,
+                    chartUuids: this.database.raw(
+                        "COALESCE(ARRAY_AGG(DISTINCT saved_queries.saved_query_uuid) FILTER (WHERE saved_queries.saved_query_uuid IS NOT NULL), '{}')",
+                    ),
+                })
+                .from(cteName)
+                .leftJoin(
+                    DashboardViewsTableName,
+                    `${cteName}.dashboard_version_id`,
+                    `${DashboardViewsTableName}.dashboard_version_id`,
+                )
+                .leftJoin(
+                    DashboardTileChartTableName,
+                    `${cteName}.dashboard_version_id`,
+                    `${DashboardTileChartTableName}.dashboard_version_id`,
+                )
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                    `${SavedChartsTableName}.saved_query_id`,
+                )
+                .groupBy(1, 2, 3)
         );
     }
 

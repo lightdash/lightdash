@@ -15,6 +15,7 @@ import {
     SupportedDbtAdapter,
     TablesConfiguration,
     TableSelectionType,
+    type DashboardFilters,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type SavedChartModel } from '../../models/SavedChartModel';
@@ -104,45 +105,20 @@ export const chartForValidationWithJoinedField: Awaited<
     sorts: ['another_table_dimension'],
 };
 
-export const dashboard: Dashboard = {
-    organizationUuid: 'orgUuid',
-    projectUuid: 'projectUuid',
-    dashboardVersionId: 1,
-    uuid: 'dashboardUuid',
+export const dashboardForValidation: {
+    dashboardUuid: string;
+    name: string;
+    filters: DashboardFilters;
+    chartUuids: string[];
+} = {
+    dashboardUuid: 'dashboardUuid',
     name: 'test dashboard',
-    slug: 'test-dashboard',
-    updatedAt: new Date(),
-    tiles: [
-        {
-            uuid: 'tileUuid',
-            type: DashboardTileTypes.SAVED_CHART,
-            properties: {
-                title: 'test chart',
-                savedChartUuid: 'chartUuid',
-                belongsToDashboard: false,
-            },
-            x: 0,
-            y: 0,
-            w: 1,
-            h: 1,
-            // TODO: remove
-            tabUuid: 'tabUuid',
-        },
-    ],
     filters: {
         dimensions: [],
         metrics: [],
         tableCalculations: [],
     },
-    spaceUuid: '',
-    spaceName: '',
-    views: 0,
-    firstViewedAt: null,
-    pinnedListUuid: null,
-    pinnedListOrder: null,
-    isPrivate: false,
-    access: [],
-    tabs: [],
+    chartUuids: ['chartUuid'],
 };
 
 export const explore: Explore = {
