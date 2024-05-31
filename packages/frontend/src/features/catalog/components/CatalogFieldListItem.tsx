@@ -68,7 +68,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
 
                         <Highlight
                             highlight={searchString}
-                            highlightColor="violet"
+                            highlightColor="yellow"
                             fw={500}
                             fz="sm"
                         >
