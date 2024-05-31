@@ -3,13 +3,15 @@ import {
     Badge,
     Box,
     Collapse,
+    Grid,
     Group,
     Highlight,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
-import React, { useState, type FC } from 'react';
+import React, { useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
@@ -39,17 +41,26 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
 
+    const [isNameTruncated, setIsNameTruncated] = useState(false);
+    const { ref, width } = useElementSize();
+    useEffect(() => {
+        const element = ref.current!;
+        setIsNameTruncated(element.scrollWidth > element.clientWidth);
+    }, [ref, width]);
+
     const countJoinedTables =
         'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
 
     return (
         <>
-            <Group
-                noWrap
-                spacing="xs"
-                p="xs"
+            <Grid
+                gutter="xs"
+                columns={24}
                 px="sm"
                 sx={(theme) => ({
+                    // Mantine's grid applies a negative margin to the container. That breaks the border radius & hover effects
+                    margin: 0,
+                    alignItems: 'center',
                     minHeight: 48,
                     borderBottom:
                         isLast || isOpen
@@ -76,57 +87,68 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 onClick={onClick}
                 pos="relative"
             >
-                <UnstyledButton onClick={() => toggleOpen()} miw={150}>
-                    <Group noWrap spacing="xs">
-                        <MantineIcon
-                            icon={IconTable}
-                            color="gray.6"
-                            size="md"
-                        />
+                <Grid.Col span={'content'}>
+                    <MantineIcon icon={IconTable} color="gray.6" size="md" />
+                </Grid.Col>
 
-                        <Highlight
-                            highlight={searchString}
-                            highlightColor="violet"
-                            fz="sm"
-                            fw={600}
-                        >
-                            {table.name || ''}
-                        </Highlight>
-                    </Group>
-                </UnstyledButton>
-
-                <Box w={50}>
-                    {countJoinedTables > 0 && (
+                <Grid.Col span={10}>
+                    <UnstyledButton onClick={() => toggleOpen()} w="100%">
                         <Tooltip
                             variant="xs"
-                            label={`${countJoinedTables} joined table(s)`}
+                            disabled={!isNameTruncated}
+                            label={table.name}
                         >
-                            <Group noWrap spacing="one">
-                                <MantineIcon
-                                    color="gray.5"
-                                    icon={IconLayersIntersect}
-                                />
-                            </Group>
+                            <Highlight
+                                ref={ref}
+                                w="auto"
+                                highlight={searchString}
+                                highlightColor="yellow"
+                                fz="sm"
+                                fw={600}
+                                truncate
+                            >
+                                {table.name || ''}
+                            </Highlight>
                         </Tooltip>
-                    )}
-                </Box>
-                {!isSelected ? (
-                    <Highlight
-                        fz="13px"
-                        w="100%"
-                        c="gray.7"
-                        lineClamp={2}
-                        highlight={searchString}
-                        highlightColor="violet"
-                        sx={{
-                            lineHeight: '1.2',
-                        }}
+                    </UnstyledButton>
+                </Grid.Col>
+
+                <Grid.Col span={'content'}>
+                    <Tooltip
+                        variant="xs"
+                        disabled={countJoinedTables === 0}
+                        label={`${countJoinedTables} joined table(s)`}
                     >
-                        {table.description || ''}
-                    </Highlight>
-                ) : (
-                    <Badge color="violet">previewing</Badge>
-                )}
+                        <Group noWrap spacing="one">
+                            <MantineIcon
+                                color="gray.5"
+                                icon={IconLayersIntersect}
+                                visibility={
+                                    countJoinedTables === 0
+                                        ? 'hidden'
+                                        : 'visible'
+                                }
+                            />
+                        </Group>
+                    </Tooltip>
+                </Grid.Col>
+
+                <Grid.Col span={'auto'}>
+                    {!isSelected ? (
+                        <Highlight
+                            fz="13px"
+                            w="auto"
+                            c="gray.7"
+                            lineClamp={2}
+                            highlight={searchString}
+                            highlightColor="yellow"
+                        >
+                            {table.description || ''}
+                        </Highlight>
+                    ) : (
+                        <Badge color="violet">previewing</Badge>
+                    )}
+                </Grid.Col>
                 {(hovered || isSelected) && (
                     <Box
                         pos={'absolute'}
@@ -152,7 +174,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         </MantineLinkButton>
                     </Box>
                 )}
-            </Group>
+            </Grid>
             {React.Children.toArray.length > 0 && (
                 <Collapse in={isOpen} pl="xl">
                     {children}
