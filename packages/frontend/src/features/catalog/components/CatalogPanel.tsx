@@ -300,7 +300,10 @@ export const CatalogPanel: FC = () => {
     const selectAndGetMetadata = useCallback(
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
-
+            if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
+                setSidebarOpen(false);
+                return; // no metadata for tables with errors
+            }
             if (!isSidebarOpen) {
                 setSidebarOpen(true);
             }
@@ -312,10 +315,6 @@ export const CatalogPanel: FC = () => {
                 field: selectedItem.field,
             });
 
-            if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
-                setSidebarOpen(false);
-                return; // no metadata for tables with errors
-            }
             if (catalogResults && selectedItem.table) {
                 if (selectedItem.field) {
                     // Get metadata and analytics for field
