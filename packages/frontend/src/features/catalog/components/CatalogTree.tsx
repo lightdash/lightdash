@@ -72,12 +72,12 @@ const renderTreeNode = ({
                 table={node}
                 startOpen={node.fields.length > 0}
                 searchString={searchString}
-                onClick={() => {
+                onClick={() =>
                     onItemClick({
                         table: node.name,
                         group: node.groupName,
-                    });
-                }}
+                    })
+                }
                 isSelected={selection?.table === node.name && !selection?.field}
                 url={`/projects/${projectUuid}/tables/${node.name}`}
                 isFirst={index === 0}
