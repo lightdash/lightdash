@@ -178,26 +178,24 @@ export class ExploreCompiler {
                                 requiredDimensionsForJoin.includes(
                                     dimensionKey,
                                 );
-                            const tableGroups =
-                                tables[join.table].groupDetails || {};
-                            const allGroupsIncluded =
+
+                            const isTimeIntervalBaseDimensionVisible =
+                                dimension.timeInterval &&
                                 dimension.groups &&
-                                dimension.groups.every(
-                                    (group) =>
-                                        join.fields !== undefined &&
-                                        (join.fields.includes(group) ||
-                                            join.fields.includes(
-                                                tableGroups[group].label,
-                                            )),
-                                );
+                                join.fields
+                                    ? join.fields.includes(
+                                          dimension.groups[
+                                              dimension.groups.length - 1
+                                          ],
+                                      )
+                                    : false;
+
                             const isVisible =
                                 join.fields === undefined ||
                                 join.fields.includes(dimensionKey) ||
                                 (dimension.group !== undefined &&
                                     join.fields.includes(dimension.group)) ||
-                                (dimension.groups &&
-                                    dimension.groups.length > 0 &&
-                                    allGroupsIncluded);
+                                isTimeIntervalBaseDimensionVisible;
 
                             if (isRequired || isVisible) {
                                 acc[dimensionKey] = {

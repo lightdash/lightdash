@@ -11,6 +11,7 @@ import {
 } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import { type CreateWarehouseCredentials } from '../types/projects';
+import { TimeFrames } from '../types/timeFrames';
 import { type WarehouseClient } from '../types/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
@@ -732,6 +733,163 @@ export const compiledSimpleJoinedExplore: Explore = {
                     tablesReferences: ['b'],
                     source: sourceMock,
                     hidden: false,
+                },
+            },
+            metrics: {},
+            lineageGraph: {},
+            groupLabel: undefined,
+            source: sourceMock,
+            hidden: undefined,
+        },
+    },
+};
+
+export const exploreWithJoinWithFieldsAndGroups: UncompiledExplore = {
+    ...simpleJoinedExplore,
+    joinedTables: [
+        {
+            ...simpleJoinedExplore.joinedTables[0],
+            fields: ['dim2'],
+        },
+    ],
+    tables: {
+        ...simpleJoinedExplore.tables,
+        b: {
+            ...simpleJoinedExplore.tables.b,
+            dimensions: {
+                dim1: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'dim1',
+                    label: 'dim1',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim1',
+                    source: sourceMock,
+                    hidden: false,
+                },
+                dim2: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'dim2',
+                    label: 'dim2',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim2',
+                    source: sourceMock,
+                    hidden: false,
+                    timeInterval: TimeFrames.DAY,
+                    groups: ['test'],
+                },
+                dim2_DAY: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'dim2_DAY',
+                    label: 'dim2_DAY',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim2',
+                    source: sourceMock,
+                    hidden: false,
+                    timeInterval: TimeFrames.DAY,
+                    groups: ['test', 'dim2'],
+                },
+            },
+        },
+    },
+};
+
+export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
+    ...exploreBase,
+    joinedTables: [
+        {
+            table: 'b',
+            sqlOn: '${a.dim1} = ${b.dim1}',
+            compiledSqlOn: '("a".dim1) = ("b".dim1)',
+            type: undefined,
+            hidden: undefined,
+            always: undefined,
+        },
+    ],
+    tables: {
+        a: {
+            name: 'a',
+            label: 'Custom A label',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.table',
+            sqlWhere: undefined,
+            dimensions: {
+                dim1: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'dim1',
+                    label: 'dim1',
+                    table: 'a',
+                    tableLabel: 'Custom A label',
+                    sql: '${TABLE}.dim1',
+                    compiledSql: '"a".dim1',
+                    tablesReferences: ['a'],
+                    source: sourceMock,
+                    hidden: false,
+                },
+            },
+            metrics: {},
+            lineageGraph: {},
+            groupLabel: undefined,
+            source: sourceMock,
+        },
+        b: {
+            name: 'b',
+            originalName: 'b',
+            label: 'Custom B label',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.tableb',
+            sqlWhere: undefined,
+            dimensions: {
+                dim1: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'dim1',
+                    label: 'dim1',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim1',
+                    compiledSql: '"b".dim1',
+                    tablesReferences: ['b'],
+                    source: sourceMock,
+                    hidden: true,
+                },
+                dim2: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'dim2',
+                    label: 'dim2',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim2',
+                    compiledSql: '"b".dim2',
+                    tablesReferences: ['b'],
+                    source: sourceMock,
+                    hidden: false,
+                    timeInterval: TimeFrames.DAY,
+                    groups: ['test'],
+                },
+                dim2_DAY: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'dim2_DAY',
+                    label: 'dim2_DAY',
+                    table: 'b',
+                    tableLabel: 'Custom B label',
+                    sql: '${TABLE}.dim2',
+                    compiledSql: '"b".dim2',
+                    tablesReferences: ['b'],
+                    source: sourceMock,
+                    hidden: false,
+                    timeInterval: TimeFrames.DAY,
+                    groups: ['test', 'dim2'],
                 },
             },
             metrics: {},
