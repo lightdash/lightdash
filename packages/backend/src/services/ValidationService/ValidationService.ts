@@ -13,7 +13,6 @@ import {
     getFilterRules,
     getItemId,
     InlineErrorType,
-    isDashboardChartTileType,
     isExploreError,
     OrganizationMemberRole,
     RequestMethod,
@@ -375,126 +374,122 @@ export class ValidationService extends BaseService {
     ): Promise<CreateDashboardValidation[]> {
         const existingFieldIds = existingFields.map(getItemId);
 
-        const dashboardSummaries = await this.dashboardModel.getAllByProject(
-            projectUuid,
-        );
-        const dashboards = await Promise.all(
-            dashboardSummaries.map((dashboardSummary) =>
-                this.dashboardModel.getById(dashboardSummary.uuid),
-            ),
-        );
-        const results: CreateDashboardValidation[] = dashboards.flatMap(
-            (dashboard) => {
-                const commonValidation = {
-                    name: dashboard.name,
-                    dashboardUuid: dashboard.uuid,
-                    projectUuid: dashboard.projectUuid,
-                    source: ValidationSourceType.Dashboard,
-                };
+        const dashboardsToValidate =
+            await this.dashboardModel.findDashboardsForValidation(projectUuid);
+        const results: CreateDashboardValidation[] =
+            dashboardsToValidate.flatMap(
+                ({ name, dashboardUuid, filters, chartUuids }) => {
+                    const commonValidation = {
+                        name,
+                        dashboardUuid,
+                        projectUuid,
+                        source: ValidationSourceType.Dashboard,
+                    };
 
-                const containsFieldId = ({
-                    acc,
-                    fieldIds,
-                    fieldId,
-                    error,
-                    errorType,
-                    fieldName,
-                }: {
-                    acc: CreateDashboardValidation[];
-                    fieldIds: string[];
-                    fieldId: string;
-                } & Pick<
-                    CreateDashboardValidation,
-                    'error' | 'errorType' | 'fieldName'
-                >) => {
-                    if (!fieldIds?.includes(fieldId)) {
-                        return [
-                            ...acc,
-                            {
-                                ...commonValidation,
-                                errorType,
-                                error,
-                                fieldName,
-                            },
-                        ];
-                    }
-                    return acc;
-                };
-
-                const dashboardFilterRules = [
-                    ...dashboard.filters.dimensions,
-                    ...dashboard.filters.metrics,
-                ];
-                const filterErrors = dashboardFilterRules.reduce<
-                    CreateDashboardValidation[]
-                >(
-                    (acc, filter) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: existingFieldIds,
-                            fieldId: filter.target.fieldId,
-                            error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
-                            errorType: ValidationErrorType.Filter,
-                            fieldName: filter.target.fieldId,
-                        }),
-                    [],
-                );
-
-                const dashboardTileTargets = dashboardFilterRules.reduce<
-                    DashboardTileTarget[]
-                >((acc, t) => {
-                    if (t.tileTargets) {
-                        const targets = Object.values(t.tileTargets);
-                        return [...acc, ...targets];
-                    }
-                    return acc;
-                }, []);
-                const tileTargetErrors = dashboardTileTargets.reduce<
-                    CreateDashboardValidation[]
-                >(
-                    (acc, tileTarget) => {
-                        if (tileTarget) {
-                            return containsFieldId({
-                                acc,
-                                fieldIds: existingFieldIds,
-                                fieldId: tileTarget.fieldId,
-                                error: `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
-                                errorType: ValidationErrorType.Filter,
-                                fieldName: tileTarget.fieldId,
-                            });
+                    const containsFieldId = ({
+                        acc,
+                        fieldIds,
+                        fieldId,
+                        error,
+                        errorType,
+                        fieldName,
+                    }: {
+                        acc: CreateDashboardValidation[];
+                        fieldIds: string[];
+                        fieldId: string;
+                    } & Pick<
+                        CreateDashboardValidation,
+                        'error' | 'errorType' | 'fieldName'
+                    >) => {
+                        if (!fieldIds?.includes(fieldId)) {
+                            return [
+                                ...acc,
+                                {
+                                    ...commonValidation,
+                                    errorType,
+                                    error,
+                                    fieldName,
+                                },
+                            ];
                         }
                         return acc;
-                    },
+                    };
 
-                    [],
-                );
-
-                const chartTiles = dashboard.tiles.filter(
-                    isDashboardChartTileType,
-                );
-                const chartErrors = chartTiles.reduce<
-                    CreateDashboardValidation[]
-                >((acc, chart) => {
-                    const brokenChart = brokenCharts.find(
-                        (c) => c.chartUuid === chart.properties.savedChartUuid,
+                    const dashboardFilterRules = [
+                        ...filters.dimensions,
+                        ...filters.metrics,
+                    ];
+                    const filterErrors = dashboardFilterRules.reduce<
+                        CreateDashboardValidation[]
+                    >(
+                        (acc, filter) =>
+                            containsFieldId({
+                                acc,
+                                fieldIds: existingFieldIds,
+                                fieldId: filter.target.fieldId,
+                                error: `Filter error: the field '${filter.target.fieldId}' no longer exists`,
+                                errorType: ValidationErrorType.Filter,
+                                fieldName: filter.target.fieldId,
+                            }),
+                        [],
                     );
-                    if (brokenChart !== undefined) {
-                        return [
-                            ...acc,
-                            {
-                                ...commonValidation,
-                                error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
-                                errorType: ValidationErrorType.Chart,
-                                chartName: brokenChart.name,
-                            },
-                        ];
-                    }
-                    return acc;
-                }, []);
 
-                return [...filterErrors, ...tileTargetErrors, ...chartErrors];
-            },
-        );
+                    const dashboardTileTargets = dashboardFilterRules.reduce<
+                        DashboardTileTarget[]
+                    >((acc, t) => {
+                        if (t.tileTargets) {
+                            const targets = Object.values(t.tileTargets);
+                            return [...acc, ...targets];
+                        }
+                        return acc;
+                    }, []);
+                    const tileTargetErrors = dashboardTileTargets.reduce<
+                        CreateDashboardValidation[]
+                    >(
+                        (acc, tileTarget) => {
+                            if (tileTarget) {
+                                return containsFieldId({
+                                    acc,
+                                    fieldIds: existingFieldIds,
+                                    fieldId: tileTarget.fieldId,
+                                    error: `Filter error: the field '${tileTarget.fieldId}' no longer exists`,
+                                    errorType: ValidationErrorType.Filter,
+                                    fieldName: tileTarget.fieldId,
+                                });
+                            }
+                            return acc;
+                        },
+
+                        [],
+                    );
+
+                    const chartErrors = chartUuids.reduce<
+                        CreateDashboardValidation[]
+                    >((acc, savedChartUuid) => {
+                        const brokenChart = brokenCharts.find(
+                            (c) => c.chartUuid === savedChartUuid,
+                        );
+                        if (brokenChart !== undefined) {
+                            return [
+                                ...acc,
+                                {
+                                    ...commonValidation,
+                                    error: `The chart '${brokenChart.name}' is broken on this dashboard.`,
+                                    errorType: ValidationErrorType.Chart,
+                                    chartName: brokenChart.name,
+                                },
+                            ];
+                        }
+                        return acc;
+                    }, []);
+
+                    return [
+                        ...filterErrors,
+                        ...tileTargetErrors,
+                        ...chartErrors,
+                    ];
+                },
+            );
 
         return results;
     }

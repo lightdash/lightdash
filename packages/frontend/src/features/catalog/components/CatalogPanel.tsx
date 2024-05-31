@@ -28,7 +28,7 @@ import {
     IconTable,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -116,6 +116,7 @@ type FilterState = {
 };
 
 export const CatalogPanel: FC = () => {
+    const [, startTransition] = useTransition();
     const {
         setMetadata,
         isSidebarOpen,
@@ -155,11 +156,9 @@ export const CatalogPanel: FC = () => {
 
     const { mutate: getMetadata } = useCatalogMetadata(projectUuid, (data) => {
         if (data) {
-            setMetadata(data);
-        }
-
-        if (!isSidebarOpen && data) {
-            setSidebarOpen(true);
+            startTransition(() => {
+                setMetadata(data);
+            });
         }
     });
     const { mutate: getAnalytics } = useCatalogAnalytics(
@@ -298,6 +297,10 @@ export const CatalogPanel: FC = () => {
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
 
+            if (!isSidebarOpen) {
+                setSidebarOpen(true);
+            }
+
             // For optimization purposes, we could only make this request if metadata panel is open
             setSelection({
                 table: selectedItem.table,
@@ -323,7 +326,14 @@ export const CatalogPanel: FC = () => {
                 }
             }
         },
-        [setSelection, catalogResults, getMetadata, getAnalytics],
+        [
+            setSelection,
+            catalogResults,
+            isSidebarOpen,
+            setSidebarOpen,
+            getMetadata,
+            getAnalytics,
+        ],
     );
 
     const history = useHistory();

@@ -216,10 +216,19 @@ const FilterGroupForm: FC<Props> = ({
                                 onConvertToGroup={
                                     allowConvertToGroup
                                         ? () =>
-                                              onChangeItem(index, {
-                                                  id: uuidv4(),
-                                                  or: [item],
-                                              })
+                                              onChangeItem(
+                                                  index,
+                                                  // create new group with opposite operator
+                                                  isAndFilterGroup(filterGroup)
+                                                      ? {
+                                                            id: uuidv4(),
+                                                            or: [item],
+                                                        }
+                                                      : {
+                                                            id: uuidv4(),
+                                                            and: [item],
+                                                        },
+                                              )
                                         : undefined
                                 }
                             />

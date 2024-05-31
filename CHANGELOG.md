@@ -1,3 +1,26 @@
+## [0.1115.4](https://github.com/lightdash/lightdash/compare/0.1115.3...0.1115.4) (2024-05-31)
+
+
+### Bug Fixes
+
+* compile explore with join with fields and groups ([#10275](https://github.com/lightdash/lightdash/issues/10275)) ([58cea9f](https://github.com/lightdash/lightdash/commit/58cea9f5d7fae4edb606c95964d8a0ae71de1c78))
+
+## [0.1115.3](https://github.com/lightdash/lightdash/compare/0.1115.2...0.1115.3) (2024-05-31)
+
+
+### Bug Fixes
+
+* create new group with opposite operator ([#10257](https://github.com/lightdash/lightdash/issues/10257)) ([a32eb24](https://github.com/lightdash/lightdash/commit/a32eb24c6e0fedc81c4c0166025cf6ea48fdaa19))
+* reduce amount of queries necessary to validate dashboards ([#10254](https://github.com/lightdash/lightdash/issues/10254)) ([67db14c](https://github.com/lightdash/lightdash/commit/67db14c6c9601a984c2aa7643b4dca501f207a50))
+* refactor validation error insert ([#10256](https://github.com/lightdash/lightdash/issues/10256)) ([d7fddb2](https://github.com/lightdash/lightdash/commit/d7fddb2737f062b9ebab9e4c33082f328d319c32))
+
+## [0.1115.2](https://github.com/lightdash/lightdash/compare/0.1115.1...0.1115.2) (2024-05-31)
+
+
+### Bug Fixes
+
+* defer state when opening metadata sidebar ([#10265](https://github.com/lightdash/lightdash/issues/10265)) ([1289a6a](https://github.com/lightdash/lightdash/commit/1289a6ae1d9840dfeec09797c04deacd45b74e86))
+
 ## [0.1115.1](https://github.com/lightdash/lightdash/compare/0.1115.0...0.1115.1) (2024-05-31)
 
 

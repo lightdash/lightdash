@@ -7,6 +7,7 @@ import {
     Divider,
     Group,
     Loader,
+    LoadingOverlay,
     Paper,
     Stack,
     Table,
@@ -23,7 +24,7 @@ import {
     IconLink,
     IconTable,
 } from '@tabler/icons-react';
-import { useIsFetching } from '@tanstack/react-query';
+import { useIsMutating } from '@tanstack/react-query';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -40,6 +41,7 @@ export const CatalogMetadata: FC = () => {
     const {
         projectUuid,
         metadata: metadataResults,
+        setMetadata,
         setSidebarOpen,
         analyticsResults,
         selection,
@@ -49,9 +51,11 @@ export const CatalogMetadata: FC = () => {
 
     const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
 
-    const isFetchingAnalytics = useIsFetching({
-        queryKey: ['catalog_analytics', projectUuid],
-    });
+    const isMutatingAnalytics = useIsMutating([
+        'catalog_analytics',
+        projectUuid,
+    ]);
+    const isMutatingMetadata = useIsMutating(['catalog_metadata', projectUuid]);
 
     const history = useHistory();
 
@@ -90,8 +94,6 @@ export const CatalogMetadata: FC = () => {
         }
     }, [metadataResults, selection, selectedFieldInTable]);
 
-    if (!metadata) return null;
-
     return (
         <Stack h="100vh" spacing="xl">
             <Button
@@ -107,6 +109,7 @@ export const CatalogMetadata: FC = () => {
 
                     if (metadata) {
                         resetMetadata();
+                        setMetadata(undefined);
                         setSelection(undefined);
                     }
                 }}
@@ -157,13 +160,24 @@ export const CatalogMetadata: FC = () => {
                     fw={600}
                     onDoubleClick={() => {
                         history.push(
-                            `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                            `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                         );
                     }}
                 >
-                    {metadata.name}
+                    {metadata?.name}
                 </Text>
             </Group>
+
+            <LoadingOverlay
+                loaderProps={{
+                    size: 'sm',
+                    color: 'gray.7',
+                    pos: 'absolute',
+                    variant: 'dots',
+                }}
+                visible={!metadata || !!isMutatingMetadata}
+                transitionDuration={1000}
+            />
 
             <Tabs
                 color="dark"
@@ -196,58 +210,59 @@ export const CatalogMetadata: FC = () => {
                     <Tabs.Tab value={'overview'}>Overview</Tabs.Tab>
                     <Tabs.Tab value={'analytics'}>
                         <Group spacing="xs">
-                            {/* TODO replace loading with spinner ?*/}
                             Usage Analytics
-                            {isFetchingAnalytics ? (
-                                <Loader
-                                    color="gray"
-                                    size="xs"
-                                    speed={1}
-                                    radius="xl"
-                                    ml="xs"
-                                />
-                            ) : (
-                                <Avatar
-                                    radius="xl"
-                                    size="xs"
-                                    fz="md"
-                                    styles={(theme) => ({
-                                        placeholder: {
-                                            fontSize: theme.fontSizes.xs,
-                                            color: theme.colors.gray[7],
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
-                                >
-                                    {analyticsResults?.charts.length || '0'}
-                                </Avatar>
-                            )}
+                            <Avatar
+                                radius="xl"
+                                size="xs"
+                                fz="md"
+                                styles={(theme) => ({
+                                    placeholder: {
+                                        fontSize: theme.fontSizes.xs,
+                                        color: theme.colors.gray[7],
+                                        backgroundColor: theme.colors.gray[1],
+                                    },
+                                })}
+                            >
+                                {isMutatingAnalytics ? (
+                                    <Loader
+                                        color="gray"
+                                        size={8}
+                                        speed={1}
+                                        radius="xl"
+                                    />
+                                ) : (
+                                    analyticsResults?.charts.length || '0'
+                                )}
+                            </Avatar>
                         </Group>
                     </Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="overview">
                     <Stack>
-                        <Box
-                            sx={(theme) => ({
-                                padding: theme.spacing.sm,
-                                border: `1px solid ${theme.colors.gray[3]}`,
-                                borderRadius: theme.radius.sm,
-                                backgroundColor: theme.colors.gray[0],
-                                fontSize: theme.fontSizes.sm,
-                            })}
-                        >
-                            <MarkdownPreview
-                                style={{
-                                    backgroundColor: colors.gray[0],
-                                    fontSize: 'small',
-                                }}
-                                source={metadata.description}
-                            />
-                        </Box>
+                        {metadata?.description && (
+                            <>
+                                <Box
+                                    sx={(theme) => ({
+                                        padding: theme.spacing.sm,
+                                        border: `1px solid ${theme.colors.gray[3]}`,
+                                        borderRadius: theme.radius.sm,
+                                        backgroundColor: theme.colors.gray[0],
+                                        fontSize: theme.fontSizes.sm,
+                                    })}
+                                >
+                                    <MarkdownPreview
+                                        style={{
+                                            backgroundColor: colors.gray[0],
+                                            fontSize: 'small',
+                                        }}
+                                        source={metadata?.description}
+                                    />
+                                </Box>
 
-                        <Divider />
+                                <Divider />
+                            </>
+                        )}
 
                         <Group position="apart">
                             <Group spacing="xs">
@@ -260,12 +275,12 @@ export const CatalogMetadata: FC = () => {
                                 </Text>
                             </Group>
                             <Text fw={500} fz={13} c="gray.7">
-                                {metadata.source}
+                                {metadata?.source}
                             </Text>
                         </Group>
 
                         <Group position="apart" noWrap>
-                            <Group spacing="xs">
+                            <Group spacing="xs" noWrap>
                                 <MantineIcon
                                     color={colors.gray[5]}
                                     icon={IconLink}
@@ -274,10 +289,20 @@ export const CatalogMetadata: FC = () => {
                                     Joins
                                 </Text>
                             </Group>
-                            <Text fw={500} fz={13} c="blue" truncate w="50%">
-                                {metadata.joinedTables &&
-                                metadata.joinedTables.length > 0
-                                    ? metadata.joinedTables.join(', ')
+                            <Text
+                                fw={500}
+                                fz={13}
+                                c={
+                                    metadata?.joinedTables &&
+                                    metadata.joinedTables.length > 0
+                                        ? 'blue'
+                                        : 'gray.7'
+                                }
+                                truncate
+                            >
+                                {metadata?.joinedTables &&
+                                metadata?.joinedTables.length > 0
+                                    ? metadata?.joinedTables.join(', ')
                                     : 'None'}
                             </Text>
                         </Group>
@@ -300,7 +325,7 @@ export const CatalogMetadata: FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {metadata.fields?.map((field) => (
+                                            {metadata?.fields?.map((field) => (
                                                 <tr
                                                     key={field.name}
                                                     style={{
@@ -442,7 +467,7 @@ export const CatalogMetadata: FC = () => {
                         })}
                         onClick={() => {
                             history.push(
-                                `/projects/${projectUuid}/tables/${metadata.modelName}`,
+                                `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}
                     >

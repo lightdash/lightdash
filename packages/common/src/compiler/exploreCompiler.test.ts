@@ -3,6 +3,7 @@ import { friendlyName } from '../types/field';
 import { ExploreCompiler, parseAllReferences } from './exploreCompiler';
 import {
     compiledExploreWithHiddenJoin,
+    compiledExploreWithJoinWithFieldsAndGroups,
     compiledJoinedExploreOverridingAliasAndLabel,
     compiledJoinedExploreOverridingJoinAlias,
     compiledJoinedExploreOverridingJoinLabel,
@@ -34,6 +35,7 @@ import {
     exploreTableSelfReferenceCompiledSqlWhere,
     exploreTableSelfReferenceSqlWhere,
     exploreWithHiddenJoin,
+    exploreWithJoinWithFieldsAndGroups,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
     exploreWithRequiredAttributes,
@@ -126,6 +128,11 @@ describe('Explores with a base table and joined table', () => {
         expect(compiler.compileExplore(simpleJoinedExplore)).toStrictEqual(
             compiledSimpleJoinedExplore,
         );
+    });
+    test('should compile explore with join with fields and a time interval dimension with groups', () => {
+        expect(
+            compiler.compileExplore(exploreWithJoinWithFieldsAndGroups),
+        ).toStrictEqual(compiledExploreWithJoinWithFieldsAndGroups);
     });
     test('should compile with a reference to a dimension in a joined table', () => {
         expect(compiler.compileExplore(exploreReferenceInJoin)).toStrictEqual(

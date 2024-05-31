@@ -11,7 +11,7 @@ import {
     chartForValidation,
     chartForValidationWithJoinedField,
     config,
-    dashboard,
+    dashboardForValidation,
     explore,
     exploreError,
     exploreWithJoin,
@@ -34,8 +34,7 @@ const validationModel = {
     create: jest.fn(async () => {}),
 };
 const dashboardModel = {
-    getAllByProject: jest.fn(async () => [{}]),
-    getById: jest.fn(async () => dashboard),
+    findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
 };
 
 describe('validation', () => {
