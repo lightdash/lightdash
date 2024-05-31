@@ -140,6 +140,7 @@ export const CatalogPanel: FC = () => {
         data: catalogResults,
         isFetched: catalogFetched,
         isFetching: catalogFetching,
+        isLoading: catalogLoading,
     } = useCatalog({
         projectUuid,
         type: CatalogType.Table,
@@ -729,6 +730,7 @@ export const CatalogPanel: FC = () => {
                 </Paper>
             ) : (
                 <CatalogTree
+                    isLoading={catalogLoading}
                     tree={catalogTree}
                     projectUuid={projectUuid}
                     searchString={debouncedSearch}

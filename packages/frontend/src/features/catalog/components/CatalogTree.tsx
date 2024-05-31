@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Box, Stack, Tooltip } from '@mantine/core';
+import { Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -11,9 +11,10 @@ type Props = {
     onItemClick: (item: CatalogSelection) => void;
     selection?: CatalogSelection;
     searchString?: string;
+    isLoading?: boolean;
 };
 
-type NodeProps = Omit<Props, 'tree'> & {
+type NodeProps = Omit<Props, 'tree' | 'isLoading'> & {
     node: any;
     hideGroupedTables?: boolean;
     index: number;
@@ -131,6 +132,7 @@ const renderTreeNode = ({
 };
 
 export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
+    isLoading,
     tree,
     searchString,
     projectUuid,
@@ -166,18 +168,27 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     sx={{ maxHeight: '900px', overflowY: 'scroll' }}
                     key={`catalog-tree-${searchString}`}
                 >
-                    {Object.entries(tree).map(([_, value], index) =>
-                        renderTreeNode({
-                            node: value,
-                            projectUuid,
-                            onItemClick,
-                            selection,
-                            searchString,
-                            hideGroupedTables,
+                    {isLoading ? (
+                        <Stack p="lg" justify="center" align="center">
+                            <Loader size="sm" variant="bars" color="dark" />
+                            <Text fw={500} fz="md" c="gray.6">
+                                Initializing your data catalog...
+                            </Text>
+                        </Stack>
+                    ) : (
+                        Object.entries(tree).map(([_, value], index) =>
+                            renderTreeNode({
+                                node: value,
+                                projectUuid,
+                                onItemClick,
+                                selection,
+                                searchString,
+                                hideGroupedTables,
 
-                            index,
-                            length: Object.keys(tree).length,
-                        }),
+                                index,
+                                length: Object.keys(tree).length,
+                            }),
+                        )
                     )}
                 </Box>
             </Box>
