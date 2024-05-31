@@ -118,7 +118,7 @@ const convertDimension = (
     const isIntervalBase =
         timeInterval === undefined && isInterval(type, column);
     const groups: string[] = convertToGroups(
-        column.meta.dimension?.group,
+        column.meta.dimension?.groups,
         column.meta.dimension?.group_label,
     );
     if (timeInterval) {
@@ -240,7 +240,7 @@ const convertDbtMetricToLightdashMetric = (
         sql = `CASE WHEN ${filterSql} THEN ${sql} ELSE NULL END`;
     }
     const groups: string[] = convertToGroups(
-        metric.meta?.group,
+        metric.meta?.groups,
         metric.meta?.group_label,
     );
     return {
@@ -425,8 +425,8 @@ export const convertTable = (
         throw new Error(`Model "${model.name}" has no table relation`);
     }
     const groupDetails: Record<string, GroupType> = {};
-    if (meta.groups) {
-        Object.entries(meta.groups).forEach(([key, data]) => {
+    if (meta.group_details) {
+        Object.entries(meta.group_details).forEach(([key, data]) => {
             groupDetails[key] = {
                 label: data.label,
                 description: data.description,
