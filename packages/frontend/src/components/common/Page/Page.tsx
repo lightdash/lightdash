@@ -1,4 +1,4 @@
-import { Box, createStyles } from '@mantine/core';
+import { Box, createStyles, getDefaultZIndex } from '@mantine/core';
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
@@ -233,6 +233,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         position={SidebarPosition.RIGHT}
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
+                        containerProps={{
+                            sx: {
+                                zIndex: getDefaultZIndex('app'),
+                            },
+                        }}
                     >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {rightSidebar}
