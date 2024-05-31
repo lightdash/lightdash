@@ -211,7 +211,7 @@ export const CatalogPanel: FC = () => {
                         }
                         acc[TABLES_WITH_ERRORS_GROUP_NAME].tables[item.name] = {
                             ...item,
-                            groupName: 'Tables with errors',
+                            groupName: TABLES_WITH_ERRORS_GROUP_NAME,
                             fields: [],
                         };
                     } else {
