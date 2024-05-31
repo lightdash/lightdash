@@ -133,9 +133,7 @@ export const CatalogPanel: FC = () => {
         projectUuid,
         (data) => {
             if (data) {
-                startTransition(() => {
-                    setAnalyticsResults(data);
-                });
+                setAnalyticsResults(data);
             }
         },
     );
@@ -205,11 +203,9 @@ export const CatalogPanel: FC = () => {
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
 
-            startTransition(() => {
-                if (!isSidebarOpen) {
-                    setSidebarOpen(true);
-                }
-            });
+            if (!isSidebarOpen) {
+                setSidebarOpen(true);
+            }
 
             // For optimization purposes, we could only make this request if metadata panel is open
             setSelection({
