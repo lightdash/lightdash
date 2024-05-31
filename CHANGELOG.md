@@ -1,3 +1,10 @@
+## [0.1115.5](https://github.com/lightdash/lightdash/compare/0.1115.4...0.1115.5) (2024-05-31)
+
+
+### Bug Fixes
+
+* catalog explore error ([#10276](https://github.com/lightdash/lightdash/issues/10276)) ([5b5e8e4](https://github.com/lightdash/lightdash/commit/5b5e8e4efed091d89ab0bc842c131d3ed7a2726c))
+
 ## [0.1115.4](https://github.com/lightdash/lightdash/compare/0.1115.3...0.1115.4) (2024-05-31)
 
 
