@@ -19,6 +19,7 @@ import {
     IconArrowUp,
     IconCornerDownLeft,
     IconDatabase,
+    IconLayoutSidebarRightCollapse,
     IconLink,
     IconTable,
 } from '@tabler/icons-react';
@@ -30,6 +31,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
+import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
@@ -38,10 +40,14 @@ export const CatalogMetadata: FC = () => {
     const {
         projectUuid,
         metadata: metadataResults,
+        setSidebarOpen,
         analyticsResults,
         selection,
         setAnalyticsResults,
+        setSelection,
     } = useCatalogContext();
+
+    const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
 
     const isFetchingAnalytics = useIsFetching({
         queryKey: ['catalog_analytics', projectUuid],
@@ -88,9 +94,33 @@ export const CatalogMetadata: FC = () => {
 
     return (
         <Stack h="100vh" spacing="xl">
-            <Group spacing="xs">
+            <Button
+                variant="light"
+                size="xs"
+                pos="absolute"
+                left={0}
+                top={10}
+                compact
+                leftIcon={<MantineIcon icon={IconLayoutSidebarRightCollapse} />}
+                onClick={() => {
+                    setSidebarOpen(false);
+
+                    if (metadata) {
+                        resetMetadata();
+                        setSelection(undefined);
+                    }
+                }}
+                sx={{
+                    borderLeft: 'none',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                }}
+            >
+                Close
+            </Button>
+            <Group spacing="xs" mt="lg">
                 <Avatar
-                    size="sm"
+                    size="md"
                     radius="xl"
                     styles={(theme) => ({
                         root: {
@@ -107,7 +137,8 @@ export const CatalogMetadata: FC = () => {
                 {selectedFieldInTable && (
                     <>
                         <Text
-                            color={colors.blue[6]}
+                            color={colors.blue[4]}
+                            fz="md"
                             sx={{ cursor: 'pointer' }}
                             onClick={() => {
                                 setSelectedFieldInTable(undefined);
@@ -118,11 +149,11 @@ export const CatalogMetadata: FC = () => {
                             {' '}
                             {selection?.table}
                         </Text>
-                        {' > '}
+                        {' / '}
                     </>
                 )}
                 <Text
-                    fs="lg"
+                    fz="lg"
                     fw={600}
                     onDoubleClick={() => {
                         history.push(
@@ -143,7 +174,7 @@ export const CatalogMetadata: FC = () => {
                     },
                     panel: {
                         paddingTop: theme.spacing.xl,
-                        height: `calc(100vh - 220px)`,
+                        height: `calc(100vh - 260px)`,
                         overflowY: 'scroll',
                     },
                     tab: {
@@ -233,7 +264,7 @@ export const CatalogMetadata: FC = () => {
                             </Text>
                         </Group>
 
-                        <Group position="apart">
+                        <Group position="apart" noWrap>
                             <Group spacing="xs">
                                 <MantineIcon
                                     color={colors.gray[5]}
@@ -243,9 +274,11 @@ export const CatalogMetadata: FC = () => {
                                     Joins
                                 </Text>
                             </Group>
-                            <Text fw={500} fz={13} c="blue">
-                                {/* TODO: get tables */}
-                                Table 1, Table 2
+                            <Text fw={500} fz={13} c="blue" truncate w="50%">
+                                {metadata.joinedTables &&
+                                metadata.joinedTables.length > 0
+                                    ? metadata.joinedTables.join(', ')
+                                    : 'None'}
                             </Text>
                         </Group>
 
@@ -336,17 +369,19 @@ export const CatalogMetadata: FC = () => {
             </Tabs>
 
             <Stack
+                h={72}
+                justify="center"
                 p="sm"
+                c="gray"
+                w="100%"
+                pos="absolute"
+                bottom={0}
+                left={0}
                 sx={(theme) => ({
                     backgroundColor: theme.colors.gray[0],
                     border: `1px solid ${theme.colors.gray[4]}`,
                     borderLeft: 0,
                     borderRight: 0,
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: '100%',
-                    color: 'gray',
                 })}
             >
                 <Group position="apart">
@@ -398,7 +433,7 @@ export const CatalogMetadata: FC = () => {
                         </Group>
                     </Group>
                     <Button
-                        size="xs"
+                        size="sm"
                         sx={(theme) => ({
                             backgroundColor: theme.colors.gray[8],
                             '&:hover': {

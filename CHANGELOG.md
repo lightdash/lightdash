@@ -1,3 +1,24 @@
+## [0.1115.1](https://github.com/lightdash/lightdash/compare/0.1115.0...0.1115.1) (2024-05-31)
+
+
+### Bug Fixes
+
+* underlying data with null filter ([#10263](https://github.com/lightdash/lightdash/issues/10263)) ([7af9dec](https://github.com/lightdash/lightdash/commit/7af9dec9d1d6b156320593efde59c81d104def41))
+
+# [0.1115.0](https://github.com/lightdash/lightdash/compare/0.1114.0...0.1115.0) (2024-05-30)
+
+
+### Features
+
+* catalog filters ([#10250](https://github.com/lightdash/lightdash/issues/10250)) ([3e61b46](https://github.com/lightdash/lightdash/commit/3e61b466c93765806494dcc98dc3e0b1dc1ed66c))
+
+# [0.1114.0](https://github.com/lightdash/lightdash/compare/0.1113.2...0.1114.0) (2024-05-30)
+
+
+### Features
+
+* display joined tables in metadata sidebar ([#10225](https://github.com/lightdash/lightdash/issues/10225)) ([26e78d4](https://github.com/lightdash/lightdash/commit/26e78d4bc3cb56ca7c78199a48583d9e75bb0325))
+
 ## [0.1113.2](https://github.com/lightdash/lightdash/compare/0.1113.1...0.1113.2) (2024-05-30)
 
 
