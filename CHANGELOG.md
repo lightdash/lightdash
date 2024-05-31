@@ -1,3 +1,10 @@
+# [0.1116.0](https://github.com/lightdash/lightdash/compare/0.1115.5...0.1116.0) (2024-05-31)
+
+
+### Features
+
+* rename YML group properties ([#10279](https://github.com/lightdash/lightdash/issues/10279)) ([a53237e](https://github.com/lightdash/lightdash/commit/a53237e08560102975c5e6ce1f06960ea054623e))
+
 ## [0.1115.5](https://github.com/lightdash/lightdash/compare/0.1115.4...0.1115.5) (2024-05-31)
 
 
