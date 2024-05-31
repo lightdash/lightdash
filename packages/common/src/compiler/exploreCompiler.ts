@@ -188,7 +188,7 @@ export class ExploreCompiler {
                                               dimension.groups.length - 1
                                           ],
                                       )
-                                    : true;
+                                    : false;
 
                             const isVisible =
                                 join.fields === undefined ||

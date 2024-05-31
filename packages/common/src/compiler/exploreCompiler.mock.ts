@@ -779,6 +779,7 @@ export const exploreWithJoinWithFieldsAndGroups: UncompiledExplore = {
                     source: sourceMock,
                     hidden: false,
                     timeInterval: TimeFrames.DAY,
+                    groups: ['test'],
                 },
                 dim2_DAY: {
                     fieldType: FieldType.DIMENSION,
@@ -858,7 +859,7 @@ export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
                     compiledSql: '"b".dim1',
                     tablesReferences: ['b'],
                     source: sourceMock,
-                    hidden: false,
+                    hidden: true,
                 },
                 dim2: {
                     fieldType: FieldType.DIMENSION,
@@ -873,6 +874,7 @@ export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
                     source: sourceMock,
                     hidden: false,
                     timeInterval: TimeFrames.DAY,
+                    groups: ['test'],
                 },
                 dim2_DAY: {
                     fieldType: FieldType.DIMENSION,
