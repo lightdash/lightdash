@@ -405,7 +405,7 @@ export const CatalogPanel: FC = () => {
     );
 
     return (
-        <Stack spacing="xxl">
+        <Stack spacing="xl">
             <Stack>
                 <Group position="apart" align="flex-start">
                     <Box mt="xl">
@@ -448,11 +448,7 @@ export const CatalogPanel: FC = () => {
                             ) : null
                         }
                         placeholder="Search"
-                        description={
-                            search && search.length < 3
-                                ? 'Enter at least 3 characters to search'
-                                : undefined
-                        }
+                        description={'Enter at least 3 characters to search'}
                         value={search}
                         inputWrapperOrder={[
                             'label',
@@ -465,6 +461,12 @@ export const CatalogPanel: FC = () => {
                             input: {
                                 borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                            description: {
+                                visibility:
+                                    search && search.length < 3
+                                        ? 'visible'
+                                        : 'hidden',
                             },
                         })}
                     />
