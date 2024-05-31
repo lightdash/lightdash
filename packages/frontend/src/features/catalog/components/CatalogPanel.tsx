@@ -25,11 +25,14 @@ import {
     IconAdjustmentsHorizontal,
     IconReportSearch,
     IconSearch,
+    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -133,18 +136,22 @@ export const CatalogPanel: FC = () => {
     const [completeSearch, setCompleteSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
 
+    const {
+        data: catalogResults,
+        isFetched: catalogFetched,
+        isFetching: catalogFetching,
+    } = useCatalog({
+        projectUuid,
+        type: CatalogType.Table,
+        search: debouncedSearch,
+    });
+
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const [filters, setFilters] = useState({
         dimensions: false,
         metrics: false,
         hideGroupedTables: false,
-    });
-
-    const { data: catalogResults } = useCatalog({
-        projectUuid,
-        type: CatalogType.Table,
-        search: debouncedSearch,
     });
 
     const { mutate: getMetadata } = useCatalogMetadata(projectUuid, (data) => {
@@ -174,6 +181,11 @@ export const CatalogPanel: FC = () => {
         },
         [setSearch],
     );
+
+    const clearSearch = useCallback(() => {
+        setSearch('');
+        setCompleteSearch('');
+    }, [setSearch, setCompleteSearch]);
 
     const toggleFilter = useCallback(
         (filter: FilterType) => {
@@ -403,6 +415,12 @@ export const CatalogPanel: FC = () => {
         ],
         [],
     );
+
+    const noResults =
+        !catalogFetching &&
+        catalogFetched &&
+        Object.keys(catalogTree).length === 0;
+    const noTables = noResults && debouncedSearch.length === 0;
 
     return (
         <Stack spacing="xxl">
@@ -655,13 +673,69 @@ export const CatalogPanel: FC = () => {
                 </Group>
             </Stack>
 
-            <CatalogTree
-                tree={catalogTree}
-                projectUuid={projectUuid}
-                searchString={debouncedSearch}
-                selection={selection}
-                onItemClick={selectAndGetMetadata}
-            />
+            {noResults ? (
+                <Paper
+                    p="xl"
+                    radius="lg"
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[1],
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    {noTables ? (
+                        <SuboptimalState
+                            icon={IconTable}
+                            title="No tables found in this project"
+                            description={
+                                "Tables are the starting point to any data exploration in Lightdash. They come from dbt models that have been defined in your dbt project's .yml files."
+                            }
+                            action={
+                                <LinkButton
+                                    href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
+                                    mt="md"
+                                    target="_blank"
+                                    sx={(theme) => ({
+                                        color: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.gray[8],
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[9],
+                                        },
+                                    })}
+                                >
+                                    Learn more
+                                </LinkButton>
+                            }
+                        />
+                    ) : (
+                        <SuboptimalState
+                            icon={IconSearch}
+                            title="No search results"
+                            description={
+                                'Try using different keywords or adjusting your filters.'
+                            }
+                            action={
+                                <Button
+                                    variant="default"
+                                    onClick={clearSearch}
+                                    mt="sm"
+                                    radius="md"
+                                >
+                                    Clear search
+                                </Button>
+                            }
+                        />
+                    )}
+                </Paper>
+            ) : (
+                <CatalogTree
+                    tree={catalogTree}
+                    projectUuid={projectUuid}
+                    searchString={debouncedSearch}
+                    selection={selection}
+                    onItemClick={selectAndGetMetadata}
+                />
+            )}
         </Stack>
     );
 };
