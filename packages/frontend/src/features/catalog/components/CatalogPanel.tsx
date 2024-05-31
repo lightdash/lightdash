@@ -39,6 +39,8 @@ import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogTree } from './CatalogTree';
 
+const TABLES_WITH_ERRORS_GROUP_NAME = 'Tables with errors';
+
 type CatalogTreeType = {
     [key: string]: {
         name: string;
@@ -212,26 +214,40 @@ export const CatalogPanel: FC = () => {
                 [key: string]: any;
             }>((acc, item) => {
                 if (item.type === CatalogType.Table) {
-                    const groupName =
-                        'groupLabel' in item && item.groupLabel
-                            ? item.groupLabel
-                            : 'Ungrouped tables';
-                    // If grouped tables are hidden, don't add them to the tree
-                    if (
-                        groupName !== 'Ungrouped tables' &&
-                        filters.hideGroupedTables
-                    ) {
-                        return acc;
+                    if (item.errors !== undefined) {
+                        if (!acc[TABLES_WITH_ERRORS_GROUP_NAME]) {
+                            acc[TABLES_WITH_ERRORS_GROUP_NAME] = {
+                                name: TABLES_WITH_ERRORS_GROUP_NAME,
+                                tables: {},
+                            };
+                        }
+                        acc[TABLES_WITH_ERRORS_GROUP_NAME].tables[item.name] = {
+                            ...item,
+                            groupName: TABLES_WITH_ERRORS_GROUP_NAME,
+                            fields: [],
+                        };
+                    } else {
+                        const groupName =
+                            'groupLabel' in item && item.groupLabel
+                                ? item.groupLabel
+                                : 'Ungrouped tables';
+                        // If grouped tables are hidden, don't add them to the tree
+                        if (
+                            groupName !== 'Ungrouped tables' &&
+                            filters.hideGroupedTables
+                        ) {
+                            return acc;
+                        }
+                        // Add to the tree if not filtered out
+                        if (!acc[groupName]) {
+                            acc[groupName] = { name: groupName, tables: {} };
+                        }
+                        acc[groupName].tables[item.name] = {
+                            ...item,
+                            groupName: groupName,
+                            fields: [],
+                        };
                     }
-                    // Add to the tree if not filtered out
-                    if (!acc[groupName]) {
-                        acc[groupName] = { name: groupName, tables: {} };
-                    }
-                    acc[groupName].tables[item.name] = {
-                        ...item,
-                        groupName: groupName,
-                        fields: [],
-                    };
                 } else if (item.type === CatalogType.Field) {
                     const groupName =
                         'tableGroupLabel' in item && item.tableGroupLabel
@@ -296,7 +312,10 @@ export const CatalogPanel: FC = () => {
     const selectAndGetMetadata = useCallback(
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
-
+            if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
+                setSidebarOpen(false);
+                return; // no metadata for tables with errors
+            }
             if (!isSidebarOpen) {
                 setSidebarOpen(true);
             }
