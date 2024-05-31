@@ -691,10 +691,17 @@ export const CatalogPanel: FC = () => {
                             }
                             action={
                                 <LinkButton
-                                    color="dark"
                                     href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
                                     mt="md"
                                     target="_blank"
+                                    sx={(theme) => ({
+                                        color: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.gray[8],
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[9],
+                                        },
+                                    })}
                                 >
                                     Learn more
                                 </LinkButton>
