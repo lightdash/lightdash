@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type Dashboard, type SpaceSummary } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type Dashboard,
+    type SpaceSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -19,6 +23,7 @@ import {
     IconCheck,
     IconChevronRight,
     IconCopy,
+    IconDatabaseExport,
     IconDots,
     IconFolder,
     IconFolderPlus,
@@ -38,6 +43,8 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { usePromoteDashboardMutation } from '../../../hooks/usePromoteDashboard';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -121,6 +128,7 @@ const DashboardHeader = ({
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
     };
+    const { mutate: promoteDashboard } = usePromoteDashboardMutation();
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
@@ -155,6 +163,18 @@ const DashboardHeader = ({
             projectUuid,
         }),
     );
+    const isPromoteChartsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PromoteCharts,
+    );
+    const userCanPromoteDashboard =
+        isPromoteChartsEnabled &&
+        user.data?.ability?.can(
+            'promote',
+            subject('Dashboard', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
 
     return (
         <PageHeader
@@ -528,6 +548,21 @@ const DashboardHeader = ({
                                     </Menu.Item>
                                 )}
 
+                                {userCanPromoteDashboard && (
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconDatabaseExport}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            promoteDashboard(dashboardUuid)
+                                        }
+                                    >
+                                        Promote dashboard
+                                    </Menu.Item>
+                                )}
+
                                 {(userCanExportData ||
                                     userCanManageDashboard) && (
                                     <Menu.Item
@@ -537,7 +572,6 @@ const DashboardHeader = ({
                                         Export dashboard{' '}
                                     </Menu.Item>
                                 )}
-
                                 {userCanManageDashboard && (
                                     <>
                                         <Menu.Divider />

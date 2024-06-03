@@ -250,7 +250,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getProjectService()
+                .getPromoteService()
                 .promoteChart(req.user!, chartUuid),
         };
     }

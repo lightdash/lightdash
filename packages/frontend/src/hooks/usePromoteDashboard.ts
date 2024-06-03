@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
-const promoteChart = async (dashboardUuid: string): Promise<Dashboard> => {
+const promoteDashboard = async (dashboardUuid: string): Promise<Dashboard> => {
     return lightdashApi<Dashboard>({
         url: `/dashboards/${dashboardUuid}/promote`,
         method: 'POST',
@@ -15,18 +15,18 @@ const promoteChart = async (dashboardUuid: string): Promise<Dashboard> => {
 export const usePromoteDashboardMutation = () => {
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<Dashboard, ApiError, string>(
-        (data) => promoteChart(data),
+        (data) => promoteDashboard(data),
         {
-            mutationKey: ['promote_chart'],
+            mutationKey: ['promote_dashboard'],
             onSuccess: (data) => {
                 showToastSuccess({
-                    title: `Success! Chart was promoted.`,
+                    title: `Success! Dashboard was promoted.`,
                     action: {
-                        children: 'Open chart',
+                        children: 'Open dashboard',
                         icon: IconArrowRight,
                         onClick: () => {
                             window.open(
-                                `/projects/${data.projectUuid}/saved/${data.uuid}`,
+                                `/projects/${data.projectUuid}/dashboards/${data.uuid}`,
                                 '_blank',
                             );
                         },
@@ -35,7 +35,7 @@ export const usePromoteDashboardMutation = () => {
             },
             onError: (error) => {
                 showToastError({
-                    title: `Failed to promote chart`,
+                    title: `Failed to promote dashboard`,
                     subtitle: error.error.message,
                 });
             },

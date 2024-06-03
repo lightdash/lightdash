@@ -38,7 +38,7 @@ export class DashboardController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getDashboardService()
+                .getPromoteService()
                 .promoteDashboard(req.user!, dashboardUuid),
         };
     }
