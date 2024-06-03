@@ -166,10 +166,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     0 4px 16px -8px ${theme.colors.gray[2]}`,
                 })}
             >
-                <Box
-                    sx={{ maxHeight: '900px', overflowY: 'scroll' }}
-                    key={`catalog-tree-${searchString}`}
-                >
+                <Box key={`catalog-tree-${searchString}`}>
                     {isLoading || isSearching ? (
                         <Center p="lg">
                             <Loader size="sm" variant="bars" color="dark" />
