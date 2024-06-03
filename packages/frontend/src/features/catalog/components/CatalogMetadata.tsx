@@ -13,6 +13,7 @@ import {
     Table,
     Tabs,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import {
@@ -30,14 +31,19 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
 
 export const CatalogMetadata: FC = () => {
+    const history = useHistory();
+
     const { classes, cx } = useTableStyles();
     const { colors } = useMantineTheme();
+    const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
+
     const {
         projectUuid,
         metadata: metadataResults,
@@ -50,16 +56,12 @@ export const CatalogMetadata: FC = () => {
         metadataErrors,
         setMetadataErrors,
     } = useCatalogContext();
-
     const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
-
     const isMutatingAnalytics = useIsMutating([
         'catalog_analytics',
         projectUuid,
     ]);
     const isMutatingMetadata = useIsMutating(['catalog_metadata', projectUuid]);
-
-    const history = useHistory();
 
     const [selectedFieldInTable, setSelectedFieldInTable] = useState<
         string | undefined
@@ -186,7 +188,6 @@ export const CatalogMetadata: FC = () => {
                         sx={{
                             border: `1px solid ${colors.red[5]}`,
                             borderRadius: 4,
-
                             backgroundColor: colors.red[0],
                         }}
                     >
@@ -324,22 +325,40 @@ export const CatalogMetadata: FC = () => {
                                             Joins
                                         </Text>
                                     </Group>
-                                    <Text
-                                        fw={500}
-                                        fz={13}
-                                        c={
-                                            metadata?.joinedTables &&
-                                            metadata.joinedTables.length > 0
-                                                ? 'blue'
-                                                : 'gray.7'
+
+                                    <Tooltip
+                                        multiline
+                                        maw={300}
+                                        variant="xs"
+                                        label={metadata?.joinedTables.join(
+                                            ', ',
+                                        )}
+                                        disabled={
+                                            !isTruncated ||
+                                            !metadata?.joinedTables ||
+                                            metadata.joinedTables.length === 0
                                         }
-                                        truncate
                                     >
-                                        {metadata?.joinedTables &&
-                                        metadata?.joinedTables.length > 0
-                                            ? metadata?.joinedTables.join(', ')
-                                            : 'None'}
-                                    </Text>
+                                        <Text
+                                            ref={ref}
+                                            fw={500}
+                                            fz={13}
+                                            c={
+                                                metadata?.joinedTables &&
+                                                metadata.joinedTables.length > 0
+                                                    ? 'blue'
+                                                    : 'gray.7'
+                                            }
+                                            truncate
+                                        >
+                                            {metadata?.joinedTables &&
+                                            metadata?.joinedTables.length > 0
+                                                ? metadata?.joinedTables.join(
+                                                      ', ',
+                                                  )
+                                                : 'None'}
+                                        </Text>
+                                    </Tooltip>
                                 </Group>
 
                                 <Divider />

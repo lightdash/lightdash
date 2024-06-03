@@ -153,6 +153,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         <Tooltip.Group>
             <Box
                 sx={(theme) => ({
+                    minWidth: '600px',
                     border: `1px solid ${theme.colors.gray[3]}`,
                     backgroundColor: theme.fn.lighten(
                         theme.colors.gray[0],
@@ -166,10 +167,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     0 4px 16px -8px ${theme.colors.gray[2]}`,
                 })}
             >
-                <Box
-                    sx={{ maxHeight: '900px', overflowY: 'scroll' }}
-                    key={`catalog-tree-${searchString}`}
-                >
+                <Box key={`catalog-tree-${searchString}`}>
                     {isLoading || isSearching ? (
                         <Center p="lg">
                             <Loader size="sm" variant="bars" color="dark" />

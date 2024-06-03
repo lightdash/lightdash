@@ -295,7 +295,6 @@ export const CatalogPanel: FC = () => {
                 }
                 return acc;
             }, {});
-
             return sortTree(unsortedTree);
         }
         return {};
@@ -468,7 +467,7 @@ export const CatalogPanel: FC = () => {
     const noTables = noResults && debouncedSearch.length === 0;
 
     return (
-        <Stack spacing="xxl">
+        <Stack spacing="xl">
             <Stack>
                 <Group position="apart" align="flex-start">
                     <Box mt="xl">
@@ -497,7 +496,7 @@ export const CatalogPanel: FC = () => {
                     </Box>
                 </Group>
 
-                <Group spacing="xs">
+                <Group spacing="xs" align="start">
                     <TextInput
                         w={'50%'}
                         icon={<MantineIcon icon={IconSearch} />}
@@ -511,11 +510,7 @@ export const CatalogPanel: FC = () => {
                             ) : null
                         }
                         placeholder="Search"
-                        description={
-                            search && search.length < 3
-                                ? 'Enter at least 3 characters to search'
-                                : undefined
-                        }
+                        description={'Enter at least 3 characters to search'}
                         value={search}
                         inputWrapperOrder={[
                             'label',
@@ -528,6 +523,12 @@ export const CatalogPanel: FC = () => {
                             input: {
                                 borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                            description: {
+                                visibility:
+                                    search && search.length < 3
+                                        ? 'visible'
+                                        : 'hidden',
                             },
                         })}
                     />
@@ -542,7 +543,7 @@ export const CatalogPanel: FC = () => {
                                 <Popover.Target>
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         leftIcon={
                                             <MantineIcon
                                                 icon={IconAdjustmentsHorizontal}
@@ -609,7 +610,7 @@ export const CatalogPanel: FC = () => {
                                     filters.hideGroupedTables) && (
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         onClick={clearFilters}
                                         p="xs"
                                     >

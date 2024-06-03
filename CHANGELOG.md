@@ -1,3 +1,17 @@
+# [0.1118.0](https://github.com/lightdash/lightdash/compare/0.1117.0...0.1118.0) (2024-06-03)
+
+
+### Features
+
+* pass organization tag to sentry events ([#10292](https://github.com/lightdash/lightdash/issues/10292)) ([bfd3284](https://github.com/lightdash/lightdash/commit/bfd3284729ceb0e97db4f31be66f8f8a0dac1580))
+
+# [0.1117.0](https://github.com/lightdash/lightdash/compare/0.1116.1...0.1117.0) (2024-06-03)
+
+
+### Features
+
+* add loading state when catalog is loading ([#10273](https://github.com/lightdash/lightdash/issues/10273)) ([c655847](https://github.com/lightdash/lightdash/commit/c65584723ee037b52d0e427121902c1327bd1f2f))
+
 ## [0.1116.1](https://github.com/lightdash/lightdash/compare/0.1116.0...0.1116.1) (2024-05-31)
 
 
