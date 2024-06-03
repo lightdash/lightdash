@@ -36,8 +36,8 @@ const useSentry = (
                 id: user.userUuid,
                 email: user.email,
                 username: user.email,
-                segment: user.organizationUuid,
             });
+            Sentry.setTag('organization', user.organizationUuid);
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 };
