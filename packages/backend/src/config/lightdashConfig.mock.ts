@@ -107,6 +107,8 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         release: '',
         environment: '',
+        tracesSampleRate: 0,
+        profilesSampleRate: 0,
     },
     staticIp: '',
     trustProxy: false,

@@ -55,6 +55,8 @@ test('Should use default sentry configuration if no environment vars', () => {
         },
         release: VERSION,
         environment: BASIC_CONFIG.mode,
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.2,
     };
     expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
 });
@@ -69,10 +71,14 @@ test('Should parse sentry config from env', () => {
         },
         release: VERSION,
         environment: 'development',
+        tracesSampleRate: 0.8,
+        profilesSampleRate: 1.0,
     };
     process.env.SENTRY_BE_DSN = 'mydsnbackend.sentry.io';
     process.env.SENTRY_FE_DSN = 'mydsnfrontend.sentry.io';
     process.env.NODE_ENV = 'development';
+    process.env.SENTRY_TRACES_SAMPLE_RATE = '0.8';
+    process.env.SENTRY_PROFILES_SAMPLE_RATE = '1.0';
     expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
 });
 

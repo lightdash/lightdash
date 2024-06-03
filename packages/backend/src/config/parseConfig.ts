@@ -419,6 +419,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
+            tracesSampleRate: parseFloat(
+                process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1',
+            ),
+            profilesSampleRate: parseFloat(
+                process.env.SENTRY_PROFILES_SAMPLE_RATE || '0.2',
+            ),
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',

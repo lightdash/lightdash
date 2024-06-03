@@ -73,6 +73,9 @@ export class HealthService extends BaseService {
                 frontend: this.lightdashConfig.sentry.frontend,
                 environment: this.lightdashConfig.sentry.environment,
                 release: this.lightdashConfig.sentry.release,
+                tracesSampleRate: this.lightdashConfig.sentry.tracesSampleRate,
+                profilesSampleRate:
+                    this.lightdashConfig.sentry.profilesSampleRate,
             },
             intercom: this.lightdashConfig.intercom,
             pylon: {
