@@ -509,9 +509,9 @@ export default class App {
                 if (context.parentSampled !== undefined) {
                     return context.parentSampled;
                 }
-                return 0.2;
+                return this.lightdashConfig.sentry.tracesSampleRate;
             },
-            profilesSampleRate: 0.2, // 20% of samples will be profiled
+            profilesSampleRate: this.lightdashConfig.sentry.profilesSampleRate, // x% of samples will be profiled
             beforeBreadcrumb(breadcrumb) {
                 if (
                     breadcrumb.category === 'http' &&

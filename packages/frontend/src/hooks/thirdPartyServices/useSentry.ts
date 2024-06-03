@@ -25,7 +25,7 @@ const useSentry = (
                         return samplingContext.parentSampled;
                     }
 
-                    return 0.2;
+                    return sentryConfig.tracesSampleRate;
                 },
                 replaysOnErrorSampleRate: 1.0,
             });
