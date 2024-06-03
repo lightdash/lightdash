@@ -4,6 +4,7 @@ import {
     ApiSqlQueryResults,
     applyDimensionOverrides,
     DashboardFilters,
+    DateGranularity,
     DimensionType,
     DownloadCsvPayload,
     DownloadFileType,
@@ -363,6 +364,7 @@ export class CsvService extends BaseService {
         jobId?: string,
         tileUuid?: string,
         dashboardFilters?: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
     ): Promise<AttachmentUrl> {
         const chart = await this.savedChartModel.get(chartUuid);
         const {
@@ -427,6 +429,7 @@ export class CsvService extends BaseService {
             exploreName: exploreId,
             csvLimit: getSchedulerCsvLimit(options),
             context: QueryExecutionContext.CSV,
+            granularity: dateZoomGranularity,
         });
         const numberRows = rows.length;
 
@@ -443,6 +446,7 @@ export class CsvService extends BaseService {
             metricQueryWithDashboardFilters.additionalMetrics,
             metricQueryWithDashboardFilters.tableCalculations,
         );
+
         const truncated = this.couldBeTruncated(rows);
 
         const fileId = await CsvService.writeRowsToFile(
@@ -510,6 +514,7 @@ export class CsvService extends BaseService {
         options: SchedulerCsvOptions | undefined,
         schedulerFilters?: SchedulerFilterRule[],
         overrideDashboardFilters?: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
     ) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -540,6 +545,7 @@ export class CsvService extends BaseService {
                     undefined,
                     tileUuid,
                     dashboardFilters,
+                    dateZoomGranularity,
                 ),
         );
 
@@ -861,6 +867,7 @@ export class CsvService extends BaseService {
         user: SessionUser,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
+        dateZoomGranularity?: DateGranularity,
     ) {
         if (!this.s3Client.isEnabled()) {
             throw new MissingConfigError('Cloud storage is not enabled');
@@ -931,6 +938,7 @@ export class CsvService extends BaseService {
             options,
             undefined,
             dashboardFilters,
+            dateZoomGranularity,
         );
         const zipFile = await writeZipFile(csvFiles);
 
