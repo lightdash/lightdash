@@ -491,6 +491,20 @@ export default class App {
                 ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+            beforeSend(event) {
+                if (
+                    event.exception?.values &&
+                    event.exception.values[0].type ===
+                        'UnexpectedDatabaseError' &&
+                    event.exception.values[0].value?.includes(
+                        'Database has not been migrated yet',
+                    )
+                ) {
+                    return null;
+                }
+
+                return event;
+            },
             tracesSampler: (context: SamplingContext): boolean | number => {
                 if (
                     context.request?.url?.endsWith('/status') ||
