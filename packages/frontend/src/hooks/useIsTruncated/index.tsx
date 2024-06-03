@@ -10,7 +10,8 @@ export const useIsTruncated = <T extends HTMLElement = any>() => {
     const [isTruncated, setIsTruncated] = useState(false);
 
     useEffect(() => {
-        const element = ref.current!;
+        const element = ref.current;
+        if (!element) return;
         setIsTruncated(element.scrollWidth > element.clientWidth);
     }, [ref, width]);
 
