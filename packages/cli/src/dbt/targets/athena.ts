@@ -10,7 +10,6 @@ import { Target } from '../types';
 
 export type AthenaTarget = {
     type: 'athena';
-
     database: string;
     schema: string;
     aws_access_key_id: string;
