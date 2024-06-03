@@ -1,3 +1,11 @@
+## [0.1118.1](https://github.com/lightdash/lightdash/compare/0.1118.0...0.1118.1) (2024-06-03)
+
+
+### Bug Fixes
+
+* enable overflowY scroll if sidebar open ([#10286](https://github.com/lightdash/lightdash/issues/10286)) ([318fb21](https://github.com/lightdash/lightdash/commit/318fb2116915f47f524e4e39bba59be861dbad10))
+* make TableListItem responsive ([#10283](https://github.com/lightdash/lightdash/issues/10283)) ([5bf58f9](https://github.com/lightdash/lightdash/commit/5bf58f99c1a808a1220ed7acf7ff25a681dfe4ec))
+
 # [0.1118.0](https://github.com/lightdash/lightdash/compare/0.1117.0...0.1118.0) (2024-06-03)
 
 
