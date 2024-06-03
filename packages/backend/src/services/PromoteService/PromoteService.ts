@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
+    CreateDashboard,
     DashboardDAO,
     isChartTile,
     NotFoundError,
@@ -386,6 +387,73 @@ export class PromoteService extends BaseService {
         return this.upsertChart(user, promotedChart, upstreamChart);
     }
 
+    async upsertDashboard(
+        user: SessionUser,
+        promotedContent: PromotedDashboard,
+        upstreamContent: UpstreamDashboard,
+    ) {
+        const promotedDashboard = promotedContent.dashboard;
+        if (upstreamContent.dashboard === undefined) {
+            // There are no dashboards with the same slug, we create the chart, and the space if needed
+            // We only check the org/project access
+
+            const newSpace =
+                upstreamContent.space ||
+                (await this.getOrCreateSpace(
+                    // THis should be using upstreamContent.space
+                    user,
+                    upstreamContent.projectUuid,
+                    {
+                        name: promotedContent.space.name,
+                        isPrivate: promotedContent.space.isPrivate || false,
+                        projectUuid: promotedContent.projectUuid,
+                        slug: promotedContent.space.slug,
+                        userId: user.userId,
+                    },
+                ));
+
+            // Create new dashboard
+            const newDashboardData: CreateDashboard & {
+                slug: string;
+            } = {
+                ...promotedContent.dashboard,
+                spaceUuid: newSpace.uuid,
+                slug: promotedContent.dashboard.slug,
+            };
+            const newDashboard = await this.dashboardModel.create(
+                newSpace.uuid,
+                newDashboardData,
+                user,
+                upstreamContent.projectUuid,
+            );
+
+            return newDashboard;
+        }
+
+        // We override existing dashboard details
+        const upstreamDashboard = upstreamContent.dashboard;
+
+        if (
+            upstreamDashboard.name !== promotedDashboard.name ||
+            upstreamDashboard.description !== promotedDashboard.description
+        ) {
+            // We also update dashboard name and description if they have changed
+            await this.savedChartModel.update(upstreamDashboard.uuid, {
+                name: promotedDashboard.name,
+                description: promotedDashboard.description,
+            });
+        }
+
+        const updatedChart = await this.dashboardModel.addVersion(
+            upstreamDashboard.uuid,
+            promotedDashboard,
+            user,
+            upstreamContent.projectUuid,
+        );
+
+        return updatedChart;
+    }
+
     async promoteDashboard(user: SessionUser, dashboardUuid: string) {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
@@ -474,14 +542,14 @@ export class PromoteService extends BaseService {
 
         // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
 
-        // TODO upsertDashboard
+        await this.upsertDashboard(user, promotedDashboard, upstreamDashboard);
 
         // Upserting all charts
         const upsertChartPromises = charts.map(
             ({ promotedChart, upstreamChart }) =>
                 this.upsertChart(user, promotedChart, upstreamChart),
         );
-        const updatedCharts = await Promise.all(upsertChartPromises);
+        await Promise.all(upsertChartPromises);
 
         return promotedDashboard.dashboard;
     }
