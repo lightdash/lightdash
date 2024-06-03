@@ -20,6 +20,7 @@ import {
     getItemMap,
     isCustomSqlDimension,
     isDashboardChartTileType,
+    isDateItem,
     isField,
     isMomentInput,
     isTableChartConfig,
@@ -422,7 +423,7 @@ export class CsvService extends BaseService {
               )
             : metricQuery;
 
-        const { rows } = await this.projectService.runMetricQuery({
+        const { rows, fields } = await this.projectService.runMetricQuery({
             user,
             metricQuery: metricQueryWithDashboardFilters,
             projectUuid: chart.projectUuid,
@@ -446,6 +447,18 @@ export class CsvService extends BaseService {
             metricQueryWithDashboardFilters.additionalMetrics,
             metricQueryWithDashboardFilters.tableCalculations,
         );
+
+        // If a chart has been date zoomed, then its label has changed. We need to update the itemMap to reflect this in the CSV file
+        if (dateZoomGranularity) {
+            Object.keys(fields).forEach((fieldId) => {
+                if (
+                    fields[fieldId].type === DimensionType.DATE ||
+                    fields[fieldId].type === DimensionType.TIMESTAMP
+                ) {
+                    itemMap[fieldId] = fields[fieldId];
+                }
+            });
+        }
 
         const truncated = this.couldBeTruncated(rows);
 
