@@ -1,5 +1,5 @@
 import { Anchor, NumberInput, Stack, TextInput } from '@mantine/core';
-import { type FC } from 'react';
+import type { FC } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useToggle } from 'react-use';
 import { hasNoWhiteSpaces } from '../../../utils/fieldValidators';
