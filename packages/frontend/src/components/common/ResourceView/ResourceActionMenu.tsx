@@ -25,6 +25,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { usePromoteMutation } from '../../../hooks/usePromoteChart';
+import { usePromoteDashboardMutation } from '../../../hooks/usePromoteDashboard';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../Authorization';
@@ -100,6 +101,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     }, [spaces, user.data]);
 
     const { mutate: promoteChart } = usePromoteMutation();
+    const { mutate: promoteDashboard } = usePromoteDashboardMutation();
+
     const isPromoteChartsEnabled = useFeatureFlagEnabled(
         FeatureFlags.PromoteCharts,
     );
@@ -246,9 +249,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     </Menu.Item>
                 )}
                 {userCanPromoteChart &&
-                    item.type === ResourceViewItemType.CHART && (
+                    item.type !== ResourceViewItemType.SPACE && (
                         <Tooltip
-                            label="You must enable first an upstram project in settings > Data ops"
+                            label="You must enable first an upstream project in settings > Data ops"
                             disabled={
                                 project?.upstreamProjectUuid !== undefined
                             }
@@ -265,7 +268,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             icon={IconDatabaseExport}
                                         />
                                     }
-                                    onClick={() => promoteChart(item.data.uuid)}
+                                    onClick={() => {
+                                        if (
+                                            item.type ===
+                                            ResourceViewItemType.CHART
+                                        )
+                                            promoteChart(item.data.uuid);
+                                        else promoteDashboard(item.data.uuid);
+                                    }}
                                 >
                                     Promote chart
                                 </Menu.Item>

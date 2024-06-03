@@ -478,6 +478,55 @@ export class DashboardModel {
         );
     }
 
+    async find({
+        slug,
+        projectUuid,
+    }: {
+        projectUuid?: string;
+        slug?: string;
+    }): Promise<
+        Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>[]
+    > {
+        const query = this.database(DashboardsTableName).select(
+            'name',
+            'dashboard_uuid',
+            'space_uuid',
+            'description',
+        );
+
+        if (projectUuid) {
+            void query
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    );
+                })
+                .leftJoin(
+                    'projects',
+                    'spaces.project_id',
+                    'projects.project_id',
+                )
+                .where('projects.project_uuid', projectUuid);
+        }
+
+        if (slug) {
+            void query.where(`${DashboardsTableName}.slug`, slug);
+        }
+
+        const dashboards = await query;
+
+        return dashboards.map(
+            ({ name, dashboard_uuid, space_uuid, description }) => ({
+                name,
+                description,
+                uuid: dashboard_uuid,
+                spaceUuid: space_uuid,
+            }),
+        );
+    }
+
     async getById(dashboardUuid: string): Promise<DashboardDAO> {
         const [dashboard] = await this.database(DashboardsTableName)
             .leftJoin(

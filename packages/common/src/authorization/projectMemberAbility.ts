@@ -159,6 +159,15 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        can('promote', 'Dashboard', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

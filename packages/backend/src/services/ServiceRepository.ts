@@ -247,6 +247,7 @@ export class ServiceRepository
             () =>
                 new DashboardService({
                     analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     analyticsModel: this.models.getAnalyticsModel(),

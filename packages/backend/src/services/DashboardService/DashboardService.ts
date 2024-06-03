@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
@@ -15,10 +16,14 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
+    NotFoundError,
+    ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    SpaceSummary,
     UpdateDashboard,
+    UpdatedByUser,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
@@ -33,6 +38,7 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -43,6 +49,7 @@ import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
     analytics: LightdashAnalytics;
+    projectModel: ProjectModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -55,6 +62,8 @@ type DashboardServiceArguments = {
 
 export class DashboardService extends BaseService {
     analytics: LightdashAnalytics;
+
+    projectModel: ProjectModel;
 
     dashboardModel: DashboardModel;
 
@@ -74,6 +83,7 @@ export class DashboardService extends BaseService {
 
     constructor({
         analytics,
+        projectModel,
         dashboardModel,
         spaceModel,
         analyticsModel,
@@ -85,6 +95,8 @@ export class DashboardService extends BaseService {
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
+        this.projectModel = projectModel;
+
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
@@ -863,5 +875,265 @@ export class DashboardService extends BaseService {
             isPrivate: space.isPrivate,
             access: spaceAccess,
         };
+    }
+
+    async promoteDashboard(user: SessionUser, dashboardUuid: string) {
+        const checkPermissions = async (
+            organizationUuid: string,
+            projectUuid: string,
+            spaceSummary: Omit<SpaceSummary, 'userAccess'> | undefined,
+            context: string,
+            fromProjectUuid: string, // for analytics
+            toProjectUuid?: string, // for analytics
+        ) => {
+            // If space is undefined, we only check the org/project access, we will create the dashboard in a new accessible space
+            const userDontHaveAccess = spaceSummary
+                ? user.ability.cannot(
+                      'promote',
+                      subject('Dashboards', {
+                          organizationUuid,
+                          projectUuid,
+                          isPrivate: spaceSummary.isPrivate,
+                          access: await this.spaceModel.getUserSpaceAccess(
+                              user.userUuid,
+                              spaceSummary.uuid,
+                          ),
+                      }),
+                  )
+                : user.ability.cannot(
+                      'promote',
+                      subject('Dashboards', {
+                          organizationUuid,
+                          projectUuid,
+                      }),
+                  ) ||
+                  user.ability.cannot(
+                      'create',
+                      subject('Space', { organizationUuid, projectUuid }),
+                  );
+
+            if (userDontHaveAccess) {
+                this.analytics.track({
+                    event: 'promote.error',
+                    userId: user.userUuid,
+                    properties: {
+                        chartId: dashboardUuid,
+                        fromProjectId: fromProjectUuid,
+                        toProjectId: toProjectUuid,
+                        organizationId: organizationUuid,
+                        error: `Permission error on ${context}`,
+                    },
+                });
+
+                throw new ForbiddenError(
+                    `You don't have the right access permissions on ${context} to promote this dashboard.`,
+                );
+            }
+        };
+
+        const promotedDashboard = await this.dashboardModel.getById(
+            dashboardUuid,
+        );
+        const { organizationUuid, projectUuid } = promotedDashboard;
+        const space = await this.spaceModel.getSpaceSummary(
+            promotedDashboard.spaceUuid,
+        );
+        if (space.isPrivate) {
+            throw new ParameterError(
+                `We can't promote charts from private spaces`,
+            );
+        }
+        const chartsUuids = promotedDashboard.tiles.reduce<string[]>(
+            (acc, tile) => {
+                if (isChartTile(tile) && tile.properties.savedChartUuid) {
+                    return [...acc, tile.properties.savedChartUuid];
+                }
+                return acc;
+            },
+            [],
+        );
+        const chartPromises = chartsUuids.map((chartUuid) =>
+            this.savedChartModel.get(chartUuid),
+        );
+        const charts = await Promise.all(chartPromises);
+
+        const chartsWithinDashboards = charts.filter(
+            (chart) => chart.dashboardUuid !== null,
+        );
+        // TODO also prmote charts within dashboards
+
+        await checkPermissions(
+            organizationUuid,
+            projectUuid,
+            space,
+            'this dashboard and project',
+            projectUuid,
+            undefined,
+        );
+
+        const { upstreamProjectUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (!upstreamProjectUuid)
+            throw new NotFoundError(
+                'This chart does not have an upstream project',
+            );
+
+        const existingUpstreamDashboards = await this.dashboardModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug: promotedDashboard.slug,
+        });
+
+        if (existingUpstreamDashboards.length === 0) {
+            // There are no dashboards with the same slug, we create the chart, and the space if needed
+            // We only check the org/project access
+            await checkPermissions(
+                organizationUuid,
+                upstreamProjectUuid,
+                undefined,
+                'the upstream project',
+                projectUuid,
+                upstreamProjectUuid,
+            );
+
+            let newSpaceUuid: string;
+            const existingSpace = await this.spaceModel.find({
+                projectUuid: upstreamProjectUuid,
+                slug: space.slug,
+            });
+            if (existingSpace.length === 0) {
+                // We have 0 or more than 1 space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    undefined, // we also check here if user can create spaces in the upstream project
+                    'the upstream project',
+                    projectUuid,
+                    upstreamProjectUuid,
+                );
+                // We create a new space
+                const newSpace = await this.spaceModel.createSpace(
+                    upstreamProjectUuid,
+                    space.name,
+                    user.userId,
+                    space.isPrivate,
+                    space.slug,
+                );
+                newSpaceUuid = newSpace.uuid;
+            } else if (existingSpace.length === 1) {
+                // We have an existing space with the same slug
+                await checkPermissions(
+                    organizationUuid,
+                    upstreamProjectUuid,
+                    existingSpace[0],
+                    'the upstream space and project',
+                    projectUuid,
+                    upstreamProjectUuid,
+                );
+                newSpaceUuid = existingSpace[0].uuid;
+            } else {
+                // Multiple spaces with the same slug
+                throw new AlreadyExistsError(
+                    `There are multiple spaces with the same identifier ${space.slug}`,
+                );
+            }
+
+            // Create new dashboard
+            const newDashboardData: CreateDashboard & {
+                slug: string;
+            } = {
+                ...promotedDashboard,
+                spaceUuid: newSpaceUuid,
+                slug: promotedDashboard.slug,
+            };
+            const newDashboard = await this.dashboardModel.create(
+                newSpaceUuid,
+                newDashboardData,
+                user,
+                upstreamProjectUuid,
+            );
+
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    dashboardId: newDashboard.uuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
+                    organizationId: organizationUuid,
+                    slug: newDashboard.slug,
+                    hasExistingContent: false,
+                    withNewSpace: existingSpace.length !== 1,
+                },
+            });
+
+            return newDashboard;
+        }
+        if (existingUpstreamDashboards.length === 1) {
+            // We override existing dashboard details
+            const upstreamDashboard = existingUpstreamDashboards[0];
+            const upstreamSpace = await this.spaceModel.getSpaceSummary(
+                upstreamDashboard.spaceUuid,
+            );
+
+            await checkPermissions(
+                organizationUuid,
+                upstreamProjectUuid,
+                upstreamSpace,
+                'the upstream chart and project',
+                projectUuid,
+                upstreamProjectUuid,
+            );
+
+            if (
+                upstreamDashboard.name !== promotedDashboard.name ||
+                upstreamDashboard.description !== promotedDashboard.description
+            ) {
+                // We also update dashboard name and description if they have changed
+                await this.savedChartModel.update(upstreamDashboard.uuid, {
+                    name: promotedDashboard.name,
+                    description: promotedDashboard.description,
+                });
+            }
+
+            const updatedChart = await this.dashboardModel.addVersion(
+                upstreamDashboard.uuid,
+                promotedDashboard,
+                user,
+                projectUuid,
+            );
+            this.analytics.track({
+                event: 'promote.execute',
+                userId: user.userUuid,
+                properties: {
+                    dashboardId: updatedChart.uuid,
+                    fromProjectId: projectUuid,
+                    toProjectId: upstreamProjectUuid,
+                    organizationId: organizationUuid,
+                    slug: promotedDashboard.slug,
+                    hasExistingContent: true,
+                },
+            });
+
+            return updatedChart;
+        }
+
+        this.analytics.track({
+            event: 'promote.error',
+            userId: user.userUuid,
+            properties: {
+                dashboardId: promotedDashboard.uuid,
+                fromProjectId: projectUuid,
+                toProjectId: upstreamProjectUuid,
+                organizationId: organizationUuid,
+                slug: promotedDashboard.slug,
+                error: `There are multiple dashboards with the same identifier`,
+            },
+        });
+        // Multiple charts with the same slug
+        throw new AlreadyExistsError(
+            `There are multiple dashboards with the same identifier ${promotedDashboard.slug}`,
+        );
     }
 }
