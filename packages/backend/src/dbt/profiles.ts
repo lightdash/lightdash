@@ -189,7 +189,7 @@ const credentialsTarget = (
                 },
                 environment: {
                     [envVar('AWS_ACCESS_KEY_ID')]: credentials.awsAccessKeyId,
-                    [envVar('AWS_SECRET_KEY')]: credentials.awsSecretKey,
+                    [envVar('AWS_SECRET_ACCESS_KEY')]: credentials.awsSecretKey,
                 },
             };
         default:
