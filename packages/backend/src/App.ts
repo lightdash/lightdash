@@ -535,6 +535,14 @@ export default class App {
             }) as RequestHandler,
         );
         expressApp.use(Sentry.Handlers.tracingHandler());
+
+        // Set k8s tags for Sentry
+        Sentry.setTags({
+            podName: this.lightdashConfig.k8s.podName,
+            podNamespace: this.lightdashConfig.k8s.podNamespace,
+            nodeName: this.lightdashConfig.k8s.nodeName,
+            lightdashCloudInstance: this.lightdashConfig.lightdashCloudInstance,
+        });
     }
 
     private initSchedulerWorker() {
