@@ -112,7 +112,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     )}
                 </Box>
                 {table.errors && table.errors.length > 0 ? (
-                    <Text fz="xs" w="100%" color="gray">
+                    <Text fz="13px" w="100%" c="gray.7">
                         {table.errors[0].message}
                     </Text>
                 ) : (
