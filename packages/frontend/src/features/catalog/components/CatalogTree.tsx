@@ -153,6 +153,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         <Tooltip.Group>
             <Box
                 sx={(theme) => ({
+                    minWidth: '600px',
                     border: `1px solid ${theme.colors.gray[3]}`,
                     backgroundColor: theme.fn.lighten(
                         theme.colors.gray[0],
