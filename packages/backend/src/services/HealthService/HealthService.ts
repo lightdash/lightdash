@@ -4,6 +4,7 @@ import {
     LightdashInstallType,
     LightdashMode,
     SessionUser,
+    UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
@@ -41,14 +42,19 @@ export class HealthService extends BaseService {
     async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
 
-        const { isComplete, currentVersion } =
+        const { status: migrationStatus, currentVersion } =
             await this.migrationModel.getMigrationStatus();
 
-        if (!isComplete) {
-            console.warn(
-                `Database migrations are not up to date. Current version: ${currentVersion}`,
+        if (migrationStatus < 0) {
+            throw new UnexpectedDatabaseError(
+                'Database has not been migrated yet',
+                { currentVersion },
             );
-        }
+        } else if (migrationStatus > 0) {
+            console.warn(
+                `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
+            );
+        } // else migrationStatus === 0 (all migrations are up to date)
 
         const requiresOrgRegistration =
             !(await this.organizationModel.hasOrgs());
