@@ -107,6 +107,10 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         release: '',
         environment: '',
+        anr: {
+            enabled: false,
+            captureStacktrace: false,
+        },
     },
     staticIp: '',
     trustProxy: false,
