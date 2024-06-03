@@ -419,6 +419,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
+            anr: {
+                enabled: process.env.SENTRY_ANR_ENABLED === 'true',
+                captureStacktrace:
+                    process.env.SENTRY_ANR_CAPTURE_STACKTRACE === 'true',
+                timeout:
+                    getIntegerFromEnvironmentVariable('SENTRY_ANR_TIMEOUT'),
+            },
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
