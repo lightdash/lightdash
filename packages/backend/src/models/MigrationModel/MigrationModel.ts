@@ -16,7 +16,7 @@ export class MigrationModel {
         const migrationCurrentVersion =
             await this.database.migrate.currentVersion();
         return {
-            isComplete: migrationStatus === 0,
+            status: migrationStatus,
             currentVersion: migrationCurrentVersion,
         };
     }
