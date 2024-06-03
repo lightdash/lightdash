@@ -10,12 +10,12 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
 import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
-import React, { useEffect, useState, type FC } from 'react';
+import React, { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import { useIsTruncated } from '../../../hooks/useIsTruncated';
 
 type Props = {
     table: CatalogTable & { fields: CatalogField[] };
@@ -41,13 +41,8 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
-
-    const [isNameTruncated, setIsNameTruncated] = useState(false);
-    const { ref, width } = useElementSize();
-    useEffect(() => {
-        const element = ref.current!;
-        setIsNameTruncated(element.scrollWidth > element.clientWidth);
-    }, [ref, width]);
+    const { ref, isTruncated: isNameTruncated } =
+        useIsTruncated<HTMLDivElement>();
 
     const countJoinedTables =
         'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
