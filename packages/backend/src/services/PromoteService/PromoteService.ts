@@ -1,27 +1,50 @@
 import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
-    CreateDashboard,
-    CreateSavedChart,
-    ForbiddenError,
+    ChartSummary,
+    DashboardDAO,
     isChartTile,
     NotFoundError,
-    ParameterError,
     SavedChartDAO,
     SessionUser,
+    SpaceShare,
     SpaceSummary,
-    UpdatedByUser,
 } from '@lightdash/common';
-import { Saved } from '@slack/web-api/dist/response/ChatPostMessageResponse';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
-import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
+
+type PromotedChart = {
+    projectUuid: string;
+    chart: SavedChartDAO;
+    space: Omit<SpaceSummary, 'userAccess'>;
+    access: SpaceShare[];
+};
+type UpstreamChart = {
+    projectUuid: string;
+    chart: ChartSummary | undefined;
+    space: Omit<SpaceSummary, 'userAccess'> | undefined;
+    access: SpaceShare[];
+};
+type PromotedDashboard = {
+    projectUuid: string;
+    dashboard: DashboardDAO;
+    space: Omit<SpaceSummary, 'userAccess'>;
+    access: SpaceShare[];
+};
+
+type UpstreamDashboard = {
+    projectUuid: string;
+    dashboard:
+        | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
+        | undefined;
+    space: Omit<SpaceSummary, 'userAccess'> | undefined;
+    access: SpaceShare[];
+};
 
 type PromoteServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -54,7 +77,7 @@ export class PromoteService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.dashboardModel = args.dashboardModel;
     }
-
+    /*
     private checkPermissions = async ({
         user,
         subjectType,
@@ -68,7 +91,7 @@ export class PromoteService extends BaseService {
         dashboardUuid,
     }: {
         user: SessionUser;
-        subjectType: 'Charts' | 'Dashboards';
+        subjectType: 'SavedChart' | 'Dashboard';
         organizationUuid: string;
         projectUuid: string;
         space: Omit<SpaceSummary, 'userAccess'> | undefined;
@@ -119,12 +142,409 @@ export class PromoteService extends BaseService {
             });
 
             throw new ForbiddenError(
-                `You don't have the right access permissions on ${context} to promote ${subjectType.toLowerCase()}.`,
+                `You don't have the right access permissions on ${context} to promote.`,
             );
         }
-    };
+    };       
+  */
+
+    async getPromoteCharts(
+        user: SessionUser,
+        upstreamProjectUuid: string,
+        chartUuid: string,
+    ): Promise<{
+        promotedChart: PromotedChart;
+        upstreamChart: UpstreamChart;
+    }> {
+        const savedChart = await this.savedChartModel.get(chartUuid, undefined);
+
+        const promotedSpace = await this.spaceModel.getSpaceSummary(
+            savedChart.spaceUuid,
+        );
+        const upstreamCharts = await this.savedChartModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug: savedChart.slug,
+        });
+        if (upstreamCharts.length > 1) {
+            throw new AlreadyExistsError(
+                `There are multiple charts with the same identifier ${savedChart.slug}`,
+            );
+        }
+        const upstreamChart =
+            upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
+        const upstreamSpaces = await this.spaceModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug: promotedSpace.slug,
+        });
+        if (upstreamSpaces.length > 1) {
+            throw new AlreadyExistsError(
+                `There are multiple spaces with the same identifier ${promotedSpace.slug}`,
+            );
+        }
+        const upstreamSpace =
+            upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
+
+        return {
+            promotedChart: {
+                chart: savedChart,
+                projectUuid: upstreamProjectUuid,
+                space: promotedSpace,
+                access: await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    promotedSpace.uuid,
+                ),
+            },
+            upstreamChart: {
+                chart: upstreamChart,
+                projectUuid: upstreamProjectUuid,
+                space: upstreamSpace,
+                access: upstreamSpace
+                    ? await this.spaceModel.getUserSpaceAccess(
+                          user.userUuid,
+                          upstreamSpace.uuid,
+                      )
+                    : [],
+            },
+        };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    checkPromoteChartPermissions(
+        user: SessionUser,
+        promoteChart: PromotedChart,
+        upstreamChart: UpstreamChart,
+    ) {
+        // Check permissions on `from project`
+        // Check permissions on `upstream project`
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    checkPromoteDashboardPermissions(
+        user: SessionUser,
+        promotedDashboard: PromotedDashboard,
+        upstreamDashboard: UpstreamDashboard,
+    ) {
+        // Check permissions on `from project`
+        // Check permissions on `upstream project`
+    }
+
+    async getOrCreateSpace(
+        user: SessionUser,
+        projectUuid: string,
+        space: {
+            projectUuid: string;
+            name: string;
+            userId: number;
+            isPrivate: boolean;
+            slug: string;
+        },
+    ): Promise<{ uuid: string; isNew: boolean }> {
+        const existingSpace = await this.spaceModel.find({
+            projectUuid,
+            slug: space.slug,
+        });
+        if (existingSpace.length === 0) {
+            // We have 0 or more than 1 space with the same slug
+            /*  await this.checkPermissions({
+                user,
+                subjectType: 'SavedChart',
+                organizationUuid,
+                projectUuid: upstreamProjectUuid,
+                space: undefined,
+                context: 'the upstream project',
+                fromProjectUuid: fromProjectUuid,
+                toProjectUuid: upstreamProjectUuid,
+            }); */
+
+            // We create a new space
+            const newSpace = await this.spaceModel.createSpace(
+                projectUuid,
+                space.name,
+                user.userId,
+                space.isPrivate,
+                space.slug,
+            );
+            return { uuid: newSpace.uuid, isNew: true };
+        }
+        if (existingSpace.length === 1) {
+            // We have an existing space with the same slug
+            /*  await this.checkPermissions({
+                user,
+                subjectType: 'SavedChart',
+                organizationUuid,
+                projectUuid: upstreamProjectUuid,
+                space: existingSpace[0],
+                context: 'the upstream space and project',
+                fromProjectUuid: fromProjectUuid,
+                toProjectUuid: upstreamProjectUuid,
+            }); */
+
+            return { uuid: existingSpace[0].uuid, isNew: false };
+        }
+        // Multiple spaces with the same slug
+        throw new AlreadyExistsError(
+            `There are multiple spaces with the same identifier ${space.slug}`,
+        );
+    }
+
+    async upsertChart(
+        user: SessionUser,
+        promotedContent: PromotedChart,
+        upstreamContent: UpstreamChart,
+    ) {
+        const upstreamChart = upstreamContent.chart;
+        const promotedChart = promotedContent.chart;
+        if (upstreamChart === undefined) {
+            // Create chart
+            if (promotedChart?.dashboardUuid) {
+                // Create chat in dashboard
+                return this.savedChartModel.create(
+                    upstreamContent.projectUuid,
+                    user.userUuid,
+                    {
+                        ...promotedChart,
+                        dashboardUuid: promotedChart.dashboardUuid,
+                        spaceUuid: undefined,
+                        updatedByUser: user,
+                        slug: promotedChart.slug,
+                    },
+                );
+            }
+
+            // Create chart in space
+            const space = await this.getOrCreateSpace(
+                user,
+                upstreamContent.projectUuid,
+                {
+                    name: promotedContent.space.name,
+                    isPrivate: promotedContent.space.isPrivate || false,
+                    projectUuid: promotedContent.projectUuid,
+                    slug: promotedContent.space.slug,
+                    userId: user.userId,
+                },
+            );
+            return this.savedChartModel.create(
+                upstreamContent.projectUuid,
+                user.userUuid,
+                {
+                    ...promotedChart,
+                    dashboardUuid: undefined,
+                    spaceUuid: space.uuid,
+                    updatedByUser: user,
+                    slug: promotedChart.slug,
+                },
+            );
+        }
+
+        if (
+            upstreamChart.name !== promotedChart.name ||
+            upstreamChart.description !== promotedChart.description
+        ) {
+            // We also update chart name and description if they have changed
+            await this.savedChartModel.update(upstreamChart.uuid, {
+                name: promotedChart.name,
+                description: promotedChart.description,
+            });
+        }
+        // update chart
+        const updatedChart = await this.savedChartModel.createVersion(
+            upstreamChart.uuid,
+            {
+                tableName: promotedChart.tableName,
+                metricQuery: promotedChart.metricQuery,
+                chartConfig: promotedChart.chartConfig,
+                tableConfig: promotedChart.tableConfig,
+            },
+            user,
+        );
+        return updatedChart;
+    }
 
     async promoteChart(user: SessionUser, chartUuid: string) {
+        const { projectUuid } = await this.savedChartModel.getSummary(
+            chartUuid,
+        );
+
+        const { upstreamProjectUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (!upstreamProjectUuid)
+            throw new NotFoundError(
+                'This chart does not have an upstream project',
+            );
+        const { promotedChart, upstreamChart } = await this.getPromoteCharts(
+            user,
+            upstreamProjectUuid,
+            chartUuid,
+        );
+        await this.checkPromoteChartPermissions(
+            user,
+            promotedChart,
+            upstreamChart,
+        );
+
+        return this.upsertChart(user, promotedChart, upstreamChart);
+    }
+
+    async promoteDashboard(user: SessionUser, dashboardUuid: string) {
+        const dashboard = await this.dashboardModel.getById(dashboardUuid);
+
+        const { upstreamProjectUuid } = await this.projectModel.getSummary(
+            dashboard.projectUuid,
+        );
+        if (!upstreamProjectUuid)
+            throw new NotFoundError(
+                'This chart does not have an upstream project',
+            );
+
+        const promotedSpace = await this.spaceModel.getSpaceSummary(
+            dashboard.spaceUuid,
+        );
+
+        const existingUpstreamDashboards = await this.dashboardModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug: dashboard.slug,
+        });
+        if (existingUpstreamDashboards.length > 1) {
+            throw new AlreadyExistsError(
+                `There are multiple dashboards with the same identifier ${dashboard.slug}`,
+            );
+        }
+
+        const upstreamSpaces = await this.spaceModel.find({
+            projectUuid: upstreamProjectUuid,
+            slug: promotedSpace.slug,
+        });
+        if (upstreamSpaces.length > 1) {
+            throw new AlreadyExistsError(
+                `There are multiple spaces with the same identifier ${promotedSpace.slug}`,
+            );
+        }
+
+        const promotedDashboard = {
+            dashboard,
+            projectUuid: dashboard.projectUuid,
+            space: promotedSpace,
+            access: await this.spaceModel.getUserSpaceAccess(
+                user.userUuid,
+                promotedSpace.uuid,
+            ),
+        };
+        const upstreamSpace =
+            upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
+        const upstreamDashboard = {
+            dashboard:
+                existingUpstreamDashboards.length === 1
+                    ? existingUpstreamDashboards[0]
+                    : undefined,
+            projectUuid: upstreamProjectUuid,
+            space: upstreamSpace,
+            access: upstreamSpace
+                ? await this.spaceModel.getUserSpaceAccess(
+                      user.userUuid,
+                      upstreamSpace.uuid,
+                  )
+                : [],
+        };
+
+        await this.checkPromoteDashboardPermissions(
+            user,
+            promotedDashboard,
+            upstreamDashboard,
+        );
+
+        // Check permissions for all chart tiles
+        const chartsUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
+            if (isChartTile(tile) && tile.properties.savedChartUuid) {
+                return [...acc, tile.properties.savedChartUuid];
+            }
+            return acc;
+        }, []);
+        const chartPromises = chartsUuids.map((chartUuid) =>
+            this.getPromoteCharts(user, upstreamProjectUuid, chartUuid),
+        );
+        const charts = await Promise.all(chartPromises);
+        charts.forEach(({ promotedChart, upstreamChart }) =>
+            this.checkPromoteChartPermissions(
+                user,
+                promotedChart,
+                upstreamChart,
+            ),
+        );
+
+        // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
+
+        // TODO upsertDashboard
+
+        // Upserting all charts
+        const upsertChartPromises = charts.map(
+            ({ promotedChart, upstreamChart }) =>
+                this.upsertChart(user, promotedChart, upstreamChart),
+        );
+        const updatedCharts = await Promise.all(upsertChartPromises);
+
+        return promotedDashboard.dashboard;
+    }
+    /*
+    async createChart(user: SessionUser, chart: PromoteChart) {
+        // There are no chart with the same slug, we create the chart, and the space if needed
+            // We only check the org/project access
+           
+            if (chart.dashboardUuid) {
+                const newChartData: CreateSavedChart & {
+                    slug: string;
+                    updatedByUser: UpdatedByUser;
+                } = {
+                    ...chart,
+                    dashboardUuid: chart.dashboardUuid,
+                    updatedByUser: user,
+                    slug: chart.slug,
+                };
+                const newChart = await this.savedChartModel.create(
+                    chart.projectUuid,
+                    user.userUuid,
+                    newChartData,
+                );
+                return newChart
+            } else {
+                const newSpace = await this.getOrCreateSpace(user, chart.projectUuid, {
+                    name: chart.space.name, 
+                    isPrivate: chart.space.isPrivate,
+                    projectUuid: chart.projectUuid,
+                    slug: chart.space.slug,
+                    userId: user.userId
+    
+                })
+
+                // Create new chart
+                const newChartData: CreateSavedChart & {
+                    slug: string;
+                    updatedByUser: UpdatedByUser;
+                } = {
+                    ...chart,
+                    dashboardUuid: undefined, // We don't copy charts within dashboards
+                    spaceUuid: newSpace.uuid,
+                    updatedByUser: user,
+                    slug: chart.slug,
+                };
+                const newChart = await this.savedChartModel.create(
+                    chart.projectUuid,
+                    user.userUuid,
+                    newChartData,
+                );
+                return newChart
+
+            }
+            
+
+
+
+            
+            return newChart;
+    }
+
+    async promoteChart(user: SessionUser, chartUuid: string, checkPermissionsOnly=false ) {
+
         const promotedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
@@ -146,7 +566,7 @@ export class PromoteService extends BaseService {
 
         await this.checkPermissions({
             user,
-            subjectType: 'Charts',
+            subjectType: 'SavedChart',
             organizationUuid,
             projectUuid,
             space,
@@ -174,7 +594,7 @@ export class PromoteService extends BaseService {
             // We only check the org/project access
             await this.checkPermissions({
                 user,
-                subjectType: 'Charts',
+                subjectType: 'SavedChart',
                 organizationUuid,
                 projectUuid,
                 space: undefined,
@@ -183,56 +603,14 @@ export class PromoteService extends BaseService {
                 toProjectUuid: upstreamProjectUuid,
                 chartUuid,
             });
-
-            let newSpaceUuid: string;
-            const existingSpace = await this.spaceModel.find({
+            const newSpace = await this.getOrCreateSpace(user, projectUuid, upstreamProjectUuid, {
+                name: space.name, 
+                isPrivate: space.isPrivate,
                 projectUuid: upstreamProjectUuid,
                 slug: space.slug,
-            });
-            if (existingSpace.length === 0) {
-                // We have 0 or more than 1 space with the same slug
-                await this.checkPermissions({
-                    user,
-                    subjectType: 'Charts',
-                    organizationUuid,
-                    projectUuid: upstreamProjectUuid,
-                    space: undefined,
-                    context: 'the upstream project',
-                    fromProjectUuid: projectUuid,
-                    toProjectUuid: upstreamProjectUuid,
-                    chartUuid,
-                });
+                userId: user.userId
 
-                // We create a new space
-                const newSpace = await this.spaceModel.createSpace(
-                    upstreamProjectUuid,
-                    space.name,
-                    user.userId,
-                    space.isPrivate,
-                    space.slug,
-                );
-                newSpaceUuid = newSpace.uuid;
-            } else if (existingSpace.length === 1) {
-                // We have an existing space with the same slug
-                await this.checkPermissions({
-                    user,
-                    subjectType: 'Charts',
-                    organizationUuid,
-                    projectUuid: upstreamProjectUuid,
-                    space: existingSpace[0],
-                    context: 'the upstream space and project',
-                    fromProjectUuid: projectUuid,
-                    toProjectUuid: upstreamProjectUuid,
-                    chartUuid,
-                });
-
-                newSpaceUuid = existingSpace[0].uuid;
-            } else {
-                // Multiple spaces with the same slug
-                throw new AlreadyExistsError(
-                    `There are multiple spaces with the same identifier ${space.slug}`,
-                );
-            }
+            })
 
             // Create new chart
             const newChartData: CreateSavedChart & {
@@ -241,7 +619,7 @@ export class PromoteService extends BaseService {
             } = {
                 ...promotedChart,
                 dashboardUuid: undefined, // We don't copy charts within dashboards
-                spaceUuid: newSpaceUuid,
+                spaceUuid: newSpace.uuid,
                 updatedByUser: promotedChart.updatedByUser!,
                 slug: promotedChart.slug,
             };
@@ -261,7 +639,7 @@ export class PromoteService extends BaseService {
                     organizationId: organizationUuid,
                     slug: promotedChart.slug,
                     hasExistingContent: false,
-                    withNewSpace: existingSpace.length !== 1,
+                    withNewSpace: newSpace.isNew,
                 },
             });
 
@@ -276,7 +654,7 @@ export class PromoteService extends BaseService {
 
             await this.checkPermissions({
                 user,
-                subjectType: 'Charts',
+                subjectType: 'SavedChart',
                 organizationUuid,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
@@ -349,6 +727,7 @@ export class PromoteService extends BaseService {
     }
 
     async promoteDashboard(user: SessionUser, dashboardUuid: string) {
+
         const promotedDashboard = await this.dashboardModel.getById(
             dashboardUuid,
         );
@@ -375,15 +754,15 @@ export class PromoteService extends BaseService {
         );
         const charts = await Promise.all(chartPromises);
 
-        const chartsWithinDashboards = charts.filter(
-            (chart) => chart.dashboardUuid !== null,
-        );
+        // Check permission for all charts
+        // If one of the chart is throwing an error, then we will not promote this dashboard 
+        charts.map((chart)=> {
 
-        // TODO also prmote charts within dashboards
-
+        })
+        try {
         await this.checkPermissions({
             user,
-            subjectType: 'Dashboards',
+            subjectType: 'Dashboard',
             organizationUuid,
             projectUuid,
             space,
@@ -405,13 +784,13 @@ export class PromoteService extends BaseService {
             projectUuid: upstreamProjectUuid,
             slug: promotedDashboard.slug,
         });
-
+    
         if (existingUpstreamDashboards.length === 0) {
             // There are no dashboards with the same slug, we create the chart, and the space if needed
             // We only check the org/project access
             await this.checkPermissions({
                 user,
-                subjectType: 'Dashboards',
+                subjectType: 'Dashboard',
                 organizationUuid,
                 projectUuid,
                 space: undefined,
@@ -430,7 +809,7 @@ export class PromoteService extends BaseService {
                 // We have 0 or more than 1 space with the same slug
                 await this.checkPermissions({
                     user,
-                    subjectType: 'Dashboards',
+                    subjectType: 'Dashboard',
                     organizationUuid,
                     projectUuid,
                     space: undefined,
@@ -453,7 +832,7 @@ export class PromoteService extends BaseService {
                 // We have an existing space with the same slug
                 await this.checkPermissions({
                     user,
-                    subjectType: 'Dashboards',
+                    subjectType: 'Dashboard',
                     organizationUuid,
                     projectUuid: upstreamProjectUuid,
                     space: existingSpace[0],
@@ -512,7 +891,7 @@ export class PromoteService extends BaseService {
 
             await this.checkPermissions({
                 user,
-                subjectType: 'Dashboards',
+                subjectType: 'Dashboard',
                 organizationUuid,
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
@@ -573,5 +952,9 @@ export class PromoteService extends BaseService {
         throw new AlreadyExistsError(
             `There are multiple dashboards with the same identifier ${promotedDashboard.slug}`,
         );
+    } catch(e) {
+        console.error(e)
+        throw e 
     }
+    } */
 }

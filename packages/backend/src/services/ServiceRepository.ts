@@ -619,10 +619,9 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
-                    userAttributesModel: this.models.getUserAttributesModel(),
-                    catalogModel: this.models.getCatalogModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }

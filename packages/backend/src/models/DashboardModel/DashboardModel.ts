@@ -488,10 +488,10 @@ export class DashboardModel {
         Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>[]
     > {
         const query = this.database(DashboardsTableName).select(
-            'name',
-            'dashboard_uuid',
-            'space_uuid',
-            'description',
+            `${DashboardsTableName}.name`,
+            `${DashboardsTableName}.dashboard_uuid`,
+            `${SpaceTableName}.space_uuid`,
+            `${DashboardsTableName}.description`,
         );
 
         if (projectUuid) {
