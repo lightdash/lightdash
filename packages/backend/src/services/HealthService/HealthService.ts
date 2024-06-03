@@ -4,7 +4,6 @@ import {
     LightdashInstallType,
     LightdashMode,
     SessionUser,
-    UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
@@ -46,9 +45,8 @@ export class HealthService extends BaseService {
             await this.migrationModel.getMigrationStatus();
 
         if (!isComplete) {
-            throw new UnexpectedDatabaseError(
-                'Database has not been migrated yet',
-                { currentVersion },
+            console.warn(
+                `Database migrations are not up to date. Current version: ${currentVersion}`,
             );
         }
 
