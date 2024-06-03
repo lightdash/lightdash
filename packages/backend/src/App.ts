@@ -451,6 +451,8 @@ export default class App {
                 passportUser: { id: string; organization: string },
                 done,
             ) => {
+                // Set the organization tag so we can filter by it in Sentry
+                Sentry.setTag('organization', passportUser.organization);
                 // Convert to a full user profile
                 try {
                     done(null, await userService.findSessionUser(passportUser));
