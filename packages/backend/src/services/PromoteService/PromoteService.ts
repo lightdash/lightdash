@@ -11,6 +11,7 @@ import {
     SessionUser,
     SpaceShare,
     SpaceSummary,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -35,7 +36,6 @@ type UpstreamChart = {
 type PromotedDashboard = {
     projectUuid: string;
     dashboard: DashboardDAO;
-    chartUuids: string[];
     space: Omit<SpaceSummary, 'userAccess'>;
     access: SpaceShare[];
 };
@@ -114,7 +114,8 @@ export class PromoteService extends BaseService {
                         : upstreamContent.dashboard !== undefined,
                 chartsCount:
                     'dashboard' in promotedContent
-                        ? promotedContent.chartUuids.length
+                        ? promotedContent.dashboard.tiles.filter(isChartTile)
+                              .length
                         : undefined,
                 error,
             },
@@ -432,7 +433,9 @@ export class PromoteService extends BaseService {
         upstreamContent: UpstreamChart | UpstreamDashboard,
     ): Promise<{ uuid: string; isNew: boolean }> {
         if (promotedContent.space === undefined)
-            throw new NotFoundError(`Invalid space for promoted content`);
+            throw new UnexpectedServerError(
+                `Invalid space for promoted content`,
+            );
         if (upstreamContent.space) {
             return { uuid: upstreamContent.space.uuid, isNew: false };
         }
@@ -456,7 +459,7 @@ export class PromoteService extends BaseService {
         if (upstreamChart === undefined) {
             // Create chart
             if (promotedChart?.dashboardUuid) {
-                // Create chat in dashboard
+                // Create chart in dashboard
                 return this.savedChartModel.create(
                     upstreamContent.projectUuid,
                     user.userUuid,
@@ -503,6 +506,7 @@ export class PromoteService extends BaseService {
             });
         }
         // update chart
+        // TODO check if version needs to change ?
         const updatedChart = await this.savedChartModel.createVersion(
             upstreamChart.uuid,
             {
@@ -510,6 +514,7 @@ export class PromoteService extends BaseService {
                 metricQuery: promotedChart.metricQuery,
                 chartConfig: promotedChart.chartConfig,
                 tableConfig: promotedChart.tableConfig,
+                dashboardUuid: promotedChart.dashboardUuid,
             },
             user,
         );
@@ -566,37 +571,50 @@ export class PromoteService extends BaseService {
         }
     }
 
-    private async upsertDashboard(
+    private async getOrCreateDashboard(
+        user: SessionUser,
+        promotedContent: PromotedDashboard,
+        upstreamContent: UpstreamDashboard,
+    ) {
+        // If the dashboard already exists, we return it
+        if (upstreamContent.dashboard !== undefined) {
+            return upstreamContent.dashboard;
+        }
+        // If the dashboard doesn't exist in the upstream project, we create with no tiles (we will populate later)
+
+        const space = await this.getOrCreateSpace(
+            user,
+            promotedContent,
+            upstreamContent,
+        );
+        // Create new dashboard
+        const newDashboardData: CreateDashboard & {
+            slug: string;
+        } = {
+            ...promotedContent.dashboard,
+            spaceUuid: space.uuid,
+            slug: promotedContent.dashboard.slug,
+        };
+        const newDashboard = await this.dashboardModel.create(
+            space.uuid,
+            newDashboardData,
+            user,
+            upstreamContent.projectUuid,
+        );
+
+        return newDashboard;
+    }
+
+    private async updateDashboard(
         user: SessionUser,
         promotedContent: PromotedDashboard,
         upstreamContent: UpstreamDashboard,
     ) {
         const promotedDashboard = promotedContent.dashboard;
         if (upstreamContent.dashboard === undefined) {
-            // There are no dashboards with the same slug, we create the chart, and the space if needed
-            // We only check the org/project access
-
-            const space = await this.getOrCreateSpace(
-                user,
-                promotedContent,
-                upstreamContent,
-            );
-            // Create new dashboard
-            const newDashboardData: CreateDashboard & {
-                slug: string;
-            } = {
-                ...promotedContent.dashboard,
-                spaceUuid: space.uuid,
-                slug: promotedContent.dashboard.slug,
-            };
-            const newDashboard = await this.dashboardModel.create(
-                space.uuid,
-                newDashboardData,
-                user,
-                upstreamContent.projectUuid,
-            );
-
-            return newDashboard;
+            // Make sure you create the dashboard with `getOrCreateDashboard` and update `upstreamContent`
+            // before calling this method
+            throw new UnexpectedServerError(`Missing dashboard to promote`);
         }
 
         // We override existing dashboard details
@@ -668,7 +686,6 @@ export class PromoteService extends BaseService {
         const promotedDashboard: PromotedDashboard = {
             dashboard,
             projectUuid: dashboard.projectUuid,
-            chartUuids,
             space: promotedSpace,
             access: await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
@@ -715,20 +732,69 @@ export class PromoteService extends BaseService {
             );
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
-            const updatedDashboard = await this.upsertDashboard(
+
+            // We first create the dashboard if needed, with empty tiles
+            // Because we need the dashboardUuid to update the charts within the dashboard
+            const createdDashboard = await this.getOrCreateDashboard(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
             );
-
             // Upserting all charts
             // This should not cause any permission issues, as we have already checked them
             // But if this fails somehow, we should return a partial success response
-            const upsertChartPromises = charts.map(
-                ({ promotedChart, upstreamChart }) =>
-                    this.upsertChart(user, promotedChart, upstreamChart),
+            const upsertChartPromises: Promise<[string, SavedChartDAO]>[] =
+                charts.map(({ promotedChart, upstreamChart }) => {
+                    const updatedChartWithDashboard = {
+                        ...promotedChart,
+                        chart: {
+                            ...promotedChart.chart,
+                            dashboardUuid: createdDashboard.uuid,
+                        },
+                    };
+                    return this.upsertChart(
+                        user,
+                        updatedChartWithDashboard,
+                        upstreamChart,
+                    ).then((upsertedChart) => [
+                        promotedChart.chart.uuid,
+                        upsertedChart,
+                    ]);
+                });
+            // We update the dashboard tiles with the chart uuids we've just insterted
+            const upsertedCharts = await Promise.all(upsertChartPromises);
+            const updatedTiles = dashboard.tiles.map((tile) => {
+                if (isChartTile(tile)) {
+                    const [p, upsertedChart] = upsertedCharts.find(
+                        ([promotedChartUuid]) =>
+                            promotedChartUuid ===
+                            tile.properties.savedChartUuid,
+                    )!;
+                    return {
+                        ...tile,
+                        properties: {
+                            ...tile.properties,
+                            savedChartUuid: upsertedChart.uuid,
+                        },
+                    };
+                }
+                return tile;
+            });
+
+            const updatedDashboard = await this.updateDashboard(
+                user,
+                {
+                    ...promotedDashboard,
+                    dashboard: {
+                        ...promotedDashboard.dashboard,
+                        tiles: updatedTiles,
+                    },
+                },
+                {
+                    ...upstreamDashboard,
+                    dashboard: createdDashboard,
+                },
             );
-            await Promise.all(upsertChartPromises);
 
             // Delete orphaned charts in dashboard
             const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
