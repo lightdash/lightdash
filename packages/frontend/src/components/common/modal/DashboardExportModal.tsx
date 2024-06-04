@@ -44,11 +44,7 @@ const CsvExport: FC<CsvExportProps & Pick<ModalProps, 'onClose'>> = ({
     return (
         <Stack p="md">
             {!!dateZoomGranularity && (
-                <Alert
-                    title="Date zoom granularity is enabled"
-                    color="blue"
-                    mb="md"
-                >
+                <Alert title="Date zoom is enabled" color="blue" mb="md">
                     Your CSV export will include data for the selected date zoom
                     granularity.
                 </Alert>
