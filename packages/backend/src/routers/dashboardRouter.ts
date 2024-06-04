@@ -197,9 +197,9 @@ dashboardRouter.post(
                 .getCsvService()
                 .exportCsvDashboard(
                     req.user!,
-
                     req.params.dashboardUuid,
                     req.body.filters,
+                    req.body.dateZoomGranularity,
                 );
 
             res.json({
