@@ -277,7 +277,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         else promoteDashboard(item.data.uuid);
                                     }}
                                 >
-                                    Promote chart
+                                    Promote{' '}
+                                    {item.type === ResourceViewItemType.CHART
+                                        ? 'chart'
+                                        : 'dashboard'}
                                 </Menu.Item>
                             </div>
                         </Tooltip>
