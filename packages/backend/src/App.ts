@@ -491,6 +491,19 @@ export default class App {
                 new Sentry.Integrations.Postgres({ usePgNative: true }),
                 nodeProfilingIntegration(),
                 ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
+                ...(this.lightdashConfig.sentry.anr.enabled
+                    ? [
+                          Sentry.anrIntegration({
+                              pollInterval: 50, // ms
+                              anrThreshold:
+                                  this.lightdashConfig.sentry.anr.timeout ||
+                                  5000, // ms
+                              captureStackTrace:
+                                  this.lightdashConfig.sentry.anr
+                                      .captureStacktrace,
+                          }),
+                      ]
+                    : []),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {

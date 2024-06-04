@@ -684,6 +684,11 @@ export type SentryConfig = {
     };
     release: string;
     environment: string;
+    anr: {
+        enabled: boolean;
+        timeout?: number;
+        captureStacktrace: boolean;
+    };
 };
 
 export type HealthState = {
