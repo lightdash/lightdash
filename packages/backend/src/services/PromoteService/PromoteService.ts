@@ -185,15 +185,26 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         promotedContent: PromotedChart | PromotedDashboard,
         upstreamContent: UpstreamChart | UpstreamDashboard,
+        promotedDashboard?: PromotedDashboard,
     ) {
         const { organizationUuid } = user;
 
-        if (
-            promotedContent.space?.isPrivate ||
-            upstreamContent.space?.isPrivate
-        ) {
+        if (promotedContent.space?.isPrivate) {
+            const chartName =
+                'chart' in promotedContent ? promotedContent.chart.name : '';
             throw new ForbiddenError(
-                `We can't promote content on private spaces.`,
+                promotedDashboard
+                    ? `Failed to promote dashboard: this dashboard uses a chart "${chartName}" which belongs to a private space "${promotedContent.space?.name}". You cannot promote content from private spaces.`
+                    : `Failed to promote: We can't promote content on private spaces.`,
+            );
+        }
+        if (upstreamContent.space?.isPrivate) {
+            const chartName =
+                'chart' in promotedContent ? promotedContent.chart.name : '';
+            throw new ForbiddenError(
+                promotedDashboard
+                    ? `Failed to promote dashboard: this dashboard uses a chart "${chartName}" which belongs to a private space "${promotedContent.space?.name}" in the upstream project. You cannot promote content to private spaces.`
+                    : `Failed to promote: We can't promote content to private spaces.`,
             );
         }
 
@@ -210,7 +221,7 @@ export class PromoteService extends BaseService {
                 )
             ) {
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the destination space to promote.`,
+                    `Failed to promote: you do not have access to modify this space "${upstreamContent.space.name}" in the upstream project.`,
                 );
             }
         } // If upstreamContent has no space, we check if we have permissions to create new spaces
@@ -224,7 +235,7 @@ export class PromoteService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                `You don't have the right access permissions on the destination to create spaces.`,
+                `Failed to promote: you do not have access to create a space in the upstream project.`,
             );
         }
     }
@@ -233,6 +244,7 @@ export class PromoteService extends BaseService {
         user: SessionUser,
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
+        promotedDashboard?: PromotedDashboard,
     ) {
         const { organizationUuid } = user;
         // Check permissions on `from project`
@@ -250,7 +262,9 @@ export class PromoteService extends BaseService {
                 )
             )
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the origin space and chart to promote.`,
+                    promotedDashboard
+                        ? `Failed to promote dashboard: this dashboard uses a chart "${promotedChart.chart.name}" which you don't have access to edit in the origin project.`
+                        : `Failed to promote chart: you don't have access to edit this chart in the origin project.`,
                 );
         } // Charts within dashboard
         else if (
@@ -263,7 +277,9 @@ export class PromoteService extends BaseService {
             )
         )
             throw new ForbiddenError(
-                `You don't have the right access permissions on the origin chart to promote.`,
+                promotedDashboard
+                    ? `Failed to promote dashboard: this dashboard uses a chart within dashboard "${promotedChart.chart.name}" which you don't have access to edit in the origin project.`
+                    : `Failed to promote chart: you don't have access to edit this chart within dashboard in the origin project.`,
             );
 
         // Check permissions on `upstream project`
@@ -283,7 +299,9 @@ export class PromoteService extends BaseService {
                     )
                 ) {
                     throw new ForbiddenError(
-                        `You don't have the right access permissions on the destination space and chart to promote.`,
+                        promotedDashboard
+                            ? `Failed to promote dashboard: this dashboard uses a chart "${promotedChart.chart.name}" which you don't have access to edit in the upstream project.`
+                            : `Failed to promote chart: you don't have access to edit this chart in the upstream project.`,
                     );
                 }
             } else if (
@@ -296,7 +314,9 @@ export class PromoteService extends BaseService {
                 )
             ) {
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the destination chart to promote.`,
+                    promotedDashboard
+                        ? `Failed to promote dashboard: this dashboard uses a chart within dashboard "${promotedChart.chart.name}" which you don't have access to edit in the upstream project.`
+                        : `Failed to promote chart: you don't have access to edit this chart within dashboard in the upstream project.`,
                 );
             }
         } else if (upstreamChart.space !== undefined) {
@@ -312,7 +332,9 @@ export class PromoteService extends BaseService {
                 )
             ) {
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the destination to create charts.`,
+                    promotedDashboard
+                        ? `Failed to promote dashboard: this dashboard uses a chart "${promotedChart.chart.name}" which belongs to a space ${upstreamChart.space.name} you don't have access to edit in the upstream project.`
+                        : `Failed to promote chart: this chart belongs to a space ${upstreamChart.space.name} you don't have access to edit in the upstream project.`,
                 );
             }
         }
@@ -321,6 +343,7 @@ export class PromoteService extends BaseService {
             user,
             promotedChart,
             upstreamChart,
+            promotedDashboard,
         );
     }
 
@@ -343,7 +366,7 @@ export class PromoteService extends BaseService {
             )
         )
             throw new ForbiddenError(
-                `You don't have the right access permissions on the origin space and dashboard to promote.`,
+                `Failed to promote dashboard: You do not have the right access permissions on the origin space and dashboard to promote.`,
             );
 
         // Check permissions on `upstream project`
@@ -363,7 +386,7 @@ export class PromoteService extends BaseService {
                     )
                 ) {
                     throw new ForbiddenError(
-                        `You don't have the right access permissions on the destination space and dashboard to promote.`,
+                        `Failed to promote dashboard: You do not have the right access  on the destination space and dashboard to promote.`,
                     );
                 }
             } else if (
@@ -376,7 +399,7 @@ export class PromoteService extends BaseService {
                 )
             ) {
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the destination dashboard to promote.`,
+                    `Failed to promote dashboard: You do not have the right access permissions on the destination dashboard to promote.`,
                 );
             }
         } else if (upstreamDashboard.space !== undefined) {
@@ -392,7 +415,7 @@ export class PromoteService extends BaseService {
                 )
             ) {
                 throw new ForbiddenError(
-                    `You don't have the right access permissions on the destination to create dashboards.`,
+                    `Failed to promote dashboard: You do not have the right access permissions on the destination to create dashboards.`,
                 );
             }
         }
@@ -469,12 +492,14 @@ export class PromoteService extends BaseService {
 
         if (
             upstreamChart.name !== promotedChart.name ||
-            upstreamChart.description !== promotedChart.description
+            upstreamChart.description !== promotedChart.description ||
+            upstreamChart.spaceUuid !== upstreamContent.space?.uuid
         ) {
             // We also update chart name and description if they have changed
             await this.savedChartModel.update(upstreamChart.uuid, {
                 name: promotedChart.name,
                 description: promotedChart.description,
+                spaceUuid: upstreamContent.space?.uuid,
             });
         }
         // update chart
@@ -556,7 +581,6 @@ export class PromoteService extends BaseService {
                 promotedContent,
                 upstreamContent,
             );
-
             // Create new dashboard
             const newDashboardData: CreateDashboard & {
                 slug: string;
@@ -580,12 +604,14 @@ export class PromoteService extends BaseService {
 
         if (
             upstreamDashboard.name !== promotedDashboard.name ||
-            upstreamDashboard.description !== promotedDashboard.description
+            upstreamDashboard.description !== promotedDashboard.description ||
+            upstreamDashboard.spaceUuid !== upstreamContent.space?.uuid
         ) {
             // We also update dashboard name and description if they have changed
-            await this.savedChartModel.update(upstreamDashboard.uuid, {
+            await this.dashboardModel.update(upstreamDashboard.uuid, {
                 name: promotedDashboard.name,
                 description: promotedDashboard.description,
+                spaceUuid: upstreamContent.space?.uuid,
             });
         }
 
@@ -684,11 +710,11 @@ export class PromoteService extends BaseService {
                     user,
                     promotedChart,
                     upstreamChart,
+                    promotedDashboard,
                 ),
             );
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
-
             const updatedDashboard = await this.upsertDashboard(
                 user,
                 promotedDashboard,
@@ -703,6 +729,16 @@ export class PromoteService extends BaseService {
                     this.upsertChart(user, promotedChart, upstreamChart),
             );
             await Promise.all(upsertChartPromises);
+
+            // Delete orphaned charts in dashboard
+            const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
+                dashboardUuid,
+            );
+            await Promise.all(
+                orphanedCharts.map((chart) =>
+                    this.savedChartModel.delete(chart.uuid),
+                ),
+            );
 
             await this.trackAnalytics(
                 user,
