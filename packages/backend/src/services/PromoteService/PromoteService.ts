@@ -730,15 +730,18 @@ export class PromoteService extends BaseService {
             );
             await Promise.all(upsertChartPromises);
 
-            // Delete orphaned charts in dashboard
-            const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
-                dashboardUuid,
-            );
-            await Promise.all(
-                orphanedCharts.map((chart) =>
-                    this.savedChartModel.delete(chart.uuid),
-                ),
-            );
+            // Delete orphaned charts in dashboard if it already existed
+            if (upstreamDashboard.dashboard) {
+                const orphanedCharts =
+                    await this.dashboardModel.getOrphanedCharts(
+                        upstreamDashboard.dashboard.uuid,
+                    );
+                await Promise.all(
+                    orphanedCharts.map((chart) =>
+                        this.savedChartModel.delete(chart.uuid),
+                    ),
+                );
+            }
 
             await this.trackAnalytics(
                 user,

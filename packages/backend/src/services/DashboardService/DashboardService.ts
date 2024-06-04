@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AlreadyExistsError,
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
@@ -16,14 +15,10 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
-    NotFoundError,
-    ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
-    SpaceSummary,
     UpdateDashboard,
-    UpdatedByUser,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
@@ -38,7 +33,6 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
