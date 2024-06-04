@@ -10,6 +10,8 @@ import {
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
+import { DashboardsTableName } from '../database/entities/dashboards';
+import { SavedChartsTableName } from '../database/entities/savedCharts';
 import {
     chartViewsSql,
     chartWeeklyAverageQueriesSql,
@@ -33,6 +35,7 @@ type DbUserWithCount = {
     last_name: string;
     count: number | null;
 };
+
 export class AnalyticsModel {
     private database: Knex;
 
@@ -74,9 +77,22 @@ export class AnalyticsModel {
         chartUuid: string,
         userUuid: string,
     ): Promise<void> {
-        await this.database(AnalyticsChartViewsTableName).insert({
-            chart_uuid: chartUuid,
-            user_uuid: userUuid,
+        await this.database.transaction(async (trx) => {
+            await trx(AnalyticsChartViewsTableName).insert({
+                chart_uuid: chartUuid,
+                user_uuid: userUuid,
+            });
+            await trx(SavedChartsTableName)
+                .update({
+                    // @ts-ignore
+                    views_count: trx.raw('views_count + 1'),
+                    // @ts-ignore
+                    first_viewed_at: trx.raw(
+                        'COALESCE(first_viewed_at, NOW())',
+                    ), // update first_viewed_at if it is null
+                    last_viewed_at: new Date(),
+                })
+                .where('saved_query_uuid', chartUuid);
         });
     }
 
@@ -94,9 +110,22 @@ export class AnalyticsModel {
         dashboardUuid: string,
         userUuid: string,
     ): Promise<void> {
-        await this.database(AnalyticsDashboardViewsTableName).insert({
-            dashboard_uuid: dashboardUuid,
-            user_uuid: userUuid,
+        await this.database.transaction(async (trx) => {
+            await this.database(AnalyticsDashboardViewsTableName).insert({
+                dashboard_uuid: dashboardUuid,
+                user_uuid: userUuid,
+            });
+            await trx(DashboardsTableName)
+                .update({
+                    // @ts-ignore
+                    views_count: trx.raw('views_count + 1'),
+                    // @ts-ignore
+                    first_viewed_at: trx.raw(
+                        'COALESCE(first_viewed_at, NOW())',
+                    ), // update first_viewed_at if it is null
+                    last_viewed_at: new Date(),
+                })
+                .where('dashboard_uuid', dashboardUuid);
         });
     }
 

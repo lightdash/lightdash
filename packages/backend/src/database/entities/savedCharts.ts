@@ -57,6 +57,9 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'last_version_updated_by_user_uuid'
             | 'dashboard_uuid'
             | 'slug'
+            | 'views_count'
+            | 'first_viewed_at'
+            | 'last_viewed_at'
         >
     >
 >;
@@ -74,6 +77,9 @@ export type DbSavedChart = {
     last_version_updated_by_user_uuid: string | undefined;
     search_vector: string;
     slug: string;
+    views_count: number;
+    first_viewed_at: Date | null;
+    last_viewed_at: Date | null;
 };
 
 export type DbSavedChartVersion = {

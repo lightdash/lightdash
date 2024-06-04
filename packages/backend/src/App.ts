@@ -377,6 +377,7 @@ export default class App {
         expressApp.use(Sentry.Handlers.errorHandler()); // The Sentry error handler must be before any other error middleware and after all controllers
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
+                console.log('error', error);
                 const errorResponse = errorHandler(error);
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,

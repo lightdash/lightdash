@@ -137,7 +137,7 @@
         "migrate-production": "knex migrate:latest --knexfile dist/knexfile.js",
         "seed": "knex seed:run --knexfile src/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/knexfile.js",
-        "rollback-last": "knex migrate:down --knexfile src/knexfile.ts",
+        "rollback-last": "knex migrate:down 20240604094543_add_views_columns_to_chart_and_dashboards_tables.ts --knexfile src/knexfile.ts",
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js"
     }
