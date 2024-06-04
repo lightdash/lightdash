@@ -35,4 +35,7 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     PromoteCharts = 'promote-charts',
+
+    /* Use playwright to screenshot charts/dashboards */
+    usePlaywrightSaveScreenshot = 'use-playwright-save-screenshot',
 }
