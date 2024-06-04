@@ -538,10 +538,11 @@ export default class App {
 
         // Set k8s tags for Sentry
         Sentry.setTags({
-            podName: this.lightdashConfig.k8s.podName,
-            podNamespace: this.lightdashConfig.k8s.podNamespace,
-            nodeName: this.lightdashConfig.k8s.nodeName,
-            lightdashCloudInstance: this.lightdashConfig.lightdashCloudInstance,
+            k8s_pod_name: this.lightdashConfig.k8s.podName,
+            k8s_pod_namespace: this.lightdashConfig.k8s.podNamespace,
+            k8s_node_name: this.lightdashConfig.k8s.nodeName,
+            lightdash_cloud_instance:
+                this.lightdashConfig.lightdashCloudInstance,
         });
     }
 
