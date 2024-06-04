@@ -90,7 +90,6 @@ export class AnalyticsModel {
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
                     ), // update first_viewed_at if it is null
-                    last_viewed_at: new Date(),
                 })
                 .where('saved_query_uuid', chartUuid);
         });
@@ -123,7 +122,6 @@ export class AnalyticsModel {
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
                     ), // update first_viewed_at if it is null
-                    last_viewed_at: new Date(),
                 })
                 .where('dashboard_uuid', dashboardUuid);
         });
