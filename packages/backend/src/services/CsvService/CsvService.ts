@@ -442,31 +442,13 @@ export class CsvService extends BaseService {
                 truncated: false,
             };
 
-        const itemMap = getItemMap(
-            explore,
-            metricQueryWithDashboardFilters.additionalMetrics,
-            metricQueryWithDashboardFilters.tableCalculations,
-        );
-
-        // If a chart has been date zoomed, then its label has changed. We need to update the itemMap to reflect this in the CSV file
-        if (dateZoomGranularity) {
-            Object.keys(fields).forEach((fieldId) => {
-                if (
-                    fields[fieldId].type === DimensionType.DATE ||
-                    fields[fieldId].type === DimensionType.TIMESTAMP
-                ) {
-                    itemMap[fieldId] = fields[fieldId];
-                }
-            });
-        }
-
         const truncated = this.couldBeTruncated(rows);
 
         const fileId = await CsvService.writeRowsToFile(
             rows,
             onlyRaw,
             metricQueryWithDashboardFilters,
-            itemMap,
+            fields,
             isTableChartConfig(config) ? config.showTableNames ?? false : true,
             chart.name,
             truncated,
