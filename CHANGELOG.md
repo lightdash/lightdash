@@ -1,3 +1,10 @@
+# [0.1120.0](https://github.com/lightdash/lightdash/compare/0.1119.0...0.1120.0) (2024-06-04)
+
+
+### Features
+
+* make sentry anr configurable ([#10303](https://github.com/lightdash/lightdash/issues/10303)) ([b8a085e](https://github.com/lightdash/lightdash/commit/b8a085e37bc0ba6070507176500597487d38cf68))
+
 # [0.1119.0](https://github.com/lightdash/lightdash/compare/0.1118.1...0.1119.0) (2024-06-03)
 
 
