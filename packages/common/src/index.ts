@@ -684,6 +684,8 @@ export type SentryConfig = {
     };
     release: string;
     environment: string;
+    tracesSampleRate: number;
+    profilesSampleRate: number;
     anr: {
         enabled: boolean;
         timeout?: number;
@@ -707,7 +709,14 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
+    sentry: Pick<
+        SentryConfig,
+        | 'frontend'
+        | 'release'
+        | 'environment'
+        | 'tracesSampleRate'
+        | 'profilesSampleRate'
+    >;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

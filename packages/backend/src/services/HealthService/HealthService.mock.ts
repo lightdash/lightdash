@@ -73,6 +73,8 @@ export const BaseResponse: HealthState = {
             dsn: '',
         },
         release: '',
+        tracesSampleRate: 0,
+        profilesSampleRate: 0,
     },
 };
 

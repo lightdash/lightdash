@@ -26,6 +26,22 @@ export const getIntegerFromEnvironmentVariable = (
     return parsed;
 };
 
+export const getFloatFromEnvironmentVariable = (
+    name: string,
+): number | undefined => {
+    const raw = process.env[name];
+    if (raw === undefined) {
+        return undefined;
+    }
+    const parsed = Number.parseFloat(raw);
+    if (Number.isNaN(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a float but ${name}=${raw}`,
+        );
+    }
+    return parsed;
+};
+
 /**
  * Given a value, uses the arguments provided to figure out if that value
  * should be decoded as a base64 string.
@@ -425,6 +441,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
+            tracesSampleRate:
+                getFloatFromEnvironmentVariable('SENTRY_TRACES_SAMPLE_RATE') ||
+                0.1,
+            profilesSampleRate:
+                getFloatFromEnvironmentVariable(
+                    'SENTRY_PROFILES_SAMPLE_RATE',
+                ) || 0.2,
             anr: {
                 enabled: process.env.SENTRY_ANR_ENABLED === 'true',
                 captureStacktrace:
