@@ -10,17 +10,17 @@ import { type ClientAuthMethod } from 'openid-client';
 import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { VERSION } from '../version';
 
-export const getNumberFromEnvironmentVariable = (
+export const getIntegerFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
     const raw = process.env[name];
     if (raw === undefined) {
         return undefined;
     }
-    const parsed = Number.parseFloat(raw);
+    const parsed = Number.parseInt(raw, 10);
     if (Number.isNaN(parsed)) {
         throw new ParseError(
-            `Cannot parse environment variable "${name}". Value must be a number but ${name}=${raw}`,
+            `Cannot parse environment variable "${name}". Value must be an integer but ${name}=${raw}`,
         );
     }
     return parsed;
@@ -441,16 +441,16 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
-        cookiesMaxAgeHours: getNumberFromEnvironmentVariable(
+        cookiesMaxAgeHours: getIntegerFromEnvironmentVariable(
             'COOKIES_MAX_AGE_HOURS',
         ),
         trustProxy: process.env.TRUST_PROXY === 'true',
         database: {
             connectionUri: process.env.PGCONNECTIONURI,
             maxConnections:
-                getNumberFromEnvironmentVariable('PGMAXCONNECTIONS'),
+                getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
-                getNumberFromEnvironmentVariable('PGMINCONNECTIONS'),
+                getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
         },
         auth: {
             disablePat: process.env.DISABLE_PAT === 'true',
@@ -552,17 +552,19 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {
             maxLimit:
-                getNumberFromEnvironmentVariable('LIGHTDASH_QUERY_MAX_LIMIT') ||
-                5000,
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_QUERY_MAX_LIMIT',
+                ) || 5000,
             csvCellsLimit:
-                getNumberFromEnvironmentVariable('LIGHTDASH_CSV_CELLS_LIMIT') ||
-                100000,
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_CSV_CELLS_LIMIT',
+                ) || 100000,
             timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
         },
         chart: {
             versionHistory: {
                 daysLimit:
-                    getNumberFromEnvironmentVariable(
+                    getIntegerFromEnvironmentVariable(
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
@@ -573,7 +575,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         pivotTable: {
             maxColumnLimit:
-                getNumberFromEnvironmentVariable(
+                getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 60,
         },

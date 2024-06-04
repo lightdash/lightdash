@@ -1,8 +1,8 @@
 import { ParseError, SentryConfig } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
+    getIntegerFromEnvironmentVariable,
     getMaybeBase64EncodedFromEnvironmentVariable,
-    getNumberFromEnvironmentVariable,
     parseConfig,
 } from './parseConfig';
 import {
@@ -107,20 +107,20 @@ test('Should include secret in output', () => {
 
 test('Should parse valid integer', () => {
     process.env.MY_NUMBER = '100';
-    expect(getNumberFromEnvironmentVariable('MY_NUMBER')).toEqual(100);
+    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(100);
 });
 test('Should parse non existent integer as undefined', () => {
-    expect(getNumberFromEnvironmentVariable('MY_NUMBER')).toEqual(undefined);
+    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(undefined);
 });
 test('Should throw ParseError if not a valid integer', () => {
     process.env.MY_NUMBER = 'hello';
-    expect(() => getNumberFromEnvironmentVariable('MY_NUMBER')).toThrowError(
+    expect(() => getIntegerFromEnvironmentVariable('MY_NUMBER')).toThrowError(
         ParseError,
     );
 });
 test('Should parse valid float', () => {
     process.env.MY_NUMBER = '0.5';
-    expect(getNumberFromEnvironmentVariable('MY_NUMBER')).toEqual(0.5);
+    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(0.5);
 });
 
 describe('getMaybeBase64EncodedFromEnvironmentVariable', () => {
