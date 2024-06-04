@@ -49,7 +49,6 @@ import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
     analytics: LightdashAnalytics;
-    projectModel: ProjectModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -62,8 +61,6 @@ type DashboardServiceArguments = {
 
 export class DashboardService extends BaseService {
     analytics: LightdashAnalytics;
-
-    projectModel: ProjectModel;
 
     dashboardModel: DashboardModel;
 
@@ -83,7 +80,6 @@ export class DashboardService extends BaseService {
 
     constructor({
         analytics,
-        projectModel,
         dashboardModel,
         spaceModel,
         analyticsModel,
@@ -95,8 +91,6 @@ export class DashboardService extends BaseService {
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
-        this.projectModel = projectModel;
-
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.analyticsModel = analyticsModel;
