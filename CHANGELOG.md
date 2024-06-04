@@ -1,3 +1,11 @@
+# [0.1121.0](https://github.com/lightdash/lightdash/compare/0.1120.0...0.1121.0) (2024-06-04)
+
+
+### Features
+
+* csv export dashboard with date zoom ([#10295](https://github.com/lightdash/lightdash/issues/10295)) ([a4bde37](https://github.com/lightdash/lightdash/commit/a4bde37a0f22094a01414ce1567f8083467c2d4e))
+* set k8s tags for sentry events ([#10299](https://github.com/lightdash/lightdash/issues/10299)) ([12929a2](https://github.com/lightdash/lightdash/commit/12929a2f099a0b83e17b07bb7399b92459c81963))
+
 # [0.1120.0](https://github.com/lightdash/lightdash/compare/0.1119.0...0.1120.0) (2024-06-04)
 
 
