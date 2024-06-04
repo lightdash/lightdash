@@ -745,11 +745,14 @@ export class PromoteService extends BaseService {
             // But if this fails somehow, we should return a partial success response
             const upsertChartPromises: Promise<[string, SavedChartDAO]>[] =
                 charts.map(({ promotedChart, upstreamChart }) => {
+                    // For charts created within dashboard, we point to the new created dashboard
                     const updatedChartWithDashboard = {
                         ...promotedChart,
                         chart: {
                             ...promotedChart.chart,
-                            dashboardUuid: createdDashboard.uuid,
+                            dashboardUuid: promotedChart.chart.dashboardUuid
+                                ? createdDashboard.uuid
+                                : null,
                         },
                     };
                     return this.upsertChart(
