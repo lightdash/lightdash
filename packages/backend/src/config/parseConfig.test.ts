@@ -1,6 +1,7 @@
 import { ParseError, SentryConfig } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
+    getFloatFromEnvironmentVariable,
     getIntegerFromEnvironmentVariable,
     getMaybeBase64EncodedFromEnvironmentVariable,
     parseConfig,
@@ -120,7 +121,16 @@ test('Should throw ParseError if not a valid integer', () => {
 });
 test('Should parse valid float', () => {
     process.env.MY_NUMBER = '0.5';
-    expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(0.5);
+    expect(getFloatFromEnvironmentVariable('MY_NUMBER')).toEqual(0.5);
+});
+test('Should parse non existent float as undefined', () => {
+    expect(getFloatFromEnvironmentVariable('MY_NUMBER')).toEqual(undefined);
+});
+test('Should throw ParseError if not a valid float', () => {
+    process.env.MY_NUMBER = 'hello';
+    expect(() => getFloatFromEnvironmentVariable('MY_NUMBER')).toThrowError(
+        ParseError,
+    );
 });
 
 describe('getMaybeBase64EncodedFromEnvironmentVariable', () => {
