@@ -22,7 +22,6 @@ export type DbDashboard = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
-    last_viewed_at: Date | null;
 };
 
 type DbDashboardVersion = {
@@ -67,11 +66,7 @@ export type DashboardTable = Knex.CompositeTableType<
     Partial<
         Pick<
             DbDashboard,
-            | 'name'
-            | 'description'
-            | 'views_count'
-            | 'first_viewed_at'
-            | 'last_viewed_at'
+            'name' | 'description' | 'views_count' | 'first_viewed_at'
         >
     >
 >;

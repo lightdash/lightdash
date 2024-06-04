@@ -59,7 +59,6 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'slug'
             | 'views_count'
             | 'first_viewed_at'
-            | 'last_viewed_at'
         >
     >
 >;
@@ -79,7 +78,6 @@ export type DbSavedChart = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
-    last_viewed_at: Date | null;
 };
 
 export type DbSavedChartVersion = {
