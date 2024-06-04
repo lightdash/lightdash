@@ -686,6 +686,11 @@ export type SentryConfig = {
     environment: string;
     tracesSampleRate: number;
     profilesSampleRate: number;
+    anr: {
+        enabled: boolean;
+        timeout?: number;
+        captureStacktrace: boolean;
+    };
 };
 
 export type HealthState = {

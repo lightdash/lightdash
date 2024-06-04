@@ -491,6 +491,19 @@ export default class App {
                 new Sentry.Integrations.Postgres({ usePgNative: true }),
                 nodeProfilingIntegration(),
                 ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
+                ...(this.lightdashConfig.sentry.anr.enabled
+                    ? [
+                          Sentry.anrIntegration({
+                              pollInterval: 50, // ms
+                              anrThreshold:
+                                  this.lightdashConfig.sentry.anr.timeout ||
+                                  5000, // ms
+                              captureStackTrace:
+                                  this.lightdashConfig.sentry.anr
+                                      .captureStacktrace,
+                          }),
+                      ]
+                    : []),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {
@@ -535,6 +548,15 @@ export default class App {
             }) as RequestHandler,
         );
         expressApp.use(Sentry.Handlers.tracingHandler());
+
+        // Set k8s tags for Sentry
+        Sentry.setTags({
+            k8s_pod_name: this.lightdashConfig.k8s.podName,
+            k8s_pod_namespace: this.lightdashConfig.k8s.podNamespace,
+            k8s_node_name: this.lightdashConfig.k8s.nodeName,
+            lightdash_cloud_instance:
+                this.lightdashConfig.lightdashCloudInstance,
+        });
     }
 
     private initSchedulerWorker() {

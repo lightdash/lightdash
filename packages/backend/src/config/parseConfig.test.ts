@@ -57,6 +57,11 @@ test('Should use default sentry configuration if no environment vars', () => {
         environment: BASIC_CONFIG.mode,
         tracesSampleRate: 0.1,
         profilesSampleRate: 0.2,
+        anr: {
+            enabled: false,
+            captureStacktrace: false,
+            timeout: undefined,
+        },
     };
     expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
 });
@@ -73,12 +78,20 @@ test('Should parse sentry config from env', () => {
         environment: 'development',
         tracesSampleRate: 0.8,
         profilesSampleRate: 1.0,
+        anr: {
+            enabled: true,
+            captureStacktrace: true,
+            timeout: 1000,
+        },
     };
     process.env.SENTRY_BE_DSN = 'mydsnbackend.sentry.io';
     process.env.SENTRY_FE_DSN = 'mydsnfrontend.sentry.io';
     process.env.NODE_ENV = 'development';
     process.env.SENTRY_TRACES_SAMPLE_RATE = '0.8';
     process.env.SENTRY_PROFILES_SAMPLE_RATE = '1.0';
+    process.env.SENTRY_ANR_ENABLED = 'true';
+    process.env.SENTRY_ANR_CAPTURE_STACKTRACE = 'true';
+    process.env.SENTRY_ANR_TIMEOUT = '1000';
     expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
 });
 
