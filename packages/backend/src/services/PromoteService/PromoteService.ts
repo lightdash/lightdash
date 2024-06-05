@@ -540,7 +540,7 @@ export class PromoteService extends BaseService {
             chartUuid,
         );
         try {
-            await PromoteService.checkPromoteChartPermissions(
+            PromoteService.checkPromoteChartPermissions(
                 user,
                 promotedChart,
                 upstreamChart,
@@ -709,7 +709,7 @@ export class PromoteService extends BaseService {
                 : [],
         };
         try {
-            await PromoteService.checkPromoteDashboardPermissions(
+            PromoteService.checkPromoteDashboardPermissions(
                 user,
                 promotedDashboard,
                 upstreamDashboard,

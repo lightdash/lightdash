@@ -44,6 +44,7 @@ import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
 import { usePromoteDashboardMutation } from '../../../hooks/usePromoteDashboard';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -119,6 +120,8 @@ const DashboardHeader = ({
     }>();
 
     const history = useHistory();
+    const { data: project } = useProject(projectUuid);
+
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
@@ -549,18 +552,37 @@ const DashboardHeader = ({
                                 )}
 
                                 {userCanPromoteDashboard && (
-                                    <Menu.Item
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconDatabaseExport}
-                                            />
+                                    <Tooltip
+                                        label="You must enable first an upstream project in settings > Data ops"
+                                        disabled={
+                                            project?.upstreamProjectUuid !==
+                                            undefined
                                         }
-                                        onClick={() =>
-                                            promoteDashboard(dashboardUuid)
-                                        }
+                                        withinPortal
                                     >
-                                        Promote dashboard
-                                    </Menu.Item>
+                                        <div>
+                                            <Menu.Item
+                                                disabled={
+                                                    project?.upstreamProjectUuid ===
+                                                    undefined
+                                                }
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconDatabaseExport
+                                                        }
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    promoteDashboard(
+                                                        dashboardUuid,
+                                                    )
+                                                }
+                                            >
+                                                Promote dashboard
+                                            </Menu.Item>
+                                        </div>
+                                    </Tooltip>
                                 )}
 
                                 {(userCanExportData ||
