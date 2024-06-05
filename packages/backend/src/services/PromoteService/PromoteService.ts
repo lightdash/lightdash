@@ -617,6 +617,12 @@ export class PromoteService extends BaseService {
             // before calling this method
             throw new UnexpectedServerError(`Missing dashboard to promote`);
         }
+        // If the dashboard was moved to another space, we might need to create it
+        const space = await this.getOrCreateSpace(
+            user,
+            promotedContent,
+            upstreamContent,
+        );
 
         // We override existing dashboard details
         const upstreamDashboard = upstreamContent.dashboard;
@@ -630,7 +636,7 @@ export class PromoteService extends BaseService {
             await this.dashboardModel.update(upstreamDashboard.uuid, {
                 name: promotedDashboard.name,
                 description: promotedDashboard.description,
-                spaceUuid: upstreamContent.space?.uuid,
+                spaceUuid: space?.uuid,
             });
         }
 
@@ -709,6 +715,7 @@ export class PromoteService extends BaseService {
                   )
                 : [],
         };
+
         try {
             PromoteService.checkPromoteDashboardPermissions(
                 user,
