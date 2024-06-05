@@ -1,3 +1,10 @@
+## [0.1121.3](https://github.com/lightdash/lightdash/compare/0.1121.2...0.1121.3) (2024-06-05)
+
+
+### Bug Fixes
+
+* remove analytics views subqueries from dashboard and chart queries ([#10308](https://github.com/lightdash/lightdash/issues/10308)) ([99f4b41](https://github.com/lightdash/lightdash/commit/99f4b414cae1dcc563f2b50f0cd02e82b43d4341))
+
 ## [0.1121.2](https://github.com/lightdash/lightdash/compare/0.1121.1...0.1121.2) (2024-06-05)
 
 
