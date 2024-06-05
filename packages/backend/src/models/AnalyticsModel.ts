@@ -84,9 +84,9 @@ export class AnalyticsModel {
             });
             await trx(SavedChartsTableName)
                 .update({
-                    // @ts-ignore
+                    // @ts-expect-error knex types don't support raw queries
                     views_count: trx.raw('views_count + 1'),
-                    // @ts-ignore
+                    // @ts-expect-error knex types don't support raw queries
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
                     ), // update first_viewed_at if it is null
@@ -116,9 +116,9 @@ export class AnalyticsModel {
             });
             await trx(DashboardsTableName)
                 .update({
-                    // @ts-ignore
+                    // @ts-expect-error knex types don't support raw queries
                     views_count: trx.raw('views_count + 1'),
-                    // @ts-ignore
+                    // @ts-expect-error knex types don't support raw queries
                     first_viewed_at: trx.raw(
                         'COALESCE(first_viewed_at, NOW())',
                     ), // update first_viewed_at if it is null
