@@ -582,22 +582,23 @@ export class PromoteService extends BaseService {
             return upstreamContent.dashboard;
         }
         // If the dashboard doesn't exist in the upstream project, we create with no tiles (we will populate later)
+        if (upstreamContent.space === undefined) {
+            // Space should be created before calling this method
+            throw new UnexpectedServerError(
+                'Invalid space for promoted content',
+            );
+        }
 
-        const space = await this.getOrCreateSpace(
-            user,
-            promotedContent,
-            upstreamContent,
-        );
         // Create new dashboard
         const newDashboardData: CreateDashboard & {
             slug: string;
         } = {
             ...promotedContent.dashboard,
-            spaceUuid: space.uuid,
+            spaceUuid: upstreamContent.space.uuid,
             slug: promotedContent.dashboard.slug,
         };
         const newDashboard = await this.dashboardModel.create(
-            space.uuid,
+            upstreamContent.space.uuid,
             newDashboardData,
             user,
             upstreamContent.projectUuid,
@@ -648,6 +649,63 @@ export class PromoteService extends BaseService {
         );
 
         return updatedChart;
+    }
+
+    async createNewSpaces(
+        user: SessionUser,
+        promotedDashboard: PromotedDashboard,
+        upstreamDashboard: UpstreamDashboard,
+        charts: {
+            promotedChart: PromotedChart;
+            upstreamChart: UpstreamChart;
+        }[],
+    ) {
+        // Create all spaces required for both dashboards and charts
+        const newSpaceByDashboard: Record<
+            string,
+            Omit<SpaceSummary, 'userAccess'>
+        > = upstreamDashboard.space !== undefined
+            ? {}
+            : {
+                  [promotedDashboard.space.slug]: promotedDashboard.space,
+              };
+        const createNewSpaces = charts.reduce((acc, content) => {
+            const { promotedChart, upstreamChart } = content;
+            if (
+                upstreamChart.space !== undefined ||
+                promotedChart.space === undefined
+            ) {
+                // There is already an existing space, we don't need to create anything here
+                // or if it is a chart within dashboard
+                return acc;
+            }
+
+            if (acc[promotedChart.space.slug] === undefined) {
+                acc[promotedChart.space.slug] = promotedChart.space;
+            }
+            return acc;
+        }, newSpaceByDashboard);
+        const newSpacePromises = Object.values(createNewSpaces).map((space) =>
+            this.spaceModel
+                .createSpace(
+                    upstreamDashboard.projectUuid,
+                    space.name,
+                    user.userId,
+                    space.isPrivate,
+                    space.slug,
+                )
+                .then((s) =>
+                    // Convert to spaceSummary
+                    ({
+                        ...s,
+                        access: [],
+                        chartCount: 0,
+                        dashboardCount: 0,
+                    }),
+                ),
+        );
+
+        return Promise.all(newSpacePromises);
     }
 
     async promoteDashboard(user: SessionUser, dashboardUuid: string) {
@@ -740,14 +798,30 @@ export class PromoteService extends BaseService {
             );
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
+            const newSpaces = await this.createNewSpaces(
+                user,
+                promotedDashboard,
+                upstreamDashboard,
+                charts,
+            );
 
+            // Update dashboard with the new space info
+            const upstreamDashboardWithSpace = {
+                ...upstreamDashboard,
+                space:
+                    upstreamDashboard.space ||
+                    newSpaces.find(
+                        (space) => space.slug === promotedDashboard.space.slug,
+                    ),
+            };
             // We first create the dashboard if needed, with empty tiles
             // Because we need the dashboardUuid to update the charts within the dashboard
             const createdDashboard = await this.getOrCreateDashboard(
                 user,
                 promotedDashboard,
-                upstreamDashboard,
+                upstreamDashboardWithSpace,
             );
+
             // Upserting all charts
             // This should not cause any permission issues, as we have already checked them
             // But if this fails somehow, we should return a partial success response
@@ -761,6 +835,15 @@ export class PromoteService extends BaseService {
                         ...upstreamChart,
                         dashboardUuid: isChartWithinDashboard // is chart within dashboard
                             ? createdDashboard.uuid
+                            : undefined,
+                        // Update space with the new space if it was created
+                        space: !isChartWithinDashboard
+                            ? upstreamDashboard.space ||
+                              newSpaces.find(
+                                  (space) =>
+                                      space.slug ===
+                                      promotedDashboard.space.slug,
+                              )
                             : undefined,
                     };
                     return this.upsertChart(
@@ -802,7 +885,7 @@ export class PromoteService extends BaseService {
                     },
                 },
                 {
-                    ...upstreamDashboard,
+                    ...upstreamDashboardWithSpace,
                     dashboard: createdDashboard,
                 },
             );
