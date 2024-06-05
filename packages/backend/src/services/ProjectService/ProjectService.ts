@@ -1067,7 +1067,7 @@ export class ProjectService extends BaseService {
         }
 
         const queryTags: RunQueryTags = {
-            organization_uuid: projectUuid,
+            organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
