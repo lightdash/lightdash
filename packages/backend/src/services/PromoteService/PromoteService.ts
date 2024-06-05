@@ -32,6 +32,7 @@ type UpstreamChart = {
     chart: ChartSummary | undefined;
     space: Omit<SpaceSummary, 'userAccess'> | undefined;
     access: SpaceShare[];
+    dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
 type PromotedDashboard = {
     projectUuid: string;
@@ -465,7 +466,7 @@ export class PromoteService extends BaseService {
                     user.userUuid,
                     {
                         ...promotedChart,
-                        dashboardUuid: promotedChart.dashboardUuid,
+                        dashboardUuid: upstreamContent.dashboardUuid,
                         spaceUuid: undefined,
                         updatedByUser: user,
                         slug: promotedChart.slug,
@@ -514,7 +515,7 @@ export class PromoteService extends BaseService {
                 metricQuery: promotedChart.metricQuery,
                 chartConfig: promotedChart.chartConfig,
                 tableConfig: promotedChart.tableConfig,
-                dashboardUuid: promotedChart.dashboardUuid,
+                dashboardUuid: upstreamContent.dashboardUuid,
             },
             user,
         );
@@ -746,19 +747,19 @@ export class PromoteService extends BaseService {
             const upsertChartPromises: Promise<[string, SavedChartDAO]>[] =
                 charts.map(({ promotedChart, upstreamChart }) => {
                     // For charts created within dashboard, we point to the new created dashboard
-                    const updatedChartWithDashboard = {
-                        ...promotedChart,
-                        chart: {
-                            ...promotedChart.chart,
-                            dashboardUuid: promotedChart.chart.dashboardUuid
-                                ? createdDashboard.uuid
-                                : null,
-                        },
+                    const isChartWithinDashboard =
+                        (upstreamChart.chart?.dashboardUuid ||
+                            promotedChart.chart.dashboardUuid) !== null;
+                    const updatedChartWithDashboard: UpstreamChart = {
+                        ...upstreamChart,
+                        dashboardUuid: isChartWithinDashboard // is chart within dashboard
+                            ? createdDashboard.uuid
+                            : undefined,
                     };
                     return this.upsertChart(
                         user,
+                        promotedChart,
                         updatedChartWithDashboard,
-                        upstreamChart,
                     ).then((upsertedChart) => [
                         promotedChart.chart.uuid,
                         upsertedChart,
