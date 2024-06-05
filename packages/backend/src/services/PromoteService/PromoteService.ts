@@ -387,7 +387,7 @@ export class PromoteService extends BaseService {
                     )
                 ) {
                     throw new ForbiddenError(
-                        `Failed to promote dashboard: You do not have the right access  on the destination space and dashboard to promote.`,
+                        `Failed to promote dashboard: You do not have the right access permissions on the destination space and dashboard to promote.`,
                     );
                 }
             } else if (
