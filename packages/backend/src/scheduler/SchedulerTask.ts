@@ -34,6 +34,7 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    SessionUser,
     SlackNotificationPayload,
     ThresholdOperator,
     ThresholdOptions,
@@ -1209,6 +1210,7 @@ export default class SchedulerTask {
                 sendNow: schedulerUuid === undefined,
             },
         });
+        let user: SessionUser;
 
         try {
             if (!this.googleDriveClient.isEnabled) {
@@ -1241,7 +1243,7 @@ export default class SchedulerTask {
                 targetType: 'gsheets',
                 status: SchedulerJobStatus.STARTED,
             });
-            const user = await this.userService.getSessionByUserUuid(
+            user = await this.userService.getSessionByUserUuid(
                 scheduler.createdBy,
             );
 
@@ -1444,6 +1446,19 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {
+            if (
+                `${e}`.includes('invalid_grant') ||
+                `${e}`.includes('Requested entity was not found')
+            ) {
+                console.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user!, // This error from gdriveClient happens after user initialized
+                    schedulerUuid,
+                    false,
+                );
+            }
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
