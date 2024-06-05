@@ -404,7 +404,7 @@ export class PromoteService extends BaseService {
                 );
             }
         } else if (upstreamDashboard.space !== undefined) {
-            // If upstreamContent has no matching chart, we check if we have access to create, if space already exists
+            // If upstreamContent has no matching dashboard, we check if we have access to create, if space already exists
             if (
                 user.ability.cannot(
                     'manage',
