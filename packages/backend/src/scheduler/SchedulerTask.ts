@@ -566,6 +566,20 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {
+            if (`${e}`.includes('Could not find slack installation')) {
+                console.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
+                const user = await this.userService.getSessionByUserUuid(
+                    scheduler.createdBy,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user,
+                    schedulerUuid!,
+                    false,
+                );
+            }
+
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
