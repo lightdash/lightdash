@@ -408,7 +408,7 @@ export class PromoteService extends BaseService {
             if (
                 user.ability.cannot(
                     'manage',
-                    subject('SavedChart', {
+                    subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access: upstreamDashboard.access,
