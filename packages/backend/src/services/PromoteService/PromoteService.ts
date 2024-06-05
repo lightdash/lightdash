@@ -630,7 +630,7 @@ export class PromoteService extends BaseService {
         if (
             upstreamDashboard.name !== promotedDashboard.name ||
             upstreamDashboard.description !== promotedDashboard.description ||
-            upstreamDashboard.spaceUuid !== upstreamContent.space?.uuid
+            upstreamDashboard.spaceUuid !== space?.uuid
         ) {
             // We also update dashboard name and description if they have changed
             await this.dashboardModel.update(upstreamDashboard.uuid, {
