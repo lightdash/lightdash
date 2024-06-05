@@ -1,3 +1,10 @@
+## [0.1121.2](https://github.com/lightdash/lightdash/compare/0.1121.1...0.1121.2) (2024-06-05)
+
+
+### Bug Fixes
+
+* disable scheduler on errors ([#10320](https://github.com/lightdash/lightdash/issues/10320)) ([02d854b](https://github.com/lightdash/lightdash/commit/02d854b91d17bd21c2ee1c4ca268836408210163))
+
 ## [0.1121.1](https://github.com/lightdash/lightdash/compare/0.1121.0...0.1121.1) (2024-06-05)
 
 
