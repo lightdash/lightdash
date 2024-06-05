@@ -1,3 +1,10 @@
+## [0.1121.1](https://github.com/lightdash/lightdash/compare/0.1121.0...0.1121.1) (2024-06-05)
+
+
+### Bug Fixes
+
+* pass correct org uuid to underlying data query tag ([#10322](https://github.com/lightdash/lightdash/issues/10322)) ([1cec8d2](https://github.com/lightdash/lightdash/commit/1cec8d2a5455ea8a022055454797c5e7d1263831))
+
 # [0.1121.0](https://github.com/lightdash/lightdash/compare/0.1120.0...0.1121.0) (2024-06-04)
 
 
