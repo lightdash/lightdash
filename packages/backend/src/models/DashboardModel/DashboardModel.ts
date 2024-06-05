@@ -21,7 +21,6 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { AnalyticsDashboardViewsTableName } from '../../database/entities/analytics';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -61,30 +60,35 @@ import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
     DashboardTable['base'],
-    'dashboard_id' | 'dashboard_uuid' | 'name' | 'description' | 'slug'
+    | 'dashboard_id'
+    | 'dashboard_uuid'
+    | 'name'
+    | 'description'
+    | 'slug'
+    | 'views_count'
+    | 'first_viewed_at'
 > &
     Pick<DashboardVersionTable['base'], 'dashboard_version_id' | 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
-    Pick<PinnedDashboardTable['base'], 'order'> & {
-        views: string;
-        first_viewed_at: Date | null;
-    };
+    Pick<PinnedDashboardTable['base'], 'order'>;
 
 export type GetDashboardDetailsQuery = Pick<
     DashboardTable['base'],
-    'dashboard_uuid' | 'name' | 'description'
+    | 'dashboard_uuid'
+    | 'name'
+    | 'description'
+    | 'views_count'
+    | 'first_viewed_at'
 > &
     Pick<DashboardVersionTable['base'], 'created_at'> &
     Pick<ProjectTable['base'], 'project_uuid'> &
     Pick<UserTable['base'], 'user_uuid' | 'first_name' | 'last_name'> &
     Pick<OrganizationTable['base'], 'organization_uuid'> &
     Pick<PinnedListTable['base'], 'pinned_list_uuid'> &
-    Pick<PinnedDashboardTable['base'], 'order'> & {
-        views: string;
-    };
+    Pick<PinnedDashboardTable['base'], 'order'>;
 
 export type GetChartTileQuery = Pick<
     DashboardTileChartTable['base'],
@@ -307,12 +311,8 @@ export class DashboardModel {
                         `${SpaceTableName}.space_uuid`,
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${PinnedDashboardTableName}.order`,
-                        this.database.raw(
-                            `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
-                        ),
-                        this.database.raw(
-                            `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                        ),
+                        `${DashboardsTableName}.views_count`,
+                        `${DashboardsTableName}.first_viewed_at`,
                         this.database.raw(`
                             COALESCE(
                                 (
@@ -376,7 +376,7 @@ export class DashboardModel {
                 space_uuid,
                 pinned_list_uuid,
                 order,
-                views,
+                views_count,
                 first_viewed_at,
                 validation_errors,
             }) => ({
@@ -394,7 +394,7 @@ export class DashboardModel {
                 spaceUuid: space_uuid,
                 pinnedListUuid: pinned_list_uuid,
                 pinnedListOrder: order,
-                views: parseInt(views, 10) || 0,
+                views: views_count,
                 firstViewedAt: first_viewed_at,
                 validationErrors: validation_errors?.map(
                     (error: DbValidationTable) => ({
@@ -537,14 +537,8 @@ export class DashboardModel {
                 `${SpaceTableName}.name as space_name`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ?) as views`,
-                    dashboardUuid,
-                ),
-                this.database.raw(
-                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ? ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                    dashboardUuid,
-                ),
+                `${DashboardsTableName}.views_count`,
+                `${DashboardsTableName}.first_viewed_at`,
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
@@ -573,7 +567,7 @@ export class DashboardModel {
                     content: string | null;
                     hide_title: boolean | null;
                     title: string | null;
-                    views: string;
+                    views_count: string;
                     first_viewed_at: Date | null;
                     belongs_to_dashboard: boolean;
                     name: string | null;
@@ -770,7 +764,7 @@ export class DashboardModel {
             },
             spaceUuid: dashboard.space_uuid,
             spaceName: dashboard.space_name,
-            views: parseInt(dashboard.views, 10) || 0,
+            views: dashboard.views_count,
             firstViewedAt: dashboard.first_viewed_at,
             updatedByUser: {
                 userUuid: dashboard.user_uuid,

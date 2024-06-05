@@ -14,10 +14,6 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    AnalyticsChartViewsTableName,
-    AnalyticsDashboardViewsTableName,
-} from '../../database/entities/analytics';
-import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
@@ -147,13 +143,13 @@ export class ValidationModel {
                     Pick<
                         SavedChartTable['base'],
                         | 'name'
+                        | 'views_count'
                         | 'last_version_updated_at'
                         | 'last_version_chart_kind'
                     > &
                     Pick<UserTable['base'], 'first_name' | 'last_name'> &
                     Pick<DbSpace, 'space_uuid'> & {
                         last_updated_at: Date;
-                        views: string;
                     })[]
             >([
                 `${ValidationTableName}.*`,
@@ -163,9 +159,7 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
-                ),
+                `${SavedChartsTableName}.views_count`,
             ])
             .orderBy([
                 {
@@ -191,7 +185,7 @@ export class ValidationModel {
             chartValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 chartUuid: validationError.saved_chart_uuid!,
-                chartViews: parseInt(validationError.views, 10) || 0,
+                chartViews: validationError.views_count,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name:
@@ -213,11 +207,10 @@ export class ValidationModel {
             }));
 
         const dashboardValidationErrorsRows: (DbValidationTable &
-            Pick<DashboardTable['base'], 'name'> &
+            Pick<DashboardTable['base'], 'name' | 'views_count'> &
             Pick<UserTable['base'], 'first_name' | 'last_name'> &
             Pick<DbSpace, 'space_uuid'> & {
                 last_updated_at: Date;
-                views: string;
             })[] = await this.database(ValidationTableName)
             .leftJoin(
                 DashboardsTableName,
@@ -258,9 +251,7 @@ export class ValidationModel {
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
                 `${SpaceTableName}.space_uuid`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
-                ),
+                `${DashboardsTableName}.views_count`,
             ])
             .orderBy([
                 {
@@ -286,7 +277,7 @@ export class ValidationModel {
             dashboardValidationErrorsRows.map((validationError) => ({
                 createdAt: validationError.created_at,
                 dashboardUuid: validationError.dashboard_uuid!,
-                dashboardViews: parseInt(validationError.views, 10) || 0,
+                dashboardViews: validationError.views_count,
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name:

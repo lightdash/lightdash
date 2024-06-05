@@ -73,12 +73,7 @@ describe('DashboardModel', () => {
     test('should get dashboard by uuid', async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.uuid,
-                    expectedDashboard.uuid,
-                    expectedDashboard.uuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([
                 {
@@ -123,12 +118,7 @@ describe('DashboardModel', () => {
     test("should error if dashboard isn't found", async () => {
         tracker.on
             .select(
-                queryMatcher(DashboardsTableName, [
-                    expectedDashboard.uuid,
-                    expectedDashboard.uuid,
-                    expectedDashboard.uuid,
-                    1,
-                ]),
+                queryMatcher(DashboardsTableName, [expectedDashboard.uuid, 1]),
             )
             .response([]);
 
@@ -274,14 +264,7 @@ describe('DashboardModel', () => {
             )
             .response([]);
         tracker.on
-            .select(
-                queryMatcher(DashboardsTableName, [
-                    dashboardUuid,
-                    dashboardUuid,
-                    dashboardUuid,
-                    1,
-                ]),
-            )
+            .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
             .response([dashboardWithVersionEntry]);
         tracker.on
             .select(
@@ -316,14 +299,7 @@ describe('DashboardModel', () => {
     test('should delete dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
         tracker.on
-            .select(
-                queryMatcher(DashboardsTableName, [
-                    dashboardUuid,
-                    dashboardUuid,
-                    dashboardUuid,
-                    1,
-                ]),
-            )
+            .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
             .response([dashboardWithVersionEntry]);
         tracker.on
             .select(
