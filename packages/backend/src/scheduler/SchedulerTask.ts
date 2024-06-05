@@ -566,20 +566,6 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {
-            if (`${e}`.includes('Could not find slack installation')) {
-                console.warn(
-                    `Disabling scheduler with non-retryable error: ${e}`,
-                );
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
-                await this.schedulerService.setSchedulerEnabled(
-                    user,
-                    schedulerUuid!,
-                    false,
-                );
-            }
-
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -593,6 +579,7 @@ export default class SchedulerTask {
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
             });
+
             await this.schedulerService.logSchedulerJob({
                 task: 'sendSlackNotification',
                 schedulerUuid,
@@ -604,6 +591,21 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: { error: e.message },
             });
+
+            if (`${e}`.includes('Could not find slack installation')) {
+                console.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
+                const user = await this.userService.getSessionByUserUuid(
+                    scheduler.createdBy,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user,
+                    schedulerUuid!,
+                    false,
+                );
+                return; // Do not cascade error
+            }
 
             throw e; // Cascade error to it can be retried by graphile
         }
@@ -1460,19 +1462,6 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {
-            if (
-                `${e}`.includes('invalid_grant') ||
-                `${e}`.includes('Requested entity was not found')
-            ) {
-                console.warn(
-                    `Disabling scheduler with non-retryable error: ${e}`,
-                );
-                await this.schedulerService.setSchedulerEnabled(
-                    user!, // This error from gdriveClient happens after user initialized
-                    schedulerUuid,
-                    false,
-                );
-            }
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -1496,6 +1485,20 @@ export default class SchedulerTask {
                 details: { error: e.message },
             });
 
+            if (
+                `${e}`.includes('invalid_grant') ||
+                `${e}`.includes('Requested entity was not found')
+            ) {
+                console.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user!, // This error from gdriveClient happens after user initialized
+                    schedulerUuid,
+                    false,
+                );
+                return; // Do not cascade error
+            }
             throw e; // Cascade error to it can be retried by graphile
         }
     }
