@@ -89,7 +89,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                   )?.title ?? 'No access'
                 : 'No access';
 
-            const spaceRoleInheritanceInfo = `${currentSpaceRoleTitle} inherited from their ${spaceAccess?.inheritedFrom} ${spaceAccess?.inheritedRole} role`;
+            const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
 
             return (
                 <Group ref={ref} {...props} position={'apart'}>
