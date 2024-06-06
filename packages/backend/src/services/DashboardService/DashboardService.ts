@@ -203,6 +203,7 @@ export class DashboardService extends BaseService {
         dashboardUuid: string,
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );

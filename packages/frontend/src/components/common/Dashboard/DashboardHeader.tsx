@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type Dashboard, type SpaceSummary } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type Dashboard,
+    type SpaceSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -19,6 +23,7 @@ import {
     IconCheck,
     IconChevronRight,
     IconCopy,
+    IconDatabaseExport,
     IconDots,
     IconFolder,
     IconFolderPlus,
@@ -38,6 +43,9 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
+import { usePromoteDashboardMutation } from '../../../hooks/usePromoteDashboard';
 import { useApp } from '../../../providers/AppProvider';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -112,6 +120,8 @@ const DashboardHeader = ({
     }>();
 
     const history = useHistory();
+    const { data: project } = useProject(projectUuid);
+
     const { track } = useTracking();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
@@ -121,6 +131,7 @@ const DashboardHeader = ({
         setIsUpdating(true);
         track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
     };
+    const { mutate: promoteDashboard } = usePromoteDashboardMutation();
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
@@ -155,6 +166,18 @@ const DashboardHeader = ({
             projectUuid,
         }),
     );
+    const isPromoteChartsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.PromoteCharts,
+    );
+    const userCanPromoteDashboard =
+        isPromoteChartsEnabled &&
+        user.data?.ability?.can(
+            'promote',
+            subject('Dashboard', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
 
     return (
         <PageHeader
@@ -528,6 +551,40 @@ const DashboardHeader = ({
                                     </Menu.Item>
                                 )}
 
+                                {userCanPromoteDashboard && (
+                                    <Tooltip
+                                        label="You must enable first an upstream project in settings > Data ops"
+                                        disabled={
+                                            project?.upstreamProjectUuid !==
+                                            undefined
+                                        }
+                                        withinPortal
+                                    >
+                                        <div>
+                                            <Menu.Item
+                                                disabled={
+                                                    project?.upstreamProjectUuid ===
+                                                    undefined
+                                                }
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconDatabaseExport
+                                                        }
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    promoteDashboard(
+                                                        dashboardUuid,
+                                                    )
+                                                }
+                                            >
+                                                Promote dashboard
+                                            </Menu.Item>
+                                        </div>
+                                    </Tooltip>
+                                )}
+
                                 {(userCanExportData ||
                                     userCanManageDashboard) && (
                                     <Menu.Item
@@ -537,7 +594,6 @@ const DashboardHeader = ({
                                         Export dashboard{' '}
                                     </Menu.Item>
                                 )}
-
                                 {userCanManageDashboard && (
                                     <>
                                         <Menu.Divider />
