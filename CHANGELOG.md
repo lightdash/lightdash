@@ -1,3 +1,10 @@
+# [0.1122.0](https://github.com/lightdash/lightdash/compare/0.1121.4...0.1122.0) (2024-06-06)
+
+
+### Features
+
+* promote dashboard ([#10287](https://github.com/lightdash/lightdash/issues/10287)) ([04dc697](https://github.com/lightdash/lightdash/commit/04dc69760cadb71aeb0a9795805c251d33397e98))
+
 ## [0.1121.4](https://github.com/lightdash/lightdash/compare/0.1121.3...0.1121.4) (2024-06-06)
 
 
