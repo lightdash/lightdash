@@ -1,5 +1,5 @@
 import { CatalogType, type CatalogSelection } from '@lightdash/common';
-import { Box, Stack, Tooltip } from '@mantine/core';
+import { Box, Center, Loader, Stack, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
 import { CatalogFieldListItem } from './CatalogFieldListItem';
 import { CatalogGroup } from './CatalogGroup';
@@ -11,9 +11,11 @@ type Props = {
     onItemClick: (item: CatalogSelection) => void;
     selection?: CatalogSelection;
     searchString?: string;
+    isLoading?: boolean;
+    isSearching?: boolean;
 };
 
-type NodeProps = Omit<Props, 'tree'> & {
+type NodeProps = Omit<Props, 'tree' | 'isLoading' | 'isSearching'> & {
     node: any;
     hideGroupedTables?: boolean;
     index: number;
@@ -131,6 +133,8 @@ const renderTreeNode = ({
 };
 
 export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
+    isLoading,
+    isSearching,
     tree,
     searchString,
     projectUuid,
@@ -149,6 +153,7 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
         <Tooltip.Group>
             <Box
                 sx={(theme) => ({
+                    minWidth: '600px',
                     border: `1px solid ${theme.colors.gray[3]}`,
                     backgroundColor: theme.fn.lighten(
                         theme.colors.gray[0],
@@ -162,22 +167,25 @@ export const CatalogTree: FC<React.PropsWithChildren<Props>> = ({
                     0 4px 16px -8px ${theme.colors.gray[2]}`,
                 })}
             >
-                <Box
-                    sx={{ maxHeight: '900px', overflowY: 'scroll' }}
-                    key={`catalog-tree-${searchString}`}
-                >
-                    {Object.entries(tree).map(([_, value], index) =>
-                        renderTreeNode({
-                            node: value,
-                            projectUuid,
-                            onItemClick,
-                            selection,
-                            searchString,
-                            hideGroupedTables,
+                <Box key={`catalog-tree-${searchString}`}>
+                    {isLoading || isSearching ? (
+                        <Center p="lg">
+                            <Loader size="sm" variant="bars" color="dark" />
+                        </Center>
+                    ) : (
+                        Object.entries(tree).map(([_, value], index) =>
+                            renderTreeNode({
+                                node: value,
+                                projectUuid,
+                                onItemClick,
+                                selection,
+                                searchString,
+                                hideGroupedTables,
 
-                            index,
-                            length: Object.keys(tree).length,
-                        }),
+                                index,
+                                length: Object.keys(tree).length,
+                            }),
+                        )
                     )}
                 </Box>
             </Box>

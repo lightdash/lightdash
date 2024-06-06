@@ -1,3 +1,75 @@
+## [0.1121.4](https://github.com/lightdash/lightdash/compare/0.1121.3...0.1121.4) (2024-06-06)
+
+
+### Bug Fixes
+
+* add missing index in cached explore table ([#10310](https://github.com/lightdash/lightdash/issues/10310)) ([b268c37](https://github.com/lightdash/lightdash/commit/b268c37d9958ffdc26285fb49d5583419bc56d30))
+
+## [0.1121.3](https://github.com/lightdash/lightdash/compare/0.1121.2...0.1121.3) (2024-06-05)
+
+
+### Bug Fixes
+
+* remove analytics views subqueries from dashboard and chart queries ([#10308](https://github.com/lightdash/lightdash/issues/10308)) ([99f4b41](https://github.com/lightdash/lightdash/commit/99f4b414cae1dcc563f2b50f0cd02e82b43d4341))
+
+## [0.1121.2](https://github.com/lightdash/lightdash/compare/0.1121.1...0.1121.2) (2024-06-05)
+
+
+### Bug Fixes
+
+* disable scheduler on errors ([#10320](https://github.com/lightdash/lightdash/issues/10320)) ([02d854b](https://github.com/lightdash/lightdash/commit/02d854b91d17bd21c2ee1c4ca268836408210163))
+
+## [0.1121.1](https://github.com/lightdash/lightdash/compare/0.1121.0...0.1121.1) (2024-06-05)
+
+
+### Bug Fixes
+
+* pass correct org uuid to underlying data query tag ([#10322](https://github.com/lightdash/lightdash/issues/10322)) ([1cec8d2](https://github.com/lightdash/lightdash/commit/1cec8d2a5455ea8a022055454797c5e7d1263831))
+
+# [0.1121.0](https://github.com/lightdash/lightdash/compare/0.1120.0...0.1121.0) (2024-06-04)
+
+
+### Features
+
+* csv export dashboard with date zoom ([#10295](https://github.com/lightdash/lightdash/issues/10295)) ([a4bde37](https://github.com/lightdash/lightdash/commit/a4bde37a0f22094a01414ce1567f8083467c2d4e))
+* set k8s tags for sentry events ([#10299](https://github.com/lightdash/lightdash/issues/10299)) ([12929a2](https://github.com/lightdash/lightdash/commit/12929a2f099a0b83e17b07bb7399b92459c81963))
+
+# [0.1120.0](https://github.com/lightdash/lightdash/compare/0.1119.0...0.1120.0) (2024-06-04)
+
+
+### Features
+
+* make sentry anr configurable ([#10303](https://github.com/lightdash/lightdash/issues/10303)) ([b8a085e](https://github.com/lightdash/lightdash/commit/b8a085e37bc0ba6070507176500597487d38cf68))
+
+# [0.1119.0](https://github.com/lightdash/lightdash/compare/0.1118.1...0.1119.0) (2024-06-03)
+
+
+### Features
+
+* display error message on metadata panel if open ([#10288](https://github.com/lightdash/lightdash/issues/10288)) ([0f55d68](https://github.com/lightdash/lightdash/commit/0f55d6847b95fb5c1e6ab594ee8ca182ebb44ed6))
+
+## [0.1118.1](https://github.com/lightdash/lightdash/compare/0.1118.0...0.1118.1) (2024-06-03)
+
+
+### Bug Fixes
+
+* enable overflowY scroll if sidebar open ([#10286](https://github.com/lightdash/lightdash/issues/10286)) ([318fb21](https://github.com/lightdash/lightdash/commit/318fb2116915f47f524e4e39bba59be861dbad10))
+* make TableListItem responsive ([#10283](https://github.com/lightdash/lightdash/issues/10283)) ([5bf58f9](https://github.com/lightdash/lightdash/commit/5bf58f99c1a808a1220ed7acf7ff25a681dfe4ec))
+
+# [0.1118.0](https://github.com/lightdash/lightdash/compare/0.1117.0...0.1118.0) (2024-06-03)
+
+
+### Features
+
+* pass organization tag to sentry events ([#10292](https://github.com/lightdash/lightdash/issues/10292)) ([bfd3284](https://github.com/lightdash/lightdash/commit/bfd3284729ceb0e97db4f31be66f8f8a0dac1580))
+
+# [0.1117.0](https://github.com/lightdash/lightdash/compare/0.1116.1...0.1117.0) (2024-06-03)
+
+
+### Features
+
+* add loading state when catalog is loading ([#10273](https://github.com/lightdash/lightdash/issues/10273)) ([c655847](https://github.com/lightdash/lightdash/commit/c65584723ee037b52d0e427121902c1327bd1f2f))
+
 ## [0.1116.1](https://github.com/lightdash/lightdash/compare/0.1116.0...0.1116.1) (2024-05-31)
 
 

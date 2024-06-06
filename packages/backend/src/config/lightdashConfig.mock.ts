@@ -60,6 +60,12 @@ export const lightdashConfigMock: LightdashConfig = {
             x509PublicKeyCertPath: undefined,
         },
     },
+    lightdashCloudInstance: 'test-instance',
+    k8s: {
+        podNamespace: undefined,
+        podName: undefined,
+        nodeName: undefined,
+    },
     chart: { versionHistory: { daysLimit: 0 } },
     customVisualizations: { enabled: false },
     database: {
@@ -107,6 +113,12 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         release: '',
         environment: '',
+        tracesSampleRate: 0,
+        profilesSampleRate: 0,
+        anr: {
+            enabled: false,
+            captureStacktrace: false,
+        },
     },
     staticIp: '',
     trustProxy: false,

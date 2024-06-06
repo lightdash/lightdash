@@ -91,10 +91,12 @@ const useDashboardStorage = () => {
                 'unsavedDashboardTiles',
                 JSON.stringify(dashboardTiles ?? []),
             );
-            sessionStorage.setItem(
-                'dashboardTabs',
-                JSON.stringify(dashboardTabs),
-            );
+            if (dashboardTabs && dashboardTabs.length > 0) {
+                sessionStorage.setItem(
+                    'dashboardTabs',
+                    JSON.stringify(dashboardTabs),
+                );
+            }
             if (
                 dashboardFilters.dimensions.length > 0 ||
                 dashboardFilters.metrics.length > 0

@@ -20,6 +20,8 @@ export type DbDashboard = {
     space_id: number;
     created_at: Date;
     slug: string;
+    views_count: number;
+    first_viewed_at: Date | null;
 };
 
 type DbDashboardVersion = {
@@ -61,7 +63,12 @@ type DbDashboardTileChart = {
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
     Pick<DbDashboard, 'name' | 'description' | 'space_id' | 'slug'>,
-    Pick<DbDashboard, 'name' | 'description'>
+    Partial<
+        Pick<
+            DbDashboard,
+            'name' | 'description' | 'views_count' | 'first_viewed_at'
+        >
+    >
 >;
 
 export type DashboardVersionTable = Knex.CompositeTableType<

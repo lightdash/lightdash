@@ -26,6 +26,22 @@ export const getIntegerFromEnvironmentVariable = (
     return parsed;
 };
 
+export const getFloatFromEnvironmentVariable = (
+    name: string,
+): number | undefined => {
+    const raw = process.env[name];
+    if (raw === undefined) {
+        return undefined;
+    }
+    const parsed = Number.parseFloat(raw);
+    if (Number.isNaN(parsed)) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a float but ${name}=${raw}`,
+        );
+    }
+    return parsed;
+};
+
 /**
  * Given a value, uses the arguments provided to figure out if that value
  * should be decoded as a base64 string.
@@ -157,6 +173,12 @@ export type LightdashConfig = {
     pylon: PylonConfig;
     siteUrl: string;
     staticIp: string;
+    lightdashCloudInstance: string | undefined;
+    k8s: {
+        nodeName: string | undefined;
+        podName: string | undefined;
+        podNamespace: string | undefined;
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
@@ -419,6 +441,20 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             release: VERSION,
             environment:
                 process.env.NODE_ENV === 'development' ? 'development' : mode,
+            tracesSampleRate:
+                getFloatFromEnvironmentVariable('SENTRY_TRACES_SAMPLE_RATE') ||
+                0.1,
+            profilesSampleRate:
+                getFloatFromEnvironmentVariable(
+                    'SENTRY_PROFILES_SAMPLE_RATE',
+                ) || 0.2,
+            anr: {
+                enabled: process.env.SENTRY_ANR_ENABLED === 'true',
+                captureStacktrace:
+                    process.env.SENTRY_ANR_CAPTURE_STACKTRACE === 'true',
+                timeout:
+                    getIntegerFromEnvironmentVariable('SENTRY_ANR_TIMEOUT'),
+            },
         },
         lightdashSecret,
         secureCookies: process.env.SECURE_COOKIES === 'true',
@@ -523,6 +559,12 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         },
         siteUrl,
         staticIp: process.env.STATIC_IP || '',
+        lightdashCloudInstance: process.env.LIGHTDASH_CLOUD_INSTANCE,
+        k8s: {
+            nodeName: process.env.K8S_NODE_NAME,
+            podName: process.env.K8S_POD_NAME,
+            podNamespace: process.env.K8S_POD_NAMESPACE,
+        },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
         query: {

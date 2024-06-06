@@ -5,6 +5,7 @@ import {
     type DashboardAvailableFilters,
     type DashboardFilters,
     type DashboardTile,
+    type DateGranularity,
     type SavedChartsInfoForDashboardAvailableFilters,
     type UpdateDashboard,
 } from '@lightdash/common';
@@ -157,11 +158,15 @@ export const useExportDashboard = () => {
     );
 };
 
-const exportCsvDashboard = async (id: string, filters: DashboardFilters) =>
+const exportCsvDashboard = async (
+    id: string,
+    filters: DashboardFilters,
+    dateZoomGranularity: DateGranularity | undefined,
+) =>
     lightdashApi<string>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
-        body: JSON.stringify({ filters }),
+        body: JSON.stringify({ filters, dateZoomGranularity }),
     });
 
 export const useExportCsvDashboard = () => {
@@ -172,34 +177,43 @@ export const useExportCsvDashboard = () => {
         {
             dashboard: Dashboard;
             filters: DashboardFilters;
+            dateZoomGranularity: DateGranularity | undefined;
         }
-    >((data) => exportCsvDashboard(data.dashboard.uuid, data.filters), {
-        mutationKey: ['export_csv_dashboard'],
-        onMutate: (data) => {
-            showToastInfo({
-                key: 'dashboard_export_toast',
-                title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
-                autoClose: false,
-                loading: true,
-            });
-        },
-        onSuccess: async (url, data) => {
-            if (url) {
-                window.open(url, '_blank');
-                showToastSuccess({
+    >(
+        (data) =>
+            exportCsvDashboard(
+                data.dashboard.uuid,
+                data.filters,
+                data.dateZoomGranularity,
+            ),
+        {
+            mutationKey: ['export_csv_dashboard'],
+            onMutate: (data) => {
+                showToastInfo({
                     key: 'dashboard_export_toast',
-                    title: `Success! ${data.dashboard.name} was exported.`,
+                    title: `${data.dashboard.name} is being exported. This might take a few seconds.`,
+                    autoClose: false,
+                    loading: true,
                 });
-            }
+            },
+            onSuccess: async (url, data) => {
+                if (url) {
+                    window.open(url, '_blank');
+                    showToastSuccess({
+                        key: 'dashboard_export_toast',
+                        title: `Success! ${data.dashboard.name} was exported.`,
+                    });
+                }
+            },
+            onError: ({ error }, data) => {
+                showToastApiError({
+                    key: 'dashboard_export_toast',
+                    title: `Failed to export ${data.dashboard.name}`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }, data) => {
-            showToastApiError({
-                key: 'dashboard_export_toast',
-                title: `Failed to export ${data.dashboard.name}`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useUpdateDashboard = (

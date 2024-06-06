@@ -1,5 +1,6 @@
 import { type Dashboard } from '@lightdash/common';
 import {
+    Alert,
     Box,
     Button,
     Group,
@@ -37,33 +38,45 @@ const CsvExport: FC<CsvExportProps & Pick<ModalProps, 'onClose'>> = ({
 }) => {
     const exportCsvDashboardMutation = useExportCsvDashboard();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
     return (
-        <Group position="right" pb="md" px="md" spacing="lg">
-            <Button variant="outline" onClick={onClose}>
-                Cancel
-            </Button>
+        <Stack p="md">
+            {!!dateZoomGranularity && (
+                <Alert title="Date zoom is enabled" color="blue" mb="md">
+                    Your CSV export will include data for the selected date zoom
+                    granularity.
+                </Alert>
+            )}
+            <Group position="right" pb="md" px="md" spacing="lg">
+                <Button variant="outline" onClick={onClose}>
+                    Cancel
+                </Button>
 
-            <Group spacing="xs">
-                <Tooltip
-                    withinPortal
-                    position="bottom"
-                    label="Export results in table for all charts in a zip file"
-                >
-                    <Button
-                        onClick={() => {
-                            exportCsvDashboardMutation.mutate({
-                                dashboard,
-                                filters: dashboardFilters,
-                            });
-                            onClose();
-                        }}
-                        leftIcon={<MantineIcon icon={IconCsv} />}
+                <Group spacing="xs">
+                    <Tooltip
+                        withinPortal
+                        position="bottom"
+                        label="Export results in table for all charts in a zip file"
                     >
-                        Export CSV
-                    </Button>
-                </Tooltip>
+                        <Button
+                            onClick={() => {
+                                exportCsvDashboardMutation.mutate({
+                                    dashboard,
+                                    filters: dashboardFilters,
+                                    dateZoomGranularity: dateZoomGranularity,
+                                });
+                                onClose();
+                            }}
+                            leftIcon={<MantineIcon icon={IconCsv} />}
+                        >
+                            Export CSV
+                        </Button>
+                    </Tooltip>
+                </Group>
             </Group>
-        </Group>
+        </Stack>
     );
 };
 

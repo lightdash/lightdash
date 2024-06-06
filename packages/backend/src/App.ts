@@ -451,6 +451,8 @@ export default class App {
                 passportUser: { id: string; organization: string },
                 done,
             ) => {
+                // Set the organization tag so we can filter by it in Sentry
+                Sentry.setTag('organization', passportUser.organization);
                 // Convert to a full user profile
                 try {
                     done(null, await userService.findSessionUser(passportUser));
@@ -489,6 +491,19 @@ export default class App {
                 new Sentry.Integrations.Postgres({ usePgNative: true }),
                 nodeProfilingIntegration(),
                 ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
+                ...(this.lightdashConfig.sentry.anr.enabled
+                    ? [
+                          Sentry.anrIntegration({
+                              pollInterval: 50, // ms
+                              anrThreshold:
+                                  this.lightdashConfig.sentry.anr.timeout ||
+                                  5000, // ms
+                              captureStackTrace:
+                                  this.lightdashConfig.sentry.anr
+                                      .captureStacktrace,
+                          }),
+                      ]
+                    : []),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
             tracesSampler: (context: SamplingContext): boolean | number => {
@@ -507,9 +522,9 @@ export default class App {
                 if (context.parentSampled !== undefined) {
                     return context.parentSampled;
                 }
-                return 0.2;
+                return this.lightdashConfig.sentry.tracesSampleRate;
             },
-            profilesSampleRate: 0.2, // 20% of samples will be profiled
+            profilesSampleRate: this.lightdashConfig.sentry.profilesSampleRate, // x% of samples will be profiled
             beforeBreadcrumb(breadcrumb) {
                 if (
                     breadcrumb.category === 'http' &&
@@ -533,6 +548,15 @@ export default class App {
             }) as RequestHandler,
         );
         expressApp.use(Sentry.Handlers.tracingHandler());
+
+        // Set k8s tags for Sentry
+        Sentry.setTags({
+            k8s_pod_name: this.lightdashConfig.k8s.podName,
+            k8s_pod_namespace: this.lightdashConfig.k8s.podNamespace,
+            k8s_node_name: this.lightdashConfig.k8s.nodeName,
+            lightdash_cloud_instance:
+                this.lightdashConfig.lightdashCloudInstance,
+        });
     }
 
     private initSchedulerWorker() {

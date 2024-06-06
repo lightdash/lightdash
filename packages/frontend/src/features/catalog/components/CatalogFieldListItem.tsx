@@ -1,6 +1,6 @@
 import { FieldType, type CatalogField } from '@lightdash/common';
 import { Box, Group, Highlight } from '@mantine/core';
-import { IconAbc, IconNumber } from '@tabler/icons-react';
+import { Icon123, IconAbc } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
@@ -56,7 +56,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                                 // TODO: Add icon for field type and for subtype
                                 field.fieldType === FieldType.DIMENSION
                                     ? IconAbc
-                                    : IconNumber
+                                    : Icon123
                             }
                             // TODO: update when new icons are added
                             color={
@@ -68,7 +68,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
 
                         <Highlight
                             highlight={searchString}
-                            highlightColor="violet"
+                            highlightColor="yellow"
                             fw={500}
                             fz="sm"
                         >

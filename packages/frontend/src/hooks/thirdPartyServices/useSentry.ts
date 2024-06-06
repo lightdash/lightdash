@@ -25,7 +25,7 @@ const useSentry = (
                         return samplingContext.parentSampled;
                     }
 
-                    return 0.2;
+                    return sentryConfig.tracesSampleRate;
                 },
                 replaysOnErrorSampleRate: 1.0,
             });
@@ -36,8 +36,8 @@ const useSentry = (
                 id: user.userUuid,
                 email: user.email,
                 username: user.email,
-                segment: user.organizationUuid,
             });
+            Sentry.setTag('organization', user.organizationUuid);
         }
     }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
 };

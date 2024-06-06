@@ -25,10 +25,6 @@ import {
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import {
-    AnalyticsChartViewsTableName,
-    AnalyticsDashboardViewsTableName,
-} from '../database/entities/analytics';
-import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
@@ -218,7 +214,7 @@ export class SpaceModel {
                     order: number | null;
                     chart_kind: ChartKind;
                     chart_type: ChartType;
-                    views: string;
+                    views_count: number;
                     first_viewed_at: Date | null;
                     project_uuid: string;
                     organization_uuid: string;
@@ -239,12 +235,8 @@ export class SpaceModel {
                 this.database.raw(
                     `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
                 ),
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid) as views`,
-                ),
-                this.database.raw(
-                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE saved_queries.saved_query_uuid = ${AnalyticsChartViewsTableName}.chart_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                ),
+                `saved_queries.views_count`,
+                `saved_queries.first_viewed_at`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -280,7 +272,7 @@ export class SpaceModel {
                 pinnedListOrder: savedQuery.order,
                 chartType: savedQuery.chart_type,
                 chartKind: savedQuery.chart_kind,
-                views: parseInt(savedQuery.views, 10) || 0,
+                views: savedQuery.views_count,
                 firstViewedAt: savedQuery.first_viewed_at,
             })),
             projectUuid,
@@ -484,8 +476,6 @@ export class SpaceModel {
             )
             .select<
                 (GetDashboardDetailsQuery & {
-                    views: string;
-                    first_viewed_at: Date | null;
                     validation_errors: DbValidationTable[];
                     space_uuid: string;
                 })[]
@@ -500,12 +490,8 @@ export class SpaceModel {
                 `${DashboardVersionsTableName}.created_at`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${SpaceTableName}.space_uuid`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsDashboardViewsTableName}.dashboard_uuid') FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid) as views`,
-                ),
-                this.database.raw(
-                    `(SELECT ${AnalyticsDashboardViewsTableName}.timestamp FROM ${AnalyticsDashboardViewsTableName} where ${AnalyticsDashboardViewsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid ORDER BY ${AnalyticsDashboardViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                ),
+                `${DashboardsTableName}.views_count`,
+                `${DashboardsTableName}.first_viewed_at`,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.order`,
                 this.database.raw(`
@@ -537,7 +523,7 @@ export class SpaceModel {
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
             const sortByColumn = filters.mostPopular
-                ? 'views'
+                ? 'views_count'
                 : 'dashboard_version_created_at';
 
             dashboardsQuery = dashboardsQuery
@@ -558,7 +544,7 @@ export class SpaceModel {
                 first_name,
                 last_name,
                 organization_uuid,
-                views,
+                views_count,
                 first_viewed_at,
                 pinned_list_uuid,
                 order,
@@ -577,7 +563,7 @@ export class SpaceModel {
                     lastName: last_name,
                 },
                 spaceUuid: space_uuid,
-                views: parseInt(views, 10),
+                views: views_count,
                 firstViewedAt: first_viewed_at,
                 pinnedListUuid: pinned_list_uuid,
                 pinnedListOrder: order,
@@ -929,7 +915,7 @@ export class SpaceModel {
                     user_uuid: string;
                     first_name: string;
                     last_name: string;
-                    views: string;
+                    views_count: number;
                     first_viewed_at: Date | null;
                     chart_kind: ChartKind;
                     chart_type: ChartType;
@@ -951,12 +937,8 @@ export class SpaceModel {
                 `users.user_uuid`,
                 `users.first_name`,
                 `users.last_name`,
-                this.database.raw(
-                    `(SELECT COUNT('${AnalyticsChartViewsTableName}.chart_uuid') FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid) as views`,
-                ),
-                this.database.raw(
-                    `(SELECT ${AnalyticsChartViewsTableName}.timestamp FROM ${AnalyticsChartViewsTableName} WHERE ${AnalyticsChartViewsTableName}.chart_uuid = saved_queries.saved_query_uuid ORDER BY ${AnalyticsChartViewsTableName}.timestamp ASC LIMIT 1) as first_viewed_at`,
-                ),
+                `saved_queries.views_count`,
+                `saved_queries.first_viewed_at`,
                 `saved_queries.last_version_chart_kind as chart_kind`,
                 this.database.raw(
                     `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = saved_queries.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
@@ -986,7 +968,7 @@ export class SpaceModel {
                     filters.mostPopular
                         ? [
                               {
-                                  column: 'views',
+                                  column: 'views_count',
                                   order: 'desc',
                               },
                           ]
@@ -1025,7 +1007,7 @@ export class SpaceModel {
                 lastName: savedQuery.last_name,
             },
             spaceUuid: savedQuery.space_uuid,
-            views: parseInt(savedQuery.views, 10),
+            views: savedQuery.views_count,
             firstViewedAt: savedQuery.first_viewed_at,
             chartType: savedQuery.chart_type,
             chartKind: savedQuery.chart_kind,
