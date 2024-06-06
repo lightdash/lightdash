@@ -64,11 +64,13 @@ height="94"
 style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-## Promote dashboards and spaces
+## Promote dashboards
 
 You can promote dashboards from the `dashboard` in view mode or from any listing (like home page or all dashboards), click on the `...` button and then select `promote dashboard`
 
-This will promote the dashboard to the `upstream` project as well as all the charts in this dashboard (for both charts within spaces and charts within this dashboard)
+This will promote the dashboard to the `upstream` project as well as all the charts in this dashboard (for both charts within spaces and charts within this dashboard) and all other non-chart tiles like markdown.
+
+It will also create new spaces if needed and move all the content to the right space.
 
 <img
 src={PromoteViewDashboard}
