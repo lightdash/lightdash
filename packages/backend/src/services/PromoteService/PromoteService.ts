@@ -838,7 +838,7 @@ export class PromoteService extends BaseService {
                             : undefined,
                         // Update space with the new space if it was created
                         space: !isChartWithinDashboard
-                            ? upstreamDashboard.space ||
+                            ? upstreamChart.space ||
                               newSpaces.find(
                                   (space) =>
                                       space.slug === promotedChart.space?.slug,
