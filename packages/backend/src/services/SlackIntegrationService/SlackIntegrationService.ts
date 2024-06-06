@@ -42,6 +42,7 @@ export class SlackIntegrationService extends BaseService {
             createdAt: slackAuth.createdAt,
             scopes: slackAuth.scopes,
             notificationChannel: slackAuth.notificationChannel,
+            appName: slackAuth.appName,
         };
         return response;
     }

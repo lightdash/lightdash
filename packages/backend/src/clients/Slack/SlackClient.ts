@@ -1,4 +1,8 @@
-import { SlackChannel, SlackSettings } from '@lightdash/common';
+import {
+    SlackAppCustomSettings,
+    SlackChannel,
+    SlackSettings,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Block } from '@slack/bolt';
 import {
@@ -181,19 +185,23 @@ export class SlackClient {
             });
     }
 
-    async updateNotificationChannel(
+    async updateAppCustomSettings(
         userFullName: string,
         organizationUuid: string,
-        channelId: string | null,
+        opts: SlackAppCustomSettings,
     ) {
         const webClient = await this.getWebClient(organizationUuid);
-
-        await this.slackAuthenticationModel.updateNotificationChannelFromOrganizationUuid(
+        const { notificationChannel: channelId } = opts;
+        const currentChannelId = await this.getNotificationChannel(
             organizationUuid,
-            channelId,
         );
 
-        if (channelId) {
+        await this.slackAuthenticationModel.updateAppCustomSettings(
+            organizationUuid,
+            opts,
+        );
+
+        if (channelId && channelId !== currentChannelId) {
             await webClient.chat
                 .postMessage({
                     channel: channelId,

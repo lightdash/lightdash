@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type SlackAppCustomSettings,
     type SlackChannel,
     type SlackSettings,
 } from '@lightdash/common';
@@ -69,29 +70,32 @@ export const useSlackChannels = (
         ...useQueryOptions,
     });
 
-const updateSlackNotificationChannel = async (channelId: string | null) =>
+const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
     lightdashApi<null>({
-        url: `/slack/notification-channel`,
+        url: `/slack/custom-settings`,
         method: 'PUT',
-        body: JSON.stringify({ channelId }),
+        body: JSON.stringify({
+            notificationChannel: opts.notificationChannel,
+            appName: opts.appName || null,
+        }),
     });
 
-export const useUpdateSlackNotificationChannelMutation = () => {
+export const useUpdateSlackAppCustomSettingsMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, { channelId: string | null }>(
-        ({ channelId }) => updateSlackNotificationChannel(channelId),
+    return useMutation<null, ApiError, SlackAppCustomSettings>(
+        updateSlackCustomSettings,
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['slack']);
 
                 showToastSuccess({
-                    title: `Success! Slack notification channel updated`,
+                    title: `Success! Slack app settings updated`,
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to update Slack notification channel`,
+                    title: `Failed to update Slack app settings`,
                     apiError: error,
                 });
             },

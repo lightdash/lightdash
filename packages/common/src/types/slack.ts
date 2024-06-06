@@ -12,3 +12,8 @@ export type ApiSlackNotificationChannelResponse = {
     status: 'ok';
     results: void;
 };
+
+export type SlackAppCustomSettings = {
+    notificationChannel: string | null;
+    appName: string | null;
+};
