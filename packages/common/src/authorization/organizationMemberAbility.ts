@@ -180,6 +180,15 @@ export const organizationMemberAbilities: Record<
                 },
             },
         });
+        can('promote', 'Dashboard', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
