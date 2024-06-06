@@ -6,6 +6,7 @@ export type SlackSettings = {
     scopes: string[];
     notificationChannel: string | undefined;
     appName: string | undefined;
+    appProfilePhotoUrl: string | undefined;
 };
 
 export const slackRequiredScopes = [

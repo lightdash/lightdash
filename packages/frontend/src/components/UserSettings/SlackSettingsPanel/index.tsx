@@ -64,6 +64,7 @@ const SlackSettingsPanel: FC = () => {
         initialValues: {
             notificationChannel: null,
             appName: null,
+            appProfilePhotoUrl: null,
         },
     });
 
@@ -77,7 +78,16 @@ const SlackSettingsPanel: FC = () => {
         if (data?.appName) {
             setFieldValue('appName', data.appName);
         }
-    }, [data?.appName, data?.notificationChannel, setFieldValue]);
+
+        if (data?.appProfilePhotoUrl) {
+            setFieldValue('appProfilePhotoUrl', data.appProfilePhotoUrl);
+        }
+    }, [
+        data?.appName,
+        data?.appProfilePhotoUrl,
+        data?.notificationChannel,
+        setFieldValue,
+    ]);
 
     if (isInitialLoading) {
         return <Loader />;
@@ -91,12 +101,23 @@ const SlackSettingsPanel: FC = () => {
 
     return (
         <SettingsGridCard>
-            <Box>
-                <Group spacing="sm">
-                    <Avatar src={slackSvg} size="md" />
-                    <Title order={4}>Slack</Title>
-                </Group>
-            </Box>
+            <Stack spacing="sm">
+                <Box>
+                    <Group spacing="sm">
+                        <Avatar src={slackSvg} size="md" />
+                        <Title order={4}>Slack</Title>
+                    </Group>
+                </Box>
+                <Stack align="center" justify="center" h="100%">
+                    <Avatar
+                        src={form.values?.appProfilePhotoUrl}
+                        size="xl"
+                        radius="md"
+                        bg="gray.1"
+                    />
+                    <Title order={6}>Profile photo</Title>
+                </Stack>
+            </Stack>
 
             <Stack>
                 <Stack spacing="sm">
@@ -137,6 +158,20 @@ const SlackSettingsPanel: FC = () => {
                                     disabled={!isValidSlack}
                                     {...form.getInputProps('appName')}
                                     value={form.values.appName ?? undefined}
+                                />
+                                <TextInput
+                                    label="Enter the URL of an profile photo for your Slack App"
+                                    size="xs"
+                                    placeholder="https://my-photo.com/photo.jpg"
+                                    type="url"
+                                    disabled={!isValidSlack}
+                                    {...form.getInputProps(
+                                        'appProfilePhotoUrl',
+                                    )}
+                                    value={
+                                        form.values.appProfilePhotoUrl ??
+                                        undefined
+                                    }
                                 />
                                 <Select
                                     label={

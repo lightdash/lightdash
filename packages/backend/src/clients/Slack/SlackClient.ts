@@ -173,7 +173,7 @@ export class SlackClient {
     ) {
         const { organizationUuid, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
-        const { appName } =
+        const { appName, appProfilePhotoUrl } =
             (await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             )) || {};
@@ -181,6 +181,7 @@ export class SlackClient {
         return webClient.chat
             .postMessage({
                 ...(appName ? { username: appName } : {}),
+                ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
             .catch((e: any) => {
@@ -197,7 +198,11 @@ export class SlackClient {
         opts: SlackAppCustomSettings,
     ) {
         const webClient = await this.getWebClient(organizationUuid);
-        const { notificationChannel: channelId, appName } = opts;
+        const {
+            notificationChannel: channelId,
+            appName,
+            appProfilePhotoUrl,
+        } = opts;
         const currentChannelId = await this.getNotificationChannel(
             organizationUuid,
         );
@@ -215,6 +220,9 @@ export class SlackClient {
                         userFullName.trim().length ? ` by ${userFullName}` : ''
                     }. Stay informed on your job status here.`,
                     ...(appName ? { username: appName } : {}),
+                    ...(appProfilePhotoUrl
+                        ? { icon_url: appProfilePhotoUrl }
+                        : {}),
                 })
                 .catch((e: any) => {
                     Logger.error(

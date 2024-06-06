@@ -6496,6 +6496,10 @@
             },
             "SlackAppCustomSettings": {
                 "properties": {
+                    "appProfilePhotoUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "appName": {
                         "type": "string",
                         "nullable": true
@@ -6505,7 +6509,11 @@
                         "nullable": true
                     }
                 },
-                "required": ["appName", "notificationChannel"],
+                "required": [
+                    "appProfilePhotoUrl",
+                    "appName",
+                    "notificationChannel"
+                ],
                 "type": "object"
             },
             "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {

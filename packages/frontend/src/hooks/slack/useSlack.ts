@@ -75,8 +75,9 @@ const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
         url: `/slack/custom-settings`,
         method: 'PUT',
         body: JSON.stringify({
-            notificationChannel: opts.notificationChannel,
+            ...opts,
             appName: opts.appName || null,
+            appProfilePhotoUrl: opts.appProfilePhotoUrl || null,
         }),
     });
 

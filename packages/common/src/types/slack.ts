@@ -16,4 +16,5 @@ export type ApiSlackNotificationChannelResponse = {
 export type SlackAppCustomSettings = {
     notificationChannel: string | null;
     appName: string | null;
+    appProfilePhotoUrl: string | null;
 };
