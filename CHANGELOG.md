@@ -1,3 +1,10 @@
+## [0.1121.4](https://github.com/lightdash/lightdash/compare/0.1121.3...0.1121.4) (2024-06-06)
+
+
+### Bug Fixes
+
+* add missing index in cached explore table ([#10310](https://github.com/lightdash/lightdash/issues/10310)) ([b268c37](https://github.com/lightdash/lightdash/commit/b268c37d9958ffdc26285fb49d5583419bc56d30))
+
 ## [0.1121.3](https://github.com/lightdash/lightdash/compare/0.1121.2...0.1121.3) (2024-06-05)
 
 
