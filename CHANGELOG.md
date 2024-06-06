@@ -1,3 +1,10 @@
+# [0.1123.0](https://github.com/lightdash/lightdash/compare/0.1122.0...0.1123.0) (2024-06-06)
+
+
+### Features
+
+* increase max retries for dashboard image schedulers ([#10313](https://github.com/lightdash/lightdash/issues/10313)) ([8844f3c](https://github.com/lightdash/lightdash/commit/8844f3c9996565be64d9f9430dca625f7cb023f3))
+
 # [0.1122.0](https://github.com/lightdash/lightdash/compare/0.1121.4...0.1122.0) (2024-06-06)
 
 
