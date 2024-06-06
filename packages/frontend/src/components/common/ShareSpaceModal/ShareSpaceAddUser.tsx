@@ -7,6 +7,7 @@ import {
     MultiSelect,
     Stack,
     Text,
+    Tooltip,
     type SelectItem,
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
@@ -88,33 +89,42 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                   )?.title ?? 'No access'
                 : 'No access';
 
+            const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;
+
             return (
                 <Group ref={ref} {...props} position={'apart'}>
-                    <Group>
-                        <Avatar size="md" radius="xl" color="blue">
-                            {getInitials(
-                                user.userUuid,
-                                user.firstName,
-                                user.lastName,
-                                user.email,
-                            )}
-                        </Avatar>
-                        <Stack spacing="two">
-                            {user.firstName || user.lastName ? (
-                                <>
-                                    <Text fw={500}>
-                                        {user.firstName} {user.lastName}
-                                    </Text>
+                    <Tooltip
+                        label={spaceRoleInheritanceInfo}
+                        position="top"
+                        disabled={spaceAccess === undefined}
+                    >
+                        <Group>
+                            <Avatar size="md" radius="xl" color="blue">
+                                {getInitials(
+                                    user.userUuid,
+                                    user.firstName,
+                                    user.lastName,
+                                    user.email,
+                                )}
+                            </Avatar>
+                            <Stack spacing="two">
+                                {user.firstName || user.lastName ? (
+                                    <>
+                                        <Text fw={500}>
+                                            {user.firstName} {user.lastName}
+                                        </Text>
 
-                                    <Text size={'xs'} color="dimmed">
-                                        {user.email}
-                                    </Text>
-                                </>
-                            ) : (
-                                <Text fw={500}>{user.email}</Text>
-                            )}
-                        </Stack>
-                    </Group>
+                                        <Text size={'xs'} color="dimmed">
+                                            {user.email}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <Text fw={500}>{user.email}</Text>
+                                )}
+                            </Stack>
+                        </Group>
+                    </Tooltip>
+
                     <Badge size="xs" color="gray.6" radius="xs">
                         {currentSpaceRoleTitle}
                     </Badge>
