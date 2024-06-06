@@ -346,8 +346,18 @@ export class DashboardModel {
                 )
                 .leftJoin(
                     DashboardTileChartTableName,
-                    `${DashboardTileChartTableName}.dashboard_tile_uuid`,
-                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                    function joinDashboardTileChartTableName() {
+                        this.on(
+                            `${DashboardTileChartTableName}.dashboard_version_id`,
+                            '=',
+                            `${DashboardTilesTableName}.dashboard_version_id`,
+                        );
+                        this.andOn(
+                            `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                            '=',
+                            `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                        );
+                    },
                 )
                 .leftJoin(
                     SavedChartsTableName,

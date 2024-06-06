@@ -5,8 +5,7 @@ const newTableSingularIndexes = {
     spaces: ['project_id'],
     projects: ['organization_id'],
     pinned_dashboard: ['pinned_list_uuid', 'dashboard_uuid'],
-    dashboard_tiles: ['dashboard_tile_uuid', 'dashboard_version_id'],
-    dashboard_tile_charts: ['dashboard_tile_uuid', 'saved_chart_id'],
+    dashboard_tile_charts: ['saved_chart_id'],
 };
 
 export async function up(knex: Knex): Promise<void> {
