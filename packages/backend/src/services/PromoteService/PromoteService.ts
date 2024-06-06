@@ -841,8 +841,7 @@ export class PromoteService extends BaseService {
                             ? upstreamDashboard.space ||
                               newSpaces.find(
                                   (space) =>
-                                      space.slug ===
-                                      promotedDashboard.space.slug,
+                                      space.slug === promotedChart.space?.slug,
                               )
                             : undefined,
                     };
