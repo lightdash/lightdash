@@ -108,15 +108,6 @@ const SlackSettingsPanel: FC = () => {
                         <Title order={4}>Slack</Title>
                     </Group>
                 </Box>
-                <Stack align="center" justify="center" h="100%">
-                    <Avatar
-                        src={form.values?.appProfilePhotoUrl}
-                        size="xl"
-                        radius="md"
-                        bg="gray.1"
-                    />
-                    <Title order={6}>Profile photo</Title>
-                </Stack>
             </Stack>
 
             <Stack>
@@ -173,6 +164,15 @@ const SlackSettingsPanel: FC = () => {
                                         undefined
                                     }
                                 />
+                                <Stack justify="center">
+                                    <Title order={6}>Profile photo</Title>
+                                    <Avatar
+                                        src={form.values?.appProfilePhotoUrl}
+                                        size="xl"
+                                        radius="md"
+                                        bg="gray.1"
+                                    />
+                                </Stack>
                                 <Select
                                     label={
                                         <Group spacing="two" mb="two">
