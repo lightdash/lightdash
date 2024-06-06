@@ -269,34 +269,40 @@ export class UnfurlService extends BaseService {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
 
-        const usePlaywrightSaveScreenshot = await isFeatureFlagEnabled(
-            FeatureFlags.usePlaywrightSaveScreenshot,
-            {
-                userUuid: authUserUuid,
-                organizationUuid: details?.organizationUuid,
-            },
-        );
-
-        const screenshotFn = usePlaywrightSaveScreenshot
-            ? this.saveScreenshotWithPlaywright
-            : this.saveScreenshot;
+        const usePlaywrightSaveScreenshot =
+            this.lightdashConfig.scheduler.screenshotWithPlaywright;
 
         if (usePlaywrightSaveScreenshot) {
-            this.logger.info('Using Playwright to take screenshots');
+            this.logger.info(
+                `Using Playwright to take screenshots for ${url} with details ${details?.minimalUrl} + ${details?.organizationUuid} + ${details?.resourceUuid} + ${details?.title}`,
+            );
         }
 
-        const buffer = await screenshotFn({
-            imageId,
-            cookie,
-            url,
-            lightdashPage,
-            chartType: details?.chartType,
-            organizationUuid: details?.organizationUuid,
-            gridWidth,
-            resourceUuid: details?.resourceUuid,
-            resourceName: details?.title,
-            selector,
-        });
+        const buffer = usePlaywrightSaveScreenshot
+            ? await this.saveScreenshotWithPlaywright({
+                  imageId,
+                  cookie,
+                  url,
+                  lightdashPage,
+                  chartType: details?.chartType,
+                  organizationUuid: details?.organizationUuid,
+                  gridWidth,
+                  resourceUuid: details?.resourceUuid,
+                  resourceName: details?.title,
+                  selector,
+              })
+            : await this.saveScreenshot({
+                  imageId,
+                  cookie,
+                  url,
+                  lightdashPage,
+                  chartType: details?.chartType,
+                  organizationUuid: details?.organizationUuid,
+                  gridWidth,
+                  resourceUuid: details?.resourceUuid,
+                  resourceName: details?.title,
+                  selector,
+              });
 
         let imageUrl;
         let pdfPath;
@@ -401,6 +407,8 @@ export class UnfurlService extends BaseService {
         selector?: string;
         retries?: number;
     }): Promise<Buffer | undefined> {
+        console.log('im here');
+
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
