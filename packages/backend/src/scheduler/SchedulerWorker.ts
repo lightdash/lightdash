@@ -13,6 +13,7 @@ import {
 import moment from 'moment';
 import Logger from '../logging/logger';
 import { VERSION } from '../version';
+import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -186,10 +187,17 @@ export class SchedulerWorker extends SchedulerTask {
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.handleScheduledDelivery(
+                    SchedulerClient.processJob(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
+                        async () => {
+                            await this.handleScheduledDelivery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
                     ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
@@ -271,11 +279,19 @@ export class SchedulerWorker extends SchedulerTask {
             },
             downloadCsv: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
-                    this.downloadCsv(
+                    SchedulerClient.processJob(
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
+                        async () => {
+                            await this.downloadCsv(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
                     ),
+
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {

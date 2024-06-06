@@ -17,12 +17,15 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SlackNotificationPayload,
+    UnexpectedServerError,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 import moment from 'moment';
+import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
@@ -85,6 +88,133 @@ export class SchedulerClient {
             });
     }
 
+    static async processJob(
+        jobId: string,
+        runAt: Date,
+        payload: any,
+        funct: () => Promise<void>,
+    ) {
+        const { traceHeader, baggageHeader, sentryMessageId } = payload;
+        const latency = Date.now() - runAt.getTime();
+
+        return new Promise<void>((resolve, reject) => {
+            Sentry.continueTrace(
+                { sentryTrace: traceHeader, baggage: baggageHeader },
+                async () => {
+                    await Sentry.startSpanManual(
+                        {
+                            name: 'queue_consumer_transaction',
+                        },
+                        async (parent) => {
+                            await Sentry.startSpanManual(
+                                {
+                                    name: 'queue_consumer',
+                                    op: 'queue.process',
+                                    attributes: {
+                                        'messaging.message.id': sentryMessageId,
+                                        'messaging.destination.name':
+                                            'messages',
+                                        'messaging.message.body.size':
+                                            Buffer.byteLength(
+                                                JSON.stringify(payload),
+                                            ),
+                                        'messaging.message.receive.latency':
+                                            latency,
+                                        'messaging.message.retry.count': 0,
+                                        'messaging.message.job.id': jobId,
+                                    },
+                                },
+                                async (span) => {
+                                    Sentry.captureException(
+                                        new Error('Testing before queue error'),
+                                    );
+
+                                    try {
+                                        await funct();
+
+                                        if (parent) parent.setStatus('ok');
+                                        Sentry.captureException(
+                                            new Error('Testing queue error'),
+                                        );
+                                        resolve();
+                                    } catch (e) {
+                                        if (parent)
+                                            parent.setStatus('internal_error');
+                                        reject(e);
+                                        throw e;
+                                    }
+                                },
+                            );
+                        },
+                    );
+                },
+            ).catch((e) => {
+                reject(e);
+            });
+        });
+    }
+
+    private static sentrySpanToHeader(span: Sentry.Span) {
+        // This function is available in sentry v8 (spanToTraceHeader and spanToBaggageHeader)
+        // https://github.com/getsentry/sentry-javascript/blob/2fc766d23/packages/utils/src/tracing.ts#L85
+        const { traceId } = span.spanContext();
+        const { spanId } = span.spanContext();
+        const sampled = '1';
+        return {
+            traceHeader: `${traceId}-${spanId}-${sampled}`,
+            baggageHeader: `sentry-trace=${traceId}-${spanId}`,
+        };
+    }
+
+    private static async addJob(
+        graphileClient: WorkerUtils,
+        identifier: string,
+        payload: any,
+        scheduledAt: Date,
+        maxAttempts: number,
+    ) {
+        const messageId = nanoid();
+        const jobId = await Sentry.startSpanManual(
+            {
+                name: 'queue_producer',
+                op: 'queue.publish',
+                attributes: {
+                    'messaging.message.id': messageId,
+                    'messaging.destination.name': 'messages',
+                    'messaging.message.body.size': Buffer.byteLength(
+                        JSON.stringify(payload),
+                    ),
+                },
+            },
+            async (span) => {
+                if (!span)
+                    throw new UnexpectedServerError('Sentry span undefined');
+                const sentryHeaders = this.sentrySpanToHeader(span);
+
+                const payloadWithSentryHeaders = {
+                    ...payload,
+                    ...sentryHeaders,
+                    sentryMessageId: messageId,
+                };
+                const { id } = await graphileClient.addJob(
+                    identifier,
+                    payloadWithSentryHeaders,
+                    {
+                        runAt: scheduledAt,
+                        maxAttempts,
+                    },
+                );
+                Sentry.captureException(
+                    new Error('Testing queue publish error'),
+                );
+
+                span.setAttribute('messaging.message.job.id', id);
+                return id;
+            },
+        );
+        return jobId;
+    }
+
     async getScheduledJobs(schedulerUuid: string): Promise<ScheduledJobs[]> {
         const graphileClient = await this.graphileUtils;
 
@@ -143,13 +273,12 @@ export class SchedulerClient {
             maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
         }
 
-        const { id } = await graphileClient.addJob(
+        const id = await SchedulerClient.addJob(
+            graphileClient,
             'handleScheduledDelivery',
             payload,
-            {
-                runAt: date,
-                maxAttempts,
-            },
+            date,
+            maxAttempts,
         );
         await this.schedulerModel.logSchedulerJob({
             task: 'handleScheduledDelivery',
@@ -184,10 +313,13 @@ export class SchedulerClient {
             scheduledTime: date,
         };
 
-        const { id } = await graphileClient.addJob('uploadGsheets', payload, {
-            runAt: date,
-            maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-        });
+        const id = await SchedulerClient.addJob(
+            graphileClient,
+            'uploadGsheets', 
+            payload, 
+            date,
+            SCHEDULED_JOB_MAX_ATTEMPTS,
+        );
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -264,10 +396,13 @@ export class SchedulerClient {
         };
 
         const { identifier, payload, type } = getIdentifierAndPayload();
-        const { id } = await graphileClient.addJob(identifier, payload, {
-            runAt: date,
-            maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-        });
+        const  id = await SchedulerClient.addJob(
+            graphileClient,
+            identifier, 
+            payload,
+            date,
+            SCHEDULED_JOB_MAX_ATTEMPTS,
+        );
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -370,14 +505,14 @@ export class SchedulerClient {
     async downloadCsvJob(payload: DownloadCsvPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
             'downloadCsv',
             payload,
-            {
-                runAt: now, // now
-                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-            },
+            now,
+            SCHEDULED_JOB_MAX_ATTEMPTS
         );
+
         await this.schedulerModel.logSchedulerJob({
             task: 'downloadCsv',
             jobId,
@@ -397,14 +532,14 @@ export class SchedulerClient {
     async uploadGsheetFromQueryJob(payload: UploadMetricGsheetPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
+        const jobId  = await SchedulerClient.addJob(
+            graphileClient,
             'uploadGsheetFromQuery',
             payload,
-            {
-                runAt: now,
-                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-            },
+            now,
+            SCHEDULED_JOB_MAX_ATTEMPTS,
         );
+
         await this.schedulerModel.logSchedulerJob({
             task: 'uploadGsheetFromQuery',
             jobId,
@@ -424,14 +559,14 @@ export class SchedulerClient {
     async generateValidation(payload: ValidateProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
+        const jobId  = await SchedulerClient.addJob(
+            graphileClient,
             'validateProject',
             payload,
-            {
-                runAt: now,
-                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-            },
+            now,
+            SCHEDULED_JOB_MAX_ATTEMPTS,
         );
+
         await this.schedulerModel.logSchedulerJob({
             task: 'validateProject',
             jobId,
@@ -451,14 +586,14 @@ export class SchedulerClient {
     async compileProject(payload: CompileProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
             'compileProject',
             payload,
-            {
-                runAt: now, // now
-                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-            },
+            now,
+            SCHEDULED_JOB_MAX_ATTEMPTS
         );
+
         await this.schedulerModel.logSchedulerJob({
             task: 'compileProject',
             jobId,
@@ -480,14 +615,14 @@ export class SchedulerClient {
     async testAndCompileProject(payload: CompileProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
-        const { id: jobId } = await graphileClient.addJob(
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
             'testAndCompileProject',
             payload,
-            {
-                runAt: now, // now
-                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
-            },
+            now,
+            SCHEDULED_JOB_MAX_ATTEMPTS,
         );
+
         await this.schedulerModel.logSchedulerJob({
             task: 'testAndCompileProject',
             jobId,
