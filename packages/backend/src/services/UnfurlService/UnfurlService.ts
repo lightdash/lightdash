@@ -407,8 +407,6 @@ export class UnfurlService extends BaseService {
         selector?: string;
         retries?: number;
     }): Promise<Buffer | undefined> {
-        console.log('im here');
-
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
             this.logger.error(
                 `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
