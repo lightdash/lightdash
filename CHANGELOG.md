@@ -1,3 +1,11 @@
+## [0.1124.1](https://github.com/lightdash/lightdash/compare/0.1124.0...0.1124.1) (2024-06-07)
+
+
+### Bug Fixes
+
+* add missing indexes for charts query ([#10341](https://github.com/lightdash/lightdash/issues/10341)) ([0aad5ba](https://github.com/lightdash/lightdash/commit/0aad5baada653be0c2be9fd982fe546089d02e22))
+* add missing indexes for dashboards query ([#10314](https://github.com/lightdash/lightdash/issues/10314)) ([abb9311](https://github.com/lightdash/lightdash/commit/abb931112768057ea53aeaf6f3ac38913c15f84f))
+
 # [0.1124.0](https://github.com/lightdash/lightdash/compare/0.1123.0...0.1124.0) (2024-06-06)
 
 
