@@ -133,9 +133,9 @@ const SlackSettingsPanel: FC = () => {
                         <form onSubmit={handleSubmit}>
                             <Stack spacing="sm">
                                 <TextInput
-                                    label="Enter the URL of an profile photo for your Slack App"
+                                    label="Enter the URL of a profile photo for your Slack App"
                                     size="xs"
-                                    placeholder="https://my-photo.com/photo.jpg"
+                                    placeholder="https://lightdash.cloud/photo.jpg"
                                     type="url"
                                     disabled={!isValidSlack}
                                     {...form.getInputProps(
