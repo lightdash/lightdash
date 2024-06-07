@@ -61,7 +61,7 @@ Here are all of the properties you can customize:
 | group_details                                     | Object with { label, description }    | Describes the groups for dimensions and metrics                                                                                                      |
 | [required_filters](#required-filters)             | Array of {filter field: value}        | Dimension filters that will be applied when no other filter on those dimension exists. Read more about `required_filters` [below](#required-filters) |
 
-### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
+### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it will appear in Lightdash
 
 Lightdash gets information about your data models from dbt.
 But it gets information about the data **_generated_** by those data models from your data warehouse.
@@ -161,7 +161,7 @@ Use `required_filters` to define filters on Dimensions that will be applied when
 This allows to enforce a default filter on a Dimension when querying a table.
 This defined `required_filters` will be replaced by any user-defined filter on the same Dimension making sure at least one filter is applied to the Dimension.
 
-For example, the defined `required_filters` on the date Dimension will be in place unless there is another user defined filter on the date Dimension when querying the orders table, like this:
+For example, the defined `required_filters` on the date Dimension will be in place unless there is another user-defined filter on the date Dimension when querying the orders table, like this:
 
 ```yaml
 version: 2
