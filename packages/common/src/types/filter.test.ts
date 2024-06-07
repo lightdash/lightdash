@@ -3,6 +3,7 @@ import { ConditionalOperator } from './conditionalRule';
 import {
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
+    isFilterRuleDefinedForFieldId,
     removeFieldFromFilterGroup,
     type AndFilterGroup,
     type FilterGroup,
@@ -359,5 +360,63 @@ describe('removeFieldFromFilterGroup', () => {
                 remainingMetric,
             ],
         });
+    });
+});
+describe('isFilterRuleDefinedForFieldId', () => {
+    const fieldToBeFound1 = 'metric_field_id_1';
+    const fieldToBeFound2 = 'metric_field_id_2';
+    const fieldToBeFound3 = 'metric_field_id_3';
+
+    const filterGroup: FilterGroup = {
+        id: 'metric_id_1',
+        and: [
+            {
+                id: 'metric_uuid_1',
+                target: {
+                    fieldId: fieldToBeFound1,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['metric_value_1'],
+            },
+            {
+                id: 'metric_uuid_3',
+                target: {
+                    fieldId: `${fieldToBeFound3}_to_be_found`,
+                },
+                operator: ConditionalOperator.EQUALS,
+                values: ['metric_value_3'],
+            },
+            {
+                id: 'metric_id_2',
+                and: [
+                    {
+                        id: 'metric_uuid_2',
+                        target: {
+                            fieldId: fieldToBeFound2,
+                        },
+                        operator: ConditionalOperator.EQUALS,
+                        values: ['metric_value_2'],
+                    },
+                ],
+            },
+        ],
+    };
+
+    it('should find', async () => {
+        expect(
+            isFilterRuleDefinedForFieldId(filterGroup, fieldToBeFound1),
+        ).toEqual(true);
+        expect(
+            isFilterRuleDefinedForFieldId(filterGroup, fieldToBeFound2),
+        ).toEqual(true);
+        expect(
+            isFilterRuleDefinedForFieldId(filterGroup, 'someRandomFieldId'),
+        ).toEqual(false);
+        expect(
+            isFilterRuleDefinedForFieldId(filterGroup, fieldToBeFound3, true),
+        ).toEqual(true);
+        expect(
+            isFilterRuleDefinedForFieldId(filterGroup, fieldToBeFound3, false),
+        ).toEqual(false);
     });
 });

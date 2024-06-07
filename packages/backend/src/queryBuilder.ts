@@ -4,6 +4,8 @@ import {
     CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
+    CompiledTable,
+    convertFieldRefToFieldId,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
@@ -28,13 +30,16 @@ import {
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isFilterGroup,
+    isFilterRuleDefinedForFieldId,
     ItemsMap,
+    MetricFilterRule,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
     SortField,
     SupportedDbtAdapter,
     TimeFrames,
+    UnitOfTime,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
@@ -998,6 +1003,81 @@ export const buildQuery = ({
         return undefined;
     };
 
+    const getNestedDimensionFilterSQLFromModelFilters = (
+        table: CompiledTable,
+        dimensionsFilterGroup: FilterGroup | undefined,
+    ): string | undefined => {
+        const modelFilterRules: MetricFilterRule[] | undefined =
+            table.required_filters;
+        if (!modelFilterRules) return undefined;
+        const reducedRules: string[] = modelFilterRules.reduce<string[]>(
+            (acc, filter) => {
+                // Convert filter to filter rule
+                const filterRule: FilterRule = {
+                    id: filter.id,
+                    target: {
+                        fieldId: convertFieldRefToFieldId(
+                            filter.target.fieldRef,
+                            table.name,
+                        ),
+                    },
+                    operator: filter.operator,
+                    values: filter.values,
+                    settings: {
+                        unitOfTime: filter.settings?.unitOfTime,
+                    },
+                };
+                let filterString: string | undefined;
+                // Required filter is only applied if the filterRule is not already present in the query filters
+                const dimension = Object.values(table.dimensions).find(
+                    (tc) => getItemId(tc) === filterRule.target.fieldId,
+                );
+                if (dimension) {
+                    // Check if the filter rule is already present in the query filters
+                    let dimensionFieldId = filterRule.target.fieldId;
+                    const timeDimension =
+                        dimension.isIntervalBase ||
+                        dimension.timeInterval !== undefined;
+                    // If its a time interval dimension, remove the time interval from the field id
+                    if (!dimension.isIntervalBase && dimension.timeInterval) {
+                        dimensionFieldId = dimensionFieldId.replace(
+                            `_${dimension.timeInterval.toLowerCase()}`,
+                            '',
+                        );
+                        const unitOfTime = dimension.timeInterval.toLowerCase();
+                    }
+                    if (
+                        !(
+                            dimensionsFilterGroup &&
+                            isFilterRuleDefinedForFieldId(
+                                dimensionsFilterGroup,
+                                dimensionFieldId,
+                                timeDimension,
+                            )
+                        )
+                    ) {
+                        filterString = `( ${sqlFilterRule(
+                            filterRule,
+                            FieldType.DIMENSION,
+                        )} )`;
+                    }
+                }
+                if (filterString) {
+                    return [...acc, filterString];
+                }
+                return [...acc];
+            },
+            [],
+        );
+        return reducedRules.join(' AND ');
+    };
+
+    const requiredDimensionFilterSql =
+        getNestedDimensionFilterSQLFromModelFilters(
+            explore.tables[explore.baseTable],
+            filters.dimensions,
+        );
+
     const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
 
     const tableSqlWhere = baseTableSqlWhere
@@ -1015,8 +1095,15 @@ export const buildQuery = ({
         filters.dimensions,
         FieldType.DIMENSION,
     );
+    const requiredFiltersWhere = requiredDimensionFilterSql
+        ? [requiredDimensionFilterSql]
+        : [];
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
-    const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
+    const allSqlFilters = [
+        ...tableSqlWhere,
+        ...nestedFilterWhere,
+        ...requiredFiltersWhere,
+    ];
 
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';

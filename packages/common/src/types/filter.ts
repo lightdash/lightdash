@@ -387,4 +387,39 @@ export const compressDashboardFiltersToParam = (
         { dimensions: [], metrics: [], tableCalculations: [] },
     );
 
+export const isFilterRuleDefinedForFieldId = (
+    filterGroup: FilterGroup,
+    fieldId: string,
+    isInterval: boolean = false,
+): boolean => {
+    // Check if the filter group is an 'and' or 'or' group
+    const items = isAndFilterGroup(filterGroup)
+        ? filterGroup.and
+        : filterGroup.or;
+    // Iterate over each item in the filter group
+    for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        // If the item is a filter rule, check if its id matches the provided filter rule id
+        if (
+            !isFilterGroup(item) &&
+            isInterval &&
+            item.target.fieldId.startsWith(fieldId)
+        ) {
+            return true;
+        }
+        if (!isFilterGroup(item) && item.target.fieldId === fieldId) {
+            return true;
+        }
+        // If the item is a filter group, recursively call the function to check its items
+        if (
+            isFilterGroup(item) &&
+            isFilterRuleDefinedForFieldId(item, fieldId, isInterval)
+        ) {
+            return true;
+        }
+    }
+    // If the filter rule was not found in the filter group, return false
+    return false;
+};
+
 export { ConditionalOperator as FilterOperator };

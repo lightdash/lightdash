@@ -48,17 +48,18 @@ models:
 
 Here are all of the properties you can customize:
 
-| Property                                          | Value                                 | Note                                                                                                                                |
-| ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --- |
-| label                                             | string                                | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                       |
-| [order_fields_by](#order-fields-by)               | 'index' or 'label'                    | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                           |
-| [joins](joins.mdx)                                | array                                 | Join logic to join other data models to the Table. [Read more about joins in here.](joins.mdx)                                      |
-| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object                                | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                      |
-| [group_label](#group-label)                       | string                                | Group tables in the sidebar. [Read more about the group label in here](#group-label)                                                |
-| [sql_filter](#sql-filter)                         | string                                | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
-| [sql_where](#sql-filter)                          | string                                | Alias for `sql_filter`                                                                                                              |     |
-| [required_attributes](#required-attributes)       | Object with { user_attribute, value } | Limits access to users with those attributes. [Read more about user attributes in here](./user-attributes.mdx)                      |
-| group_details                                     | Object with { label, description }    | Describes the groups for dimensions and metrics                                                                                     |
+| Property                                          | Value                                 | Note                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| label                                             | string                                | Custom label. This is what you'll see in Lightdash instead of the Table name.                                                                        |
+| [order_fields_by](#order-fields-by)               | 'index' or 'label'                    | How the fields will be sorted in the sidebar. [Read more about the order rules in here](#order-fields-by)                                            |
+| [joins](joins.mdx)                                | array                                 | Join logic to join other data models to the Table. [Read more about joins in here.](joins.mdx)                                                       |
+| [metrics](metrics.mdx#2-using-the-model-meta-tag) | object                                | Model metrics. [Read more about model metrics in here](metrics.mdx#2-using-the-model-meta-tag)                                                       |
+| [group_label](#group-label)                       | string                                | Group tables in the sidebar. [Read more about the group label in here](#group-label)                                                                 |
+| [sql_filter](#sql-filter)                         | string                                | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter)                  |
+| [sql_where](#sql-filter)                          | string                                | Alias for `sql_filter`                                                                                                                               |     |
+| [required_attributes](#required-attributes)       | Object with { user_attribute, value } | Limits access to users with those attributes. [Read more about user attributes in here](./user-attributes.mdx)                                       |
+| group_details                                     | Object with { label, description }    | Describes the groups for dimensions and metrics                                                                                                      |
+| [required_filters](#required-filters)             | Array of {filter field: value}        | Dimension filters that will be applied when no other filter on those dimension exists. Read more about `required_filters` [below](#required-filters) |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 
@@ -153,3 +154,60 @@ models:
 ```
 
 If a user without access to this table runs a query that contains this table, they will get a `Forbidden` error.
+
+## Required Filters
+
+Use `required_filters` to define filters on Dimensions that will be applied when no other user defined filter on those Dimensions exists.
+This allows to enforce a default filter on a Dimension when querying a table.
+This defined `required_filters` will be replaced by any user defined filter on the same Dimension making sure at least one filter is applied to the Dimension.
+
+For example, the defined `required_filters` on the date Dimension will be in place unless there is another user defined filter on the date Dimension when querying the orders table, like this:
+
+```yaml
+version: 2
+
+models:
+  - name: orders
+    meta:
+      required_filters:
+        - date: 'inThePast 14 days'
+    columns:
+      - name: date
+        description: ''
+        meta:
+          dimension:
+            type: date
+```
+
+### Available filter types
+
+| Type                          | Example (in English)                           | Example (as code)             |
+| ----------------------------- | ---------------------------------------------- | ----------------------------- |
+| is                            | User name is equal to katie                    | `user_name: "katie"`          |
+| is not                        | User name is not equal to katie                | `user_name: "!katie"`         |
+| contains                      | User name contains katie                       | `user_name: "%katie%"`        |
+| does not contain              | User name does not contain katie               | `user_name: "!%katie%"`       |
+| starts with                   | User name starts with katie                    | `user_name: "katie%"`         |
+| ends with                     | User name ends with katie                      | `user_name: "%katie"`         |
+| is greater than (number)      | Number of orders is greater than 4             | `num_orders: "> 4"`           |
+| in the past (date) (interval) | Date is before x (days / months / years)       | `date: "inThePast 14 months"` |
+| in the next (date) (interval) | Date is after x (days / months / years)        | `date: "inTheNext 14 days"`   |
+| is greater than or equal to   | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`          |
+| is less than                  | Number of orders is less than 4                | `num_orders: "< 4"`           |
+| is less than or equal to      | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`          |
+| is null                       | Status is `NULL`                               | `status: "null"`              |
+| is not null                   | Status is not `NULL`                           | `status: "!null"`             |
+| is [boolean]                  | Is complete is true                            | `is_complete: "true"`         |
+| is not [boolean]              | Is complete is false or null                   | `is_complete: "!true"`        |
+
+### If you have many filters in your list, they will be joined using `AND`.
+
+For example:
+
+```yaml
+filters:
+  - date: 'inThePast 14 days'
+  - status: completed
+```
+
+Would give you logic like `( (("orders".date) >= ('2024-05-23') AND ("orders".date) <= ('2024-06-06')) ) AND ( ("orders".status) IN ('completed') ) `.

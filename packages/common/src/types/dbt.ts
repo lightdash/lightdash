@@ -63,6 +63,7 @@ type DbtModelLightdashConfig = {
     group_label?: string;
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
+    required_filters?: { [key: string]: any }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
 };
