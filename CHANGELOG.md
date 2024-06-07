@@ -1,3 +1,10 @@
+# [0.1125.0](https://github.com/lightdash/lightdash/compare/0.1124.1...0.1125.0) (2024-06-07)
+
+
+### Features
+
+* use playwright for screenshotting ([#10315](https://github.com/lightdash/lightdash/issues/10315)) ([fd8fda1](https://github.com/lightdash/lightdash/commit/fd8fda12c638f11147e0697d0cf3ff452f401d73))
+
 ## [0.1124.1](https://github.com/lightdash/lightdash/compare/0.1124.0...0.1124.1) (2024-06-07)
 
 
