@@ -10,7 +10,6 @@ export type DbSlackAuthTokens = {
     created_by_user_id: number;
     created_at: Date;
     notification_channel: string | null;
-    app_name: string | null;
     app_profile_photo_url: string | null;
 };
 
@@ -21,7 +20,7 @@ export type CreateDbSlackAuthTokens = Pick<
 
 export type UpdateDbSlackAuthTokens = Pick<
     DbSlackAuthTokens,
-    'notification_channel' | 'app_name' | 'app_profile_photo_url'
+    'notification_channel' | 'app_profile_photo_url'
 >;
 
 export type SlackAuthTokensTable = Knex.CompositeTableType<

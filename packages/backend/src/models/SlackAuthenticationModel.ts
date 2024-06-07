@@ -127,7 +127,6 @@ export class SlackAuthenticationModel {
             token: row.installation?.bot?.token,
             scopes: row.installation?.bot?.scopes || [],
             notificationChannel: row.notification_channel ?? undefined,
-            appName: row.app_name ?? undefined,
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
         };
     }
@@ -150,18 +149,13 @@ export class SlackAuthenticationModel {
 
     async updateAppCustomSettings(
         organizationUuid: string,
-        {
-            notificationChannel,
-            appName,
-            appProfilePhotoUrl,
-        }: SlackAppCustomSettings,
+        { notificationChannel, appProfilePhotoUrl }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
 
         await this.database(SlackAuthTokensTableName)
             .update({
                 notification_channel: notificationChannel,
-                app_name: appName,
                 app_profile_photo_url: appProfilePhotoUrl,
             })
             .where('organization_id', organizationId);

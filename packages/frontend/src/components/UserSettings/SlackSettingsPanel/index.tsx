@@ -63,7 +63,6 @@ const SlackSettingsPanel: FC = () => {
     const form = useForm<SlackAppCustomSettings>({
         initialValues: {
             notificationChannel: null,
-            appName: null,
             appProfilePhotoUrl: null,
         },
     });
@@ -75,19 +74,10 @@ const SlackSettingsPanel: FC = () => {
             setFieldValue('notificationChannel', data.notificationChannel);
         }
 
-        if (data?.appName) {
-            setFieldValue('appName', data.appName);
-        }
-
         if (data?.appProfilePhotoUrl) {
             setFieldValue('appProfilePhotoUrl', data.appProfilePhotoUrl);
         }
-    }, [
-        data?.appName,
-        data?.appProfilePhotoUrl,
-        data?.notificationChannel,
-        setFieldValue,
-    ]);
+    }, [data?.appProfilePhotoUrl, data?.notificationChannel, setFieldValue]);
 
     if (isInitialLoading) {
         return <Loader />;
@@ -142,14 +132,6 @@ const SlackSettingsPanel: FC = () => {
                     <>
                         <form onSubmit={handleSubmit}>
                             <Stack spacing="sm">
-                                <TextInput
-                                    label="Enter a name for your Slack App"
-                                    size="xs"
-                                    placeholder="Lightdash"
-                                    disabled={!isValidSlack}
-                                    {...form.getInputProps('appName')}
-                                    value={form.values.appName ?? undefined}
-                                />
                                 <TextInput
                                     label="Enter the URL of an profile photo for your Slack App"
                                     size="xs"

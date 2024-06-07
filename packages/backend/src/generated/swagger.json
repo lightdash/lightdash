@@ -6500,20 +6500,12 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "appName": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "notificationChannel": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "required": [
-                    "appProfilePhotoUrl",
-                    "appName",
-                    "notificationChannel"
-                ],
+                "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
             },
             "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {

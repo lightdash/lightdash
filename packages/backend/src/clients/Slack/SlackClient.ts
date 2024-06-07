@@ -173,14 +173,13 @@ export class SlackClient {
     ) {
         const { organizationUuid, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
-        const { appName, appProfilePhotoUrl } =
+        const { appProfilePhotoUrl } =
             (await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             )) || {};
 
         return webClient.chat
             .postMessage({
-                ...(appName ? { username: appName } : {}),
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
@@ -198,11 +197,7 @@ export class SlackClient {
         opts: SlackAppCustomSettings,
     ) {
         const webClient = await this.getWebClient(organizationUuid);
-        const {
-            notificationChannel: channelId,
-            appName,
-            appProfilePhotoUrl,
-        } = opts;
+        const { notificationChannel: channelId, appProfilePhotoUrl } = opts;
         const currentChannelId = await this.getNotificationChannel(
             organizationUuid,
         );
@@ -219,7 +214,6 @@ export class SlackClient {
                     text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''
                     }. Stay informed on your job status here.`,
-                    ...(appName ? { username: appName } : {}),
                     ...(appProfilePhotoUrl
                         ? { icon_url: appProfilePhotoUrl }
                         : {}),

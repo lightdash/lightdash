@@ -42,7 +42,6 @@ export class SlackIntegrationService extends BaseService {
             createdAt: slackAuth.createdAt,
             scopes: slackAuth.scopes,
             notificationChannel: slackAuth.notificationChannel,
-            appName: slackAuth.appName,
             appProfilePhotoUrl: slackAuth.appProfilePhotoUrl,
         };
         return response;

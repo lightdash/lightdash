@@ -1,4 +1,4 @@
-import { LightdashMode, SlackAppCustomSettings } from '@lightdash/common';
+import { LightdashMode } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { Express } from 'express';
@@ -19,10 +19,7 @@ const notifySlackError = async (
     url: string,
     client: any,
     event: any,
-    {
-        appName,
-        appProfilePhotoUrl,
-    }: { appName?: string; appProfilePhotoUrl?: string },
+    { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
     /** Expected slack errors:
      * - cannot_parse_attachment: Means the image on the blocks is not accessible from slack, is the URL public ?
@@ -34,7 +31,6 @@ const notifySlackError = async (
         .postMessage({
             thread_ts: event.message_ts,
             channel: event.channel,
-            ...(appName ? { username: appName } : {}),
             ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
             text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
@@ -139,7 +135,6 @@ export class SlackBot {
 
     async unfurlSlackUrls(message: any) {
         const { event, client, context } = message;
-        let appName: string | undefined;
         let appProfilePhotoUrl: string | undefined;
 
         if (event.channel === 'COMPOSER') return; // Do not unfurl urls when typing, only when message is sent
@@ -177,7 +172,6 @@ export class SlackBot {
                             details?.organizationUuid,
                         );
 
-                    appName = installation?.appName;
                     appProfilePhotoUrl = installation?.appProfilePhotoUrl;
 
                     const { imageUrl } = await this.unfurlService.unfurlImage({
@@ -208,7 +202,6 @@ export class SlackBot {
             } catch (e) {
                 if (this.lightdashConfig.mode === LightdashMode.PR) {
                     void notifySlackError(e, l.url, client, event, {
-                        appName,
                         appProfilePhotoUrl,
                     });
                 }

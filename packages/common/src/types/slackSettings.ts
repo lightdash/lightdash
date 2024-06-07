@@ -5,7 +5,6 @@ export type SlackSettings = {
     token?: string;
     scopes: string[];
     notificationChannel: string | undefined;
-    appName: string | undefined;
     appProfilePhotoUrl: string | undefined;
 };
 

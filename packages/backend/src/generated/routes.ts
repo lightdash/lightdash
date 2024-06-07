@@ -5844,14 +5844,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                appName: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 notificationChannel: {
                     dataType: 'union',
                     subSchemas: [
