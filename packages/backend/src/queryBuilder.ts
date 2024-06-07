@@ -9,6 +9,7 @@ import {
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
+    Dimension,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -1003,6 +1004,48 @@ export const buildQuery = ({
         return undefined;
     };
 
+    const createFilterRule = (
+        filter: MetricFilterRule,
+        tableName: string,
+    ): FilterRule => ({
+        id: filter.id,
+        target: {
+            fieldId: convertFieldRefToFieldId(
+                filter.target.fieldRef,
+                tableName,
+            ),
+        },
+        operator: filter.operator,
+        values: filter.values,
+        settings: {
+            unitOfTime: filter.settings?.unitOfTime,
+        },
+    });
+
+    const isFilterRuleInQuery = (
+        dimension: Dimension,
+        filterRule: FilterRule,
+        dimensionsFilterGroup: FilterGroup | undefined,
+    ): undefined | boolean => {
+        let dimensionFieldId = filterRule.target.fieldId;
+        const timeDimension =
+            dimension.isIntervalBase || dimension.timeInterval !== undefined;
+        if (!dimension.isIntervalBase && dimension.timeInterval) {
+            dimensionFieldId = dimensionFieldId.replace(
+                `_${dimension.timeInterval.toLowerCase()}`,
+                '',
+            );
+        }
+        return (
+            dimensionsFilterGroup &&
+            isFilterRuleDefinedForFieldId(
+                dimensionsFilterGroup,
+                dimensionFieldId,
+                timeDimension,
+            )
+        );
+    };
+
     const getNestedDimensionFilterSQLFromModelFilters = (
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
@@ -1010,65 +1053,33 @@ export const buildQuery = ({
         const modelFilterRules: MetricFilterRule[] | undefined =
             table.required_filters;
         if (!modelFilterRules) return undefined;
+
         const reducedRules: string[] = modelFilterRules.reduce<string[]>(
             (acc, filter) => {
-                // Convert filter to filter rule
-                const filterRule: FilterRule = {
-                    id: filter.id,
-                    target: {
-                        fieldId: convertFieldRefToFieldId(
-                            filter.target.fieldRef,
-                            table.name,
-                        ),
-                    },
-                    operator: filter.operator,
-                    values: filter.values,
-                    settings: {
-                        unitOfTime: filter.settings?.unitOfTime,
-                    },
-                };
-                let filterString: string | undefined;
-                // Required filter is only applied if the filterRule is not already present in the query filters
+                const filterRule = createFilterRule(filter, table.name);
                 const dimension = Object.values(table.dimensions).find(
                     (tc) => getItemId(tc) === filterRule.target.fieldId,
                 );
-                if (dimension) {
-                    // Check if the filter rule is already present in the query filters
-                    let dimensionFieldId = filterRule.target.fieldId;
-                    const timeDimension =
-                        dimension.isIntervalBase ||
-                        dimension.timeInterval !== undefined;
-                    // If its a time interval dimension, remove the time interval from the field id
-                    if (!dimension.isIntervalBase && dimension.timeInterval) {
-                        dimensionFieldId = dimensionFieldId.replace(
-                            `_${dimension.timeInterval.toLowerCase()}`,
-                            '',
-                        );
-                        const unitOfTime = dimension.timeInterval.toLowerCase();
-                    }
-                    if (
-                        !(
-                            dimensionsFilterGroup &&
-                            isFilterRuleDefinedForFieldId(
-                                dimensionsFilterGroup,
-                                dimensionFieldId,
-                                timeDimension,
-                            )
-                        )
-                    ) {
-                        filterString = `( ${sqlFilterRule(
-                            filterRule,
-                            FieldType.DIMENSION,
-                        )} )`;
-                    }
-                }
-                if (filterString) {
-                    return [...acc, filterString];
-                }
-                return [...acc];
+
+                if (!dimension) return acc;
+                if (
+                    isFilterRuleInQuery(
+                        dimension,
+                        filterRule,
+                        dimensionsFilterGroup,
+                    )
+                )
+                    return acc;
+
+                const filterString = `( ${sqlFilterRule(
+                    filterRule,
+                    FieldType.DIMENSION,
+                )} )`;
+                return [...acc, filterString];
             },
             [],
         );
+
         return reducedRules.join(' AND ');
     };
 
