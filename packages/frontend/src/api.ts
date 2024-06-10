@@ -5,7 +5,6 @@ import {
     type ApiResponse,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
-import { spanToTraceHeader } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
 
 export const BASE_API_URL =
@@ -60,7 +59,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             },
         },
         (s) => {
-            sentryTrace = spanToTraceHeader(s);
+            sentryTrace = Sentry.spanToTraceHeader(s);
         },
     );
 
