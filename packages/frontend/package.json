@@ -39,7 +39,7 @@
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
         "@monaco-editor/react": "^4.6.0",
-        "@sentry/react": "^7.114.0",
+        "@sentry/react": "^8.8.0",
         "@shopify/react-web-worker": "^5.0.13",
         "@tabler/icons-react": "^2.32.0",
         "@tanstack/react-query": "^4.36.1",
