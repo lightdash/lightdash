@@ -497,7 +497,8 @@ export class UnfurlService extends BaseService {
                     page.on('response', async (response) => {
                         const responseUrl = response.url();
                         const regexUrlToMatch =
-                            lightdashPage === LightdashPage.EXPLORE
+                            lightdashPage === LightdashPage.EXPLORE ||
+                            lightdashPage === LightdashPage.CHART
                                 ? /\/saved\/[a-f0-9-]+\/results/
                                 : /\/saved\/[a-f0-9-]+\/chart-and-results/; // NOTE: Chart endpoint in Dashboards is different
                         if (responseUrl.match(regexUrlToMatch)) {
@@ -523,16 +524,32 @@ export class UnfurlService extends BaseService {
                     });
                     let timeout = false;
                     try {
-                        // Wait for the all charts to load if we are in a dashboard
-                        const chartResultsPromises = chartTileUuids?.map(
-                            (id) => {
+                        let chartResultsPromises:
+                            | (Promise<playwright.Response> | undefined)[]
+                            | undefined;
+
+                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                            // Wait for the all charts to load if we are in a dashboard
+                            chartResultsPromises = chartTileUuids?.map((id) => {
                                 const responsePattern = new RegExp(
                                     `${id}/chart-and-results`,
                                 );
 
                                 return page?.waitForResponse(responsePattern); // NOTE: No await here
-                            },
-                        );
+                            });
+                        } else if (
+                            lightdashPage === LightdashPage.CHART ||
+                            lightdashPage === LightdashPage.EXPLORE
+                        ) {
+                            // Wait for the visualization to load if we are in an explore page
+                            const responsePattern = new RegExp(
+                                `${resourceUuid}/results`,
+                            );
+
+                            chartResultsPromises = [
+                                page?.waitForResponse(responsePattern),
+                            ];
+                        }
 
                         await page.goto(url, {
                             timeout: 150000,
@@ -553,7 +570,10 @@ export class UnfurlService extends BaseService {
 
                     let finalSelector = selector;
 
-                    if (lightdashPage === LightdashPage.EXPLORE) {
+                    if (
+                        lightdashPage === LightdashPage.EXPLORE ||
+                        lightdashPage === LightdashPage.CHART
+                    ) {
                         finalSelector = `[data-testid="visualization"]`;
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
                         finalSelector = '.react-grid-layout';
