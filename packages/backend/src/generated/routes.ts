@@ -5819,7 +5819,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSlackNotificationChannelResponse: {
+    ApiSlackCustomSettingsResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -12410,10 +12410,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/slack/custom-settings',
         ...fetchMiddlewares<RequestHandler>(SlackController),
         ...fetchMiddlewares<RequestHandler>(
-            SlackController.prototype.updateNotificationChannel,
+            SlackController.prototype.updateCustomSettings,
         ),
 
-        async function SlackController_updateNotificationChannel(
+        async function SlackController_updateCustomSettings(
             request: any,
             response: any,
             next: any,
@@ -12451,7 +12451,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.updateNotificationChannel.apply(
+                const promise = controller.updateCustomSettings.apply(
                     controller,
                     validatedArgs as any,
                 );
