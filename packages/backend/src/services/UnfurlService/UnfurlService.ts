@@ -4,8 +4,8 @@ import {
     AuthorizationError,
     ChartType,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
+    isDashboardChartTileType,
     LightdashPage,
     SessionUser,
     snakeCaseName,
@@ -80,6 +80,7 @@ export type Unfurl = {
     minimalUrl: string;
     organizationUuid: string;
     resourceUuid: string | undefined;
+    chartTileUuids?: (string | null)[];
 };
 
 export type ParsedUrl = {
@@ -148,6 +149,7 @@ export class UnfurlService extends BaseService {
             'title' | 'description' | 'chartType' | 'organizationUuid'
         > & {
             resourceUuid?: string;
+            chartTileUuids?: (string | null)[];
         }
     > {
         switch (parsedUrl.lightdashPage) {
@@ -164,6 +166,9 @@ export class UnfurlService extends BaseService {
                     description: dashboard.description,
                     organizationUuid: dashboard.organizationUuid,
                     resourceUuid: dashboard.uuid,
+                    chartTileUuids: dashboard.tiles
+                        .filter(isDashboardChartTileType)
+                        .map((t) => t.properties.savedChartUuid),
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -219,6 +224,7 @@ export class UnfurlService extends BaseService {
             organizationUuid,
             chartType,
             resourceUuid,
+            ...rest
         } = await this.getTitleAndDescription(parsedUrl);
 
         return {
@@ -230,6 +236,7 @@ export class UnfurlService extends BaseService {
             organizationUuid,
             chartType,
             resourceUuid,
+            chartTileUuids: rest.chartTileUuids,
         };
     }
 
@@ -290,6 +297,7 @@ export class UnfurlService extends BaseService {
                   resourceUuid: details?.resourceUuid,
                   resourceName: details?.title,
                   selector,
+                  chartTileUuids: details?.chartTileUuids,
               })
             : await this.saveScreenshot({
                   imageId,
@@ -393,6 +401,7 @@ export class UnfurlService extends BaseService {
         resourceUuid = undefined,
         resourceName = undefined,
         selector = 'body',
+        chartTileUuids = undefined,
         retries = SCREENSHOT_RETRIES,
     }: {
         imageId: string;
@@ -405,6 +414,7 @@ export class UnfurlService extends BaseService {
         resourceUuid?: string;
         resourceName?: string;
         selector?: string;
+        chartTileUuids?: (string | null)[] | undefined;
         retries?: number;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
@@ -513,27 +523,31 @@ export class UnfurlService extends BaseService {
                     });
                     let timeout = false;
                     try {
+                        // Wait for the all charts to load if we are in a dashboard
+                        const chartResultsPromises = chartTileUuids?.map(
+                            (id) => {
+                                const responsePattern = new RegExp(
+                                    `${id}/chart-and-results`,
+                                );
+
+                                return page?.waitForResponse(responsePattern); // NOTE: No await here
+                            },
+                        );
+
                         await page.goto(url, {
                             timeout: 150000,
                         });
+
+                        if (chartResultsPromises) {
+                            // We wait after navigating to the page
+                            await Promise.allSettled(chartResultsPromises);
+                        }
                     } catch (e) {
                         timeout = true;
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
                     }
-                    // Wait until the page is fully loaded
-                    await page
-                        .waitForSelector('.loading_chart', {
-                            state: 'hidden',
-                            timeout: 30000,
-                        })
-                        .catch(() => {
-                            timeout = true;
-                            this.logger.warn(
-                                `Got a timeout when waiting for all charts to be loaded, returning current content`,
-                            );
-                        });
 
                     const path = `/tmp/${imageId}.png`;
 
@@ -544,10 +558,6 @@ export class UnfurlService extends BaseService {
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
                         finalSelector = '.react-grid-layout';
                     }
-
-                    const element = await page.waitForSelector(finalSelector, {
-                        timeout: 60000,
-                    });
 
                     if (lightdashPage === LightdashPage.DASHBOARD) {
                         const fullPage = await page.$('.react-grid-layout');
@@ -560,13 +570,6 @@ export class UnfurlService extends BaseService {
                         });
                     }
 
-                    if (!element) {
-                        this.logger.warn(`Can't find element on page`);
-                        return undefined;
-                    }
-
-                    const box = await element.boundingBox();
-
                     chartCounter.addCallback(async (result) => {
                         result.observe(chartRequests, {
                             errors: chartRequestErrors,
@@ -576,8 +579,6 @@ export class UnfurlService extends BaseService {
                     });
 
                     span.setAttributes({
-                        'page.width': box?.width,
-                        'page.height': box?.height,
                         'chart.requests.total': chartRequests,
                         'chart.requests.error': chartRequestErrors,
                         'page.type': lightdashPage,
@@ -586,21 +587,14 @@ export class UnfurlService extends BaseService {
                         organization_uuid: organizationUuid || 'undefined',
                     });
 
-                    if (this.lightdashConfig.scheduler.screenshotTimeout) {
-                        await new Promise((resolve) => {
-                            setTimeout(
-                                resolve,
-                                this.lightdashConfig.scheduler
-                                    .screenshotTimeout,
-                            );
+                    const imageBuffer = await page
+                        .locator(finalSelector)
+                        .screenshot({
+                            path,
+                            ...(lightdashPage === LightdashPage.DASHBOARD
+                                ? { animations: 'disabled' }
+                                : {}),
                         });
-                    }
-                    const imageBuffer = await element.screenshot({
-                        path,
-                        ...(lightdashPage === LightdashPage.DASHBOARD
-                            ? { animations: 'disabled' }
-                            : {}),
-                    });
                     return imageBuffer;
                 } catch (e) {
                     const isRetryableError =
@@ -642,6 +636,7 @@ export class UnfurlService extends BaseService {
                             resourceUuid,
                             resourceName,
                             selector,
+                            chartTileUuids,
                             retries,
                         });
                     }
