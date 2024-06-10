@@ -62,8 +62,8 @@ export class SlackController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Put('/custom-settings')
-    @OperationId('UpdateNotificationChannel')
-    async updateNotificationChannel(
+    @OperationId('UpdateCustomSettings')
+    async updateCustomSettings(
         @Request() req: express.Request,
         @Body() body: SlackAppCustomSettings,
     ): Promise<ApiSlackNotificationChannelResponse> {

@@ -7628,7 +7628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1123.0",
+        "version": "0.1126.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12105,7 +12105,7 @@
         },
         "/api/v1/slack/custom-settings": {
             "put": {
-                "operationId": "UpdateNotificationChannel",
+                "operationId": "UpdateCustomSettings",
                 "responses": {
                     "200": {
                         "description": "Success",
