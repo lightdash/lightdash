@@ -1,3 +1,10 @@
+## [0.1125.1](https://github.com/lightdash/lightdash/compare/0.1125.0...0.1125.1) (2024-06-10)
+
+
+### Bug Fixes
+
+* handle consecutive uppercases in friendlyName ([#10344](https://github.com/lightdash/lightdash/issues/10344)) ([51049e3](https://github.com/lightdash/lightdash/commit/51049e3f136c1372cbf061c0521adea6f01447dd))
+
 # [0.1125.0](https://github.com/lightdash/lightdash/compare/0.1124.1...0.1125.0) (2024-06-07)
 
 
