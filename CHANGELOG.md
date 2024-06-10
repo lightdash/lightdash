@@ -1,3 +1,10 @@
+# [0.1126.0](https://github.com/lightdash/lightdash/compare/0.1125.1...0.1126.0) (2024-06-10)
+
+
+### Features
+
+* allow slack bot customization ([#10335](https://github.com/lightdash/lightdash/issues/10335)) ([0991aba](https://github.com/lightdash/lightdash/commit/0991aba143ed3e4fc261a4c32f5029ed7a14748d))
+
 ## [0.1125.1](https://github.com/lightdash/lightdash/compare/0.1125.0...0.1125.1) (2024-06-10)
 
 
