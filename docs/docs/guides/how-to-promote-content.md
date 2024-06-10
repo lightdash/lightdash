@@ -70,7 +70,7 @@ You can promote dashboards from the `dashboard` in view mode or from any listing
 
 This will promote the dashboard to the `upstream` project as well as all the charts in this dashboard (for both charts within spaces and charts within this dashboard) and all other non-chart tiles like markdown.
 
-It will also create new spaces if needed and move all the content to the right space.
+If the dashboard or charts are in a space that doesn't exist in the upstream project, then these spaces will be created and the content will be put in these spaces.
 
 <img
 src={PromoteViewDashboard}
