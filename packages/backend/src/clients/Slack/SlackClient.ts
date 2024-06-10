@@ -1,4 +1,8 @@
-import { SlackChannel, SlackSettings } from '@lightdash/common';
+import {
+    SlackAppCustomSettings,
+    SlackChannel,
+    SlackSettings,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Block } from '@slack/bolt';
 import {
@@ -169,8 +173,14 @@ export class SlackClient {
     ) {
         const { organizationUuid, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
+        const { appProfilePhotoUrl } =
+            (await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            )) || {};
+
         return webClient.chat
             .postMessage({
+                ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
                 ...slackMessageArgs,
             })
             .catch((e: any) => {
@@ -181,25 +191,32 @@ export class SlackClient {
             });
     }
 
-    async updateNotificationChannel(
+    async updateAppCustomSettings(
         userFullName: string,
         organizationUuid: string,
-        channelId: string | null,
+        opts: SlackAppCustomSettings,
     ) {
         const webClient = await this.getWebClient(organizationUuid);
-
-        await this.slackAuthenticationModel.updateNotificationChannelFromOrganizationUuid(
+        const { notificationChannel: channelId, appProfilePhotoUrl } = opts;
+        const currentChannelId = await this.getNotificationChannel(
             organizationUuid,
-            channelId,
         );
 
-        if (channelId) {
+        await this.slackAuthenticationModel.updateAppCustomSettings(
+            organizationUuid,
+            opts,
+        );
+
+        if (channelId && channelId !== currentChannelId) {
             await webClient.chat
                 .postMessage({
                     channel: channelId,
                     text: `This channel will now receive notifications for failed scheduled delivery jobs in Lightdash. Configuration completed${
                         userFullName.trim().length ? ` by ${userFullName}` : ''
                     }. Stay informed on your job status here.`,
+                    ...(appProfilePhotoUrl
+                        ? { icon_url: appProfilePhotoUrl }
+                        : {}),
                 })
                 .catch((e: any) => {
                     Logger.error(
