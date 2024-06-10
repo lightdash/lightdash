@@ -6482,7 +6482,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSlackNotificationChannelResponse": {
+            "ApiSlackCustomSettingsResponse": {
                 "properties": {
                     "results": {},
                     "status": {
@@ -12112,7 +12112,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSlackNotificationChannelResponse"
+                                    "$ref": "#/components/schemas/ApiSlackCustomSettingsResponse"
                                 }
                             }
                         }

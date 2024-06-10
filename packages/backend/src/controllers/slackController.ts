@@ -1,7 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSlackChannelsResponse,
-    ApiSlackNotificationChannelResponse,
+    ApiSlackCustomSettingsResponse,
     ForbiddenError,
     SlackAppCustomSettings,
 } from '@lightdash/common';
@@ -66,7 +66,7 @@ export class SlackController extends BaseController {
     async updateCustomSettings(
         @Request() req: express.Request,
         @Body() body: SlackAppCustomSettings,
-    ): Promise<ApiSlackNotificationChannelResponse> {
+    ): Promise<ApiSlackCustomSettingsResponse> {
         this.setStatus(200);
         const organizationUuid = req.user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
