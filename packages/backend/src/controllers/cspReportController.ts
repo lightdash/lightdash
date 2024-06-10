@@ -20,7 +20,7 @@ export class CspReportController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Post('/')
     @OperationId('Report CSP Violation')
-    async report(@Body() body: any): Promise<ApiSuccessEmpty> {
+    async report(@Body() body: unknown): Promise<ApiSuccessEmpty> {
         const error = new Error(
             `CSP violation reported: ${JSON.stringify(body)}`,
         );
