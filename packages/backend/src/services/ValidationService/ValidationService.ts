@@ -625,6 +625,21 @@ export class ValidationService extends BaseService {
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
+
+        const allowedSpaceUuids = spaces
+            .filter((space, index) =>
+                hasViewAccessToSpace(
+                    user,
+                    space,
+                    spacesAccess[space.uuid] ?? [],
+                ),
+            )
+            .map((s) => s.uuid);
+
         // Filter private content to developers
         return Promise.all(
             validations.map(async (validation) => {
@@ -632,15 +647,7 @@ export class ValidationService extends BaseService {
                     (s) => s.uuid === validation.spaceUuid,
                 );
                 const hasAccess =
-                    space &&
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
-                    );
+                    space && allowedSpaceUuids.includes(space.uuid);
                 if (hasAccess) return validation;
 
                 return {

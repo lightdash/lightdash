@@ -2705,6 +2705,10 @@ export class ProjectService extends BaseService {
                 this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
                 Promise.all(explorePromises),
             ]);
+            const userSpacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                uniqueSpaceUuids,
+            );
 
             resolvedExplores.forEach(({ key, explore }) => {
                 exploreCache[key] = explore;
@@ -2712,10 +2716,6 @@ export class ProjectService extends BaseService {
 
             const filterPromises = savedCharts.map(async (savedChart) => {
                 const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
-                const access = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    savedChart.spaceUuid,
-                );
 
                 if (
                     user.ability.cannot(
@@ -2723,7 +2723,8 @@ export class ProjectService extends BaseService {
                         subject('SavedChart', {
                             ...savedChart,
                             isPrivate: spaceAccess?.isPrivate,
-                            access,
+                            access:
+                                userSpacesAccess[savedChart.spaceUuid] ?? [],
                         }),
                     )
                 ) {
@@ -3078,29 +3079,24 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
 
-        const allowedSpacesBooleans = await Promise.all(
-            spaces.map(
-                async (space) =>
+        const allowedSpaceUuids = spaces
+            .filter(
+                (space) =>
                     space.projectUuid === projectUuid &&
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
+                        spacesAccess[space.uuid] ?? [],
                     ),
-            ),
-        );
+            )
+            .map(({ uuid }) => uuid);
 
-        const allowedSpaces = spaces.filter(
-            (_, index) => allowedSpacesBooleans[index],
-        );
-
-        return this.spaceModel.getSpaceQueries(
-            allowedSpaces.map((s) => s.uuid),
-        );
+        return this.spaceModel.getSpaceQueries(allowedSpaceUuids);
     }
 
     async getChartSummaries(
@@ -3120,29 +3116,26 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
 
-        const allowedSpacesBooleans = await Promise.all(
-            spaces.map(
-                async (space) =>
+        const allowedSpaceUuids = spaces
+            .filter(
+                (space) =>
                     space.projectUuid === projectUuid &&
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
+                        spacesAccess[space.uuid] ?? [],
                     ),
-            ),
-        );
-
-        const allowedSpaces = spaces.filter(
-            (_, index) => allowedSpacesBooleans[index],
-        );
+            )
+            .map((space) => space.uuid);
 
         return this.savedChartModel.find({
             projectUuid,
-            spaceUuids: allowedSpaces.map((s) => s.uuid),
+            spaceUuids: allowedSpaceUuids,
         });
     }
 
@@ -3246,29 +3239,21 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-
-        const spacesWithUserAccess = await Promise.all(
-            spaces.map(async (spaceSummary) => {
-                const [userAccess] = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    spaceSummary.uuid,
-                );
-                return {
-                    ...spaceSummary,
-                    userAccess,
-                };
-            }),
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
         );
 
-        const allowedSpaces = spacesWithUserAccess.filter((space) =>
-            hasViewAccessToSpace(
-                user,
-                space,
-                space.userAccess ? [space.userAccess] : [],
-            ),
-        );
+        const spacesWithUserAccess = spaces
+            .filter((space) =>
+                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]),
+            )
+            .map((spaceSummary) => ({
+                ...spaceSummary,
+                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],
+            }));
 
-        return allowedSpaces;
+        return spacesWithUserAccess;
     }
 
     async copyContentOnPreview(
@@ -3286,21 +3271,16 @@ export class ProjectService extends BaseService {
             },
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
-                const allowedSpacesBooleans = await Promise.all(
-                    spaces.map(async (space) =>
-                        hasViewAccessToSpace(
-                            user,
-                            space,
-                            await this.spaceModel.getUserSpaceAccess(
-                                user.userUuid,
-                                space.uuid,
-                            ),
-                        ),
-                    ),
+                const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                    user.userUuid,
+                    spaces.map((s) => s.uuid),
                 );
-
-                const allowedSpaces = spaces.filter(
-                    (_, index) => allowedSpacesBooleans[index],
+                const allowedSpaces = spaces.filter((space) =>
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        spacesAccess[space.uuid] ?? [],
+                    ),
                 );
 
                 await this.projectModel.duplicateContent(
