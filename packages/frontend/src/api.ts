@@ -5,6 +5,7 @@ import {
     type ApiResponse,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
+import { spanToTraceHeader } from '@sentry/react';
 import fetch from 'isomorphic-fetch';
 
 export const BASE_API_URL =
@@ -44,26 +45,24 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     body,
     headers,
 }: LightdashApiProps): Promise<T> => {
+    let sentryTrace: string | undefined;
     // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
-    const activeTransaction = Sentry.getActiveTransaction();
-
-    let sentryTrace = undefined;
-    if (activeTransaction) {
-        const span = activeTransaction.startChild({
-            data: {
+    Sentry.startSpan(
+        {
+            op: 'http.client',
+            name: `API Request: ${method} ${url}`,
+            attributes: {
+                'http.method': method,
+                'http.url': url,
                 type: 'fetch',
                 url,
                 method,
             },
-            op: 'http.client',
-            name: `API Request: ${method} ${url}`,
-        });
-        span.setAttributes({
-            'http.method': method,
-            'http.url': url,
-        });
-        sentryTrace = span.toTraceparent();
-    }
+        },
+        (s) => {
+            sentryTrace = spanToTraceHeader(s);
+        },
+    );
 
     return fetch(`${apiPrefix}${url}`, {
         method,
