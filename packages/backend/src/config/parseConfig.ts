@@ -435,6 +435,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         sentry: {
             backend: {
                 dsn: process.env.SENTRY_BE_DSN || process.env.SENTRY_DSN || '',
+                securityReportUri:
+                    process.env.SENTRY_BE_SECURITY_REPORT_URI || '',
             },
             frontend: {
                 dsn: process.env.SENTRY_FE_DSN || process.env.SENTRY_DSN || '',
