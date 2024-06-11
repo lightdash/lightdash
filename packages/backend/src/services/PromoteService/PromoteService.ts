@@ -537,13 +537,13 @@ export class PromoteService extends BaseService {
                           ...dashboardChange.data,
                           tiles: dashboardChange.data.tiles.map((tile) => {
                               if (isChartTile(tile)) {
-                                  const [oldChartUuid, chart] =
+                                  const [oldChartUuid, createdChart] =
                                       createdCharts.find(
                                           ([uuid]) =>
                                               uuid ===
                                               tile.properties.savedChartUuid,
-                                      )!;
-                                  if (chart === undefined) {
+                                      ) || [];
+                                  if (createdChart === undefined) {
                                       // No chart created, we leave it as it is, it is probably updated
                                       return tile;
                                   }
@@ -551,7 +551,7 @@ export class PromoteService extends BaseService {
                                       ...tile,
                                       properties: {
                                           ...tile.properties,
-                                          savedChartUuid: chart.uuid,
+                                          savedChartUuid: createdChart.uuid,
                                       },
                                   };
                               }
@@ -1211,6 +1211,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.dashboards[0].data;
         } catch (e) {
+            console.error('e', e);
             Logger.error(`Unable to promote dashboard: ${e}`);
             await this.trackAnalytics(
                 user,
