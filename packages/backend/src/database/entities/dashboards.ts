@@ -55,7 +55,7 @@ type DbDashboardTile = Required<DbCreateDashboardTile>;
 type DbDashboardTileChart = {
     dashboard_version_id: number;
     dashboard_tile_uuid: string;
-    saved_chart_id: number;
+    saved_chart_id: number | null;
     hide_title?: boolean;
     title?: string;
 };
