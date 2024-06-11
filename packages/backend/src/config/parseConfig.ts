@@ -160,6 +160,11 @@ export type LightdashConfig = {
     version: '1.0';
     lightdashSecret: string;
     secureCookies: boolean;
+    security: {
+        contentSecurityPolicy: {
+            allowedDomains: string[];
+        };
+    };
     cookiesMaxAgeHours?: number;
     trustProxy: boolean;
     databaseConnectionUri?: string;
@@ -402,6 +407,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
+        security: {
+            contentSecurityPolicy: {
+                allowedDomains: (
+                    process.env.LIGHTDASH_CSP_ALLOWED_DOMAINS || ''
+                )
+                    .split(',')
+                    .map((domain) => domain.trim()),
+            },
+        },
         smtp: process.env.EMAIL_SMTP_HOST
             ? {
                   host: process.env.EMAIL_SMTP_HOST,
