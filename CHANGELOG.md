@@ -1,3 +1,10 @@
+## [0.1128.2](https://github.com/lightdash/lightdash/compare/0.1128.1...0.1128.2) (2024-06-11)
+
+
+### Bug Fixes
+
+* adjust content security policy directives ([#10369](https://github.com/lightdash/lightdash/issues/10369)) ([60b6a5b](https://github.com/lightdash/lightdash/commit/60b6a5b04b4a089a075d0b0ec11f430272a8c737))
+
 ## [0.1128.1](https://github.com/lightdash/lightdash/compare/0.1128.0...0.1128.1) (2024-06-11)
 
 
