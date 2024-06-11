@@ -1,3 +1,10 @@
+# [0.1128.0](https://github.com/lightdash/lightdash/compare/0.1127.0...0.1128.0) (2024-06-11)
+
+
+### Features
+
+* add node runtime ELU metric ([#10362](https://github.com/lightdash/lightdash/issues/10362)) ([fe0c386](https://github.com/lightdash/lightdash/commit/fe0c386833bc072ee0fb84b1204d39b86d376fc1))
+
 # [0.1127.0](https://github.com/lightdash/lightdash/compare/0.1126.3...0.1127.0) (2024-06-11)
 
 
