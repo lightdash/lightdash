@@ -535,7 +535,9 @@ export class UnfurlService extends BaseService {
                                     `${id}/chart-and-results`,
                                 );
 
-                                return page?.waitForResponse(responsePattern); // NOTE: No await here
+                                return page?.waitForResponse(responsePattern, {
+                                    timeout: 60000,
+                                }); // NOTE: No await here
                             });
                         } else if (
                             lightdashPage === LightdashPage.CHART ||
@@ -547,7 +549,9 @@ export class UnfurlService extends BaseService {
                             );
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern),
+                                page?.waitForResponse(responsePattern, {
+                                    timeout: 60000,
+                                }), // NOTE: No await here
                             ];
                         }
 
@@ -564,6 +568,16 @@ export class UnfurlService extends BaseService {
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );
+                    }
+
+                    if (lightdashPage === LightdashPage.DASHBOARD) {
+                        // wait for all components with class .loading_chart to disappear - they are the same number as the number of charts
+                        const dashboardChartsLoaders =
+                            page.locator('.loading_chart');
+
+                        await dashboardChartsLoaders.waitFor({
+                            state: 'hidden',
+                        });
                     }
 
                     const path = `/tmp/${imageId}.png`;
