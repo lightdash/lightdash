@@ -547,7 +547,9 @@ export class UnfurlService extends BaseService {
                             );
 
                             chartResultsPromises = [
-                                page?.waitForResponse(responsePattern),
+                                page?.waitForResponse(responsePattern, {
+                                    timeout: 40000,
+                                }),
                             ];
                         }
 
