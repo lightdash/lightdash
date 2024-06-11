@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ChartSummary,
     DashboardDAO,
+    deepEqual,
     ForbiddenError,
     isChartTile,
     NotFoundError,
@@ -991,40 +992,51 @@ export class PromoteService extends BaseService {
             ];
         }, []);
 
-        const dashboardChanges: PromotionChanges['dashboards'] =
-            upstreamDashboard.dashboard !== undefined
-                ? [
-                      {
-                          // TODO check differences to see if we need to UPDATE or NO_CHANGES
-                          action: PromotionAction.UPDATE,
-                          data: {
-                              ...promotedDashboard.dashboard,
-                              ...upstreamDashboard.dashboard,
-                              spaceSlug: promotedDashboard.space?.slug,
-                          },
-                      },
-                  ]
-                : [
-                      {
-                          action: PromotionAction.CREATE,
-                          data: {
-                              ...promotedDashboard.dashboard,
-                              spaceUuid:
-                                  upstreamDashboard.space?.uuid ||
-                                  promotedDashboard.dashboard.spaceUuid, // Or set the new space uuid after creation
-                              projectUuid: upstreamProjectUuid,
-                              spaceSlug: promotedDashboard.space?.slug,
-                          },
-                      },
-                  ];
+        const dashboardChanges: PromotionChanges['dashboards'] = [
+            upstreamDashboard,
+        ].map((dashboard) => {
+            if (upstreamDashboard.dashboard !== undefined) {
+                // TODO check differences to see if we need to UPDATE or NO_CHANGES
+                // For this we'll have to fetch more data for upstreamDashboard like the dashboard tiles
+                // or check if promotedDashboard.updatedAt > upstreamDashboard.updatedAt
+                const isEqual = false; // deepEqual(promotedDashboard.dashboard, upstreamDashboard.dashboard)
+
+                return {
+                    action: isEqual
+                        ? PromotionAction.NO_CHANGES
+                        : PromotionAction.UPDATE,
+                    data: {
+                        ...promotedDashboard.dashboard,
+                        ...upstreamDashboard.dashboard,
+                        spaceSlug: promotedDashboard.space?.slug,
+                    },
+                };
+            }
+            return {
+                action: PromotionAction.CREATE,
+                data: {
+                    ...promotedDashboard.dashboard,
+                    spaceUuid:
+                        upstreamDashboard.space?.uuid ||
+                        promotedDashboard.dashboard.spaceUuid, // Or set the new space uuid after creation
+                    projectUuid: upstreamProjectUuid,
+                    spaceSlug: promotedDashboard.space?.slug,
+                },
+            };
+        });
 
         const chartChanges: PromotionChanges['charts'] = charts.map(
             ({ promotedChart, upstreamChart }) => {
-                // TODO check differences to see if we need to UPDATE or NO_CHANGES
-
                 if (upstreamChart.chart !== undefined) {
+                    // TODO check differences to see if we need to UPDATE or NO_CHANGES
+                    // For this we'll have to fetch more data for upstreamChart like  the chart config
+                    // or check if promotedChart.updatedAt > upstreamChart.updatedAt
+                    const isEqual = false; // deepEqual(promotedChart.chart, upstreamChart.chart)
+
                     return {
-                        action: PromotionAction.UPDATE,
+                        action: isEqual
+                            ? PromotionAction.NO_CHANGES
+                            : PromotionAction.UPDATE,
                         data: {
                             ...promotedChart.chart,
                             ...upstreamChart.chart,
