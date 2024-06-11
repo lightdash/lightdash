@@ -190,6 +190,7 @@ export class DashboardService extends BaseService {
     async getById(
         user: SessionUser,
         dashboardUuid: string,
+        isPinning: boolean = false
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
 
@@ -212,10 +213,12 @@ export class DashboardService extends BaseService {
             );
         }
 
-        await this.analyticsModel.addDashboardViewEvent(
-            dashboard.uuid,
-            user.userUuid,
-        );
+        if (!isPinning) {
+            await this.analyticsModel.addDashboardViewEvent(
+                dashboard.uuid,
+                user.userUuid,
+            );
+        }
         this.analytics.track({
             event: 'dashboard.view',
             userId: user.userUuid,
@@ -628,7 +631,7 @@ export class DashboardService extends BaseService {
             },
         });
 
-        return this.getById(user, dashboardUuid);
+        return this.getById(user, dashboardUuid, true);
     }
 
     async updateMultiple(

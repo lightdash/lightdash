@@ -476,7 +476,7 @@ export class SavedChartService extends BaseService {
             },
         });
 
-        return this.get(savedChartUuid, user);
+        return this.get(savedChartUuid, user, true);
     }
 
     async updateMultiple(
@@ -603,7 +603,11 @@ export class SavedChartService extends BaseService {
         return this.analyticsModel.getChartViewStats(savedChartUuid);
     }
 
-    async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
+    async get(
+        savedChartUuid: string,
+        user: SessionUser,
+        isPinning: boolean = false
+    ): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
@@ -628,10 +632,12 @@ export class SavedChartService extends BaseService {
             );
         }
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChartUuid,
-            user.userUuid,
-        );
+        if (!isPinning) {
+            await this.analyticsModel.addChartViewEvent(
+                savedChartUuid,
+                user.userUuid,
+            );
+        }
 
         this.analytics.track({
             event: 'saved_chart.view',
