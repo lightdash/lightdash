@@ -18,6 +18,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -434,9 +435,9 @@ export class PromoteService extends BaseService {
     async upsertCharts(
         user: SessionUser,
         promotionChanges: PromotionChanges,
+        promotedDashboardUuid?: string, // dashboard uuid if chart belongs to dashboard
     ): Promise<PromotionChanges> {
         const { charts } = promotionChanges;
-        const promotedDashboardUuid = promotionChanges.dashboards[0].data.uuid;
 
         const existingCharts = charts.filter(
             (change) => change.action === PromotionAction.NO_CHANGES,
@@ -447,17 +448,13 @@ export class PromoteService extends BaseService {
                 .filter((change) => change.action === PromotionAction.UPDATE)
                 .map((chartChange) => {
                     const promotedChart = chartChange.data;
-
                     // TODO check if description needs to changed
                     // We also update chart name and description if they have changed
-                    return this.savedChartModel.update(
-                        promotedChart.spaceUuid,
-                        {
-                            name: promotedChart.name,
-                            description: promotedChart.description,
-                            spaceUuid: promotedChart.spaceUuid,
-                        },
-                    );
+                    return this.savedChartModel.update(promotedChart.uuid, {
+                        name: promotedChart.name,
+                        description: promotedChart.description,
+                        spaceUuid: promotedChart.spaceUuid,
+                    });
                 }),
         );
 
@@ -470,7 +467,7 @@ export class PromoteService extends BaseService {
                 // TODO check if version needs to change ?
                 return this.savedChartModel
                     .createVersion(
-                        promotedChart.spaceUuid,
+                        promotedChart.uuid,
                         {
                             tableName: promotedChart.tableName,
                             metricQuery: promotedChart.metricQuery,
@@ -499,21 +496,22 @@ export class PromoteService extends BaseService {
                     const isChartWithinDashboard =
                         promotedChart?.dashboardUuid !== null;
 
-                    const chartData = isChartWithinDashboard
-                        ? {
-                              ...promotedChart,
-                              dashboardUuid: promotedDashboardUuid,
-                              spaceUuid: null,
-                              updatedByUser: user,
-                              slug: promotedChart.slug,
-                          }
-                        : {
-                              ...promotedChart,
-                              dashboardUuid: null,
-                              spaceUuid: promotedChart.spaceUuid,
-                              updatedByUser: user,
-                              slug: promotedChart.slug,
-                          };
+                    const chartData =
+                        isChartWithinDashboard && promotedDashboardUuid
+                            ? {
+                                  ...promotedChart,
+                                  dashboardUuid: promotedDashboardUuid,
+                                  spaceUuid: null,
+                                  updatedByUser: user,
+                                  slug: promotedChart.slug,
+                              }
+                            : {
+                                  ...promotedChart,
+                                  dashboardUuid: null,
+                                  spaceUuid: promotedChart.spaceUuid,
+                                  updatedByUser: user,
+                                  slug: promotedChart.slug,
+                              };
                     return this.savedChartModel
                         .create(
                             promotedChart.projectUuid,
@@ -531,30 +529,37 @@ export class PromoteService extends BaseService {
         const createdCharts = await Promise.all(createdChartPromises);
 
         // We update the dashboard tiles with the chart uuids we've just insterted
-        const updatedDashboardsWithChartUuids = promotionChanges.dashboards.map(
-            (dashboardChange) => ({
-                ...dashboardChange,
-                data: {
-                    ...dashboardChange.data,
-                    tiles: dashboardChange.data.tiles.map((tile) => {
-                        if (isChartTile(tile)) {
-                            const [oldChartUuid, chart] = createdCharts.find(
-                                ([uuid]) =>
-                                    uuid === tile.properties.savedChartUuid,
-                            )!;
-                            return {
-                                ...tile,
-                                properties: {
-                                    ...tile.properties,
-                                    savedChartUuid: chart.uuid,
-                                },
-                            };
-                        }
-                        return tile;
-                    }),
-                },
-            }),
-        );
+        const updatedDashboardsWithChartUuids =
+            createdCharts.length > 0
+                ? promotionChanges.dashboards.map((dashboardChange) => ({
+                      ...dashboardChange,
+                      data: {
+                          ...dashboardChange.data,
+                          tiles: dashboardChange.data.tiles.map((tile) => {
+                              if (isChartTile(tile)) {
+                                  const [oldChartUuid, chart] =
+                                      createdCharts.find(
+                                          ([uuid]) =>
+                                              uuid ===
+                                              tile.properties.savedChartUuid,
+                                      )!;
+                                  if (chart === undefined) {
+                                      // No chart created, we leave it as it is, it is probably updated
+                                      return tile;
+                                  }
+                                  return {
+                                      ...tile,
+                                      properties: {
+                                          ...tile.properties,
+                                          savedChartUuid: chart.uuid,
+                                      },
+                                  };
+                              }
+                              return tile;
+                          }),
+                      },
+                  }))
+                : promotionChanges.dashboards;
 
         return {
             ...promotionChanges,
@@ -617,6 +622,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.charts[0].data;
         } catch (e) {
+            Logger.error(`Unable to promote chart: ${e}`);
             await this.trackAnalytics(
                 user,
                 'promote.error',
@@ -815,12 +821,13 @@ export class PromoteService extends BaseService {
                 data: promotedSpace,
             };
         });
+        const allSpaces = [...existingSpaces, ...newSpaceChanges];
 
         const updateChartsWithSpace = promotionChanges.charts.map(
             (chartChange) => {
                 const chart = chartChange.data;
                 const space = PromoteService.getSpaceBySlug(
-                    newSpaceChanges,
+                    allSpaces,
                     chart.spaceSlug,
                 );
                 return {
@@ -836,7 +843,7 @@ export class PromoteService extends BaseService {
             (dashboardChange) => {
                 const dashboard = dashboardChange.data;
                 const space = PromoteService.getSpaceBySlug(
-                    newSpaceChanges,
+                    allSpaces,
                     dashboard.spaceSlug,
                 );
                 return {
@@ -902,7 +909,6 @@ export class PromoteService extends BaseService {
                           spaceSlug: promotedChart.space?.slug,
                       },
                   };
-
         return {
             spaces: [spaceChange],
             dashboards: [],
@@ -1148,7 +1154,6 @@ export class PromoteService extends BaseService {
             );
 
             // Check permissions for all chart tiles
-
             promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
                 PromoteService.checkPromoteChartPermissions(
                     user,
@@ -1174,7 +1179,11 @@ export class PromoteService extends BaseService {
 
             // Update or create charts
             // and return the list of dashboard.tiles updates with the new chart uuids
-            promotionChanges = await this.upsertCharts(user, promotionChanges);
+            promotionChanges = await this.upsertCharts(
+                user,
+                promotionChanges,
+                promotionChanges.dashboards[0].data.uuid,
+            );
 
             promotionChanges = await this.updateDashboard(
                 user,
@@ -1202,6 +1211,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.dashboards[0].data;
         } catch (e) {
+            Logger.error(`Unable to promote dashboard: ${e}`);
             await this.trackAnalytics(
                 user,
                 'promote.error',

@@ -8,6 +8,7 @@ import {
     Button,
     Flex,
     Group,
+    Loader,
     Modal,
     Stack,
     Text,
@@ -25,7 +26,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 type Props = {
     type: 'chart' | 'dashboard';
     resourceName: string;
-    promotionChanges: PromotionChanges;
+    promotionChanges: PromotionChanges | undefined;
     onConfirm: () => void;
     onClose: () => void;
 };
@@ -113,6 +114,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
     onClose,
 }) => {
     const groupedChanges = useMemo(() => {
+        if (promotionChanges === undefined) return undefined;
         return {
             spaces: {
                 total: promotionChanges.spaces.filter(
@@ -159,6 +161,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
             },
         };
     }, [promotionChanges]);
+
     return (
         <Modal
             size="lg"
@@ -175,66 +178,77 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     ?
                 </Text>
                 These changes will be applied:
-                <Stack>
-                    {groupedChanges.spaces.total > 0 && (
-                        <>
-                            <Flex>
-                                <MantineIcon
-                                    icon={IconFolder}
-                                    color="violet.8"
-                                />{' '}
-                                <Text ml={10} fw={600}>
-                                    Spaces:{' '}
-                                </Text>{' '}
-                            </Flex>
-                            <PromotionChangesAccordion
-                                type="spaces"
-                                items={groupedChanges.spaces}
-                            />
-                        </>
-                    )}
+                {groupedChanges === undefined ? (
+                    <Flex gap="sm" align="center">
+                        <Loader color="gray" size={'sm'} speed={1} />
+                        <Text>Loading differences...</Text>
+                    </Flex>
+                ) : (
+                    <Stack>
+                        {groupedChanges.spaces.total > 0 && (
+                            <>
+                                <Flex gap="sm">
+                                    <MantineIcon
+                                        icon={IconFolder}
+                                        color="violet.8"
+                                    />{' '}
+                                    <Text fw={600}>Spaces: </Text>{' '}
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="spaces"
+                                    items={groupedChanges.spaces}
+                                />
+                            </>
+                        )}
 
-                    {groupedChanges.dashboards.total > 0 && (
-                        <>
-                            <Flex>
-                                <MantineIcon
-                                    icon={IconLayoutDashboard}
-                                    color="green.8"
-                                />{' '}
-                                <Text ml={10} fw={600}>
-                                    Dashboards:{' '}
-                                </Text>{' '}
-                            </Flex>
-                            <PromotionChangesAccordion
-                                type="dashboards"
-                                items={groupedChanges.dashboards}
-                            />
-                        </>
-                    )}
-                    {groupedChanges.charts.total > 0 && (
-                        <>
-                            <Flex>
-                                <MantineIcon
-                                    icon={IconChartAreaLine}
-                                    color="blue.7"
-                                />{' '}
-                                <Text ml={10} fw={600}>
-                                    Charts:{' '}
-                                </Text>{' '}
-                            </Flex>
-                            <PromotionChangesAccordion
-                                type="charts"
-                                items={groupedChanges.charts}
-                            />
-                        </>
-                    )}
-                </Stack>
+                        {groupedChanges.dashboards.total > 0 && (
+                            <>
+                                <Flex>
+                                    <MantineIcon
+                                        icon={IconLayoutDashboard}
+                                        color="green.8"
+                                    />{' '}
+                                    <Text ml={10} fw={600}>
+                                        Dashboards:{' '}
+                                    </Text>{' '}
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="dashboards"
+                                    items={groupedChanges.dashboards}
+                                />
+                            </>
+                        )}
+                        {groupedChanges.charts.total > 0 && (
+                            <>
+                                <Flex>
+                                    <MantineIcon
+                                        icon={IconChartAreaLine}
+                                        color="blue.7"
+                                    />{' '}
+                                    <Text ml={10} fw={600}>
+                                        Charts:{' '}
+                                    </Text>{' '}
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="charts"
+                                    items={groupedChanges.charts}
+                                />
+                            </>
+                        )}
+                    </Stack>
+                )}
                 <Group position="right" mt="sm">
                     <Button color="dark" variant="outline" onClick={onClose}>
                         Cancel
                     </Button>
 
-                    <Button color="red" onClick={onConfirm}>
+                    <Button
+                        color="green"
+                        onClick={() => {
+                            onConfirm();
+                            onClose();
+                        }}
+                    >
                         Promote
                     </Button>
                 </Group>

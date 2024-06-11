@@ -190,6 +190,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         mutate: getPromoteChartDiff,
         data: promoteChartDiff,
         reset: resetPromoteChartDiff,
+        isLoading: promoteChartDiffLoading,
     } = usePromoteChartDiffMutation();
     const history = useHistory();
     const isEditMode = useExplorerContext(
@@ -1039,8 +1040,10 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                 />
             )}
 
-            {promoteChartDiff && (
+            {(promoteChartDiff || promoteChartDiffLoading) && (
                 <PromotionConfirmDialog
+                    type={'dashboard'}
+                    resourceName={savedChart?.name ?? ''}
                     promotionChanges={promoteChartDiff}
                     onClose={() => {
                         resetPromoteChartDiff();

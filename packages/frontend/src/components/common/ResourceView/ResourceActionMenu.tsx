@@ -113,11 +113,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         mutate: getPromoteDashboardDiff,
         data: promoteDashboardDiff,
         reset: resetPromoteDashboardDiff,
+        isLoading: promoteDashboardDiffLoading,
     } = usePromoteDashboardDiffMutation();
     const {
         mutate: getPromoteChartDiff,
         data: promoteChartDiff,
         reset: resetPromoteChartDiff,
+        isLoading: promoteChartDiffLoading,
     } = usePromoteChartDiffMutation();
 
     const isPromoteChartsEnabled = useFeatureFlagEnabled(
@@ -512,7 +514,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 </Menu.Dropdown>
             </Menu>
 
-            {promoteChartDiff && (
+            {(promoteChartDiff || promoteChartDiffLoading) && (
                 <PromotionConfirmDialog
                     type="chart"
                     promotionChanges={promoteChartDiff}
@@ -525,7 +527,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     }}
                 ></PromotionConfirmDialog>
             )}
-            {promoteDashboardDiff && (
+            {(promoteDashboardDiff || promoteDashboardDiffLoading) && (
                 <PromotionConfirmDialog
                     type="dashboard"
                     resourceName={item.data.name}
