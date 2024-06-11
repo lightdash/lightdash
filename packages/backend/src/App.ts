@@ -327,6 +327,7 @@ export default class App {
                     policy: 'strict-origin-when-cross-origin',
                 },
                 noSniff: true,
+                xFrameOptions: false,
             }),
         );
 
