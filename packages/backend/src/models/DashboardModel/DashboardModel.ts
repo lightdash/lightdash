@@ -189,14 +189,23 @@ export class DashboardModel {
                 tilesWithUuids
                     .filter(isDashboardChartTileType)
                     .map(({ uuid, properties }) => {
-                        const chartId = chartIds.find(
-                            (chart) =>
-                                chart.saved_query_uuid ===
-                                properties.savedChartUuid,
-                        )?.saved_query_id;
-                        if (!chartId) {
-                            throw new NotFoundError('Saved chart not found');
+                        let chartId: number | null = null;
+
+                        if (properties.savedChartUuid) {
+                            const matchingChartId = chartIds.find(
+                                (chart) =>
+                                    chart.saved_query_uuid ===
+                                    properties.savedChartUuid,
+                            )?.saved_query_id;
+                            if (matchingChartId === undefined) {
+                                throw new NotFoundError(
+                                    'Saved chart not found',
+                                );
+                            } else {
+                                chartId = matchingChartId;
+                            }
                         }
+
                         return {
                             dashboard_version_id:
                                 versionId.dashboard_version_id,
