@@ -107,6 +107,7 @@ export const lightdashConfigMock: LightdashConfig = {
     sentry: {
         backend: {
             dsn: '',
+            securityReportUri: '',
         },
         frontend: {
             dsn: '',

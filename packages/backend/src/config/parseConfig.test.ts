@@ -50,6 +50,7 @@ test('Should use default sentry configuration if no environment vars', () => {
     const expected: SentryConfig = {
         backend: {
             dsn: '',
+            securityReportUri: '',
         },
         frontend: {
             dsn: '',
@@ -71,6 +72,7 @@ test('Should parse sentry config from env', () => {
     const expected: SentryConfig = {
         backend: {
             dsn: 'mydsnbackend.sentry.io',
+            securityReportUri: '',
         },
         frontend: {
             dsn: 'mydsnfrontend.sentry.io',

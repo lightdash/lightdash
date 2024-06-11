@@ -83,6 +83,7 @@
         "graphile-worker": "^0.13.0",
         "graphql": "^16.8.1",
         "graphql-request": "^5.0.0",
+        "helmet": "^7.1.0",
         "jose": "^5.2.3",
         "js-yaml": "^4.1.0",
         "knex": "^2.4.2",
