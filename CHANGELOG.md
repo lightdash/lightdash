@@ -1,3 +1,74 @@
+# [0.1128.0](https://github.com/lightdash/lightdash/compare/0.1127.0...0.1128.0) (2024-06-11)
+
+
+### Features
+
+* add node runtime ELU metric ([#10362](https://github.com/lightdash/lightdash/issues/10362)) ([fe0c386](https://github.com/lightdash/lightdash/commit/fe0c386833bc072ee0fb84b1204d39b86d376fc1))
+
+# [0.1127.0](https://github.com/lightdash/lightdash/compare/0.1126.3...0.1127.0) (2024-06-11)
+
+
+### Features
+
+* security headers ([#10357](https://github.com/lightdash/lightdash/issues/10357)) ([86b03b0](https://github.com/lightdash/lightdash/commit/86b03b08d79ad51de32ac700beebf535dcda8450))
+
+## [0.1126.3](https://github.com/lightdash/lightdash/compare/0.1126.2...0.1126.3) (2024-06-10)
+
+
+### Bug Fixes
+
+* wait for all charts to settle with playwright screenshot ([#10349](https://github.com/lightdash/lightdash/issues/10349)) ([43eb5ba](https://github.com/lightdash/lightdash/commit/43eb5ba11d0c51390334000e2d8be6601fc4c4fd))
+
+## [0.1126.2](https://github.com/lightdash/lightdash/compare/0.1126.1...0.1126.2) (2024-06-10)
+
+
+### Bug Fixes
+
+* custom settings endpoint ([#10353](https://github.com/lightdash/lightdash/issues/10353)) ([d23ab2c](https://github.com/lightdash/lightdash/commit/d23ab2cc29a0e01f2f0a479b9fe4d330c8db2c40))
+
+## [0.1126.1](https://github.com/lightdash/lightdash/compare/0.1126.0...0.1126.1) (2024-06-10)
+
+
+### Bug Fixes
+
+* remove n+1 query by fetching user access from multiple spaces ([#10350](https://github.com/lightdash/lightdash/issues/10350)) ([35e433d](https://github.com/lightdash/lightdash/commit/35e433dcdc82ca1daeacaf94f23d08961ff36a74))
+
+# [0.1126.0](https://github.com/lightdash/lightdash/compare/0.1125.1...0.1126.0) (2024-06-10)
+
+
+### Features
+
+* allow slack bot customization ([#10335](https://github.com/lightdash/lightdash/issues/10335)) ([0991aba](https://github.com/lightdash/lightdash/commit/0991aba143ed3e4fc261a4c32f5029ed7a14748d))
+
+## [0.1125.1](https://github.com/lightdash/lightdash/compare/0.1125.0...0.1125.1) (2024-06-10)
+
+
+### Bug Fixes
+
+* handle consecutive uppercases in friendlyName ([#10344](https://github.com/lightdash/lightdash/issues/10344)) ([51049e3](https://github.com/lightdash/lightdash/commit/51049e3f136c1372cbf061c0521adea6f01447dd))
+
+# [0.1125.0](https://github.com/lightdash/lightdash/compare/0.1124.1...0.1125.0) (2024-06-07)
+
+
+### Features
+
+* use playwright for screenshotting ([#10315](https://github.com/lightdash/lightdash/issues/10315)) ([fd8fda1](https://github.com/lightdash/lightdash/commit/fd8fda12c638f11147e0697d0cf3ff452f401d73))
+
+## [0.1124.1](https://github.com/lightdash/lightdash/compare/0.1124.0...0.1124.1) (2024-06-07)
+
+
+### Bug Fixes
+
+* add missing indexes for charts query ([#10341](https://github.com/lightdash/lightdash/issues/10341)) ([0aad5ba](https://github.com/lightdash/lightdash/commit/0aad5baada653be0c2be9fd982fe546089d02e22))
+* add missing indexes for dashboards query ([#10314](https://github.com/lightdash/lightdash/issues/10314)) ([abb9311](https://github.com/lightdash/lightdash/commit/abb931112768057ea53aeaf6f3ac38913c15f84f))
+
+# [0.1124.0](https://github.com/lightdash/lightdash/compare/0.1123.0...0.1124.0) (2024-06-06)
+
+
+### Features
+
+* add space role inheritance info tooltip ([#10278](https://github.com/lightdash/lightdash/issues/10278)) ([91c131c](https://github.com/lightdash/lightdash/commit/91c131c579a4f9240a4d5442d10852bcc8ec54ca))
+
 # [0.1123.0](https://github.com/lightdash/lightdash/compare/0.1122.0...0.1123.0) (2024-06-06)
 
 

@@ -5965,13 +5965,39 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSlackNotificationChannelResponse: {
+    ApiSlackCustomSettingsResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { dataType: 'void', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SlackAppCustomSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                appProfilePhotoUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                notificationChannel: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -12641,13 +12667,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.put(
-        '/api/v1/slack/notification-channel',
+        '/api/v1/slack/custom-settings',
         ...fetchMiddlewares<RequestHandler>(SlackController),
         ...fetchMiddlewares<RequestHandler>(
-            SlackController.prototype.updateNotificationChannel,
+            SlackController.prototype.updateCustomSettings,
         ),
 
-        async function SlackController_updateNotificationChannel(
+        async function SlackController_updateCustomSettings(
             request: any,
             response: any,
             next: any,
@@ -12663,17 +12689,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        channelId: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'string' },
-                                { dataType: 'enum', enums: [null] },
-                            ],
-                            required: true,
-                        },
-                    },
+                    ref: 'SlackAppCustomSettings',
                 },
             };
 
@@ -12695,7 +12711,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.updateNotificationChannel.apply(
+                const promise = controller.updateCustomSettings.apply(
                     controller,
                     validatedArgs as any,
                 );
