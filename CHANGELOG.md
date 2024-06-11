@@ -1,3 +1,10 @@
+## [0.1128.4](https://github.com/lightdash/lightdash/compare/0.1128.3...0.1128.4) (2024-06-11)
+
+
+### Bug Fixes
+
+* remove x frame options header ([#10376](https://github.com/lightdash/lightdash/issues/10376)) ([3aafa21](https://github.com/lightdash/lightdash/commit/3aafa21f1ead1f756685085f89bc9abd8a593d51))
+
 ## [0.1128.3](https://github.com/lightdash/lightdash/compare/0.1128.2...0.1128.3) (2024-06-11)
 
 
