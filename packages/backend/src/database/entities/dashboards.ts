@@ -40,7 +40,7 @@ type DbDashboardView = {
 };
 
 type DbCreateDashboardTile = {
-    dashboard_tile_uuid?: string;
+    dashboard_tile_uuid: string;
     dashboard_version_id: number;
     type: DashboardTileTypes;
     x_offset: number;
