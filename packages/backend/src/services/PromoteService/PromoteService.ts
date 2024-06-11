@@ -622,7 +622,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.charts[0].data;
         } catch (e) {
-            Logger.error(`Unable to promote chart: ${e}`);
+            Logger.error(`Unable to promote chart`, e);
             await this.trackAnalytics(
                 user,
                 'promote.error',
@@ -1211,8 +1211,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.dashboards[0].data;
         } catch (e) {
-            console.error('e', e);
-            Logger.error(`Unable to promote dashboard: ${e}`);
+            Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
                 user,
                 'promote.error',
