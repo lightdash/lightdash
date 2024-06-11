@@ -536,7 +536,7 @@ export class UnfurlService extends BaseService {
                                 );
 
                                 return page?.waitForResponse(responsePattern, {
-                                    timeout: 40000,
+                                    timeout: 60000,
                                 }); // NOTE: No await here
                             });
                         } else if (
@@ -550,7 +550,7 @@ export class UnfurlService extends BaseService {
 
                             chartResultsPromises = [
                                 page?.waitForResponse(responsePattern, {
-                                    timeout: 40000,
+                                    timeout: 60000,
                                 }), // NOTE: No await here
                             ];
                         }
