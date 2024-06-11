@@ -114,6 +114,7 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import { type ApiPromotionChangesResponse } from './types/promotion';
 import { TimeFrames } from './types/timeFrames';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -639,7 +640,8 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
-    | ApiCatalogAnalyticsResults;
+    | ApiCatalogAnalyticsResults
+    | ApiPromotionChangesResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

@@ -11,9 +11,9 @@ export enum PromotionAction {
 
 export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
 export type PromotedDashboard = DashboardDAO & {
-    spaceSlug: SpaceSummary['slug'];
+    spaceSlug: string;
 };
-export type PromotedChart = SavedChartDAO & { spaceSlug: SpaceSummary['slug'] };
+export type PromotedChart = SavedChartDAO & { spaceSlug: string };
 
 export type PromotionChanges = {
     spaces: {
@@ -28,4 +28,19 @@ export type PromotionChanges = {
         action: PromotionAction;
         data: PromotedChart;
     }[];
+};
+
+export type ApiPromoteChartResponse = {
+    status: 'ok';
+    results: SavedChartDAO;
+};
+
+export type ApiPromoteDashboardResponse = {
+    status: 'ok';
+    results: DashboardDAO;
+};
+
+export type ApiPromotionChangesResponse = {
+    status: 'ok';
+    results: PromotionChanges;
 };
