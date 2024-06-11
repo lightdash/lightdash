@@ -13,7 +13,10 @@ export type PromotedSpace = Omit<SpaceSummary, 'userAccess'>;
 export type PromotedDashboard = DashboardDAO & {
     spaceSlug: string;
 };
-export type PromotedChart = SavedChartDAO & { spaceSlug: string };
+export type PromotedChart = SavedChartDAO & {
+    spaceSlug: string;
+    oldUuid: string;
+};
 
 export type PromotionChanges = {
     spaces: {
