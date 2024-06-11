@@ -1,5 +1,7 @@
 import {
+    CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
+    DashboardChartTile,
     deepEqual,
     NotFoundError,
 } from '@lightdash/common';
