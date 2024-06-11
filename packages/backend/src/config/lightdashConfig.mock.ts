@@ -138,4 +138,9 @@ export const lightdashConfigMock: LightdashConfig = {
         csvCellsLimit: 100000,
         timezone: undefined,
     },
+    security: {
+        contentSecurityPolicy: {
+            allowedDomains: [],
+        },
+    },
 };
