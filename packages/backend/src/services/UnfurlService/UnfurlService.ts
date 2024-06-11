@@ -570,10 +570,7 @@ export class UnfurlService extends BaseService {
 
                     let finalSelector = selector;
 
-                    if (
-                        lightdashPage === LightdashPage.EXPLORE ||
-                        lightdashPage === LightdashPage.CHART
-                    ) {
+                    if (lightdashPage === LightdashPage.EXPLORE) {
                         finalSelector = `[data-testid="visualization"]`;
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
                         finalSelector = '.react-grid-layout';
