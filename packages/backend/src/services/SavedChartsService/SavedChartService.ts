@@ -480,7 +480,7 @@ export class SavedChartService extends BaseService {
         return {
             projectUuid,
             spaceUuid,
-            pinnedListUuid: pinnedList.pinnedListUuid
+            pinnedListUuid: pinnedList.pinnedListUuid,
         };
     }
 
@@ -608,10 +608,7 @@ export class SavedChartService extends BaseService {
         return this.analyticsModel.getChartViewStats(savedChartUuid);
     }
 
-    async get(
-        savedChartUuid: string,
-        user: SessionUser
-    ): Promise<SavedChart> {
+    async get(savedChartUuid: string, user: SessionUser): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,

@@ -190,7 +190,7 @@ export class DashboardService extends BaseService {
 
     async getById(
         user: SessionUser,
-        dashboardUuid: string
+        dashboardUuid: string,
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
 
@@ -633,7 +633,7 @@ export class DashboardService extends BaseService {
         return {
             projectUuid,
             spaceUuid,
-            pinnedListUuid: pinnedList.pinnedListUuid
+            pinnedListUuid: pinnedList.pinnedListUuid,
         };
     }
 
