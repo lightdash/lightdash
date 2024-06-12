@@ -2456,54 +2456,103 @@ export class ProjectService extends BaseService {
             },
             async () =>
                 wrapOtelSpan('ProjectService.getExplore', {}, async () => {
-                    const project = organizationUuid
-                        ? { organizationUuid }
-                        : await this.projectModel.getSummary(projectUuid);
-                    if (
-                        user.ability.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid: project.organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-                    const explore = await this.projectModel.getExploreFromCache(
+                    const exploresMap = await this.findExplores({
+                        user,
                         projectUuid,
-                        exploreName,
-                    );
+                        exploreNames: [exploreName],
+                        organizationUuid,
+                    });
+                    const explore = exploresMap[exploreName];
 
-                    if (isExploreError(explore)) {
+                    if (!explore) {
                         throw new NotExistsError(
                             `Explore "${exploreName}" does not exist.`,
                         );
                     }
-
-                    const shouldFilterExplore = await wrapOtelSpan(
-                        'ProjectService.getExplore.shouldFilterExplore',
-                        {},
-                        async () => exploreHasFilteredAttribute(explore),
-                    );
-
-                    if (!shouldFilterExplore) {
-                        return explore;
+                    if (isExploreError(explore)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" has an error.`,
+                        );
                     }
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid: project.organizationUuid,
-                                userUuid: user.userUuid,
-                            },
+                    return explore;
+                }),
+        );
+    }
+
+    private async findExplores({
+                                   user,
+                                   projectUuid,
+                                   exploreNames,
+                                   organizationUuid,
+                               }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreNames: string[];
+        organizationUuid?: string;
+    }): Promise<Record<string, Explore | ExploreError>> {
+        return Sentry.startSpan(
+            {
+                op: 'ProjectService.getExplore',
+                name: 'ProjectService.getExplore',
+            },
+            async () =>
+                wrapOtelSpan(
+                    'ProjectService.findExplores',
+                    {
+                        projectUuid,
+                        exploreNames,
+                        organizationUuid,
+                    },
+                    async () => {
+                        const project = organizationUuid
+                            ? {organizationUuid}
+                            : await this.projectModel.getSummary(projectUuid);
+                        if (
+                            user.ability.cannot(
+                                'view',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )
+                        ) {
+                            throw new ForbiddenError();
+                        }
+                        const explores = await this.projectModel.findExploresFromCache(
+                            projectUuid,
+                            exploreNames,
                         );
 
-                    return wrapOtelSpan(
-                        'ProjectService.getExplore.getFilteredExplore',
-                        {},
-                        async () => getFilteredExplore(explore, userAttributes),
-                    );
-                }),
+                        const userAttributes =
+                            await this.userAttributesModel.getAttributeValuesForOrgMember(
+                                {
+                                    organizationUuid: project.organizationUuid,
+                                    userUuid: user.userUuid,
+                                },
+                            );
+
+                        return explores.reduce<Record<string, Explore | ExploreError>>(
+                            (acc, explore) => {
+                                if (isExploreError(explore)) {
+                                    acc[explore.name] = explore;
+                                } else {
+                                    const shouldFilterExplore =
+                                        exploreHasFilteredAttribute(explore);
+                                    if (!shouldFilterExplore) {
+                                        acc[explore.name] = explore;
+                                    } else {
+                                        acc[explore.name] = getFilteredExplore(
+                                            explore,
+                                            userAttributes,
+                                        );
+                                    }
+                                }
+                                return acc;
+                            },
+                            {},
+                        );
+                    },
+                )
         );
     }
 
@@ -2669,42 +2718,29 @@ export class ProjectService extends BaseService {
                 const uniqueSpaceUuids = [
                     ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
                 ];
-                const exploreCacheKeys: Record<string, boolean> = {};
-                const exploreCache: Record<string, Explore> = {};
 
-                const explorePromises = savedCharts.reduce<
-                    Promise<{ key: string; explore: Explore }>[]
-                >((acc, chart) => {
-                    const key = chart.tableName;
-                    if (!exploreCacheKeys[key]) {
-                        acc.push(
-                            this.getExplore(user, chart.projectUuid, key).then(
-                                (explore) => ({ key, explore }),
+                if (savedCharts.length === 0) {
+                    return [];
+                }
+
+                const [spaceAccessMap, exploresMap, userSpacesAccess] =
+                    await Promise.all([
+                        this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                        this.findExplores({
+                            user,
+                            projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                            exploreNames: savedCharts.map(
+                                (chart) => chart.tableName,
                             ),
-                        );
-                        exploreCacheKeys[key] = true;
-                    }
-                    return acc;
-                }, []);
+                        }),
+                        this.spaceModel.getUserSpacesAccess(
+                            user.userUuid,
+                            uniqueSpaceUuids,
+                        ),
+                    ]);
 
-                const [spaceAccessMap, resolvedExplores] = await Promise.all([
-                    this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
-                    Promise.all(explorePromises),
-                ]);
-                const userSpacesAccess =
-                    await this.spaceModel.getUserSpacesAccess(
-                        user.userUuid,
-                        uniqueSpaceUuids,
-                    );
-
-                resolvedExplores.forEach(({ key, explore }) => {
-                    exploreCache[key] = explore;
-                });
-
-                const filterPromises = savedCharts.map(async (savedChart) => {
-                    const spaceAccess = spaceAccessMap.get(
-                        savedChart.spaceUuid,
-                    );
+                return savedCharts.map((savedChart) => {
+                    const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
 
                     if (
                         user.ability.cannot(
@@ -2718,20 +2754,21 @@ export class ProjectService extends BaseService {
                             }),
                         )
                     ) {
-                        return { uuid: savedChart.uuid, filters: [] };
+                        return {uuid: savedChart.uuid, filters: []};
                     }
 
-                    const explore = exploreCache[savedChart.tableName];
+                    const explore = exploresMap[savedChart.tableName];
 
-                    const filters = getDimensions(explore).filter(
-                        (field) =>
-                            isFilterableDimension(field) && !field.hidden,
-                    );
+                    let filters: CompiledDimension[] = [];
+                    if (explore && !isExploreError(explore)) {
+                        filters = getDimensions(explore).filter(
+                            (field) =>
+                                isFilterableDimension(field) && !field.hidden,
+                        );
+                    }
 
-                    return { uuid: savedChart.uuid, filters };
+                    return {uuid: savedChart.uuid, filters};
                 });
-
-                return Promise.all(filterPromises);
             },
         );
 

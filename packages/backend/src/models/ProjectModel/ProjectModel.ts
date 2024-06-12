@@ -633,6 +633,34 @@ export class ProjectModel {
             .first();
     }
 
+    async findExploresFromCache(
+        projectUuid: string,
+        exploreNames?: string[],
+    ): Promise<Array<Explore | ExploreError>> {
+        return wrapOtelSpan(
+            'ProjectModel.findExploresFromCache',
+            {
+                projectUuid,
+                exploreNames,
+            },
+            async (span) => {
+                const query = this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('project_uuid', projectUuid);
+                if (exploreNames) {
+                    void query.whereIn('name', exploreNames);
+                }
+                const explores = await query;
+                span.setAttribute('foundExplores', !!explores.length);
+                return explores.map(({ explore }) =>
+                    ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                        explore,
+                    ),
+                );
+            },
+        );
+    }
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
