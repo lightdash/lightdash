@@ -1,3 +1,4 @@
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
     assertUnreachable,
     DashboardTileTypes,
@@ -5,9 +6,15 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Menu, Tabs } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Menu, rem, Tabs } from '@mantine/core';
 import { useProfiler } from '@sentry/react';
-import { IconDots, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconGripVertical,
+    IconPencil,
+    IconPlus,
+    IconTrash,
+} from '@tabler/icons-react';
 import { memo, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useHistory, useLocation } from 'react-router-dom';
@@ -232,7 +239,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     };
 
-    return (
+    const DraggableTabs = (
         <Tabs
             value={activeTab?.uuid}
             onTabChange={(e) => {
@@ -271,96 +278,140 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     <Tabs.List>
                         {sortedTabs?.map((tab, idx) => {
                             return (
-                                <Tabs.Tab
-                                    key={idx}
-                                    value={tab.uuid}
-                                    mx="md"
-                                    style={{
-                                        marginLeft: 0,
-                                        marginRight: 0,
-                                    }}
+                                <Draggable
+                                    key={tab.uuid}
+                                    draggableId={tab.uuid}
+                                    index={tab.order}
                                 >
-                                    <Group
-                                        style={{
-                                            paddingLeft: 16,
-                                            paddingRight: 16,
-                                        }}
-                                    >
-                                        {tab.name}
-                                        {isEditMode ? (
-                                            <Menu
-                                                position="bottom"
-                                                withArrow
-                                                withinPortal
-                                                shadow="md"
-                                                width={200}
+                                    {(provided) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                        >
+                                            <Tabs.Tab
+                                                key={idx}
+                                                value={tab.uuid}
+                                                mx="md"
+                                                style={{
+                                                    marginLeft: 0,
+                                                    marginRight: 0,
+                                                }}
                                             >
-                                                <Menu.Target>
-                                                    <ActionIcon
-                                                        variant="subtle"
-                                                        size="xs"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconDots}
-                                                        />
-                                                    </ActionIcon>
-                                                </Menu.Target>
-                                                <Menu.Dropdown>
-                                                    <Menu.Item
-                                                        onClick={() =>
-                                                            setEditingTab(true)
-                                                        }
-                                                        icon={
-                                                            <IconPencil
-                                                                size={14}
+                                                <Group
+                                                    style={{
+                                                        paddingLeft: 16,
+                                                        paddingRight: 16,
+                                                    }}
+                                                >
+                                                    {isEditMode ? (
+                                                        <div
+                                                            {...provided.dragHandleProps}
+                                                        >
+                                                            <IconGripVertical
+                                                                style={{
+                                                                    width: rem(
+                                                                        20,
+                                                                    ),
+                                                                    height: rem(
+                                                                        20,
+                                                                    ),
+                                                                }}
+                                                                stroke={1.5}
                                                             />
-                                                        }
-                                                    >
-                                                        Rename Tab
-                                                    </Menu.Item>
-                                                    {sortedTabs.length === 1 ||
-                                                    !currentTabHasTiles ? (
-                                                        <Menu.Item
-                                                            onClick={(e) => {
-                                                                handleDeleteTab(
-                                                                    tab.uuid,
-                                                                );
-                                                                e.stopPropagation();
-                                                            }}
-                                                            color="red"
-                                                            icon={
-                                                                <IconTrash
-                                                                    size={14}
-                                                                />
-                                                            }
+                                                        </div>
+                                                    ) : null}
+                                                    {tab.name}
+                                                    {isEditMode ? (
+                                                        <Menu
+                                                            position="bottom"
+                                                            withArrow
+                                                            withinPortal
+                                                            shadow="md"
+                                                            width={200}
                                                         >
-                                                            {sortedTabs.length ===
-                                                            1
-                                                                ? 'Remove Tabs Component'
-                                                                : 'Remove Tab'}
-                                                        </Menu.Item>
-                                                    ) : (
-                                                        <Menu.Item
-                                                            onClick={() =>
-                                                                setDeletingTab(
-                                                                    true,
-                                                                )
-                                                            }
-                                                            color="red"
-                                                            icon={
-                                                                <IconTrash
-                                                                    size={14}
-                                                                />
-                                                            }
-                                                        >
-                                                            Remove Tab
-                                                        </Menu.Item>
-                                                    )}
-                                                </Menu.Dropdown>
-                                            </Menu>
-                                        ) : null}
-                                    </Group>
-                                </Tabs.Tab>
+                                                            <Menu.Target>
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    size="xs"
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconDots
+                                                                        }
+                                                                    />
+                                                                </ActionIcon>
+                                                            </Menu.Target>
+                                                            <Menu.Dropdown>
+                                                                <Menu.Item
+                                                                    onClick={() =>
+                                                                        setEditingTab(
+                                                                            true,
+                                                                        )
+                                                                    }
+                                                                    icon={
+                                                                        <IconPencil
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                >
+                                                                    Rename Tab
+                                                                </Menu.Item>
+                                                                {sortedTabs.length ===
+                                                                    1 ||
+                                                                !currentTabHasTiles ? (
+                                                                    <Menu.Item
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            handleDeleteTab(
+                                                                                tab.uuid,
+                                                                            );
+                                                                            e.stopPropagation();
+                                                                        }}
+                                                                        color="red"
+                                                                        icon={
+                                                                            <IconTrash
+                                                                                size={
+                                                                                    14
+                                                                                }
+                                                                            />
+                                                                        }
+                                                                    >
+                                                                        {sortedTabs.length ===
+                                                                        1
+                                                                            ? 'Remove Tabs Component'
+                                                                            : 'Remove Tab'}
+                                                                    </Menu.Item>
+                                                                ) : (
+                                                                    <Menu.Item
+                                                                        onClick={() =>
+                                                                            setDeletingTab(
+                                                                                true,
+                                                                            )
+                                                                        }
+                                                                        color="red"
+                                                                        icon={
+                                                                            <IconTrash
+                                                                                size={
+                                                                                    14
+                                                                                }
+                                                                            />
+                                                                        }
+                                                                    >
+                                                                        Remove
+                                                                        Tab
+                                                                    </Menu.Item>
+                                                                )}
+                                                            </Menu.Dropdown>
+                                                        </Menu>
+                                                    ) : null}
+                                                </Group>
+                                            </Tabs.Tab>
+                                        </div>
+                                    )}
+                                </Draggable>
                             );
                         })}
                         {isEditMode && (
@@ -464,6 +515,33 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 </>
             )}
         </Tabs>
+    );
+
+    return (
+        <DragDropContext
+            onDragEnd={(result) => {
+                if (!result.destination) {
+                    return;
+                }
+                const newTabs = [...sortedTabs];
+                const [reorderedTab] = newTabs.splice(result.source.index, 1);
+                newTabs.splice(result.destination.index, 0, reorderedTab);
+                newTabs.forEach((tab, idx) => {
+                    tab.order = idx;
+                });
+                setDashboardTabs(newTabs);
+                setHaveTabsChanged(true);
+            }}
+        >
+            <Droppable droppableId="tabs" direction="horizontal">
+                {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef}>
+                        {DraggableTabs}
+                        {provided.placeholder}
+                    </div>
+                )}
+            </Droppable>
+        </DragDropContext>
     );
 };
 
