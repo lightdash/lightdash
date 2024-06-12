@@ -1,3 +1,10 @@
+## [0.1128.8](https://github.com/lightdash/lightdash/compare/0.1128.7...0.1128.8) (2024-06-12)
+
+
+### Bug Fixes
+
+* more playwright improvements ([#10379](https://github.com/lightdash/lightdash/issues/10379)) ([b9e1b3d](https://github.com/lightdash/lightdash/commit/b9e1b3d99821a4d0020ae7bc07f106bde59736cd))
+
 ## [0.1128.7](https://github.com/lightdash/lightdash/compare/0.1128.6...0.1128.7) (2024-06-12)
 
 
