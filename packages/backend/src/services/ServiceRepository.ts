@@ -19,6 +19,7 @@ import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
+import { PromoteService } from './PromoteService/PromoteService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
@@ -64,6 +65,7 @@ interface ServiceManifest {
     userService: UserService;
     validationService: ValidationService;
     catalogService: CatalogService;
+    promoteService: PromoteService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -604,6 +606,21 @@ export class ServiceRepository
                     catalogModel: this.models.getCatalogModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
+                }),
+        );
+    }
+
+    public getPromoteService(): PromoteService {
+        return this.getService(
+            'promoteService',
+            () =>
+                new PromoteService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }

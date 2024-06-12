@@ -91,6 +91,12 @@
                     },
                     {
                         "properties": {
+                            "tags": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "tableGroupLabel": {
                                 "type": "string"
                             },
@@ -200,6 +206,12 @@
                             "joinedTables": {
                                 "items": {
                                     "$ref": "#/components/schemas/CompiledExploreJoin"
+                                },
+                                "type": "array"
+                            },
+                            "tags": {
+                                "items": {
+                                    "type": "string"
                                 },
                                 "type": "array"
                             },
@@ -493,6 +505,445 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DashboardTileTypes": {
+                "enum": ["saved_chart", "markdown", "loom"],
+                "type": "string"
+            },
+            "Required_CreateDashboardTileBase_": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tabUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["uuid", "type", "x", "y", "h", "w"],
+                "type": "object",
+                "description": "Make all properties in T required"
+            },
+            "DashboardTileBase": {
+                "$ref": "#/components/schemas/Required_CreateDashboardTileBase_"
+            },
+            "DashboardTileTypes.SAVED_CHART": {
+                "enum": ["saved_chart"],
+                "type": "string"
+            },
+            "DashboardChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "lastVersionChartKind": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "chartName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "belongsToDashboard": {
+                                "type": "boolean"
+                            },
+                            "savedChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedChartUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.MARKDOWN": {
+                "enum": ["markdown"],
+                "type": "string"
+            },
+            "DashboardMarkdownTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "content": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardMarkdownTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.LOOM": {
+                "enum": ["loom"],
+                "type": "string"
+            },
+            "DashboardLoomTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["url", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardLoomTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileProperties"
+                    }
+                ]
+            },
+            "DashboardTile": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTile"
+                    }
+                ]
+            },
+            "DashboardFieldTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId"],
+                "type": "object"
+            },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "FilterRule_ConditionalOperator.T.V.any_": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "Record_string.DashboardTileTarget_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardFilterRule": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
+                    },
+                    {
+                        "properties": {
+                            "required": {
+                                "type": "boolean"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardFilters": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tableCalculations", "metrics", "dimensions"],
+                "type": "object"
+            },
+            "UpdatedByUser": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardTab": {
+                "properties": {
+                    "order": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["order", "name", "uuid"],
+                "type": "object"
+            },
+            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardVersionId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "dashboardVersionId",
+                    "updatedAt",
+                    "tiles",
+                    "filters",
+                    "views",
+                    "firstViewedAt",
+                    "pinnedListOrder",
+                    "tabs",
+                    "slug"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Dashboard.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardDAO": {
+                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
+            },
+            "ApiPromoteDashboardResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardDAO"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_CreateDbtCloudIntegration.metricsJobId_": {
                 "properties": {
                     "metricsJobId": {
@@ -660,8 +1111,16 @@
                 "enum": ["LABEL", "INDEX"],
                 "type": "string"
             },
+            "Record_string.GroupType_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "TableBase": {
                 "properties": {
+                    "groupDetails": {
+                        "$ref": "#/components/schemas/Record_string.GroupType_"
+                    },
                     "requiredAttributes": {
                         "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
                     },
@@ -890,28 +1349,6 @@
                 },
                 "required": ["fieldId"],
                 "type": "object"
-            },
-            "ConditionalOperator": {
-                "enum": [
-                    "isNull",
-                    "notNull",
-                    "equals",
-                    "notEquals",
-                    "startsWith",
-                    "endsWith",
-                    "include",
-                    "doesNotInclude",
-                    "lessThan",
-                    "lessThanOrEqual",
-                    "greaterThan",
-                    "greaterThanOrEqual",
-                    "inThePast",
-                    "notInThePast",
-                    "inTheNext",
-                    "inTheCurrent",
-                    "inBetween"
-                ],
-                "type": "string"
             },
             "FilterRule": {
                 "properties": {
@@ -2429,22 +2866,6 @@
                 "enum": ["dashboard"],
                 "type": "string"
             },
-            "UpdatedByUser": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "firstName", "lastName"],
-                "type": "object",
-                "additionalProperties": true
-            },
             "Pick_ValidationResponse.error-or-createdAt-or-validationId_": {
                 "properties": {
                     "validationId": {
@@ -2668,13 +3089,13 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -2683,8 +3104,8 @@
                     "projectUuid",
                     "organizationUuid",
                     "pinnedListUuid",
-                    "pinnedListOrder",
-                    "isPrivate"
+                    "isPrivate",
+                    "pinnedListOrder"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -3755,13 +4176,13 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
                     "pinnedListOrder": {
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
                     },
                     "slug": {
                         "type": "string"
@@ -3773,8 +4194,8 @@
                     "projectUuid",
                     "organizationUuid",
                     "pinnedListUuid",
-                    "pinnedListOrder",
                     "isPrivate",
+                    "pinnedListOrder",
                     "slug"
                 ],
                 "type": "object",
@@ -5584,68 +6005,6 @@
                     }
                 ]
             },
-            "DashboardFieldTarget": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "fieldId"],
-                "type": "object"
-            },
-            "FilterRule_ConditionalOperator.T.V.any_": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "Record_string.DashboardTileTarget_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardFilterRule": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
-                    },
-                    {
-                        "properties": {
-                            "required": {
-                                "type": "boolean"
-                            },
-                            "label": {
-                                "type": "string"
-                            },
-                            "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
             "SchedulerFilterRule": {
                 "allOf": [
                     {
@@ -6123,7 +6482,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSlackNotificationChannelResponse": {
+            "ApiSlackCustomSettingsResponse": {
                 "properties": {
                     "results": {},
                     "status": {
@@ -6133,6 +6492,20 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "SlackAppCustomSettings": {
+                "properties": {
+                    "appProfilePhotoUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notificationChannel": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
             },
             "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
@@ -7255,7 +7628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1107.0",
+        "version": "0.1126.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -7758,6 +8131,47 @@
                         "description": "the jobId for the CSV",
                         "in": "path",
                         "name": "jobId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuid}/promote": {
+            "post": {
+                "operationId": "promoteDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromoteDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Promote dashboard to its upstream project",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "dashboardUuid for the dashboard to run",
+                        "in": "path",
+                        "name": "dashboardUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -11689,16 +12103,16 @@
                 "parameters": []
             }
         },
-        "/api/v1/slack/notification-channel": {
+        "/api/v1/slack/custom-settings": {
             "put": {
-                "operationId": "UpdateNotificationChannel",
+                "operationId": "UpdateCustomSettings",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSlackNotificationChannelResponse"
+                                    "$ref": "#/components/schemas/ApiSlackCustomSettingsResponse"
                                 }
                             }
                         }
@@ -11723,14 +12137,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "channelId": {
-                                        "type": "string",
-                                        "nullable": true
-                                    }
-                                },
-                                "required": ["channelId"],
-                                "type": "object"
+                                "$ref": "#/components/schemas/SlackAppCustomSettings"
                             }
                         }
                     }

@@ -8,7 +8,12 @@ export type ApiSlackChannelsResponse = {
     results: SlackChannel[];
 };
 
-export type ApiSlackNotificationChannelResponse = {
+export type ApiSlackCustomSettingsResponse = {
     status: 'ok';
     results: void;
+};
+
+export type SlackAppCustomSettings = {
+    notificationChannel: string | null;
+    appProfilePhotoUrl: string | null;
 };

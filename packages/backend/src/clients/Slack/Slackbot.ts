@@ -19,6 +19,7 @@ const notifySlackError = async (
     url: string,
     client: any,
     event: any,
+    { appProfilePhotoUrl }: { appProfilePhotoUrl?: string },
 ): Promise<void> => {
     /** Expected slack errors:
      * - cannot_parse_attachment: Means the image on the blocks is not accessible from slack, is the URL public ?
@@ -30,6 +31,7 @@ const notifySlackError = async (
         .postMessage({
             thread_ts: event.message_ts,
             channel: event.channel,
+            ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
             text: `:fire: Unable to unfurl ${url}: ${error}`,
         })
         .catch((er: any) =>
@@ -133,6 +135,7 @@ export class SlackBot {
 
     async unfurlSlackUrls(message: any) {
         const { event, client, context } = message;
+        let appProfilePhotoUrl: string | undefined;
 
         if (event.channel === 'COMPOSER') return; // Do not unfurl urls when typing, only when message is sent
 
@@ -164,6 +167,13 @@ export class SlackBot {
                     const authUserUuid =
                         await this.slackAuthenticationModel.getUserUuid(teamId);
 
+                    const installation =
+                        await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                            details?.organizationUuid,
+                        );
+
+                    appProfilePhotoUrl = installation?.appProfilePhotoUrl;
+
                     const { imageUrl } = await this.unfurlService.unfurlImage({
                         url: details.minimalUrl,
                         lightdashPage: details.pageType,
@@ -191,7 +201,9 @@ export class SlackBot {
                 }
             } catch (e) {
                 if (this.lightdashConfig.mode === LightdashMode.PR) {
-                    void notifySlackError(e, l.url, client, event);
+                    void notifySlackError(e, l.url, client, event, {
+                        appProfilePhotoUrl,
+                    });
                 }
 
                 Sentry.captureException(e);

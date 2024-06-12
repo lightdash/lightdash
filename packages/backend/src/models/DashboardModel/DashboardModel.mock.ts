@@ -147,6 +147,8 @@ export const savedChartEntry: SavedChartTable['base'] = {
     last_version_updated_by_user_uuid: undefined,
     dashboard_uuid: null,
     search_vector: '',
+    views_count: 0,
+    first_viewed_at: null,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
@@ -159,6 +161,8 @@ export const dashboardEntry: DashboardTable['base'] = {
     space_id: 0,
     created_at: new Date(),
     search_vector: '',
+    views_count: 0,
+    first_viewed_at: null,
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
@@ -196,7 +200,7 @@ export const dashboardWithVersionEntry: GetDashboardQuery = {
     last_name: 'lastName',
     pinned_list_uuid: 'pinnedUuid',
     order: 0,
-    views: '1',
+    views_count: 1,
     first_viewed_at: new Date(1),
 };
 

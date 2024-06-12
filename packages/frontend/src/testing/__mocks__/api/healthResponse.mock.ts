@@ -21,6 +21,8 @@ export default function mockHealthResponse(
             frontend: {
                 dsn: '',
             },
+            tracesSampleRate: 0,
+            profilesSampleRate: 0,
             release: '',
             environment: '',
         },

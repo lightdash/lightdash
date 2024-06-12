@@ -25,16 +25,21 @@ import {
     IconAdjustmentsHorizontal,
     IconReportSearch,
     IconSearch,
+    IconTable,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
+import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogTree } from './CatalogTree';
+
+const TABLES_WITH_ERRORS_GROUP_NAME = 'Tables with errors';
 
 type CatalogTreeType = {
     [key: string]: {
@@ -116,6 +121,7 @@ export const CatalogPanel: FC = () => {
     const [, startTransition] = useTransition();
     const {
         setMetadata,
+        setMetadataErrors,
         isSidebarOpen,
         setAnalyticsResults,
         setSidebarOpen,
@@ -133,18 +139,23 @@ export const CatalogPanel: FC = () => {
     const [completeSearch, setCompleteSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(completeSearch, 300);
 
+    const {
+        data: catalogResults,
+        isFetched: catalogFetched,
+        isFetching: catalogFetching,
+        isLoading: catalogLoading,
+    } = useCatalog({
+        projectUuid,
+        type: CatalogType.Table,
+        search: debouncedSearch,
+    });
+
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const [filters, setFilters] = useState({
         dimensions: false,
         metrics: false,
         hideGroupedTables: false,
-    });
-
-    const { data: catalogResults } = useCatalog({
-        projectUuid,
-        type: CatalogType.Table,
-        search: debouncedSearch,
     });
 
     const { mutate: getMetadata } = useCatalogMetadata(projectUuid, (data) => {
@@ -175,6 +186,11 @@ export const CatalogPanel: FC = () => {
         [setSearch],
     );
 
+    const clearSearch = useCallback(() => {
+        setSearch('');
+        setCompleteSearch('');
+    }, [setSearch, setCompleteSearch]);
+
     const toggleFilter = useCallback(
         (filter: FilterType) => {
             setFilters((prev: FilterState) => ({
@@ -200,26 +216,40 @@ export const CatalogPanel: FC = () => {
                 [key: string]: any;
             }>((acc, item) => {
                 if (item.type === CatalogType.Table) {
-                    const groupName =
-                        'groupLabel' in item && item.groupLabel
-                            ? item.groupLabel
-                            : 'Ungrouped tables';
-                    // If grouped tables are hidden, don't add them to the tree
-                    if (
-                        groupName !== 'Ungrouped tables' &&
-                        filters.hideGroupedTables
-                    ) {
-                        return acc;
+                    if (item.errors !== undefined) {
+                        if (!acc[TABLES_WITH_ERRORS_GROUP_NAME]) {
+                            acc[TABLES_WITH_ERRORS_GROUP_NAME] = {
+                                name: TABLES_WITH_ERRORS_GROUP_NAME,
+                                tables: {},
+                            };
+                        }
+                        acc[TABLES_WITH_ERRORS_GROUP_NAME].tables[item.name] = {
+                            ...item,
+                            groupName: TABLES_WITH_ERRORS_GROUP_NAME,
+                            fields: [],
+                        };
+                    } else {
+                        const groupName =
+                            'groupLabel' in item && item.groupLabel
+                                ? item.groupLabel
+                                : 'Ungrouped tables';
+                        // If grouped tables are hidden, don't add them to the tree
+                        if (
+                            groupName !== 'Ungrouped tables' &&
+                            filters.hideGroupedTables
+                        ) {
+                            return acc;
+                        }
+                        // Add to the tree if not filtered out
+                        if (!acc[groupName]) {
+                            acc[groupName] = { name: groupName, tables: {} };
+                        }
+                        acc[groupName].tables[item.name] = {
+                            ...item,
+                            groupName: groupName,
+                            fields: [],
+                        };
                     }
-                    // Add to the tree if not filtered out
-                    if (!acc[groupName]) {
-                        acc[groupName] = { name: groupName, tables: {} };
-                    }
-                    acc[groupName].tables[item.name] = {
-                        ...item,
-                        groupName: groupName,
-                        fields: [],
-                    };
                 } else if (item.type === CatalogType.Field) {
                     const groupName =
                         'tableGroupLabel' in item && item.tableGroupLabel
@@ -265,7 +295,6 @@ export const CatalogPanel: FC = () => {
                 }
                 return acc;
             }, {});
-
             return sortTree(unsortedTree);
         }
         return {};
@@ -285,6 +314,31 @@ export const CatalogPanel: FC = () => {
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
 
+            // Reset metadata errors when selecting a new item
+            setMetadataErrors(undefined);
+
+            if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
+                if (!isSidebarOpen) {
+                    setSidebarOpen(true);
+                }
+
+                const errors =
+                    catalogTree &&
+                    catalogTree[TABLES_WITH_ERRORS_GROUP_NAME].tables[
+                        selectedItem.table
+                    ].errors;
+
+                setSelection({
+                    table: selectedItem.table,
+                    group: selectedItem.group,
+                });
+
+                if (errors) {
+                    setMetadataErrors(errors);
+                }
+
+                return; // no metadata for tables with errors
+            }
             if (!isSidebarOpen) {
                 setSidebarOpen(true);
             }
@@ -315,9 +369,11 @@ export const CatalogPanel: FC = () => {
             }
         },
         [
+            isSidebarOpen,
             setSelection,
             catalogResults,
-            isSidebarOpen,
+            catalogTree,
+            setMetadataErrors,
             setSidebarOpen,
             getMetadata,
             getAnalytics,
@@ -404,8 +460,14 @@ export const CatalogPanel: FC = () => {
         [],
     );
 
+    const noResults =
+        !catalogFetching &&
+        catalogFetched &&
+        Object.keys(catalogTree).length === 0;
+    const noTables = noResults && debouncedSearch.length === 0;
+
     return (
-        <Stack spacing="xxl">
+        <Stack spacing="xl">
             <Stack>
                 <Group position="apart" align="flex-start">
                     <Box mt="xl">
@@ -434,7 +496,7 @@ export const CatalogPanel: FC = () => {
                     </Box>
                 </Group>
 
-                <Group spacing="xs">
+                <Group spacing="xs" align="start">
                     <TextInput
                         w={'50%'}
                         icon={<MantineIcon icon={IconSearch} />}
@@ -448,11 +510,7 @@ export const CatalogPanel: FC = () => {
                             ) : null
                         }
                         placeholder="Search"
-                        description={
-                            search && search.length < 3
-                                ? 'Enter at least 3 characters to search'
-                                : undefined
-                        }
+                        description={'Enter at least 3 characters to search'}
                         value={search}
                         inputWrapperOrder={[
                             'label',
@@ -465,6 +523,12 @@ export const CatalogPanel: FC = () => {
                             input: {
                                 borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                            description: {
+                                visibility:
+                                    search && search.length < 3
+                                        ? 'visible'
+                                        : 'hidden',
                             },
                         })}
                     />
@@ -479,7 +543,7 @@ export const CatalogPanel: FC = () => {
                                 <Popover.Target>
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         leftIcon={
                                             <MantineIcon
                                                 icon={IconAdjustmentsHorizontal}
@@ -546,7 +610,7 @@ export const CatalogPanel: FC = () => {
                                     filters.hideGroupedTables) && (
                                     <Button
                                         variant="default"
-                                        size="xs"
+                                        size="sm"
                                         onClick={clearFilters}
                                         p="xs"
                                     >
@@ -655,13 +719,71 @@ export const CatalogPanel: FC = () => {
                 </Group>
             </Stack>
 
-            <CatalogTree
-                tree={catalogTree}
-                projectUuid={projectUuid}
-                searchString={debouncedSearch}
-                selection={selection}
-                onItemClick={selectAndGetMetadata}
-            />
+            {noResults ? (
+                <Paper
+                    p="xl"
+                    radius="lg"
+                    sx={(theme) => ({
+                        backgroundColor: theme.colors.gray[1],
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    {noTables ? (
+                        <SuboptimalState
+                            icon={IconTable}
+                            title="No tables found in this project"
+                            description={
+                                "Tables are the starting point to any data exploration in Lightdash. They come from dbt models that have been defined in your dbt project's .yml files."
+                            }
+                            action={
+                                <LinkButton
+                                    href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
+                                    mt="md"
+                                    target="_blank"
+                                    sx={(theme) => ({
+                                        color: theme.colors.gray[0],
+                                        backgroundColor: theme.colors.gray[8],
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[9],
+                                        },
+                                    })}
+                                >
+                                    Learn more
+                                </LinkButton>
+                            }
+                        />
+                    ) : (
+                        <SuboptimalState
+                            icon={IconSearch}
+                            title="No search results"
+                            description={
+                                'Try using different keywords or adjusting your filters.'
+                            }
+                            action={
+                                <Button
+                                    variant="default"
+                                    onClick={clearSearch}
+                                    mt="sm"
+                                    radius="md"
+                                >
+                                    Clear search
+                                </Button>
+                            }
+                        />
+                    )}
+                </Paper>
+            ) : (
+                <CatalogTree
+                    isLoading={catalogLoading}
+                    isSearching={catalogLoading && debouncedSearch.length > 2}
+                    tree={catalogTree}
+                    projectUuid={projectUuid}
+                    searchString={debouncedSearch}
+                    selection={selection}
+                    onItemClick={selectAndGetMetadata}
+                />
+            )}
         </Stack>
     );
 };

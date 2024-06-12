@@ -58,6 +58,7 @@ Here are all of the properties you can customize:
 | [sql_filter](#sql-filter)                         | string                                | A permanent filter that will always be applied when querying this table directly. Read more about `sql_filter` [below](#sql-filter) |
 | [sql_where](#sql-filter)                          | string                                | Alias for `sql_filter`                                                                                                              |     |
 | [required_attributes](#required-attributes)       | Object with { user_attribute, value } | Limits access to users with those attributes. [Read more about user attributes in here](./user-attributes.mdx)                      |
+| group_details                                     | Object with { label, description }    | Describes the groups for dimensions and metrics                                                                                     |
 
 ### If you've added a new dbt model to your project, you need to do `dbt run` + `dbt refresh` before it before it will appear in Lightdash
 

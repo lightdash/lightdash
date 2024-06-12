@@ -1,5 +1,4 @@
 import {
-    getChartType,
     ResourceViewChartItem,
     ResourceViewDashboardItem,
     ResourceViewItemType,
@@ -35,12 +34,8 @@ const getCharts = async (
             name: 'saved_queries.name',
             description: 'saved_queries.description',
             updated_at: 'saved_queries.last_version_updated_at',
-        })
-        .min({
-            first_viewed_at: 'analytics_chart_views.timestamp',
-        })
-        .count({
-            views: 'analytics_chart_views.timestamp',
+            views: 'saved_queries.views_count',
+            first_viewed_at: 'saved_queries.first_viewed_at',
         })
         .innerJoin(
             'pinned_chart',
@@ -58,30 +53,10 @@ const getCharts = async (
             'saved_queries.last_version_updated_by_user_uuid',
             'users.user_uuid',
         )
-        .leftJoin(
-            'analytics_chart_views',
-            'saved_queries.saved_query_uuid',
-            'analytics_chart_views.chart_uuid',
-        )
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
-        .orderBy('pinned_chart.order', 'asc')
-        .groupBy([
-            'pinned_list.project_uuid',
-            'pinned_list.pinned_list_uuid',
-            'spaces.space_uuid',
-            'pinned_chart.saved_chart_uuid',
-            'users.first_name',
-            'users.last_name',
-
-            'saved_queries.last_version_updated_by_user_uuid',
-            'pinned_chart.order',
-            `saved_queries.last_version_chart_kind`,
-            'saved_queries.name',
-            'saved_queries.description',
-            'saved_queries.last_version_updated_at',
-        ])) as Record<string, any>[];
+        .orderBy('pinned_chart.order', 'asc')) as Record<string, any>[];
     const resourceType: ResourceViewItemType.CHART = ResourceViewItemType.CHART;
     const items = rows.map((row) => ({
         type: resourceType,
@@ -141,11 +116,6 @@ const getDashboards = async (
             'dashboards.dashboard_id',
             'dv.dashboard_id',
         )
-        .leftJoin(
-            'analytics_dashboard_views',
-            'dashboards.dashboard_uuid',
-            'analytics_dashboard_views.dashboard_uuid',
-        )
         .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
         .whereIn('spaces.space_uuid', allowedSpaceUuids)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
@@ -160,15 +130,13 @@ const getDashboards = async (
         )
         .max({
             name: 'dashboards.name',
+            views: 'dashboards.views_count',
+            first_viewed_at: 'dashboards.first_viewed_at',
             description: 'dashboards.description',
             updated_at: 'dv.updated_at',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
         })
-        .min({
-            first_viewed_at: 'analytics_dashboard_views.timestamp',
-        })
-        .count({ views: 'analytics_dashboard_views.timestamp' })
         .orderBy('pinned_dashboard.order', 'asc')
         .groupBy(1, 2, 3, 4, 5, 6)) as Record<string, any>[];
     const resourceType: ResourceViewItemType.DASHBOARD =

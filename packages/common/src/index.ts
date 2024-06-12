@@ -78,7 +78,7 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './types/organization';
-import { type PinnedItems } from './types/pinning';
+import { type ApiTogglePinnedItem, type PinnedItems } from './types/pinning';
 import { type ProjectGroupAccess } from './types/projectGroupAccess';
 import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
@@ -638,7 +638,8 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
-    | ApiCatalogAnalyticsResults;
+    | ApiCatalogAnalyticsResults
+    | ApiTogglePinnedItem['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -678,12 +679,20 @@ export enum LightdashInstallType {
 export type SentryConfig = {
     backend: {
         dsn: string;
+        securityReportUri: string;
     };
     frontend: {
         dsn: string;
     };
     release: string;
     environment: string;
+    tracesSampleRate: number;
+    profilesSampleRate: number;
+    anr: {
+        enabled: boolean;
+        timeout?: number;
+        captureStacktrace: boolean;
+    };
 };
 
 export type HealthState = {
@@ -702,7 +711,14 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
+    sentry: Pick<
+        SentryConfig,
+        | 'frontend'
+        | 'release'
+        | 'environment'
+        | 'tracesSampleRate'
+        | 'profilesSampleRate'
+    >;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

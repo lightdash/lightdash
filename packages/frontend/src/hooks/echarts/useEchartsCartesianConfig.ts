@@ -1549,6 +1549,7 @@ const useEchartsCartesianConfig = (
         resultsData,
         itemsMap,
         getSeriesColor,
+        minimal,
     } = useVisualizationContext();
 
     const validCartesianConfig = useMemo(() => {
@@ -1866,7 +1867,7 @@ const useEchartsCartesianConfig = (
             yAxis: axes.yAxis,
             useUTC: true,
             series: stackedSeriesWithColorAssignments,
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
             legend: mergeLegendSettings(
                 validCartesianConfig?.eChartsConfig.legend,
                 validCartesianConfigLegend,
@@ -1891,6 +1892,7 @@ const useEchartsCartesianConfig = (
             axes.yAxis,
             stackedSeriesWithColorAssignments,
             isInDashboard,
+            minimal,
             validCartesianConfig?.eChartsConfig.legend,
             validCartesianConfig?.eChartsConfig.grid,
             validCartesianConfigLegend,
