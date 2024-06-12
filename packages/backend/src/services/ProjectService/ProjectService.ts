@@ -2449,18 +2449,13 @@ export class ProjectService extends BaseService {
         exploreName: string,
         organizationUuid?: string,
     ): Promise<Explore> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'ProjectService.getExplore',
-            description: 'Gets a single explore from the cache',
-        });
-        try {
-            return await wrapOtelSpan(
-                'ProjectService.getExplore',
-                {},
-                async () => {
+        return Sentry.startSpan(
+            {
+                op: 'ProjectService.getExplore',
+                name: 'ProjectService.getExplore',
+            },
+            async () =>
+                wrapOtelSpan('ProjectService.getExplore', {}, async () => {
                     const project = organizationUuid
                         ? { organizationUuid }
                         : await this.projectModel.getSummary(projectUuid);
@@ -2508,11 +2503,8 @@ export class ProjectService extends BaseService {
                         {},
                         async () => getFilteredExplore(explore, userAttributes),
                     );
-                },
-            );
-        } finally {
-            span?.finish();
-        }
+                }),
+        );
     }
 
     async getCatalog(
@@ -2605,145 +2597,143 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<FilterableDimension[]> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'projectService.getAvailableFiltersForSavedQuery',
-            description: 'Gets all filters available for a single query',
-        });
-        try {
-            const [savedChart] =
-                await this.savedChartModel.getInfoForAvailableFilters([
-                    savedChartUuid,
-                ]);
+        return Sentry.startSpan(
+            {
+                op: 'projectService.getAvailableFiltersForSavedQuery',
+                name: 'ProjectService.getAvailableFiltersForSavedQuery',
+            },
+            async () => {
+                const [savedChart] =
+                    await this.savedChartModel.getInfoForAvailableFilters([
+                        savedChartUuid,
+                    ]);
 
-            const space = await this.spaceModel.getSpaceSummary(
-                savedChart.spaceUuid,
-            );
-
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                space.uuid,
-            );
-
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('SavedChart', {
-                        ...savedChart,
-                        isPrivate: space.isPrivate,
-                        access,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
-            const explore = await this.getExplore(
-                user,
-                savedChart.projectUuid,
-                savedChart.tableName,
-            );
-
-            return getDimensions(explore).filter(
-                (field) => isFilterableDimension(field) && !field.hidden,
-            );
-        } finally {
-            span?.finish();
-        }
-    }
-
-    async getAvailableFiltersForSavedQueries(
-        user: SessionUser,
-        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
-    ): Promise<DashboardAvailableFilters> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'projectService.getAvailableFiltersForSavedQueries',
-            description: 'Gets all filters available for several queries',
-        });
-
-        let allFilters: {
-            uuid: string;
-            filters: CompiledDimension[];
-        }[] = [];
-
-        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
-            ({ savedChartUuid }) => savedChartUuid,
-        );
-
-        try {
-            const savedCharts =
-                await this.savedChartModel.getInfoForAvailableFilters(
-                    savedQueryUuids,
+                const space = await this.spaceModel.getSpaceSummary(
+                    savedChart.spaceUuid,
                 );
-            const uniqueSpaceUuids = [
-                ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
-            ];
-            const exploreCacheKeys: Record<string, boolean> = {};
-            const exploreCache: Record<string, Explore> = {};
 
-            const explorePromises = savedCharts.reduce<
-                Promise<{ key: string; explore: Explore }>[]
-            >((acc, chart) => {
-                const key = chart.tableName;
-                if (!exploreCacheKeys[key]) {
-                    acc.push(
-                        this.getExplore(user, chart.projectUuid, key).then(
-                            (explore) => ({ key, explore }),
-                        ),
-                    );
-                    exploreCacheKeys[key] = true;
-                }
-                return acc;
-            }, []);
-
-            const [spaceAccessMap, resolvedExplores] = await Promise.all([
-                this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
-                Promise.all(explorePromises),
-            ]);
-            const userSpacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                uniqueSpaceUuids,
-            );
-
-            resolvedExplores.forEach(({ key, explore }) => {
-                exploreCache[key] = explore;
-            });
-
-            const filterPromises = savedCharts.map(async (savedChart) => {
-                const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
+                const access = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    space.uuid,
+                );
 
                 if (
                     user.ability.cannot(
                         'view',
                         subject('SavedChart', {
                             ...savedChart,
-                            isPrivate: spaceAccess?.isPrivate,
-                            access:
-                                userSpacesAccess[savedChart.spaceUuid] ?? [],
+                            isPrivate: space.isPrivate,
+                            access,
                         }),
                     )
                 ) {
-                    return { uuid: savedChart.uuid, filters: [] };
+                    throw new ForbiddenError();
                 }
 
-                const explore = exploreCache[savedChart.tableName];
-
-                const filters = getDimensions(explore).filter(
-                    (field) => isFilterableDimension(field) && !field.hidden,
+                const explore = await this.getExplore(
+                    user,
+                    savedChart.projectUuid,
+                    savedChart.tableName,
                 );
 
-                return { uuid: savedChart.uuid, filters };
-            });
+                return getDimensions(explore).filter(
+                    (field) => isFilterableDimension(field) && !field.hidden,
+                );
+            },
+        );
+    }
 
-            allFilters = await Promise.all(filterPromises);
-        } finally {
-            span?.finish();
-        }
+    async getAvailableFiltersForSavedQueries(
+        user: SessionUser,
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    ): Promise<DashboardAvailableFilters> {
+        let allFilters: {
+            uuid: string;
+            filters: CompiledDimension[];
+        }[] = [];
+
+        allFilters = await Sentry.startSpan(
+            {
+                op: 'projectService.getAvailableFiltersForSavedQueries',
+                name: 'ProjectService.getAvailableFiltersForSavedQueries',
+            },
+            async () => {
+                const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+                    ({ savedChartUuid }) => savedChartUuid,
+                );
+
+                const savedCharts =
+                    await this.savedChartModel.getInfoForAvailableFilters(
+                        savedQueryUuids,
+                    );
+                const uniqueSpaceUuids = [
+                    ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
+                ];
+                const exploreCacheKeys: Record<string, boolean> = {};
+                const exploreCache: Record<string, Explore> = {};
+
+                const explorePromises = savedCharts.reduce<
+                    Promise<{ key: string; explore: Explore }>[]
+                >((acc, chart) => {
+                    const key = chart.tableName;
+                    if (!exploreCacheKeys[key]) {
+                        acc.push(
+                            this.getExplore(user, chart.projectUuid, key).then(
+                                (explore) => ({ key, explore }),
+                            ),
+                        );
+                        exploreCacheKeys[key] = true;
+                    }
+                    return acc;
+                }, []);
+
+                const [spaceAccessMap, resolvedExplores] = await Promise.all([
+                    this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                    Promise.all(explorePromises),
+                ]);
+                const userSpacesAccess =
+                    await this.spaceModel.getUserSpacesAccess(
+                        user.userUuid,
+                        uniqueSpaceUuids,
+                    );
+
+                resolvedExplores.forEach(({ key, explore }) => {
+                    exploreCache[key] = explore;
+                });
+
+                const filterPromises = savedCharts.map(async (savedChart) => {
+                    const spaceAccess = spaceAccessMap.get(
+                        savedChart.spaceUuid,
+                    );
+
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('SavedChart', {
+                                ...savedChart,
+                                isPrivate: spaceAccess?.isPrivate,
+                                access:
+                                    userSpacesAccess[savedChart.spaceUuid] ??
+                                    [],
+                            }),
+                        )
+                    ) {
+                        return { uuid: savedChart.uuid, filters: [] };
+                    }
+
+                    const explore = exploreCache[savedChart.tableName];
+
+                    const filters = getDimensions(explore).filter(
+                        (field) =>
+                            isFilterableDimension(field) && !field.hidden,
+                    );
+
+                    return { uuid: savedChart.uuid, filters };
+                });
+
+                return Promise.all(filterPromises);
+            },
+        );
 
         const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
