@@ -78,10 +78,7 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './types/organization';
-import {
-    type ApiTogglePinnedItem,
-    type PinnedItems
-} from './types/pinning';
+import { type ApiTogglePinnedItem, type PinnedItems } from './types/pinning';
 import { type ProjectGroupAccess } from './types/projectGroupAccess';
 import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
