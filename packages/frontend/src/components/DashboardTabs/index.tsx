@@ -1,4 +1,9 @@
-import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
+import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    type DroppableProvided,
+} from '@hello-pangea/dnd';
 import {
     assertUnreachable,
     DashboardTileTypes,
@@ -239,7 +244,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     };
 
-    const DraggableTabs = (
+    const DraggableTabs = (provider: DroppableProvided) => (
         <Tabs
             value={activeTab?.uuid}
             onTabChange={(e) => {
@@ -310,10 +315,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             <IconGripVertical
                                                                 style={{
                                                                     width: rem(
-                                                                        20,
+                                                                        18,
                                                                     ),
                                                                     height: rem(
-                                                                        20,
+                                                                        18,
                                                                     ),
                                                                 }}
                                                                 stroke={1.5}
@@ -414,6 +419,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 </Draggable>
                             );
                         })}
+                        {provider.placeholder}
                         {isEditMode && (
                             <Group>
                                 <Button
@@ -536,8 +542,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             <Droppable droppableId="tabs" direction="horizontal">
                 {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef}>
-                        {DraggableTabs}
-                        {provided.placeholder}
+                        {DraggableTabs(provided)}
                     </div>
                 )}
             </Droppable>
