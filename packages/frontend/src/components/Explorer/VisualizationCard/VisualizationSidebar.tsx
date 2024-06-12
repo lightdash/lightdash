@@ -15,6 +15,7 @@ import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
 import CustomVisConfigTabs from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
+import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as PieChartConfigTabs } from '../../VisualizationConfigs/PieChartConfig/PieChartConfigTabs';
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
@@ -53,6 +54,8 @@ const VisualizationSidebar: FC<{
                     return ChartConfigTabs;
                 case ChartType.PIE:
                     return PieChartConfigTabs;
+                case ChartType.FUNNEL:
+                    return FunnelChartConfigTabs;
                 case ChartType.CUSTOM:
                     return CustomVisConfigTabs;
                 default:
