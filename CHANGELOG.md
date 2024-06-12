@@ -1,3 +1,10 @@
+## [0.1128.7](https://github.com/lightdash/lightdash/compare/0.1128.6...0.1128.7) (2024-06-12)
+
+
+### Bug Fixes
+
+* chart and dashboard view count increase on pinning to homepage ([#10365](https://github.com/lightdash/lightdash/issues/10365)) ([3edbbd6](https://github.com/lightdash/lightdash/commit/3edbbd608c17a8e865b5cc44ff0515dbe76ef332))
+
 ## [0.1128.6](https://github.com/lightdash/lightdash/compare/0.1128.5...0.1128.6) (2024-06-12)
 
 
