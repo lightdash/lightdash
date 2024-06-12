@@ -1,3 +1,10 @@
+## [0.1128.9](https://github.com/lightdash/lightdash/compare/0.1128.8...0.1128.9) (2024-06-12)
+
+
+### Bug Fixes
+
+* focus password input in login page ([#10387](https://github.com/lightdash/lightdash/issues/10387)) ([5b1cb61](https://github.com/lightdash/lightdash/commit/5b1cb61deb29d63b52774d6b6185e26d7eb6e944))
+
 ## [0.1128.8](https://github.com/lightdash/lightdash/compare/0.1128.7...0.1128.8) (2024-06-12)
 
 
