@@ -846,9 +846,6 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                     getPromoteChartDiff(
                                                         savedChart?.uuid,
                                                     );
-                                                    /* promoteChart(
-                                                        savedChart?.uuid,
-                                                    )*/
                                                 }}
                                             >
                                                 Promote chart
@@ -1043,7 +1040,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
 
             {(promoteChartDiff || promoteChartDiffLoading) && (
                 <PromotionConfirmDialog
-                    type={'dashboard'}
+                    type={'chart'}
                     resourceName={savedChart?.name ?? ''}
                     promotionChanges={promoteChartDiff}
                     onClose={() => {
