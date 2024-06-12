@@ -2480,11 +2480,11 @@ export class ProjectService extends BaseService {
     }
 
     private async findExplores({
-                                   user,
-                                   projectUuid,
-                                   exploreNames,
-                                   organizationUuid,
-                               }: {
+        user,
+        projectUuid,
+        exploreNames,
+        organizationUuid,
+    }: {
         user: SessionUser;
         projectUuid: string;
         exploreNames: string[];
@@ -2492,8 +2492,8 @@ export class ProjectService extends BaseService {
     }): Promise<Record<string, Explore | ExploreError>> {
         return Sentry.startSpan(
             {
-                op: 'ProjectService.getExplore',
-                name: 'ProjectService.getExplore',
+                op: 'ProjectService.findExplores',
+                name: 'ProjectService.findExplores',
             },
             async () =>
                 wrapOtelSpan(
@@ -2518,10 +2518,11 @@ export class ProjectService extends BaseService {
                         ) {
                             throw new ForbiddenError();
                         }
-                        const explores = await this.projectModel.findExploresFromCache(
-                            projectUuid,
-                            exploreNames,
-                        );
+                        const explores =
+                            await this.projectModel.findExploresFromCache(
+                                projectUuid,
+                                exploreNames,
+                            );
 
                         const userAttributes =
                             await this.userAttributesModel.getAttributeValuesForOrgMember(
@@ -2551,7 +2552,7 @@ export class ProjectService extends BaseService {
                             return acc;
                         }, {});
                     },
-                )
+                ),
         );
     }
 
@@ -2724,7 +2725,9 @@ export class ProjectService extends BaseService {
 
                 const [spaceAccessMap, exploresMap, userSpacesAccess] =
                     await Promise.all([
-                        this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
+                        this.spaceModel.getSpacesForAccessCheck(
+                            uniqueSpaceUuids,
+                        ),
                         this.findExplores({
                             user,
                             projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
@@ -2739,7 +2742,9 @@ export class ProjectService extends BaseService {
                     ]);
 
                 return savedCharts.map((savedChart) => {
-                    const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
+                    const spaceAccess = spaceAccessMap.get(
+                        savedChart.spaceUuid,
+                    );
 
                     if (
                         user.ability.cannot(
@@ -2753,7 +2758,7 @@ export class ProjectService extends BaseService {
                             }),
                         )
                     ) {
-                        return {uuid: savedChart.uuid, filters: []};
+                        return { uuid: savedChart.uuid, filters: [] };
                     }
 
                     const explore = exploresMap[savedChart.tableName];
@@ -2766,7 +2771,7 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    return {uuid: savedChart.uuid, filters};
+                    return { uuid: savedChart.uuid, filters };
                 });
             },
         );
