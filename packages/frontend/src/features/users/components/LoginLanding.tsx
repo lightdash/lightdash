@@ -208,6 +208,7 @@ const Login: FC<{}> = () => {
                                     name="password"
                                     placeholder="Your password"
                                     required
+                                    autoFocus
                                     {...form.getInputProps('password')}
                                     disabled={disableControls}
                                 />
