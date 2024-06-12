@@ -17,6 +17,8 @@ const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
                 return <ChartConfigPanel />;
             case ChartType.PIE:
                 return <PieConfigPanel />;
+            case ChartType.FUNNEL:
+                return <div>El fun</div>;
             case ChartType.CUSTOM:
                 return <CustomVisualizationConfigPanel />;
             default:

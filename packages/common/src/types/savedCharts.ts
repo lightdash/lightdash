@@ -18,6 +18,7 @@ export enum ChartKind {
     PIE = 'pie',
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
+    FUNNEL = 'funnel',
     CUSTOM = 'custom',
 }
 
@@ -26,6 +27,7 @@ export enum ChartType {
     TABLE = 'table',
     BIG_NUMBER = 'big_number',
     PIE = 'pie',
+    FUNNEL = 'funnel',
     CUSTOM = 'custom',
 }
 
@@ -93,6 +95,11 @@ export type PieChart = {
     groupSortOverrides?: string[];
     showLegend?: boolean;
     legendPosition?: PieChartLegendPosition;
+    metadata?: Record<string, SeriesMetadata>;
+};
+
+export type FunnelChart = {
+    metricId?: string;
     metadata?: Record<string, SeriesMetadata>;
 };
 
@@ -282,6 +289,11 @@ export type PieChartConfig = {
     config?: PieChart;
 };
 
+export type FunnelChartConfig = {
+    type: ChartType.FUNNEL;
+    config?: FunnelChart;
+};
+
 export type TableChartConfig = {
     type: ChartType.TABLE;
     config?: TableChart;
@@ -292,6 +304,7 @@ export type ChartConfig =
     | CartesianChartConfig
     | CustomVisConfig
     | PieChartConfig
+    | FunnelChartConfig
     | TableChartConfig;
 
 export type SavedChartType = ChartType;
@@ -476,6 +489,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
     switch (chartKind) {
         case ChartKind.PIE:
             return ChartType.PIE;
+        case ChartKind.FUNNEL:
+            return ChartType.FUNNEL;
         case ChartKind.BIG_NUMBER:
             return ChartType.BIG_NUMBER;
         case ChartKind.TABLE:
@@ -491,6 +506,8 @@ export const getChartKind = (
     switch (chartType) {
         case ChartType.PIE:
             return ChartKind.PIE;
+        case ChartType.FUNNEL:
+            return ChartKind.FUNNEL;
         case ChartType.BIG_NUMBER:
             return ChartKind.BIG_NUMBER;
         case ChartType.TABLE:

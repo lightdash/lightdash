@@ -38,6 +38,9 @@ import VisualizationBigNumberConfig, {
 import VisualizationCartesianConfig, {
     type VisualizationConfigCartesian,
 } from './VisualizationConfigCartesian';
+import VisualizationConfigFunnel, {
+    type VisualizationConfigFunnelType,
+} from './VisualizationConfigFunnel';
 import VisualizationPieConfig, {
     type VisualizationConfigPie,
 } from './VisualizationConfigPie';
@@ -53,6 +56,7 @@ export type VisualizationConfig =
     | VisualizationConfigCartesian
     | VisualizationCustomConfigType
     | VisualizationConfigPie
+    | VisualizationConfigFunnelType
     | VisualizationConfigTable;
 
 type VisualizationContext = {
@@ -369,6 +373,25 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
                         </Context.Provider>
                     )}
                 </VisualizationPieConfig>
+            );
+        case ChartType.FUNNEL:
+            return (
+                <VisualizationConfigFunnel
+                    itemsMap={itemsMap}
+                    resultsData={lastValidResultsData}
+                    initialChartConfig={chartConfig.config}
+                    onChartConfigChange={handleChartConfigChange}
+                    colorPalette={colorPalette}
+                    tableCalculationsMetadata={tableCalculationsMetadata}
+                >
+                    {({ visualizationConfig }) => (
+                        <Context.Provider
+                            value={{ ...value, visualizationConfig }}
+                        >
+                            {children}
+                        </Context.Provider>
+                    )}
+                </VisualizationConfigFunnel>
             );
         case ChartType.BIG_NUMBER:
             return (
