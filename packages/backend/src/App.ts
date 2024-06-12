@@ -276,7 +276,12 @@ export default class App {
             'https://headway-widget.net',
             'https://*.posthog.com',
             'https://*.intercom.com',
+            'https://*.intercom.io',
+            'https://*.intercomcdn.com',
             'https://*.rudderlabs.com',
+            'https://www.googleapis.com',
+            'https://apis.google.com',
+            'https://accounts.google.com',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
         ];
