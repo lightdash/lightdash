@@ -23,6 +23,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SpaceShare,
+    TogglePinnedItemInfo,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -432,7 +433,7 @@ export class SavedChartService extends BaseService {
     async togglePinning(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<SavedChart> {
+    ): Promise<TogglePinnedItemInfo> {
         const { organizationUuid, projectUuid, pinnedListUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
@@ -476,7 +477,11 @@ export class SavedChartService extends BaseService {
             },
         });
 
-        return this.get(savedChartUuid, user);
+        return {
+            projectUuid,
+            spaceUuid,
+            pinnedListUuid: pinnedList.pinnedListUuid,
+        };
     }
 
     async updateMultiple(
