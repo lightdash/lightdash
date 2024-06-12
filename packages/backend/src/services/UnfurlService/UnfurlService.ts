@@ -577,6 +577,7 @@ export class UnfurlService extends BaseService {
 
                         await dashboardChartsLoaders.waitFor({
                             state: 'hidden',
+                            timeout: 60000,
                         });
                     }
 
@@ -590,8 +591,11 @@ export class UnfurlService extends BaseService {
                         finalSelector = '.react-grid-layout';
                     }
 
-                    if (lightdashPage === LightdashPage.DASHBOARD) {
-                        const fullPage = await page.$('.react-grid-layout');
+                    const fullPage = await page.$(finalSelector);
+
+                    if (chartType === ChartType.BIG_NUMBER) {
+                        await page.setViewportSize(bigNumberViewport);
+                    } else {
                         const fullPageSize = await fullPage?.boundingBox();
                         await page.setViewportSize({
                             width: gridWidth ?? viewport.width,
@@ -618,14 +622,26 @@ export class UnfurlService extends BaseService {
                         organization_uuid: organizationUuid || 'undefined',
                     });
 
-                    const imageBuffer = await page
-                        .locator(finalSelector)
-                        .screenshot({
-                            path,
-                            ...(lightdashPage === LightdashPage.DASHBOARD
-                                ? { animations: 'disabled' }
-                                : {}),
-                        });
+                    if (
+                        lightdashPage === LightdashPage.DASHBOARD ||
+                        lightdashPage === LightdashPage.EXPLORE
+                    ) {
+                        const imageBuffer = await page
+                            .locator(finalSelector)
+                            .screenshot({
+                                path,
+                                animations: 'disabled',
+                            });
+
+                        return imageBuffer;
+                    }
+
+                    // Full page screenshot for charts
+                    const imageBuffer = await page.screenshot({
+                        path,
+                        fullPage: true,
+                        animations: 'disabled',
+                    });
                     return imageBuffer;
                 } catch (e) {
                     const isRetryableError =
