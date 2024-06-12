@@ -259,6 +259,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     <div
                         ref={mergeRefs(provided.innerRef, hoverRef)}
                         {...provided.draggableProps}
+                        {...provided.dragHandleProps}
                     >
                         <Tabs.Tab
                             key={idx}
