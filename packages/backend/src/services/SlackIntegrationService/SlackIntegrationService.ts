@@ -8,17 +8,21 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { BaseService } from '../BaseService';
 
-type SlackIntegrationServiceArguments = {
+type SlackIntegrationServiceArguments<
+    T extends SlackAuthenticationModel = SlackAuthenticationModel,
+> = {
     analytics: LightdashAnalytics;
-    slackAuthenticationModel: SlackAuthenticationModel;
+    slackAuthenticationModel: T;
 };
 
-export class SlackIntegrationService extends BaseService {
+export class SlackIntegrationService<
+    T extends SlackAuthenticationModel = SlackAuthenticationModel,
+> extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
-    private readonly slackAuthenticationModel: SlackAuthenticationModel;
+    protected readonly slackAuthenticationModel: T;
 
-    constructor(args: SlackIntegrationServiceArguments) {
+    constructor(args: SlackIntegrationServiceArguments<T>) {
         super();
         this.analytics = args.analytics;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
