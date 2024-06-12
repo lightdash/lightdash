@@ -138,7 +138,7 @@ export const previewHandler = async (
     if (!config.context?.project) {
         console.error(
             styles.warning(
-                `\n\nDeveloper preview will be deployed without any copied content! Please set a project to copy content from using 'lightdash config set-project' command.\n`,
+                `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
             ),
         );
     }
@@ -328,7 +328,7 @@ export const startPreviewHandler = async (
         if (!config.context?.project) {
             console.error(
                 styles.warning(
-                    `\n\nDeveloper preview will be deployed without any copied content! Please set a project to copy content from using 'lightdash config set-project' command.\n`,
+                    `\n\nDeveloper preview will be deployed without any copied content!\nPlease set a project to copy content from by running 'lightdash config set-project'.\n`,
                 ),
             );
         }
