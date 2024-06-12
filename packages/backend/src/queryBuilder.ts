@@ -5,11 +5,10 @@ import {
     CompiledDimension,
     CompiledMetricQuery,
     CompiledTable,
-    convertFieldRefToFieldId,
+    createFilterRuleFromRequiredMetricRule,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
-    Dimension,
     Explore,
     FieldId,
     FieldReferenceError,
@@ -31,7 +30,7 @@ import {
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isFilterGroup,
-    isFilterRuleDefinedForFieldId,
+    isFilterRuleInQuery,
     ItemsMap,
     MetricFilterRule,
     parseAllReferences,
@@ -40,7 +39,6 @@ import {
     SortField,
     SupportedDbtAdapter,
     TimeFrames,
-    UnitOfTime,
     UserAttributeValueMap,
     WarehouseClient,
     WeekDay,
@@ -1004,48 +1002,6 @@ export const buildQuery = ({
         return undefined;
     };
 
-    const createFilterRule = (
-        filter: MetricFilterRule,
-        tableName: string,
-    ): FilterRule => ({
-        id: filter.id,
-        target: {
-            fieldId: convertFieldRefToFieldId(
-                filter.target.fieldRef,
-                tableName,
-            ),
-        },
-        operator: filter.operator,
-        values: filter.values,
-        settings: {
-            unitOfTime: filter.settings?.unitOfTime,
-        },
-    });
-
-    const isFilterRuleInQuery = (
-        dimension: Dimension,
-        filterRule: FilterRule,
-        dimensionsFilterGroup: FilterGroup | undefined,
-    ): undefined | boolean => {
-        let dimensionFieldId = filterRule.target.fieldId;
-        const timeDimension =
-            dimension.isIntervalBase || dimension.timeInterval !== undefined;
-        if (!dimension.isIntervalBase && dimension.timeInterval) {
-            dimensionFieldId = dimensionFieldId.replace(
-                `_${dimension.timeInterval.toLowerCase()}`,
-                '',
-            );
-        }
-        return (
-            dimensionsFilterGroup &&
-            isFilterRuleDefinedForFieldId(
-                dimensionsFilterGroup,
-                dimensionFieldId,
-                timeDimension,
-            )
-        );
-    };
-
     const getNestedDimensionFilterSQLFromModelFilters = (
         table: CompiledTable,
         dimensionsFilterGroup: FilterGroup | undefined,
@@ -1056,7 +1012,10 @@ export const buildQuery = ({
 
         const reducedRules: string[] = modelFilterRules.reduce<string[]>(
             (acc, filter) => {
-                const filterRule = createFilterRule(filter, table.name);
+                const filterRule = createFilterRuleFromRequiredMetricRule(
+                    filter,
+                    table.name,
+                );
                 const dimension = Object.values(table.dimensions).find(
                     (tc) => getItemId(tc) === filterRule.target.fieldId,
                 );

@@ -5,8 +5,13 @@ import {
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
+    overrideFilterGroupWithFilterRules,
+    reduceRequiredDimensionFiltersToFilterRules,
+    resetRequiredFilterRules,
     type Field,
+    type FilterGroup,
     type FilterRule,
+    type Filters,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -35,9 +40,66 @@ const FiltersCard: FC = memo(() => {
     const tableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
-    const filters = useExplorerContext(
-        (context) => context.state.unsavedChartVersion.metricQuery.filters,
-    );
+    const { data } = useExplore(tableName);
+
+    const refreshRequiredFiltersProperty = (
+        allFilter: FilterGroup | undefined,
+    ) => {
+        if (!allFilter) return;
+        if (data && data.tables[tableName]) {
+            const requiredFilters =
+                data.tables[tableName].required_filters || [];
+            const allRequiredFilters: FilterRule[] =
+                reduceRequiredDimensionFiltersToFilterRules(
+                    requiredFilters,
+                    data.tables[tableName],
+                    undefined,
+                );
+            const allFilterRefs = allRequiredFilters.map(
+                (filter) => filter.target.fieldId,
+            );
+            resetRequiredFilterRules(allFilter, allFilterRefs);
+        }
+    };
+    const updateDimensionFiltersWithRequiredFilters = (
+        unsavedQueryFilters: Filters,
+    ) => {
+        if (data && data.tables[tableName]) {
+            const requiredFilters = data.tables[tableName].required_filters;
+            if (requiredFilters && requiredFilters.length > 0) {
+                const reducedRules: FilterRule[] =
+                    reduceRequiredDimensionFiltersToFilterRules(
+                        requiredFilters,
+                        data.tables[tableName],
+                        unsavedQueryFilters.dimensions,
+                    );
+                unsavedQueryFilters.dimensions =
+                    overrideFilterGroupWithFilterRules(
+                        unsavedQueryFilters.dimensions,
+                        reducedRules,
+                    );
+            }
+        }
+        return unsavedQueryFilters;
+    };
+    const resetDimensionFiltersIfNoModelSelected = (
+        unsavedQueryFilters: Filters,
+    ) => {
+        if (tableName.length === 0) {
+            unsavedQueryFilters.dimensions = undefined;
+        }
+        return unsavedQueryFilters;
+    };
+    const filters = useExplorerContext((context) => {
+        let unsavedQueryFilters =
+            context.state.unsavedChartVersion.metricQuery.filters;
+        refreshRequiredFiltersProperty(unsavedQueryFilters.dimensions);
+        unsavedQueryFilters =
+            updateDimensionFiltersWithRequiredFilters(unsavedQueryFilters);
+        unsavedQueryFilters =
+            resetDimensionFiltersIfNoModelSelected(unsavedQueryFilters);
+        return unsavedQueryFilters;
+    });
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
@@ -59,7 +121,6 @@ const FiltersCard: FC = memo(() => {
     const toggleExpandedSection = useExplorerContext(
         (context) => context.actions.toggleExpandedSection,
     );
-    const { data } = useExplore(tableName);
     const filterIsOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.FILTERS),
         [expandedSections],

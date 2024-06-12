@@ -1,19 +1,36 @@
 import { ConditionalOperator } from '../types/conditionalRule';
+import { type Table } from '../types/explore';
+import {
+    type FilterGroup,
+    type FilterRule,
+    type Filters,
+    type MetricFilterRule,
+} from '../types/filter';
 import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
+    createFilterRuleFromRequiredMetricRule,
+    isFilterRuleInQuery,
     overrideChartFilter,
+    reduceRequiredDimensionFiltersToFilterRules,
+    resetRequiredFilterRules,
 } from './filters';
 import {
+    baseTable,
     chartAndFilterGroup,
     chartOrFilterGroup,
     customSqlDimension,
     dashboardFilters,
     dashboardFilterWithSameTargetAndOperator,
     dashboardFilterWithSameTargetButDifferentOperator,
+    dimension,
     expectedChartWithOverrideDashboardFilters,
     expectedChartWithOverrideDashboardORFilters,
     expectedFiltersWithCustomSqlDimension,
+    expectedRequiredResetResult,
+    expectedRequiredResult,
+    filterRule,
+    metricFilterRule,
     metricQueryWithAndFilters,
     metricQueryWithOrFilters,
 } from './filters.mock';
@@ -125,5 +142,95 @@ describe('addFilterRule', () => {
             field: customSqlDimension,
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
+    });
+});
+
+describe('createFilterRuleFromRequiredMetricRule', () => {
+    test('should create a correct FilterRule', () => {
+        const result = createFilterRuleFromRequiredMetricRule(
+            metricFilterRule('dimension'),
+            'tableName',
+        );
+        expect(result).toEqual(
+            expectedRequiredResult('dimension', 'tableName'),
+        );
+    });
+});
+
+describe('isFilterRuleInQuery', () => {
+    test('should correctly determine if a filter rule is in the query', () => {
+        const filterGroupWithFilterRule: FilterGroup = {
+            id: 'mockGroupId',
+            and: [filterRule],
+        };
+        const filterGroupWithoutFilterRule: FilterGroup = {
+            id: 'mockGroupId',
+            and: [],
+        };
+        expect(
+            isFilterRuleInQuery(
+                dimension('dim', 'table'),
+                filterRule,
+                filterGroupWithFilterRule,
+            ),
+        ).toEqual(true);
+        expect(
+            isFilterRuleInQuery(
+                dimension('dim', 'table'),
+                filterRule,
+                filterGroupWithoutFilterRule,
+            ),
+        ).toEqual(false);
+    });
+});
+
+describe('reduceRequiredDimensionFiltersToFilterRules', () => {
+    test('should correctly reduce required dimension filters to filter rules', () => {
+        // Define mock data
+        const mockRequiredFilters: MetricFilterRule[] = [
+            metricFilterRule('mockFieldRef1'),
+            metricFilterRule('mockFieldRef2'),
+        ];
+        const table: Table = {
+            ...baseTable,
+            lineageGraph: {},
+            dimensions: {
+                mockFieldRef1: dimension('mockFieldRef1', 'table'),
+                mockFieldRef2: dimension('mockFieldRef2', 'table'),
+            },
+        };
+        const emptyFilters: Filters = {
+            dimensions: {
+                id: 'mockGroupId',
+                and: [],
+            },
+        };
+        const result = reduceRequiredDimensionFiltersToFilterRules(
+            mockRequiredFilters,
+            table,
+            emptyFilters.dimensions,
+        );
+        const expectedFilterRuleResult: FilterRule[] = [
+            expectedRequiredResult('mockFieldRef1', 'table'),
+            expectedRequiredResult('mockFieldRef2', 'table'),
+        ];
+        expect(result).toEqual(expectedFilterRuleResult);
+    });
+});
+
+describe('resetRequiredFilterRules', () => {
+    test('should correctly reset required filter rules', () => {
+        const filterGroup: FilterGroup = {
+            id: 'uuidGroup',
+            and: [
+                expectedRequiredResult('mockFieldRef1', 'table'),
+                expectedRequiredResult('mockFieldRef2', 'table'),
+            ],
+        };
+        resetRequiredFilterRules(filterGroup, [
+            'table_mockFieldRef1',
+            'someOther',
+        ]);
+        expect(filterGroup).toEqual(expectedRequiredResetResult);
     });
 });
