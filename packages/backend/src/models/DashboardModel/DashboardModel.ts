@@ -27,7 +27,6 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import {
     DashboardsTableName,
@@ -140,7 +139,7 @@ export class DashboardModel {
 
         if (version.tabs.length > 0) {
             await trx(DashboardTabsTableName).insert(
-                version.tabs.map(async (tab) => ({
+                version.tabs.map((tab) => ({
                     dashboard_version_id: versionId.dashboard_version_id,
                     name: tab.name,
                     uuid: tab.uuid,
@@ -185,36 +184,28 @@ export class DashboardModel {
                     ),
                 );
 
+            const getChartId = (savedChartUuid: string): number => {
+                const matchingChartId = chartIds.find(
+                    (chart) => chart.saved_query_uuid === savedChartUuid,
+                )?.saved_query_id;
+                if (matchingChartId === undefined) {
+                    throw new NotFoundError('Saved chart not found');
+                }
+                return matchingChartId;
+            };
+
             await trx(DashboardTileChartTableName).insert(
                 tilesWithUuids
                     .filter(isDashboardChartTileType)
-                    .map(({ uuid, properties }) => {
-                        let chartId: number | null = null;
-
-                        if (properties.savedChartUuid) {
-                            const matchingChartId = chartIds.find(
-                                (chart) =>
-                                    chart.saved_query_uuid ===
-                                    properties.savedChartUuid,
-                            )?.saved_query_id;
-                            if (matchingChartId === undefined) {
-                                throw new NotFoundError(
-                                    'Saved chart not found',
-                                );
-                            } else {
-                                chartId = matchingChartId;
-                            }
-                        }
-
-                        return {
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid: uuid,
-                            saved_chart_id: chartId,
-                            hide_title: properties.hideTitle,
-                            title: properties.title,
-                        };
-                    }),
+                    .map(({ uuid, properties }) => ({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: uuid,
+                        saved_chart_id: properties.savedChartUuid
+                            ? getChartId(properties.savedChartUuid)
+                            : null,
+                        hide_title: properties.hideTitle,
+                        title: properties.title,
+                    })),
             );
         }
 
