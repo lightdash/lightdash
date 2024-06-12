@@ -25,8 +25,10 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 import {
     ApiChartSummaryListResponse,
+    CreateChartInSpace,
     DashboardBasicDetails,
     OrganizationProject,
+    SavedChart,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
@@ -74,6 +76,16 @@ declare global {
             deleteDashboardsByName(names: string[]): Chainable;
 
             deleteChartsByName(names: string[]): Chainable;
+
+            createProject(projectName: string): Chainable<string>;
+            createSpace(
+                projectUuid: string,
+                spaceName: string,
+            ): Chainable<string>;
+            createChartInSpace(
+                projectUuid: string,
+                body: CreateChartInSpace,
+            ): Chainable<SavedChart>;
         }
     }
 }
@@ -356,3 +368,80 @@ Cypress.Commands.add('deleteChartsByName', (names: string[]) => {
         });
     });
 });
+Cypress.Commands.add('createProject', (projectName: string) => {
+    cy.request({
+        url: `api/v1/org/projects`,
+        headers: { 'Content-type': 'application/json' },
+        method: 'POST',
+        body: {
+            name: projectName,
+            type: 'DEFAULT',
+            dbtConnection: {
+                target: '',
+                environment: [],
+                type: 'dbt',
+            },
+            dbtVersion: 'v1.4',
+            warehouseConnection: {
+                host: Cypress.env('PGHOST') || 'localhost',
+                user: 'postgres',
+                password: Cypress.env('PGPASSWORD') || 'password',
+                dbname: 'postgres',
+                searchPath: '',
+                role: '',
+                sshTunnelHost: '',
+                sshTunnelUser: '',
+                schema: 'jaffle',
+                port: 5432,
+                keepalivesIdle: 0,
+                sslmode: 'disable',
+                sshTunnelPort: 22,
+                requireUserCredentials: false,
+                type: 'postgres',
+            },
+        },
+    }).then((resp) => {
+        expect(resp.status).to.eq(200);
+        const { projectUuid } = resp.body.results.project;
+        cy.log(`Create project ${projectName} with uuid ${projectUuid}`);
+        cy.wrap(projectUuid);
+    });
+});
+
+Cypress.Commands.add(
+    'createSpace',
+    (projectUuid: string, spaceName: string) => {
+        // Creates a public space in project
+        cy.request({
+            url: `api/v1/projects/${projectUuid}/spaces/`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {
+                name: spaceName,
+                isPrivate: false,
+            },
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            const spaceUuid = resp.body.results.uuid;
+            cy.log(`Created space ${spaceName} with uuid ${spaceUuid}`);
+            cy.wrap(spaceUuid);
+        });
+    },
+);
+Cypress.Commands.add(
+    'createChartInSpace',
+    (projectUuid: string, body: CreateChartInSpace) => {
+        cy.request<{
+            results: SavedChart;
+        }>({
+            method: 'POST',
+            url: `api/v1/projects/${projectUuid}/saved`,
+            body,
+        }).then((response) => {
+            expect(response.status).to.eq(200);
+            const chart = response.body.results;
+            cy.log(`Created chart ${body.name} with uuid ${chart.uuid}`);
+            cy.wrap(chart);
+        });
+    },
+);
