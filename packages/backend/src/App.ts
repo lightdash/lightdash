@@ -14,6 +14,7 @@ import express, {
 } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
+import helmet from 'helmet';
 import knex, { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
@@ -257,6 +258,84 @@ export default class App {
         expressApp.use(
             express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
+
+        let reportUri: URL | undefined;
+        try {
+            reportUri = new URL(
+                this.lightdashConfig.sentry.backend.securityReportUri,
+            );
+            reportUri.searchParams.set(
+                'sentry_environment',
+                this.environment === 'development'
+                    ? 'development'
+                    : this.lightdashConfig.mode,
+            );
+            reportUri.searchParams.set('sentry_release', VERSION);
+        } catch (e) {
+            Logger.warn('Invalid security report URI', e);
+        }
+
+        const contentSecurityPolicyAllowedDomains: string[] = [
+            'https://*.sentry.io',
+            'https://analytics.lightdash.com',
+            'https://*.usepylon.com',
+            'https://*.headwayapp.co',
+            'https://headway-widget.net',
+            'https://*.posthog.com',
+            'https://*.intercom.com',
+            'https://*.rudderlabs.com',
+            ...this.lightdashConfig.security.contentSecurityPolicy
+                .allowedDomains,
+        ];
+
+        expressApp.use(
+            helmet({
+                contentSecurityPolicy: {
+                    directives: {
+                        'default-src': [
+                            "'self'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'img-src': ["'self'", 'data:', 'https://*'],
+                        'frame-src': ["'self'", 'https://*'],
+                        'frame-ancestors': ["'self'", 'https://*'],
+                        'worker-src': [
+                            "'self'",
+                            'blob:',
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'script-src': [
+                            "'self'",
+                            "'unsafe-eval'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'script-src-elem': [
+                            "'self'",
+                            "'unsafe-inline'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'report-uri': reportUri ? [reportUri.href] : [],
+                    },
+                    reportOnly: true,
+                },
+                strictTransportSecurity: {
+                    maxAge: 31536000,
+                    includeSubDomains: true,
+                    preload: true,
+                },
+                referrerPolicy: {
+                    policy: 'strict-origin-when-cross-origin',
+                },
+                noSniff: true,
+                xFrameOptions: false,
+            }),
+        );
+
+        // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
+        expressApp.use((req, res, next) => {
+            res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
+            next();
+        });
 
         expressApp.use(express.json());
         expressApp.use(express.urlencoded({ extended: false }));

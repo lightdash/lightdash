@@ -2,6 +2,9 @@ import SelectProject from './assets/promote-select-project.png';
 import PromoteViewChart from './assets/promote-view-chart.png';
 import PromoteListChart from './assets/promote-list-chart.png';
 import SucessMessage from './assets/promote-success.png';
+import PromoteViewDashboard from './assets/promote-view-dashboard.png';
+import PromoteListDashboard from './assets/promote-list-dashboard.png';
+import SucessDashboardMessage from './assets/promote-dashboard-success.png';
 
 # How to promote content
 
@@ -48,7 +51,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the chart/dashboard/space in both the `development project` and the `upstream project`
+You must be a `developer` and have access to the chart/space in both the `development project` and the `upstream project`
 
 :::
 
@@ -61,6 +64,39 @@ height="94"
 style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-## Promote dashboards and spaces
+## Promote dashboards
 
-Soon.
+You can promote dashboards from the `dashboard` in view mode or from any listing (like home page or all dashboards), click on the `...` button and then select `promote dashboard`
+
+This will promote the dashboard to the `upstream` project as well as all the charts in this dashboard (for both charts within spaces and charts within this dashboard) and all other non-chart tiles like markdown.
+
+If the dashboard or charts are in a space that doesn't exist in the upstream project, then these spaces will be created and the content will be put in these spaces.
+
+<img
+src={PromoteViewDashboard}
+width="160"
+height="200"
+style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+<img
+src={PromoteListDashboard}
+width="668"
+height="466"
+style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+:::info
+
+You must be a `developer` and have access to the dashboard/space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard.
+
+:::
+
+Once the dashboard is promoted, you can click on the `success` banner to open a new tab into this dashboard in the `production project`
+
+<img
+src={SucessDashboardMessage}
+width="455"
+height="94"
+style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

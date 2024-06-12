@@ -678,6 +678,7 @@ export enum LightdashInstallType {
 export type SentryConfig = {
     backend: {
         dsn: string;
+        securityReportUri: string;
     };
     frontend: {
         dsn: string;

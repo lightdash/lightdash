@@ -6482,7 +6482,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSlackNotificationChannelResponse": {
+            "ApiSlackCustomSettingsResponse": {
                 "properties": {
                     "results": {},
                     "status": {
@@ -6492,6 +6492,20 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "SlackAppCustomSettings": {
+                "properties": {
+                    "appProfilePhotoUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "notificationChannel": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
             },
             "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
@@ -7614,7 +7628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1116.1",
+        "version": "0.1126.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12089,16 +12103,16 @@
                 "parameters": []
             }
         },
-        "/api/v1/slack/notification-channel": {
+        "/api/v1/slack/custom-settings": {
             "put": {
-                "operationId": "UpdateNotificationChannel",
+                "operationId": "UpdateCustomSettings",
                 "responses": {
                     "200": {
                         "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSlackNotificationChannelResponse"
+                                    "$ref": "#/components/schemas/ApiSlackCustomSettingsResponse"
                                 }
                             }
                         }
@@ -12123,14 +12137,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "channelId": {
-                                        "type": "string",
-                                        "nullable": true
-                                    }
-                                },
-                                "required": ["channelId"],
-                                "type": "object"
+                                "$ref": "#/components/schemas/SlackAppCustomSettings"
                             }
                         }
                     }

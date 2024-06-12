@@ -1,8 +1,9 @@
 import {
     ApiErrorPayload,
     ApiSlackChannelsResponse,
-    ApiSlackNotificationChannelResponse,
+    ApiSlackCustomSettingsResponse,
     ForbiddenError,
+    SlackAppCustomSettings,
 } from '@lightdash/common';
 import {
     Body,
@@ -60,12 +61,12 @@ export class SlackController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Put('/notification-channel')
-    @OperationId('UpdateNotificationChannel')
-    async updateNotificationChannel(
+    @Put('/custom-settings')
+    @OperationId('UpdateCustomSettings')
+    async updateCustomSettings(
         @Request() req: express.Request,
-        @Body() body: { channelId: string | null },
-    ): Promise<ApiSlackNotificationChannelResponse> {
+        @Body() body: SlackAppCustomSettings,
+    ): Promise<ApiSlackCustomSettingsResponse> {
         this.setStatus(200);
         const organizationUuid = req.user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
@@ -73,10 +74,10 @@ export class SlackController extends BaseController {
             status: 'ok',
             results: await req.clients
                 .getSlackClient()
-                .updateNotificationChannel(
+                .updateAppCustomSettings(
                     `${req.user?.firstName} ${req.user?.lastName}`,
                     organizationUuid,
-                    body.channelId,
+                    body,
                 ),
         };
     }

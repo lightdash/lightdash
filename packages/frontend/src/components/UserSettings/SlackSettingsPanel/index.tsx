@@ -1,4 +1,8 @@
-import { slackRequiredScopes, type SlackSettings } from '@lightdash/common';
+import {
+    slackRequiredScopes,
+    type SlackAppCustomSettings,
+    type SlackSettings,
+} from '@lightdash/common';
 import {
     Alert,
     Anchor,
@@ -12,12 +16,14 @@ import {
     Select,
     Stack,
     Text,
+    TextInput,
     Title,
     Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconAlertCircle,
+    IconDeviceFloppy,
     IconHelpCircle,
     IconRefresh,
     IconTrash,
@@ -28,7 +34,7 @@ import {
     useDeleteSlack,
     useGetSlack,
     useSlackChannels,
-    useUpdateSlackNotificationChannelMutation,
+    useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
 import slackSvg from '../../../svgs/slack.svg';
 import MantineIcon from '../../common/MantineIcon';
@@ -51,35 +57,55 @@ const SlackSettingsPanel: FC = () => {
             enabled: isValidSlack,
         });
     const { mutate: deleteSlack } = useDeleteSlack();
-    const { mutate: updateNotificationChannel } =
-        useUpdateSlackNotificationChannelMutation();
+    const { mutate: updateCustomSettings } =
+        useUpdateSlackAppCustomSettingsMutation();
 
-    const form = useForm<{ notificationChannel: string | null }>({
+    const form = useForm<SlackAppCustomSettings>({
         initialValues: {
             notificationChannel: null,
+            appProfilePhotoUrl: null,
         },
     });
 
-    const { setFieldValue } = form;
+    const { setFieldValue, onSubmit } = form;
 
     useEffect(() => {
-        if (data?.notificationChannel) {
-            setFieldValue('notificationChannel', data.notificationChannel);
+        if (!data) return;
+
+        const initialValues = {
+            notificationChannel: data.notificationChannel ?? null,
+            appProfilePhotoUrl: data.appProfilePhotoUrl ?? null,
+        };
+
+        if (form.initialized) {
+            form.setInitialValues(initialValues);
+            form.setValues(initialValues);
+        } else {
+            form.initialize(initialValues);
         }
-    }, [data?.notificationChannel, setFieldValue]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data]);
 
     if (isInitialLoading) {
         return <Loader />;
     }
 
+    const handleSubmit = onSubmit((args) => {
+        if (isValidSlack) {
+            updateCustomSettings(args);
+        }
+    });
+
     return (
         <SettingsGridCard>
-            <Box>
-                <Group spacing="sm">
-                    <Avatar src={slackSvg} size="md" />
-                    <Title order={4}>Slack</Title>
-                </Group>
-            </Box>
+            <Stack spacing="sm">
+                <Box>
+                    <Group spacing="sm">
+                        <Avatar src={slackSvg} size="md" />
+                        <Title order={4}>Slack</Title>
+                    </Group>
+                </Box>
+            </Stack>
 
             <Stack>
                 <Stack spacing="sm">
@@ -107,77 +133,115 @@ const SlackSettingsPanel: FC = () => {
                             View docs
                         </Anchor>
                     </Text>
-
-                    <Select
-                        label={
-                            <Group spacing="two" mb="two">
-                                <Text>Select a notification channel</Text>
-                                <Tooltip
-                                    multiline
-                                    maw={250}
-                                    label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
-                                >
-                                    <MantineIcon icon={IconHelpCircle} />
-                                </Tooltip>
-                            </Group>
-                        }
-                        disabled={isLoadingSlackChannels}
-                        size="xs"
-                        placeholder="Select a channel"
-                        searchable
-                        clearable
-                        nothingFound="No channels found"
-                        defaultValue={form.values.notificationChannel}
-                        data={
-                            slackChannels?.map((channel) => ({
-                                value: channel.id,
-                                label: channel.name,
-                            })) ?? []
-                        }
-                        {...form.getInputProps('notificationChannel')}
-                        onChange={(value) => {
-                            setFieldValue('notificationChannel', value);
-                            updateNotificationChannel({ channelId: value });
-                        }}
-                    />
                 </Stack>
 
                 {isValidSlack ? (
-                    <Stack align="end">
-                        <Group>
-                            <Button
+                    <form onSubmit={handleSubmit}>
+                        <Stack spacing="sm">
+                            <TextInput
+                                label="Enter the URL of a profile photo for your Slack App"
                                 size="xs"
-                                component="a"
-                                target="_blank"
-                                variant="default"
-                                href={SLACK_INSTALL_URL}
-                                leftIcon={<MantineIcon icon={IconRefresh} />}
-                            >
-                                Reinstall
-                            </Button>
-                            <Button
+                                placeholder="https://lightdash.cloud/photo.jpg"
+                                type="url"
+                                disabled={!isValidSlack}
+                                {...form.getInputProps('appProfilePhotoUrl')}
+                                value={
+                                    form.values.appProfilePhotoUrl ?? undefined
+                                }
+                            />
+                            <Stack justify="center">
+                                <Title order={6}>Profile photo</Title>
+                                <Avatar
+                                    src={form.values?.appProfilePhotoUrl}
+                                    size="xl"
+                                    radius="md"
+                                    bg="gray.1"
+                                />
+                            </Stack>
+                            <Select
+                                label={
+                                    <Group spacing="two" mb="two">
+                                        <Text>
+                                            Select a notification channel
+                                        </Text>
+                                        <Tooltip
+                                            multiline
+                                            maw={250}
+                                            label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHelpCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                disabled={isLoadingSlackChannels}
                                 size="xs"
-                                px="xs"
-                                color="red"
-                                variant="outline"
-                                onClick={() => deleteSlack(undefined)}
-                                leftIcon={<MantineIcon icon={IconTrash} />}
-                            >
-                                Delete
-                            </Button>
-                        </Group>
+                                placeholder="Select a channel"
+                                searchable
+                                clearable
+                                nothingFound="No channels found"
+                                data={
+                                    slackChannels?.map((channel) => ({
+                                        value: channel.id,
+                                        label: channel.name,
+                                    })) ?? []
+                                }
+                                {...form.getInputProps('notificationChannel')}
+                                onChange={(value) => {
+                                    setFieldValue('notificationChannel', value);
+                                }}
+                            />
+                        </Stack>
+                        <Stack align="end" mt="sm">
+                            <Group>
+                                <Button
+                                    size="xs"
+                                    component="a"
+                                    target="_blank"
+                                    variant="default"
+                                    href={SLACK_INSTALL_URL}
+                                    leftIcon={
+                                        <MantineIcon icon={IconRefresh} />
+                                    }
+                                >
+                                    Reinstall
+                                </Button>
+                                <Button
+                                    size="xs"
+                                    type="submit"
+                                    leftIcon={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    Save
+                                </Button>
+                                <Button
+                                    size="xs"
+                                    px="xs"
+                                    color="red"
+                                    variant="outline"
+                                    onClick={() => deleteSlack(undefined)}
+                                    leftIcon={<MantineIcon icon={IconTrash} />}
+                                >
+                                    Delete
+                                </Button>
+                            </Group>
 
-                        {data && !hasRequiredScopes(data) && (
-                            <Alert
-                                color="blue"
-                                icon={<MantineIcon icon={IconAlertCircle} />}
-                            >
-                                Your Slack integration is not up to date, you
-                                should reinstall the Slack integration to
-                                guarantee the best user experience.
-                            </Alert>
-                        )}
-                    </Stack>
+                            {data && !hasRequiredScopes(data) && (
+                                <Alert
+                                    color="blue"
+                                    icon={
+                                        <MantineIcon icon={IconAlertCircle} />
+                                    }
+                                >
+                                    Your Slack integration is not up to date,
+                                    you should reinstall the Slack integration
+                                    to guarantee the best user experience.
+                                </Alert>
+                            )}
+                        </Stack>
+                    </form>
                 ) : (
                     <Flex justify="end">
                         <Button

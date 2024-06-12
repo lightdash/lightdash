@@ -2,6 +2,7 @@ import opentelemetry, { diag, DiagConsoleLogger } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { ExpressLayerType } from '@opentelemetry/instrumentation-express';
+import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import { envDetector, Resource } from '@opentelemetry/resources';
 import {
@@ -54,6 +55,9 @@ const sdk = new NodeSDK({
     // Instrumentations enable tracing/profiling of specific libraries.
     // Auto instrumentation includes http,express,knex,pg,winston
     instrumentations: [
+        new RuntimeNodeInstrumentation({
+            eventLoopUtilizationMeasurementInterval: 1000,
+        }),
         getNodeAutoInstrumentations({
             '@opentelemetry/instrumentation-dns': {
                 enabled: false,

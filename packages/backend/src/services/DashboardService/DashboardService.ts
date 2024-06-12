@@ -160,24 +160,13 @@ export class DashboardService extends BaseService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const dashboardAccesses = await Promise.all(
-            dashboards.map(async (dashboard) => {
-                const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    dashboard.spaceUuid,
-                );
-                return {
-                    uuid: dashboard.uuid,
-                    access: spaceAccess,
-                };
-            }),
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
         );
         return dashboards.filter((dashboard) => {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
-            );
-            const spaceAccess = dashboardAccesses.find(
-                (access) => access.uuid === dashboard.uuid,
             );
             const hasAbility = user.ability.can(
                 'view',
@@ -185,7 +174,7 @@ export class DashboardService extends BaseService {
                     organizationUuid: dashboardSpace?.organizationUuid,
                     projectUuid: dashboardSpace?.projectUuid,
                     isPrivate: dashboardSpace?.isPrivate,
-                    access: spaceAccess?.access,
+                    access: spacesAccess[dashboard.spaceUuid] ?? [],
                 }),
             );
             return (
