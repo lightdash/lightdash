@@ -134,6 +134,15 @@ export const previewHandler = async (
     let hasContentCopy = false;
 
     const config = await getConfig();
+
+    if (!config.context?.project) {
+        console.error(
+            styles.warning(
+                `\n\nDeveloper preview will be deployed without any copied content! Please set a project to copy content from using 'lightdash config set-project' command.\n`,
+            ),
+        );
+    }
+
     try {
         const results = await createProject({
             ...options,
@@ -315,6 +324,14 @@ export const startPreviewHandler = async (
         }
     } else {
         const config = await getConfig();
+
+        if (!config.context?.project) {
+            console.error(
+                styles.warning(
+                    `\n\nDeveloper preview will be deployed without any copied content! Please set a project to copy content from using 'lightdash config set-project' command.\n`,
+                ),
+            );
+        }
 
         // Create
         console.error(`Creating new project preview ${projectName}`);
