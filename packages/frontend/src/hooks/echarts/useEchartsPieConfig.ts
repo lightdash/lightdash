@@ -18,7 +18,7 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsPieConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap, getGroupColor } =
+    const { visualizationConfig, itemsMap, getGroupColor, minimal } =
         useVisualizationContext();
 
     const chartConfig = useMemo(() => {
@@ -171,9 +171,9 @@ const useEchartsPieConfig = (isInDashboard: boolean) => {
                 trigger: 'item',
             },
             series: [pieSeriesOption],
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
-    }, [chartConfig, isInDashboard, pieSeriesOption]);
+    }, [chartConfig, isInDashboard, minimal, pieSeriesOption]);
 
     if (!itemsMap) return;
     if (!eChartsOption || !pieSeriesOption) return;
