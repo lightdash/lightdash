@@ -636,7 +636,7 @@ export class ProjectModel {
     async findExploresFromCache(
         projectUuid: string,
         exploreNames?: string[],
-    ): Promise<Array<Explore | ExploreError>> {
+    ): Promise<Record<string, Explore | ExploreError>> {
         return wrapOtelSpan(
             'ProjectModel.findExploresFromCache',
             {
@@ -652,10 +652,15 @@ export class ProjectModel {
                 }
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
-                return explores.map(({ explore }) =>
-                    ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                        explore,
-                    ),
+                return explores.reduce<Record<string, Explore | ExploreError>>(
+                    (acc, { explore }) => {
+                        acc[explore.name] =
+                            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                                explore,
+                            );
+                        return acc;
+                    },
+                    {},
                 );
             },
         );

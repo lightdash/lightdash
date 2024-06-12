@@ -2505,7 +2505,7 @@ export class ProjectService extends BaseService {
                     },
                     async () => {
                         const project = organizationUuid
-                            ? {organizationUuid}
+                            ? { organizationUuid }
                             : await this.projectModel.getSummary(projectUuid);
                         if (
                             user.ability.cannot(
@@ -2531,26 +2531,25 @@ export class ProjectService extends BaseService {
                                 },
                             );
 
-                        return explores.reduce<Record<string, Explore | ExploreError>>(
-                            (acc, explore) => {
-                                if (isExploreError(explore)) {
+                        return Object.values(explores).reduce<
+                            Record<string, Explore | ExploreError>
+                        >((acc, explore) => {
+                            if (isExploreError(explore)) {
+                                acc[explore.name] = explore;
+                            } else {
+                                const shouldFilterExplore =
+                                    exploreHasFilteredAttribute(explore);
+                                if (!shouldFilterExplore) {
                                     acc[explore.name] = explore;
                                 } else {
-                                    const shouldFilterExplore =
-                                        exploreHasFilteredAttribute(explore);
-                                    if (!shouldFilterExplore) {
-                                        acc[explore.name] = explore;
-                                    } else {
-                                        acc[explore.name] = getFilteredExplore(
-                                            explore,
-                                            userAttributes,
-                                        );
-                                    }
+                                    acc[explore.name] = getFilteredExplore(
+                                        explore,
+                                        userAttributes,
+                                    );
                                 }
-                                return acc;
-                            },
-                            {},
-                        );
+                            }
+                            return acc;
+                        }, {});
                     },
                 )
         );
