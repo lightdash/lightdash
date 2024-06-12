@@ -1,3 +1,10 @@
+## [0.1128.5](https://github.com/lightdash/lightdash/compare/0.1128.4...0.1128.5) (2024-06-12)
+
+
+### Bug Fixes
+
+* add intercom and google domains to content security policy ([#10377](https://github.com/lightdash/lightdash/issues/10377)) ([31c9072](https://github.com/lightdash/lightdash/commit/31c9072a3a37aa1d64466563bf537b634b6b5290))
+
 ## [0.1128.4](https://github.com/lightdash/lightdash/compare/0.1128.3...0.1128.4) (2024-06-11)
 
 
