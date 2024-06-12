@@ -1,3 +1,52 @@
+## [0.1128.7](https://github.com/lightdash/lightdash/compare/0.1128.6...0.1128.7) (2024-06-12)
+
+
+### Bug Fixes
+
+* chart and dashboard view count increase on pinning to homepage ([#10365](https://github.com/lightdash/lightdash/issues/10365)) ([3edbbd6](https://github.com/lightdash/lightdash/commit/3edbbd608c17a8e865b5cc44ff0515dbe76ef332))
+
+## [0.1128.6](https://github.com/lightdash/lightdash/compare/0.1128.5...0.1128.6) (2024-06-12)
+
+
+### Bug Fixes
+
+* handle error thrown when parsing explore params ([#10373](https://github.com/lightdash/lightdash/issues/10373)) ([e85ef97](https://github.com/lightdash/lightdash/commit/e85ef97266e3ddc15d60c4838f19d4d6df0483a5))
+
+## [0.1128.5](https://github.com/lightdash/lightdash/compare/0.1128.4...0.1128.5) (2024-06-12)
+
+
+### Bug Fixes
+
+* add intercom and google domains to content security policy ([#10377](https://github.com/lightdash/lightdash/issues/10377)) ([31c9072](https://github.com/lightdash/lightdash/commit/31c9072a3a37aa1d64466563bf537b634b6b5290))
+
+## [0.1128.4](https://github.com/lightdash/lightdash/compare/0.1128.3...0.1128.4) (2024-06-11)
+
+
+### Bug Fixes
+
+* remove x frame options header ([#10376](https://github.com/lightdash/lightdash/issues/10376)) ([3aafa21](https://github.com/lightdash/lightdash/commit/3aafa21f1ead1f756685085f89bc9abd8a593d51))
+
+## [0.1128.3](https://github.com/lightdash/lightdash/compare/0.1128.2...0.1128.3) (2024-06-11)
+
+
+### Bug Fixes
+
+* increase timeout to wait for charts to 60s (playwright) ([#10375](https://github.com/lightdash/lightdash/issues/10375)) ([b3eb62e](https://github.com/lightdash/lightdash/commit/b3eb62ebf150923bdf9304de0ec9b5d81ead8a20))
+
+## [0.1128.2](https://github.com/lightdash/lightdash/compare/0.1128.1...0.1128.2) (2024-06-11)
+
+
+### Bug Fixes
+
+* adjust content security policy directives ([#10369](https://github.com/lightdash/lightdash/issues/10369)) ([60b6a5b](https://github.com/lightdash/lightdash/commit/60b6a5b04b4a089a075d0b0ec11f430272a8c737))
+
+## [0.1128.1](https://github.com/lightdash/lightdash/compare/0.1128.0...0.1128.1) (2024-06-11)
+
+
+### Bug Fixes
+
+* get body selector for chart screenshots ([#10368](https://github.com/lightdash/lightdash/issues/10368)) ([b79992b](https://github.com/lightdash/lightdash/commit/b79992b732b145e16407598af01747264f0a30ee))
+
 # [0.1128.0](https://github.com/lightdash/lightdash/compare/0.1127.0...0.1128.0) (2024-06-11)
 
 
