@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     isChartTile,
     NotFoundError,
+    ParameterError,
     PromotedChart as PromotedChangeChart,
     PromotedSpace,
     PromotionAction,
@@ -63,6 +64,9 @@ type PromoteServiceArguments = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
 };
+
+const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
+    chart.dashboardUuid !== null;
 
 export class PromoteService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -444,9 +448,6 @@ export class PromoteService extends BaseService {
             (change) => change.action === PromotionAction.NO_CHANGES,
         );
 
-        const isChartWithinDashboard = (chart: PromotedChangeChart) =>
-            chart?.dashboardUuid !== null;
-
         await Promise.all(
             charts
                 .filter((change) => change.action === PromotionAction.UPDATE)
@@ -609,12 +610,18 @@ export class PromoteService extends BaseService {
                 'This chart does not have an upstream project',
             );
         }
+
         const { promotedChart, upstreamChart } = await this.getPromoteCharts(
             user,
             upstreamProjectUuid,
             chartUuid,
         );
 
+        if (isChartWithinDashboard(promotedChart.chart)) {
+            throw new ParameterError(
+                'Promoting charts within dashboards is not supported',
+            );
+        }
         try {
             PromoteService.checkPromoteChartPermissions(
                 user,
