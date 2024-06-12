@@ -44,33 +44,29 @@ export class AnalyticsModel {
     }
 
     async getChartViewStats(chartUuid: string): Promise<ViewStatistics> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'AnalyticsModel.getChartStats',
-            description: 'Gets a single chart statistics',
-        });
+        return Sentry.startSpan(
+            {
+                op: 'AnalyticsModel.getChartStats',
+                name: 'AnalyticsModel.getChartStats',
+            },
+            async () => {
+                const stats = await this.database(AnalyticsChartViewsTableName)
+                    .count({ views: '*' })
+                    .min({
+                        first_viewed_at: 'timestamp',
+                    })
+                    .where('chart_uuid', chartUuid)
+                    .first();
 
-        try {
-            const stats = await this.database(AnalyticsChartViewsTableName)
-                .count({ views: '*' })
-                .min({
-                    first_viewed_at: 'timestamp',
-                })
-                .where('chart_uuid', chartUuid)
-                .first();
-
-            return {
-                views:
-                    typeof stats?.views === 'number'
-                        ? stats.views
-                        : parseInt(stats?.views ?? '0', 10),
-                firstViewedAt: stats?.first_viewed_at ?? new Date(),
-            };
-        } finally {
-            span?.finish();
-        }
+                return {
+                    views:
+                        typeof stats?.views === 'number'
+                            ? stats.views
+                            : parseInt(stats?.views ?? '0', 10),
+                    firstViewedAt: stats?.first_viewed_at ?? new Date(),
+                };
+            },
+        );
     }
 
     async addChartViewEvent(
