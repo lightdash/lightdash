@@ -359,7 +359,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const userCanPromoteChart =
         isPromoteChartsEnabled &&
         savedChart &&
-        savedChart?.dashboardUuid === undefined &&
+        !savedChart?.dashboardUuid &&
         user.data?.ability?.can('promote', subject('SavedChart', savedChart));
 
     const userCanManageExplore = user.data?.ability.can(
