@@ -18,6 +18,7 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
@@ -216,6 +217,7 @@ export class DashboardService extends BaseService {
             dashboard.uuid,
             user.userUuid,
         );
+
         this.analytics.track({
             event: 'dashboard.view',
             userId: user.userUuid,
@@ -564,7 +566,7 @@ export class DashboardService extends BaseService {
     async togglePinning(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<Dashboard> {
+    ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
@@ -628,7 +630,11 @@ export class DashboardService extends BaseService {
             },
         });
 
-        return this.getById(user, dashboardUuid);
+        return {
+            projectUuid,
+            spaceUuid,
+            pinnedListUuid: pinnedList.pinnedListUuid,
+        };
     }
 
     async updateMultiple(
