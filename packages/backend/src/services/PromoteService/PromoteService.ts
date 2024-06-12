@@ -1165,15 +1165,13 @@ export class PromoteService extends BaseService {
             );
 
         // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-
+        // eslint-disable-next-line prefer-const
         let [promotionChanges, promotedCharts] =
             await this.getPromotionDashboardChanges(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
             );
-
-        promotedCharts = [];
 
         try {
             PromoteService.checkPromoteDashboardPermissions(
@@ -1240,7 +1238,7 @@ export class PromoteService extends BaseService {
             );
             return promotionChanges.dashboards[0].data;
         } catch (e) {
-            console.error(`Unable to promote dashboard`, e);
+            Logger.error(`Unable to promote dashboard`, e);
             await this.trackAnalytics(
                 user,
                 'promote.error',
