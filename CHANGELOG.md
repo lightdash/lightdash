@@ -1,3 +1,10 @@
+## [0.1129.1](https://github.com/lightdash/lightdash/compare/0.1129.0...0.1129.1) (2024-06-12)
+
+
+### Bug Fixes
+
+* remove n+1 queries when creating and updating a dashboard ([#10364](https://github.com/lightdash/lightdash/issues/10364)) ([e579cb0](https://github.com/lightdash/lightdash/commit/e579cb073f85a5398a4b8e6dcd58a300cf4106be))
+
 # [0.1129.0](https://github.com/lightdash/lightdash/compare/0.1128.9...0.1129.0) (2024-06-12)
 
 
