@@ -275,11 +275,45 @@ export default class App {
             Logger.warn('Invalid security report URI', e);
         }
 
+        const contentSecurityPolicyAllowedDomains: string[] = [
+            'https://*.sentry.io',
+            'https://analytics.lightdash.com',
+            'https://*.usepylon.com',
+            'https://*.headwayapp.co',
+            'https://headway-widget.net',
+            'https://*.posthog.com',
+            'https://*.intercom.com',
+            'https://*.rudderlabs.com',
+            ...this.lightdashConfig.security.contentSecurityPolicy
+                .allowedDomains,
+        ];
+
         expressApp.use(
             helmet({
                 contentSecurityPolicy: {
                     directives: {
-                        'default-src': ["'self'", 'sentry.io'],
+                        'default-src': [
+                            "'self'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'img-src': ["'self'", 'data:', 'https://*'],
+                        'frame-src': ["'self'", 'https://*'],
+                        'frame-ancestors': ["'self'", 'https://*'],
+                        'worker-src': [
+                            "'self'",
+                            'blob:',
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'script-src': [
+                            "'self'",
+                            "'unsafe-eval'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
+                        'script-src-elem': [
+                            "'self'",
+                            "'unsafe-inline'",
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
                         'report-uri': reportUri ? [reportUri.href] : [],
                     },
                     reportOnly: true,
@@ -293,6 +327,7 @@ export default class App {
                     policy: 'strict-origin-when-cross-origin',
                 },
                 noSniff: true,
+                xFrameOptions: false,
             }),
         );
 
