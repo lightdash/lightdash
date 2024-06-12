@@ -78,7 +78,10 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './types/organization';
-import { type PinnedItems } from './types/pinning';
+import {
+    type ApiTogglePinnedItem,
+    type PinnedItems
+} from './types/pinning';
 import { type ProjectGroupAccess } from './types/projectGroupAccess';
 import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
@@ -638,7 +641,8 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
-    | ApiCatalogAnalyticsResults;
+    | ApiCatalogAnalyticsResults
+    | ApiTogglePinnedItem['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

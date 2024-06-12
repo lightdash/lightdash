@@ -23,6 +23,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SpaceShare,
+    TogglePinnedItemInfo,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -432,7 +433,7 @@ export class SavedChartService extends BaseService {
     async togglePinning(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<SavedChart> {
+    ): Promise<TogglePinnedItemInfo> {
         const { organizationUuid, projectUuid, pinnedListUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
@@ -476,7 +477,11 @@ export class SavedChartService extends BaseService {
             },
         });
 
-        return this.get(savedChartUuid, user, true);
+        return {
+            projectUuid,
+            spaceUuid,
+            pinnedListUuid: pinnedList.pinnedListUuid
+        };
     }
 
     async updateMultiple(
@@ -605,8 +610,7 @@ export class SavedChartService extends BaseService {
 
     async get(
         savedChartUuid: string,
-        user: SessionUser,
-        isPinning: boolean = false
+        user: SessionUser
     ): Promise<SavedChart> {
         const savedChart = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(
@@ -632,12 +636,10 @@ export class SavedChartService extends BaseService {
             );
         }
 
-        if (!isPinning) {
-            await this.analyticsModel.addChartViewEvent(
-                savedChartUuid,
-                user.userUuid,
-            );
-        }
+        await this.analyticsModel.addChartViewEvent(
+            savedChartUuid,
+            user.userUuid,
+        );
 
         this.analytics.track({
             event: 'saved_chart.view',
