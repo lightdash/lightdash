@@ -35,7 +35,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     const { hovered: isHovered, ref: hoverRef } = useHover();
 
     return (
-        <Draggable key={tab.uuid} draggableId={tab.uuid} index={tab.order}>
+        <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
             {(provided) => (
                 <div
                     ref={mergeRefs(provided.innerRef, hoverRef)}
