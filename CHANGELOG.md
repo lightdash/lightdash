@@ -1,3 +1,10 @@
+## [0.1130.1](https://github.com/lightdash/lightdash/compare/0.1130.0...0.1130.1) (2024-06-13)
+
+
+### Bug Fixes
+
+* get all explores in one query for dashboard available filters ([#10383](https://github.com/lightdash/lightdash/issues/10383)) ([d17c150](https://github.com/lightdash/lightdash/commit/d17c1502ff204c3aba21f75ee588b46c8ad7144f))
+
 # [0.1130.0](https://github.com/lightdash/lightdash/compare/0.1129.1...0.1130.0) (2024-06-13)
 
 
