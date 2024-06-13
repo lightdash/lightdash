@@ -466,12 +466,13 @@ export class PromoteService extends BaseService {
         // This is not very accurate, and can lead to some confusion if people start updating the same chart in both projects
         // But to make this more accurate we would need to fetch all the metricQuery and chart config and check if they are the same
         // Or introduce a versionHash on update in the chart
+
         if (upstreamChart === undefined) return true;
+
         return (
             promotedChart.updatedAt > upstreamChart.updatedAt ||
             promotedChart.name !== upstreamChart.name ||
-            promotedChart.description !== upstreamChart.description ||
-            promotedChart.spaceUuid !== upstreamChart.spaceUuid
+            promotedChart.description !== upstreamChart.description
         );
     }
 
@@ -890,7 +891,11 @@ export class PromoteService extends BaseService {
                 data: promotedSpace,
             };
         });
-        const allSpaces = [...existingSpaces, ...newSpaceChanges];
+        const allSpaces = [
+            ...existingSpaces,
+            ...updatedSpaces,
+            ...newSpaceChanges,
+        ];
 
         const updateChartsWithSpace = promotionChanges.charts.map(
             (chartChange) => {
@@ -926,7 +931,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
-            spaces: [...existingSpaces, ...updatedSpaces, ...newSpaceChanges],
+            spaces: allSpaces,
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
         };
@@ -970,31 +975,46 @@ export class PromoteService extends BaseService {
         };
     }
 
+    static getSpaceChange(
+        upstreamProjectUuid: string,
+        promotedSpace: Omit<SpaceSummary, 'userAccess'>,
+        upstreamSpace: Omit<SpaceSummary, 'userAccess'> | undefined,
+    ): PromotionChanges['spaces'][number] {
+        if (upstreamSpace !== undefined) {
+            if (PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)) {
+                return {
+                    action: PromotionAction.UPDATE,
+                    data: {
+                        ...upstreamSpace,
+                        name: promotedSpace.name,
+                        isPrivate: promotedSpace.isPrivate, // This should always be false, until we allow promoting private content
+                    },
+                };
+            }
+            return {
+                action: PromotionAction.NO_CHANGES,
+                data: upstreamSpace,
+            };
+        }
+        return {
+            action: PromotionAction.CREATE,
+            data: {
+                ...promotedSpace,
+                projectUuid: upstreamProjectUuid,
+            },
+        };
+    }
+
     static getChartChanges(
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
     ): PromotionChanges {
         const upstreamProjectUuid = promotedChart.projectUuid;
-
-        const spaceChange: PromotionChanges['spaces'][number] =
-            upstreamChart.space !== undefined
-                ? // TODO check if space requires an update
-                  {
-                      action: PromoteService.isSpaceUpdated(
-                          promotedChart.space,
-                          upstreamChart.space,
-                      )
-                          ? PromotionAction.UPDATE
-                          : PromotionAction.NO_CHANGES,
-                      data: upstreamChart.space,
-                  }
-                : {
-                      action: PromotionAction.CREATE,
-                      data: {
-                          ...promotedChart.space,
-                          projectUuid: upstreamProjectUuid,
-                      },
-                  };
+        const spaceChange = PromoteService.getSpaceChange(
+            upstreamProjectUuid,
+            promotedChart.space,
+            upstreamChart.space,
+        );
 
         const chartChange = PromoteService.getChartChange(
             promotedChart,
@@ -1056,45 +1076,16 @@ export class PromoteService extends BaseService {
             }[]
         >((acc, content) => {
             const { promotedSpace, upstreamSpace } = content;
-            if (upstreamSpace !== undefined) {
-                if (
-                    promotedSpace !== undefined &&
-                    PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)
-                ) {
-                    return [
-                        ...acc,
-                        {
-                            action: PromotionAction.UPDATE,
-                            data: {
-                                ...upstreamSpace,
-                                name: promotedSpace.name,
-                                isPrivate: promotedSpace.isPrivate, // This should always be false, until we allow promoting private content
-                            },
-                        },
-                    ];
-                }
-                return [
-                    ...acc,
-                    {
-                        action: PromotionAction.NO_CHANGES,
-                        data: upstreamSpace,
-                    },
-                ];
-            }
-            if (promotedSpace === undefined) return acc; // This could be a chart within a dashboard, no need for space
+
+            if (promotedSpace === undefined) return acc;
             if (acc.some((space) => space.data.slug === promotedSpace.slug))
                 return acc; // Space already exists
-
-            return [
-                ...acc,
-                {
-                    action: PromotionAction.CREATE,
-                    data: {
-                        ...promotedSpace,
-                        projectUuid: upstreamProjectUuid,
-                    },
-                },
-            ];
+            const spaceChange = PromoteService.getSpaceChange(
+                upstreamProjectUuid,
+                promotedSpace,
+                upstreamSpace,
+            );
+            return [...acc, spaceChange];
         }, []);
 
         const dashboardChanges: PromotionChanges['dashboards'] = [
