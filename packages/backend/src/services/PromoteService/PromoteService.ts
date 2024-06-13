@@ -667,10 +667,7 @@ export class PromoteService extends BaseService {
             let promotionChanges: PromotionChanges =
                 PromoteService.getChartChanges(promotedChart, upstreamChart);
 
-            promotionChanges = await this.createNewSpaces(
-                user,
-                promotionChanges,
-            );
+            promotionChanges = await this.upsertSpaces(user, promotionChanges);
 
             promotionChanges = await this.upsertCharts(user, promotionChanges);
 
@@ -856,9 +853,17 @@ export class PromoteService extends BaseService {
     ): Promise<PromotionChanges> {
         const spaceChanges = promotionChanges.spaces;
         // Creates the spaces needed and return a new list of spaces with the right uuids
-        const existingSpaces = await spaceChanges.filter(
+        const existingSpaces = spaceChanges.filter(
             (change) => change.action === PromotionAction.NO_CHANGES,
         );
+
+        const updatedSpaces = spaceChanges.filter(
+            (change) => change.action === PromotionAction.UPDATE,
+        );
+        const updatedSpacePromises = updatedSpaces.map((spaceChange) =>
+            this.spaceModel.update(spaceChange.data.uuid, spaceChange.data),
+        );
+        await Promise.all(updatedSpacePromises);
 
         const newSpaces = spaceChanges
             .filter((change) => change.action === PromotionAction.CREATE)
@@ -921,7 +926,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
-            spaces: [...existingSpaces, ...newSpaceChanges],
+            spaces: [...existingSpaces, ...updatedSpaces, ...newSpaceChanges],
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
         };
@@ -1244,10 +1249,7 @@ export class PromoteService extends BaseService {
 
             // at this point, all permisions checks are done, so we can safely promote the dashboard and charts.
             // And return the list of dashboards and charts with the new space
-            promotionChanges = await this.createNewSpaces(
-                user,
-                promotionChanges,
-            );
+            promotionChanges = await this.upsertSpaces(user, promotionChanges);
 
             // We first create the dashboard if needed, with empty tiles
             // Because we need the dashboardUuid to update the charts within the dashboard
