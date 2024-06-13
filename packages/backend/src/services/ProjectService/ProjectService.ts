@@ -130,11 +130,7 @@ import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import {
-    runWorkerThread,
-    wrapOtelSpan,
-    wrapSentryTransaction,
-} from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -1399,81 +1395,58 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
     }): Promise<ApiQueryResults> {
-        return wrapOtelSpan(
-            'ProjectService.runQueryAndFormatRows',
-            {},
-            async (span) => {
-                const explore =
-                    validExplore ??
-                    (await this.getExplore(user, projectUuid, exploreName));
+        const explore =
+            validExplore ??
+            (await this.getExplore(user, projectUuid, exploreName));
 
-                const { rows, cacheMetadata, fields } =
-                    await this.runMetricQuery({
-                        user,
-                        metricQuery,
-                        projectUuid,
-                        exploreName,
-                        csvLimit,
-                        context,
-                        queryTags,
-                        invalidateCache,
-                        explore,
-                        granularity,
-                    });
-                span.setAttribute('rows', rows.length);
+        const { rows, cacheMetadata, fields } = await this.runMetricQuery({
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            csvLimit,
+            context,
+            queryTags,
+            invalidateCache,
+            explore,
+            granularity,
+        });
 
-                const { warehouseConnection } =
-                    await this.projectModel.getWithSensitiveFields(projectUuid);
-                if (warehouseConnection) {
-                    span.setAttribute('warehouse', warehouseConnection?.type);
-                }
+        const { warehouseConnection } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
-                // If there are more than 500 rows, we need to format them in a background job
-                const formattedRows = await wrapOtelSpan(
-                    'ProjectService.runQueryAndFormatRows.formatRows',
-                    {
-                        rows: rows.length,
-                        warehouse: warehouseConnection?.type,
-                    },
-                    async (formatRowsSpan) =>
-                        wrapSentryTransaction<ResultRow[]>(
-                            'ProjectService.runQueryAndFormatRows.formatRows',
-                            {
-                                rows: rows.length,
-                                warehouse: warehouseConnection?.type,
-                            },
-                            async () => {
-                                const useWorker = rows.length > 500;
-                                formatRowsSpan.setAttribute(
-                                    'useWorker',
-                                    useWorker,
-                                );
+        // If there are more than 500 rows, we need to format them in a background job
+        const formattedRows = await wrapSentryTransaction<ResultRow[]>(
+            'ProjectService.runQueryAndFormatRows.formatRows',
+            {
+                rows: rows.length,
+                warehouse: warehouseConnection?.type,
+            },
+            async () => {
+                const useWorker = rows.length > 500;
 
-                                return useWorker
-                                    ? runWorkerThread<ResultRow[]>(
-                                          new Worker(
-                                              './dist/services/ProjectService/formatRows.js',
-                                              {
-                                                  workerData: {
-                                                      rows,
-                                                      itemMap: fields,
-                                                  },
-                                              },
-                                          ),
-                                      )
-                                    : formatRows(rows, fields);
-                            },
-                        ),
-                );
-
-                return {
-                    rows: formattedRows,
-                    metricQuery,
-                    cacheMetadata,
-                    fields,
-                };
+                return useWorker
+                    ? runWorkerThread<ResultRow[]>(
+                          new Worker(
+                              './dist/services/ProjectService/formatRows.js',
+                              {
+                                  workerData: {
+                                      rows,
+                                      itemMap: fields,
+                                  },
+                              },
+                          ),
+                      )
+                    : formatRows(rows, fields);
             },
         );
+
+        return {
+            rows: formattedRows,
+            metricQuery,
+            cacheMetadata,
+            fields,
+        };
     }
 
     async getResultsForChart(
@@ -1523,106 +1496,72 @@ export class ProjectService extends BaseService {
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
     }> {
-        return wrapOtelSpan(
-            'ProjectService.getResultsFromCacheOrWarehouse',
-            {},
-            async (span) => {
-                // TODO: put this hash function in a util somewhere
-                const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${query}`;
-                const queryHash = crypto
-                    .createHash('sha256')
-                    .update(queryHashKey)
-                    .digest('hex');
+        // TODO: put this hash function in a util somewhere
+        const queryHashKey = metricQuery.timezone
+            ? `${projectUuid}.${query}.${metricQuery.timezone}`
+            : `${projectUuid}.${query}`;
+        const queryHash = crypto
+            .createHash('sha256')
+            .update(queryHashKey)
+            .digest('hex');
 
-                span.setAttribute('queryHash', queryHash);
-                span.setAttribute('cacheHit', false);
+        if (this.lightdashConfig.resultsCache?.enabled && !invalidateCache) {
+            const cacheEntryMetadata = await this.s3CacheClient
+                .getResultsMetadata(queryHash)
+                .catch((e) => undefined); // ignore since error is tracked in s3Client
 
-                if (
-                    this.lightdashConfig.resultsCache?.enabled &&
-                    !invalidateCache
-                ) {
-                    const cacheEntryMetadata = await this.s3CacheClient
-                        .getResultsMetadata(queryHash)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
-
-                    if (
-                        cacheEntryMetadata?.LastModified &&
-                        new Date().getTime() -
-                            cacheEntryMetadata.LastModified.getTime() <
-                            this.lightdashConfig.resultsCache
-                                .cacheStateTimeSeconds *
-                                1000
-                    ) {
-                        this.logger.debug(
-                            `Getting data from cache, key: ${queryHash}`,
-                        );
-                        const cacheEntry = await this.s3CacheClient.getResults(
-                            queryHash,
-                        );
-                        const stringResults =
-                            await cacheEntry.Body?.transformToString();
-                        if (stringResults) {
-                            try {
-                                span.setAttribute('cacheHit', true);
-                                return {
-                                    rows: JSON.parse(stringResults).rows,
-                                    cacheMetadata: {
-                                        cacheHit: true,
-                                        cacheUpdatedTime:
-                                            cacheEntryMetadata?.LastModified,
-                                    },
-                                };
-                            } catch (e) {
-                                this.logger.error(
-                                    'Error parsing cache results:',
-                                    e,
-                                );
-                            }
-                        }
+            if (
+                cacheEntryMetadata?.LastModified &&
+                new Date().getTime() -
+                    cacheEntryMetadata.LastModified.getTime() <
+                    this.lightdashConfig.resultsCache.cacheStateTimeSeconds *
+                        1000
+            ) {
+                this.logger.debug(`Getting data from cache, key: ${queryHash}`);
+                const cacheEntry = await this.s3CacheClient.getResults(
+                    queryHash,
+                );
+                const stringResults =
+                    await cacheEntry.Body?.transformToString();
+                if (stringResults) {
+                    try {
+                        return {
+                            rows: JSON.parse(stringResults).rows,
+                            cacheMetadata: {
+                                cacheHit: true,
+                                cacheUpdatedTime:
+                                    cacheEntryMetadata?.LastModified,
+                            },
+                        };
+                    } catch (e) {
+                        this.logger.error('Error parsing cache results:', e);
                     }
                 }
+            }
+        }
 
-                this.logger.debug(
-                    `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
-                );
-                const warehouseResults = await wrapOtelSpan(
-                    'runWarehouseQuery',
-                    {
-                        query,
-                        queryTags: JSON.stringify(queryTags),
-                        context,
-                        metricQuery: JSON.stringify(metricQuery),
-                        type: warehouseClient.credentials.type,
-                    },
-                    async () =>
-                        warehouseClient.runQuery(
-                            query,
-                            queryTags,
-                            // metricQuery.timezone,
-                        ),
-                );
-
-                if (this.lightdashConfig.resultsCache?.enabled) {
-                    this.logger.debug(
-                        `Writing data to cache with key ${queryHash}`,
-                    );
-                    const buffer = Buffer.from(
-                        JSON.stringify(warehouseResults),
-                    );
-                    // fire and forget
-                    this.s3CacheClient
-                        .uploadResults(queryHash, buffer, queryTags)
-                        .catch((e) => undefined); // ignore since error is tracked in s3Client
-                }
-
-                return {
-                    rows: warehouseResults.rows,
-                    cacheMetadata: { cacheHit: false },
-                };
-            },
+        this.logger.debug(
+            `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
         );
+        const warehouseResults = await warehouseClient.runQuery(
+            query,
+            queryTags,
+            // metricQuery.timezone,
+        );
+
+        if (this.lightdashConfig.resultsCache?.enabled) {
+            this.logger.debug(`Writing data to cache with key ${queryHash}`);
+            const buffer = Buffer.from(JSON.stringify(warehouseResults));
+            // fire and forget
+            this.s3CacheClient
+                .uploadResults(queryHash, buffer, queryTags)
+                .catch((e) => undefined); // ignore since error is tracked in s3Client
+        }
+
+        return {
+            rows: warehouseResults.rows,
+            cacheMetadata: { cacheHit: false },
+        };
     }
 
     async runMetricQuery({
@@ -2454,56 +2393,49 @@ export class ProjectService extends BaseService {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
             },
-            async () =>
-                wrapOtelSpan('ProjectService.getExplore', {}, async () => {
-                    const project = organizationUuid
-                        ? { organizationUuid }
-                        : await this.projectModel.getSummary(projectUuid);
-                    if (
-                        user.ability.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid: project.organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-                    const explore = await this.projectModel.getExploreFromCache(
-                        projectUuid,
-                        exploreName,
+            async () => {
+                const project = organizationUuid
+                    ? { organizationUuid }
+                    : await this.projectModel.getSummary(projectUuid);
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                const explore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    exploreName,
+                );
+
+                if (isExploreError(explore)) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" does not exist.`,
+                    );
+                }
+
+                const shouldFilterExplore = await exploreHasFilteredAttribute(
+                    explore,
+                );
+
+                if (!shouldFilterExplore) {
+                    return explore;
+                }
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid: project.organizationUuid,
+                            userUuid: user.userUuid,
+                        },
                     );
 
-                    if (isExploreError(explore)) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-
-                    const shouldFilterExplore = await wrapOtelSpan(
-                        'ProjectService.getExplore.shouldFilterExplore',
-                        {},
-                        async () => exploreHasFilteredAttribute(explore),
-                    );
-
-                    if (!shouldFilterExplore) {
-                        return explore;
-                    }
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid: project.organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    return wrapOtelSpan(
-                        'ProjectService.getExplore.getFilteredExplore',
-                        {},
-                        async () => getFilteredExplore(explore, userAttributes),
-                    );
-                }),
+                return getFilteredExplore(explore, userAttributes);
+            },
         );
     }
 

@@ -9,7 +9,6 @@ import {
 import * as Sentry from '@sentry/node';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { wrapOtelSpan } from '../../utils';
 
 type S3CacheClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -63,82 +62,66 @@ export class S3CacheClient {
         results: PutObjectCommandInput['Body'],
         metadata: PutObjectCommandInput['Metadata'],
     ) {
-        return wrapOtelSpan('s3.uploadResults', { key }, async () => {
-            if (!this.configuration.bucket || this.s3 === undefined) {
-                throw new Error(
-                    "Results caching is not enabled or is missing S3 configuration, can't upload results cache",
-                );
-            }
+        if (!this.configuration.bucket || this.s3 === undefined) {
+            throw new Error(
+                "Results caching is not enabled or is missing S3 configuration, can't upload results cache",
+            );
+        }
 
-            try {
-                const command = new PutObjectCommand({
-                    Bucket: this.configuration.bucket,
-                    Key: `${key}.json`,
-                    Body: results,
-                    ContentType: 'application/json',
-                    Metadata: metadata,
-                });
-                const response = await this.s3.send(command);
-            } catch (error) {
-                Logger.error(`Failed to upload results to s3. ${error}`);
-                Sentry.captureException(error);
-                throw error;
-            }
-        });
+        try {
+            const command = new PutObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: `${key}.json`,
+                Body: results,
+                ContentType: 'application/json',
+                Metadata: metadata,
+            });
+            return await this.s3.send(command);
+        } catch (error) {
+            Logger.error(`Failed to upload results to s3. ${error}`);
+            Sentry.captureException(error);
+            throw error;
+        }
     }
 
     async getResultsMetadata(key: string) {
-        return wrapOtelSpan('s3.getResultsMetadata', { key }, async () => {
-            if (
-                this.configuration.bucket === undefined ||
-                this.s3 === undefined
-            ) {
-                throw new Error(
-                    "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
-                );
+        if (this.configuration.bucket === undefined || this.s3 === undefined) {
+            throw new Error(
+                "Results caching is not enabled or is missing S3 configuration, can't get results cache metadata",
+            );
+        }
+        try {
+            const command = new HeadObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: `${key}.json`,
+            });
+            return await this.s3.send(command);
+        } catch (error) {
+            if (error instanceof NotFound) {
+                return undefined;
             }
-            try {
-                const command = new HeadObjectCommand({
-                    Bucket: this.configuration.bucket,
-                    Key: `${key}.json`,
-                });
-                return await this.s3.send(command);
-            } catch (error) {
-                if (error instanceof NotFound) {
-                    return undefined;
-                }
-                Logger.error(
-                    `Failed to get results metadata from s3. ${error}`,
-                );
-                Sentry.captureException(error);
-                throw error;
-            }
-        });
+            Logger.error(`Failed to get results metadata from s3. ${error}`);
+            Sentry.captureException(error);
+            throw error;
+        }
     }
 
     async getResults(key: string) {
-        return wrapOtelSpan('s3.getResults', { key }, async (span) => {
-            if (
-                this.configuration.bucket === undefined ||
-                this.s3 === undefined
-            ) {
-                throw new Error(
-                    "Results caching is not enabled or is missing S3 configuration, can't get results cache",
-                );
-            }
-            try {
-                const command = new GetObjectCommand({
-                    Bucket: this.configuration.bucket,
-                    Key: `${key}.json`,
-                });
-                return await this.s3.send(command);
-            } catch (error) {
-                Logger.error(
-                    `Failed to get results metadata from s3. ${error}`,
-                );
-                Sentry.captureException(error);
-                throw error;
-            }
-        });
+        if (this.configuration.bucket === undefined || this.s3 === undefined) {
+            throw new Error(
+                "Results caching is not enabled or is missing S3 configuration, can't get results cache",
+            );
+        }
+        try {
+            const command = new GetObjectCommand({
+                Bucket: this.configuration.bucket,
+                Key: `${key}.json`,
+            });
+            return await this.s3.send(command);
+        } catch (error) {
+            Logger.error(`Failed to get results metadata from s3. ${error}`);
+            Sentry.captureException(error);
+            throw error;
+        }
     }
 }

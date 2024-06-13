@@ -60,7 +60,6 @@ import {
 } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import { DbValidationTable } from '../database/entities/validation';
-import { wrapOtelSpan } from '../utils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
@@ -1057,14 +1056,12 @@ export class SpaceModel {
     async getSpaceSummary(
         spaceUuid: string,
     ): Promise<Omit<SpaceSummary, 'userAccess'>> {
-        return wrapOtelSpan('SpaceModel.getSpaceSummary', {}, async () => {
-            const [space] = await this.find({ spaceUuid });
-            if (space === undefined)
-                throw new NotFoundError(
-                    `Space with spaceUuid ${spaceUuid} does not exist`,
-                );
-            return space;
-        });
+        const [space] = await this.find({ spaceUuid });
+        if (space === undefined)
+            throw new NotFoundError(
+                `Space with spaceUuid ${spaceUuid} does not exist`,
+            );
+        return space;
     }
 
     async getSpacesForAccessCheck(
