@@ -380,92 +380,107 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
               }
         )[];
-
-        const projects = await this.database('projects')
-            .leftJoin(
-                WarehouseCredentialTableName,
-                'warehouse_credentials.project_id',
-                'projects.project_id',
-            )
-            .leftJoin(
-                OrganizationTableName,
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedListTableName,
-                'pinned_list.project_uuid',
-                'projects.project_uuid',
-            )
-            .column([
-                this.database.ref('name').withSchema(ProjectTableName),
-                this.database.ref('project_type').withSchema(ProjectTableName),
-                this.database
-                    .ref('dbt_connection')
-                    .withSchema(ProjectTableName),
-                this.database
-                    .ref('encrypted_credentials')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('warehouse_type')
-                    .withSchema(WarehouseCredentialTableName),
-                this.database
-                    .ref('organization_uuid')
-                    .withSchema(OrganizationTableName),
-                this.database
-                    .ref('pinned_list_uuid')
-                    .withSchema(PinnedListTableName),
-                this.database.ref('dbt_version').withSchema(ProjectTableName),
-                this.database
-                    .ref('copied_from_project_uuid')
-                    .withSchema(ProjectTableName),
-            ])
-            .select<QueryResult>()
-            .where('projects.project_uuid', projectUuid);
-        if (projects.length === 0) {
-            throw new NotExistsError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
-        const [project] = projects;
-        if (!project.dbt_connection) {
-            throw new NotExistsError('Project has no valid dbt credentials');
-        }
-        let dbtSensitiveCredentials: DbtProjectConfig;
-        try {
-            dbtSensitiveCredentials = JSON.parse(
-                this.encryptionUtil.decrypt(project.dbt_connection),
-            ) as DbtProjectConfig;
-        } catch (e) {
-            throw new UnexpectedServerError('Failed to load dbt credentials');
-        }
-        const result: Omit<Project, 'warehouseConnection'> = {
-            organizationUuid: project.organization_uuid,
-            projectUuid,
-            name: project.name,
-            type: project.project_type,
-            dbtConnection: dbtSensitiveCredentials,
-            pinnedListUuid: project.pinned_list_uuid,
-            dbtVersion: project.dbt_version,
-            upstreamProjectUuid: project.copied_from_project_uuid,
-        };
-        if (!project.warehouse_type) {
-            return result;
-        }
-        let sensitiveCredentials: CreateWarehouseCredentials;
-        try {
-            sensitiveCredentials = JSON.parse(
-                this.encryptionUtil.decrypt(project.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load warehouse credentials',
-            );
-        }
-        return {
-            ...result,
-            warehouseConnection: sensitiveCredentials,
-        };
+        return wrapSentryTransaction(
+            'ProjectModel.getWithSensitiveFields',
+            {},
+            async () => {
+                const projects = await this.database('projects')
+                    .leftJoin(
+                        WarehouseCredentialTableName,
+                        'warehouse_credentials.project_id',
+                        'projects.project_id',
+                    )
+                    .leftJoin(
+                        OrganizationTableName,
+                        'organizations.organization_id',
+                        'projects.organization_id',
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        'pinned_list.project_uuid',
+                        'projects.project_uuid',
+                    )
+                    .column([
+                        this.database.ref('name').withSchema(ProjectTableName),
+                        this.database
+                            .ref('project_type')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('dbt_connection')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('encrypted_credentials')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('warehouse_type')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('organization_uuid')
+                            .withSchema(OrganizationTableName),
+                        this.database
+                            .ref('pinned_list_uuid')
+                            .withSchema(PinnedListTableName),
+                        this.database
+                            .ref('dbt_version')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('copied_from_project_uuid')
+                            .withSchema(ProjectTableName),
+                    ])
+                    .select<QueryResult>()
+                    .where('projects.project_uuid', projectUuid);
+                if (projects.length === 0) {
+                    throw new NotExistsError(
+                        `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
+                const [project] = projects;
+                if (!project.dbt_connection) {
+                    throw new NotExistsError(
+                        'Project has no valid dbt credentials',
+                    );
+                }
+                let dbtSensitiveCredentials: DbtProjectConfig;
+                try {
+                    dbtSensitiveCredentials = JSON.parse(
+                        this.encryptionUtil.decrypt(project.dbt_connection),
+                    ) as DbtProjectConfig;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+                const result: Omit<Project, 'warehouseConnection'> = {
+                    organizationUuid: project.organization_uuid,
+                    projectUuid,
+                    name: project.name,
+                    type: project.project_type,
+                    dbtConnection: dbtSensitiveCredentials,
+                    pinnedListUuid: project.pinned_list_uuid,
+                    dbtVersion: project.dbt_version,
+                    upstreamProjectUuid: project.copied_from_project_uuid,
+                };
+                if (!project.warehouse_type) {
+                    return result;
+                }
+                let sensitiveCredentials: CreateWarehouseCredentials;
+                try {
+                    sensitiveCredentials = JSON.parse(
+                        this.encryptionUtil.decrypt(
+                            project.encrypted_credentials,
+                        ),
+                    ) as CreateWarehouseCredentials;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load warehouse credentials',
+                    );
+                }
+                return {
+                    ...result,
+                    warehouseConnection: sensitiveCredentials,
+                };
+            },
+        );
     }
 
     async getSummary(projectUuid: string): Promise<ProjectSummary> {
@@ -618,30 +633,73 @@ export class ProjectModel {
             .first();
     }
 
+    async findExploresFromCache(
+        projectUuid: string,
+        exploreNames?: string[],
+    ): Promise<Record<string, Explore | ExploreError>> {
+        return wrapSentryTransaction(
+            'ProjectModel.findExploresFromCache',
+            {
+                projectUuid,
+                exploreNames,
+            },
+            async (span) => {
+                const query = this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('project_uuid', projectUuid);
+                if (exploreNames) {
+                    void query.whereIn('name', exploreNames);
+                }
+                const explores = await query;
+                span.setAttribute('foundExplores', !!explores.length);
+                return explores.reduce<Record<string, Explore | ExploreError>>(
+                    (acc, { explore }) => {
+                        acc[explore.name] =
+                            ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                                explore,
+                            );
+                        return acc;
+                    },
+                    {},
+                );
+            },
+        );
+    }
+
     async getExploreFromCache(
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        // check individually cached explore
-        let exploreCache = await this.database(CachedExploreTableName)
-            .select('explore')
-            .where('name', exploreName)
-            .andWhere('project_uuid', projectUuid)
-            .first();
+        return wrapSentryTransaction(
+            'ProjectModel.getExploreFromCache',
+            {},
+            async (span) => {
+                // check individually cached explore
+                let exploreCache = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('name', exploreName)
+                    .andWhere('project_uuid', projectUuid)
+                    .first();
 
-        if (!exploreCache) {
-            // fallback: check all cached explores
-            exploreCache = await this.getExploreQueryBuilder(
-                projectUuid,
-            ).andWhereRaw("explore->>'name' = ?", [exploreName]);
-            if (exploreCache === undefined) {
-                throw new NotExistsError(
-                    `Explore "${exploreName}" does not exist.`,
+                span.setAttribute(
+                    'foundIndividualExploreCache',
+                    !!exploreCache,
                 );
-            }
-        }
-        return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-            exploreCache.explore,
+                if (!exploreCache) {
+                    // fallback: check all cached explores
+                    exploreCache = await this.getExploreQueryBuilder(
+                        projectUuid,
+                    ).andWhereRaw("explore->>'name' = ?", [exploreName]);
+                    if (exploreCache === undefined) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" does not exist.`,
+                        );
+                    }
+                }
+                return ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                    exploreCache.explore,
+                );
+            },
         );
     }
 
@@ -649,43 +707,55 @@ export class ProjectModel {
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        // check individually cached explore
-        let exploreCache = await this.database(CachedExploreTableName)
-            .columns({
-                explore: 'explore',
-                baseMatch: this.database.raw("? = explore->>'baseTable'", [
-                    tableName,
-                ]),
-            })
-            .select()
-            .whereRaw('? = ANY(table_names)', tableName)
-            .andWhere('project_uuid', projectUuid)
-            .orderBy('baseMatch', 'desc')
-            .first();
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreByTableName',
+            {},
+            async (span) => {
+                // check individually cached explore
+                let exploreCache = await this.database(CachedExploreTableName)
+                    .columns({
+                        explore: 'explore',
+                        baseMatch: this.database.raw(
+                            "? = explore->>'baseTable'",
+                            [tableName],
+                        ),
+                    })
+                    .select()
+                    .whereRaw('? = ANY(table_names)', tableName)
+                    .andWhere('project_uuid', projectUuid)
+                    .orderBy('baseMatch', 'desc')
+                    .first();
 
-        if (!exploreCache) {
-            // fallback: check all cached explores
-            // try finding explore via base table name
-            exploreCache = await this.getExploreQueryBuilder(
-                projectUuid,
-            ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
+                span.setAttribute(
+                    'foundIndividualExploreCache',
+                    !!exploreCache,
+                );
+                if (!exploreCache) {
+                    // fallback: check all cached explores
+                    // try finding explore via base table name
+                    exploreCache = await this.getExploreQueryBuilder(
+                        projectUuid,
+                    ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
 
-            if (!exploreCache) {
-                // try finding explore via joined table alias
-                // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
-                exploreCache = await this.getExploreQueryBuilder(
-                    projectUuid,
-                ).andWhereRaw("(explore->>'tables')::json->? IS NOT NULL", [
-                    tableName,
-                ]);
-            }
-        }
+                    if (!exploreCache) {
+                        // try finding explore via joined table alias
+                        // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
+                        exploreCache = await this.getExploreQueryBuilder(
+                            projectUuid,
+                        ).andWhereRaw(
+                            "(explore->>'tables')::json->? IS NOT NULL",
+                            [tableName],
+                        );
+                    }
+                }
 
-        return exploreCache
-            ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
-                  exploreCache.explore,
-              )
-            : undefined;
+                return exploreCache
+                    ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                          exploreCache.explore,
+                      )
+                    : undefined;
+            },
+        );
     }
 
     async indexCatalog(
@@ -784,43 +854,62 @@ export class ProjectModel {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<DbCachedExplores> {
-        // delete previous individually cached explores
-        await this.database(CachedExploreTableName)
-            .where('project_uuid', projectUuid)
-            .delete();
+        return wrapSentryTransaction(
+            'ProjectModel.saveExploresToCache',
+            {},
+            async () => {
+                // delete previous individually cached explores
+                await this.database(CachedExploreTableName)
+                    .where('project_uuid', projectUuid)
+                    .delete();
 
-        // We don't support multiple explores with the same name at the moment
-        const uniqueExplores = uniqWith(explores, (a, b) => a.name === b.name);
+                // We don't support multiple explores with the same name at the moment
+                const uniqueExplores = uniqWith(
+                    explores,
+                    (a, b) => a.name === b.name,
+                );
 
-        // cache explores individually
-        const cachedExplore = await this.database(CachedExploreTableName)
-            .insert(
-                uniqueExplores.map((explore) => ({
-                    project_uuid: projectUuid,
-                    name: explore.name,
-                    table_names: Object.keys(explore.tables || {}),
-                    explore: JSON.stringify(explore),
-                })),
-            )
-            .onConflict(['project_uuid', 'name'])
-            .merge()
-            .returning(['name', 'cached_explore_uuid']);
+                // cache explores individually
+                const cachedExplore = await this.database(
+                    CachedExploreTableName,
+                )
+                    .insert(
+                        uniqueExplores.map((explore) => ({
+                            project_uuid: projectUuid,
+                            name: explore.name,
+                            table_names: Object.keys(explore.tables || {}),
+                            explore: JSON.stringify(explore),
+                        })),
+                    )
+                    .onConflict(['project_uuid', 'name'])
+                    .merge()
+                    .returning(['name', 'cached_explore_uuid']);
 
-        const exploresWithCachedExploreUuid =
-            ProjectModel.getExploresWithCacheUuids(explores, cachedExplore);
-        await this.indexCatalog(projectUuid, exploresWithCachedExploreUuid);
+                const exploresWithCachedExploreUuid =
+                    ProjectModel.getExploresWithCacheUuids(
+                        explores,
+                        cachedExplore,
+                    );
+                await this.indexCatalog(
+                    projectUuid,
+                    exploresWithCachedExploreUuid,
+                );
 
-        // cache explores together
-        const [cachedExplores] = await this.database(CachedExploresTableName)
-            .insert({
-                project_uuid: projectUuid,
-                explores: JSON.stringify(uniqueExplores),
-            })
-            .onConflict('project_uuid')
-            .merge()
-            .returning('*');
+                // cache explores together
+                const [cachedExplores] = await this.database(
+                    CachedExploresTableName,
+                )
+                    .insert({
+                        project_uuid: projectUuid,
+                        explores: JSON.stringify(uniqueExplores),
+                    })
+                    .onConflict('project_uuid')
+                    .merge()
+                    .returning('*');
 
-        return cachedExplores;
+                return cachedExplores;
+            },
+        );
     }
 
     async tryAcquireProjectLock(
