@@ -41,7 +41,7 @@
         "@octokit/core": "^5.1.0",
         "@octokit/request": "^8.1.6",
         "@octokit/rest": "^20.0.2",
-        "@rudderstack/rudder-sdk-node": "^2.0.7",
+        "@rudderstack/rudder-sdk-node": "^1.1.3",
         "@sentry/node": "8.9.2",
         "@sentry/profiling-node": "8.9.2",
         "@sentry/types": "8.9.2",
