@@ -134,8 +134,6 @@ export default class App {
 
     private readonly analytics: LightdashAnalytics;
 
-    // private readonly otelSdk: NodeSDK;
-
     private readonly port: string | number;
 
     private readonly environment: 'production' | 'development';
