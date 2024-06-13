@@ -727,27 +727,23 @@ export class PromoteService extends BaseService {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
             );
-        try {
-            const { promotedDashboard, upstreamDashboard } =
-                await this.getPromotedDashboard(
-                    user,
-                    dashboard,
-                    upstreamProjectUuid,
-                );
 
-            // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-            const [promotionChanges, promotedCharts] =
-                await this.getPromotionDashboardChanges(
-                    user,
-                    promotedDashboard,
-                    upstreamDashboard,
-                );
+        const { promotedDashboard, upstreamDashboard } =
+            await this.getPromotedDashboard(
+                user,
+                dashboard,
+                upstreamProjectUuid,
+            );
 
-            return promotionChanges;
-        } catch (e) {
-            console.error(e);
-            throw e;
-        }
+        // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
+        const [promotionChanges, promotedCharts] =
+            await this.getPromotionDashboardChanges(
+                user,
+                promotedDashboard,
+                upstreamDashboard,
+            );
+
+        return promotionChanges;
     }
 
     private static getSpaceBySlug(
