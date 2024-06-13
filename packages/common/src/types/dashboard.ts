@@ -202,11 +202,6 @@ export type SavedChartsInfoForDashboardAvailableFilters = {
     >;
 }[];
 
-export type ApiPromoteDashboardResponse = {
-    status: 'ok';
-    results: DashboardDAO;
-};
-
 export const isDashboardUnversionedFields = (
     data: UpdateDashboard,
 ): data is DashboardUnversionedFields =>
