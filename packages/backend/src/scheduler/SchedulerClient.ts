@@ -89,6 +89,7 @@ export class SchedulerClient {
     }
 
     static async processJob(
+        task: string,
         jobId: string,
         runAt: Date,
         payload: any,
@@ -96,24 +97,22 @@ export class SchedulerClient {
     ) {
         const { traceHeader, baggageHeader, sentryMessageId } = payload;
         const latency = Date.now() - runAt.getTime();
-
         return new Promise<void>((resolve, reject) => {
             Sentry.continueTrace(
                 { sentryTrace: traceHeader, baggage: baggageHeader },
                 async () => {
-                    await Sentry.startSpanManual(
+                    await Sentry.startSpan(
                         {
                             name: 'queue_consumer_transaction',
                         },
                         async (parent) => {
-                            await Sentry.startSpanManual(
+                            await Sentry.startSpan(
                                 {
                                     name: 'queue_consumer',
                                     op: 'queue.process',
                                     attributes: {
                                         'messaging.message.id': sentryMessageId,
-                                        'messaging.destination.name':
-                                            'messages',
+                                        'messaging.destination.name': task,
                                         'messaging.message.body.size':
                                             Buffer.byteLength(
                                                 JSON.stringify(payload),
@@ -125,26 +124,19 @@ export class SchedulerClient {
                                     },
                                 },
                                 async (span) => {
-                                    Sentry.captureException(
-                                        new Error('Testing before queue error'),
-                                    );
                                     const OK = 1;
                                     const ERROR = 2;
                                     try {
                                         await funct();
 
-                                        if (parent)
-                                            parent.setStatus({ code: OK });
-                                        Sentry.captureException(
-                                            new Error('Testing queue error'),
-                                        );
+                                        parent.setStatus({ code: OK });
+
                                         resolve();
                                     } catch (e) {
-                                        if (parent)
-                                            parent.setStatus({
-                                                code: ERROR,
-                                                message: `Unable to process job ${e}`,
-                                            });
+                                        parent.setStatus({
+                                            code: ERROR,
+                                            message: `Unable to process job ${e}`,
+                                        });
                                         reject(e);
                                         throw e;
                                     }
@@ -159,18 +151,6 @@ export class SchedulerClient {
         });
     }
 
-    private static sentrySpanToHeader(span: Sentry.Span) {
-        // This function is available in sentry v8 (spanToTraceHeader and spanToBaggageHeader)
-        // https://github.com/getsentry/sentry-javascript/blob/2fc766d23/packages/utils/src/tracing.ts#L85
-        const { traceId } = span.spanContext();
-        const { spanId } = span.spanContext();
-        const sampled = '1';
-        return {
-            traceHeader: `${traceId}-${spanId}-${sampled}`,
-            baggageHeader: `sentry-trace=${traceId}-${spanId}`,
-        };
-    }
-
     private static async addJob(
         graphileClient: WorkerUtils,
         identifier: string,
@@ -179,26 +159,25 @@ export class SchedulerClient {
         maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
     ) {
         const messageId = nanoid();
-        const jobId = await Sentry.startSpanManual(
+        const jobId = await Sentry.startSpan(
             {
                 name: 'queue_producer',
                 op: 'queue.publish',
                 attributes: {
                     'messaging.message.id': messageId,
-                    'messaging.destination.name': 'messages',
+                    'messaging.destination.name': identifier,
                     'messaging.message.body.size': Buffer.byteLength(
                         JSON.stringify(payload),
                     ),
                 },
             },
             async (span) => {
-                if (!span)
-                    throw new UnexpectedServerError('Sentry span undefined');
-                const sentryHeaders = this.sentrySpanToHeader(span);
-
+                const traceHeader = Sentry.spanToTraceHeader(span);
+                const baggageHeader = Sentry.spanToBaggageHeader(span);
                 const payloadWithSentryHeaders = {
                     ...payload,
-                    ...sentryHeaders,
+                    traceHeader,
+                    baggageHeader,
                     sentryMessageId: messageId,
                 };
                 const { id } = await graphileClient.addJob(
@@ -209,11 +188,8 @@ export class SchedulerClient {
                         maxAttempts,
                     },
                 );
-                Sentry.captureException(
-                    new Error('Testing queue publish error'),
-                );
 
-                span.setAttribute('messaging.message.job.id', id);
+                // span.setAttribute('messaging.message.job.id', id);
                 return id;
             },
         );
