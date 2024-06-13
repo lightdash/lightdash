@@ -1,3 +1,10 @@
+# [0.1131.0](https://github.com/lightdash/lightdash/compare/0.1130.1...0.1131.0) (2024-06-13)
+
+
+### Features
+
+* re-order dashboard tabs by drag and drop ([#10394](https://github.com/lightdash/lightdash/issues/10394)) ([71ead62](https://github.com/lightdash/lightdash/commit/71ead62d029d922d6e29c91a53fb6553e65b1f13))
+
 ## [0.1130.1](https://github.com/lightdash/lightdash/compare/0.1130.0...0.1130.1) (2024-06-13)
 
 
