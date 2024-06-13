@@ -12,7 +12,6 @@ import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import { registerWorkerMetrics } from './schedulerMetrics';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -145,7 +144,6 @@ export default class SchedulerApp {
                 slackClient: this.clients.getSlackClient(),
             },
         });
-        registerWorkerMetrics(this.clients.getSchedulerClient());
         await worker.run();
         return worker;
     }

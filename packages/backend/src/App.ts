@@ -41,7 +41,6 @@ import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
 import { expressWinstonMiddleware } from './logging/winston';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
@@ -213,10 +212,6 @@ export default class App {
         BigInt.prototype.toJSON = function () {
             return this.toString();
         };
-
-        if (this.environment !== 'development') {
-            App.initNodeProcessMonitor();
-        }
 
         const expressApp = express();
 
@@ -568,11 +563,6 @@ export default class App {
         this.schedulerWorker.run().catch((e) => {
             Logger.error('Error starting scheduler worker', e);
         });
-    }
-
-    static initNodeProcessMonitor() {
-        // Monitor Node.js process with opentelemetry
-        registerNodeMetrics();
     }
 
     async stop() {

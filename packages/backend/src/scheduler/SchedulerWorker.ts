@@ -1,5 +1,4 @@
 import { SchedulerJobStatus } from '@lightdash/common';
-import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -12,25 +11,16 @@ import {
 } from 'graphile-worker';
 import moment from 'moment';
 import Logger from '../logging/logger';
-import { VERSION } from '../version';
+import { wrapSentryTransaction } from '../utils';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
 
-const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
-const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
-const taskDurationHistogram = meter.createHistogram<{
-    task_name: string;
-    error: boolean;
-}>('worker.task.duration_ms', {
-    description: 'Duration of worker tasks in milliseconds',
-    unit: 'milliseconds',
-});
-
 const traceTask = (taskName: string, task: Task): Task => {
     const tracedTask: Task = async (payload, helpers) => {
-        await tracer.startActiveSpan(
+        await wrapSentryTransaction(
             `worker.task.${taskName}`,
+            {},
             async (span) => {
                 const { job } = helpers;
 
@@ -72,24 +62,17 @@ const traceTask = (taskName: string, task: Task): Task => {
                 if (job.key) {
                     span.setAttribute('worker.job.key', job.key);
                 }
-                const startTime = Date.now();
+
                 let hasError = false;
                 try {
                     await task(payload, helpers);
                 } catch (e) {
                     hasError = true;
-                    span.recordException(e);
+
                     span.setStatus({
-                        code: SpanStatusCode.ERROR,
+                        code: 2, // Error
                     });
                     throw e;
-                } finally {
-                    span.end();
-                    const executionTime = Date.now() - startTime;
-                    taskDurationHistogram.record(executionTime, {
-                        task_name: taskName,
-                        error: hasError,
-                    });
                 }
             },
         );
