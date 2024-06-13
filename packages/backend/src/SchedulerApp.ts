@@ -1,5 +1,4 @@
 import { createTerminus } from '@godaddy/terminus';
-import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
@@ -26,7 +25,6 @@ type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
     environment?: 'production' | 'development';
-    otelSdk: NodeSDK;
     serviceProviders?: ServiceProviderMap;
     knexConfig: {
         production: Knex.Config<Knex.PgConnectionConfig>;
@@ -48,14 +46,11 @@ export default class SchedulerApp {
 
     private readonly environment: 'production' | 'development';
 
-    private readonly otelSdk: NodeSDK;
-
     private readonly clients: ClientRepository;
 
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
-        this.otelSdk = args.otelSdk;
         this.environment = args.environment || 'production';
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
@@ -176,12 +171,6 @@ export default class SchedulerApp {
                 Logger.debug('SIGTERM signal received: closing HTTP server');
                 if (worker && worker.runner) {
                     await worker?.runner?.stop();
-                }
-                try {
-                    await this.otelSdk.shutdown();
-                    Logger.debug('OpenTelemetry SDK has been shutdown');
-                } catch (e) {
-                    Logger.error('Error shutting down OpenTelemetry SDK', e);
                 }
             },
             logger: Logger.error,
