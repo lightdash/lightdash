@@ -1,6 +1,6 @@
 // organize-imports-ignore
 // eslint-disable-next-line import/order
-import './instrument'; // must be imported first
+import './sentry'; // Sentry has to be initialized before anything else
 
 import { LightdashMode, SessionUser } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
