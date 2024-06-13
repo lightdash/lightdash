@@ -2734,6 +2734,7 @@ export class ProjectService extends BaseService {
                             exploreNames: savedCharts.map(
                                 (chart) => chart.tableName,
                             ),
+                            organizationUuid: user.organizationUuid,
                         }),
                         this.spaceModel.getUserSpacesAccess(
                             user.userUuid,
