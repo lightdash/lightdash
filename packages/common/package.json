@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.1121.4",
+    "version": "0.1129.1",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -30,7 +30,7 @@
         "zod": "^3.23.3"
     },
     "scripts": {
-        "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json",
+        "dev": "tsx watch --clear-screen=false src/index.ts",
         "build": "tsc --build tsconfig.json",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",

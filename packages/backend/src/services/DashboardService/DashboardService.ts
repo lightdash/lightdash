@@ -18,6 +18,7 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
 } from '@lightdash/common';
@@ -160,24 +161,13 @@ export class DashboardService extends BaseService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const dashboardAccesses = await Promise.all(
-            dashboards.map(async (dashboard) => {
-                const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    dashboard.spaceUuid,
-                );
-                return {
-                    uuid: dashboard.uuid,
-                    access: spaceAccess,
-                };
-            }),
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
         );
         return dashboards.filter((dashboard) => {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
-            );
-            const spaceAccess = dashboardAccesses.find(
-                (access) => access.uuid === dashboard.uuid,
             );
             const hasAbility = user.ability.can(
                 'view',
@@ -185,7 +175,7 @@ export class DashboardService extends BaseService {
                     organizationUuid: dashboardSpace?.organizationUuid,
                     projectUuid: dashboardSpace?.projectUuid,
                     isPrivate: dashboardSpace?.isPrivate,
-                    access: spaceAccess?.access,
+                    access: spacesAccess[dashboard.spaceUuid] ?? [],
                 }),
             );
             return (
@@ -203,6 +193,7 @@ export class DashboardService extends BaseService {
         dashboardUuid: string,
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
+
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
@@ -226,6 +217,7 @@ export class DashboardService extends BaseService {
             dashboard.uuid,
             user.userUuid,
         );
+
         this.analytics.track({
             event: 'dashboard.view',
             userId: user.userUuid,
@@ -574,7 +566,7 @@ export class DashboardService extends BaseService {
     async togglePinning(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<Dashboard> {
+    ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
@@ -638,7 +630,11 @@ export class DashboardService extends BaseService {
             },
         });
 
-        return this.getById(user, dashboardUuid);
+        return {
+            projectUuid,
+            spaceUuid,
+            pinnedListUuid: pinnedList.pinnedListUuid,
+        };
     }
 
     async updateMultiple(

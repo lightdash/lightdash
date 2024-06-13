@@ -7,13 +7,10 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
-    CompiledTable,
     Explore,
     ExploreError,
     ForbiddenError,
-    getBasicType,
     hasIntersection,
-    isDimension,
     isExploreError,
     SessionUser,
     SummaryExplore,
@@ -346,26 +343,23 @@ export class CatalogService<
     ) => {
         // TODO move to space utils ?
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
 
-        const hasSpaceAccess = await Promise.all(
-            spaces.map(async (space) =>
+        const allowedSpaceUuids = spaces
+            .filter((space) =>
                 user.ability.can(
                     'view',
                     subject('Space', {
                         organizationUuid: space.organizationUuid,
                         projectUuid,
                         isPrivate: space.isPrivate,
-                        access: await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
+                        access: spacesAccess[space.uuid] ?? [],
                     }),
                 ),
-            ),
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter((_, index) => hasSpaceAccess[index])
+            )
             .map(({ uuid }) => uuid);
 
         return chatSummaries.filter((chart) =>

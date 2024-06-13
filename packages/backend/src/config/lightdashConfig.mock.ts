@@ -107,6 +107,7 @@ export const lightdashConfigMock: LightdashConfig = {
     sentry: {
         backend: {
             dsn: '',
+            securityReportUri: '',
         },
         frontend: {
             dsn: '',
@@ -136,5 +137,10 @@ export const lightdashConfigMock: LightdashConfig = {
         maxLimit: 5000,
         csvCellsLimit: 100000,
         timezone: undefined,
+    },
+    security: {
+        contentSecurityPolicy: {
+            allowedDomains: [],
+        },
     },
 };

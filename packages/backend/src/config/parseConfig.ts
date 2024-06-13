@@ -160,6 +160,11 @@ export type LightdashConfig = {
     version: '1.0';
     lightdashSecret: string;
     secureCookies: boolean;
+    security: {
+        contentSecurityPolicy: {
+            allowedDomains: string[];
+        };
+    };
     cookiesMaxAgeHours?: number;
     trustProxy: boolean;
     databaseConnectionUri?: string;
@@ -220,6 +225,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        screenshotWithPlaywright?: boolean;
     };
     groups: {
         enabled: boolean;
@@ -401,6 +407,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     return {
         ...config,
         mode,
+        security: {
+            contentSecurityPolicy: {
+                allowedDomains: (
+                    process.env.LIGHTDASH_CSP_ALLOWED_DOMAINS || ''
+                )
+                    .split(',')
+                    .map((domain) => domain.trim()),
+            },
+        },
         smtp: process.env.EMAIL_SMTP_HOST
             ? {
                   host: process.env.EMAIL_SMTP_HOST,
@@ -434,6 +449,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         sentry: {
             backend: {
                 dsn: process.env.SENTRY_BE_DSN || process.env.SENTRY_DSN || '',
+                securityReportUri:
+                    process.env.SENTRY_BE_SECURITY_REPORT_URI || '',
             },
             frontend: {
                 dsn: process.env.SENTRY_FE_DSN || process.env.SENTRY_DSN || '',
@@ -639,6 +656,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            screenshotWithPlaywright:
+                process.env.SCHEDULER_SCREENSHOT_WITH_PLAYWRIGHT === 'true',
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',

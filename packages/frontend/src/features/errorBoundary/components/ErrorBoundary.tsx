@@ -39,7 +39,11 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                     maw="400"
                                     styles={{ copy: { right: 0 } }}
                                 >
-                                    {`Error ID: ${eventId}\n${error.toString()}`}
+                                    {`Error ID: ${eventId}\n${
+                                        error instanceof Error
+                                            ? error.toString()
+                                            : ''
+                                    }`}
                                 </Prism>
                             </Box>
                         }

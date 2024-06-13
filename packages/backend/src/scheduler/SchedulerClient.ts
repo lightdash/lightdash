@@ -37,6 +37,8 @@ type SchedulerClientArguments = {
     schedulerModel: SchedulerModel;
 };
 
+const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
+
 export const getDailyDatesFromCron = (
     cron: string,
     when = new Date(),
@@ -126,18 +128,23 @@ export class SchedulerClient {
                                     Sentry.captureException(
                                         new Error('Testing before queue error'),
                                     );
-
+                                    const OK = 1;
+                                    const ERROR = 2;
                                     try {
                                         await funct();
 
-                                        if (parent) parent.setStatus('ok');
+                                        if (parent)
+                                            parent.setStatus({ code: OK });
                                         Sentry.captureException(
                                             new Error('Testing queue error'),
                                         );
                                         resolve();
                                     } catch (e) {
                                         if (parent)
-                                            parent.setStatus('internal_error');
+                                            parent.setStatus({
+                                                code: ERROR,
+                                                message: `Unable to process job ${e}`,
+                                            });
                                         reject(e);
                                         throw e;
                                     }
@@ -169,6 +176,7 @@ export class SchedulerClient {
         identifier: string,
         payload: any,
         scheduledAt: Date,
+        maxAttempts: number = SCHEDULED_JOB_MAX_ATTEMPTS,
     ) {
         const messageId = nanoid();
         const jobId = await Sentry.startSpanManual(
@@ -198,7 +206,7 @@ export class SchedulerClient {
                     payloadWithSentryHeaders,
                     {
                         runAt: scheduledAt,
-                        maxAttempts: 1,
+                        maxAttempts,
                     },
                 );
                 Sentry.captureException(
@@ -262,11 +270,20 @@ export class SchedulerClient {
               }
             : scheduler;
 
+        let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
+        if (
+            scheduler.format === SchedulerFormat.IMAGE &&
+            !!scheduler.dashboardUuid
+        ) {
+            maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
+        }
+
         const id = await SchedulerClient.addJob(
             graphileClient,
             'handleScheduledDelivery',
             payload,
             date,
+            maxAttempts,
         );
         await this.schedulerModel.logSchedulerJob({
             task: 'handleScheduledDelivery',

@@ -16,9 +16,7 @@ const useSentry = (
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [
-                    Sentry.browserTracingIntegration({
-                        enableInp: true,
-                    }),
+                    Sentry.browserTracingIntegration(),
                     Sentry.replayIntegration(),
                 ],
                 tracesSampler(samplingContext) {

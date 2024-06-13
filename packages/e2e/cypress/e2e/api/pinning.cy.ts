@@ -12,24 +12,35 @@ describe('Lightdash pinning endpoints', () => {
             (projectResponse) => {
                 const savedChart = projectResponse.body.results[0];
 
-                // change once
+                expect(savedChart.pinnedListUuid).to.eq(null);
+
+                // Pin Chart
                 cy.request(
                     'PATCH',
                     `${apiUrl}/saved/${savedChart.uuid}/pinning`,
                 ).then((updatedChartResponse) => {
-                    expect(
-                        updatedChartResponse.body.results.pinnedListUuid,
-                    ).to.not.eq(savedChart.pinnedListUuid);
+                    cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
+                        (res1) => {
+                            expect(res1.body.results[0].pinnedListUuid).to.eq(
+                                updatedChartResponse.body.results
+                                    .pinnedListUuid,
+                            );
+                        },
+                    );
                 });
 
-                // change back
+                // Unpin chart
                 cy.request(
                     'PATCH',
                     `${apiUrl}/saved/${savedChart.uuid}/pinning`,
-                ).then((updatedChartResponse) => {
-                    expect(
-                        updatedChartResponse.body.results.pinnedListUuid,
-                    ).to.eq(savedChart.pinnedListUuid);
+                ).then(() => {
+                    cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
+                        (res2) => {
+                            expect(res2.body.results[0].pinnedListUuid).to.eq(
+                                null,
+                            );
+                        },
+                    );
                 });
             },
         );
@@ -40,24 +51,30 @@ describe('Lightdash pinning endpoints', () => {
             (projectResponse) => {
                 const dashboard = projectResponse.body.results[0];
 
-                // change once
+                // Pin dashboard
                 cy.request(
                     'PATCH',
                     `${apiUrl}/dashboards/${dashboard.uuid}/pinning`,
                 ).then((updatedDashboardResponse) => {
-                    expect(
-                        updatedDashboardResponse.body.results.pinnedListUuid,
-                    ).to.not.eq(dashboard.pinnedListUuid);
+                    cy.request(
+                        `${apiUrl}/projects/${projectUuid}/dashboards`,
+                    ).then((res1) => {
+                        expect(res1.body.results[0].pinnedListUuid).to.eq(
+                            updatedDashboardResponse.body.results
+                                .pinnedListUuid,
+                        );
+                    });
                 });
-                // change back
+                // Unpin dashboard
                 cy.request(
                     'PATCH',
                     `${apiUrl}/dashboards/${dashboard.uuid}/pinning`,
-                ).then((updatedDashboardResponse) => {
-                    // check value was updated back to original
-                    expect(
-                        updatedDashboardResponse.body.results.pinnedListUuid,
-                    ).to.eq(dashboard.pinnedListUuid);
+                ).then(() => {
+                    cy.request(
+                        `${apiUrl}/projects/${projectUuid}/dashboards`,
+                    ).then((res1) => {
+                        expect(res1.body.results[0].pinnedListUuid).to.eq(null);
+                    });
                 });
             },
         );

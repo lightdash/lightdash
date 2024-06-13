@@ -13,6 +13,8 @@ import {
 } from '../types/field';
 import {
     FilterOperator,
+    isFilterTarget,
+    isMetricFilterTarget,
     UnitOfTime,
     unitOfTimeFormat,
     type DateFilterRule,
@@ -31,13 +33,29 @@ import { type WeekDay } from '../utils/timeFrames';
 const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
+const raiseInvalidFilterError = (
+    type: string,
+    filter: FilterRule<FilterOperator, unknown>,
+): never => {
+    let targetString = '';
+
+    if (isMetricFilterTarget(filter.target)) {
+        targetString = ` on "${filter.target.fieldRef}" field`;
+    } else if (isFilterTarget(filter.target)) {
+        targetString = ` on "${filter.target.fieldId}" field`;
+    }
+
+    throw Error(
+        `No function has been implemented to render SQL for the filter operator "${filter.operator}"${targetString} of type "${type}"`,
+    );
+};
+
 export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
     escapeStringQuoteChar: string,
 ): string => {
-    const filterType = filter.operator;
     const escapedFilterValues = filter.values?.map((v) =>
         typeof v === 'string'
             ? v.replaceAll(
@@ -94,9 +112,7 @@ export const renderStringFilterSql = (
             );
             return endsWithQuery?.join('\n  OR\n  ') || 'true';
         default:
-            throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of string type`,
-            );
+            return raiseInvalidFilterError('string', filter);
     }
 };
 
@@ -104,7 +120,6 @@ export const renderNumberFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
-    const filterType = filter.operator;
     switch (filter.operator) {
         case FilterOperator.EQUALS:
             return !filter.values || filter.values.length === 0
@@ -129,9 +144,7 @@ export const renderNumberFilterSql = (
         case FilterOperator.LESS_THAN_OR_EQUAL:
             return `(${dimensionSql}) <= (${filter.values?.[0] || 0})`;
         default:
-            throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of number type`,
-            );
+            return raiseInvalidFilterError('number', filter);
     }
 };
 
@@ -143,7 +156,6 @@ export const renderDateFilterSql = (
     dateFormatter: (date: Date) => string = formatDate,
     startOfWeek: WeekDay | null | undefined = undefined,
 ): string => {
-    const filterType = filter.operator;
     const castValue = (value: string): string => {
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO: {
@@ -288,9 +300,7 @@ export const renderDateFilterSql = (
             )} AND (${dimensionSql}) <= ${castValue(endDate)})`;
         }
         default:
-            throw Error(
-                `No function implemented to render sql for filter type ${filterType} on dimension of date type`,
-            );
+            return raiseInvalidFilterError('date', filter);
     }
 };
 
@@ -298,7 +308,6 @@ const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
-    const { operator } = filter;
     switch (filter.operator) {
         case 'equals':
             return `(${dimensionSql}) = ${!!filter.values?.[0]}`;
@@ -310,9 +319,7 @@ const renderBooleanFilterSql = (
         case 'notNull':
             return `(${dimensionSql}) IS NOT NULL`;
         default:
-            throw Error(
-                `No function implemented to render sql for filter type ${operator} on dimension of boolean type`,
-            );
+            return raiseInvalidFilterError('boolean', filter);
     }
 };
 

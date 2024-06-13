@@ -148,28 +148,31 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
 
     return useMemo(() => {
         if (pathParams.tableId) {
-            const unsavedChartVersion = parseExplorerSearchParams(search) || {
-                tableName: '',
-                metricQuery: {
-                    exploreName: '',
-                    dimensions: [],
-                    metrics: [],
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                },
-                pivotConfig: undefined,
-                tableConfig: {
-                    columnOrder: [],
-                },
-                chartConfig: {
-                    type: ChartType.CARTESIAN,
-                    config: { layout: {}, eChartsConfig: {} },
-                },
-            };
             try {
+                const unsavedChartVersion = parseExplorerSearchParams(
+                    search,
+                ) || {
+                    tableName: '',
+                    metricQuery: {
+                        exploreName: '',
+                        dimensions: [],
+                        metrics: [],
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                        additionalMetrics: [],
+                    },
+                    pivotConfig: undefined,
+                    tableConfig: {
+                        columnOrder: [],
+                    },
+                    chartConfig: {
+                        type: ChartType.CARTESIAN,
+                        config: { layout: {}, eChartsConfig: {} },
+                    },
+                };
+
                 return {
                     shouldFetchResults: true,
                     expandedSections: unsavedChartVersion
@@ -189,7 +192,11 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     },
                 };
             } catch (e: any) {
-                showToastError({ title: 'Error parsing url', subtitle: e });
+                const errorMessage = e.message ? ` Error: "${e.message}"` : '';
+                showToastError({
+                    title: 'Error parsing url',
+                    subtitle: `URL is invalid or incomplete.${errorMessage}`,
+                });
             }
         }
     }, [pathParams, search, showToastError]);
