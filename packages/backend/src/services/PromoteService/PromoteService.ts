@@ -27,27 +27,27 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 
-type PromotedChart = {
+export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
     space: Omit<SpaceSummary, 'userAccess'>; // even if chart belongs to dashboard, this is not undefined
     access: SpaceShare[];
 };
-type UpstreamChart = {
+export type UpstreamChart = {
     projectUuid: string;
     chart: ChartSummary | undefined;
     space: Omit<SpaceSummary, 'userAccess'> | undefined;
     access: SpaceShare[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
-type PromotedDashboard = {
+export type PromotedDashboard = {
     projectUuid: string;
     dashboard: DashboardDAO;
     space: Omit<SpaceSummary, 'userAccess'>;
     access: SpaceShare[];
 };
 
-type UpstreamDashboard = {
+export type UpstreamDashboard = {
     projectUuid: string;
     dashboard:
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
