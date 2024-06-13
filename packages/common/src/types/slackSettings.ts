@@ -1,3 +1,5 @@
+import { type SlackChannelProjectMapping } from './slack';
+
 export type SlackSettings = {
     organizationUuid: string;
     slackTeamName: string;
@@ -6,6 +8,7 @@ export type SlackSettings = {
     scopes: string[];
     notificationChannel: string | undefined;
     appProfilePhotoUrl: string | undefined;
+    slackChannelProjectMappings?: SlackChannelProjectMapping[];
 };
 
 export const slackRequiredScopes = [

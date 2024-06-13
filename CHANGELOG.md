@@ -1,3 +1,31 @@
+## [0.1129.1](https://github.com/lightdash/lightdash/compare/0.1129.0...0.1129.1) (2024-06-12)
+
+
+### Bug Fixes
+
+* remove n+1 queries when creating and updating a dashboard ([#10364](https://github.com/lightdash/lightdash/issues/10364)) ([e579cb0](https://github.com/lightdash/lightdash/commit/e579cb073f85a5398a4b8e6dcd58a300cf4106be))
+
+# [0.1129.0](https://github.com/lightdash/lightdash/compare/0.1128.9...0.1129.0) (2024-06-12)
+
+
+### Features
+
+* improve cli error for operator to type error ([#10380](https://github.com/lightdash/lightdash/issues/10380)) ([7923c02](https://github.com/lightdash/lightdash/commit/7923c0288d6fada5b8a44df56618733490293ad4))
+
+## [0.1128.9](https://github.com/lightdash/lightdash/compare/0.1128.8...0.1128.9) (2024-06-12)
+
+
+### Bug Fixes
+
+* focus password input in login page ([#10387](https://github.com/lightdash/lightdash/issues/10387)) ([5b1cb61](https://github.com/lightdash/lightdash/commit/5b1cb61deb29d63b52774d6b6185e26d7eb6e944))
+
+## [0.1128.8](https://github.com/lightdash/lightdash/compare/0.1128.7...0.1128.8) (2024-06-12)
+
+
+### Bug Fixes
+
+* more playwright improvements ([#10379](https://github.com/lightdash/lightdash/issues/10379)) ([b9e1b3d](https://github.com/lightdash/lightdash/commit/b9e1b3d99821a4d0020ae7bc07f106bde59736cd))
+
 ## [0.1128.7](https://github.com/lightdash/lightdash/compare/0.1128.6...0.1128.7) (2024-06-12)
 
 

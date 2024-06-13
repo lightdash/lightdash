@@ -26,7 +26,7 @@ const getTeamId = (payload: Installation) => {
     throw new Error('Could not find a valid team id in the payload request');
 };
 export class SlackAuthenticationModel {
-    private database: Knex;
+    protected database: Knex;
 
     constructor(args: SlackAuthenticationModelArguments) {
         this.database = args.database;
