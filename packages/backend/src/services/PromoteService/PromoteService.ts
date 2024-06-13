@@ -892,8 +892,6 @@ export class PromoteService extends BaseService {
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
     ): PromotionChanges {
-        const upstreamProjectUuid = promotedChart.projectUuid;
-
         const spaceChange: PromotionChanges['spaces'][number] =
             upstreamChart.space !== undefined
                 ? // TODO check if space requires an update
@@ -905,7 +903,7 @@ export class PromoteService extends BaseService {
                       action: PromotionAction.CREATE,
                       data: {
                           ...promotedChart.space,
-                          projectUuid: upstreamProjectUuid,
+                          projectUuid: upstreamChart.projectUuid,
                       },
                   };
 
@@ -916,9 +914,12 @@ export class PromoteService extends BaseService {
                       action: PromotionAction.UPDATE,
                       data: {
                           ...promotedChart.chart,
-                          ...upstreamChart.chart,
+                          projectUuid: upstreamChart.projectUuid,
                           spaceSlug: promotedChart.space?.slug,
                           oldUuid: promotedChart.chart.uuid,
+                          spaceUuid:
+                              upstreamChart.space?.uuid ||
+                              promotedChart.space.uuid, // set the new space uuid after creation
                       },
                   }
                 : {
@@ -931,7 +932,7 @@ export class PromoteService extends BaseService {
                           spaceUuid:
                               upstreamChart.space?.uuid ||
                               promotedChart.space.uuid, // set the new space uuid after creation
-                          projectUuid: upstreamProjectUuid,
+                          projectUuid: upstreamChart.projectUuid,
                           spaceSlug: promotedChart.space?.slug,
                           oldUuid: promotedChart.chart.uuid,
                       },
@@ -975,7 +976,7 @@ export class PromoteService extends BaseService {
 
         const chartsAndDashboardSpaces = [
             {
-                promotedSpace: upstreamDashboard.space,
+                promotedSpace: promotedDashboard.space,
                 upstreamSpace: upstreamDashboard.space,
             },
             ...charts.map(({ promotedChart, upstreamChart }) => ({
@@ -991,6 +992,10 @@ export class PromoteService extends BaseService {
             }[]
         >((acc, content) => {
             const { promotedSpace, upstreamSpace } = content;
+
+            if (acc.some((space) => space.data.slug === promotedSpace.slug))
+                return acc; // Space already exists
+
             if (upstreamSpace !== undefined) {
                 // TODO check differences to see if we need to UPDATE or NO_CHANGES
                 // TODO update spaces if they have changed
@@ -1003,8 +1008,6 @@ export class PromoteService extends BaseService {
                 ];
             }
             if (promotedSpace === undefined) return acc; // This could be a chart within a dashboard, no need for space
-            if (acc.some((space) => space.data.slug === promotedSpace.slug))
-                return acc; // Space already exists
 
             return [
                 ...acc,
@@ -1036,6 +1039,7 @@ export class PromoteService extends BaseService {
                         uuid: upstreamDashboard.dashboard.uuid,
                         spaceUuid: upstreamDashboard.dashboard.spaceUuid,
                         spaceSlug: promotedDashboard.space?.slug,
+                        projectUuid: upstreamProjectUuid,
                     },
                 };
             }

@@ -1,13 +1,72 @@
-import { ChartKind, ChartType } from '@lightdash/common';
-import { PromotedChart, UpstreamChart } from './PromoteService';
+import { Ability } from '@casl/ability';
+import {
+    ChartKind,
+    ChartType,
+    DashboardChartTile,
+    DashboardTileTypes,
+    OrganizationMemberRole,
+    SessionUser,
+} from '@lightdash/common';
+import {
+    PromotedChart,
+    PromotedDashboard,
+    UpstreamChart,
+    UpstreamDashboard,
+} from './PromoteService';
+
+export const user: SessionUser = {
+    userUuid: 'userUuid',
+    email: 'email',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    organizationUuid: 'organizationUuid',
+    organizationName: 'organizationName',
+    organizationCreatedAt: new Date(),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    userId: 0,
+    role: OrganizationMemberRole.ADMIN,
+    ability: new Ability([
+        { subject: 'Project', action: ['update', 'view'] },
+        { subject: 'Job', action: ['view'] },
+        { subject: 'SqlRunner', action: ['manage'] },
+        { subject: 'Explore', action: ['manage'] },
+    ]),
+    isActive: true,
+    abilityRules: [],
+};
+
+const updatedByUser = {
+    userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
+    firstName: 'David',
+    lastName: 'Attenborough',
+};
+const organizationUuid = 'organization-uuid';
+const promotedProjectUuid = 'promoted-project-uuid';
+const upstreamProjectUuid = 'upstream-project-uuid';
 
 export const promotedSpace: PromotedChart['space'] = {
-    organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
-    projectUuid: 'e1c4c2d1-e0ea-4be1-ac97-936d871efbe3',
-    uuid: '1458270c-1ca2-41a2-b6a6-ae43918f74b9',
+    organizationUuid,
+    projectUuid: promotedProjectUuid,
+    uuid: 'promoted-space-uuid',
     name: 'Jaffle shop',
     isPrivate: false,
-    access: ['b264d83a-9000-426a-85ec-3f9c20f368ce'],
+    access: [],
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    chartCount: 0,
+    dashboardCount: 0,
+    slug: 'jaffle-shop',
+};
+
+export const upstreamSpace: UpstreamChart['space'] = {
+    organizationUuid,
+    projectUuid: upstreamProjectUuid,
+    uuid: 'upstream-space-uuid',
+    name: 'Jaffle shop',
+    isPrivate: false,
+    access: [],
     pinnedListUuid: null,
     pinnedListOrder: null,
     chartCount: 0,
@@ -17,17 +76,13 @@ export const promotedSpace: PromotedChart['space'] = {
 
 export const promotedChart: PromotedChart = {
     chart: {
-        uuid: '596eb2e5-8214-49f6-ba98-2e4f06ef954e',
-        projectUuid: 'e1c4c2d1-e0ea-4be1-ac97-936d871efbe3',
+        uuid: 'promoted-chart-uuid',
+        projectUuid: promotedProjectUuid,
         name: 'apple chart',
         description: '',
         tableName: 'orders',
         updatedAt: new Date(),
-        updatedByUser: {
-            userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
-            firstName: 'David',
-            lastName: 'Attenborough',
-        },
+        updatedByUser,
         metricQuery: {
             exploreName: 'orders',
             dimensions: [],
@@ -41,46 +96,36 @@ export const promotedChart: PromotedChart = {
         },
         chartConfig: { type: ChartType.CARTESIAN, config: undefined },
         tableConfig: { columnOrder: [] },
-        organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
-        spaceUuid: '1458270c-1ca2-41a2-b6a6-ae43918f74b9',
-        spaceName: 'Jaffle shop',
+        organizationUuid,
+        spaceUuid: promotedSpace.uuid,
+        spaceName: promotedSpace.name,
         pinnedListUuid: null,
         pinnedListOrder: null,
         dashboardUuid: null,
         dashboardName: null,
-        colorPalette: [
-            '#5470c6',
-            '#fc8452',
-            '#91cc75',
-            '#fac858',
-            '#ee6666',
-            '#73c0de',
-            '#3ba272',
-            '#9a60b4',
-            '#ea7ccc',
-        ],
+        colorPalette: [],
         slug: 'apple-chart',
     },
-    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    projectUuid: promotedProjectUuid,
     space: promotedSpace,
     access: [],
 };
 
 export const missingUpstreamChart: UpstreamChart = {
     chart: undefined,
-    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    projectUuid: upstreamProjectUuid,
     space: undefined,
     access: [],
 };
 export const existingUpstreamChart: UpstreamChart = {
     chart: {
-        uuid: '034657eb-86ac-409e-b167-c20197881c54',
+        uuid: 'upstream-chart-uuid',
         name: 'apple chart',
         description: '',
-        spaceUuid: '333d5d37-e533-4dbd-988c-e422d2d5c1a8',
-        spaceName: 'Jaffle shop',
-        projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
-        organizationUuid: '172a2270-000f-42be-9c68-c4752c23ae51',
+        spaceUuid: upstreamSpace.uuid,
+        spaceName: upstreamSpace.name,
+        projectUuid: upstreamProjectUuid,
+        organizationUuid,
         pinnedListUuid: null,
         chartKind: ChartKind.VERTICAL_BAR,
         dashboardUuid: null,
@@ -88,7 +133,66 @@ export const existingUpstreamChart: UpstreamChart = {
         // updatedAt:  new Date(),
         chartType: ChartType.CARTESIAN,
     },
-    projectUuid: '3675b69e-8324-4110-bdca-059031aa8da3',
+    projectUuid: upstreamProjectUuid,
+    space: upstreamSpace,
+    access: [],
+};
+
+const dashboardChartTile: DashboardChartTile = {
+    uuid: '1234',
+    type: DashboardTileTypes.SAVED_CHART,
+
+    x: 0,
+    y: 0,
+    h: 10,
+    w: 10,
+    tabUuid: undefined,
+    properties: {
+        title: 'chart tile',
+        savedChartUuid: promotedChart.chart.uuid,
+        belongsToDashboard: false,
+    },
+};
+
+export const promotedDashboard: PromotedDashboard = {
+    dashboard: {
+        organizationUuid,
+        projectUuid: promotedProjectUuid,
+        dashboardVersionId: 4,
+        uuid: 'promoted-dashboard-uuid',
+        name: 'dashboard',
+        description: '',
+        updatedAt: new Date(),
+        pinnedListUuid: null,
+        pinnedListOrder: null,
+        tiles: [dashboardChartTile],
+        tabs: [],
+        filters: { metrics: [], dimensions: [], tableCalculations: [] },
+        spaceUuid: promotedSpace.uuid,
+        spaceName: promotedSpace.name,
+        views: 11,
+        firstViewedAt: new Date(),
+        updatedByUser,
+        slug: 'dashboard',
+    },
+    projectUuid: promotedProjectUuid,
     space: promotedSpace,
+    access: [],
+};
+export const existingUpstreamDashboard: UpstreamDashboard = {
+    dashboard: {
+        name: 'dashboard',
+        description: '',
+        uuid: 'upstream-dashboard-uuid',
+        spaceUuid: upstreamSpace.uuid,
+    },
+    projectUuid: upstreamProjectUuid,
+    space: upstreamSpace,
+    access: [],
+};
+export const missingUpstreamDashboard: UpstreamDashboard = {
+    dashboard: undefined,
+    projectUuid: upstreamProjectUuid,
+    space: undefined,
     access: [],
 };
