@@ -56,6 +56,9 @@ const projectModel = {
     updateTablesConfiguration: jest.fn(),
     getExploresFromCache: jest.fn(async () => allExplores),
     getExploreFromCache: jest.fn(async () => validExplore),
+    findExploresFromCache: jest.fn(async () => ({
+        [validExplore.name]: validExplore,
+    })),
     lockProcess: jest.fn((projectUuid, fun) => fun()),
     getWarehouseCredentialsForProject: jest.fn(
         async () => warehouseClientMock.credentials,
@@ -157,7 +160,7 @@ describe('ProjectService', () => {
                 user,
                 metricQueryMock,
                 projectUuid,
-                'table1',
+                'valid_explore',
                 null,
             );
             expect(result).toEqual(expectedApiQueryResultsWith1Row);
@@ -176,7 +179,7 @@ describe('ProjectService', () => {
                 user,
                 metricQueryMock,
                 projectUuid,
-                'table1',
+                'valid_explore',
                 null,
             );
             expect(result).toEqual(expectedApiQueryResultsWith501Rows);
