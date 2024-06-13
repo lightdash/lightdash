@@ -12,7 +12,6 @@ const useSentry = (
         if (sentryConfig && !isSentryLoaded && sentryConfig.frontend.dsn) {
             Sentry.init({
                 dsn: sentryConfig.frontend.dsn,
-                debug: true,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [

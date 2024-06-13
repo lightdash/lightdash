@@ -555,8 +555,6 @@ export default class App {
     private initSentry() {
         Sentry.init({
             release: VERSION,
-            debug: true,
-
             dsn: this.lightdashConfig.sentry.backend.dsn,
             environment:
                 this.environment === 'development'
