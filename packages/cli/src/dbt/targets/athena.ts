@@ -17,7 +17,7 @@ export type AthenaTarget = {
     s3_staging_dir: string;
     region_name: string;
     catalog: string;
-    work_group?: string;
+    work_group: string;
 };
 
 export const athenaSchema: JSONSchemaType<AthenaTarget> = {
