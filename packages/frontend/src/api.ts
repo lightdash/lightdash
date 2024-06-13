@@ -44,24 +44,31 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     body,
     headers,
 }: LightdashApiProps): Promise<T> => {
-    const activeSpan = Sentry.getActiveSpan();
-    const rootSpan = activeSpan ? Sentry.getRootSpan(activeSpan) : undefined;
-
-    const sentryTraceHeader = rootSpan
-        ? Sentry.spanToTraceHeader(rootSpan)
-        : undefined;
-
-    const sentryBaggageHeader = rootSpan
-        ? Sentry.spanToBaggageHeader(rootSpan)
-        : undefined;
+    let sentryTrace: string | undefined;
+    // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
+    Sentry.startSpan(
+        {
+            op: 'http.client',
+            name: `API Request: ${method} ${url}`,
+            attributes: {
+                'http.method': method,
+                'http.url': url,
+                type: 'fetch',
+                url,
+                method,
+            },
+        },
+        (s) => {
+            sentryTrace = Sentry.spanToTraceHeader(s);
+        },
+    );
 
     return fetch(`${apiPrefix}${url}`, {
         method,
         headers: {
             ...defaultHeaders,
             ...headers,
-            ...(sentryBaggageHeader && { baggage: sentryBaggageHeader }),
-            ...(sentryTraceHeader && { 'sentry-trace': sentryTraceHeader }),
+            ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
         },
         body,
     })
