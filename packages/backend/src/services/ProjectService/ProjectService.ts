@@ -19,7 +19,6 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
-    CreateSavedChart,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -2436,32 +2435,27 @@ export class ProjectService extends BaseService {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
             },
-            async () =>
-                wrapSentryTransaction(
-                    'ProjectService.getExplore',
-                    {},
-                    async () => {
-                        const exploresMap = await this.findExplores({
-                            user,
-                            projectUuid,
-                            exploreNames: [exploreName],
-                            organizationUuid,
-                        });
-                        const explore = exploresMap[exploreName];
+            async () => {
+                const exploresMap = await this.findExplores({
+                    user,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    organizationUuid,
+                });
+                const explore = exploresMap[exploreName];
 
-                        if (!explore) {
-                            throw new NotExistsError(
-                                `Explore "${exploreName}" does not exist.`,
-                            );
-                        }
-                        if (isExploreError(explore)) {
-                            throw new NotExistsError(
-                                `Explore "${exploreName}" has an error.`,
-                            );
-                        }
-                        return explore;
-                    },
-                ),
+                if (!explore) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" does not exist.`,
+                    );
+                }
+                if (isExploreError(explore)) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" has an error.`,
+                    );
+                }
+                return explore;
+            },
         );
     }
 
@@ -2480,65 +2474,61 @@ export class ProjectService extends BaseService {
             {
                 op: 'ProjectService.findExplores',
                 name: 'ProjectService.findExplores',
+                attributes: {
+                    projectUuid,
+                    exploreNames,
+                    organizationUuid,
+                },
             },
-            async () =>
-                wrapSentryTransaction(
-                    'ProjectService.findExplores',
-                    {
-                        projectUuid,
-                        exploreNames,
-                        organizationUuid,
-                    },
-                    async () => {
-                        const project = organizationUuid
-                            ? { organizationUuid }
-                            : await this.projectModel.getSummary(projectUuid);
-                        if (
-                            user.ability.cannot(
-                                'view',
-                                subject('Project', {
-                                    organizationUuid: project.organizationUuid,
-                                    projectUuid,
-                                }),
-                            )
-                        ) {
-                            throw new ForbiddenError();
+
+            async () => {
+                const project = organizationUuid
+                    ? { organizationUuid }
+                    : await this.projectModel.getSummary(projectUuid);
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                const explores = await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    exploreNames,
+                );
+
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid: project.organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
+
+                return Object.values(explores).reduce<
+                    Record<string, Explore | ExploreError>
+                >((acc, explore) => {
+                    if (isExploreError(explore)) {
+                        acc[explore.name] = explore;
+                    } else {
+                        const shouldFilterExplore =
+                            exploreHasFilteredAttribute(explore);
+                        if (!shouldFilterExplore) {
+                            acc[explore.name] = explore;
+                        } else {
+                            acc[explore.name] = getFilteredExplore(
+                                explore,
+                                userAttributes,
+                            );
                         }
-                        const explores =
-                            await this.projectModel.findExploresFromCache(
-                                projectUuid,
-                                exploreNames,
-                            );
-
-                        const userAttributes =
-                            await this.userAttributesModel.getAttributeValuesForOrgMember(
-                                {
-                                    organizationUuid: project.organizationUuid,
-                                    userUuid: user.userUuid,
-                                },
-                            );
-
-                        return Object.values(explores).reduce<
-                            Record<string, Explore | ExploreError>
-                        >((acc, explore) => {
-                            if (isExploreError(explore)) {
-                                acc[explore.name] = explore;
-                            } else {
-                                const shouldFilterExplore =
-                                    exploreHasFilteredAttribute(explore);
-                                if (!shouldFilterExplore) {
-                                    acc[explore.name] = explore;
-                                } else {
-                                    acc[explore.name] = getFilteredExplore(
-                                        explore,
-                                        userAttributes,
-                                    );
-                                }
-                            }
-                            return acc;
-                        }, {});
-                    },
-                ),
+                    }
+                    return acc;
+                }, {});
+            },
         );
     }
 
