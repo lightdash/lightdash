@@ -35,7 +35,7 @@ type PromotedChart = {
 };
 type UpstreamChart = {
     projectUuid: string;
-    chart: ChartSummary | undefined;
+    chart: (ChartSummary & { updatedAt: Date }) | undefined;
     space: Omit<SpaceSummary, 'userAccess'> | undefined;
     access: SpaceShare[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
@@ -437,6 +437,44 @@ export class PromoteService extends BaseService {
         );
     }
 
+    private static isSpaceUpdated(
+        promotedSpace: Omit<SpaceSummary, 'userAccess'>,
+        upstreamSpace: Omit<SpaceSummary, 'userAccess'>,
+    ) {
+        if (upstreamSpace === undefined) return true;
+        return (
+            promotedSpace?.name !== upstreamSpace.name ||
+            promotedSpace?.isPrivate !== upstreamSpace.isPrivate
+        );
+    }
+
+    private static isDashboardUpdated(
+        promotedDashboard: DashboardDAO,
+        upstreamDashboard: UpstreamDashboard['dashboard'],
+    ) {
+        // Dashboard table don't have last_version_updated_at or tiles to compare
+        // We need to fecth more data to check if the dashboard requires an update
+        // Right now we assume it is always needed
+        return true;
+    }
+
+    private static isChartUpdated(
+        promotedChart: SavedChartDAO,
+        upstreamChart: UpstreamChart['chart'],
+    ) {
+        // We only check if the promotedChart.updated At is more recent than the upstreamChart.updatedAt
+        // This is not very accurate, and can lead to some confusion if people start updating the same chart in both projects
+        // But to make this more accurate we would need to fetch all the metricQuery and chart config and check if they are the same
+        // Or introduce a versionHash on update in the chart
+        if (upstreamChart === undefined) return true;
+        return (
+            promotedChart.updatedAt > upstreamChart.updatedAt ||
+            promotedChart.name !== upstreamChart.name ||
+            promotedChart.description !== upstreamChart.description ||
+            promotedChart.spaceUuid !== upstreamChart.spaceUuid
+        );
+    }
+
     async upsertCharts(
         user: SessionUser,
         promotionChanges: PromotionChanges,
@@ -453,9 +491,7 @@ export class PromoteService extends BaseService {
                 .filter((change) => change.action === PromotionAction.UPDATE)
                 .map((chartChange) => {
                     const changeChart = chartChange.data;
-                    // TODO check if description needs to changed
                     // We also update chart name and description if they have changed
-
                     return this.savedChartModel.update(changeChart.uuid, {
                         name: changeChart.name,
                         description: changeChart.description,
@@ -470,7 +506,6 @@ export class PromoteService extends BaseService {
             .filter((change) => change.action === PromotionAction.UPDATE)
             .map((chartChange) => {
                 const changeChart = chartChange.data;
-                // TODO check if version needs to change ?
 
                 const chartData =
                     isChartWithinDashboard(changeChart) && promotedDashboardUuid
@@ -694,23 +729,27 @@ export class PromoteService extends BaseService {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
             );
+        try {
+            const { promotedDashboard, upstreamDashboard } =
+                await this.getPromotedDashboard(
+                    user,
+                    dashboard,
+                    upstreamProjectUuid,
+                );
 
-        const { promotedDashboard, upstreamDashboard } =
-            await this.getPromotedDashboard(
-                user,
-                dashboard,
-                upstreamProjectUuid,
-            );
+            // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
+            const [promotionChanges, promotedCharts] =
+                await this.getPromotionDashboardChanges(
+                    user,
+                    promotedDashboard,
+                    upstreamDashboard,
+                );
 
-        // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-        const [promotionChanges, promotedCharts] =
-            await this.getPromotionDashboardChanges(
-                user,
-                promotedDashboard,
-                upstreamDashboard,
-            );
-
-        return promotionChanges;
+            return promotionChanges;
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
     }
 
     private static getSpaceBySlug(
@@ -811,7 +850,7 @@ export class PromoteService extends BaseService {
         };
     }
 
-    async createNewSpaces(
+    async upsertSpaces(
         user: SessionUser,
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {
@@ -888,6 +927,44 @@ export class PromoteService extends BaseService {
         };
     }
 
+    static getChartChange(
+        promotedChart: PromotedChart,
+        upstreamChart: UpstreamChart,
+    ): PromotionChanges['charts'][number] {
+        if (upstreamChart.chart !== undefined) {
+            return {
+                action: PromoteService.isChartUpdated(
+                    promotedChart.chart,
+                    upstreamChart.chart,
+                )
+                    ? PromotionAction.UPDATE
+                    : PromotionAction.NO_CHANGES,
+                data: {
+                    ...promotedChart.chart,
+                    dashboardUuid: promotedChart.chart.dashboardUuid, // change the dashboard uuid after creation
+                    spaceUuid: upstreamChart.chart.spaceUuid,
+                    uuid: upstreamChart.chart.uuid,
+                    spaceSlug: promotedChart.space?.slug,
+                    oldUuid: promotedChart.chart.uuid,
+                },
+            };
+        }
+        return {
+            action: PromotionAction.CREATE,
+            data: {
+                ...promotedChart.chart,
+                dashboardUuid:
+                    upstreamChart.dashboardUuid ||
+                    promotedChart.chart.dashboardUuid, // set the new space uuid after creation
+                spaceUuid:
+                    upstreamChart.space?.uuid || promotedChart.space.uuid, // set the new space uuid after creation
+                projectUuid: promotedChart.projectUuid,
+                spaceSlug: promotedChart.space?.slug,
+                oldUuid: promotedChart.chart.uuid,
+            },
+        };
+    }
+
     static getChartChanges(
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
@@ -898,7 +975,12 @@ export class PromoteService extends BaseService {
             upstreamChart.space !== undefined
                 ? // TODO check if space requires an update
                   {
-                      action: PromotionAction.NO_CHANGES,
+                      action: PromoteService.isSpaceUpdated(
+                          promotedChart.space,
+                          upstreamChart.space,
+                      )
+                          ? PromotionAction.UPDATE
+                          : PromotionAction.NO_CHANGES,
                       data: upstreamChart.space,
                   }
                 : {
@@ -909,33 +991,11 @@ export class PromoteService extends BaseService {
                       },
                   };
 
-        const chartChange: PromotionChanges['charts'][number] =
-            upstreamChart.chart !== undefined
-                ? {
-                      // TODO check differences to see if we need to UPDATE or NO_CHANGES
-                      action: PromotionAction.UPDATE,
-                      data: {
-                          ...promotedChart.chart,
-                          ...upstreamChart.chart,
-                          spaceSlug: promotedChart.space?.slug,
-                          oldUuid: promotedChart.chart.uuid,
-                      },
-                  }
-                : {
-                      action: PromotionAction.CREATE,
-                      data: {
-                          ...promotedChart.chart,
-                          dashboardUuid:
-                              upstreamChart.dashboardUuid ||
-                              promotedChart.chart.dashboardUuid, // set the new space uuid after creation
-                          spaceUuid:
-                              upstreamChart.space?.uuid ||
-                              promotedChart.space.uuid, // set the new space uuid after creation
-                          projectUuid: upstreamProjectUuid,
-                          spaceSlug: promotedChart.space?.slug,
-                          oldUuid: promotedChart.chart.uuid,
-                      },
-                  };
+        const chartChange = PromoteService.getChartChange(
+            promotedChart,
+            upstreamChart,
+        );
+
         return {
             spaces: [spaceChange],
             dashboards: [],
@@ -992,8 +1052,22 @@ export class PromoteService extends BaseService {
         >((acc, content) => {
             const { promotedSpace, upstreamSpace } = content;
             if (upstreamSpace !== undefined) {
-                // TODO check differences to see if we need to UPDATE or NO_CHANGES
-                // TODO update spaces if they have changed
+                if (
+                    promotedSpace !== undefined &&
+                    PromoteService.isSpaceUpdated(promotedSpace, upstreamSpace)
+                ) {
+                    return [
+                        ...acc,
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...upstreamSpace,
+                                name: promotedSpace.name,
+                                isPrivate: promotedSpace.isPrivate, // This should always be false, until we allow promoting private content
+                            },
+                        },
+                    ];
+                }
                 return [
                     ...acc,
                     {
@@ -1022,15 +1096,13 @@ export class PromoteService extends BaseService {
             upstreamDashboard,
         ].map((dashboard) => {
             if (upstreamDashboard.dashboard !== undefined) {
-                // TODO check differences to see if we need to UPDATE or NO_CHANGES
-                // For this we'll have to fetch more data for upstreamDashboard like the dashboard tiles
-                // or check if promotedDashboard.updatedAt > upstreamDashboard.updatedAt
-                const isEqual = false; // deepEqual(promotedDashboard.dashboard, upstreamDashboard.dashboard)
-
                 return {
-                    action: isEqual
-                        ? PromotionAction.NO_CHANGES
-                        : PromotionAction.UPDATE,
+                    action: PromoteService.isDashboardUpdated(
+                        promotedDashboard.dashboard,
+                        upstreamDashboard.dashboard,
+                    )
+                        ? PromotionAction.UPDATE
+                        : PromotionAction.NO_CHANGES,
                     data: {
                         ...promotedDashboard.dashboard,
                         uuid: upstreamDashboard.dashboard.uuid,
@@ -1053,43 +1125,8 @@ export class PromoteService extends BaseService {
         });
 
         const chartChanges: PromotionChanges['charts'] = charts.map(
-            ({ promotedChart, upstreamChart }) => {
-                if (upstreamChart.chart !== undefined) {
-                    // TODO check differences to see if we need to UPDATE or NO_CHANGES
-                    // For this we'll have to fetch more data for upstreamChart like  the chart config
-                    // or check if promotedChart.updatedAt > upstreamChart.updatedAt
-                    const isEqual = false; // deepEqual(promotedChart.chart, upstreamChart.chart)
-
-                    return {
-                        action: isEqual
-                            ? PromotionAction.NO_CHANGES
-                            : PromotionAction.UPDATE,
-                        data: {
-                            ...promotedChart.chart,
-                            dashboardUuid: promotedChart.chart.dashboardUuid, // change the dashboard uuid after creation
-                            spaceUuid: upstreamChart.chart.spaceUuid,
-                            uuid: upstreamChart.chart.uuid,
-                            spaceSlug: promotedChart.space?.slug,
-                            oldUuid: promotedChart.chart.uuid,
-                        },
-                    };
-                }
-                return {
-                    action: PromotionAction.CREATE,
-                    data: {
-                        ...promotedChart.chart,
-                        dashboardUuid:
-                            upstreamDashboard.dashboard?.uuid ||
-                            promotedChart.chart.dashboardUuid, // set the new space uuid after creation
-                        spaceUuid:
-                            upstreamChart.space?.uuid ||
-                            promotedChart.space.uuid, // set the new space uuid after creation
-                        projectUuid: upstreamProjectUuid,
-                        spaceSlug: promotedChart.space?.slug,
-                        oldUuid: promotedChart.chart.uuid,
-                    },
-                };
-            },
+            ({ promotedChart, upstreamChart }) =>
+                PromoteService.getChartChange(promotedChart, upstreamChart),
         );
 
         // TODO return charts within dashboards that are going to be deleted after the promotion
