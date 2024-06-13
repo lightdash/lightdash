@@ -1126,6 +1126,8 @@ export class PromoteService extends BaseService {
         );
 
         // TODO return charts within dashboards that are going to be deleted after the promotion
+        // For this we'll need to get all the tiles for the upstreamDashboard and compare against the promotedDashboard.tiles
+
         return [
             {
                 spaces: spaceChanges,
