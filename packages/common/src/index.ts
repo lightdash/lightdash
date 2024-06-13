@@ -78,7 +78,7 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './types/organization';
-import { type PinnedItems } from './types/pinning';
+import { type ApiTogglePinnedItem, type PinnedItems } from './types/pinning';
 import { type ProjectGroupAccess } from './types/projectGroupAccess';
 import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
@@ -114,6 +114,7 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import { type ApiPromotionChangesResponse } from './types/promotion';
 import { TimeFrames } from './types/timeFrames';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
@@ -172,6 +173,7 @@ export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
 export * from './types/projectMemberRole';
 export * from './types/projects';
+export * from './types/promotion';
 export * from './types/resourceViewItem';
 export * from './types/results';
 export * from './types/savedCharts';
@@ -638,7 +640,9 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
-    | ApiCatalogAnalyticsResults;
+    | ApiCatalogAnalyticsResults
+    | ApiPromotionChangesResponse['results']
+    | ApiTogglePinnedItem['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -678,12 +682,20 @@ export enum LightdashInstallType {
 export type SentryConfig = {
     backend: {
         dsn: string;
+        securityReportUri: string;
     };
     frontend: {
         dsn: string;
     };
     release: string;
     environment: string;
+    tracesSampleRate: number;
+    profilesSampleRate: number;
+    anr: {
+        enabled: boolean;
+        timeout?: number;
+        captureStacktrace: boolean;
+    };
 };
 
 export type HealthState = {
@@ -702,7 +714,14 @@ export type HealthState = {
         writeKey: string;
         dataPlaneUrl: string;
     };
-    sentry: Pick<SentryConfig, 'frontend' | 'release' | 'environment'>;
+    sentry: Pick<
+        SentryConfig,
+        | 'frontend'
+        | 'release'
+        | 'environment'
+        | 'tracesSampleRate'
+        | 'profilesSampleRate'
+    >;
     auth: {
         disablePasswordAuthentication: boolean;
         google: {

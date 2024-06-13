@@ -20,6 +20,8 @@ export type DbDashboard = {
     space_id: number;
     created_at: Date;
     slug: string;
+    views_count: number;
+    first_viewed_at: Date | null;
 };
 
 type DbDashboardVersion = {
@@ -38,7 +40,7 @@ type DbDashboardView = {
 };
 
 type DbCreateDashboardTile = {
-    dashboard_tile_uuid?: string;
+    dashboard_tile_uuid: string;
     dashboard_version_id: number;
     type: DashboardTileTypes;
     x_offset: number;
@@ -53,7 +55,7 @@ type DbDashboardTile = Required<DbCreateDashboardTile>;
 type DbDashboardTileChart = {
     dashboard_version_id: number;
     dashboard_tile_uuid: string;
-    saved_chart_id: number;
+    saved_chart_id: number | null;
     hide_title?: boolean;
     title?: string;
 };
@@ -61,7 +63,12 @@ type DbDashboardTileChart = {
 export type DashboardTable = Knex.CompositeTableType<
     DbDashboard,
     Pick<DbDashboard, 'name' | 'description' | 'space_id' | 'slug'>,
-    Pick<DbDashboard, 'name' | 'description'>
+    Partial<
+        Pick<
+            DbDashboard,
+            'name' | 'description' | 'views_count' | 'first_viewed_at'
+        >
+    >
 >;
 
 export type DashboardVersionTable = Knex.CompositeTableType<

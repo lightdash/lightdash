@@ -93,6 +93,14 @@ export const isDashboardChartTileType = (
     tile: DashboardTile,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
 
+export const isDashboardMarkdownTileType = (
+    tile: DashboardTile,
+): tile is DashboardMarkdownTile => tile.type === DashboardTileTypes.MARKDOWN;
+
+export const isDashboardLoomTileType = (
+    tile: DashboardTile,
+): tile is DashboardLoomTile => tile.type === DashboardTileTypes.LOOM;
+
 export type DashboardTab = {
     uuid: string;
     name: string;

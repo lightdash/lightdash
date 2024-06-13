@@ -1067,7 +1067,7 @@ export class ProjectService extends BaseService {
         }
 
         const queryTags: RunQueryTags = {
-            organization_uuid: projectUuid,
+            organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
@@ -2449,70 +2449,111 @@ export class ProjectService extends BaseService {
         exploreName: string,
         organizationUuid?: string,
     ): Promise<Explore> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'ProjectService.getExplore',
-            description: 'Gets a single explore from the cache',
-        });
-        try {
-            return await wrapOtelSpan(
-                'ProjectService.getExplore',
-                {},
-                async () => {
-                    const project = organizationUuid
-                        ? { organizationUuid }
-                        : await this.projectModel.getSummary(projectUuid);
-                    if (
-                        user.ability.cannot(
-                            'view',
-                            subject('Project', {
-                                organizationUuid: project.organizationUuid,
-                                projectUuid,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError();
-                    }
-                    const explore = await this.projectModel.getExploreFromCache(
+        return Sentry.startSpan(
+            {
+                op: 'ProjectService.getExplore',
+                name: 'ProjectService.getExplore',
+            },
+            async () =>
+                wrapOtelSpan('ProjectService.getExplore', {}, async () => {
+                    const exploresMap = await this.findExplores({
+                        user,
                         projectUuid,
-                        exploreName,
-                    );
+                        exploreNames: [exploreName],
+                        organizationUuid,
+                    });
+                    const explore = exploresMap[exploreName];
 
-                    if (isExploreError(explore)) {
+                    if (!explore) {
                         throw new NotExistsError(
                             `Explore "${exploreName}" does not exist.`,
                         );
                     }
-
-                    const shouldFilterExplore = await wrapOtelSpan(
-                        'ProjectService.getExplore.shouldFilterExplore',
-                        {},
-                        async () => exploreHasFilteredAttribute(explore),
-                    );
-
-                    if (!shouldFilterExplore) {
-                        return explore;
-                    }
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid: project.organizationUuid,
-                                userUuid: user.userUuid,
-                            },
+                    if (isExploreError(explore)) {
+                        throw new NotExistsError(
+                            `Explore "${exploreName}" has an error.`,
                         );
+                    }
+                    return explore;
+                }),
+        );
+    }
 
-                    return wrapOtelSpan(
-                        'ProjectService.getExplore.getFilteredExplore',
-                        {},
-                        async () => getFilteredExplore(explore, userAttributes),
-                    );
-                },
-            );
-        } finally {
-            span?.finish();
-        }
+    private async findExplores({
+        user,
+        projectUuid,
+        exploreNames,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreNames: string[];
+        organizationUuid?: string;
+    }): Promise<Record<string, Explore | ExploreError>> {
+        return Sentry.startSpan(
+            {
+                op: 'ProjectService.findExplores',
+                name: 'ProjectService.findExplores',
+            },
+            async () =>
+                wrapOtelSpan(
+                    'ProjectService.findExplores',
+                    {
+                        projectUuid,
+                        exploreNames,
+                        organizationUuid,
+                    },
+                    async () => {
+                        const project = organizationUuid
+                            ? { organizationUuid }
+                            : await this.projectModel.getSummary(projectUuid);
+                        if (
+                            user.ability.cannot(
+                                'view',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )
+                        ) {
+                            throw new ForbiddenError();
+                        }
+                        const explores =
+                            await this.projectModel.findExploresFromCache(
+                                projectUuid,
+                                exploreNames,
+                            );
+
+                        const userAttributes =
+                            await this.userAttributesModel.getAttributeValuesForOrgMember(
+                                {
+                                    organizationUuid: project.organizationUuid,
+                                    userUuid: user.userUuid,
+                                },
+                            );
+
+                        return Object.values(explores).reduce<
+                            Record<string, Explore | ExploreError>
+                        >((acc, explore) => {
+                            if (isExploreError(explore)) {
+                                acc[explore.name] = explore;
+                            } else {
+                                const shouldFilterExplore =
+                                    exploreHasFilteredAttribute(explore);
+                                if (!shouldFilterExplore) {
+                                    acc[explore.name] = explore;
+                                } else {
+                                    acc[explore.name] = getFilteredExplore(
+                                        explore,
+                                        userAttributes,
+                                    );
+                                }
+                            }
+                            return acc;
+                        }, {});
+                    },
+                ),
+        );
     }
 
     async getCatalog(
@@ -2605,116 +2646,24 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<FilterableDimension[]> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'projectService.getAvailableFiltersForSavedQuery',
-            description: 'Gets all filters available for a single query',
-        });
-        try {
-            const [savedChart] =
-                await this.savedChartModel.getInfoForAvailableFilters([
-                    savedChartUuid,
-                ]);
+        return Sentry.startSpan(
+            {
+                op: 'projectService.getAvailableFiltersForSavedQuery',
+                name: 'ProjectService.getAvailableFiltersForSavedQuery',
+            },
+            async () => {
+                const [savedChart] =
+                    await this.savedChartModel.getInfoForAvailableFilters([
+                        savedChartUuid,
+                    ]);
 
-            const space = await this.spaceModel.getSpaceSummary(
-                savedChart.spaceUuid,
-            );
-
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                space.uuid,
-            );
-
-            if (
-                user.ability.cannot(
-                    'view',
-                    subject('SavedChart', {
-                        ...savedChart,
-                        isPrivate: space.isPrivate,
-                        access,
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
-
-            const explore = await this.getExplore(
-                user,
-                savedChart.projectUuid,
-                savedChart.tableName,
-            );
-
-            return getDimensions(explore).filter(
-                (field) => isFilterableDimension(field) && !field.hidden,
-            );
-        } finally {
-            span?.finish();
-        }
-    }
-
-    async getAvailableFiltersForSavedQueries(
-        user: SessionUser,
-        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
-    ): Promise<DashboardAvailableFilters> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'projectService.getAvailableFiltersForSavedQueries',
-            description: 'Gets all filters available for several queries',
-        });
-
-        let allFilters: {
-            uuid: string;
-            filters: CompiledDimension[];
-        }[] = [];
-
-        const savedQueryUuids = savedChartUuidsAndTileUuids.map(
-            ({ savedChartUuid }) => savedChartUuid,
-        );
-
-        try {
-            const savedCharts =
-                await this.savedChartModel.getInfoForAvailableFilters(
-                    savedQueryUuids,
+                const space = await this.spaceModel.getSpaceSummary(
+                    savedChart.spaceUuid,
                 );
-            const uniqueSpaceUuids = [
-                ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
-            ];
-            const exploreCacheKeys: Record<string, boolean> = {};
-            const exploreCache: Record<string, Explore> = {};
 
-            const explorePromises = savedCharts.reduce<
-                Promise<{ key: string; explore: Explore }>[]
-            >((acc, chart) => {
-                const key = chart.tableName;
-                if (!exploreCacheKeys[key]) {
-                    acc.push(
-                        this.getExplore(user, chart.projectUuid, key).then(
-                            (explore) => ({ key, explore }),
-                        ),
-                    );
-                    exploreCacheKeys[key] = true;
-                }
-                return acc;
-            }, []);
-
-            const [spaceAccessMap, resolvedExplores] = await Promise.all([
-                this.spaceModel.getSpacesForAccessCheck(uniqueSpaceUuids),
-                Promise.all(explorePromises),
-            ]);
-
-            resolvedExplores.forEach(({ key, explore }) => {
-                exploreCache[key] = explore;
-            });
-
-            const filterPromises = savedCharts.map(async (savedChart) => {
-                const spaceAccess = spaceAccessMap.get(savedChart.spaceUuid);
                 const access = await this.spaceModel.getUserSpaceAccess(
                     user.userUuid,
-                    savedChart.spaceUuid,
+                    space.uuid,
                 );
 
                 if (
@@ -2722,27 +2671,111 @@ export class ProjectService extends BaseService {
                         'view',
                         subject('SavedChart', {
                             ...savedChart,
-                            isPrivate: spaceAccess?.isPrivate,
+                            isPrivate: space.isPrivate,
                             access,
                         }),
                     )
                 ) {
-                    return { uuid: savedChart.uuid, filters: [] };
+                    throw new ForbiddenError();
                 }
 
-                const explore = exploreCache[savedChart.tableName];
-
-                const filters = getDimensions(explore).filter(
-                    (field) => isFilterableDimension(field) && !field.hidden,
+                const explore = await this.getExplore(
+                    user,
+                    savedChart.projectUuid,
+                    savedChart.tableName,
                 );
 
-                return { uuid: savedChart.uuid, filters };
-            });
+                return getDimensions(explore).filter(
+                    (field) => isFilterableDimension(field) && !field.hidden,
+                );
+            },
+        );
+    }
 
-            allFilters = await Promise.all(filterPromises);
-        } finally {
-            span?.finish();
-        }
+    async getAvailableFiltersForSavedQueries(
+        user: SessionUser,
+        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    ): Promise<DashboardAvailableFilters> {
+        let allFilters: {
+            uuid: string;
+            filters: CompiledDimension[];
+        }[] = [];
+
+        allFilters = await Sentry.startSpan(
+            {
+                op: 'projectService.getAvailableFiltersForSavedQueries',
+                name: 'ProjectService.getAvailableFiltersForSavedQueries',
+            },
+            async () => {
+                const savedQueryUuids = savedChartUuidsAndTileUuids.map(
+                    ({ savedChartUuid }) => savedChartUuid,
+                );
+
+                const savedCharts =
+                    await this.savedChartModel.getInfoForAvailableFilters(
+                        savedQueryUuids,
+                    );
+                const uniqueSpaceUuids = [
+                    ...new Set(savedCharts.map((chart) => chart.spaceUuid)),
+                ];
+
+                if (savedCharts.length === 0) {
+                    return [];
+                }
+
+                const [spaceAccessMap, exploresMap, userSpacesAccess] =
+                    await Promise.all([
+                        this.spaceModel.getSpacesForAccessCheck(
+                            uniqueSpaceUuids,
+                        ),
+                        this.findExplores({
+                            user,
+                            projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                            exploreNames: savedCharts.map(
+                                (chart) => chart.tableName,
+                            ),
+                            organizationUuid: user.organizationUuid,
+                        }),
+                        this.spaceModel.getUserSpacesAccess(
+                            user.userUuid,
+                            uniqueSpaceUuids,
+                        ),
+                    ]);
+
+                return savedCharts.map((savedChart) => {
+                    const spaceAccess = spaceAccessMap.get(
+                        savedChart.spaceUuid,
+                    );
+
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('SavedChart', {
+                                ...savedChart,
+                                isPrivate: spaceAccess?.isPrivate,
+                                access:
+                                    userSpacesAccess[savedChart.spaceUuid] ??
+                                    [],
+                            }),
+                        )
+                    ) {
+                        return { uuid: savedChart.uuid, filters: [] };
+                    }
+
+                    const explore = exploresMap[savedChart.tableName];
+
+                    let filters: CompiledDimension[] = [];
+                    if (explore && !isExploreError(explore)) {
+                        filters = getDimensions(explore).filter(
+                            (field) =>
+                                isFilterableDimension(field) && !field.hidden,
+                        );
+                    }
+
+                    return { uuid: savedChart.uuid, filters };
+                });
+            },
+        );
 
         const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
@@ -3078,29 +3111,24 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
 
-        const allowedSpacesBooleans = await Promise.all(
-            spaces.map(
-                async (space) =>
+        const allowedSpaceUuids = spaces
+            .filter(
+                (space) =>
                     space.projectUuid === projectUuid &&
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
+                        spacesAccess[space.uuid] ?? [],
                     ),
-            ),
-        );
+            )
+            .map(({ uuid }) => uuid);
 
-        const allowedSpaces = spaces.filter(
-            (_, index) => allowedSpacesBooleans[index],
-        );
-
-        return this.spaceModel.getSpaceQueries(
-            allowedSpaces.map((s) => s.uuid),
-        );
+        return this.spaceModel.getSpaceQueries(allowedSpaceUuids);
     }
 
     async getChartSummaries(
@@ -3120,29 +3148,26 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+        );
 
-        const allowedSpacesBooleans = await Promise.all(
-            spaces.map(
-                async (space) =>
+        const allowedSpaceUuids = spaces
+            .filter(
+                (space) =>
                     space.projectUuid === projectUuid &&
                     hasViewAccessToSpace(
                         user,
                         space,
-                        await this.spaceModel.getUserSpaceAccess(
-                            user.userUuid,
-                            space.uuid,
-                        ),
+                        spacesAccess[space.uuid] ?? [],
                     ),
-            ),
-        );
-
-        const allowedSpaces = spaces.filter(
-            (_, index) => allowedSpacesBooleans[index],
-        );
+            )
+            .map((space) => space.uuid);
 
         return this.savedChartModel.find({
             projectUuid,
-            spaceUuids: allowedSpaces.map((s) => s.uuid),
+            spaceUuids: allowedSpaceUuids,
         });
     }
 
@@ -3246,29 +3271,21 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-
-        const spacesWithUserAccess = await Promise.all(
-            spaces.map(async (spaceSummary) => {
-                const [userAccess] = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    spaceSummary.uuid,
-                );
-                return {
-                    ...spaceSummary,
-                    userAccess,
-                };
-            }),
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
         );
 
-        const allowedSpaces = spacesWithUserAccess.filter((space) =>
-            hasViewAccessToSpace(
-                user,
-                space,
-                space.userAccess ? [space.userAccess] : [],
-            ),
-        );
+        const spacesWithUserAccess = spaces
+            .filter((space) =>
+                hasViewAccessToSpace(user, space, spacesAccess[space.uuid]),
+            )
+            .map((spaceSummary) => ({
+                ...spaceSummary,
+                userAccess: spacesAccess[spaceSummary.uuid]?.[0] ?? [],
+            }));
 
-        return allowedSpaces;
+        return spacesWithUserAccess;
     }
 
     async copyContentOnPreview(
@@ -3286,21 +3303,16 @@ export class ProjectService extends BaseService {
             },
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
-                const allowedSpacesBooleans = await Promise.all(
-                    spaces.map(async (space) =>
-                        hasViewAccessToSpace(
-                            user,
-                            space,
-                            await this.spaceModel.getUserSpaceAccess(
-                                user.userUuid,
-                                space.uuid,
-                            ),
-                        ),
-                    ),
+                const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                    user.userUuid,
+                    spaces.map((s) => s.uuid),
                 );
-
-                const allowedSpaces = spaces.filter(
-                    (_, index) => allowedSpacesBooleans[index],
+                const allowedSpaces = spaces.filter((space) =>
+                    hasViewAccessToSpace(
+                        user,
+                        space,
+                        spacesAccess[space.uuid] ?? [],
+                    ),
                 );
 
                 await this.projectModel.duplicateContent(
@@ -3758,259 +3770,5 @@ export class ProjectService extends BaseService {
 
             return metrics;
         }, []);
-    }
-
-    async promoteChart(user: SessionUser, chartUuid: string) {
-        const checkPermissions = async (
-            organizationUuid: string,
-            projectUuid: string,
-            spaceSummary: Omit<SpaceSummary, 'userAccess'> | undefined,
-            context: string,
-            fromProjectUuid: string, // for analytics
-            toProjectUuid?: string, // for analytics
-        ) => {
-            // If space is undefined, we only check the org/project access, we will create the chart in a new accessible space
-            const userDontHaveAccess = spaceSummary
-                ? user.ability.cannot(
-                      'promote',
-                      subject('SavedChart', {
-                          organizationUuid,
-                          projectUuid,
-                          isPrivate: spaceSummary.isPrivate,
-                          access: await this.spaceModel.getUserSpaceAccess(
-                              user.userUuid,
-                              spaceSummary.uuid,
-                          ),
-                      }),
-                  )
-                : user.ability.cannot(
-                      'promote',
-                      subject('SavedChart', {
-                          organizationUuid,
-                          projectUuid,
-                      }),
-                  ) ||
-                  user.ability.cannot(
-                      'create',
-                      subject('Space', { organizationUuid, projectUuid }),
-                  );
-
-            if (userDontHaveAccess) {
-                this.analytics.track({
-                    event: 'promote.error',
-                    userId: user.userUuid,
-                    properties: {
-                        chartId: chartUuid,
-                        fromProjectId: fromProjectUuid,
-                        toProjectId: toProjectUuid,
-                        organizationId: organizationUuid,
-                        error: `Permission error on ${context}`,
-                    },
-                });
-
-                throw new ForbiddenError(
-                    `You don't have the right access permissions on ${context} to promote this chart.`,
-                );
-            }
-        };
-
-        const promotedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-        );
-        const { organizationUuid, projectUuid } = promotedChart;
-        if (promotedChart.dashboardUuid)
-            throw new ParameterError(
-                `We can't promote charts within dashboards`,
-            );
-        const space = await this.spaceModel.getSpaceSummary(
-            promotedChart.spaceUuid,
-        );
-
-        if (space.isPrivate) {
-            throw new ParameterError(
-                `We can't promote charts from private spaces`,
-            );
-        }
-
-        await checkPermissions(
-            organizationUuid,
-            projectUuid,
-            space,
-            'this chart and project',
-            projectUuid,
-            undefined,
-        );
-
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-
-        if (!upstreamProjectUuid)
-            throw new NotFoundError(
-                'This chart does not have an upstream project',
-            );
-
-        const existingUpstreamCharts = await this.savedChartModel.find({
-            projectUuid: upstreamProjectUuid,
-            slug: promotedChart.slug,
-        });
-
-        if (existingUpstreamCharts.length === 0) {
-            // There are no chart with the same slug, we create the chart, and the space if needed
-            // We only check the org/project access, we will create a new space if needed
-            await checkPermissions(
-                organizationUuid,
-                upstreamProjectUuid,
-                undefined,
-                'the upstream project',
-                projectUuid,
-                upstreamProjectUuid,
-            );
-
-            let newSpaceUuid: string;
-            const existingSpace = await this.spaceModel.find({
-                projectUuid: upstreamProjectUuid,
-                slug: space.slug,
-            });
-            if (existingSpace.length === 0) {
-                // We have 0 or more than 1 space with the same slug
-                await checkPermissions(
-                    organizationUuid,
-                    upstreamProjectUuid,
-                    undefined, // we also check here if user can create spaces in the upstream project
-                    'the upstream project',
-                    projectUuid,
-                    upstreamProjectUuid,
-                );
-                // We create a new space
-                const newSpace = await this.spaceModel.createSpace(
-                    upstreamProjectUuid,
-                    space.name,
-                    user.userId,
-                    space.isPrivate,
-                    space.slug,
-                );
-                newSpaceUuid = newSpace.uuid;
-            } else if (existingSpace.length === 1) {
-                // We have an existing space with the same slug
-                await checkPermissions(
-                    organizationUuid,
-                    upstreamProjectUuid,
-                    existingSpace[0],
-                    'the upstream space and project',
-                    projectUuid,
-                    upstreamProjectUuid,
-                );
-                newSpaceUuid = existingSpace[0].uuid;
-            } else {
-                // Multiple spaces with the same slug
-                throw new AlreadyExistsError(
-                    `There are multiple spaces with the same identifier ${space.slug}`,
-                );
-            }
-
-            // Create new chart
-            const newChartData: CreateSavedChart & {
-                slug: string;
-                updatedByUser: UpdatedByUser;
-            } = {
-                ...promotedChart,
-                dashboardUuid: undefined, // We don't copy charts within dashboards
-                spaceUuid: newSpaceUuid,
-                updatedByUser: promotedChart.updatedByUser!,
-                slug: promotedChart.slug,
-            };
-            const newChart = await this.savedChartModel.create(
-                upstreamProjectUuid,
-                user.userUuid,
-                newChartData,
-            );
-
-            this.analytics.track({
-                event: 'promote.execute',
-                userId: user.userUuid,
-                properties: {
-                    chartId: chartUuid,
-                    fromProjectId: projectUuid,
-                    toProjectId: upstreamProjectUuid,
-                    organizationId: organizationUuid,
-                    slug: promotedChart.slug,
-                    hasExistingContent: false,
-                    withNewSpace: existingSpace.length !== 1,
-                },
-            });
-
-            return newChart;
-        }
-        if (existingUpstreamCharts.length === 1) {
-            // We override existing chart details
-            const upstreamChart = existingUpstreamCharts[0];
-            const upstreamSpace = await this.spaceModel.getSpaceSummary(
-                upstreamChart.spaceUuid,
-            );
-
-            await checkPermissions(
-                organizationUuid,
-                upstreamProjectUuid,
-                upstreamSpace,
-                'the upstream chart and project',
-
-                projectUuid,
-                upstreamProjectUuid,
-            );
-            if (
-                upstreamChart.name !== promotedChart.name ||
-                upstreamChart.description !== promotedChart.description
-            ) {
-                // We also update chart name and description if they have changed
-                await this.savedChartModel.update(upstreamChart.uuid, {
-                    name: promotedChart.name,
-                    description: promotedChart.description,
-                });
-            }
-
-            const updatedChart = await this.savedChartModel.createVersion(
-                upstreamChart.uuid,
-                {
-                    tableName: promotedChart.tableName,
-                    metricQuery: promotedChart.metricQuery,
-                    chartConfig: promotedChart.chartConfig,
-                    tableConfig: promotedChart.tableConfig,
-                },
-                user,
-            );
-            this.analytics.track({
-                event: 'promote.execute',
-                userId: user.userUuid,
-                properties: {
-                    chartId: chartUuid,
-                    fromProjectId: projectUuid,
-                    toProjectId: upstreamProjectUuid,
-                    organizationId: organizationUuid,
-                    slug: promotedChart.slug,
-                    hasExistingContent: true,
-                },
-            });
-
-            return updatedChart;
-        }
-
-        this.analytics.track({
-            event: 'promote.error',
-            userId: user.userUuid,
-            properties: {
-                chartId: chartUuid,
-                fromProjectId: projectUuid,
-                toProjectId: upstreamProjectUuid,
-                organizationId: organizationUuid,
-                slug: promotedChart.slug,
-                error: `There are multiple charts with the same identifier`,
-            },
-        });
-        // Multiple charts with the same slug
-        throw new AlreadyExistsError(
-            `There are multiple charts with the same identifier ${promotedChart.slug}`,
-        );
     }
 }

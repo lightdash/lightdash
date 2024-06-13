@@ -34,6 +34,8 @@ type SchedulerClientArguments = {
     schedulerModel: SchedulerModel;
 };
 
+const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
+
 export const getDailyDatesFromCron = (
     cron: string,
     when = new Date(),
@@ -132,12 +134,21 @@ export class SchedulerClient {
                   schedulerUuid,
               }
             : scheduler;
+
+        let maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS;
+        if (
+            scheduler.format === SchedulerFormat.IMAGE &&
+            !!scheduler.dashboardUuid
+        ) {
+            maxAttempts = SCHEDULED_JOB_MAX_ATTEMPTS + 1;
+        }
+
         const { id } = await graphileClient.addJob(
             'handleScheduledDelivery',
             payload,
             {
                 runAt: date,
-                maxAttempts: 1,
+                maxAttempts,
             },
         );
         await this.schedulerModel.logSchedulerJob({
@@ -175,7 +186,7 @@ export class SchedulerClient {
 
         const { id } = await graphileClient.addJob('uploadGsheets', payload, {
             runAt: date,
-            maxAttempts: 1,
+            maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
         });
         this.analytics.track({
             event: 'scheduler_notification_job.created',
@@ -255,7 +266,7 @@ export class SchedulerClient {
         const { identifier, payload, type } = getIdentifierAndPayload();
         const { id } = await graphileClient.addJob(identifier, payload, {
             runAt: date,
-            maxAttempts: 1,
+            maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
         });
         this.analytics.track({
             event: 'scheduler_notification_job.created',
@@ -364,7 +375,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: now, // now
-                maxAttempts: 1,
+                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
             },
         );
         await this.schedulerModel.logSchedulerJob({
@@ -391,7 +402,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: now,
-                maxAttempts: 1,
+                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
             },
         );
         await this.schedulerModel.logSchedulerJob({
@@ -418,7 +429,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: now,
-                maxAttempts: 1,
+                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
             },
         );
         await this.schedulerModel.logSchedulerJob({
@@ -445,7 +456,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: now, // now
-                maxAttempts: 1,
+                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
             },
         );
         await this.schedulerModel.logSchedulerJob({
@@ -474,7 +485,7 @@ export class SchedulerClient {
             payload,
             {
                 runAt: now, // now
-                maxAttempts: 1,
+                maxAttempts: SCHEDULED_JOB_MAX_ATTEMPTS,
             },
         );
         await this.schedulerModel.logSchedulerJob({

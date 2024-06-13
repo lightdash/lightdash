@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
@@ -28,7 +29,18 @@ const Catalog: FC = () => {
                     maxWidth: 800,
                 }}
             >
-                <CatalogPanel />
+                <Box
+                    sx={
+                        isSidebarOpen
+                            ? {
+                                  overflowY: 'scroll',
+                                  maxHeight: 'calc(100vh - 100px)',
+                              }
+                            : {}
+                    }
+                >
+                    <CatalogPanel />
+                </Box>
             </Page>
         </CatalogProvider>
     );

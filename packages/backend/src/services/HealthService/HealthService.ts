@@ -42,15 +42,19 @@ export class HealthService extends BaseService {
     async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
 
-        const { isComplete, currentVersion } =
+        const { status: migrationStatus, currentVersion } =
             await this.migrationModel.getMigrationStatus();
 
-        if (!isComplete) {
+        if (migrationStatus < 0) {
             throw new UnexpectedDatabaseError(
                 'Database has not been migrated yet',
                 { currentVersion },
             );
-        }
+        } else if (migrationStatus > 0) {
+            console.warn(
+                `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
+            );
+        } // else migrationStatus === 0 (all migrations are up to date)
 
         const requiresOrgRegistration =
             !(await this.organizationModel.hasOrgs());
@@ -73,6 +77,9 @@ export class HealthService extends BaseService {
                 frontend: this.lightdashConfig.sentry.frontend,
                 environment: this.lightdashConfig.sentry.environment,
                 release: this.lightdashConfig.sentry.release,
+                tracesSampleRate: this.lightdashConfig.sentry.tracesSampleRate,
+                profilesSampleRate:
+                    this.lightdashConfig.sentry.profilesSampleRate,
             },
             intercom: this.lightdashConfig.intercom,
             pylon: {
