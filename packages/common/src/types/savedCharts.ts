@@ -639,8 +639,3 @@ export type ApiCalculateTotalResponse = {
     status: 'ok';
     results: Record<string, number>;
 };
-
-export type ApiPromoteChartResponse = {
-    status: 'ok';
-    results: SavedChartDAO;
-};
