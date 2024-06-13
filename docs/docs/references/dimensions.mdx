@@ -5,7 +5,7 @@ import PieChartColor from './assets/pie-chart-color.png';
 
 Dimensions are the columns in your table. They are the "attributes" of your data. For example, `user_id` in your users table is a dimension.
 
-Dimensions match 1:1 with columns in your dbt models.
+Dimensions usually match 1:1 with columns in your dbt models (see [additional dimensions](#additional-dimensions) for counterexamples).
 
 ---
 
@@ -446,20 +446,22 @@ FROM "postgres"."jaffle"."orders" AS "orders"
 
 ## Additional dimensions
 
-Additional dimensions let you define multiple dimensions off of a single column from your dbt model. This is useful when handling JSONB
-columns, adding different formatting options to a column, or creating persisted groups/buckets based off of a column.
+Additional dimensions let you define multiple dimensions off of a single column from your dbt model. This is useful when [adding different formatting](#adding-different-formatting) to a column, [comparing or combining columns](#comparing-or-combining-columns), [parsing JSON
+columns](#parsing-json-columns), or creating persisted groups/buckets based off of a column.
 
-A "normal" dimension is a column created in your .sql file in dbt that is written to/stored in your data warehouse.
-An additional dimension is not included in your dbt .sql file, so it's not written to/stored in your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
+A "normal" dimension is a column created in your .sql file in dbt that is written to your data warehouse.
+An additional dimension is not included in your dbt .sql file, so it's not written to your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
 
 All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
-dimensions.
+dimensions. You can also [use additional dimensions when defining metrics](#using-additional-dimensions-in-metrics).
 
 :::info
 
 Additional dimensions names need to be unique in the model.
 
 :::
+
+### Adding different formatting
 
 ```yaml
 columns:
@@ -474,7 +476,35 @@ columns:
         revenue_in_millions:
           type: number
           compact: million
+```
 
+### Comparing or combining columns
+
+When defining additional dimensions, you can also reference other dimensions, even from joined tables (`organizations` is a joined table in the example below).
+
+```yaml
+columns:
+  - name: created_date
+    meta:
+      dimension:
+        type: date
+      additional_dimensions:
+        days_to_first_query_run:
+          type: number
+          description: 'Number of days between a user being created and their first query run.'
+          sql: ${first_query_date} - ${created_date}
+        days_to_organization_first_payment:
+          type: number
+          description: 'Number of days between a user being created and their organization making its first payment. This will be negative for users who joined after the first payment.'
+          sql: ${created_date} - ${organizations.first_payment_date}
+```
+
+### Parsing JSON columns
+
+Usually you'll want to add `hidden:true` for the main JSON dimension since raw JSON is not useful in charts.
+
+```yaml
+columns:
   - name: metadata # this is a jsonb column with metadata
     meta:
       dimension:
@@ -485,7 +515,9 @@ columns:
           sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
 ```
 
-To define metrics based on a sub-dimension, you need to add them to the model's meta metrics, or use custom SQL in
+### Using additional dimensions in metrics
+
+To define metrics based on additional dimensions, you need to add them to the model's meta metrics, or use custom SQL in
 defining them under the column's meta.
 
 ```yaml
