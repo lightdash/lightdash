@@ -1,3 +1,15 @@
+# [0.1130.0](https://github.com/lightdash/lightdash/compare/0.1129.1...0.1130.0) (2024-06-13)
+
+
+### Bug Fixes
+
+* join notification channel on settings change ([#10386](https://github.com/lightdash/lightdash/issues/10386)) ([c3bee5c](https://github.com/lightdash/lightdash/commit/c3bee5c7e2d2dac87e87bac9275cc98afbd334af))
+
+
+### Features
+
+* promote diff and confirm dialog ([#10366](https://github.com/lightdash/lightdash/issues/10366)) ([16e71f8](https://github.com/lightdash/lightdash/commit/16e71f8cde73ee92f7f08061a6fa78ac5ec0188a))
+
 ## [0.1129.1](https://github.com/lightdash/lightdash/compare/0.1129.0...0.1129.1) (2024-06-12)
 
 
