@@ -1,3 +1,4 @@
+import { DashboardTileTypes } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -24,6 +25,7 @@ const projectModel = {};
 const savedChartModel = {
     get: jest.fn(async () => promotedChart.chart),
     find: jest.fn(async () => [existingUpstreamChart.chart]),
+    create: jest.fn(async () => existingUpstreamChart.chart),
 };
 
 const spaceModel = {
@@ -399,8 +401,10 @@ describe('PromoteService dashboard changes', () => {
             spaceSlug: promotedChartWithinDashboard.space.slug,
             spaceUuid: promotedChartWithinDashboard.space.uuid,
             projectUuid: missingUpstreamDashboard.projectUuid,
-            dashboardUuid: promotedDashboard.dashboard.uuid,
-            dashboardName: promotedDashboard.dashboard.name,
+            dashboardUuid:
+                promotedDashboardWithChartWithinDashboard.dashboard.uuid,
+            dashboardName:
+                promotedDashboardWithChartWithinDashboard.dashboard.name,
         });
     });
 });
@@ -565,5 +569,74 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(newChanges.charts[0].data.dashboardUuid).toEqual(
             existingUpstreamDashboard.dashboard?.uuid,
         );
+    });
+
+    test('create charts returns no changes if no chart is created', async () => {
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboard,
+                missingUpstreamDashboard,
+            );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.charts[0].action).toBe('no changes');
+
+        expect(changes.charts[0].data.uuid).toEqual(
+            existingUpstreamChart.chart?.uuid,
+        );
+        const newChanges = await service.upsertCharts(user, changes);
+
+        expect(dashboardModel.create).toHaveBeenCalledTimes(0);
+
+        expect(newChanges.charts[0].data.uuid).toEqual(
+            existingUpstreamChart.chart?.uuid,
+        );
+    });
+
+    test('create charts and update dashboard tile uuids if a new chart created', async () => {
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => promotedChartWithinDashboard.chart,
+        );
+        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        const createdChart = {
+            ...promotedChartWithinDashboard.chart,
+            uuid: 'new-chart-uuid',
+        };
+
+        (savedChartModel.create as jest.Mock).mockImplementationOnce(
+            async () => createdChart,
+        );
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboardWithChartWithinDashboard,
+                missingUpstreamDashboard,
+            );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.dashboards[0].action).toBe('create');
+
+        expect(changes.charts[0].data.uuid).toEqual(
+            promotedChartWithinDashboard.chart?.uuid,
+        );
+        const tile = changes.dashboards[0].data.tiles[0];
+        expect(
+            tile.type === DashboardTileTypes.SAVED_CHART &&
+                tile.properties.savedChartUuid,
+        ).toEqual(promotedChartWithinDashboard.chart?.uuid);
+        const newChanges = await service.upsertCharts(user, changes);
+
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+
+        expect(newChanges.charts[0].data.uuid).toEqual(createdChart.uuid);
+
+        const newTile = newChanges.dashboards[0].data.tiles[0];
+        expect(
+            newTile.type === DashboardTileTypes.SAVED_CHART &&
+                newTile.properties.savedChartUuid,
+        ).toEqual(createdChart.uuid);
     });
 });

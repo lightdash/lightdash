@@ -202,8 +202,8 @@ export const promotedChartWithinDashboard: PromotedChart = {
     chart: {
         ...promotedChart.chart,
         uuid: 'promoted-chart-within-dashboard-uuid',
-        dashboardUuid: promotedDashboard.dashboard.uuid,
-        dashboardName: promotedDashboard.dashboard.name,
+        dashboardUuid: 'promoted-dashboard-with-chart-within-dashboard-uuid',
+        dashboardName: 'dashboard with chart within dashboard',
     },
 };
 export const dashboardChartWithinDashboardTile: DashboardChartTile = {
@@ -219,6 +219,8 @@ export const promotedDashboardWithChartWithinDashboard = {
     ...promotedDashboard,
     dashboard: {
         ...promotedDashboard.dashboard,
+        name: 'dashboard with chart within dashboard',
+        uuid: 'promoted-dashboard-with-chart-within-dashboard-uuid',
         tiles: [dashboardChartWithinDashboardTile],
     },
 };
