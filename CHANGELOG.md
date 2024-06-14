@@ -1,3 +1,10 @@
+# [0.1132.0](https://github.com/lightdash/lightdash/compare/0.1131.3...0.1132.0) (2024-06-14)
+
+
+### Features
+
+* model required filters ([#10338](https://github.com/lightdash/lightdash/issues/10338)) ([2fb9b18](https://github.com/lightdash/lightdash/commit/2fb9b188f4e7041daea634a8b74d08c9a28497ce))
+
 ## [0.1131.3](https://github.com/lightdash/lightdash/compare/0.1131.2...0.1131.3) (2024-06-14)
 
 
