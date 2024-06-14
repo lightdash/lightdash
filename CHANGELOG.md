@@ -1,3 +1,10 @@
+## [0.1133.5](https://github.com/lightdash/lightdash/compare/0.1133.4...0.1133.5) (2024-06-14)
+
+
+### Bug Fixes
+
+* reset required filter rules mutation ([#10428](https://github.com/lightdash/lightdash/issues/10428)) ([1c67a2a](https://github.com/lightdash/lightdash/commit/1c67a2a011e77c170e6134ceda99979cbf880cbc))
+
 ## [0.1133.4](https://github.com/lightdash/lightdash/compare/0.1133.3...0.1133.4) (2024-06-14)
 
 
