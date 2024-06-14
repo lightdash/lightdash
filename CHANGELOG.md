@@ -1,3 +1,10 @@
+## [0.1133.4](https://github.com/lightdash/lightdash/compare/0.1133.3...0.1133.4) (2024-06-14)
+
+
+### Bug Fixes
+
+* copy dashboard tabs ([#10410](https://github.com/lightdash/lightdash/issues/10410)) ([b4324e3](https://github.com/lightdash/lightdash/commit/b4324e351578648132595e8c58a8fec43ac749ec))
+
 ## [0.1133.3](https://github.com/lightdash/lightdash/compare/0.1133.2...0.1133.3) (2024-06-14)
 
 
