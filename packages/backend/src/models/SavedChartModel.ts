@@ -1094,7 +1094,7 @@ export class SavedChartModel {
         spaceUuids?: string[];
         slug?: string;
         exploreName?: string;
-    }): Promise<ChartSummary[]> {
+    }): Promise<(ChartSummary & { updatedAt: Date })[]> {
         return Sentry.startSpan(
             {
                 op: 'SavedChartModel.find',
@@ -1154,6 +1154,7 @@ export class SavedChartModel {
                 chartKind: 'saved_queries.last_version_chart_kind',
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
+                updatedAt: `saved_queries.last_version_updated_at`,
             })
             .leftJoin(
                 DashboardsTableName,
