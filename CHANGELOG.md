@@ -1,3 +1,10 @@
+## [0.1131.2](https://github.com/lightdash/lightdash/compare/0.1131.1...0.1131.2) (2024-06-14)
+
+
+### Bug Fixes
+
+* remove otel and initiliaze sentry as early as possible ([#10403](https://github.com/lightdash/lightdash/issues/10403)) ([6af8798](https://github.com/lightdash/lightdash/commit/6af8798f3c2aa4b30686bba9090b798ab26ef4f5))
+
 ## [0.1131.1](https://github.com/lightdash/lightdash/compare/0.1131.0...0.1131.1) (2024-06-14)
 
 
