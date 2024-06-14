@@ -64,7 +64,12 @@ const FiltersCard: FC = memo(() => {
             );
             // We update the existing filter group with the required filters
             // If the required filter has been removed from the metadata model we remove the required flag from the filter
-            resetRequiredFilterRules(allFilter, allFilterRefs);
+            const updatedFilters = resetRequiredFilterRules(
+                allFilter,
+                allFilterRefs,
+            );
+
+            return updatedFilters;
         }
     };
     const updateDimensionFiltersWithRequiredFilters = (
@@ -106,7 +111,13 @@ const FiltersCard: FC = memo(() => {
         let unsavedQueryFilters =
             context.state.unsavedChartVersion.metricQuery.filters;
         // Refresh the required filters property as the required filters can change when the table dbt metadata changes
-        refreshRequiredFiltersProperty(unsavedQueryFilters.dimensions);
+        const resetDimensionFilters = refreshRequiredFiltersProperty(
+            unsavedQueryFilters.dimensions,
+        );
+        unsavedQueryFilters = {
+            ...unsavedQueryFilters,
+            dimensions: resetDimensionFilters,
+        };
         // Update the dimension filters with the required filters
         // (we add the required filters to the unsavedQueryFilters if they are not already there)
         unsavedQueryFilters =

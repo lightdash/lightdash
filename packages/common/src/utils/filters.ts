@@ -849,27 +849,41 @@ export const reduceRequiredDimensionFiltersToFilterRules = (
 export const resetRequiredFilterRules = (
     filterGroup: FilterGroup,
     requiredFiltersRef: string[],
-) => {
+): FilterGroup => {
     // Check if the input is a valid filter group
-    if (isFilterGroup(filterGroup)) {
-        const items = isAndFilterGroup(filterGroup)
-            ? filterGroup.and
-            : filterGroup.or;
+    if (!isFilterGroup(filterGroup)) return filterGroup;
 
-        // Iterate over each item in the filter group
-        for (let i = 0; i < items.length; i += 1) {
-            const item = items[i];
-            // If the item is a filter rule, check if its id is not in the required filters reference
-            if (
-                isFilterRule(item) &&
-                !requiredFiltersRef.includes(item.target.fieldId)
-            ) {
-                // Mark the filter rule as not required
-                item.required = false;
-                // If the item is a nested filter group, recursively call the function
-            } else if (isFilterGroup(item)) {
-                resetRequiredFilterRules(item, requiredFiltersRef);
-            }
+    const filterGroupItems = isAndFilterGroup(filterGroup)
+        ? filterGroup.and
+        : filterGroup.or;
+
+    // Iterate over each item in the filter group
+    const updatedItems = filterGroupItems.map((filterGroupItem) => {
+        // If the item is a filter rule, check if its id is not in the required filters reference
+        if (
+            isFilterRule(filterGroupItem) &&
+            !requiredFiltersRef.includes(filterGroupItem.target.fieldId)
+        ) {
+            // Mark the filter rule as not required
+            const newFilterRule: FilterGroupItem = {
+                ...filterGroupItem,
+                required: false,
+            };
+            return newFilterRule;
         }
-    }
+        // If the item is a nested filter group, recursively call the function
+        if (isFilterGroup(filterGroupItem)) {
+            return resetRequiredFilterRules(
+                filterGroupItem,
+                requiredFiltersRef,
+            );
+        }
+
+        return filterGroupItem;
+    });
+
+    return {
+        ...filterGroup,
+        [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems,
+    };
 };

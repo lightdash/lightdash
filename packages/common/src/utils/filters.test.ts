@@ -227,10 +227,10 @@ describe('resetRequiredFilterRules', () => {
                 expectedRequiredResult('mockFieldRef2', 'table'),
             ],
         };
-        resetRequiredFilterRules(filterGroup, [
+        const newFilterRules = resetRequiredFilterRules(filterGroup, [
             'table_mockFieldRef1',
             'someOther',
         ]);
-        expect(filterGroup).toEqual(expectedRequiredResetResult);
+        expect(newFilterRules).toEqual(expectedRequiredResetResult);
     });
 });
