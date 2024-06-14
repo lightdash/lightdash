@@ -9,7 +9,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             <LoginLanding />
         </Stack>
     ) : (
-        <Page title="Login" withCenteredContent>
+        <Page title="Login" withCenteredContent withNavbar={false}>
             <Stack w={400} mt="4xl">
                 <LoginLanding />
             </Stack>
