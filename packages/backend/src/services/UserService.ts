@@ -58,7 +58,7 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { postHogClient } from '../postHog';
-import { wrapOtelSpan } from '../utils';
+import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
 
 type UserServiceArguments = {
@@ -1183,12 +1183,16 @@ export class UserService extends BaseService {
     }
 
     async findSessionUser(passportUser: { id: string; organization: string }) {
-        const user = await wrapOtelSpan('Passport.deserializeUser', {}, () =>
-            this.userModel.findSessionUserAndOrgByUuid(
-                passportUser.id,
-                passportUser.organization,
-            ),
+        const user = await wrapSentryTransaction(
+            'Passport.deserializeUser',
+            {},
+            () =>
+                this.userModel.findSessionUserAndOrgByUuid(
+                    passportUser.id,
+                    passportUser.organization,
+                ),
         );
+
         return user;
     }
 

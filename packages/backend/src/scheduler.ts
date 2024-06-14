@@ -1,10 +1,7 @@
-// organize-imports-ignore
-// eslint-disable-next-line import/order
-import otelSdk from './otel'; // must be imported first
 import { lightdashConfig } from './config/lightdashConfig';
+import knexConfig from './knexfile';
 import Logger from './logging/logger';
 import SchedulerApp from './SchedulerApp';
-import knexConfig from './knexfile';
 
 process
     .on('unhandledRejection', (reason, p) => {
@@ -22,7 +19,6 @@ if (process.env.CI !== 'true') {
             process.env.NODE_ENV === 'development'
                 ? 'development'
                 : 'production',
-        otelSdk,
         knexConfig,
     });
     schedulerApp.start().catch((e) => {

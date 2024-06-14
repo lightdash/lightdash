@@ -1,5 +1,4 @@
 import { ParameterError, SshKeyPair, validateEmail } from '@lightdash/common';
-import { Attributes, Span, SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { CustomSamplingContext } from '@sentry/types';
 import { generateKeyPair } from 'crypto';
@@ -12,7 +11,6 @@ import {
     DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
-import { serverTracer } from './otel';
 
 export const sanitizeStringParam = (value: any) => {
     if (!value || typeof value !== 'string') {
@@ -44,28 +42,10 @@ export const isDbPinnedDashboard = (
 export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
     'space_uuid' in data && !!data.space_uuid;
 
-export const wrapOtelSpan = async <T>(
-    name: string,
-    attributes: Attributes,
-    f: (span: Span) => Promise<T>,
-): Promise<T> =>
-    serverTracer.startActiveSpan(name, async (span) => {
-        span.setAttributes(attributes);
-        try {
-            return await f(span);
-        } catch (error) {
-            span.recordException(error);
-            span.setStatus({ code: SpanStatusCode.ERROR });
-            throw error;
-        } finally {
-            span.end();
-        }
-    });
-
 export const wrapSentryTransaction = <T>(
     name: string,
     context: CustomSamplingContext,
-    funct: () => Promise<T>,
+    funct: (span: Sentry.Span) => Promise<T>,
 ): Promise<T> => {
     const startTime = Date.now();
 
@@ -83,7 +63,7 @@ export const wrapSentryTransaction = <T>(
             );
 
             try {
-                return await funct();
+                return await funct(span);
             } catch (error) {
                 Logger.error(
                     `Error in wrapped sentry transaction ${
@@ -105,25 +85,16 @@ export const wrapSentryTransaction = <T>(
 };
 
 export function runWorkerThread<T>(worker: Worker): Promise<T> {
-    return wrapOtelSpan(
-        'Utils.runWorkerThread',
-        {},
-        async () =>
-            new Promise((resolve, reject) => {
-                worker.on('message', resolve);
-                worker.on('error', reject);
-                worker.on('exit', (code) => {
-                    if (code !== 0) {
-                        Logger.error(
-                            `Worker thread stopped with exit code ${code}`,
-                        );
-                        reject(
-                            new Error(`Worker stopped with exit code ${code}`),
-                        );
-                    }
-                });
-            }),
-    );
+    return new Promise((resolve, reject) => {
+        worker.on('message', resolve);
+        worker.on('error', reject);
+        worker.on('exit', (code) => {
+            if (code !== 0) {
+                Logger.error(`Worker thread stopped with exit code ${code}`);
+                reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+        });
+    });
 }
 
 export const generateOpenSshKeyPair = async (): Promise<SshKeyPair> =>

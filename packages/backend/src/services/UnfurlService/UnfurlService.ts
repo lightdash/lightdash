@@ -10,7 +10,6 @@ import {
     SessionUser,
     snakeCaseName,
 } from '@lightdash/common';
-import opentelemetry, { SpanStatusCode, ValueType } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
@@ -31,28 +30,9 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
-import { VERSION } from '../../version';
+import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
-
-const meter = opentelemetry.metrics.getMeter('lightdash-worker', VERSION);
-const tracer = opentelemetry.trace.getTracer('lightdash-worker', VERSION);
-const taskDurationHistogram = meter.createHistogram<{
-    error: boolean;
-}>('screenshot.duration_ms', {
-    description: 'Duration of taking screenshot in milliseconds',
-    unit: 'milliseconds',
-});
-
-const chartCounter = meter.createObservableUpDownCounter<{
-    errors: number;
-    timeout: boolean;
-    organization_uuid: string;
-}>('screenshot.chart.count', {
-    description: 'Total number of chart requests on an unfurl job',
-    valueType: ValueType.INT,
-});
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -431,8 +411,9 @@ export class UnfurlService extends BaseService {
         // eslint-disable-next-line no-param-reassign
         retries -= 1;
 
-        return tracer.startActiveSpan(
+        return wrapSentryTransaction(
             'UnfurlService.saveScreenshot',
+            {},
             async (span) => {
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
@@ -605,14 +586,6 @@ export class UnfurlService extends BaseService {
                         });
                     }
 
-                    chartCounter.addCallback(async (result) => {
-                        result.observe(chartRequests, {
-                            errors: chartRequestErrors,
-                            timeout,
-                            organization_uuid: organizationUuid || 'undefined',
-                        });
-                    });
-
                     span.setAttributes({
                         'chart.requests.total': chartRequests,
                         'chart.requests.error': chartRequestErrors,
@@ -657,7 +630,7 @@ export class UnfurlService extends BaseService {
                         this.logger.info(
                             `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
                         );
-                        span.recordException(e);
+                        span.addEvent(e);
                         span.setAttributes({
                             'page.type': lightdashPage,
                             url,
@@ -669,7 +642,7 @@ export class UnfurlService extends BaseService {
                             custom_width: `${gridWidth}`,
                         });
                         span.setStatus({
-                            code: SpanStatusCode.ERROR,
+                            code: 2, // Error
                         });
 
                         return await this.saveScreenshotWithPlaywright({
@@ -690,7 +663,7 @@ export class UnfurlService extends BaseService {
 
                     Sentry.captureException(e);
                     hasError = true;
-                    span.recordException(e);
+                    span.addEvent(e);
                     span.setAttributes({
                         'page.type': lightdashPage,
                         url,
@@ -701,7 +674,7 @@ export class UnfurlService extends BaseService {
                         custom_width: `${gridWidth}`,
                     });
                     span.setStatus({
-                        code: SpanStatusCode.ERROR,
+                        code: 2, // Error
                     });
 
                     this.logger.error(
@@ -718,9 +691,6 @@ export class UnfurlService extends BaseService {
                     this.logger.info(
                         `UnfurlService saveScreenshot took ${executionTime} ms`,
                     );
-                    taskDurationHistogram.record(executionTime, {
-                        error: hasError,
-                    });
                 }
             },
         );
@@ -765,8 +735,9 @@ export class UnfurlService extends BaseService {
         // eslint-disable-next-line no-param-reassign
         retries -= 1;
 
-        return tracer.startActiveSpan(
+        return wrapSentryTransaction(
             'UnfurlService.saveScreenshot',
+            {},
             async (span) => {
                 let browser: Browser | undefined;
                 let page: Page | undefined;
@@ -923,14 +894,6 @@ export class UnfurlService extends BaseService {
                     const box = await element.boundingBox();
                     const pageMetrics = await page.metrics();
 
-                    chartCounter.addCallback(async (result) => {
-                        result.observe(chartRequests, {
-                            errors: chartRequestErrors,
-                            timeout,
-                            organization_uuid: organizationUuid || 'undefined',
-                        });
-                    });
-
                     span.setAttributes({
                         'page.width': box?.width,
                         'page.height': box?.height,
@@ -983,7 +946,7 @@ export class UnfurlService extends BaseService {
                         this.logger.info(
                             `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
                         );
-                        span.recordException(e);
+                        span.addEvent(e);
                         span.setAttributes({
                             'page.type': lightdashPage,
                             url,
@@ -995,7 +958,7 @@ export class UnfurlService extends BaseService {
                             custom_width: `${gridWidth}`,
                         });
                         span.setStatus({
-                            code: SpanStatusCode.ERROR,
+                            code: 2, // Error
                         });
 
                         return await this.saveScreenshot({
@@ -1015,7 +978,7 @@ export class UnfurlService extends BaseService {
 
                     Sentry.captureException(e);
                     hasError = true;
-                    span.recordException(e);
+                    span.addEvent(e);
                     span.setAttributes({
                         'page.type': lightdashPage,
                         url,
@@ -1026,7 +989,7 @@ export class UnfurlService extends BaseService {
                         custom_width: `${gridWidth}`,
                     });
                     span.setStatus({
-                        code: SpanStatusCode.ERROR,
+                        code: 2, // Error
                     });
 
                     this.logger.error(
@@ -1043,9 +1006,6 @@ export class UnfurlService extends BaseService {
                     this.logger.info(
                         `UnfurlService saveScreenshot took ${executionTime} ms`,
                     );
-                    taskDurationHistogram.record(executionTime, {
-                        error: hasError,
-                    });
                 }
             },
         );
