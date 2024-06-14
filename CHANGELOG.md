@@ -1,3 +1,10 @@
+## [0.1133.3](https://github.com/lightdash/lightdash/compare/0.1133.2...0.1133.3) (2024-06-14)
+
+
+### Bug Fixes
+
+* join dashboards when getting charts for validation ([#10420](https://github.com/lightdash/lightdash/issues/10420)) ([d5cee3f](https://github.com/lightdash/lightdash/commit/d5cee3fcbc9488a24103743aaad1770051ff4ad9))
+
 ## [0.1133.2](https://github.com/lightdash/lightdash/compare/0.1133.1...0.1133.2) (2024-06-14)
 
 
