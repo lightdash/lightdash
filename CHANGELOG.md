@@ -1,3 +1,11 @@
+## [0.1133.1](https://github.com/lightdash/lightdash/compare/0.1133.0...0.1133.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* custom dimension edit re run query ([#10413](https://github.com/lightdash/lightdash/issues/10413)) ([1e45aac](https://github.com/lightdash/lightdash/commit/1e45aac3be5cb36e6d0463be9726586baaaf5213))
+* date dimension groups ([#10409](https://github.com/lightdash/lightdash/issues/10409)) ([bf31092](https://github.com/lightdash/lightdash/commit/bf3109237c1c027688554501c7f6e2edc28a55a9))
+
 # [0.1133.0](https://github.com/lightdash/lightdash/compare/0.1132.0...0.1133.0) (2024-06-14)
 
 
