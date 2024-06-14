@@ -187,7 +187,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
             query = await session.query(alteredQuery);
 
-            const queryResult = await query.next();
+            let queryResult = await query.next();
 
             if (queryResult.value.error) {
                 throw new WarehouseQueryError(
@@ -196,13 +196,20 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 );
             }
 
-            const result: QueryData = queryResult.value.data ?? [];
-
+            let result: QueryData = [];
             const schema: {
                 name: string;
                 type: string;
                 typeSignature: { rawType: string };
             }[] = queryResult.value.columns ?? [];
+
+            // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
+            // This maintains order and data integrity.
+            while (!queryResult.done) {
+                result = result.concat(queryResult.value.data ?? []);
+                // eslint-disable-next-line no-await-in-loop
+                queryResult = await query.next();
+            }
 
             const fields = schema.reduce(
                 (acc, column) => ({
