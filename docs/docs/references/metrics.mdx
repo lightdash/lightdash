@@ -528,23 +528,24 @@ columns:
 
 ### Available filter types
 
-| Type                        | Example (in English)                           | Example (as code)        |
-| --------------------------- | ---------------------------------------------- | ------------------------ |
-| is                          | User name is equal to katie                    | `user_name: "katie"`     |
-| is not                      | User name is not equal to katie                | `user_name: "!katie"`    |
-| contains                    | User name contains katie                       | `user_name: "%katie%"`   |
-| does not contain            | User name does not contain katie               | `user_name: "!%katie%"`  |
-| starts with                 | User name starts with katie                    | `user_name: "katie%"`    |
-| ends with                   | User name ends with katie                      | `user_name: "%katie"`    |
-| is greater than (number)    | Number of orders is greater than 4             | `num_orders: "> 4"`      |
-| is greater than (date)      | Date is after 2024-05-01                       | `date: "> '2024-05-01'"` |
-| is greater than or equal to | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`     |
-| is less than                | Number of orders is less than 4                | `num_orders: "< 4"`      |
-| is less than or equal to    | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`     |
-| is null                     | Status is `NULL`                               | `status: "null"`         |
-| is not null                 | Status is not `NULL`                           | `status: "!null"`        |
-| is [boolean]                | Is complete is true                            | `is_complete: "true"`    |
-| is not [boolean]            | Is complete is false or null                   | `is_complete: "!true"`   |
+| Type                          | Example (in English)                           | Example (as code)             |
+| ----------------------------- | ---------------------------------------------- | ----------------------------- |
+| is                            | User name is equal to katie                    | `user_name: "katie"`          |
+| is not                        | User name is not equal to katie                | `user_name: "!katie"`         |
+| contains                      | User name contains katie                       | `user_name: "%katie%"`        |
+| does not contain              | User name does not contain katie               | `user_name: "!%katie%"`       |
+| starts with                   | User name starts with katie                    | `user_name: "katie%"`         |
+| ends with                     | User name ends with katie                      | `user_name: "%katie"`         |
+| is greater than (number)      | Number of orders is greater than 4             | `num_orders: "> 4"`           |
+| in the past (date) (interval) | Date is before x (days / months / years)       | `date: "inThePast 14 months"` |
+| in the next (date) (interval) | Date is after x (days / months / years)        | `date: "inTheNext 14 days"`   |
+| is greater than or equal to   | Number of orders is greater than or equal to 4 | `num_orders: ">= 4"`          |
+| is less than                  | Number of orders is less than 4                | `num_orders: "< 4"`           |
+| is less than or equal to      | Number of orders is less than or equal to 4    | `num_orders: "<= 4"`          |
+| is null                       | Status is `NULL`                               | `status: "null"`              |
+| is not null                   | Status is not `NULL`                           | `status: "!null"`             |
+| is [boolean]                  | Is complete is true                            | `is_complete: "true"`         |
+| is not [boolean]              | Is complete is false or null                   | `is_complete: "!true"`        |
 
 :::info
 

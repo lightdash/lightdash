@@ -1,18 +1,24 @@
 import { ConditionalOperator } from '../types/conditionalRule';
+import { type Table } from '../types/explore';
 import {
     CustomDimensionType,
     DimensionType,
+    FieldType,
     type CustomSqlDimension,
+    type Dimension,
 } from '../types/field';
 import {
     FilterOperator,
     type AndFilterGroup,
     type DashboardFilters,
+    type FilterGroup,
     type FilterRule,
     type Filters,
+    type MetricFilterRule,
     type OrFilterGroup,
 } from '../types/filter';
 import type { MetricQuery } from '../types/metricQuery';
+import { OrderFieldsByStrategy } from '../types/table';
 
 export const chartAndFilterGroup: AndFilterGroup = {
     id: 'fillter-group-1',
@@ -231,4 +237,104 @@ export const expectedFiltersWithCustomSqlDimension: Filters = {
         ],
         id: 'uuid',
     },
+};
+
+export const expectedRequiredResult = (
+    fieldIdRef: string,
+    tableName: String,
+): FilterRule => ({
+    id: 'uuid',
+    target: {
+        fieldId: `${tableName}_${fieldIdRef}`,
+    },
+    operator: FilterOperator.IN_THE_NEXT,
+    values: [14],
+    settings: {
+        unitOfTime: 'years',
+    },
+    required: true,
+});
+
+export const dimension = (
+    dimensionName: string,
+    tableName: string,
+): Dimension => ({
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: dimensionName,
+    isIntervalBase: false,
+    timeInterval: undefined,
+    label: 'mockLabel',
+    table: tableName,
+    tableLabel: 'mockTableLabel',
+    sql: 'mockSql',
+    hidden: false,
+});
+
+export const filterRule: FilterRule = {
+    id: 'mockId',
+    target: {
+        fieldId: 'mockFieldId',
+    },
+    operator: FilterOperator.IN_THE_NEXT,
+    values: ['mockValue1', 'mockValue2'],
+};
+
+export const metricFilterRule = (inputFieldRef: string): MetricFilterRule => ({
+    id: 'uuid',
+    operator: FilterOperator.IN_THE_NEXT,
+    settings: {
+        unitOfTime: 'years',
+    },
+    target: {
+        fieldRef: inputFieldRef,
+    },
+    values: [14],
+});
+
+export const baseTable: Omit<Table, 'lineageGraph'> = {
+    name: 'table',
+    label: 'My table',
+    database: 'database',
+    schema: 'schema',
+    sqlTable: '',
+    description: '',
+    sqlWhere: undefined,
+    requiredAttributes: undefined,
+    dimensions: {},
+    metrics: {},
+    orderFieldsBy: OrderFieldsByStrategy.LABEL,
+    requiredFilters: [],
+    groupLabel: undefined,
+    groupDetails: {},
+};
+
+export const expectedRequiredResetResult: FilterGroup = {
+    id: 'uuidGroup',
+    and: [
+        {
+            id: 'uuid',
+            target: {
+                fieldId: 'table_mockFieldRef1',
+            },
+            operator: ConditionalOperator.IN_THE_NEXT,
+            values: [14],
+            required: true,
+            settings: {
+                unitOfTime: 'years',
+            },
+        },
+        {
+            id: 'uuid',
+            target: {
+                fieldId: 'table_mockFieldRef2',
+            },
+            operator: ConditionalOperator.IN_THE_NEXT,
+            values: [14],
+            required: false,
+            settings: {
+                unitOfTime: 'years',
+            },
+        },
+    ],
 };
