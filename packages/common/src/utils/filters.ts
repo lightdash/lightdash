@@ -882,7 +882,8 @@ export const resetRequiredFilterRules = (
         return filterGroupItem;
     });
 
-    return isAndFilterGroup(filterGroup)
-        ? { ...filterGroup, and: updatedItems }
-        : { ...filterGroup, or: updatedItems };
+    return {
+        ...filterGroup,
+        [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems
+    }
 };
