@@ -274,7 +274,7 @@ export default class App {
             'https://*.sentry.io',
             'https://analytics.lightdash.com',
             'https://*.usepylon.com',
-            'wss://ws-us3.pusher.com', // used by pylon
+            'wss://*.pusher.com', // used by pylon
             'https://*.headwayapp.co',
             'https://headway-widget.net',
             'https://*.posthog.com',
