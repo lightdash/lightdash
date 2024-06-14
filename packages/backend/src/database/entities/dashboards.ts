@@ -108,3 +108,25 @@ type DbDashboardTileMarkdowns = {
 
 export type DashboardTileMarkdownsTable =
     Knex.CompositeTableType<DbDashboardTileMarkdowns>;
+
+export type DbDashboardTabs = {
+    name: string;
+    uuid: string;
+    dashboard_id: number;
+    dashboard_version_id: number;
+    order: number;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type CreateDashboardTabs = Omit<
+    DbDashboardTabs,
+    'uuid' | 'created_at' | 'updated_at'
+> & { uuid?: string };
+export type UpdateDashboardTabs = Omit<DbDashboardTabs, 'uuid' | 'created_at'>;
+
+export type DashboardTabsTable = Knex.CompositeTableType<
+    DbDashboardTabs,
+    CreateDashboardTabs,
+    UpdateDashboardTabs
+>;
