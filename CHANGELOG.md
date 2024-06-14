@@ -1,3 +1,10 @@
+## [0.1131.3](https://github.com/lightdash/lightdash/compare/0.1131.2...0.1131.3) (2024-06-14)
+
+
+### Bug Fixes
+
+* footer in page component ([#10412](https://github.com/lightdash/lightdash/issues/10412)) ([1f5e0fd](https://github.com/lightdash/lightdash/commit/1f5e0fd868ff2c1194b49f418fd9208028500de3))
+
 ## [0.1131.2](https://github.com/lightdash/lightdash/compare/0.1131.1...0.1131.2) (2024-06-14)
 
 
