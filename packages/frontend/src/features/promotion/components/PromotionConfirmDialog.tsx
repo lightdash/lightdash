@@ -113,9 +113,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
     onConfirm,
     onClose,
 }) => {
-    const groupedChanges = useMemo(() => {
-        if (promotionChanges === undefined) return undefined;
-        return {
+    const { groupedChanges, totalChanges, withoutChanges } = useMemo(() => {
+        if (promotionChanges === undefined) return {};
+        const changes = {
             spaces: {
                 total: promotionChanges.spaces.filter(
                     (item) => item.action !== PromotionAction.NO_CHANGES,
@@ -159,6 +159,26 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     (item) => item.action === PromotionAction.DELETE,
                 ),
             },
+        };
+        const totalChangesNum =
+            changes.spaces.total +
+            changes.charts.total +
+            changes.dashboards.total;
+        const withoutChangesNum =
+            promotionChanges.spaces.filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            promotionChanges.dashboards.filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            promotionChanges.charts.filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length;
+
+        return {
+            groupedChanges: changes,
+            totalChanges: totalChangesNum,
+            withoutChanges: withoutChangesNum,
         };
     }, [promotionChanges]);
 
@@ -235,6 +255,18 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 />
                             </>
                         )}
+
+                        {totalChanges === 0 && (
+                            <Text color="yellow.9" fw={600}>
+                                No changes to promote
+                            </Text>
+                        )}
+                        {totalChanges !== 0 && withoutChanges > 0 && (
+                            <Text color="yellow.9" fw={600}>
+                                We only promote content that is more recent in
+                                this project.
+                            </Text>
+                        )}
                     </Stack>
                 )}
                 <Group position="right" mt="sm">
@@ -244,6 +276,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
 
                     <Button
                         color="green"
+                        disabled={totalChanges === 0}
                         onClick={() => {
                             onConfirm();
                             onClose();
