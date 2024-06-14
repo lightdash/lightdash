@@ -83,7 +83,7 @@ export class SlackClient {
                 const conversations: ConversationsListResponse =
                     // eslint-disable-next-line no-await-in-loop
                     await webClient.conversations.list({
-                        types: 'public_channel',
+                        types: 'public_channel,private_channel',
                         limit: 900,
                         cursor: nextCursor,
                     });
