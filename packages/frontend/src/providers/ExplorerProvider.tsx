@@ -1633,6 +1633,9 @@ export const ExplorerProvider: FC<
             dispatch({
                 type: ActionType.EDIT_CUSTOM_DIMENSION,
                 payload: { customDimension, previousCustomDimensionId },
+                options: {
+                    shouldFetchResults: true,
+                },
             });
             // TODO: add dispatch toggle
         },
