@@ -1,3 +1,10 @@
+## [0.1131.1](https://github.com/lightdash/lightdash/compare/0.1131.0...0.1131.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* check no_changes on promote content ([#10398](https://github.com/lightdash/lightdash/issues/10398)) ([3446c66](https://github.com/lightdash/lightdash/commit/3446c66533ee6a650a2a29341b442d08ba162bcf))
+
 # [0.1131.0](https://github.com/lightdash/lightdash/compare/0.1130.1...0.1131.0) (2024-06-13)
 
 
