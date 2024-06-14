@@ -1,7 +1,9 @@
+// organize-imports-ignore
+// eslint-disable-next-line import/order
+import './sentry'; // Sentry has to be initialized before anything else
+
 import { LightdashMode, SessionUser } from '@lightdash/common';
-import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
 import express, { Express, NextFunction, Request, Response } from 'express';
@@ -39,7 +41,6 @@ import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
 import { expressWinstonMiddleware } from './logging/winston';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { registerNodeMetrics } from './nodeMetrics';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
@@ -112,7 +113,6 @@ const slackBotFactory = (context: {
 type AppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
-    otelSdk: NodeSDK;
     environment?: 'production' | 'development';
     serviceProviders?: ServiceProviderMap;
     knexConfig: {
@@ -132,8 +132,6 @@ export default class App {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
-
-    private readonly otelSdk: NodeSDK;
 
     private readonly port: string | number;
 
@@ -155,7 +153,6 @@ export default class App {
 
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
-        this.otelSdk = args.otelSdk;
         this.port = args.port;
         this.environment = args.environment || 'production';
         this.analytics = new LightdashAnalytics({
@@ -210,24 +207,25 @@ export default class App {
     }
 
     async start() {
-        // NOTE: Sentry must be initialized as soon as possible before any relevant initialization - express, knex, etc.
-        this.initSentry();
-
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
             return this.toString();
         };
 
-        if (this.environment !== 'development') {
-            App.initNodeProcessMonitor();
-        }
-
         const expressApp = express();
 
         // Slack must be initialized before our own middleware / routes, which cause the slack app to fail
         this.initSlack(expressApp).catch((e) => {
             Logger.error('Error starting slack bot', e);
+        });
+
+        Sentry.setTags({
+            k8s_pod_name: this.lightdashConfig.k8s.podName,
+            k8s_pod_namespace: this.lightdashConfig.k8s.podNamespace,
+            k8s_node_name: this.lightdashConfig.k8s.nodeName,
+            lightdash_cloud_instance:
+                this.lightdashConfig.lightdashCloudInstance,
         });
 
         // Load Lightdash middleware/routes last
@@ -552,76 +550,6 @@ export default class App {
         await slackBot.start(expressApp);
     }
 
-    private initSentry() {
-        Sentry.init({
-            release: VERSION,
-            dsn: this.lightdashConfig.sentry.backend.dsn,
-            environment:
-                this.environment === 'development'
-                    ? 'development'
-                    : this.lightdashConfig.mode,
-            integrations: [
-                Sentry.httpIntegration({ breadcrumbs: true }),
-                Sentry.expressIntegration(),
-                Sentry.postgresIntegration(),
-                nodeProfilingIntegration(),
-                ...(this.lightdashConfig.sentry.anr.enabled
-                    ? [
-                          Sentry.anrIntegration({
-                              pollInterval: 50, // ms
-                              anrThreshold:
-                                  this.lightdashConfig.sentry.anr.timeout ||
-                                  5000, // ms
-                              captureStackTrace:
-                                  this.lightdashConfig.sentry.anr
-                                      .captureStacktrace,
-                          }),
-                      ]
-                    : []),
-            ],
-            ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
-            tracesSampler: (context) => {
-                if (
-                    context.request?.url?.endsWith('/status') ||
-                    context.request?.url?.endsWith('/health') ||
-                    context.request?.url?.endsWith('/favicon.ico') ||
-                    context.request?.url?.endsWith('/robots.txt') ||
-                    context.request?.url?.endsWith('livez') ||
-                    context.request?.headers?.['user-agent']?.includes(
-                        'GoogleHC',
-                    )
-                ) {
-                    return 0.0;
-                }
-                if (context.parentSampled !== undefined) {
-                    return context.parentSampled;
-                }
-                return this.lightdashConfig.sentry.tracesSampleRate;
-            },
-            profilesSampleRate: this.lightdashConfig.sentry.profilesSampleRate, // x% of samples will be profiled
-            beforeBreadcrumb(breadcrumb) {
-                if (
-                    breadcrumb.category === 'http' &&
-                    breadcrumb?.data?.url &&
-                    new URL(breadcrumb?.data.url).host ===
-                        new URL('https://hub.docker.com').host
-                ) {
-                    return null;
-                }
-                return breadcrumb;
-            },
-        });
-
-        // Set k8s tags for Sentry
-        Sentry.setTags({
-            k8s_pod_name: this.lightdashConfig.k8s.podName,
-            k8s_pod_namespace: this.lightdashConfig.k8s.podNamespace,
-            k8s_node_name: this.lightdashConfig.k8s.nodeName,
-            lightdash_cloud_instance:
-                this.lightdashConfig.lightdashCloudInstance,
-        });
-    }
-
     private initSchedulerWorker() {
         this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
@@ -635,11 +563,6 @@ export default class App {
         this.schedulerWorker.run().catch((e) => {
             Logger.error('Error starting scheduler worker', e);
         });
-    }
-
-    static initNodeProcessMonitor() {
-        // Monitor Node.js process with opentelemetry
-        registerNodeMetrics();
     }
 
     async stop() {
@@ -657,14 +580,6 @@ export default class App {
                 Logger.info('Stopped PostHog Client');
             } catch (e) {
                 Logger.error('Error stopping PostHog Client', e);
-            }
-        }
-        if (this.otelSdk) {
-            try {
-                await this.otelSdk.shutdown();
-                Logger.info('Stopped OpenTelemetry SDK');
-            } catch (e) {
-                Logger.error('Error stopping OpenTelemetry SDK', e);
             }
         }
     }
