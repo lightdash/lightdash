@@ -163,7 +163,9 @@ This defined `required_filters` will be replaced by any user-defined filter on t
 
 This is particularly useful when you want to enforce a default filter to save on query time and potential warehouse costs.
 
-> **Note**: A required filter's field reference can't be changed, but its operator(is/is not,etc) and value can be changed when querying the table.
+:::info
+A required filter's field reference can't be changed, but its operator(is, is not, etc.) and value can be changed when querying the table.
+:::
 
 For example, the defined `required_filters` on the date Dimension will be in place unless there is another user-defined filter on the date Dimension when querying the orders table, like this:
 
