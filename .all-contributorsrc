@@ -1395,6 +1395,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "jpetey75",
+      "name": "Jake Peterson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5532776?v=4",
+      "profile": "https://github.com/jpetey75",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
