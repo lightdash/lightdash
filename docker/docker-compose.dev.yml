@@ -61,20 +61,3 @@ services:
     restart: always
     ports:
       - "3001:3000"
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.50
-    restart: always
-    ports:
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "4317:4317"
-      - "4318:4318"
-      - "14250:14250"
-      - "14268:14268"
-      - "14269:14269"
-      - "9411:9411"
-    environment:
-      COLLECTOR_ZIPKIN_HOST_PORT: 9411

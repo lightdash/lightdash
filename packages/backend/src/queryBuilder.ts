@@ -4,6 +4,8 @@ import {
     CompiledCustomSqlDimension,
     CompiledDimension,
     CompiledMetricQuery,
+    CompiledTable,
+    createFilterRuleFromRequiredMetricRule,
     CustomBinDimension,
     CustomDimension,
     DbtModelJoinType,
@@ -28,7 +30,9 @@ import {
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isFilterGroup,
+    isFilterRuleInQuery,
     ItemsMap,
+    MetricFilterRule,
     parseAllReferences,
     renderFilterRuleSql,
     renderTableCalculationFilterRuleSql,
@@ -998,6 +1002,52 @@ export const buildQuery = ({
         return undefined;
     };
 
+    const getNestedDimensionFilterSQLFromModelFilters = (
+        table: CompiledTable,
+        dimensionsFilterGroup: FilterGroup | undefined,
+    ): string | undefined => {
+        const modelFilterRules: MetricFilterRule[] | undefined =
+            table.requiredFilters;
+        if (!modelFilterRules) return undefined;
+
+        const reducedRules: string[] = modelFilterRules.reduce<string[]>(
+            (acc, filter) => {
+                const filterRule = createFilterRuleFromRequiredMetricRule(
+                    filter,
+                    table.name,
+                );
+                const dimension = Object.values(table.dimensions).find(
+                    (tc) => getItemId(tc) === filterRule.target.fieldId,
+                );
+
+                if (!dimension) return acc;
+                if (
+                    isFilterRuleInQuery(
+                        dimension,
+                        filterRule,
+                        dimensionsFilterGroup,
+                    )
+                )
+                    return acc;
+
+                const filterString = `( ${sqlFilterRule(
+                    filterRule,
+                    FieldType.DIMENSION,
+                )} )`;
+                return [...acc, filterString];
+            },
+            [],
+        );
+
+        return reducedRules.join(' AND ');
+    };
+
+    const requiredDimensionFilterSql =
+        getNestedDimensionFilterSQLFromModelFilters(
+            explore.tables[explore.baseTable],
+            filters.dimensions,
+        );
+
     const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
 
     const tableSqlWhere = baseTableSqlWhere
@@ -1015,8 +1065,15 @@ export const buildQuery = ({
         filters.dimensions,
         FieldType.DIMENSION,
     );
+    const requiredFiltersWhere = requiredDimensionFilterSql
+        ? [requiredDimensionFilterSql]
+        : [];
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
-    const allSqlFilters = [...tableSqlWhere, ...nestedFilterWhere];
+    const allSqlFilters = [
+        ...tableSqlWhere,
+        ...nestedFilterWhere,
+        ...requiredFiltersWhere,
+    ];
 
     const sqlWhere =
         allSqlFilters.length > 0 ? `WHERE ${allSqlFilters.join(' AND ')}` : '';

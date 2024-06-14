@@ -70,7 +70,7 @@ import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
-import { wrapOtelSpan, wrapSentryTransaction } from '../../utils';
+import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     convertExploresToCatalog,
@@ -380,7 +380,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
               }
         )[];
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectModel.getWithSensitiveFields',
             {},
             async () => {
@@ -637,7 +637,7 @@ export class ProjectModel {
         projectUuid: string,
         exploreNames?: string[],
     ): Promise<Record<string, Explore | ExploreError>> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectModel.findExploresFromCache',
             {
                 projectUuid,
@@ -670,7 +670,7 @@ export class ProjectModel {
         projectUuid: string,
         exploreName: string,
     ): Promise<Explore | ExploreError> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectModel.getExploreFromCache',
             {},
             async (span) => {
@@ -707,7 +707,7 @@ export class ProjectModel {
         projectUuid: string,
         tableName: string,
     ): Promise<Explore | ExploreError | undefined> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectModel.findExploreByTableName',
             {},
             async (span) => {
@@ -854,7 +854,7 @@ export class ProjectModel {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<DbCachedExplores> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
             async () => {

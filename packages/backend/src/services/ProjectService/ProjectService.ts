@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
-    AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -20,7 +19,6 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
-    CreateSavedChart,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -86,7 +84,6 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
-    UpdatedByUser,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -97,7 +94,6 @@ import {
     type ApiCreateProjectResults,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
-import opentelemetry, { SpanStatusCode } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as yaml from 'js-yaml';
@@ -130,11 +126,7 @@ import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
-import {
-    runWorkerThread,
-    wrapOtelSpan,
-    wrapSentryTransaction,
-} from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -1399,7 +1391,7 @@ export class ProjectService extends BaseService {
         explore?: Explore;
         granularity?: DateGranularity;
     }): Promise<ApiQueryResults> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
             {},
             async (span) => {
@@ -1429,41 +1421,30 @@ export class ProjectService extends BaseService {
                 }
 
                 // If there are more than 500 rows, we need to format them in a background job
-                const formattedRows = await wrapOtelSpan(
+                const formattedRows = await wrapSentryTransaction<ResultRow[]>(
                     'ProjectService.runQueryAndFormatRows.formatRows',
                     {
                         rows: rows.length,
                         warehouse: warehouseConnection?.type,
                     },
-                    async (formatRowsSpan) =>
-                        wrapSentryTransaction<ResultRow[]>(
-                            'ProjectService.runQueryAndFormatRows.formatRows',
-                            {
-                                rows: rows.length,
-                                warehouse: warehouseConnection?.type,
-                            },
-                            async () => {
-                                const useWorker = rows.length > 500;
-                                formatRowsSpan.setAttribute(
-                                    'useWorker',
-                                    useWorker,
-                                );
+                    async (formatRowsSpan) => {
+                        const useWorker = rows.length > 500;
+                        formatRowsSpan.setAttribute('useWorker', useWorker);
 
-                                return useWorker
-                                    ? runWorkerThread<ResultRow[]>(
-                                          new Worker(
-                                              './dist/services/ProjectService/formatRows.js',
-                                              {
-                                                  workerData: {
-                                                      rows,
-                                                      itemMap: fields,
-                                                  },
-                                              },
-                                          ),
-                                      )
-                                    : formatRows(rows, fields);
-                            },
-                        ),
+                        return useWorker
+                            ? runWorkerThread<ResultRow[]>(
+                                  new Worker(
+                                      './dist/services/ProjectService/formatRows.js',
+                                      {
+                                          workerData: {
+                                              rows,
+                                              itemMap: fields,
+                                          },
+                                      },
+                                  ),
+                              )
+                            : formatRows(rows, fields);
+                    },
                 );
 
                 return {
@@ -1523,7 +1504,7 @@ export class ProjectService extends BaseService {
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
     }> {
-        return wrapOtelSpan(
+        return wrapSentryTransaction(
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
@@ -1587,7 +1568,7 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Run query against warehouse warehouse with timezone ${metricQuery.timezone}`,
                 );
-                const warehouseResults = await wrapOtelSpan(
+                const warehouseResults = await wrapSentryTransaction(
                     'runWarehouseQuery',
                     {
                         query,
@@ -1652,9 +1633,9 @@ export class ProjectService extends BaseService {
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
     }> {
-        const tracer = opentelemetry.trace.getTracer('default');
-        return tracer.startActiveSpan(
+        return wrapSentryTransaction(
             'ProjectService.runMetricQuery',
+            {},
             async (span) => {
                 try {
                     if (!isUserWithOrg(user)) {
@@ -1850,7 +1831,7 @@ export class ProjectService extends BaseService {
                     return { rows, cacheMetadata, fields };
                 } catch (e) {
                     span.setStatus({
-                        code: SpanStatusCode.ERROR,
+                        code: 2, // ERROR
                         message: e.message,
                     });
                     throw e;
@@ -2454,28 +2435,27 @@ export class ProjectService extends BaseService {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
             },
-            async () =>
-                wrapOtelSpan('ProjectService.getExplore', {}, async () => {
-                    const exploresMap = await this.findExplores({
-                        user,
-                        projectUuid,
-                        exploreNames: [exploreName],
-                        organizationUuid,
-                    });
-                    const explore = exploresMap[exploreName];
+            async () => {
+                const exploresMap = await this.findExplores({
+                    user,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    organizationUuid,
+                });
+                const explore = exploresMap[exploreName];
 
-                    if (!explore) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" does not exist.`,
-                        );
-                    }
-                    if (isExploreError(explore)) {
-                        throw new NotExistsError(
-                            `Explore "${exploreName}" has an error.`,
-                        );
-                    }
-                    return explore;
-                }),
+                if (!explore) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" does not exist.`,
+                    );
+                }
+                if (isExploreError(explore)) {
+                    throw new NotExistsError(
+                        `Explore "${exploreName}" has an error.`,
+                    );
+                }
+                return explore;
+            },
         );
     }
 
@@ -2494,65 +2474,61 @@ export class ProjectService extends BaseService {
             {
                 op: 'ProjectService.findExplores',
                 name: 'ProjectService.findExplores',
+                attributes: {
+                    projectUuid,
+                    exploreNames,
+                    organizationUuid,
+                },
             },
-            async () =>
-                wrapOtelSpan(
-                    'ProjectService.findExplores',
-                    {
-                        projectUuid,
-                        exploreNames,
-                        organizationUuid,
-                    },
-                    async () => {
-                        const project = organizationUuid
-                            ? { organizationUuid }
-                            : await this.projectModel.getSummary(projectUuid);
-                        if (
-                            user.ability.cannot(
-                                'view',
-                                subject('Project', {
-                                    organizationUuid: project.organizationUuid,
-                                    projectUuid,
-                                }),
-                            )
-                        ) {
-                            throw new ForbiddenError();
+
+            async () => {
+                const project = organizationUuid
+                    ? { organizationUuid }
+                    : await this.projectModel.getSummary(projectUuid);
+                if (
+                    user.ability.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                const explores = await this.projectModel.findExploresFromCache(
+                    projectUuid,
+                    exploreNames,
+                );
+
+                const userAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid: project.organizationUuid,
+                            userUuid: user.userUuid,
+                        },
+                    );
+
+                return Object.values(explores).reduce<
+                    Record<string, Explore | ExploreError>
+                >((acc, explore) => {
+                    if (isExploreError(explore)) {
+                        acc[explore.name] = explore;
+                    } else {
+                        const shouldFilterExplore =
+                            exploreHasFilteredAttribute(explore);
+                        if (!shouldFilterExplore) {
+                            acc[explore.name] = explore;
+                        } else {
+                            acc[explore.name] = getFilteredExplore(
+                                explore,
+                                userAttributes,
+                            );
                         }
-                        const explores =
-                            await this.projectModel.findExploresFromCache(
-                                projectUuid,
-                                exploreNames,
-                            );
-
-                        const userAttributes =
-                            await this.userAttributesModel.getAttributeValuesForOrgMember(
-                                {
-                                    organizationUuid: project.organizationUuid,
-                                    userUuid: user.userUuid,
-                                },
-                            );
-
-                        return Object.values(explores).reduce<
-                            Record<string, Explore | ExploreError>
-                        >((acc, explore) => {
-                            if (isExploreError(explore)) {
-                                acc[explore.name] = explore;
-                            } else {
-                                const shouldFilterExplore =
-                                    exploreHasFilteredAttribute(explore);
-                                if (!shouldFilterExplore) {
-                                    acc[explore.name] = explore;
-                                } else {
-                                    acc[explore.name] = getFilteredExplore(
-                                        explore,
-                                        userAttributes,
-                                    );
-                                }
-                            }
-                            return acc;
-                        }, {});
-                    },
-                ),
+                    }
+                    return acc;
+                }, {});
+            },
         );
     }
 

@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { type Table } from '../types/explore';
 import {
+    convertFieldRefToFieldId,
     DimensionType,
     isCustomSqlDimension,
     isDimension,
@@ -10,6 +12,7 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
+    type Dimension,
     type Field,
     type FilterableDimension,
     type FilterableField,
@@ -24,6 +27,7 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
+    isFilterRuleDefinedForFieldId,
     UnitOfTime,
     type AndFilterGroup,
     type DashboardFieldTarget,
@@ -35,6 +39,7 @@ import {
     type FilterGroupItem,
     type FilterRule,
     type Filters,
+    type MetricFilterRule,
     type OrFilterGroup,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
@@ -705,7 +710,7 @@ const getDeduplicatedFilterRules = (
     );
 };
 
-const overrideFilterGroupWithFilterRules = (
+export const overrideFilterGroupWithFilterRules = (
     filterGroup: FilterGroup | undefined,
     filterRules: FilterRule[],
 ): FilterGroup => {
@@ -779,3 +784,92 @@ export const addDashboardFiltersToMetricQuery = (
         ),
     },
 });
+
+export const createFilterRuleFromRequiredMetricRule = (
+    filter: MetricFilterRule,
+    tableName: string,
+): FilterRule => ({
+    id: filter.id,
+    target: {
+        fieldId: convertFieldRefToFieldId(filter.target.fieldRef, tableName),
+    },
+    operator: filter.operator,
+    values: filter.values,
+    ...(filter.settings?.unitOfTime && {
+        settings: {
+            unitOfTime: filter.settings.unitOfTime,
+        },
+    }),
+    required: true,
+});
+
+export const isFilterRuleInQuery = (
+    dimension: Dimension,
+    filterRule: FilterRule,
+    dimensionsFilterGroup: FilterGroup | undefined,
+): undefined | boolean => {
+    let dimensionFieldId = filterRule.target.fieldId;
+    const timeDimension =
+        dimension.isIntervalBase || dimension.timeInterval !== undefined;
+    if (!dimension.isIntervalBase && dimension.timeInterval) {
+        dimensionFieldId = dimensionFieldId.replace(
+            `_${dimension.timeInterval.toLowerCase()}`,
+            '',
+        );
+    }
+    return (
+        dimensionsFilterGroup &&
+        isFilterRuleDefinedForFieldId(
+            dimensionsFilterGroup,
+            dimensionFieldId,
+            timeDimension,
+        )
+    );
+};
+
+export const reduceRequiredDimensionFiltersToFilterRules = (
+    requiredFilters: MetricFilterRule[],
+    table: Table,
+    filters: FilterGroup | undefined,
+): FilterRule[] =>
+    requiredFilters.reduce<FilterRule[]>((acc, filter): FilterRule[] => {
+        const filterRule = createFilterRuleFromRequiredMetricRule(
+            filter,
+            table.name,
+        );
+        const dimension = Object.values(table.dimensions).find(
+            (tc) => getItemId(tc) === filterRule.target.fieldId,
+        );
+        if (dimension && !isFilterRuleInQuery(dimension, filterRule, filters)) {
+            return [...acc, filterRule];
+        }
+        return acc;
+    }, []);
+
+export const resetRequiredFilterRules = (
+    filterGroup: FilterGroup,
+    requiredFiltersRef: string[],
+) => {
+    // Check if the input is a valid filter group
+    if (isFilterGroup(filterGroup)) {
+        const items = isAndFilterGroup(filterGroup)
+            ? filterGroup.and
+            : filterGroup.or;
+
+        // Iterate over each item in the filter group
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            // If the item is a filter rule, check if its id is not in the required filters reference
+            if (
+                isFilterRule(item) &&
+                !requiredFiltersRef.includes(item.target.fieldId)
+            ) {
+                // Mark the filter rule as not required
+                item.required = false;
+                // If the item is a nested filter group, recursively call the function
+            } else if (isFilterGroup(item)) {
+                resetRequiredFilterRules(item, requiredFiltersRef);
+            }
+        }
+    }
+};
