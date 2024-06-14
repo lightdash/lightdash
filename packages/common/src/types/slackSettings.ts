@@ -18,6 +18,7 @@ export const slackRequiredScopes = [
     'chat:write.customize',
     'channels:read',
     'channels:join',
+    'groups:read',
     'users:read',
     'files:write',
     'files:read',
