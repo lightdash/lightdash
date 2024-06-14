@@ -26,7 +26,8 @@ const handleError = (err: any): ApiError => {
         error: {
             name: 'NetworkError',
             statusCode: 500,
-            message: `Could not connect to Lightdash server. The server may have crashed or be running on an incorrect host and port configuration.`,
+            message:
+                'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
             data: err,
         },
     };
