@@ -1745,7 +1745,7 @@ export class ProjectModel {
                                       )?.newId!,
                                   tab_uuid: dashboardTabsMapping.find(
                                       (m) => m.uuid === d.tab_uuid,
-                                  )?.newUuid!,
+                                  )?.newUuid,
                               })),
                           )
                           .returning('*')
