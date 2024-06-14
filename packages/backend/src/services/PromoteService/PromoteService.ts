@@ -27,27 +27,27 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 
-type PromotedChart = {
+export type PromotedChart = {
     projectUuid: string;
     chart: SavedChartDAO;
     space: Omit<SpaceSummary, 'userAccess'>; // even if chart belongs to dashboard, this is not undefined
     access: SpaceShare[];
 };
-type UpstreamChart = {
+export type UpstreamChart = {
     projectUuid: string;
     chart: (ChartSummary & { updatedAt: Date }) | undefined;
     space: Omit<SpaceSummary, 'userAccess'> | undefined;
     access: SpaceShare[];
     dashboardUuid?: string; // dashboard uuid if chart belongs to dashboard
 };
-type PromotedDashboard = {
+export type PromotedDashboard = {
     projectUuid: string;
     dashboard: DashboardDAO;
     space: Omit<SpaceSummary, 'userAccess'>;
     access: SpaceShare[];
 };
 
-type UpstreamDashboard = {
+export type UpstreamDashboard = {
     projectUuid: string;
     dashboard:
         | Pick<DashboardDAO, 'uuid' | 'name' | 'spaceUuid' | 'description'>
@@ -759,7 +759,7 @@ export class PromoteService extends BaseService {
         return space.data;
     }
 
-    private async getOrCreateDashboard(
+    async getOrCreateDashboard(
         user: SessionUser,
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {
@@ -784,6 +784,20 @@ export class PromoteService extends BaseService {
             promotedDashboard.projectUuid,
         );
 
+        // Update charts within dashboards with the new dashboard uuid
+        const updatedCharts = promotionChanges.charts.map((chartChange) => {
+            if (chartChange.data.dashboardUuid) {
+                return {
+                    ...chartChange,
+                    data: {
+                        ...chartChange.data,
+                        dashboardUuid: newDashboard.uuid,
+                    },
+                };
+            }
+            return chartChange;
+        });
+
         return {
             ...promotionChanges,
             dashboards: [
@@ -795,6 +809,7 @@ export class PromoteService extends BaseService {
                     },
                 },
             ],
+            charts: updatedCharts,
         };
     }
 
@@ -952,6 +967,7 @@ export class PromoteService extends BaseService {
                     uuid: upstreamChart.chart.uuid,
                     spaceSlug: promotedChart.space?.slug,
                     oldUuid: promotedChart.chart.uuid,
+                    projectUuid: upstreamChart.projectUuid,
                 },
             };
         }
@@ -964,7 +980,7 @@ export class PromoteService extends BaseService {
                     promotedChart.chart.dashboardUuid, // set the new space uuid after creation
                 spaceUuid:
                     upstreamChart.space?.uuid || promotedChart.space.uuid, // set the new space uuid after creation
-                projectUuid: promotedChart.projectUuid,
+                projectUuid: upstreamChart.projectUuid,
                 spaceSlug: promotedChart.space?.slug,
                 oldUuid: promotedChart.chart.uuid,
             },
@@ -1005,9 +1021,8 @@ export class PromoteService extends BaseService {
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
     ): PromotionChanges {
-        const upstreamProjectUuid = promotedChart.projectUuid;
         const spaceChange = PromoteService.getSpaceChange(
-            upstreamProjectUuid,
+            upstreamChart.projectUuid,
             promotedChart.space,
             upstreamChart.space,
         );
@@ -1056,7 +1071,7 @@ export class PromoteService extends BaseService {
 
         const chartsAndDashboardSpaces = [
             {
-                promotedSpace: upstreamDashboard.space,
+                promotedSpace: promotedDashboard.space,
                 upstreamSpace: upstreamDashboard.space,
             },
             ...charts.map(({ promotedChart, upstreamChart }) => ({
@@ -1100,6 +1115,7 @@ export class PromoteService extends BaseService {
                         uuid: upstreamDashboard.dashboard.uuid,
                         spaceUuid: upstreamDashboard.dashboard.spaceUuid,
                         spaceSlug: promotedDashboard.space?.slug,
+                        projectUuid: upstreamProjectUuid,
                     },
                 };
             }
