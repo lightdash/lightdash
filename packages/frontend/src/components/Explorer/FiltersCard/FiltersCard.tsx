@@ -46,9 +46,13 @@ const FiltersCard: FC = memo(() => {
         allFilter: FilterGroup | undefined,
     ) => {
         if (!allFilter) return;
+        // The table metadata model required filters may have been updated.
+        // We need to refresh the required filters property in the filter group to reflect any changes on the metadata model.
         if (data && data.tables[tableName]) {
             const requiredFilters =
                 data.tables[tableName].requiredFilters || [];
+            // We transform the required filters to filter rules
+            // filters is pass as undefined to guarantee all required filters are transform even if they already exist in the filter group
             const allRequiredFilters: FilterRule[] =
                 reduceRequiredDimensionFiltersToFilterRules(
                     requiredFilters,
@@ -58,6 +62,8 @@ const FiltersCard: FC = memo(() => {
             const allFilterRefs = allRequiredFilters.map(
                 (filter) => filter.target.fieldId,
             );
+            // We update the existing filter group with the required filters
+            // If the required filter has been removed from the metadata model we remove the required flag from the filter
             resetRequiredFilterRules(allFilter, allFilterRefs);
         }
     };
