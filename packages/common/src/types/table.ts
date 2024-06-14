@@ -1,3 +1,5 @@
+import { type MetricFilterRule } from './filter';
+
 export enum OrderFieldsByStrategy {
     LABEL = 'LABEL',
     INDEX = 'INDEX',
@@ -19,6 +21,7 @@ export type TableBase = {
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;
     sqlWhere?: string;
+    requiredFilters?: MetricFilterRule[];
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;

@@ -259,6 +259,7 @@ export const BASE_LIGHTDASH_TABLE: Omit<Table, 'lineageGraph'> = {
     },
     metrics: {},
     orderFieldsBy: OrderFieldsByStrategy.LABEL,
+    requiredFilters: [],
     groupLabel: undefined,
     groupDetails: {},
 };

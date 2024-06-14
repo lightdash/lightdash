@@ -46,6 +46,7 @@ export interface FilterRule<
     target: T;
     settings?: S;
     disabled?: boolean;
+    required?: boolean;
 }
 
 export interface MetricFilterRule
@@ -66,7 +67,6 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
-    required?: boolean;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -394,5 +394,41 @@ export const compressDashboardFiltersToParam = (
         }),
         { dimensions: [], metrics: [], tableCalculations: [] },
     );
+
+export const isFilterRuleDefinedForFieldId = (
+    filterGroup: FilterGroup,
+    fieldId: string,
+    isInterval: boolean = false,
+): boolean => {
+    // Check if the filter group is an 'and' or 'or' group
+    const filterGroupItems = isAndFilterGroup(filterGroup)
+        ? filterGroup.and
+        : filterGroup.or;
+
+    // If the item is a filter rule, check if its id matches the provided filter rule id
+    const isMatchingFieldId = (item: FilterGroupItem) => {
+        if (!isFilterGroup(item)) {
+            // If the item is not a filter group, check if it matches the fieldId
+            return isInterval
+                ? item.target.fieldId.startsWith(fieldId)
+                : item.target.fieldId === fieldId;
+        }
+        return false;
+    };
+    const isFilterRulePresent = (
+        item: OrFilterGroup | AndFilterGroup | FilterRule,
+    ): boolean => {
+        if (isMatchingFieldId(item)) {
+            return true;
+        }
+        if (isFilterGroup(item)) {
+            // If the item is a filter group, recursively check its items
+            return isFilterRuleDefinedForFieldId(item, fieldId, isInterval);
+        }
+        return false;
+    };
+    // If the filter rule was not found in the filter group, return false
+    return filterGroupItems.some(isFilterRulePresent);
+};
 
 export { ConditionalOperator as FilterOperator };

@@ -1,3 +1,57 @@
+# [0.1132.0](https://github.com/lightdash/lightdash/compare/0.1131.3...0.1132.0) (2024-06-14)
+
+
+### Features
+
+* model required filters ([#10338](https://github.com/lightdash/lightdash/issues/10338)) ([2fb9b18](https://github.com/lightdash/lightdash/commit/2fb9b188f4e7041daea634a8b74d08c9a28497ce))
+
+## [0.1131.3](https://github.com/lightdash/lightdash/compare/0.1131.2...0.1131.3) (2024-06-14)
+
+
+### Bug Fixes
+
+* footer in page component ([#10412](https://github.com/lightdash/lightdash/issues/10412)) ([1f5e0fd](https://github.com/lightdash/lightdash/commit/1f5e0fd868ff2c1194b49f418fd9208028500de3))
+
+## [0.1131.2](https://github.com/lightdash/lightdash/compare/0.1131.1...0.1131.2) (2024-06-14)
+
+
+### Bug Fixes
+
+* remove otel and initiliaze sentry as early as possible ([#10403](https://github.com/lightdash/lightdash/issues/10403)) ([6af8798](https://github.com/lightdash/lightdash/commit/6af8798f3c2aa4b30686bba9090b798ab26ef4f5))
+
+## [0.1131.1](https://github.com/lightdash/lightdash/compare/0.1131.0...0.1131.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* check no_changes on promote content ([#10398](https://github.com/lightdash/lightdash/issues/10398)) ([3446c66](https://github.com/lightdash/lightdash/commit/3446c66533ee6a650a2a29341b442d08ba162bcf))
+
+# [0.1131.0](https://github.com/lightdash/lightdash/compare/0.1130.1...0.1131.0) (2024-06-13)
+
+
+### Features
+
+* re-order dashboard tabs by drag and drop ([#10394](https://github.com/lightdash/lightdash/issues/10394)) ([71ead62](https://github.com/lightdash/lightdash/commit/71ead62d029d922d6e29c91a53fb6553e65b1f13))
+
+## [0.1130.1](https://github.com/lightdash/lightdash/compare/0.1130.0...0.1130.1) (2024-06-13)
+
+
+### Bug Fixes
+
+* get all explores in one query for dashboard available filters ([#10383](https://github.com/lightdash/lightdash/issues/10383)) ([d17c150](https://github.com/lightdash/lightdash/commit/d17c1502ff204c3aba21f75ee588b46c8ad7144f))
+
+# [0.1130.0](https://github.com/lightdash/lightdash/compare/0.1129.1...0.1130.0) (2024-06-13)
+
+
+### Bug Fixes
+
+* join notification channel on settings change ([#10386](https://github.com/lightdash/lightdash/issues/10386)) ([c3bee5c](https://github.com/lightdash/lightdash/commit/c3bee5c7e2d2dac87e87bac9275cc98afbd334af))
+
+
+### Features
+
+* promote diff and confirm dialog ([#10366](https://github.com/lightdash/lightdash/issues/10366)) ([16e71f8](https://github.com/lightdash/lightdash/commit/16e71f8cde73ee92f7f08061a6fa78ac5ec0188a))
+
 ## [0.1129.1](https://github.com/lightdash/lightdash/compare/0.1129.0...0.1129.1) (2024-06-12)
 
 

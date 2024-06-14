@@ -455,6 +455,7 @@ export const convertTable = (
                 : OrderFieldsByStrategy.LABEL,
         groupLabel: meta.group_label,
         sqlWhere: meta.sql_filter || meta.sql_where,
+        requiredFilters: parseFilters(meta.required_filters),
         requiredAttributes: meta.required_attributes,
         groupDetails,
     };

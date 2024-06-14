@@ -944,389 +944,92 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDbtCloudIntegration.metricsJobId_": {
-                "properties": {
-                    "metricsJobId": {
-                        "type": "string",
-                        "description": "Job id for a dbt cloud job containing a compiled dbt project with available dbt metrics"
-                    }
-                },
-                "required": ["metricsJobId"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DbtCloudIntegration": {
-                "$ref": "#/components/schemas/Pick_CreateDbtCloudIntegration.metricsJobId_",
-                "description": "Configuration for a Lightdash integration with dbt Cloud"
-            },
-            "ApiDbtCloudIntegrationSettings": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DbtCloudIntegration"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ApiDbtCloudSettingsDeleteSuccess": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "Pick_Explore.SummaryExploreFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "label", "tags"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SummaryExtraFields": {
-                "properties": {
-                    "databaseName": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    }
-                },
-                "required": ["databaseName", "schemaName"],
-                "type": "object"
-            },
-            "Pick_ExploreError.SummaryExploreErrorFields_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "errors": {
-                        "items": {
-                            "$ref": "#/components/schemas/InlineError"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["name", "label", "tags", "errors"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Partial_SummaryExtraFields_": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "schemaName": {
-                        "type": "string"
-                    },
-                    "databaseName": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "SummaryExplore": {
-                "anyOf": [
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/SummaryExtraFields"
-                            }
-                        ]
-                    },
-                    {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
-                            }
-                        ]
-                    }
-                ]
-            },
-            "ApiExploresResults": {
-                "items": {
-                    "$ref": "#/components/schemas/SummaryExplore"
-                },
-                "type": "array"
-            },
-            "OrderFieldsByStrategy": {
-                "enum": ["LABEL", "INDEX"],
+            "PromotionAction": {
+                "enum": ["no changes", "create", "update", "delete"],
                 "type": "string"
             },
-            "Record_string.GroupType_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "TableBase": {
+            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
                 "properties": {
-                    "groupDetails": {
-                        "$ref": "#/components/schemas/Record_string.GroupType_"
+                    "name": {
+                        "type": "string"
                     },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    "uuid": {
+                        "type": "string"
                     },
-                    "hidden": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isPrivate": {
                         "type": "boolean"
                     },
-                    "sqlWhere": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "orderFieldsBy": {
-                        "$ref": "#/components/schemas/OrderFieldsByStrategy"
-                    },
-                    "sqlTable": {
-                        "type": "string"
-                    },
-                    "schema": {
-                        "type": "string"
-                    },
-                    "database": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "originalName": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["sqlTable", "schema", "database", "label", "name"],
-                "type": "object"
-            },
-            "Record_string.CompiledDimension_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "Record_string.CompiledMetric_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "Record_string.LineageNodeDependency-Array_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "LineageGraph": {
-                "$ref": "#/components/schemas/Record_string.LineageNodeDependency-Array_"
-            },
-            "SourcePosition": {
-                "properties": {
-                    "character": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "line": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["character", "line"],
-                "type": "object"
-            },
-            "Source": {
-                "properties": {
-                    "content": {
-                        "type": "string"
-                    },
-                    "highlight": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "range": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["content", "range", "path"],
-                "type": "object"
-            },
-            "CompiledTable": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/TableBase"
-                    },
-                    {
-                        "properties": {
-                            "source": {
-                                "$ref": "#/components/schemas/Source"
-                            },
-                            "lineageGraph": {
-                                "$ref": "#/components/schemas/LineageGraph"
-                            },
-                            "metrics": {
-                                "$ref": "#/components/schemas/Record_string.CompiledMetric_"
-                            },
-                            "dimensions": {
-                                "$ref": "#/components/schemas/Record_string.CompiledDimension_"
-                            }
-                        },
-                        "required": ["lineageGraph", "metrics", "dimensions"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SupportedDbtAdapter": {
-                "enum": [
-                    "bigquery",
-                    "databricks",
-                    "snowflake",
-                    "redshift",
-                    "postgres",
-                    "trino"
-                ],
-                "type": "string"
-            },
-            "Explore": {
-                "properties": {
-                    "sqlPath": {
-                        "type": "string"
-                    },
-                    "ymlPath": {
-                        "type": "string"
-                    },
-                    "warehouse": {
-                        "type": "string"
-                    },
-                    "targetDatabase": {
-                        "$ref": "#/components/schemas/SupportedDbtAdapter"
-                    },
-                    "tables": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/CompiledTable"
-                        },
-                        "type": "object"
-                    },
-                    "joinedTables": {
-                        "items": {
-                            "$ref": "#/components/schemas/CompiledExploreJoin"
-                        },
-                        "type": "array"
-                    },
-                    "baseTable": {
-                        "type": "string"
-                    },
-                    "groupLabel": {
-                        "type": "string"
-                    },
-                    "tags": {
+                    "access": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     },
-                    "label": {
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
                         "type": "string"
                     },
-                    "name": {
-                        "type": "string"
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": [
-                    "targetDatabase",
-                    "tables",
-                    "joinedTables",
-                    "baseTable",
-                    "tags",
-                    "label",
-                    "name"
+                    "name",
+                    "uuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "isPrivate",
+                    "access",
+                    "pinnedListOrder",
+                    "slug",
+                    "chartCount",
+                    "dashboardCount"
                 ],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ApiExploreResults": {
-                "$ref": "#/components/schemas/Explore"
+            "Omit_SpaceSummary.userAccess_": {
+                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
-            "ApiCompiledQueryResults": {
-                "type": "string"
+            "PromotedSpace": {
+                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
+            },
+            "PromotedDashboard": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardDAO"
+                    },
+                    {
+                        "properties": {
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spaceSlug"],
+                        "type": "object"
+                    }
+                ]
             },
             "FieldId": {
                 "type": "string"
@@ -1855,6 +1558,1348 @@
                     "exploreName"
                 ],
                 "type": "object"
+            },
+            "ChartType.BIG_NUMBER": {
+                "enum": ["big_number"],
+                "type": "string"
+            },
+            "ComparisonFormatTypes": {
+                "enum": ["raw", "percentage"],
+                "type": "string"
+            },
+            "BigNumber": {
+                "properties": {
+                    "comparisonLabel": {
+                        "type": "string"
+                    },
+                    "flipColors": {
+                        "type": "boolean"
+                    },
+                    "comparisonFormat": {
+                        "$ref": "#/components/schemas/ComparisonFormatTypes"
+                    },
+                    "showComparison": {
+                        "type": "boolean"
+                    },
+                    "showBigNumberLabel": {
+                        "type": "boolean"
+                    },
+                    "selectedField": {
+                        "type": "string"
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "BigNumberConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/BigNumber"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.CARTESIAN": {
+                "enum": ["cartesian"],
+                "type": "string"
+            },
+            "Partial_CompleteCartesianChartLayout_": {
+                "properties": {
+                    "xField": {
+                        "type": "string"
+                    },
+                    "yField": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "flipAxes": {
+                        "type": "boolean"
+                    },
+                    "showGridX": {
+                        "type": "boolean"
+                    },
+                    "showGridY": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "CartesianChartLayout": {
+                "$ref": "#/components/schemas/Partial_CompleteCartesianChartLayout_"
+            },
+            "EchartsLegend": {
+                "properties": {
+                    "icon": {
+                        "type": "string",
+                        "enum": [
+                            "circle",
+                            "rect",
+                            "roundRect",
+                            "triangle",
+                            "diamond",
+                            "pin",
+                            "arrow",
+                            "none"
+                        ]
+                    },
+                    "align": {
+                        "type": "string",
+                        "enum": ["auto", "left", "right"]
+                    },
+                    "height": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "string"
+                    },
+                    "left": {
+                        "type": "string"
+                    },
+                    "bottom": {
+                        "type": "string"
+                    },
+                    "right": {
+                        "type": "string"
+                    },
+                    "top": {
+                        "type": "string"
+                    },
+                    "orient": {
+                        "type": "string",
+                        "enum": ["horizontal", "vertical"]
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["plain", "scroll"]
+                    },
+                    "show": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "EchartsGrid": {
+                "properties": {
+                    "height": {
+                        "type": "string"
+                    },
+                    "width": {
+                        "type": "string"
+                    },
+                    "left": {
+                        "type": "string"
+                    },
+                    "bottom": {
+                        "type": "string"
+                    },
+                    "right": {
+                        "type": "string"
+                    },
+                    "top": {
+                        "type": "string"
+                    },
+                    "containLabel": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "PivotValue": {
+                "properties": {
+                    "value": {},
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["value", "field"],
+                "type": "object"
+            },
+            "PivotReference": {
+                "properties": {
+                    "pivotValues": {
+                        "items": {
+                            "$ref": "#/components/schemas/PivotValue"
+                        },
+                        "type": "array"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["field"],
+                "type": "object"
+            },
+            "CartesianSeriesType": {
+                "enum": ["line", "bar", "scatter", "area"],
+                "type": "string"
+            },
+            "MarkLineData": {
+                "properties": {
+                    "dynamicValue": {
+                        "type": "string",
+                        "enum": ["average"],
+                        "nullable": false
+                    },
+                    "label": {
+                        "properties": {
+                            "position": {
+                                "type": "string",
+                                "enum": ["start", "middle", "end"]
+                            },
+                            "formatter": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "lineStyle": {
+                        "properties": {
+                            "color": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["color"],
+                        "type": "object"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "xAxis": {
+                        "type": "string"
+                    },
+                    "yAxis": {
+                        "type": "string"
+                    }
+                },
+                "required": ["uuid"],
+                "type": "object"
+            },
+            "MarkLine": {
+                "properties": {
+                    "label": {
+                        "properties": {
+                            "formatter": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "lineStyle": {
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                            "width": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "color": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type", "width", "color"],
+                        "type": "object"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/MarkLineData"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "Series": {
+                "properties": {
+                    "markLine": {
+                        "$ref": "#/components/schemas/MarkLine"
+                    },
+                    "smooth": {
+                        "type": "boolean"
+                    },
+                    "showSymbol": {
+                        "type": "boolean"
+                    },
+                    "areaStyle": {
+                        "properties": {},
+                        "type": "object"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "properties": {
+                            "position": {
+                                "type": "string",
+                                "enum": [
+                                    "left",
+                                    "top",
+                                    "right",
+                                    "bottom",
+                                    "inside"
+                                ]
+                            },
+                            "show": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "yAxisIndex": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "stackLabel": {
+                        "properties": {
+                            "show": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "stack": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CartesianSeriesType"
+                    },
+                    "encode": {
+                        "properties": {
+                            "y": {
+                                "type": "string"
+                            },
+                            "x": {
+                                "type": "string"
+                            },
+                            "yRef": {
+                                "$ref": "#/components/schemas/PivotReference"
+                            },
+                            "xRef": {
+                                "$ref": "#/components/schemas/PivotReference"
+                            }
+                        },
+                        "required": ["yRef", "xRef"],
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "encode"],
+                "type": "object"
+            },
+            "Axis": {
+                "properties": {
+                    "rotate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "inverse": {
+                        "type": "boolean"
+                    },
+                    "maxOffset": {
+                        "type": "string"
+                    },
+                    "minOffset": {
+                        "type": "string"
+                    },
+                    "max": {
+                        "type": "string"
+                    },
+                    "min": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Partial_CompleteEChartsConfig_": {
+                "properties": {
+                    "legend": {
+                        "$ref": "#/components/schemas/EchartsLegend"
+                    },
+                    "grid": {
+                        "$ref": "#/components/schemas/EchartsGrid"
+                    },
+                    "series": {
+                        "items": {
+                            "$ref": "#/components/schemas/Series"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "items": {
+                            "$ref": "#/components/schemas/Axis"
+                        },
+                        "type": "array"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "$ref": "#/components/schemas/Axis"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "EChartsConfig": {
+                "$ref": "#/components/schemas/Partial_CompleteEChartsConfig_"
+            },
+            "Record_string.SeriesMetadata_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "CartesianChart": {
+                "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
+                    "eChartsConfig": {
+                        "$ref": "#/components/schemas/EChartsConfig"
+                    },
+                    "layout": {
+                        "$ref": "#/components/schemas/CartesianChartLayout"
+                    }
+                },
+                "required": ["eChartsConfig", "layout"],
+                "type": "object"
+            },
+            "CartesianChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/CartesianChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CARTESIAN"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.CUSTOM": {
+                "enum": ["custom"],
+                "type": "string"
+            },
+            "CustomVis": {
+                "properties": {
+                    "spec": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "CustomVisConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/CustomVis"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.CUSTOM"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.PIE": {
+                "enum": ["pie"],
+                "type": "string"
+            },
+            "PieChartValueLabel": {
+                "type": "string",
+                "enum": ["hidden", "inside", "outside"],
+                "nullable": false
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.Partial_PieChartValueOptions__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "PieChartLegendPosition": {
+                "type": "string",
+                "enum": ["horizontal", "vertical"],
+                "nullable": false
+            },
+            "PieChart": {
+                "properties": {
+                    "metadata": {
+                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
+                    },
+                    "legendPosition": {
+                        "$ref": "#/components/schemas/PieChartLegendPosition"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "groupSortOverrides": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "groupValueOptionOverrides": {
+                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
+                    },
+                    "groupColorOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "groupLabelOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "showPercentage": {
+                        "type": "boolean"
+                    },
+                    "showValue": {
+                        "type": "boolean"
+                    },
+                    "valueLabel": {
+                        "$ref": "#/components/schemas/PieChartValueLabel"
+                    },
+                    "isDonut": {
+                        "type": "boolean"
+                    },
+                    "metricId": {
+                        "type": "string"
+                    },
+                    "groupFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "PieChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/PieChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.PIE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartType.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "Record_string.ColumnProperties_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ConditionalRule_ConditionalOperator.number_": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["operator", "id"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithConditionalOperator": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["values"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ConditionalFormattingConfigWithSingleColor": {
+                "properties": {
+                    "rules": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
+                        },
+                        "type": "array"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rules", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingWithRange": {
+                "properties": {
+                    "max": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "min": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["max", "min"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfigWithColorRange": {
+                "properties": {
+                    "rule": {
+                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
+                    },
+                    "color": {
+                        "properties": {
+                            "steps": {
+                                "type": "number",
+                                "enum": [5],
+                                "nullable": false
+                            },
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["steps", "end", "start"],
+                        "type": "object"
+                    },
+                    "target": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldTarget"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["rule", "color", "target"],
+                "type": "object"
+            },
+            "ConditionalFormattingConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithSingleColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithColorRange"
+                    }
+                ]
+            },
+            "TableChart": {
+                "properties": {
+                    "metricsAsRows": {
+                        "type": "boolean"
+                    },
+                    "conditionalFormattings": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConditionalFormattingConfig"
+                        },
+                        "type": "array"
+                    },
+                    "columns": {
+                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
+                    },
+                    "showSubtotals": {
+                        "type": "boolean"
+                    },
+                    "showResultsTotal": {
+                        "type": "boolean"
+                    },
+                    "hideRowNumbers": {
+                        "type": "boolean"
+                    },
+                    "showTableNames": {
+                        "type": "boolean"
+                    },
+                    "showRowCalculation": {
+                        "type": "boolean"
+                    },
+                    "showColumnCalculation": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "TableChartConfig": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/TableChart"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartType.TABLE"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
+            "ChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    }
+                ]
+            },
+            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "dashboardUuid",
+                    "dashboardName",
+                    "updatedAt",
+                    "pinnedListOrder",
+                    "slug",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SavedChart.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "SavedChartDAO": {
+                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
+            },
+            "PromotedChart": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SavedChartDAO"
+                    },
+                    {
+                        "properties": {
+                            "oldUuid": {
+                                "type": "string"
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["oldUuid", "spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PromotionChanges": {
+                "properties": {
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedChart"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "dashboards": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedDashboard"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "spaces": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedSpace"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["charts", "dashboards", "spaces"],
+                "type": "object"
+            },
+            "ApiPromotionChangesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PromotionChanges"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_CreateDbtCloudIntegration.metricsJobId_": {
+                "properties": {
+                    "metricsJobId": {
+                        "type": "string",
+                        "description": "Job id for a dbt cloud job containing a compiled dbt project with available dbt metrics"
+                    }
+                },
+                "required": ["metricsJobId"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DbtCloudIntegration": {
+                "$ref": "#/components/schemas/Pick_CreateDbtCloudIntegration.metricsJobId_",
+                "description": "Configuration for a Lightdash integration with dbt Cloud"
+            },
+            "ApiDbtCloudIntegrationSettings": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DbtCloudIntegration"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiDbtCloudSettingsDeleteSuccess": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "Pick_Explore.SummaryExploreFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["name", "label", "tags"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SummaryExtraFields": {
+                "properties": {
+                    "databaseName": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["databaseName", "schemaName"],
+                "type": "object"
+            },
+            "Pick_ExploreError.SummaryExploreErrorFields_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "errors": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["name", "label", "tags", "errors"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_SummaryExtraFields_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "schemaName": {
+                        "type": "string"
+                    },
+                    "databaseName": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SummaryExplore": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Explore.SummaryExploreFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SummaryExtraFields"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_ExploreError.SummaryExploreErrorFields_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Partial_SummaryExtraFields_"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "ApiExploresResults": {
+                "items": {
+                    "$ref": "#/components/schemas/SummaryExplore"
+                },
+                "type": "array"
+            },
+            "OrderFieldsByStrategy": {
+                "enum": ["LABEL", "INDEX"],
+                "type": "string"
+            },
+            "Record_string.GroupType_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "TableBase": {
+                "properties": {
+                    "groupDetails": {
+                        "$ref": "#/components/schemas/Record_string.GroupType_"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "sqlWhere": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "orderFieldsBy": {
+                        "$ref": "#/components/schemas/OrderFieldsByStrategy"
+                    },
+                    "sqlTable": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "originalName": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sqlTable", "schema", "database", "label", "name"],
+                "type": "object"
+            },
+            "Record_string.CompiledDimension_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.CompiledMetric_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_string.LineageNodeDependency-Array_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LineageGraph": {
+                "$ref": "#/components/schemas/Record_string.LineageNodeDependency-Array_"
+            },
+            "SourcePosition": {
+                "properties": {
+                    "character": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["character", "line"],
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "highlight": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "range": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "range", "path"],
+                "type": "object"
+            },
+            "CompiledTable": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableBase"
+                    },
+                    {
+                        "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/Source"
+                            },
+                            "lineageGraph": {
+                                "$ref": "#/components/schemas/LineageGraph"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/Record_string.CompiledMetric_"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/Record_string.CompiledDimension_"
+                            }
+                        },
+                        "required": ["lineageGraph", "metrics", "dimensions"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SupportedDbtAdapter": {
+                "enum": [
+                    "bigquery",
+                    "databricks",
+                    "snowflake",
+                    "redshift",
+                    "postgres",
+                    "trino"
+                ],
+                "type": "string"
+            },
+            "Explore": {
+                "properties": {
+                    "sqlPath": {
+                        "type": "string"
+                    },
+                    "ymlPath": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "targetDatabase": {
+                        "$ref": "#/components/schemas/SupportedDbtAdapter"
+                    },
+                    "tables": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CompiledTable"
+                        },
+                        "type": "object"
+                    },
+                    "joinedTables": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledExploreJoin"
+                        },
+                        "type": "array"
+                    },
+                    "baseTable": {
+                        "type": "string"
+                    },
+                    "groupLabel": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "targetDatabase",
+                    "tables",
+                    "joinedTables",
+                    "baseTable",
+                    "tags",
+                    "label",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ApiExploreResults": {
+                "$ref": "#/components/schemas/Explore"
+            },
+            "ApiCompiledQueryResults": {
+                "type": "string"
             },
             "GitRepo": {
                 "properties": {
@@ -4762,761 +5807,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ChartType.BIG_NUMBER": {
-                "enum": ["big_number"],
-                "type": "string"
-            },
-            "ComparisonFormatTypes": {
-                "enum": ["raw", "percentage"],
-                "type": "string"
-            },
-            "BigNumber": {
-                "properties": {
-                    "comparisonLabel": {
-                        "type": "string"
-                    },
-                    "flipColors": {
-                        "type": "boolean"
-                    },
-                    "comparisonFormat": {
-                        "$ref": "#/components/schemas/ComparisonFormatTypes"
-                    },
-                    "showComparison": {
-                        "type": "boolean"
-                    },
-                    "showBigNumberLabel": {
-                        "type": "boolean"
-                    },
-                    "selectedField": {
-                        "type": "string"
-                    },
-                    "style": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "BigNumberConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/BigNumber"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.BIG_NUMBER"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartType.CARTESIAN": {
-                "enum": ["cartesian"],
-                "type": "string"
-            },
-            "Partial_CompleteCartesianChartLayout_": {
-                "properties": {
-                    "xField": {
-                        "type": "string"
-                    },
-                    "yField": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "flipAxes": {
-                        "type": "boolean"
-                    },
-                    "showGridX": {
-                        "type": "boolean"
-                    },
-                    "showGridY": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "CartesianChartLayout": {
-                "$ref": "#/components/schemas/Partial_CompleteCartesianChartLayout_"
-            },
-            "EchartsLegend": {
-                "properties": {
-                    "icon": {
-                        "type": "string",
-                        "enum": [
-                            "circle",
-                            "rect",
-                            "roundRect",
-                            "triangle",
-                            "diamond",
-                            "pin",
-                            "arrow",
-                            "none"
-                        ]
-                    },
-                    "align": {
-                        "type": "string",
-                        "enum": ["auto", "left", "right"]
-                    },
-                    "height": {
-                        "type": "string"
-                    },
-                    "width": {
-                        "type": "string"
-                    },
-                    "left": {
-                        "type": "string"
-                    },
-                    "bottom": {
-                        "type": "string"
-                    },
-                    "right": {
-                        "type": "string"
-                    },
-                    "top": {
-                        "type": "string"
-                    },
-                    "orient": {
-                        "type": "string",
-                        "enum": ["horizontal", "vertical"]
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["plain", "scroll"]
-                    },
-                    "show": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "EchartsGrid": {
-                "properties": {
-                    "height": {
-                        "type": "string"
-                    },
-                    "width": {
-                        "type": "string"
-                    },
-                    "left": {
-                        "type": "string"
-                    },
-                    "bottom": {
-                        "type": "string"
-                    },
-                    "right": {
-                        "type": "string"
-                    },
-                    "top": {
-                        "type": "string"
-                    },
-                    "containLabel": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "PivotValue": {
-                "properties": {
-                    "value": {},
-                    "field": {
-                        "type": "string"
-                    }
-                },
-                "required": ["value", "field"],
-                "type": "object"
-            },
-            "PivotReference": {
-                "properties": {
-                    "pivotValues": {
-                        "items": {
-                            "$ref": "#/components/schemas/PivotValue"
-                        },
-                        "type": "array"
-                    },
-                    "field": {
-                        "type": "string"
-                    }
-                },
-                "required": ["field"],
-                "type": "object"
-            },
-            "CartesianSeriesType": {
-                "enum": ["line", "bar", "scatter", "area"],
-                "type": "string"
-            },
-            "MarkLineData": {
-                "properties": {
-                    "dynamicValue": {
-                        "type": "string",
-                        "enum": ["average"],
-                        "nullable": false
-                    },
-                    "label": {
-                        "properties": {
-                            "position": {
-                                "type": "string",
-                                "enum": ["start", "middle", "end"]
-                            },
-                            "formatter": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "lineStyle": {
-                        "properties": {
-                            "color": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["color"],
-                        "type": "object"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string"
-                    },
-                    "value": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "xAxis": {
-                        "type": "string"
-                    },
-                    "yAxis": {
-                        "type": "string"
-                    }
-                },
-                "required": ["uuid"],
-                "type": "object"
-            },
-            "MarkLine": {
-                "properties": {
-                    "label": {
-                        "properties": {
-                            "formatter": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "lineStyle": {
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
-                            "width": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "color": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["type", "width", "color"],
-                        "type": "object"
-                    },
-                    "symbol": {
-                        "type": "string"
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/MarkLineData"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "Series": {
-                "properties": {
-                    "markLine": {
-                        "$ref": "#/components/schemas/MarkLine"
-                    },
-                    "smooth": {
-                        "type": "boolean"
-                    },
-                    "showSymbol": {
-                        "type": "boolean"
-                    },
-                    "areaStyle": {
-                        "properties": {},
-                        "type": "object"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "label": {
-                        "properties": {
-                            "position": {
-                                "type": "string",
-                                "enum": [
-                                    "left",
-                                    "top",
-                                    "right",
-                                    "bottom",
-                                    "inside"
-                                ]
-                            },
-                            "show": {
-                                "type": "boolean"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "yAxisIndex": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "color": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "stackLabel": {
-                        "properties": {
-                            "show": {
-                                "type": "boolean"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "stack": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/CartesianSeriesType"
-                    },
-                    "encode": {
-                        "properties": {
-                            "y": {
-                                "type": "string"
-                            },
-                            "x": {
-                                "type": "string"
-                            },
-                            "yRef": {
-                                "$ref": "#/components/schemas/PivotReference"
-                            },
-                            "xRef": {
-                                "$ref": "#/components/schemas/PivotReference"
-                            }
-                        },
-                        "required": ["yRef", "xRef"],
-                        "type": "object"
-                    }
-                },
-                "required": ["type", "encode"],
-                "type": "object"
-            },
-            "Axis": {
-                "properties": {
-                    "rotate": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "inverse": {
-                        "type": "boolean"
-                    },
-                    "maxOffset": {
-                        "type": "string"
-                    },
-                    "minOffset": {
-                        "type": "string"
-                    },
-                    "max": {
-                        "type": "string"
-                    },
-                    "min": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "Partial_CompleteEChartsConfig_": {
-                "properties": {
-                    "legend": {
-                        "$ref": "#/components/schemas/EchartsLegend"
-                    },
-                    "grid": {
-                        "$ref": "#/components/schemas/EchartsGrid"
-                    },
-                    "series": {
-                        "items": {
-                            "$ref": "#/components/schemas/Series"
-                        },
-                        "type": "array"
-                    },
-                    "xAxis": {
-                        "items": {
-                            "$ref": "#/components/schemas/Axis"
-                        },
-                        "type": "array"
-                    },
-                    "yAxis": {
-                        "items": {
-                            "$ref": "#/components/schemas/Axis"
-                        },
-                        "type": "array"
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "EChartsConfig": {
-                "$ref": "#/components/schemas/Partial_CompleteEChartsConfig_"
-            },
-            "Record_string.SeriesMetadata_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "CartesianChart": {
-                "properties": {
-                    "metadata": {
-                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
-                    },
-                    "eChartsConfig": {
-                        "$ref": "#/components/schemas/EChartsConfig"
-                    },
-                    "layout": {
-                        "$ref": "#/components/schemas/CartesianChartLayout"
-                    }
-                },
-                "required": ["eChartsConfig", "layout"],
-                "type": "object"
-            },
-            "CartesianChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/CartesianChart"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.CARTESIAN"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartType.CUSTOM": {
-                "enum": ["custom"],
-                "type": "string"
-            },
-            "CustomVis": {
-                "properties": {
-                    "spec": {
-                        "additionalProperties": true,
-                        "type": "object"
-                    }
-                },
-                "type": "object"
-            },
-            "CustomVisConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/CustomVis"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.CUSTOM"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartType.PIE": {
-                "enum": ["pie"],
-                "type": "string"
-            },
-            "PieChartValueLabel": {
-                "type": "string",
-                "enum": ["hidden", "inside", "outside"],
-                "nullable": false
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "Record_string.Partial_PieChartValueOptions__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "PieChartLegendPosition": {
-                "type": "string",
-                "enum": ["horizontal", "vertical"],
-                "nullable": false
-            },
-            "PieChart": {
-                "properties": {
-                    "metadata": {
-                        "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
-                    },
-                    "legendPosition": {
-                        "$ref": "#/components/schemas/PieChartLegendPosition"
-                    },
-                    "showLegend": {
-                        "type": "boolean"
-                    },
-                    "groupSortOverrides": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "groupValueOptionOverrides": {
-                        "$ref": "#/components/schemas/Record_string.Partial_PieChartValueOptions__"
-                    },
-                    "groupColorOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "groupLabelOverrides": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "showPercentage": {
-                        "type": "boolean"
-                    },
-                    "showValue": {
-                        "type": "boolean"
-                    },
-                    "valueLabel": {
-                        "$ref": "#/components/schemas/PieChartValueLabel"
-                    },
-                    "isDonut": {
-                        "type": "boolean"
-                    },
-                    "metricId": {
-                        "type": "string"
-                    },
-                    "groupFieldIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "type": "object"
-            },
-            "PieChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/PieChart"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.PIE"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartType.TABLE": {
-                "enum": ["table"],
-                "type": "string"
-            },
-            "Record_string.ColumnProperties_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ConditionalRule_ConditionalOperator.number_": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    }
-                },
-                "required": ["operator", "id"],
-                "type": "object"
-            },
-            "ConditionalFormattingWithConditionalOperator": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ConditionalRule_ConditionalOperator.number_"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "items": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["values"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ConditionalFormattingConfigWithSingleColor": {
-                "properties": {
-                    "rules": {
-                        "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingWithConditionalOperator"
-                        },
-                        "type": "array"
-                    },
-                    "color": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/FieldTarget"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["rules", "color", "target"],
-                "type": "object"
-            },
-            "ConditionalFormattingWithRange": {
-                "properties": {
-                    "max": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "min": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["max", "min"],
-                "type": "object"
-            },
-            "ConditionalFormattingConfigWithColorRange": {
-                "properties": {
-                    "rule": {
-                        "$ref": "#/components/schemas/ConditionalFormattingWithRange"
-                    },
-                    "color": {
-                        "properties": {
-                            "steps": {
-                                "type": "number",
-                                "enum": [5],
-                                "nullable": false
-                            },
-                            "end": {
-                                "type": "string"
-                            },
-                            "start": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["steps", "end", "start"],
-                        "type": "object"
-                    },
-                    "target": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/FieldTarget"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["rule", "color", "target"],
-                "type": "object"
-            },
-            "ConditionalFormattingConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithSingleColor"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ConditionalFormattingConfigWithColorRange"
-                    }
-                ]
-            },
-            "TableChart": {
-                "properties": {
-                    "metricsAsRows": {
-                        "type": "boolean"
-                    },
-                    "conditionalFormattings": {
-                        "items": {
-                            "$ref": "#/components/schemas/ConditionalFormattingConfig"
-                        },
-                        "type": "array"
-                    },
-                    "columns": {
-                        "$ref": "#/components/schemas/Record_string.ColumnProperties_"
-                    },
-                    "showSubtotals": {
-                        "type": "boolean"
-                    },
-                    "showResultsTotal": {
-                        "type": "boolean"
-                    },
-                    "hideRowNumbers": {
-                        "type": "boolean"
-                    },
-                    "showTableNames": {
-                        "type": "boolean"
-                    },
-                    "showRowCalculation": {
-                        "type": "boolean"
-                    },
-                    "showColumnCalculation": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "TableChartConfig": {
-                "properties": {
-                    "config": {
-                        "$ref": "#/components/schemas/TableChart"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ChartType.TABLE"
-                    }
-                },
-                "required": ["type"],
-                "type": "object"
-            },
-            "ChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/BigNumberConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CartesianChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CustomVisConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/TableChartConfig"
-                    }
-                ]
-            },
             "SavedChart": {
                 "properties": {
                     "slug": {
@@ -5685,125 +5975,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "spaceName": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "spaceName",
-                    "spaceUuid",
-                    "projectUuid",
-                    "organizationUuid",
-                    "pinnedListUuid",
-                    "dashboardUuid",
-                    "dashboardName",
-                    "updatedAt",
-                    "pinnedListOrder",
-                    "slug",
-                    "tableName",
-                    "metricQuery",
-                    "chartConfig",
-                    "tableConfig",
-                    "colorPalette"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_SavedChart.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "SavedChartDAO": {
-                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-access_"
             },
             "ApiPromoteChartResponse": {
                 "properties": {
@@ -7646,7 +7817,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1128.9",
+        "version": "0.1129.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -8188,6 +8359,47 @@
                 "parameters": [
                     {
                         "description": "dashboardUuid for the dashboard to run",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuid}/promoteDiff": {
+            "get": {
+                "operationId": "promoteDashboardDiff",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromotionChangesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get diff from dashboard to promote",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "dashboardUuid for the dashboard to check diff",
                         "in": "path",
                         "name": "dashboardUuid",
                         "required": true,
@@ -11634,6 +11846,47 @@
                 "parameters": [
                     {
                         "description": "chartUuid for the chart to run",
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/promoteDiff": {
+            "get": {
+                "operationId": "promoteChartDiff",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPromotionChangesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get diff from chart to promote",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "chartUuid for the chart to check diff",
                         "in": "path",
                         "name": "chartUuid",
                         "required": true,
