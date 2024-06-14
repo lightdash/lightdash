@@ -12,6 +12,7 @@ import {
 import moment from 'moment';
 import Logger from '../logging/logger';
 import { wrapSentryTransaction } from '../utils';
+import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask from './SchedulerTask';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
@@ -169,10 +170,18 @@ export class SchedulerWorker extends SchedulerTask {
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.handleScheduledDelivery(
+                    SchedulerClient.processJob(
+                        'handleScheduledDelivery',
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
+                        async () => {
+                            await this.handleScheduledDelivery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
                     ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
@@ -194,7 +203,18 @@ export class SchedulerWorker extends SchedulerTask {
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.sendSlackNotification(helpers.job.id, payload),
+                    SchedulerClient.processJob(
+                        'sendSlackNotification',
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sendSlackNotification(
+                                helpers.job.id,
+                                payload,
+                            );
+                        },
+                    ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
@@ -216,7 +236,18 @@ export class SchedulerWorker extends SchedulerTask {
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.sendEmailNotification(helpers.job.id, payload),
+                    SchedulerClient.processJob(
+                        'sendEmailNotification',
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sendEmailNotification(
+                                helpers.job.id,
+                                payload,
+                            );
+                        },
+                    ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
@@ -235,7 +266,15 @@ export class SchedulerWorker extends SchedulerTask {
             },
             uploadGsheets: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
-                    this.uploadGsheets(helpers.job.id, payload),
+                    SchedulerClient.processJob(
+                        'uploadGsheets',
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.uploadGsheets(helpers.job.id, payload);
+                        },
+                    ),
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
@@ -254,11 +293,20 @@ export class SchedulerWorker extends SchedulerTask {
             },
             downloadCsv: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
-                    this.downloadCsv(
+                    SchedulerClient.processJob(
+                        'downloadCsv',
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
+                        async () => {
+                            await this.downloadCsv(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
                     ),
+
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
@@ -280,11 +328,20 @@ export class SchedulerWorker extends SchedulerTask {
                 helpers: JobHelpers,
             ) => {
                 await tryJobOrTimeout(
-                    this.uploadGsheetFromQuery(
+                    SchedulerClient.processJob(
+                        'uploadGsheetFromQuery',
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
+                        async () => {
+                            await this.uploadGsheetFromQuery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
                     ),
+
                     helpers.job,
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
@@ -302,27 +359,51 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             compileProject: async (payload: any, helpers: JobHelpers) => {
-                await this.compileProject(
+                await SchedulerClient.processJob(
+                    'compileProject',
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
+                    async () => {
+                        await this.compileProject(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
                 );
             },
             testAndCompileProject: async (
                 payload: any,
                 helpers: JobHelpers,
             ) => {
-                await this.testAndCompileProject(
+                await SchedulerClient.processJob(
+                    'testAndCompileProject',
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
+                    async () => {
+                        await this.testAndCompileProject(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
                 );
             },
             validateProject: async (payload: any, helpers: JobHelpers) => {
-                await this.validateProject(
+                await SchedulerClient.processJob(
+                    'validateProject',
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
+                    async () => {
+                        await this.validateProject(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
                 );
             },
         };
