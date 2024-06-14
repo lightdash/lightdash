@@ -1,6 +1,8 @@
 import {
     DashboardsTableName,
     DashboardTable,
+    DashboardTabsTable,
+    DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
     DashboardTileLoomsTable,
@@ -262,6 +264,7 @@ declare module 'knex/types/tables' {
         [DownloadFileTableName]: DownloadFileTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
+        [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [CatalogTableName]: CatalogTable;
     }
