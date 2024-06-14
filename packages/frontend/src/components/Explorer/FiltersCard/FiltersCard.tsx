@@ -99,9 +99,13 @@ const FiltersCard: FC = memo(() => {
     const filters = useExplorerContext((context) => {
         let unsavedQueryFilters =
             context.state.unsavedChartVersion.metricQuery.filters;
+        // Refresh the required filters property as the required filters can change when the table dbt metadata changes
         refreshRequiredFiltersProperty(unsavedQueryFilters.dimensions);
+        // Update the dimension filters with the required filters
+        // (we add the required filters to the unsavedQueryFilters if they are not already there)
         unsavedQueryFilters =
             updateDimensionFiltersWithRequiredFilters(unsavedQueryFilters);
+        // If no model is selected, or user has deselected the model with required filters, reset the dimension filters
         unsavedQueryFilters =
             resetDimensionFiltersIfNoModelSelected(unsavedQueryFilters);
         return unsavedQueryFilters;
