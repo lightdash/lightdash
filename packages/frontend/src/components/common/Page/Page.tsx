@@ -239,8 +239,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         </ErrorBoundary>
                     </Sidebar>
                 ) : null}
+
+                {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
             </Box>
-            {withFooter && !withSidebarFooter ? <AboutFooter /> : null}
         </>
     );
 };
