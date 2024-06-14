@@ -870,8 +870,8 @@ export const resetRequiredFilterRules = (
                 required: false,
             };
             return newFilterRule;
-            // If the item is a nested filter group, recursively call the function
         }
+        // If the item is a nested filter group, recursively call the function
         if (isFilterGroup(filterGroupItem)) {
             return resetRequiredFilterRules(
                 filterGroupItem,
@@ -884,6 +884,6 @@ export const resetRequiredFilterRules = (
 
     return {
         ...filterGroup,
-        [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems
-    }
+        [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems,
+    };
 };
