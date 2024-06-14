@@ -183,7 +183,7 @@ const credentialsTarget = (
                     region_name: credentials.awsRegion,
                     s3_staging_dir: credentials.outputLocation,
                     schema: credentials.schema,
-                    database: credentials.database,
+                    database: credentials.database || credentials.schema,
                     aws_access_key_id: credentials.awsAccessKeyId,
                     aws_secret_access_key: credentials.awsSecretKey,
                 },

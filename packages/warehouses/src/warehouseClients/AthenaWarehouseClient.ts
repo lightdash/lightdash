@@ -124,7 +124,8 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
         this.connectionOptions = {
             outputLocation: credentials.outputLocation,
             workgroup: credentials.workgroup,
-            database: credentials.database,
+            // TODO, this doesn't seem right here.
+            database: credentials.database || credentials.schema,
             extraBotoArgs: credentials.extraBotoArgs,
         };
     }

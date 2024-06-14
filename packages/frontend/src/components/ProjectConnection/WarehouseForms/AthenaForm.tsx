@@ -37,7 +37,7 @@ const AthenaForm: FC<{
                 <TextInput
                     label="AWS Access Key ID"
                     description={<p>AWS Acces Key ID</p>}
-                    {...register('warehouse.awsAccessKey', {
+                    {...register('warehouse.awsAccessKeyId', {
                         validate: {
                             hasNoWhiteSpaces:
                                 hasNoWhiteSpaces('AWS Access Key ID'),
@@ -54,7 +54,7 @@ const AthenaForm: FC<{
                     {...register('warehouse.awsSecretKey', {
                         validate: {
                             hasNoWhiteSpaces:
-                                hasNoWhiteSpaces('AWS Access Key ID'),
+                                hasNoWhiteSpaces('AWS Secret Key'),
                         },
                         setValueAs: (value) =>
                             value === '' ? undefined : value,
@@ -67,7 +67,7 @@ const AthenaForm: FC<{
                     description={
                         <p>AWS Region where the Athena database is located.</p>
                     }
-                    {...register('warehouse.region', {
+                    {...register('warehouse.awsRegion', {
                         validate: {
                             hasNoWhiteSpaces: hasNoWhiteSpaces('Region'),
                         },
