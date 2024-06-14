@@ -1,3 +1,10 @@
+# [0.1133.0](https://github.com/lightdash/lightdash/compare/0.1132.0...0.1133.0) (2024-06-14)
+
+
+### Features
+
+* sentry queue monitoring ([#10329](https://github.com/lightdash/lightdash/issues/10329)) ([562c5c4](https://github.com/lightdash/lightdash/commit/562c5c468c1a7bf5d5fc1005f2415a25fbd0ed2d))
+
 # [0.1132.0](https://github.com/lightdash/lightdash/compare/0.1131.3...0.1132.0) (2024-06-14)
 
 
