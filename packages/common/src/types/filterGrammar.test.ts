@@ -203,9 +203,6 @@ describe('Parse metric filters', () => {
             {
                 id: undefined,
                 operator: FilterOperator.INCLUDE,
-                settings: {
-                    unitOfTime: undefined,
-                },
                 target: {
                     fieldRef: 'name',
                 },
@@ -221,9 +218,6 @@ describe('Parse metric filters', () => {
             {
                 id: undefined,
                 operator: FilterOperator.NOT_INCLUDE,
-                settings: {
-                    unitOfTime: undefined,
-                },
                 target: {
                     fieldRef: 'name',
                 },
@@ -247,9 +241,6 @@ describe('Parse metric filters', () => {
             {
                 id: undefined,
                 operator: FilterOperator.GREATER_THAN,
-                settings: {
-                    unitOfTime: undefined,
-                },
                 target: {
                     fieldRef: 'order_id',
                 },
@@ -258,9 +249,6 @@ describe('Parse metric filters', () => {
             {
                 id: undefined,
                 operator: FilterOperator.LESS_THAN,
-                settings: {
-                    unitOfTime: undefined,
-                },
                 target: {
                     fieldRef: 'order_id',
                 },
@@ -288,9 +276,6 @@ describe('Parse metric filters', () => {
             {
                 id: undefined,
                 operator: FilterOperator.NOT_NULL,
-                settings: {
-                    unitOfTime: undefined,
-                },
                 target: {
                     fieldRef: 'name',
                 },

@@ -795,9 +795,11 @@ export const createFilterRuleFromRequiredMetricRule = (
     },
     operator: filter.operator,
     values: filter.values,
-    settings: {
-        unitOfTime: filter.settings?.unitOfTime,
-    },
+    ...(filter.settings?.unitOfTime && {
+        settings: {
+            unitOfTime: filter.settings.unitOfTime,
+        },
+    }),
     required: true,
 });
 
@@ -847,21 +849,24 @@ export const reduceRequiredDimensionFiltersToFilterRules = (
 export const resetRequiredFilterRules = (
     filterGroup: FilterGroup,
     requiredFiltersRef: string[],
-): void => {
+) => {
+    // Check if the input is a valid filter group
     if (isFilterGroup(filterGroup)) {
         const items = isAndFilterGroup(filterGroup)
             ? filterGroup.and
             : filterGroup.or;
+
         // Iterate over each item in the filter group
         for (let i = 0; i < items.length; i += 1) {
             const item = items[i];
-            // If the item is a filter rule, check if its id matches the provided filter rule id
+            // If the item is a filter rule, check if its id is not in the required filters reference
             if (
                 isFilterRule(item) &&
                 !requiredFiltersRef.includes(item.target.fieldId)
             ) {
-                // Remove the filter rule from the filter group
+                // Mark the filter rule as not required
                 item.required = false;
+                // If the item is a nested filter group, recursively call the function
             } else if (isFilterGroup(item)) {
                 resetRequiredFilterRules(item, requiredFiltersRef);
             }

@@ -304,7 +304,7 @@ export const baseTable: Omit<Table, 'lineageGraph'> = {
     dimensions: {},
     metrics: {},
     orderFieldsBy: OrderFieldsByStrategy.LABEL,
-    required_filters: [],
+    requiredFilters: [],
     groupLabel: undefined,
     groupDetails: {},
 };

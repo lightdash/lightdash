@@ -252,9 +252,13 @@ export const parseFilters = (
                         !!parsedFilter.is,
                     ),
                     values: parsedFilter.values || [1],
-                    settings: {
-                        unitOfTime: parsedFilter.date_interval,
-                    },
+                    ...(parsedFilter.date_interval
+                        ? {
+                              settings: {
+                                  unitOfTime: parsedFilter.date_interval,
+                              },
+                          }
+                        : {}),
                 },
             ];
         }

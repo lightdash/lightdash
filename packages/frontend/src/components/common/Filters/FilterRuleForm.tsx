@@ -137,6 +137,8 @@ const FilterRuleForm: FC<Props> = ({
                         label={isRequiredLabel}
                         disabled={!isRequired}
                         withinPortal
+                        variant="xs"
+                        multiline
                     >
                         <span>
                             <ActionIcon
@@ -171,6 +173,8 @@ const FilterRuleForm: FC<Props> = ({
                                 label={isRequiredLabel}
                                 disabled={!isRequired}
                                 withinPortal
+                                variant="xs"
+                                multiline
                             >
                                 <span>
                                     <Menu.Item

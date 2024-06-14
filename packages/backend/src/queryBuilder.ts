@@ -1007,7 +1007,7 @@ export const buildQuery = ({
         dimensionsFilterGroup: FilterGroup | undefined,
     ): string | undefined => {
         const modelFilterRules: MetricFilterRule[] | undefined =
-            table.required_filters;
+            table.requiredFilters;
         if (!modelFilterRules) return undefined;
 
         const reducedRules: string[] = modelFilterRules.reduce<string[]>(

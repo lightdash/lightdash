@@ -48,7 +48,7 @@ const FiltersCard: FC = memo(() => {
         if (!allFilter) return;
         if (data && data.tables[tableName]) {
             const requiredFilters =
-                data.tables[tableName].required_filters || [];
+                data.tables[tableName].requiredFilters || [];
             const allRequiredFilters: FilterRule[] =
                 reduceRequiredDimensionFiltersToFilterRules(
                     requiredFilters,
@@ -64,15 +64,19 @@ const FiltersCard: FC = memo(() => {
     const updateDimensionFiltersWithRequiredFilters = (
         unsavedQueryFilters: Filters,
     ) => {
+        // Check if the table has required filters
         if (data && data.tables[tableName]) {
-            const requiredFilters = data.tables[tableName].required_filters;
+            const requiredFilters = data.tables[tableName].requiredFilters;
             if (requiredFilters && requiredFilters.length > 0) {
+                // Only requiredFilters that refer to existing table dimensions are added to the unsavedQueryFilters
+                // Transform requiredFilters to filterRules if the required filters are not already in the unsavedQueryFilters.
                 const reducedRules: FilterRule[] =
                     reduceRequiredDimensionFiltersToFilterRules(
                         requiredFilters,
                         data.tables[tableName],
                         unsavedQueryFilters.dimensions,
                     );
+                // Add to the existing filter rules with the missing required filter rules
                 unsavedQueryFilters.dimensions =
                     overrideFilterGroupWithFilterRules(
                         unsavedQueryFilters.dimensions,
@@ -85,6 +89,8 @@ const FiltersCard: FC = memo(() => {
     const resetDimensionFiltersIfNoModelSelected = (
         unsavedQueryFilters: Filters,
     ) => {
+        // If no model is selected, reset the dimension filters
+        // This is to prevent the user from selecting a model, then deselecting it, and still having the required filters applied
         if (tableName.length === 0) {
             unsavedQueryFilters.dimensions = undefined;
         }

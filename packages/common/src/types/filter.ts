@@ -67,7 +67,6 @@ export type DashboardFilterRule<
 > = FilterRule<O, T, V, S> & {
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
-    required?: boolean;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -394,33 +393,34 @@ export const isFilterRuleDefinedForFieldId = (
     isInterval: boolean = false,
 ): boolean => {
     // Check if the filter group is an 'and' or 'or' group
-    const items = isAndFilterGroup(filterGroup)
+    const filterGroupItems = isAndFilterGroup(filterGroup)
         ? filterGroup.and
         : filterGroup.or;
-    // Iterate over each item in the filter group
-    for (let i = 0; i < items.length; i += 1) {
-        const item = items[i];
-        // If the item is a filter rule, check if its id matches the provided filter rule id
-        if (
-            !isFilterGroup(item) &&
-            isInterval &&
-            item.target.fieldId.startsWith(fieldId)
-        ) {
+
+    // If the item is a filter rule, check if its id matches the provided filter rule id
+    const isMatchingFieldId = (item: FilterGroupItem) => {
+        if (!isFilterGroup(item)) {
+            // If the item is not a filter group, check if it matches the fieldId
+            return isInterval
+                ? item.target.fieldId.startsWith(fieldId)
+                : item.target.fieldId === fieldId;
+        }
+        return false;
+    };
+    const isFilterRulePresent = (
+        item: OrFilterGroup | AndFilterGroup | FilterRule,
+    ): boolean => {
+        if (isMatchingFieldId(item)) {
             return true;
         }
-        if (!isFilterGroup(item) && item.target.fieldId === fieldId) {
-            return true;
+        if (isFilterGroup(item)) {
+            // If the item is a filter group, recursively check its items
+            return isFilterRuleDefinedForFieldId(item, fieldId, isInterval);
         }
-        // If the item is a filter group, recursively call the function to check its items
-        if (
-            isFilterGroup(item) &&
-            isFilterRuleDefinedForFieldId(item, fieldId, isInterval)
-        ) {
-            return true;
-        }
-    }
+        return false;
+    };
     // If the filter rule was not found in the filter group, return false
-    return false;
+    return filterGroupItems.some(isFilterRulePresent);
 };
 
 export { ConditionalOperator as FilterOperator };

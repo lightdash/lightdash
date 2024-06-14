@@ -21,7 +21,7 @@ export type TableBase = {
     orderFieldsBy?: OrderFieldsByStrategy;
     groupLabel?: string;
     sqlWhere?: string;
-    required_filters?: MetricFilterRule[];
+    requiredFilters?: MetricFilterRule[];
     hidden?: boolean;
     requiredAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;
