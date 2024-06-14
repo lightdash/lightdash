@@ -1,3 +1,10 @@
+## [0.1133.2](https://github.com/lightdash/lightdash/compare/0.1133.1...0.1133.2) (2024-06-14)
+
+
+### Bug Fixes
+
+* list private channels that the app has joined ([#10421](https://github.com/lightdash/lightdash/issues/10421)) ([9d621be](https://github.com/lightdash/lightdash/commit/9d621be484139968c759777e8a7c829f1366acfb))
+
 ## [0.1133.1](https://github.com/lightdash/lightdash/compare/0.1133.0...0.1133.1) (2024-06-14)
 
 
