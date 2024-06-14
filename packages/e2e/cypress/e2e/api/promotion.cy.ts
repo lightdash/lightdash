@@ -1,11 +1,32 @@
-import { DashboardTileTypes, SEED_PROJECT } from '@lightdash/common';
 import {
-    chartMock,
-    createChartAndUpdateDashboard,
-    createDashboard,
-} from './dashboard.cy';
+    ChartType,
+    CreateSavedChart,
+    DashboardTileTypes,
+    SEED_PROJECT,
+} from '@lightdash/common';
+import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
+
+const chartMock: CreateSavedChart = {
+    name: 'chart in dashboard',
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_average_order_size'],
+        filters: {},
+        sorts: [],
+        limit: 1,
+        tableCalculations: [],
+    },
+    chartConfig: {
+        type: ChartType.TABLE,
+    },
+    tableConfig: {
+        columnOrder: [],
+    },
+};
 
 const checkPromotedChart = (promotedChart, upstreamChart) => {
     // Slug, metricQuery and chartConfig are not returend on /charts so we can't compare
@@ -139,11 +160,8 @@ describe('Promotion charts and dashboards', () => {
             `Public space to promote ${now}`,
         ).then((spaceUuid) => {
             cy.createChartInSpace(SEED_PROJECT.project_uuid, {
-                metricQuery: chartMock.metricQuery,
-                chartConfig: chartMock.chartConfig,
-                tableConfig: chartMock.tableConfig,
+                ...chartMock,
                 name: `Chart to promote ${now}`,
-                tableName: '',
                 spaceUuid,
                 dashboardUuid: null,
             }).then((chart) => {
@@ -240,11 +258,8 @@ describe('Promotion charts and dashboards', () => {
         cy.createSpace(projectUuid, `Public space to promote ${now}`).then(
             (spaceUuid) => {
                 cy.createChartInSpace(projectUuid, {
-                    metricQuery: chartMock.metricQuery,
-                    chartConfig: chartMock.chartConfig,
-                    tableConfig: chartMock.tableConfig,
+                    ...chartMock,
                     name: `Chart to promote ${now}`,
-                    tableName: '',
                     spaceUuid,
                     dashboardUuid: null,
                 }).then((chart) => {
