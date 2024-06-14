@@ -130,7 +130,7 @@ export const existingUpstreamChart: UpstreamChart = {
         chartKind: ChartKind.VERTICAL_BAR,
         dashboardUuid: null,
         dashboardName: null,
-        // updatedAt:  new Date(),
+        updatedAt: new Date(),
         chartType: ChartType.CARTESIAN,
     },
     projectUuid: upstreamProjectUuid,

@@ -87,9 +87,30 @@ describe('PromoteService chart changes', () => {
         });
     });
 
-    test('getChartChanges update chart', async () => {
+    test('getChartChanges chart with no changes', async () => {
         const changes = PromoteService.getChartChanges(
             promotedChart,
+            existingUpstreamChart,
+        );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.dashboards.length).toBe(0);
+
+        expect(changes.charts[0].action).toBe('no changes');
+        expect(changes.spaces[0].action).toBe('no changes');
+    });
+
+    test('getChartChanges update chart', async () => {
+        const updatedAt = new Date();
+        const changes = PromoteService.getChartChanges(
+            {
+                ...promotedChart,
+                chart: {
+                    ...promotedChart.chart,
+                    updatedAt,
+                },
+            },
             existingUpstreamChart,
         );
 
@@ -102,11 +123,12 @@ describe('PromoteService chart changes', () => {
 
         expect(changes.charts[0].data).toEqual({
             ...promotedChart.chart,
-            uuid: promotedChart.chart.uuid, // This is a placeholder, we will not use this uuid on chart creation
+            uuid: existingUpstreamChart.chart?.uuid,
             spaceUuid: existingUpstreamChart.space?.uuid,
             oldUuid: promotedChart.chart.uuid,
             projectUuid: missingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            updatedAt,
         });
 
         expect(changes.spaces[0].data).toEqual({
@@ -115,10 +137,25 @@ describe('PromoteService chart changes', () => {
     });
 
     test('getChartChanges update chart and create space', async () => {
-        const changes = PromoteService.getChartChanges(promotedChart, {
-            ...existingUpstreamChart,
-            space: undefined,
-        });
+        const updatedAt = new Date();
+
+        const changes = PromoteService.getChartChanges(
+            {
+                ...promotedChart,
+                chart: {
+                    ...promotedChart.chart,
+                    updatedAt,
+                },
+            },
+            {
+                ...existingUpstreamChart,
+                chart: {
+                    ...existingUpstreamChart.chart!,
+                    spaceUuid: promotedChart.chart.spaceUuid,
+                },
+                space: undefined,
+            },
+        );
 
         expect(changes.charts.length).toBe(1);
         expect(changes.spaces.length).toBe(1);
@@ -129,9 +166,12 @@ describe('PromoteService chart changes', () => {
 
         expect(changes.charts[0].data).toEqual({
             ...promotedChart.chart,
+            uuid: existingUpstreamChart.chart?.uuid,
             oldUuid: promotedChart.chart.uuid,
             projectUuid: existingUpstreamChart.projectUuid,
             spaceSlug: promotedChart.space.slug,
+            updatedAt,
+            spaceUuid: promotedChart.chart.spaceUuid, // This is a placeholder, will be updated after creating new space
         });
 
         expect(changes.spaces[0].data).toEqual({
@@ -261,7 +301,7 @@ describe('PromoteService dashboard changes', () => {
             'create',
             'create',
         ]);
-        expect(changes.charts[0].action).toBe('update');
+        expect(changes.charts[0].action).toBe('no changes');
 
         expect(promotedCharts.length).toBe(1);
 
@@ -279,6 +319,12 @@ describe('PromoteService dashboard changes', () => {
     });
 
     test('getPromotionDashboardChanges update dashboard with chart tiles ', async () => {
+        const updatedAt = new Date();
+        const updatedPromotedChart = { ...promotedChart.chart, updatedAt };
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => updatedPromotedChart,
+        );
+
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -298,6 +344,15 @@ describe('PromoteService dashboard changes', () => {
             projectUuid: existingUpstreamDashboard.projectUuid,
             spaceSlug: promotedDashboard.space.slug,
             uuid: existingUpstreamDashboard.dashboard?.uuid,
+            spaceUuid: existingUpstreamDashboard.space?.uuid,
+        });
+
+        expect(changes.charts[0].data).toEqual({
+            ...updatedPromotedChart,
+            projectUuid: existingUpstreamDashboard.projectUuid,
+            uuid: existingUpstreamChart.chart?.uuid,
+            oldUuid: promotedChart.chart.uuid,
+            spaceSlug: promotedChart.space.slug,
             spaceUuid: existingUpstreamDashboard.space?.uuid,
         });
     });
@@ -376,12 +431,12 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes.dashboards.length).toBe(1);
         expect(changes.spaces[0].action).toBe('no changes');
 
-        const newChanges = await service.createNewSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(user, changes);
 
         expect(changes).toEqual(newChanges);
     });
 
-    test('create and update space uuid if a new space is created', async () => {
+    test('create space and update space uuid if a new space is created', async () => {
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -399,7 +454,7 @@ describe('PromoteService promoting and mutating changes', () => {
             promotedDashboard.dashboard.spaceUuid,
         );
 
-        const newChanges = await service.createNewSpaces(user, changes);
+        const newChanges = await service.upsertSpaces(user, changes);
 
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
 
@@ -452,7 +507,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(changes).toEqual(newChanges);
     });
 
-    test('create and update dashboard uuid if a new dashboard is created', async () => {
+    test('create dashboard and update dashboard uuid if a new dashboard is created', async () => {
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -481,7 +536,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(newChanges.charts[0].data.dashboardUuid).toEqual(null);
     });
 
-    test.skip('create and update dashboard uuid if a new dashboard with chart within dashboard is created', async () => {
+    test('create dashboard and update dashboard uuid if a new dashboard with chart within dashboard is created', async () => {
         (savedChartModel.get as jest.Mock).mockImplementationOnce(
             async () => promotedChartWithinDashboard.chart,
         );
@@ -507,7 +562,6 @@ describe('PromoteService promoting and mutating changes', () => {
         );
         const newChanges = await service.getOrCreateDashboard(user, changes);
 
-        // FIXME
         expect(newChanges.charts[0].data.dashboardUuid).toEqual(
             existingUpstreamDashboard.dashboard?.uuid,
         );

@@ -784,6 +784,20 @@ export class PromoteService extends BaseService {
             promotedDashboard.projectUuid,
         );
 
+        // Update charts within dashboards with the new dashboard uuid
+        const updatedCharts = promotionChanges.charts.map((chartChange) => {
+            if (chartChange.data.dashboardUuid) {
+                return {
+                    ...chartChange,
+                    data: {
+                        ...chartChange.data,
+                        dashboardUuid: newDashboard.uuid,
+                    },
+                };
+            }
+            return chartChange;
+        });
+
         return {
             ...promotionChanges,
             dashboards: [
@@ -795,6 +809,7 @@ export class PromoteService extends BaseService {
                     },
                 },
             ],
+            charts: updatedCharts,
         };
     }
 
@@ -952,6 +967,7 @@ export class PromoteService extends BaseService {
                     uuid: upstreamChart.chart.uuid,
                     spaceSlug: promotedChart.space?.slug,
                     oldUuid: promotedChart.chart.uuid,
+                    projectUuid: upstreamChart.projectUuid,
                 },
             };
         }
@@ -964,7 +980,7 @@ export class PromoteService extends BaseService {
                     promotedChart.chart.dashboardUuid, // set the new space uuid after creation
                 spaceUuid:
                     upstreamChart.space?.uuid || promotedChart.space.uuid, // set the new space uuid after creation
-                projectUuid: promotedChart.projectUuid,
+                projectUuid: upstreamChart.projectUuid,
                 spaceSlug: promotedChart.space?.slug,
                 oldUuid: promotedChart.chart.uuid,
             },
@@ -1005,9 +1021,8 @@ export class PromoteService extends BaseService {
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
     ): PromotionChanges {
-        const upstreamProjectUuid = promotedChart.projectUuid;
         const spaceChange = PromoteService.getSpaceChange(
-            upstreamProjectUuid,
+            upstreamChart.projectUuid,
             promotedChart.space,
             upstreamChart.space,
         );
