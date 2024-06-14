@@ -999,10 +999,21 @@ export class SavedChartModel {
                         })
                         .from(SavedChartsTableName)
                         .leftJoin(
-                            SpaceTableName,
-                            'saved_queries.space_id',
-                            'spaces.space_id',
+                            DashboardsTableName,
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            `${SavedChartsTableName}.dashboard_uuid`,
                         )
+                        .innerJoin(SpaceTableName, function spaceJoin() {
+                            this.on(
+                                `${SpaceTableName}.space_id`,
+                                '=',
+                                `${DashboardsTableName}.space_id`,
+                            ).orOn(
+                                `${SpaceTableName}.space_id`,
+                                '=',
+                                `${SavedChartsTableName}.space_id`,
+                            );
+                        })
                         .leftJoin(
                             ProjectTableName,
                             'spaces.project_id',
