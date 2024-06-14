@@ -458,7 +458,7 @@ export default class App {
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
                 if (error instanceof UnexpectedServerError) {
-                    Logger.error(error); // Log original error for debug purposes
+                    console.error(error); // Log original error for debug purposes
                 }
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
