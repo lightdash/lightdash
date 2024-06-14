@@ -17,7 +17,6 @@ import {
     DimensionType,
     FieldType,
     friendlyName,
-    intervalGroupFriendlyName,
     MetricType,
     parseMetricType,
     type Dimension,
@@ -117,7 +116,8 @@ const convertDimension = (
     }
     const isIntervalBase =
         timeInterval === undefined && isInterval(type, column);
-    let timeIntervalBaseDimensionName;
+
+    let timeIntervalBaseDimensionName: string | undefined;
     const groups: string[] = convertToGroups(
         column.meta.dimension?.groups,
         column.meta.dimension?.group_label,
@@ -135,9 +135,12 @@ const convertDimension = (
         label = `${label} ${timeFrameConfigs[timeInterval]
             .getLabel()
             .toLowerCase()}`;
+
         groups.push(
-            column.meta.dimension?.label || intervalGroupFriendlyName(name),
+            column.meta.dimension?.label ??
+                friendlyName(timeIntervalBaseDimensionName),
         );
+
         type = timeFrameConfigs[timeInterval].getDimensionType(type);
     }
     return {

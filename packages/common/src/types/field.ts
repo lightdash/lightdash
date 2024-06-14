@@ -514,9 +514,3 @@ export const friendlyName = (text: string): string => {
     const result = normalizedParts.join(' ');
     return capitalize(result);
 };
-
-export const intervalGroupFriendlyName = (text: string): string => {
-    const words = friendlyName(text).split(' ');
-    words.pop();
-    return words.join(' ');
-};
