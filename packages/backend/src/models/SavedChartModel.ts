@@ -84,65 +84,42 @@ type DbSavedChartDetails = {
     timezone: TimeZone | undefined;
 };
 
-const createSavedChartVersionField = async (
+const createSavedChartVersionFields = async (
     trx: Knex,
-    data: CreateDbSavedChartVersionField,
-) => {
-    const results = await trx('saved_queries_version_fields')
+    data: CreateDbSavedChartVersionField[],
+) =>
+    trx('saved_queries_version_fields')
         .insert<CreateDbSavedChartVersionField>(data)
         .returning('*');
-    return results[0];
-};
 
-const createSavedChartVersionSort = async (
+const createSavedChartVersionSorts = async (
     trx: Knex,
-    data: CreateDbSavedChartVersionSort,
-) => {
-    const results = await trx('saved_queries_version_sorts')
+    data: CreateDbSavedChartVersionSort[],
+) =>
+    trx('saved_queries_version_sorts')
         .insert<CreateDbSavedChartVersionSort>(data)
         .returning('*');
-    return results[0];
-};
 
-const createSavedChartVersionTableCalculation = async (
+const createSavedChartVersionTableCalculations = async (
     trx: Knex,
-    data: DbSavedChartTableCalculationInsert,
-) => {
-    const results = await trx('saved_queries_version_table_calculations')
-        .insert(data)
-        .returning('*');
-    return results[0];
-};
+    data: DbSavedChartTableCalculationInsert[],
+) =>
+    trx('saved_queries_version_table_calculations').insert(data).returning('*');
 
-const createSavedChartVersionCustomDimension = async (
+const createSavedChartVersionCustomDimensions = async (
     trx: Knex,
-    data: DbSavedChartCustomDimensionInsert,
-) => {
-    const results = await trx('saved_queries_version_custom_dimensions')
-        .insert(data)
-        .returning('*');
-    return results[0];
-};
+    data: DbSavedChartCustomDimensionInsert[],
+) => trx('saved_queries_version_custom_dimensions').insert(data).returning('*');
 
-const createSavedChartVersionCustomSqlDimension = async (
+const createSavedChartVersionCustomSqlDimensions = async (
     trx: Knex,
-    data: DbSavedChartCustomSqlDimension,
-) => {
-    const results = await trx(SavedChartCustomSqlDimensionsTableName)
-        .insert(data)
-        .returning('*');
-    return results[0];
-};
+    data: DbSavedChartCustomSqlDimension[],
+) => trx(SavedChartCustomSqlDimensionsTableName).insert(data).returning('*');
 
 const createSavedChartVersionAdditionalMetrics = async (
     trx: Knex,
-    data: DbSavedChartAdditionalMetricInsert,
-) => {
-    const results = await trx(SavedChartAdditionalMetricTableName)
-        .insert(data)
-        .returning('*');
-    return results[0];
-};
+    data: DbSavedChartAdditionalMetricInsert[],
+) => trx(SavedChartAdditionalMetricTableName).insert(data).returning('*');
 
 const createSavedChartVersion = async (
     db: Knex,
@@ -180,44 +157,47 @@ const createSavedChartVersion = async (
                 timezone,
             })
             .returning('*');
-        const promises: Promise<any>[] = [];
-        dimensions.forEach((dimension) => {
-            promises.push(
-                createSavedChartVersionField(trx, {
+        if (dimensions.length > 0) {
+            await createSavedChartVersionFields(
+                trx,
+                dimensions.map((dimension) => ({
                     name: dimension,
                     field_type: DBFieldTypes.DIMENSION,
                     saved_queries_version_id: version.saved_queries_version_id,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === dimension,
                     ),
-                }),
+                })),
             );
-        });
-        metrics.forEach((metric) => {
-            promises.push(
-                createSavedChartVersionField(trx, {
+        }
+        if (metrics.length > 0) {
+            await createSavedChartVersionFields(
+                trx,
+                metrics.map((metric) => ({
                     name: metric,
                     field_type: DBFieldTypes.METRIC,
                     saved_queries_version_id: version.saved_queries_version_id,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === metric,
                     ),
-                }),
+                })),
             );
-        });
-        sorts.forEach((sort, index) => {
-            promises.push(
-                createSavedChartVersionSort(trx, {
+        }
+        if (sorts.length > 0) {
+            await createSavedChartVersionSorts(
+                trx,
+                sorts.map((sort, index) => ({
                     field_name: sort.fieldId,
                     descending: sort.descending,
                     saved_queries_version_id: version.saved_queries_version_id,
                     order: index,
-                }),
+                })),
             );
-        });
-        tableCalculations.forEach((tableCalculation) => {
-            promises.push(
-                createSavedChartVersionTableCalculation(trx, {
+        }
+        if (tableCalculations.length > 0) {
+            await createSavedChartVersionTableCalculations(
+                trx,
+                tableCalculations.map((tableCalculation) => ({
                     name: tableCalculation.name,
                     display_name: tableCalculation.displayName,
                     calculation_raw_sql: tableCalculation.sql,
@@ -227,53 +207,58 @@ const createSavedChartVersion = async (
                         (column) => column === tableCalculation.name,
                     ),
                     type: tableCalculation.type,
-                }),
+                })),
             );
-        });
-        customDimensions?.forEach((customDimension) => {
-            if (isCustomBinDimension(customDimension)) {
-                promises.push(
-                    createSavedChartVersionCustomDimension(trx, {
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        id: customDimension.id,
-                        name: customDimension.name,
-                        dimension_id: customDimension.dimensionId,
-                        table: customDimension.table,
-                        bin_type: customDimension.binType,
-                        bin_number: customDimension.binNumber || null,
-                        bin_width: customDimension.binWidth || null,
-                        custom_range:
-                            customDimension.customRange &&
-                            customDimension.customRange.length > 0
-                                ? JSON.stringify(customDimension.customRange)
-                                : null,
-                        order: tableConfig.columnOrder.findIndex(
-                            (column) => column === getItemId(customDimension),
-                        ),
-                    }),
-                );
-            }
-            if (isCustomSqlDimension(customDimension)) {
-                promises.push(
-                    createSavedChartVersionCustomSqlDimension(trx, {
-                        saved_queries_version_id:
-                            version.saved_queries_version_id,
-                        id: customDimension.id,
-                        name: customDimension.name,
-                        table: customDimension.table,
-                        order: tableConfig.columnOrder.findIndex(
-                            (column) => column === getItemId(customDimension),
-                        ),
-                        sql: customDimension.sql,
-                        dimension_type: customDimension.dimensionType,
-                    }),
-                );
-            }
-        });
-        additionalMetrics?.forEach((additionalMetric) => {
-            promises.push(
-                createSavedChartVersionAdditionalMetrics(trx, {
+        }
+        const customBinDimensions = (customDimensions || []).filter(
+            isCustomBinDimension,
+        );
+        if (customBinDimensions.length > 0) {
+            await createSavedChartVersionCustomDimensions(
+                trx,
+                customBinDimensions.map((customDimension) => ({
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    id: customDimension.id,
+                    name: customDimension.name,
+                    dimension_id: customDimension.dimensionId,
+                    table: customDimension.table,
+                    bin_type: customDimension.binType,
+                    bin_number: customDimension.binNumber || null,
+                    bin_width: customDimension.binWidth || null,
+                    custom_range:
+                        customDimension.customRange &&
+                        customDimension.customRange.length > 0
+                            ? JSON.stringify(customDimension.customRange)
+                            : null,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === getItemId(customDimension),
+                    ),
+                })),
+            );
+        }
+        const customSqlDimensions = (customDimensions || []).filter(
+            isCustomSqlDimension,
+        );
+        if (customSqlDimensions.length > 0) {
+            await createSavedChartVersionCustomSqlDimensions(
+                trx,
+                customSqlDimensions.map((customDimension) => ({
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    id: customDimension.id,
+                    name: customDimension.name,
+                    table: customDimension.table,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === getItemId(customDimension),
+                    ),
+                    sql: customDimension.sql,
+                    dimension_type: customDimension.dimensionType,
+                })),
+            );
+        }
+        if (additionalMetrics && additionalMetrics.length > 0) {
+            await createSavedChartVersionAdditionalMetrics(
+                trx,
+                additionalMetrics.map((additionalMetric) => ({
                     table: additionalMetric.table,
                     name: additionalMetric.name,
                     type: additionalMetric.type,
@@ -296,10 +281,9 @@ const createSavedChartVersion = async (
                     format_options: additionalMetric.formatOptions
                         ? JSON.stringify(additionalMetric.formatOptions)
                         : null,
-                }),
+                })),
             );
-        });
-        await Promise.all(promises);
+        }
     });
 };
 

@@ -2,7 +2,11 @@
 // eslint-disable-next-line import/order
 import './sentry'; // Sentry has to be initialized before anything else
 
-import { LightdashMode, SessionUser } from '@lightdash/common';
+import {
+    LightdashMode,
+    SessionUser,
+    UnexpectedServerError,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -453,6 +457,9 @@ export default class App {
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
+                if (error instanceof UnexpectedServerError) {
+                    Logger.error(error); // Log original error for debug purposes
+                }
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
                     errorResponse,
