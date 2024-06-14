@@ -147,6 +147,14 @@ export const isFilterRule = (
 ): value is FilterRule =>
     'id' in value && 'target' in value && 'operator' in value;
 
+export const isFilterTarget = (value: unknown): value is FieldTarget =>
+    !!value && typeof value === 'object' && 'fieldId' in value;
+
+export const isMetricFilterTarget = (
+    value: unknown,
+): value is { fieldRef: string } =>
+    !!value && typeof value === 'object' && 'fieldRef' in value;
+
 export const getFilterRules = (filters: Filters): FilterRule[] => {
     const rules: FilterRule[] = [];
     const flattenFilterGroup = (filterGroup: FilterGroup): FilterRule[] => {

@@ -208,6 +208,7 @@ export class SlackClient {
         );
 
         if (channelId && channelId !== currentChannelId) {
+            await this.joinChannels(organizationUuid, [channelId]);
             await webClient.chat
                 .postMessage({
                     channel: channelId,

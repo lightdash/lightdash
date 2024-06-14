@@ -1,8 +1,10 @@
 import {
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
+    ApiPromotionChangesResponse,
 } from '@lightdash/common';
 import {
+    Get,
     Middlewares,
     OperationId,
     Path,
@@ -40,6 +42,28 @@ export class DashboardController extends BaseController {
             results: await this.services
                 .getPromoteService()
                 .promoteDashboard(req.user!, dashboardUuid),
+        };
+    }
+
+    /**
+     * Get diff from dashboard to promote
+     * @param dashboardUuid dashboardUuid for the dashboard to check diff
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/promoteDiff')
+    @OperationId('promoteDashboardDiff')
+    async promoteDashboardDiff(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPromotionChangesResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPromoteService()
+                .getPromoteDashboardDiff(req.user!, dashboardUuid),
         };
     }
 }

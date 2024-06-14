@@ -289,91 +289,97 @@ export class SpaceModel {
         spaceUuid?: string;
         slug?: string;
     }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'SpaceModel.find',
-            description: 'Find spaces',
-        });
-        try {
-            const query = this.database('spaces')
-                .innerJoin(
-                    'projects',
-                    'projects.project_id',
-                    'spaces.project_id',
-                )
-                .innerJoin(
-                    'organizations',
-                    'organizations.organization_id',
-                    'projects.organization_id',
-                )
-                .leftJoin(
-                    PinnedSpaceTableName,
-                    `${PinnedSpaceTableName}.space_uuid`,
-                    `${SpaceTableName}.space_uuid`,
-                )
-                .leftJoin(
-                    PinnedListTableName,
-                    `${PinnedListTableName}.pinned_list_uuid`,
-                    `${PinnedSpaceTableName}.pinned_list_uuid`,
-                )
-                .leftJoin(
-                    `${SpaceUserAccessTableName}`,
-                    `${SpaceUserAccessTableName}.space_uuid`,
-                    'spaces.space_uuid',
-                )
-                .leftJoin(
-                    'users as shared_with',
-                    `${SpaceUserAccessTableName}.user_uuid`,
-                    'shared_with.user_uuid',
-                )
-                .groupBy(
-                    `${PinnedListTableName}.pinned_list_uuid`,
-                    `${PinnedSpaceTableName}.order`,
-                    'organizations.organization_uuid',
-                    'projects.project_uuid',
-                    'spaces.space_uuid',
-                    'spaces.space_id',
-                )
-                .select({
-                    organizationUuid: 'organizations.organization_uuid',
-                    projectUuid: 'projects.project_uuid',
-                    uuid: 'spaces.space_uuid',
-                    name: this.database.raw('max(spaces.name)'),
-                    isPrivate: this.database.raw('bool_or(spaces.is_private)'),
-                    access: this.database.raw(
-                        "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
-                    ),
-                    pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                    pinnedListOrder: `${PinnedSpaceTableName}.order`,
-                    chartCount: this.database
-                        .countDistinct(`${SavedChartsTableName}.saved_query_id`)
-                        .from(SavedChartsTableName)
-                        .whereRaw(
-                            `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
+        return Sentry.startSpan(
+            {
+                op: 'SpaceModel.find',
+                name: 'SpaceModel.find',
+            },
+            async () => {
+                const query = this.database('spaces')
+                    .innerJoin(
+                        'projects',
+                        'projects.project_id',
+                        'spaces.project_id',
+                    )
+                    .innerJoin(
+                        'organizations',
+                        'organizations.organization_id',
+                        'projects.organization_id',
+                    )
+                    .leftJoin(
+                        PinnedSpaceTableName,
+                        `${PinnedSpaceTableName}.space_uuid`,
+                        `${SpaceTableName}.space_uuid`,
+                    )
+                    .leftJoin(
+                        PinnedListTableName,
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedSpaceTableName}.pinned_list_uuid`,
+                    )
+                    .leftJoin(
+                        `${SpaceUserAccessTableName}`,
+                        `${SpaceUserAccessTableName}.space_uuid`,
+                        'spaces.space_uuid',
+                    )
+                    .leftJoin(
+                        'users as shared_with',
+                        `${SpaceUserAccessTableName}.user_uuid`,
+                        'shared_with.user_uuid',
+                    )
+                    .groupBy(
+                        `${PinnedListTableName}.pinned_list_uuid`,
+                        `${PinnedSpaceTableName}.order`,
+                        'organizations.organization_uuid',
+                        'projects.project_uuid',
+                        'spaces.space_uuid',
+                        'spaces.space_id',
+                    )
+                    .select({
+                        organizationUuid: 'organizations.organization_uuid',
+                        projectUuid: 'projects.project_uuid',
+                        uuid: 'spaces.space_uuid',
+                        name: this.database.raw('max(spaces.name)'),
+                        isPrivate: this.database.raw(
+                            'bool_or(spaces.is_private)',
                         ),
-                    dashboardCount: this.database
-                        .countDistinct(`${DashboardsTableName}.dashboard_id`)
-                        .from(DashboardsTableName)
-                        .whereRaw(
-                            `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
+                        access: this.database.raw(
+                            "COALESCE(json_agg(shared_with.user_uuid) FILTER (WHERE shared_with.user_uuid IS NOT NULL), '[]')",
                         ),
-                    slug: 'spaces.slug',
-                });
-            if (filters.projectUuid) {
-                void query.where('projects.project_uuid', filters.projectUuid);
-            }
-            if (filters.spaceUuid) {
-                void query.where('spaces.space_uuid', filters.spaceUuid);
-            }
-            if (filters.slug) {
-                void query.where('spaces.slug', filters.slug);
-            }
-            return await query;
-        } finally {
-            span?.finish();
-        }
+                        pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                        pinnedListOrder: `${PinnedSpaceTableName}.order`,
+                        chartCount: this.database
+                            .countDistinct(
+                                `${SavedChartsTableName}.saved_query_id`,
+                            )
+                            .from(SavedChartsTableName)
+                            .whereRaw(
+                                `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
+                            ),
+                        dashboardCount: this.database
+                            .countDistinct(
+                                `${DashboardsTableName}.dashboard_id`,
+                            )
+                            .from(DashboardsTableName)
+                            .whereRaw(
+                                `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
+                            ),
+                        slug: 'spaces.slug',
+                    });
+                if (filters.projectUuid) {
+                    void query.where(
+                        'projects.project_uuid',
+                        filters.projectUuid,
+                    );
+                }
+                if (filters.spaceUuid) {
+                    void query.where('spaces.space_uuid', filters.spaceUuid);
+                }
+                if (filters.slug) {
+                    void query.where('spaces.slug', filters.slug);
+                }
+                return query;
+            },
+        );
     }
 
     async get(

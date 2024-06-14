@@ -1,6 +1,9 @@
 import {
     assertUnreachable,
     CreateDashboard,
+    CreateDashboardChartTile,
+    CreateDashboardLoomTile,
+    CreateDashboardMarkdownTile,
     DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
@@ -11,6 +14,9 @@ import {
     DashboardUnversionedFields,
     DashboardVersionedFields,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
+    isDashboardChartTileType,
+    isDashboardLoomTileType,
+    isDashboardMarkdownTileType,
     LightdashUser,
     NotFoundError,
     sanitizeHtml,
@@ -21,6 +27,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { v4 as uuidv4 } from 'uuid';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -130,90 +137,109 @@ export class DashboardModel {
             },
         });
 
-        const tabsPromises = version.tabs.map(async (tab) => {
-            await trx(DashboardTabsTableName).insert({
-                dashboard_version_id: versionId.dashboard_version_id,
-                name: tab.name,
-                uuid: tab.uuid,
-                dashboard_id: dashboardId,
-                order: tab.order,
-            });
-        });
-
-        await Promise.all(tabsPromises);
-
-        const tilePromises = version.tiles.map(async (tile) => {
-            const { uuid: dashboardTileId, type, w, h, x, y, tabUuid } = tile;
-
-            const [insertedTile] = await trx(DashboardTilesTableName)
-                .insert({
+        if (version.tabs.length > 0) {
+            await trx(DashboardTabsTableName).insert(
+                version.tabs.map((tab) => ({
                     dashboard_version_id: versionId.dashboard_version_id,
-                    dashboard_tile_uuid: dashboardTileId,
+                    name: tab.name,
+                    uuid: tab.uuid,
+                    dashboard_id: dashboardId,
+                    order: tab.order,
+                })),
+            );
+        }
+
+        const tilesWithUuids: Array<
+            | (CreateDashboardChartTile & { uuid: string })
+            | (CreateDashboardMarkdownTile & { uuid: string })
+            | (CreateDashboardLoomTile & { uuid: string })
+        > = version.tiles.map((tile) => ({
+            ...tile,
+            uuid: tile.uuid || uuidv4(),
+        }));
+
+        if (tilesWithUuids.length > 0) {
+            await trx(DashboardTilesTableName).insert(
+                tilesWithUuids.map(({ uuid, type, w, h, x, y, tabUuid }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
                     type,
                     height: h,
                     width: w,
                     x_offset: x,
                     y_offset: y,
                     tab_uuid: tabUuid,
-                })
-                .returning('*');
+                })),
+            );
+        }
 
-            switch (tile.type) {
-                case DashboardTileTypes.SAVED_CHART: {
-                    const chartUuid = tile.properties.savedChartUuid;
-                    if (chartUuid) {
-                        const [savedChart] = await trx(SavedChartsTableName)
-                            .select(['saved_query_id'])
-                            .where('saved_query_uuid', chartUuid)
-                            .limit(1);
-                        if (!savedChart) {
-                            throw new NotFoundError('Saved chart not found');
-                        }
-                        await trx(DashboardTileChartTableName).insert({
-                            dashboard_version_id:
-                                versionId.dashboard_version_id,
-                            dashboard_tile_uuid:
-                                insertedTile.dashboard_tile_uuid,
-                            saved_chart_id: savedChart.saved_query_id,
-                            hide_title: tile.properties.hideTitle,
-                            title: tile.properties.title,
-                        });
-                    }
-                    break;
+        const chartTiles = tilesWithUuids.filter(isDashboardChartTileType);
+        if (chartTiles.length > 0) {
+            const chartIds = await trx(SavedChartsTableName)
+                .select(['saved_query_id', 'saved_query_uuid'])
+                .whereIn(
+                    'saved_query_uuid',
+                    chartTiles.map(
+                        ({ properties }) => properties.savedChartUuid,
+                    ),
+                );
+
+            const getChartId = (savedChartUuid: string): number => {
+                const matchingChartId = chartIds.find(
+                    (chart) => chart.saved_query_uuid === savedChartUuid,
+                )?.saved_query_id;
+                if (matchingChartId === undefined) {
+                    throw new NotFoundError('Saved chart not found');
                 }
-                case DashboardTileTypes.MARKDOWN:
-                    await trx(DashboardTileMarkdownsTableName).insert({
-                        dashboard_version_id: versionId.dashboard_version_id,
-                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
-                        title: tile.properties.title,
-                        content: sanitizeHtml(
-                            tile.properties.content,
-                            HTML_SANITIZE_MARKDOWN_TILE_RULES,
-                        ),
-                    });
-                    break;
-                case DashboardTileTypes.LOOM:
-                    await trx(DashboardTileLoomsTableName).insert({
-                        dashboard_version_id: versionId.dashboard_version_id,
-                        dashboard_tile_uuid: insertedTile.dashboard_tile_uuid,
-                        title: tile.properties.title,
-                        url: tile.properties.url,
-                        hide_title: tile.properties.hideTitle,
-                    });
-                    break;
-                default: {
-                    const never: never = tile;
-                    throw new UnexpectedServerError(
-                        `Dashboard tile type "${type}" not recognised`,
-                    );
-                }
-            }
+                return matchingChartId;
+            };
 
-            return insertedTile;
-        });
+            await trx(DashboardTileChartTableName).insert(
+                tilesWithUuids
+                    .filter(isDashboardChartTileType)
+                    .map(({ uuid, properties }) => ({
+                        dashboard_version_id: versionId.dashboard_version_id,
+                        dashboard_tile_uuid: uuid,
+                        saved_chart_id: properties.savedChartUuid
+                            ? getChartId(properties.savedChartUuid)
+                            : null,
+                        hide_title: properties.hideTitle,
+                        title: properties.title,
+                    })),
+            );
+        }
 
-        const tiles = await Promise.all(tilePromises);
-        const tileUuids = tiles.map((tile) => tile.dashboard_tile_uuid);
+        const loomTiles = tilesWithUuids.filter(isDashboardLoomTileType);
+        if (loomTiles.length > 0) {
+            await trx(DashboardTileLoomsTableName).insert(
+                loomTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    title: properties.title,
+                    url: properties.url,
+                    hide_title: properties.hideTitle,
+                })),
+            );
+        }
+
+        const markdownTiles = tilesWithUuids.filter(
+            isDashboardMarkdownTileType,
+        );
+        if (markdownTiles.length > 0) {
+            await trx(DashboardTileMarkdownsTableName).insert(
+                markdownTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    title: properties.title,
+                    content: sanitizeHtml(
+                        properties.content,
+                        HTML_SANITIZE_MARKDOWN_TILE_RULES,
+                    ),
+                })),
+            );
+        }
+
+        const tileUuids = tilesWithUuids.map((tile) => tile.uuid);
 
         // TODO: remove after resolving a problem with importing lodash-es in the backend
         const pick = <T>(object: Record<string, T>, keys: string[]) =>

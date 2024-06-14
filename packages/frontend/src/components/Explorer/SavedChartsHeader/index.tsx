@@ -46,6 +46,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
+import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
+import {
+    usePromoteChartDiffMutation,
+    usePromoteMutation,
+} from '../../../features/promotion/hooks/usePromoteChart';
 import { ChartSchedulersModal } from '../../../features/scheduler';
 import {
     getSchedulerUuidFromUrlParams,
@@ -57,7 +62,6 @@ import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
-import { usePromoteMutation } from '../../../hooks/usePromoteChart';
 import {
     useMoveChartMutation,
     useUpdateMutation,
@@ -182,6 +186,12 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const { data: project } = useProject(projectUuid);
 
     const { mutate: promoteChart } = usePromoteMutation();
+    const {
+        mutate: getPromoteChartDiff,
+        data: promoteChartDiff,
+        reset: resetPromoteChartDiff,
+        isLoading: promoteChartDiffLoading,
+    } = usePromoteChartDiffMutation();
     const history = useHistory();
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
@@ -349,6 +359,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
     const userCanPromoteChart =
         isPromoteChartsEnabled &&
         savedChart &&
+        !savedChart?.dashboardUuid &&
         user.data?.ability?.can('promote', subject('SavedChart', savedChart));
 
     const userCanManageExplore = user.data?.ability.can(
@@ -831,17 +842,18 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                         }
                                                     />
                                                 }
-                                                onClick={() =>
-                                                    promoteChart(
+                                                onClick={() => {
+                                                    getPromoteChartDiff(
                                                         savedChart?.uuid,
-                                                    )
-                                                }
+                                                    );
+                                                }}
                                             >
                                                 Promote chart
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
                                 )}
+
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
@@ -1024,6 +1036,20 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                     onClose={chartDuplicateModalHandlers.close}
                     onConfirm={chartDuplicateModalHandlers.close}
                 />
+            )}
+
+            {(promoteChartDiff || promoteChartDiffLoading) && (
+                <PromotionConfirmDialog
+                    type={'chart'}
+                    resourceName={savedChart?.name ?? ''}
+                    promotionChanges={promoteChartDiff}
+                    onClose={() => {
+                        resetPromoteChartDiff();
+                    }}
+                    onConfirm={() => {
+                        if (savedChart?.uuid) promoteChart(savedChart.uuid);
+                    }}
+                ></PromotionConfirmDialog>
             )}
         </TrackSection>
     );

@@ -1,10 +1,10 @@
-import { type ApiError, type SavedChart } from '@lightdash/common';
+import { type ApiError, type TogglePinnedItemInfo } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 const updateChartPinning = async (data: { uuid: string }) =>
-    lightdashApi<SavedChart>({
+    lightdashApi<TogglePinnedItemInfo>({
         url: `/saved/${data.uuid}/pinning`,
         method: 'PATCH',
         body: JSON.stringify({}),
@@ -13,7 +13,7 @@ const updateChartPinning = async (data: { uuid: string }) =>
 export const useChartPinningMutation = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<SavedChart, ApiError, { uuid: string }>(
+    return useMutation<TogglePinnedItemInfo, ApiError, { uuid: string }>(
         updateChartPinning,
         {
             mutationKey: ['chart_pinning_update'],

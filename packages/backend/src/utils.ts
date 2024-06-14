@@ -62,42 +62,46 @@ export const wrapOtelSpan = async <T>(
         }
     });
 
-export const wrapSentryTransaction = async <T>(
+export const wrapSentryTransaction = <T>(
     name: string,
     context: CustomSamplingContext,
     funct: () => Promise<T>,
 ): Promise<T> => {
     const startTime = Date.now();
-    const transaction = Sentry.getCurrentHub()?.getScope()?.getTransaction();
 
-    Logger.debug(
-        `Starting sentry transaction ${
-            transaction?.spanId
-        } "${name}" with context: ${JSON.stringify(context)}`,
-    );
-
-    const span =
-        transaction &&
-        transaction.startChild({
+    return Sentry.startSpanManual<Promise<T>>(
+        {
             op: name,
-            data: context,
-        });
-    try {
-        return await funct();
-    } catch (error) {
-        Logger.error(
-            `Error in wrapped sentry transaction ${transaction?.spanId} "${name}": ${error}`,
-        );
-        Sentry.captureException(error);
-        throw error;
-    } finally {
-        Logger.debug(
-            `End sentry transaction ${transaction?.spanId} "${name}", took: ${
-                Date.now() - startTime
-            }ms`,
-        );
-        if (span) span.finish();
-    }
+            name,
+            attributes: context,
+        },
+        async (span, end) => {
+            Logger.debug(
+                `Starting sentry transaction ${
+                    span?.spanContext().spanId
+                } "${name}" with context: ${JSON.stringify(context)}`,
+            );
+
+            try {
+                return await funct();
+            } catch (error) {
+                Logger.error(
+                    `Error in wrapped sentry transaction ${
+                        span?.spanContext().spanId
+                    } "${name}": ${error}`,
+                );
+                Sentry.captureException(error);
+                throw error;
+            } finally {
+                Logger.debug(
+                    `End sentry transaction ${
+                        span?.spanContext().spanId
+                    } "${name}", took: ${Date.now() - startTime}ms`,
+                );
+                end();
+            }
+        },
+    );
 };
 
 export function runWorkerThread<T>(worker: Worker): Promise<T> {

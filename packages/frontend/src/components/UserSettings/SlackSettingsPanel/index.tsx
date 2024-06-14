@@ -4,6 +4,7 @@ import {
     type SlackSettings,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Alert,
     Anchor,
     Avatar,
@@ -29,7 +30,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import intersection from 'lodash/intersection';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import {
     useDeleteSlack,
     useGetSlack,
@@ -86,6 +87,15 @@ const SlackSettingsPanel: FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
 
+    const slackChannelOptions = useMemo(() => {
+        return (
+            slackChannels?.map((channel) => ({
+                value: channel.id,
+                label: channel.name,
+            })) ?? []
+        );
+    }, [slackChannels]);
+
     if (isInitialLoading) {
         return <Loader />;
     }
@@ -138,26 +148,6 @@ const SlackSettingsPanel: FC = () => {
                 {isValidSlack ? (
                     <form onSubmit={handleSubmit}>
                         <Stack spacing="sm">
-                            <TextInput
-                                label="Enter the URL of a profile photo for your Slack App"
-                                size="xs"
-                                placeholder="https://lightdash.cloud/photo.jpg"
-                                type="url"
-                                disabled={!isValidSlack}
-                                {...form.getInputProps('appProfilePhotoUrl')}
-                                value={
-                                    form.values.appProfilePhotoUrl ?? undefined
-                                }
-                            />
-                            <Stack justify="center">
-                                <Title order={6}>Profile photo</Title>
-                                <Avatar
-                                    src={form.values?.appProfilePhotoUrl}
-                                    size="xl"
-                                    radius="md"
-                                    bg="gray.1"
-                                />
-                            </Stack>
                             <Select
                                 label={
                                     <Group spacing="two" mb="two">
@@ -166,6 +156,7 @@ const SlackSettingsPanel: FC = () => {
                                         </Text>
                                         <Tooltip
                                             multiline
+                                            variant="xs"
                                             maw={250}
                                             label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
                                         >
@@ -181,32 +172,65 @@ const SlackSettingsPanel: FC = () => {
                                 searchable
                                 clearable
                                 nothingFound="No channels found"
-                                data={
-                                    slackChannels?.map((channel) => ({
-                                        value: channel.id,
-                                        label: channel.name,
-                                    })) ?? []
-                                }
+                                data={slackChannelOptions}
                                 {...form.getInputProps('notificationChannel')}
                                 onChange={(value) => {
                                     setFieldValue('notificationChannel', value);
                                 }}
                             />
-                        </Stack>
-                        <Stack align="end" mt="sm">
-                            <Group>
-                                <Button
+                            <Title order={6} fw={500}>
+                                Slack bot avatar
+                            </Title>
+                            <Group spacing="xl">
+                                <Avatar
+                                    size="lg"
+                                    src={form.values?.appProfilePhotoUrl}
+                                    radius="md"
+                                    bg="gray.1"
+                                />
+                                <TextInput
+                                    sx={{ flexGrow: 1 }}
+                                    label="Profile photo URL"
                                     size="xs"
-                                    component="a"
-                                    target="_blank"
-                                    variant="default"
-                                    href={SLACK_INSTALL_URL}
-                                    leftIcon={
-                                        <MantineIcon icon={IconRefresh} />
+                                    placeholder="https://lightdash.cloud/photo.jpg"
+                                    type="url"
+                                    disabled={!isValidSlack}
+                                    {...form.getInputProps(
+                                        'appProfilePhotoUrl',
+                                    )}
+                                    value={
+                                        form.values.appProfilePhotoUrl ??
+                                        undefined
                                     }
-                                >
-                                    Reinstall
-                                </Button>
+                                />
+                            </Group>
+                        </Stack>
+                        <Stack align="end" mt="xl">
+                            <Group spacing="sm">
+                                <Group spacing="xs">
+                                    <ActionIcon
+                                        variant="default"
+                                        size="md"
+                                        onClick={() => deleteSlack(undefined)}
+                                    >
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            color="red"
+                                        />
+                                    </ActionIcon>
+                                    <Button
+                                        size="xs"
+                                        component="a"
+                                        target="_blank"
+                                        variant="default"
+                                        href={SLACK_INSTALL_URL}
+                                        leftIcon={
+                                            <MantineIcon icon={IconRefresh} />
+                                        }
+                                    >
+                                        Reinstall
+                                    </Button>
+                                </Group>
                                 <Button
                                     size="xs"
                                     type="submit"
@@ -215,16 +239,6 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 >
                                     Save
-                                </Button>
-                                <Button
-                                    size="xs"
-                                    px="xs"
-                                    color="red"
-                                    variant="outline"
-                                    onClick={() => deleteSlack(undefined)}
-                                    leftIcon={<MantineIcon icon={IconTrash} />}
-                                >
-                                    Delete
                                 </Button>
                             </Group>
 

@@ -207,41 +207,41 @@ export class DbtCliClient implements DbtClient {
     }
 
     async installDeps(): Promise<void> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'dbt',
-            description: 'installDeps',
-        });
-        await this._runDbtCommand('deps');
-        span?.finish();
+        return Sentry.startSpan(
+            {
+                op: 'dbt',
+                name: 'installDeps',
+            },
+            async () => {
+                await this._runDbtCommand('deps');
+            },
+        );
     }
 
     async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'dbt',
-            description: 'getDbtManifest',
-            data: {
-                useDbtLs: this.useDbtLs,
+        return Sentry.startSpan(
+            {
+                op: 'dbt',
+                name: 'getDbtManifest',
+                attributes: {
+                    useDbtLs: this.useDbtLs,
+                },
             },
-        });
-        const logs = await this._runDbtCommand(
-            this.useDbtLs ? 'ls' : 'compile',
-        );
-        const rawManifest = {
-            manifest: await this.loadDbtTargetArtifact('manifest.json'),
-        };
-        span?.finish();
-        if (isDbtRpcManifestResults(rawManifest)) {
-            return rawManifest;
-        }
-        throw new DbtError(
-            'Cannot read response from dbt, manifest.json not valid',
-            logs,
+            async () => {
+                const logs = await this._runDbtCommand(
+                    this.useDbtLs ? 'ls' : 'compile',
+                );
+                const rawManifest = {
+                    manifest: await this.loadDbtTargetArtifact('manifest.json'),
+                };
+                if (isDbtRpcManifestResults(rawManifest)) {
+                    return rawManifest;
+                }
+                throw new DbtError(
+                    'Cannot read response from dbt, manifest.json not valid',
+                    logs,
+                );
+            },
         );
     }
 
@@ -293,15 +293,15 @@ export class DbtCliClient implements DbtClient {
     }
 
     async test(): Promise<void> {
-        const transaction = Sentry.getCurrentHub()
-            ?.getScope()
-            ?.getTransaction();
-        const span = transaction?.startChild({
-            op: 'dbt',
-            description: 'test',
-        });
-        await this.installDeps();
-        await this._runDbtCommand('parse');
-        span?.finish();
+        return Sentry.startSpan(
+            {
+                op: 'dbt',
+                name: 'test',
+            },
+            async () => {
+                await this.installDeps();
+                await this._runDbtCommand('parse');
+            },
+        );
     }
 }

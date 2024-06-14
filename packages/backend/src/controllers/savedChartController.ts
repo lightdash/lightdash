@@ -4,8 +4,10 @@ import {
     ApiGetChartHistoryResponse,
     ApiGetChartVersionResponse,
     ApiPromoteChartResponse,
+    ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
+    PromotionChanges,
     SortField,
 } from '@lightdash/common';
 import {
@@ -252,6 +254,28 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getPromoteService()
                 .promoteChart(req.user!, chartUuid),
+        };
+    }
+
+    /**
+     * Get diff from chart to promote
+     * @param chartUuid chartUuid for the chart to check diff
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/promoteDiff')
+    @OperationId('promoteChartDiff')
+    async promoteChartDiff(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPromotionChangesResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPromoteService()
+                .getPromoteChartDiff(req.user!, chartUuid),
         };
     }
 }

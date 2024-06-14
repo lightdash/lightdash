@@ -2,16 +2,9 @@ import { LightdashMode, SessionUser } from '@lightdash/common';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
-import { SamplingContext } from '@sentry/types';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
-import express, {
-    Express,
-    NextFunction,
-    Request,
-    RequestHandler,
-    Response,
-} from 'express';
+import express, { Express, NextFunction, Request, Response } from 'express';
 import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
 import helmet from 'helmet';
@@ -217,6 +210,9 @@ export default class App {
     }
 
     async start() {
+        // NOTE: Sentry must be initialized as soon as possible before any relevant initialization - express, knex, etc.
+        this.initSentry();
+
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
@@ -233,9 +229,6 @@ export default class App {
         this.initSlack(expressApp).catch((e) => {
             Logger.error('Error starting slack bot', e);
         });
-
-        // NOTE: Sentry must be initialized before any handlers or middleware that should be traced
-        this.initSentry(expressApp);
 
         // Load Lightdash middleware/routes last
         await this.initExpress(expressApp);
@@ -283,7 +276,12 @@ export default class App {
             'https://headway-widget.net',
             'https://*.posthog.com',
             'https://*.intercom.com',
+            'https://*.intercom.io',
+            'https://*.intercomcdn.com',
             'https://*.rudderlabs.com',
+            'https://www.googleapis.com',
+            'https://apis.google.com',
+            'https://accounts.google.com',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
         ];
@@ -453,7 +451,7 @@ export default class App {
         });
 
         // Errors
-        expressApp.use(Sentry.Handlers.errorHandler()); // The Sentry error handler must be before any other error middleware and after all controllers
+        Sentry.setupExpressErrorHandler(expressApp);
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
@@ -554,7 +552,7 @@ export default class App {
         await slackBot.start(expressApp);
     }
 
-    private initSentry(expressApp: Express) {
+    private initSentry() {
         Sentry.init({
             release: VERSION,
             dsn: this.lightdashConfig.sentry.backend.dsn,
@@ -563,13 +561,10 @@ export default class App {
                     ? 'development'
                     : this.lightdashConfig.mode,
             integrations: [
-                new Sentry.Integrations.Http({ tracing: true }),
-                new Sentry.Integrations.Express({
-                    app: expressApp,
-                }),
-                new Sentry.Integrations.Postgres({ usePgNative: true }),
+                Sentry.httpIntegration({ breadcrumbs: true }),
+                Sentry.expressIntegration(),
+                Sentry.postgresIntegration(),
                 nodeProfilingIntegration(),
-                ...Sentry.autoDiscoverNodePerformanceMonitoringIntegrations(),
                 ...(this.lightdashConfig.sentry.anr.enabled
                     ? [
                           Sentry.anrIntegration({
@@ -585,7 +580,7 @@ export default class App {
                     : []),
             ],
             ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
-            tracesSampler: (context: SamplingContext): boolean | number => {
+            tracesSampler: (context) => {
                 if (
                     context.request?.url?.endsWith('/status') ||
                     context.request?.url?.endsWith('/health') ||
@@ -616,17 +611,6 @@ export default class App {
                 return breadcrumb;
             },
         });
-        expressApp.use(
-            Sentry.Handlers.requestHandler({
-                user: [
-                    'userUuid',
-                    'organizationUuid',
-                    'organizationName',
-                    'email',
-                ],
-            }) as RequestHandler,
-        );
-        expressApp.use(Sentry.Handlers.tracingHandler());
 
         // Set k8s tags for Sentry
         Sentry.setTags({

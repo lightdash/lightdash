@@ -1,3 +1,78 @@
+# [0.1131.0](https://github.com/lightdash/lightdash/compare/0.1130.1...0.1131.0) (2024-06-13)
+
+
+### Features
+
+* re-order dashboard tabs by drag and drop ([#10394](https://github.com/lightdash/lightdash/issues/10394)) ([71ead62](https://github.com/lightdash/lightdash/commit/71ead62d029d922d6e29c91a53fb6553e65b1f13))
+
+## [0.1130.1](https://github.com/lightdash/lightdash/compare/0.1130.0...0.1130.1) (2024-06-13)
+
+
+### Bug Fixes
+
+* get all explores in one query for dashboard available filters ([#10383](https://github.com/lightdash/lightdash/issues/10383)) ([d17c150](https://github.com/lightdash/lightdash/commit/d17c1502ff204c3aba21f75ee588b46c8ad7144f))
+
+# [0.1130.0](https://github.com/lightdash/lightdash/compare/0.1129.1...0.1130.0) (2024-06-13)
+
+
+### Bug Fixes
+
+* join notification channel on settings change ([#10386](https://github.com/lightdash/lightdash/issues/10386)) ([c3bee5c](https://github.com/lightdash/lightdash/commit/c3bee5c7e2d2dac87e87bac9275cc98afbd334af))
+
+
+### Features
+
+* promote diff and confirm dialog ([#10366](https://github.com/lightdash/lightdash/issues/10366)) ([16e71f8](https://github.com/lightdash/lightdash/commit/16e71f8cde73ee92f7f08061a6fa78ac5ec0188a))
+
+## [0.1129.1](https://github.com/lightdash/lightdash/compare/0.1129.0...0.1129.1) (2024-06-12)
+
+
+### Bug Fixes
+
+* remove n+1 queries when creating and updating a dashboard ([#10364](https://github.com/lightdash/lightdash/issues/10364)) ([e579cb0](https://github.com/lightdash/lightdash/commit/e579cb073f85a5398a4b8e6dcd58a300cf4106be))
+
+# [0.1129.0](https://github.com/lightdash/lightdash/compare/0.1128.9...0.1129.0) (2024-06-12)
+
+
+### Features
+
+* improve cli error for operator to type error ([#10380](https://github.com/lightdash/lightdash/issues/10380)) ([7923c02](https://github.com/lightdash/lightdash/commit/7923c0288d6fada5b8a44df56618733490293ad4))
+
+## [0.1128.9](https://github.com/lightdash/lightdash/compare/0.1128.8...0.1128.9) (2024-06-12)
+
+
+### Bug Fixes
+
+* focus password input in login page ([#10387](https://github.com/lightdash/lightdash/issues/10387)) ([5b1cb61](https://github.com/lightdash/lightdash/commit/5b1cb61deb29d63b52774d6b6185e26d7eb6e944))
+
+## [0.1128.8](https://github.com/lightdash/lightdash/compare/0.1128.7...0.1128.8) (2024-06-12)
+
+
+### Bug Fixes
+
+* more playwright improvements ([#10379](https://github.com/lightdash/lightdash/issues/10379)) ([b9e1b3d](https://github.com/lightdash/lightdash/commit/b9e1b3d99821a4d0020ae7bc07f106bde59736cd))
+
+## [0.1128.7](https://github.com/lightdash/lightdash/compare/0.1128.6...0.1128.7) (2024-06-12)
+
+
+### Bug Fixes
+
+* chart and dashboard view count increase on pinning to homepage ([#10365](https://github.com/lightdash/lightdash/issues/10365)) ([3edbbd6](https://github.com/lightdash/lightdash/commit/3edbbd608c17a8e865b5cc44ff0515dbe76ef332))
+
+## [0.1128.6](https://github.com/lightdash/lightdash/compare/0.1128.5...0.1128.6) (2024-06-12)
+
+
+### Bug Fixes
+
+* handle error thrown when parsing explore params ([#10373](https://github.com/lightdash/lightdash/issues/10373)) ([e85ef97](https://github.com/lightdash/lightdash/commit/e85ef97266e3ddc15d60c4838f19d4d6df0483a5))
+
+## [0.1128.5](https://github.com/lightdash/lightdash/compare/0.1128.4...0.1128.5) (2024-06-12)
+
+
+### Bug Fixes
+
+* add intercom and google domains to content security policy ([#10377](https://github.com/lightdash/lightdash/issues/10377)) ([31c9072](https://github.com/lightdash/lightdash/commit/31c9072a3a37aa1d64466563bf537b634b6b5290))
+
 ## [0.1128.4](https://github.com/lightdash/lightdash/compare/0.1128.3...0.1128.4) (2024-06-11)
 
 
