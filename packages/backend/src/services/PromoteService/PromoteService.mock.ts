@@ -196,3 +196,29 @@ export const missingUpstreamDashboard: UpstreamDashboard = {
     space: undefined,
     access: [],
 };
+
+export const promotedChartWithinDashboard: PromotedChart = {
+    ...promotedChart,
+    chart: {
+        ...promotedChart.chart,
+        uuid: 'promoted-chart-within-dashboard-uuid',
+        dashboardUuid: promotedDashboard.dashboard.uuid,
+        dashboardName: promotedDashboard.dashboard.name,
+    },
+};
+export const dashboardChartWithinDashboardTile: DashboardChartTile = {
+    ...dashboardChartTile,
+    properties: {
+        title: 'chart within dashboard tile',
+        savedChartUuid: promotedChartWithinDashboard.chart.uuid,
+        belongsToDashboard: true,
+    },
+};
+
+export const promotedDashboardWithChartWithinDashboard = {
+    ...promotedDashboard,
+    dashboard: {
+        ...promotedDashboard.dashboard,
+        tiles: [dashboardChartWithinDashboardTile],
+    },
+};

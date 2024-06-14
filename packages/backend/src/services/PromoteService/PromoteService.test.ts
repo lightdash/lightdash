@@ -7,12 +7,15 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { PromoteService } from './PromoteService';
 import {
+    dashboardChartWithinDashboardTile,
     existingUpstreamChart,
     existingUpstreamDashboard,
     missingUpstreamChart,
     missingUpstreamDashboard,
     promotedChart,
+    promotedChartWithinDashboard,
     promotedDashboard,
+    promotedDashboardWithChartWithinDashboard,
     user,
 } from './PromoteService.mock';
 
@@ -29,7 +32,9 @@ const spaceModel = {
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
 };
-
+const dashboardModel = {
+    create: jest.fn(async () => existingUpstreamDashboard.dashboard),
+};
 describe('PromoteService chart changes', () => {
     test('getChartChanges create chart and space', async () => {
         const changes = PromoteService.getChartChanges(
@@ -150,7 +155,7 @@ describe('PromoteService dashboard changes', () => {
         jest.clearAllMocks();
     });
 
-    test('getChartChanges create empty dashboard and space', async () => {
+    test('getPromotionDashboardChanges create empty dashboard and space', async () => {
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -185,7 +190,15 @@ describe('PromoteService dashboard changes', () => {
             projectUuid: missingUpstreamDashboard.projectUuid,
         });
     });
-    test('getChartChanges create dashboard with chart tiles and space', async () => {
+    test('getPromotionDashboardChanges create dashboard with chart tiles and space', async () => {
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => promotedChart.chart,
+        );
+        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -198,7 +211,7 @@ describe('PromoteService dashboard changes', () => {
 
         expect(changes.dashboards[0].action).toBe('create');
         expect(changes.spaces[0].action).toBe('create');
-        expect(changes.charts[0].action).toBe('update');
+        expect(changes.charts[0].action).toBe('create');
 
         expect(changes.dashboards[0].data).toEqual({
             ...promotedDashboard.dashboard,
@@ -212,9 +225,19 @@ describe('PromoteService dashboard changes', () => {
             ...promotedDashboard.space,
             projectUuid: missingUpstreamDashboard.projectUuid,
         });
+
+        expect(changes.charts[0].data).toEqual({
+            ...promotedChart.chart,
+            oldUuid: promotedChart.chart.uuid,
+            spaceSlug: promotedChart.space.slug,
+            spaceUuid: promotedChart.space.uuid,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            dashboardUuid: null, // not within dashboard
+            dashboardName: null,
+        });
     });
 
-    test('getChartChanges create dashboard with chart tiles in different spaces', async () => {
+    test('getPromotionDashboardChanges create dashboard with chart tiles in different spaces', async () => {
         (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
 
         const [changes, promotedCharts] =
@@ -255,7 +278,7 @@ describe('PromoteService dashboard changes', () => {
         ]);
     });
 
-    test('getChartChanges update dashboard with chart tiles ', async () => {
+    test('getPromotionDashboardChanges update dashboard with chart tiles ', async () => {
         const [changes, promotedCharts] =
             await service.getPromotionDashboardChanges(
                 user,
@@ -278,6 +301,53 @@ describe('PromoteService dashboard changes', () => {
             spaceUuid: existingUpstreamDashboard.space?.uuid,
         });
     });
+
+    test('getPromotionDashboardChanges create dashboard with new chart within dashboard and space', async () => {
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => promotedChartWithinDashboard.chart,
+        );
+        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => []);
+
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboardWithChartWithinDashboard,
+                missingUpstreamDashboard,
+            );
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1); // Chart and dashboard are in the same space
+        expect(changes.dashboards.length).toBe(1);
+
+        expect(changes.dashboards[0].action).toBe('create');
+        expect(changes.spaces[0].action).toBe('create');
+        expect(changes.charts[0].action).toBe('create');
+
+        expect(changes.dashboards[0].data).toEqual({
+            ...promotedDashboardWithChartWithinDashboard.dashboard,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            spaceSlug: promotedDashboard.space.slug,
+        });
+
+        expect(promotedCharts.length).toBe(1);
+
+        expect(changes.spaces[0].data).toEqual({
+            ...promotedDashboard.space,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+        });
+
+        expect(changes.charts[0].data).toEqual({
+            ...promotedChartWithinDashboard.chart,
+            oldUuid: promotedChartWithinDashboard.chart.uuid,
+            spaceSlug: promotedChartWithinDashboard.space.slug,
+            spaceUuid: promotedChartWithinDashboard.space.uuid,
+            projectUuid: missingUpstreamDashboard.projectUuid,
+            dashboardUuid: promotedDashboard.dashboard.uuid,
+            dashboardName: promotedDashboard.dashboard.name,
+        });
+    });
 });
 
 describe('PromoteService promoting and mutating changes', () => {
@@ -288,7 +358,7 @@ describe('PromoteService promoting and mutating changes', () => {
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
-        dashboardModel: {} as DashboardModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -363,5 +433,83 @@ describe('PromoteService promoting and mutating changes', () => {
                 },
             ],
         });
+    });
+
+    test('return same changes if no new dashboard is created', async () => {
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboard,
+                existingUpstreamDashboard,
+            );
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.dashboards.length).toBe(1);
+        expect(changes.dashboards[0].action).toBe('update');
+
+        const newChanges = await service.getOrCreateDashboard(user, changes);
+
+        expect(changes).toEqual(newChanges);
+    });
+
+    test('create and update dashboard uuid if a new dashboard is created', async () => {
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboard,
+                missingUpstreamDashboard,
+            );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.dashboards.length).toBe(1);
+        expect(changes.dashboards[0].action).toBe('create');
+
+        // Right now the dashboard is pointing to wrong dashboard uuid, this will be updated after creating new dsahboard
+        expect(changes.dashboards[0].data.uuid).toEqual(
+            promotedDashboard.dashboard.uuid,
+        );
+        // Chart is not within dashboard
+        expect(changes.charts[0].data.dashboardUuid).toEqual(null);
+        const newChanges = await service.getOrCreateDashboard(user, changes);
+
+        expect(dashboardModel.create).toHaveBeenCalledTimes(1);
+
+        expect(newChanges.dashboards[0].data.uuid).toEqual(
+            existingUpstreamDashboard.dashboard?.uuid,
+        );
+        expect(newChanges.charts[0].data.dashboardUuid).toEqual(null);
+    });
+
+    test.skip('create and update dashboard uuid if a new dashboard with chart within dashboard is created', async () => {
+        (savedChartModel.get as jest.Mock).mockImplementationOnce(
+            async () => promotedChartWithinDashboard.chart,
+        );
+        (savedChartModel.find as jest.Mock).mockImplementationOnce(
+            async () => [],
+        );
+
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboardWithChartWithinDashboard,
+                missingUpstreamDashboard,
+            );
+
+        expect(changes.charts.length).toBe(1);
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.dashboards.length).toBe(1);
+        expect(changes.dashboards[0].action).toBe('create');
+
+        // Right now the chart within dashboard is pointing to wrong dashboard uuid, this will be updated after creating new dsahboard
+        expect(changes.charts[0].data.dashboardUuid).toEqual(
+            promotedDashboardWithChartWithinDashboard.dashboard.uuid,
+        );
+        const newChanges = await service.getOrCreateDashboard(user, changes);
+
+        // FIXME
+        expect(newChanges.charts[0].data.dashboardUuid).toEqual(
+            existingUpstreamDashboard.dashboard?.uuid,
+        );
     });
 });

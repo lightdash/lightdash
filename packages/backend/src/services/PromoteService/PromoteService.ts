@@ -726,7 +726,7 @@ export class PromoteService extends BaseService {
         return space.data;
     }
 
-    private async getOrCreateDashboard(
+    async getOrCreateDashboard(
         user: SessionUser,
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {
