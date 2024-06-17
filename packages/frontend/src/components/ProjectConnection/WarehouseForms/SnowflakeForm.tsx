@@ -224,7 +224,10 @@ const SnowflakeForm: FC<{
                                 },
                             })}
                         />
-                        <StartOfWeekSelect disabled={disabled} />
+                        <StartOfWeekSelect
+                            disabled={disabled}
+                            isRedeployRequired={false}
+                        />
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>
