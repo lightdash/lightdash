@@ -336,10 +336,6 @@ export function applyCustomFormat(
 
     if (value === '') return '';
 
-    if (value instanceof Date) {
-        return formatTimestamp(value, undefined, false);
-    }
-
     if (valueIsNaN(value) || value === null) {
         return applyDefaultFormat(value);
     }
@@ -362,6 +358,10 @@ export function applyCustomFormat(
             ).replace(/\u00A0/, ' ');
 
             return `${currencyFormatted}${compactSuffix}`;
+        case CustomFormatType.DATE:
+            return formatDate(value, format?.timeInterval, false);
+        case CustomFormatType.TIMESTAMP:
+            return formatTimestamp(value, format?.timeInterval, false);
         case CustomFormatType.NUMBER:
             const prefix = format.prefix || '';
             const suffix = format.suffix || '';
@@ -396,6 +396,8 @@ export function formatItemValue(
     if (value === undefined) return '-';
 
     if (item) {
+        const customFormat = getCustomFormat(item);
+
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
             switch (type) {
@@ -429,7 +431,7 @@ export function formatItemValue(
                         : 'NaT';
                 case MetricType.MAX:
                 case MetricType.MIN:
-                    if (value instanceof Date) {
+                    if (value instanceof Date && customFormat === undefined) {
                         return formatTimestamp(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
@@ -450,7 +452,6 @@ export function formatItemValue(
             }
         }
 
-        const customFormat = getCustomFormat(item);
         return applyCustomFormat(value, customFormat);
     }
 
