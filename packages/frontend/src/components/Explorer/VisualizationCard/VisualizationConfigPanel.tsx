@@ -3,6 +3,7 @@ import { memo, type FC } from 'react';
 import BigNumberConfigPanel from '../../VisualizationConfigs/BigNumberConfig';
 import ChartConfigPanel from '../../VisualizationConfigs/ChartConfigPanel';
 import CustomVisualizationConfigPanel from '../../VisualizationConfigs/ChartConfigPanel/CustomVisConfigTabs';
+import FunnelChartConfig from '../../VisualizationConfigs/FunnelChartConfig';
 import PieConfigPanel from '../../VisualizationConfigs/PieChartConfig';
 import TableConfigPanel from '../../VisualizationConfigs/TableConfigPanel';
 
@@ -18,7 +19,7 @@ const VisualizationConfigPanel: FC<{ chartType: ChartType }> = memo(
             case ChartType.PIE:
                 return <PieConfigPanel />;
             case ChartType.FUNNEL:
-                return <div>El fun</div>;
+                return <FunnelChartConfig />;
             case ChartType.CUSTOM:
                 return <CustomVisualizationConfigPanel />;
             default:
