@@ -38,7 +38,7 @@ const EchartOptions: Opts = { renderer: 'svg' };
 const FunnelChart: FC<FunnelChartProps> = memo((props) => {
     const { chartRef, isLoading } = useVisualizationContext();
 
-    const pieChartOptions = useEchartsFunnelConfig(props.isInDashboard);
+    const funnelChartOptions = useEchartsFunnelConfig(props.isInDashboard);
 
     useEffect(() => {
         const listener = () => chartRef.current?.getEchartsInstance().resize();
@@ -47,7 +47,7 @@ const FunnelChart: FC<FunnelChartProps> = memo((props) => {
     });
 
     if (isLoading) return <LoadingChart />;
-    if (!pieChartOptions) return <EmptyChart />;
+    if (!funnelChartOptions) return <EmptyChart />;
 
     return (
         <>
@@ -69,7 +69,7 @@ const FunnelChart: FC<FunnelChartProps> = memo((props) => {
                           }
                 }
                 opts={EchartOptions}
-                option={pieChartOptions.eChartsOption}
+                option={funnelChartOptions}
                 notMerge
                 {...props}
             />

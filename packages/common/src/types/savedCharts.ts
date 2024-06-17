@@ -99,7 +99,7 @@ export type PieChart = {
 };
 
 export type FunnelChart = {
-    metricId?: string;
+    fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
 };
 
