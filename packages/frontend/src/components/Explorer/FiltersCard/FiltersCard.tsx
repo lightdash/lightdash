@@ -9,7 +9,6 @@ import {
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
     type Field,
-    type FilterGroup,
     type FilterRule,
     type Filters,
 } from '@lightdash/common';
@@ -42,35 +41,35 @@ const FiltersCard: FC = memo(() => {
     );
     const { data } = useExplore(tableName);
 
-    const refreshRequiredFiltersProperty = (
-        allFilter: FilterGroup | undefined,
-    ) => {
-        if (!allFilter) return;
+    const refreshRequiredFiltersProperty = (filters: Filters): Filters => {
+        if (!filters.dimensions) return filters;
         // The table metadata model required filters may have been updated.
         // We need to refresh the required filters property in the filter group to reflect any changes on the metadata model.
-        if (data && data.tables[tableName]) {
-            const requiredFilters =
-                data.tables[tableName].requiredFilters || [];
-            // We transform the required filters to filter rules
-            // filters is pass as undefined to guarantee all required filters are transform even if they already exist in the filter group
-            const allRequiredFilters: FilterRule[] =
-                reduceRequiredDimensionFiltersToFilterRules(
-                    requiredFilters,
-                    data.tables[tableName],
-                    undefined,
-                );
-            const allFilterRefs = allRequiredFilters.map(
-                (filter) => filter.target.fieldId,
-            );
-            // We update the existing filter group with the required filters
-            // If the required filter has been removed from the metadata model we remove the required flag from the filter
-            const updatedFilters = resetRequiredFilterRules(
-                allFilter,
-                allFilterRefs,
-            );
+        if (!data || !data.tables[tableName]) return filters;
 
-            return updatedFilters;
-        }
+        const requiredFilters = data.tables[tableName].requiredFilters || [];
+        // We transform the required filters to filter rules
+        // filters is pass as undefined to guarantee all required filters are transform even if they already exist in the filter group
+        const allRequiredFilters: FilterRule[] =
+            reduceRequiredDimensionFiltersToFilterRules(
+                requiredFilters,
+                data.tables[tableName],
+                undefined,
+            );
+        const allFilterRefs = allRequiredFilters.map(
+            (filter) => filter.target.fieldId,
+        );
+        // We update the existing filter group with the required filters
+        // If the required filter has been removed from the metadata model we remove the required flag from the filter
+        const updatedDimensionFilters = resetRequiredFilterRules(
+            filters.dimensions,
+            allFilterRefs,
+        );
+
+        return {
+            ...filters,
+            dimensions: updatedDimensionFilters,
+        };
     };
     const updateDimensionFiltersWithRequiredFilters = (
         unsavedQueryFilters: Filters,
@@ -88,11 +87,14 @@ const FiltersCard: FC = memo(() => {
                         unsavedQueryFilters.dimensions,
                     );
                 // Add to the existing filter rules with the missing required filter rules
-                unsavedQueryFilters.dimensions =
-                    overrideFilterGroupWithFilterRules(
+
+                return {
+                    ...unsavedQueryFilters,
+                    dimensions: overrideFilterGroupWithFilterRules(
                         unsavedQueryFilters.dimensions,
                         reducedRules,
-                    );
+                    ),
+                };
             }
         }
         return unsavedQueryFilters;
@@ -103,21 +105,21 @@ const FiltersCard: FC = memo(() => {
         // If no model is selected, reset the dimension filters
         // This is to prevent the user from selecting a model, then deselecting it, and still having the required filters applied
         if (tableName.length === 0) {
-            unsavedQueryFilters.dimensions = undefined;
+            return {
+                ...unsavedQueryFilters,
+                dimensions: undefined,
+            };
         }
         return unsavedQueryFilters;
     };
+
     const filters = useExplorerContext((context) => {
         let unsavedQueryFilters =
             context.state.unsavedChartVersion.metricQuery.filters;
+
         // Refresh the required filters property as the required filters can change when the table dbt metadata changes
-        const resetDimensionFilters = refreshRequiredFiltersProperty(
-            unsavedQueryFilters.dimensions,
-        );
-        unsavedQueryFilters = {
-            ...unsavedQueryFilters,
-            dimensions: resetDimensionFilters,
-        };
+        unsavedQueryFilters =
+            refreshRequiredFiltersProperty(unsavedQueryFilters);
         // Update the dimension filters with the required filters
         // (we add the required filters to the unsavedQueryFilters if they are not already there)
         unsavedQueryFilters =
@@ -125,8 +127,10 @@ const FiltersCard: FC = memo(() => {
         // If no model is selected, or user has deselected the model with required filters, reset the dimension filters
         unsavedQueryFilters =
             resetDimensionFiltersIfNoModelSelected(unsavedQueryFilters);
+
         return unsavedQueryFilters;
     });
+
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,

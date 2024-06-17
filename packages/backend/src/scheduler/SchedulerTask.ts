@@ -1181,6 +1181,9 @@ export default class SchedulerTask {
         thresholds: ThresholdOptions[],
         results: Record<string, any>[],
     ): boolean {
+        if (thresholds.length < 1 || results.length < 1) {
+            return false;
+        }
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
         const getValue = (resultIdx: number) => {
