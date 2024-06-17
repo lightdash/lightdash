@@ -1,3 +1,10 @@
+## [0.1133.8](https://github.com/lightdash/lightdash/compare/0.1133.7...0.1133.8) (2024-06-17)
+
+
+### Bug Fixes
+
+* do not add daily jobs for disabled schedulers ([#10430](https://github.com/lightdash/lightdash/issues/10430)) ([ebf9a16](https://github.com/lightdash/lightdash/commit/ebf9a168fef9f323dab24c368e84a138e7ac3c83))
+
 ## [0.1133.7](https://github.com/lightdash/lightdash/compare/0.1133.6...0.1133.7) (2024-06-17)
 
 
