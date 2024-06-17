@@ -1,3 +1,10 @@
+## [0.1133.7](https://github.com/lightdash/lightdash/compare/0.1133.6...0.1133.7) (2024-06-17)
+
+
+### Bug Fixes
+
+* update CSP allowed domains ([#10415](https://github.com/lightdash/lightdash/issues/10415)) ([9c0de98](https://github.com/lightdash/lightdash/commit/9c0de98a12ad9e3ac773bac5648d834b0ca5c943))
+
 ## [0.1133.6](https://github.com/lightdash/lightdash/compare/0.1133.5...0.1133.6) (2024-06-17)
 
 
