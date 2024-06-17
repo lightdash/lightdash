@@ -274,16 +274,20 @@ export default class App {
             'https://*.sentry.io',
             'https://analytics.lightdash.com',
             'https://*.usepylon.com',
+            'wss://*.pusher.com', // used by pylon
             'https://*.headwayapp.co',
             'https://headway-widget.net',
             'https://*.posthog.com',
             'https://*.intercom.com',
             'https://*.intercom.io',
+            'wss://*.intercom.io',
             'https://*.intercomcdn.com',
             'https://*.rudderlabs.com',
             'https://www.googleapis.com',
             'https://apis.google.com',
             'https://accounts.google.com',
+            'https://vega.github.io',
+            'https://cdn.jsdelivr.net/npm/monaco-editor',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
         ];
