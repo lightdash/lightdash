@@ -1193,7 +1193,7 @@ export default class SchedulerTask {
             if (!(fieldId in result)) {
                 // This error will disable the scheduler
                 throw new FieldReferenceError(
-                    `Threshold alert error: Field ${fieldId} not found in results`,
+                    `Threshold alert error: Tried to reference field with unknown id: ${fieldId}`,
                 );
             }
             return parseFloat(result[fieldId]);
@@ -1741,7 +1741,8 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (`${e}`.includes('FieldReferenceError: Tried to reference')) {
+            if (`${e}`.includes('Tried to reference')) {
+                // This captures both the error from thresholdAlert and metricQuery
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
