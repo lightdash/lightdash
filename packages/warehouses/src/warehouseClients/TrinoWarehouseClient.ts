@@ -196,7 +196,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 );
             }
 
-            let result: QueryData = [];
+            let result: QueryData = queryResult.value.data ?? [];
             const schema: {
                 name: string;
                 type: string;
@@ -206,9 +206,9 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
             while (!queryResult.done) {
-                result = result.concat(queryResult.value.data ?? []);
                 // eslint-disable-next-line no-await-in-loop
                 queryResult = await query.next();
+                result = result.concat(queryResult.value.data ?? []);
             }
 
             const fields = schema.reduce(
