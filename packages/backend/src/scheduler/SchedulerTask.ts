@@ -6,6 +6,7 @@ import {
     CreateSchedulerTarget,
     DownloadCsvPayload,
     EmailNotificationPayload,
+    FieldReferenceError,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
@@ -25,6 +26,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
     operatorAction,
@@ -38,6 +40,7 @@ import {
     SlackNotificationPayload,
     ThresholdOperator,
     ThresholdOptions,
+    UnexpectedDatabaseError,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -1179,13 +1182,23 @@ export default class SchedulerTask {
     ): boolean {
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
-        const firstResult = results[0][fieldId];
-        if (firstResult === undefined) {
-            throw new Error(
-                `Threshold alert error: Field ${fieldId} not found in results`,
-            );
-        }
-        const firstValue = parseFloat(firstResult); // This will throw an error if value is not a valid number
+        const getValue = (resultIdx: number) => {
+            if (resultIdx >= results.length) {
+                throw new NotFoundError(
+                    `Threshold alert error: Can't find enough results`,
+                );
+            }
+            const result = results[resultIdx];
+
+            if (!(fieldId in result)) {
+                // This error will disable the scheduler
+                throw new FieldReferenceError(
+                    `Threshold alert error: Field ${fieldId} not found in results`,
+                );
+            }
+            return parseFloat(result[fieldId]);
+        };
+        const firstValue = getValue(0);
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
                 return firstValue > thresholdValue;
@@ -1193,7 +1206,7 @@ export default class SchedulerTask {
                 return firstValue < thresholdValue;
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
-                const secondValue = parseFloat(results[1][fieldId]);
+                const secondValue = getValue(1);
                 const increase = firstValue - secondValue;
                 if (operator === ThresholdOperator.INCREASED_BY) {
                     return thresholdValue < increase / (secondValue * 100);
@@ -1566,45 +1579,45 @@ export default class SchedulerTask {
     ) {
         const schedulerUuid = getSchedulerUuid(schedulerPayload);
 
-        try {
-            const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
-                isCreateScheduler(schedulerPayload)
-                    ? schedulerPayload
-                    : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
-                          schedulerPayload.schedulerUuid,
-                      );
+        const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
+            isCreateScheduler(schedulerPayload)
+                ? schedulerPayload
+                : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
+                      schedulerPayload.schedulerUuid,
+                  );
 
-            if (!scheduler.enabled) {
-                // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
-                throw new Error('Scheduler is disabled');
-            }
+        if (!scheduler.enabled) {
+            // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
+            throw new Error('Scheduler is disabled');
+        }
 
-            this.analytics.track({
-                event: 'scheduler_job.started',
-                anonymousId: LightdashAnalytics.anonymousId,
-                properties: {
-                    jobId,
-                    schedulerId: schedulerUuid,
-                    sendNow: schedulerUuid === undefined,
-                    isThresholdAlert: scheduler.thresholds !== undefined,
-                },
-            });
-            await this.schedulerService.logSchedulerJob({
-                task: 'handleScheduledDelivery',
-                schedulerUuid,
+        this.analytics.track({
+            event: 'scheduler_job.started',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
                 jobId,
-                jobGroup: jobId,
-                scheduledTime,
-                status: SchedulerJobStatus.STARTED,
-            });
+                schedulerId: schedulerUuid,
+                sendNow: schedulerUuid === undefined,
+                isThresholdAlert: scheduler.thresholds !== undefined,
+            },
+        });
+        await this.schedulerService.logSchedulerJob({
+            task: 'handleScheduledDelivery',
+            schedulerUuid,
+            jobId,
+            jobGroup: jobId,
+            scheduledTime,
+            status: SchedulerJobStatus.STARTED,
+        });
 
-            const {
-                createdBy: userUuid,
-                savedChartUuid,
-                dashboardUuid,
-                thresholds,
-                notificationFrequency,
-            } = scheduler;
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            thresholds,
+            notificationFrequency,
+        } = scheduler;
+        try {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // TODO add multiple AND conditions
                 if (savedChartUuid) {
@@ -1716,6 +1729,32 @@ export default class SchedulerTask {
                 details: { error: e.message },
             });
 
+            if (
+                `${e}`.includes(
+                    `Threshold alert error: Can't find enough results`,
+                )
+            ) {
+                Logger.warn(
+                    `Scheduler ${schedulerUuid} did not return enough results for threshold alert`,
+                );
+                // We don't want to retry the error now, but we are not going to disable the scheduler.
+                return; // Do not cascade error
+            }
+
+            if (`${e}`.includes('FieldReferenceError: Tried to reference')) {
+                Logger.warn(
+                    `Disabling scheduler with non-retryable error: ${e}`,
+                );
+                const user = await this.userService.getSessionByUserUuid(
+                    scheduler.createdBy,
+                );
+                await this.schedulerService.setSchedulerEnabled(
+                    user,
+                    schedulerUuid!,
+                    false,
+                );
+                return; // Do not cascade error
+            }
             throw e; // Cascade error to it can be retried by graphile
         }
     }
