@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -31,7 +30,6 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useApp } from '../../../providers/AppProvider';
@@ -122,19 +120,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         isLoading: promoteChartDiffLoading,
     } = usePromoteChartDiffMutation();
 
-    const isPromoteChartsEnabled = useFeatureFlagEnabled(
-        FeatureFlags.PromoteCharts,
+    const userCanPromoteChart = user.data?.ability?.can(
+        'promote',
+        subject('SavedChart', {
+            organizationUuid,
+            projectUuid,
+        }),
     );
-
-    const userCanPromoteChart =
-        isPromoteChartsEnabled &&
-        user.data?.ability?.can(
-            'promote',
-            subject('SavedChart', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
 
     switch (item.type) {
         case ResourceViewItemType.CHART: {
