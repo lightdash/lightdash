@@ -26,6 +26,7 @@ import {
     isSchedulerImageOptions,
     isTableChartConfig,
     LightdashPage,
+    NotEnoughResults,
     NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
@@ -1184,7 +1185,7 @@ export default class SchedulerTask {
 
         const getValue = (resultIdx: number) => {
             if (resultIdx >= results.length) {
-                throw new NotFoundError(
+                throw new NotEnoughResults(
                     `Threshold alert error: Can't find enough results`,
                 );
             }
@@ -1729,11 +1730,7 @@ export default class SchedulerTask {
                 details: { error: e.message },
             });
 
-            if (
-                `${e}`.includes(
-                    `Threshold alert error: Can't find enough results`,
-                )
-            ) {
+            if (e instanceof NotEnoughResults) {
                 Logger.warn(
                     `Scheduler ${schedulerUuid} did not return enough results for threshold alert`,
                 );
@@ -1741,7 +1738,7 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (`${e}`.includes('Tried to reference')) {
+            if (e instanceof FieldReferenceError) {
                 // This captures both the error from thresholdAlert and metricQuery
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
