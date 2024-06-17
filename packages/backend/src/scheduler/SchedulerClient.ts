@@ -401,6 +401,7 @@ export class SchedulerClient {
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
+        if (scheduler.enabled === false) return; // Do not add jobs for disabled schedulers
         const dates = getDailyDatesFromCron(scheduler.cron);
         try {
             const promises = dates.map((date: Date) =>
