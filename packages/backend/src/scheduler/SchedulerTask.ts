@@ -1177,8 +1177,10 @@ export default class SchedulerTask {
         thresholds: ThresholdOptions[],
         results: Record<string, any>[],
     ): boolean {
+        if (thresholds.length < 1 || results.length < 1) {
+            return false;
+        }
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
-
         const firstResult = results[0][fieldId];
         if (firstResult === undefined) {
             throw new Error(
@@ -1193,7 +1195,7 @@ export default class SchedulerTask {
                 return firstValue < thresholdValue;
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
-                const secondValue = parseFloat(results[1][fieldId]);
+                const secondValue = parseFloat(results[1]?.[fieldId]);
                 const increase = firstValue - secondValue;
                 if (operator === ThresholdOperator.INCREASED_BY) {
                     return thresholdValue < increase / (secondValue * 100);
