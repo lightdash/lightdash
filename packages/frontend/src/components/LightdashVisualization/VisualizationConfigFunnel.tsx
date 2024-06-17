@@ -22,7 +22,7 @@ export type VisualizationConfigFunnelType = {
     chartType: ChartType.FUNNEL;
     chartConfig: ReturnType<typeof useFunnelChartConfig>;
     dimensions: Record<string, CustomDimension | Dimension>;
-    numericMetrics: Record<string, Metric | TableCalculation>;
+    numericFields: Record<string, Metric | TableCalculation>;
 };
 
 export const isFunnelVisualizationConfig = (
@@ -47,12 +47,12 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     children,
     tableCalculationsMetadata,
 }) => {
-    const { dimensions, numericMetrics } = useMemo(() => {
+    const { dimensions, numericFields } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
         const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
         return {
             dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericMetrics: { ...metrics, ...tableCalculations },
+            numericFields: { ...metrics, ...tableCalculations },
         };
     }, [itemsMap]);
 
@@ -61,7 +61,7 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
         initialChartConfig,
         itemsMap,
         dimensions,
-        numericMetrics,
+        numericFields,
         colorPalette,
         tableCalculationsMetadata,
     );
@@ -80,7 +80,7 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
             chartType: ChartType.FUNNEL,
             chartConfig: FunnelChartConfig,
             dimensions,
-            numericMetrics,
+            numericFields,
         },
     });
 };

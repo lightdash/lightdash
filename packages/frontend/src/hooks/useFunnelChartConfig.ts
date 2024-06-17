@@ -1,5 +1,4 @@
 import {
-    formatItemValue,
     isField,
     isMetric,
     isTableCalculation,
@@ -9,8 +8,6 @@ import {
     type FunnelChart,
     type ItemsMap,
     type Metric,
-    type ResultRow,
-    type ResultValue,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
@@ -19,17 +16,13 @@ import { useEffect, useMemo, useState } from 'react';
 type FunnelChartConfig = {
     validConfig: FunnelChart;
 
-    metricId: string | null;
-    selectedMetric: Metric | TableCalculation | undefined;
-    // metricChange: (metricId: string | null) => void;
+    fieldId: string | null;
+    selectedField: Metric | TableCalculation | undefined;
+    fieldChange: (fieldId: string | null) => void;
 
     data: {
         name: string;
         value: number;
-        meta: {
-            value: ResultValue;
-            rows: ResultRow[];
-        };
     }[];
 };
 
@@ -38,7 +31,7 @@ export type FunnelChartConfigFn = (
     funnelChartConfig: FunnelChart | undefined,
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,
-    numericMetrics: Record<string, Metric | TableCalculation>,
+    numericFields: Record<string, Metric | TableCalculation>,
     colorPalette: string[],
     tableCalculationsMetadata?: TableCalculationMetadata[],
 ) => FunnelChartConfig;
@@ -48,36 +41,32 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     funnelChartConfig,
     itemsMap,
     dimensions,
-    numericMetrics,
+    numericFields,
     colorPalette,
     tableCalculationsMetadata,
 ) => {
-    const [metricId, setMetricId] = useState(
-        funnelChartConfig?.metricId ?? null,
+    const [fieldId, setFieldId] = useState(funnelChartConfig?.fieldId ?? null);
+
+    const allNumericFieldIds = useMemo(
+        () => Object.keys(numericFields),
+        [numericFields],
     );
 
-    // const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
-
-    const allNumericMetricIds = useMemo(
-        () => Object.keys(numericMetrics),
-        [numericMetrics],
-    );
-
-    const selectedMetric = useMemo(() => {
-        if (!itemsMap || !metricId) return undefined;
-        const item = itemsMap[metricId];
+    const selectedField = useMemo(() => {
+        if (!itemsMap || !fieldId) return undefined;
+        const item = itemsMap[fieldId];
 
         if ((isField(item) && isMetric(item)) || isTableCalculation(item))
             return item;
 
         return undefined;
-    }, [itemsMap, metricId]);
+    }, [itemsMap, fieldId]);
 
     const isLoading = !resultsData;
 
     useEffect(() => {
-        if (isLoading || allNumericMetricIds.length === 0) return;
-        if (metricId && allNumericMetricIds.includes(metricId)) return;
+        if (isLoading || allNumericFieldIds.length === 0) return;
+        if (fieldId && allNumericFieldIds.includes(fieldId)) return;
 
         /**
          * When table calculations update, their name changes, so we need to update the selected fields
@@ -85,89 +74,57 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
          */
         if (tableCalculationsMetadata) {
             const metricTcIndex = tableCalculationsMetadata.findIndex(
-                (tc) => tc.oldName === metricId,
+                (tc) => tc.oldName === fieldId,
             );
 
             if (metricTcIndex !== -1) {
-                setMetricId(tableCalculationsMetadata[metricTcIndex].name);
+                setFieldId(tableCalculationsMetadata[metricTcIndex].name);
                 return;
             }
         }
 
-        setMetricId(allNumericMetricIds[0] ?? null);
-    }, [allNumericMetricIds, isLoading, metricId, tableCalculationsMetadata]);
+        setFieldId(allNumericFieldIds[0] ?? null);
+    }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
 
     const data = useMemo(() => {
         if (
-            !metricId ||
-            !selectedMetric ||
             !resultsData ||
+            !fieldId ||
+            !selectedField ||
             resultsData.rows.length === 0
         ) {
             return [];
         }
+        console.log({ resultsData });
 
-        const isMetricPresentInResults = resultsData?.rows.some(
-            (r) => r[metricId],
+        const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
+            (field) => {
+                return field === fieldId;
+            },
         );
 
-        if (!isMetricPresentInResults) {
-            return [];
-        }
-
-        const mappedData = resultsData.rows.map((row) => {
-            const value = Number(row[metricId].value.raw);
-
-            return { name: row[metricId].value.formatted, value, row };
+        return resultsData.rows.map<{ name: string; value: number }>((row) => {
+            const rowValues = Object.values(row).map((col) => col.value);
+            return {
+                name: rowValues[0].formatted,
+                value: Number(rowValues[fieldIndex].raw),
+            };
         });
-
-        return Object.entries(
-            mappedData.reduce<
-                Record<
-                    string,
-                    {
-                        value: number;
-                        rows: ResultRow[];
-                    }
-                >
-            >((acc, { name, value, row }) => {
-                return {
-                    ...acc,
-                    [name]: {
-                        value: (acc[name]?.value ?? 0) + value,
-                        rows: [...(acc[name]?.rows ?? []), row],
-                    },
-                };
-            }, {}),
-        )
-            .map(([name, { value, rows }]) => ({
-                name,
-                value,
-                meta: {
-                    value: {
-                        formatted: formatItemValue(selectedMetric, value),
-                        raw: value,
-                    },
-                    rows,
-                },
-            }))
-            .sort((a, b) => b.value - a.value);
-    }, [resultsData, selectedMetric, metricId]);
+    }, [fieldId, resultsData, selectedField]);
 
     const validConfig: FunnelChart = useMemo(
         () => ({
-            metricId: metricId ?? undefined,
+            fieldId: fieldId ?? undefined,
         }),
-        [metricId],
+        [fieldId],
     );
 
     return {
         validConfig,
-
-        selectedMetric,
-        metricId,
-        metricChange: setMetricId,
-
+        selectedField,
+        fieldId,
+        fieldChange: setFieldId,
+        colorPalette,
         data,
     };
 };

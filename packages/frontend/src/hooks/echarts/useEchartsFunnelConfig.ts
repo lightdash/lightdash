@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigFunnel';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
 
-export type PieSeriesDataPoint = NonNullable<
+export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
     meta: {
@@ -18,7 +18,8 @@ export type PieSeriesDataPoint = NonNullable<
 };
 
 const useEchartsFunnelConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap, colorPalette } =
+        useVisualizationContext();
 
     const chartConfig = useMemo(() => {
         if (!isFunnelVisualizationConfig(visualizationConfig)) return;
@@ -29,39 +30,30 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig) return;
 
         const {
-            selectedMetric,
-            // data, // TODO
+            data,
             validConfig: {},
         } = chartConfig;
 
-        if (!selectedMetric) return;
-
-        // TODO
-        return [
-            { value: 60, name: 'Visit' },
-            { value: 40, name: 'Inquiry' },
-            { value: 20, name: 'Order' },
-            { value: 80, name: 'Click' },
-            { value: 100, name: 'Show' },
-        ];
+        return data;
     }, [chartConfig]);
 
-    const funnelSeriesOption: FunnelSeriesOption | undefined = useMemo(() => {
+    const funnelSeriesOptions: FunnelSeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
 
         const {
             validConfig: {},
-            selectedMetric,
+            selectedField,
         } = chartConfig;
 
         return {
             type: 'funnel',
             data: seriesData,
+            color: colorPalette,
             tooltip: {
                 trigger: 'item',
                 formatter: ({ marker, name, value, percent }) => {
                     const formattedValue = formatItemValue(
-                        selectedMetric,
+                        selectedField,
                         value,
                     );
 
@@ -69,10 +61,10 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                 },
             },
         };
-    }, [chartConfig, seriesData]);
+    }, [chartConfig, colorPalette, seriesData]);
 
-    const eChartsOption: EChartsOption | undefined = useMemo(() => {
-        if (!chartConfig || !funnelSeriesOption) return;
+    const eChartsOptions: EChartsOption | undefined = useMemo(() => {
+        if (!chartConfig || !funnelSeriesOptions) return;
 
         const {
             validConfig: {},
@@ -82,15 +74,17 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             tooltip: {
                 trigger: 'item',
             },
-            series: [funnelSeriesOption],
+            series: [funnelSeriesOptions],
             animation: !isInDashboard,
         };
-    }, [chartConfig, isInDashboard, funnelSeriesOption]);
+    }, [chartConfig, isInDashboard, funnelSeriesOptions]);
 
     if (!itemsMap) return;
-    if (!eChartsOption || !funnelSeriesOption) return;
+    if (!eChartsOptions) return;
 
-    return { eChartsOption, funnelSeriesOption };
+    // console.log({ eChartsOptions });
+
+    return eChartsOptions;
 };
 
 export default useEchartsFunnelConfig;
