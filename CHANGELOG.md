@@ -1,3 +1,10 @@
+## [0.1133.11](https://github.com/lightdash/lightdash/compare/0.1133.10...0.1133.11) (2024-06-17)
+
+
+### Bug Fixes
+
+* ensure all trino query result chunks are fetched and processed ([#10424](https://github.com/lightdash/lightdash/issues/10424)) ([c58fb79](https://github.com/lightdash/lightdash/commit/c58fb7910dc96eba8db3db9bc256b2e0b1ee7602))
+
 ## [0.1133.10](https://github.com/lightdash/lightdash/compare/0.1133.9...0.1133.10) (2024-06-17)
 
 
