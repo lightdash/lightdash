@@ -41,11 +41,9 @@ import {
     TimeFrames,
     UserAttributeValueMap,
     WarehouseClient,
-    WarehouseTypes,
     WeekDay,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
-import { WarehouseType } from './database/entities/warehouseCredentials';
 import { hasUserAttribute } from './services/UserAttributesService/UserAttributeUtils';
 
 const getDimensionFromId = (

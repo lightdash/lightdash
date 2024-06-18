@@ -18,12 +18,7 @@ import {
     getCustomFormatFromLegacy,
     isMomentInput,
 } from './formatting';
-import {
-    additionalMetric,
-    dimension,
-    metric,
-    tableCalculation,
-} from './formatting.mock';
+import { dimension, metric, tableCalculation } from './formatting.mock';
 
 describe('Formatting', () => {
     describe('convert legacy Format type', () => {
@@ -816,112 +811,6 @@ describe('Formatting', () => {
                     1000,
                 ),
             ).toEqual('1K');
-        });
-    });
-    describe('additional metric formatting', () => {
-        test('format additional metric with custom format DATE', () => {
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MIN,
-                        formatOptions: { type: CustomFormatType.DATE },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10');
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MAX,
-                        formatOptions: {
-                            type: CustomFormatType.DATE,
-                            timeInterval: TimeFrames.DAY,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10');
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MIN,
-                        formatOptions: {
-                            type: CustomFormatType.DATE,
-                            timeInterval: TimeFrames.YEAR,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021');
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MAX,
-                        formatOptions: {
-                            type: CustomFormatType.DATE,
-                            timeInterval: TimeFrames.MONTH,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03');
-        });
-
-        test('format additional metric with custom format TIMESTAMP', () => {
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MIN,
-                        formatOptions: { type: CustomFormatType.TIMESTAMP },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10, 00:00:00:000 (+00:00)');
-
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MAX,
-                        formatOptions: {
-                            type: CustomFormatType.TIMESTAMP,
-                            timeInterval: TimeFrames.HOUR,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10, 00 (+00:00)');
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MIN,
-                        formatOptions: {
-                            type: CustomFormatType.TIMESTAMP,
-                            timeInterval: TimeFrames.MINUTE,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10, 00:00 (+00:00)');
-            expect(
-                formatItemValue(
-                    {
-                        ...additionalMetric,
-                        type: MetricType.MAX,
-                        formatOptions: {
-                            type: CustomFormatType.TIMESTAMP,
-                            timeInterval: TimeFrames.SECOND,
-                        },
-                    },
-                    new Date('2021-03-10T00:00:00.000Z'),
-                ),
-            ).toEqual('2021-03-10, 00:00:00 (+00:00)');
         });
     });
 

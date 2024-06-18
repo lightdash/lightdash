@@ -160,7 +160,6 @@ export interface CustomFormat {
     compact?: CompactOrAlias | undefined;
     prefix?: string | undefined;
     suffix?: string | undefined;
-    timeInterval?: TimeFrames;
 }
 
 export enum CustomFormatType {
@@ -169,8 +168,6 @@ export enum CustomFormatType {
     CURRENCY = 'currency',
     NUMBER = 'number',
     ID = 'id',
-    DATE = 'date',
-    TIMESTAMP = 'timestamp',
 }
 
 export enum TableCalculationType {
