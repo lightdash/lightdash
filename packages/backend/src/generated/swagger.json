@@ -736,6 +736,9 @@
                     "settings": {},
                     "disabled": {
                         "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -754,9 +757,6 @@
                     },
                     {
                         "properties": {
-                            "required": {
-                                "type": "boolean"
-                            },
                             "label": {
                                 "type": "string"
                             },
@@ -1071,6 +1071,9 @@
                     "settings": {},
                     "disabled": {
                         "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -1144,7 +1147,15 @@
                 "type": "object"
             },
             "CustomFormatType": {
-                "enum": ["default", "percent", "currency", "number", "id"],
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp"
+                ],
                 "type": "string"
             },
             "NumberSeparator": {
@@ -1181,6 +1192,33 @@
                     }
                 ]
             },
+            "TimeFrames": {
+                "enum": [
+                    "RAW",
+                    "YEAR",
+                    "QUARTER",
+                    "MONTH",
+                    "WEEK",
+                    "DAY",
+                    "HOUR",
+                    "MINUTE",
+                    "SECOND",
+                    "MILLISECOND",
+                    "DAY_OF_WEEK_INDEX",
+                    "DAY_OF_MONTH_NUM",
+                    "DAY_OF_YEAR_NUM",
+                    "WEEK_NUM",
+                    "MONTH_NUM",
+                    "QUARTER_NUM",
+                    "YEAR_NUM",
+                    "DAY_OF_WEEK_NAME",
+                    "MONTH_NAME",
+                    "QUARTER_NAME",
+                    "HOUR_OF_DAY_NUM",
+                    "MINUTE_OF_HOUR_NUM"
+                ],
+                "type": "string"
+            },
             "CustomFormat": {
                 "properties": {
                     "type": {
@@ -1204,6 +1242,9 @@
                     },
                     "suffix": {
                         "type": "string"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
                     }
                 },
                 "required": ["type"],
@@ -1284,6 +1325,9 @@
                     },
                     "settings": {},
                     "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
                         "type": "boolean"
                     }
                 },
@@ -2699,6 +2743,12 @@
                     },
                     "hidden": {
                         "type": "boolean"
+                    },
+                    "requiredFilters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
                     },
                     "sqlWhere": {
                         "type": "string"
@@ -7817,7 +7867,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1129.1",
+        "version": "0.1133.10",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

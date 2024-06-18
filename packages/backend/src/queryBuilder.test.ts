@@ -931,14 +931,18 @@ describe('Time frame sorting', () => {
     it('sortDayOfWeekName SQL for undefined startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined),
+                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined, `"`),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, WeekDay.SUNDAY),
+                sortDayOfWeekName(
+                    COMPILED_WEEK_NAME_DIMENSION,
+                    WeekDay.SUNDAY,
+                    `"`,
+                ),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
     });
@@ -949,18 +953,19 @@ describe('Time frame sorting', () => {
                 sortDayOfWeekName(
                     COMPILED_WEEK_NAME_DIMENSION,
                     WeekDay.WEDNESDAY,
+                    `"`,
                 ),
             ),
         ).toStrictEqual(
             ignoreIndentation(`(
             CASE
-                WHEN "table1".dim1 = 'Sunday' THEN 5
-                WHEN "table1".dim1 = 'Monday' THEN 6
-                WHEN "table1".dim1 = 'Tuesday' THEN 7
-                WHEN "table1".dim1 = 'Wednesday' THEN 1
-                WHEN "table1".dim1 = 'Thursday' THEN 2
-                WHEN "table1".dim1 = 'Friday' THEN 3
-                WHEN "table1".dim1 = 'Saturday' THEN 4
+                WHEN "table1_dim1" = 'Sunday' THEN 5
+                WHEN "table1_dim1" = 'Monday' THEN 6
+                WHEN "table1_dim1" = 'Tuesday' THEN 7
+                WHEN "table1_dim1" = 'Wednesday' THEN 1
+                WHEN "table1_dim1" = 'Thursday' THEN 2
+                WHEN "table1_dim1" = 'Friday' THEN 3
+                WHEN "table1_dim1" = 'Saturday' THEN 4
                 ELSE 0
             END
         )`),

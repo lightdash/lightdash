@@ -778,6 +778,7 @@ const models: TsoaRoute.Models = {
             target: { ref: 'DashboardFieldTarget', required: true },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -800,7 +801,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        required: { dataType: 'boolean' },
                         label: {
                             dataType: 'union',
                             subSchemas: [
@@ -1058,6 +1058,7 @@ const models: TsoaRoute.Models = {
             target: { ref: 'FieldTarget', required: true },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -1130,7 +1131,15 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomFormatType: {
         dataType: 'refEnum',
-        enums: ['default', 'percent', 'currency', 'number', 'id'],
+        enums: [
+            'default',
+            'percent',
+            'currency',
+            'number',
+            'id',
+            'date',
+            'timestamp',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NumberSeparator: {
@@ -1173,6 +1182,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TimeFrames: {
+        dataType: 'refEnum',
+        enums: [
+            'RAW',
+            'YEAR',
+            'QUARTER',
+            'MONTH',
+            'WEEK',
+            'DAY',
+            'HOUR',
+            'MINUTE',
+            'SECOND',
+            'MILLISECOND',
+            'DAY_OF_WEEK_INDEX',
+            'DAY_OF_MONTH_NUM',
+            'DAY_OF_YEAR_NUM',
+            'WEEK_NUM',
+            'MONTH_NUM',
+            'QUARTER_NUM',
+            'YEAR_NUM',
+            'DAY_OF_WEEK_NAME',
+            'MONTH_NAME',
+            'QUARTER_NAME',
+            'HOUR_OF_DAY_NUM',
+            'MINUTE_OF_HOUR_NUM',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomFormat: {
         dataType: 'refObject',
         properties: {
@@ -1201,6 +1238,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ dataType: 'string' }, { dataType: 'undefined' }],
             },
+            timeInterval: { ref: 'TimeFrames' },
         },
         additionalProperties: true,
     },
@@ -1265,6 +1303,7 @@ const models: TsoaRoute.Models = {
             },
             settings: { dataType: 'any' },
             disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -2507,6 +2546,10 @@ const models: TsoaRoute.Models = {
                     ref: 'Record_string.string-or-string-Array_',
                 },
                 hidden: { dataType: 'boolean' },
+                requiredFilters: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+                },
                 sqlWhere: { dataType: 'string' },
                 groupLabel: { dataType: 'string' },
                 orderFieldsBy: { ref: 'OrderFieldsByStrategy' },

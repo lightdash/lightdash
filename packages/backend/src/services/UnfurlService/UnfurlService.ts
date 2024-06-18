@@ -551,15 +551,20 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
+                    // If we are in a dashboard, and some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
                     if (lightdashPage === LightdashPage.DASHBOARD) {
-                        // wait for all components with class .loading_chart to disappear - they are the same number as the number of charts
-                        const dashboardChartsLoaders =
-                            page.locator('.loading_chart');
-
-                        await dashboardChartsLoaders.waitFor({
-                            state: 'hidden',
-                            timeout: 60000,
-                        });
+                        // Reference: https://playwright.dev/docs/api/class-locator#locator-all
+                        const loadingCharts = await page
+                            .locator('.loading_chart')
+                            .all();
+                        await Promise.all(
+                            loadingCharts.map((loadingChart) =>
+                                loadingChart.waitFor({
+                                    state: 'hidden',
+                                    timeout: 60000,
+                                }),
+                            ),
+                        );
                     }
 
                     const path = `/tmp/${imageId}.png`;

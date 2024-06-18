@@ -1,4 +1,5 @@
 import {
+    CustomFormatType,
     DimensionType,
     friendlyName,
     isAdditionalMetric,
@@ -84,31 +85,21 @@ const getTypeOverridesForAdditionalMetric = (
 
     switch (type) {
         case MetricType.MIN:
-            switch (item.type) {
-                case DimensionType.DATE:
-                    return {
-                        type: MetricType.DATE,
-                        sql: `MIN(${item.sql})`,
-                    };
-                case DimensionType.TIMESTAMP:
-                    return {
-                        type: MetricType.TIMESTAMP,
-                        sql: `MIN(${item.sql})`,
-                    };
-                default:
-                    return;
-            }
         case MetricType.MAX:
             switch (item.type) {
                 case DimensionType.DATE:
                     return {
-                        type: MetricType.DATE,
-                        sql: `MAX(${item.sql})`,
+                        formatOptions: {
+                            type: CustomFormatType.DATE,
+                            timeInterval: item.timeInterval,
+                        },
                     };
                 case DimensionType.TIMESTAMP:
                     return {
-                        type: MetricType.TIMESTAMP,
-                        sql: `MAX(${item.sql})`,
+                        formatOptions: {
+                            type: CustomFormatType.TIMESTAMP,
+                            timeInterval: item.timeInterval,
+                        },
                     };
                 default:
                     return;

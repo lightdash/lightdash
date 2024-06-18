@@ -272,21 +272,22 @@ export const sortMonthName = (dimension: CompiledDimension) => {
 export const sortDayOfWeekName = (
     dimension: CompiledDimension,
     startOfWeek: WeekDay | null | undefined,
+    fieldQuoteChar: string,
 ) => {
-    const fieldSql = `${dimension.compiledSql}`;
+    const filedId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
     };
     return `(
         CASE
-            WHEN ${fieldSql} = 'Sunday' THEN ${calculateDayIndex(1)}
-            WHEN ${fieldSql} = 'Monday' THEN ${calculateDayIndex(2)}
-            WHEN ${fieldSql} = 'Tuesday' THEN ${calculateDayIndex(3)}
-            WHEN ${fieldSql} = 'Wednesday' THEN ${calculateDayIndex(4)}
-            WHEN ${fieldSql} = 'Thursday' THEN ${calculateDayIndex(5)}
-            WHEN ${fieldSql} = 'Friday' THEN ${calculateDayIndex(6)}
-            WHEN ${fieldSql} = 'Saturday' THEN ${calculateDayIndex(7)}
+            WHEN ${filedId} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${filedId} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${filedId} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${filedId} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${filedId} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${filedId} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${filedId} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
     )`;
@@ -889,6 +890,7 @@ export const buildQuery = ({
 
     const compiledDimensions = getDimensions(explore);
 
+    let shouldWrapQueryCTE = false;
     const fieldOrders = sorts.map((sort) => {
         if (
             compiledCustomDimensions &&
@@ -919,7 +921,15 @@ export const buildQuery = ({
             sortedDimension &&
             sortedDimension.timeInterval === TimeFrames.DAY_OF_WEEK_NAME
         ) {
-            return sortDayOfWeekName(sortedDimension, startOfWeek);
+            // in BigQuery, we cannot use a function in the ORDER BY clause that references a column that is not aggregated or grouped
+            // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
+            // for consistency, we do it for all warehouses
+            shouldWrapQueryCTE = true;
+            return sortDayOfWeekName(
+                sortedDimension,
+                startOfWeek,
+                getFieldQuoteChar(warehouseClient.credentials.type),
+            );
         }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
             sort.descending ? ' DESC' : ''
@@ -1091,7 +1101,8 @@ export const buildQuery = ({
 
     if (
         compiledMetricQuery.compiledTableCalculations.length > 0 ||
-        whereMetricFilters
+        whereMetricFilters ||
+        shouldWrapQueryCTE
     ) {
         const cteSql = [
             sqlSelect,
