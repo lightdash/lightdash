@@ -551,20 +551,20 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    // If we are in a dashboard, and some charts are still loading even though their API requests have finished, we wait for them to finish
+                    // If we are in a dashboard, and some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
                     if (lightdashPage === LightdashPage.DASHBOARD) {
                         // Reference: https://playwright.dev/docs/api/class-locator#locator-all
-
-                        // eslint-disable-next-line no-restricted-syntax
-                        for (const loadingChart of await page
+                        const loadingCharts = await page
                             .locator('.loading_chart')
-                            .all()) {
-                            // eslint-disable-next-line no-await-in-loop
-                            await loadingChart.waitFor({
-                                state: 'hidden',
-                                timeout: 60000,
-                            });
-                        }
+                            .all();
+                        await Promise.all(
+                            loadingCharts.map((loadingChart) =>
+                                loadingChart.waitFor({
+                                    state: 'hidden',
+                                    timeout: 60000,
+                                }),
+                            ),
+                        );
                     }
 
                     const path = `/tmp/${imageId}.png`;
