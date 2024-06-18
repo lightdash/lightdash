@@ -198,6 +198,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     const valueIsDate =
                         value !== undefined && typeof value !== 'number';
 
+                    // TODO, does start of week go here? It's a utility file.
+
                     const defaultTimeIntervalValues: Record<
                         string,
                         moment.Moment

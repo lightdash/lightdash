@@ -25,6 +25,10 @@ const FilterWeekPicker: FC<Props> = ({
 }) => {
     const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
+    // const valueAtStartOfWeek = value
+    //     ? startOfWeek(value, firstDayOfWeek)
+    //     : null;
+
     return (
         <DateInput
             w="100%"
