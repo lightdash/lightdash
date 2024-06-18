@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import * as PrometheusClient from 'prom-client';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -11,6 +12,7 @@ import {
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import { registerDefaultPrometheusMetrics } from './prometheus';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
@@ -104,6 +106,7 @@ export default class SchedulerApp {
 
     public async start() {
         await this.initSentry();
+        registerDefaultPrometheusMetrics();
         const worker = await this.initWorker();
         await this.initServer(worker);
     }
@@ -172,6 +175,11 @@ export default class SchedulerApp {
                 }
             },
             logger: Logger.error,
+        });
+
+        app.get('/metrics', async (req, res) => {
+            res.set('Content-Type', PrometheusClient.register.contentType);
+            res.end(await PrometheusClient.register.metrics());
         });
 
         server.listen(this.port);
