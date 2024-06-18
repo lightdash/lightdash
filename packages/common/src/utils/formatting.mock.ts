@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    type AdditionalMetric,
     type Dimension,
     type Metric,
     type TableCalculation,
@@ -31,4 +32,9 @@ export const tableCalculation: TableCalculation = {
     name: 'name',
     displayName: 'displayName',
     sql: 'sql',
+};
+
+export const additionalMetric: AdditionalMetric = {
+    ...metric,
+    type: MetricType.COUNT,
 };

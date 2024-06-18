@@ -336,6 +336,15 @@ export function applyCustomFormat(
 
     if (value === '') return '';
 
+    if (
+        value instanceof Date &&
+        ![CustomFormatType.DATE, CustomFormatType.TIMESTAMP].includes(
+            format.type,
+        )
+    ) {
+        return formatTimestamp(value, undefined, false);
+    }
+
     if (valueIsNaN(value) || value === null) {
         return applyDefaultFormat(value);
     }
