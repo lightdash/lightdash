@@ -765,6 +765,7 @@ const models: TsoaRoute.Models = {
             'notInThePast',
             'inTheNext',
             'inTheCurrent',
+            'notInTheCurrent',
             'inBetween',
         ],
     },

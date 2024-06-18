@@ -172,7 +172,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     filterRule.operator === FilterOperator.IN_THE_PAST ||
                     filterRule.operator === FilterOperator.NOT_IN_THE_PAST ||
                     filterRule.operator === FilterOperator.IN_THE_NEXT ||
-                    filterRule.operator === FilterOperator.IN_THE_CURRENT
+                    filterRule.operator === FilterOperator.IN_THE_CURRENT ||
+                    filterRule.operator === FilterOperator.NOT_IN_THE_CURRENT
                 ) {
                     const numberValue =
                         value === undefined || typeof value !== 'number'
