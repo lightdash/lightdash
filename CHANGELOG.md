@@ -1,3 +1,10 @@
+## [0.1133.12](https://github.com/lightdash/lightdash/compare/0.1133.11...0.1133.12) (2024-06-18)
+
+
+### Bug Fixes
+
+* show start of the week CLI option in project settings ([#10439](https://github.com/lightdash/lightdash/issues/10439)) ([6ae907f](https://github.com/lightdash/lightdash/commit/6ae907fb3d790f5777e1af4e402112d014b0bfb8))
+
 ## [0.1133.11](https://github.com/lightdash/lightdash/compare/0.1133.10...0.1133.11) (2024-06-17)
 
 
