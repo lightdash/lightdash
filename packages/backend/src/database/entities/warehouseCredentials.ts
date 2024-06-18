@@ -9,6 +9,7 @@ export const warehouseTypes = [
     'postgres',
     'databricks',
     'trino',
+    'athena',
 ] as const;
 export type WarehouseType = typeof warehouseTypes[number];
 type DbWarehouseCredentials = {

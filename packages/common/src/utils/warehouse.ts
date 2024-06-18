@@ -13,6 +13,7 @@ export const getFieldQuoteChar = (
             case WarehouseTypes.REDSHIFT:
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.ATHENA:
                 return '"';
             default:
                 return assertUnreachable(

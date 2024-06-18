@@ -282,6 +282,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                 break;
             case WarehouseTypes.DATABRICKS:
             case WarehouseTypes.TRINO:
+            case WarehouseTypes.ATHENA:
             case WarehouseTypes.SNOWFLAKE:
             case WarehouseTypes.BIGQUERY:
                 break;

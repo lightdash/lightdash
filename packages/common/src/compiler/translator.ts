@@ -66,6 +66,7 @@ const convertTimezone = (
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
         case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
             return timestampSql;
         default:
             return assertUnreachable(

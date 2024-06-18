@@ -4,6 +4,7 @@ import { IconDots, type Icon } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
+import Athena from './Assets/athena.svg';
 import BigQuery from './Assets/bigquery.svg';
 import Databricks from './Assets/databricks.svg';
 import PostgressLogo from './Assets/postgresql.svg';
@@ -45,6 +46,12 @@ const WarehouseTypeLabels: WarehouseLabel[] = [
         key: WarehouseTypes.TRINO,
         iconType: 'image',
         image: Trino,
+    },
+    {
+        label: 'Athena',
+        key: WarehouseTypes.ATHENA,
+        iconType: 'image',
+        image: Athena,
     },
     {
         label: 'Databricks',

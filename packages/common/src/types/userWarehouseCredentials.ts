@@ -1,4 +1,5 @@
 import {
+    type CreateAthenaCredentials,
     type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
@@ -22,6 +23,7 @@ export type UserWarehouseCredentials = {
               'type' | 'user'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
+        | Pick<CreateAthenaCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>;
 };
 
@@ -35,6 +37,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
         | Pick<CreateSnowflakeCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateBigqueryCredentials, 'type' | 'keyfileContents'>
+        | Pick<CreateAthenaCredentials, 'type' | 'awsSecretKey'>
         | Pick<CreateDatabricksCredentials, 'type' | 'personalAccessToken'>;
 };
 

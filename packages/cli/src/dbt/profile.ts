@@ -2,6 +2,7 @@ import { CreateWarehouseCredentials, ParseError } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import * as path from 'path';
+import { convertAthenaSchema } from './targets/athena';
 import { convertBigquerySchema } from './targets/Bigquery';
 import { convertDatabricksSchema } from './targets/databricks';
 import { convertPostgresSchema } from './targets/postgres';
@@ -63,6 +64,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertDatabricksSchema(target);
         case 'trino':
             return convertTrinoSchema(target);
+        case 'athena':
+            return convertAthenaSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,

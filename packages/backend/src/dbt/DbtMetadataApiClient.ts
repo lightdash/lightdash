@@ -15,6 +15,7 @@ const quoteChars: Record<SupportedDbtAdapter, string> = {
     redshift: `"`,
     postgres: `"`,
     trino: `"`,
+    athena: `"`,
 };
 
 export class DbtMetadataApiClient implements DbtClient {
