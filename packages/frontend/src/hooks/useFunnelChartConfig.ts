@@ -1,4 +1,5 @@
 import {
+    FunnelChartDataInput,
     isField,
     isMetric,
     isTableCalculation,
@@ -19,6 +20,9 @@ type FunnelChartConfig = {
     fieldId: string | null;
     selectedField: Metric | TableCalculation | undefined;
     fieldChange: (fieldId: string | null) => void;
+
+    dataInput: FunnelChartDataInput;
+    setDataInput: (dataInput: FunnelChartDataInput) => void;
 
     data: {
         name: string;
@@ -46,6 +50,10 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     tableCalculationsMetadata,
 ) => {
     const [fieldId, setFieldId] = useState(funnelChartConfig?.fieldId ?? null);
+
+    const [dataInput, setDataInput] = useState(
+        funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
+    );
 
     const allNumericFieldIds = useMemo(
         () => Object.keys(numericFields),
@@ -95,28 +103,52 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         ) {
             return [];
         }
-        console.log({ resultsData });
+        console.log({ resultsData, numericFields });
 
-        const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
-            (field) => {
-                return field === fieldId;
-            },
-        );
+        if (dataInput === FunnelChartDataInput.COLUMN) {
+            const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
+                (field) => {
+                    return field === fieldId;
+                },
+            );
 
-        return resultsData.rows.map<{ name: string; value: number }>((row) => {
-            const rowValues = Object.values(row).map((col) => col.value);
-            return {
-                name: rowValues[0].formatted,
-                value: Number(rowValues[fieldIndex].raw),
-            };
-        });
-    }, [fieldId, resultsData, selectedField]);
+            return resultsData.rows.map<{ name: string; value: number }>(
+                (row) => {
+                    const rowValues = Object.values(row).map(
+                        (col) => col.value,
+                    );
+                    return {
+                        name: rowValues[0].formatted,
+                        value: Number(rowValues[fieldIndex].raw),
+                    };
+                },
+            );
+        } else {
+            return allNumericFieldIds.reduce((acc, id) => {
+                if (resultsData.rows[0][id]) {
+                    acc.push({
+                        name: id,
+                        value: Number(resultsData.rows[0][id].value.raw),
+                    });
+                }
+                return acc;
+            }, [] as Array<{ name: string; value: number }>);
+        }
+    }, [
+        allNumericFieldIds,
+        dataInput,
+        fieldId,
+        numericFields,
+        resultsData,
+        selectedField,
+    ]);
 
     const validConfig: FunnelChart = useMemo(
         () => ({
+            dataInput: dataInput,
             fieldId: fieldId ?? undefined,
         }),
-        [fieldId],
+        [dataInput, fieldId],
     );
 
     return {
@@ -124,6 +156,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         selectedField,
         fieldId,
         fieldChange: setFieldId,
+        dataInput,
+        setDataInput,
         colorPalette,
         data,
     };

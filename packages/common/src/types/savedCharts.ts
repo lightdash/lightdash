@@ -98,7 +98,13 @@ export type PieChart = {
     metadata?: Record<string, SeriesMetadata>;
 };
 
+export enum FunnelChartDataInput {
+    ROW = 'row',
+    COLUMN = 'column',
+}
+
 export type FunnelChart = {
+    dataInput: FunnelChartDataInput;
     fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
 };

@@ -1,4 +1,5 @@
 import {
+    FunnelChartDataInput,
     getItemId,
     isField,
     isTableCalculation,
@@ -29,7 +30,8 @@ export const ConfigTabs: FC = memo(() => {
     const numericFields = Object.values(visualizationConfig.numericFields);
     // const dimensions = Object.values(visualizationConfig.dimensions);
 
-    const { selectedField, fieldChange } = visualizationConfig.chartConfig;
+    const { selectedField, fieldChange, dataInput, setDataInput } =
+        visualizationConfig.chartConfig;
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -48,64 +50,79 @@ export const ConfigTabs: FC = memo(() => {
                                     Data orientation
                                 </Config.Heading>
                                 <Group spacing="xs">
-                                    <Config.Label>Display as</Config.Label>
+                                    <Config.Label>Input data is</Config.Label>
                                     <SegmentedControl
-                                        value={'oneColumn'}
+                                        value={dataInput}
                                         data={[
                                             {
-                                                value: 'oneColumn',
-                                                label: 'One column',
+                                                value: FunnelChartDataInput.ROW,
+                                                label: 'A row',
                                             },
                                             {
-                                                value: 'columnPerStage',
-                                                label: 'A column per stage',
+                                                value: FunnelChartDataInput.COLUMN,
+                                                label: 'A column',
                                             },
                                         ]}
-                                        // onChange={() => toggleDonut()}
+                                        onChange={(value) =>
+                                            setDataInput(
+                                                value ===
+                                                    FunnelChartDataInput.ROW
+                                                    ? FunnelChartDataInput.ROW
+                                                    : FunnelChartDataInput.COLUMN,
+                                            )
+                                        }
                                     />
                                 </Group>
                             </Config.Section>
                         </Config>
                         <Config>
-                            <Config.Section>
-                                <Config.Heading>Metric</Config.Heading>
+                            {dataInput === FunnelChartDataInput.COLUMN && (
+                                <Config.Section>
+                                    <Config.Heading>Data field</Config.Heading>
 
-                                <Tooltip
-                                    variant="xs"
-                                    disabled={
-                                        numericFields &&
-                                        numericFields.length > 0
-                                    }
-                                    label="You must select at least one numeric metric to create a pie chart"
-                                >
-                                    <Box>
-                                        <FieldSelect<Metric | TableCalculation>
-                                            placeholder="Select metric"
-                                            disabled={
-                                                numericFields.length === 0
-                                            }
-                                            item={selectedField}
-                                            items={numericFields}
-                                            onChange={(newField) => {
-                                                if (
-                                                    newField &&
-                                                    isField(newField)
-                                                )
-                                                    fieldChange(
-                                                        getItemId(newField),
-                                                    );
-                                                else if (
-                                                    newField &&
-                                                    isTableCalculation(newField)
-                                                )
-                                                    fieldChange(newField.name);
-                                                else fieldChange(null);
-                                            }}
-                                            hasGrouping
-                                        />
-                                    </Box>
-                                </Tooltip>
-                            </Config.Section>
+                                    <Tooltip
+                                        variant="xs"
+                                        disabled={
+                                            numericFields &&
+                                            numericFields.length > 0
+                                        }
+                                        label="You must select at least one numeric metric to create a pie chart"
+                                    >
+                                        <Box>
+                                            <FieldSelect<
+                                                Metric | TableCalculation
+                                            >
+                                                placeholder="Select metric"
+                                                disabled={
+                                                    numericFields.length === 0
+                                                }
+                                                item={selectedField}
+                                                items={numericFields}
+                                                onChange={(newField) => {
+                                                    if (
+                                                        newField &&
+                                                        isField(newField)
+                                                    )
+                                                        fieldChange(
+                                                            getItemId(newField),
+                                                        );
+                                                    else if (
+                                                        newField &&
+                                                        isTableCalculation(
+                                                            newField,
+                                                        )
+                                                    )
+                                                        fieldChange(
+                                                            newField.name,
+                                                        );
+                                                    else fieldChange(null);
+                                                }}
+                                                hasGrouping
+                                            />
+                                        </Box>
+                                    </Tooltip>
+                                </Config.Section>
+                            )}
                         </Config>
                     </Stack>
                 </Tabs.Panel>
