@@ -272,8 +272,9 @@ export const sortMonthName = (dimension: CompiledDimension) => {
 export const sortDayOfWeekName = (
     dimension: CompiledDimension,
     startOfWeek: WeekDay | null | undefined,
+    fieldQuoteChar: string,
 ) => {
-    const filedId = getItemId(dimension);
+    const filedId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
@@ -924,7 +925,11 @@ export const buildQuery = ({
             // so we need to wrap the query in a CTE to allow us to reference the column in the ORDER BY clause
             // for consistency, we do it for all warehouses
             shouldWrapQueryCTE = true;
-            return sortDayOfWeekName(sortedDimension, startOfWeek);
+            return sortDayOfWeekName(
+                sortedDimension,
+                startOfWeek,
+                getFieldQuoteChar(warehouseClient.credentials.type),
+            );
         }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
             sort.descending ? ' DESC' : ''

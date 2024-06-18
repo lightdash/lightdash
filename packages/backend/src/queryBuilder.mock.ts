@@ -1381,13 +1381,13 @@ export const COMPILED_WEEK_NAME_DIMENSION: CompiledDimension = {
 
 export const WEEK_NAME_SORT_SQL = `(
     CASE
-        WHEN "table1".dim1 = 'Sunday' THEN 1
-        WHEN "table1".dim1 = 'Monday' THEN 2
-        WHEN "table1".dim1 = 'Tuesday' THEN 3
-        WHEN "table1".dim1 = 'Wednesday' THEN 4
-        WHEN "table1".dim1 = 'Thursday' THEN 5
-        WHEN "table1".dim1 = 'Friday' THEN 6
-        WHEN "table1".dim1 = 'Saturday' THEN 7
+        WHEN "table1_dim1" = 'Sunday' THEN 1
+        WHEN "table1_dim1" = 'Monday' THEN 2
+        WHEN "table1_dim1" = 'Tuesday' THEN 3
+        WHEN "table1_dim1" = 'Wednesday' THEN 4
+        WHEN "table1_dim1" = 'Thursday' THEN 5
+        WHEN "table1_dim1" = 'Friday' THEN 6
+        WHEN "table1_dim1" = 'Saturday' THEN 7
         ELSE 0
     END
 )`;
