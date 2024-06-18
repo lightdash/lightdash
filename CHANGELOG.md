@@ -1,3 +1,10 @@
+## [0.1133.15](https://github.com/lightdash/lightdash/compare/0.1133.14...0.1133.15) (2024-06-18)
+
+
+### Bug Fixes
+
+* wait for all chart spinners before playwright screenshot ([#10451](https://github.com/lightdash/lightdash/issues/10451)) ([9d7283a](https://github.com/lightdash/lightdash/commit/9d7283a0f26f27e12c0b97db4af7e414b85afed9))
+
 ## [0.1133.14](https://github.com/lightdash/lightdash/compare/0.1133.13...0.1133.14) (2024-06-18)
 
 
