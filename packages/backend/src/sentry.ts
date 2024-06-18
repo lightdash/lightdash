@@ -3,7 +3,7 @@ import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { lightdashConfig } from './config/lightdashConfig';
 import { VERSION } from './version';
 
-const sentry = Sentry.init({
+Sentry.init({
     release: VERSION,
     dsn: lightdashConfig.sentry.backend.dsn,
     environment:
@@ -24,7 +24,14 @@ const sentry = Sentry.init({
               ]
             : []),
     ],
-    ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+    ignoreErrors: [
+        'WarehouseQueryError',
+        'FieldReferenceError',
+        'CompileError',
+        'NotExistsError',
+        'NotFoundError',
+        'ForbiddenError',
+    ],
     tracesSampler: (context) => {
         if (
             context.request?.url?.endsWith('/status') ||
@@ -55,5 +62,3 @@ const sentry = Sentry.init({
         return breadcrumb;
     },
 });
-
-export default sentry;
