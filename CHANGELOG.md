@@ -1,3 +1,10 @@
+## [0.1133.14](https://github.com/lightdash/lightdash/compare/0.1133.13...0.1133.14) (2024-06-18)
+
+
+### Bug Fixes
+
+* minimum knex connections ([#10450](https://github.com/lightdash/lightdash/issues/10450)) ([f279a77](https://github.com/lightdash/lightdash/commit/f279a77caceac453f90f49f8bc77930a934de386))
+
 ## [0.1133.13](https://github.com/lightdash/lightdash/compare/0.1133.12...0.1133.13) (2024-06-18)
 
 
