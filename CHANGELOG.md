@@ -1,3 +1,10 @@
+## [0.1133.17](https://github.com/lightdash/lightdash/compare/0.1133.16...0.1133.17) (2024-06-19)
+
+
+### Bug Fixes
+
+* disable non retriable error on threshold alert and improve error handling ([#10431](https://github.com/lightdash/lightdash/issues/10431)) ([9897454](https://github.com/lightdash/lightdash/commit/98974548d040a3432fa03f31d120f099d1494d58))
+
 ## [0.1133.16](https://github.com/lightdash/lightdash/compare/0.1133.15...0.1133.16) (2024-06-18)
 
 
