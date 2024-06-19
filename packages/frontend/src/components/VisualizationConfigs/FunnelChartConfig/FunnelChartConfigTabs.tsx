@@ -28,6 +28,7 @@ export const ConfigTabs: FC = memo(() => {
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
 
     const numericFields = Object.values(visualizationConfig.numericFields);
+    // TODO: dimensions should be selectable for labels
     // const dimensions = Object.values(visualizationConfig.dimensions);
 
     const { selectedField, fieldChange, dataInput, setDataInput } =
