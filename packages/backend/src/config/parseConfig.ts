@@ -225,7 +225,6 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
-        screenshotWithPlaywright?: boolean;
     };
     groups: {
         enabled: boolean;
@@ -656,8 +655,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
-            screenshotWithPlaywright:
-                process.env.SCHEDULER_SCREENSHOT_WITH_PLAYWRIGHT === 'true',
         },
         groups: {
             enabled: process.env.GROUPS_ENABLED === 'true',
