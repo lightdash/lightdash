@@ -16,12 +16,6 @@ import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
 import playwright from 'playwright';
-import puppeteer, {
-    ProtocolError,
-    TimeoutError,
-    type Browser,
-    type Page,
-} from 'puppeteer';
 import { S3Client } from '../../clients/Aws/s3';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -256,41 +250,19 @@ export class UnfurlService extends BaseService {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url);
 
-        const usePlaywrightSaveScreenshot =
-            this.lightdashConfig.scheduler.screenshotWithPlaywright;
-
-        if (usePlaywrightSaveScreenshot) {
-            this.logger.info(
-                `Using Playwright to take screenshots for ${url} with details ${details?.minimalUrl} + ${details?.organizationUuid} + ${details?.resourceUuid} + ${details?.title}`,
-            );
-        }
-
-        const buffer = usePlaywrightSaveScreenshot
-            ? await this.saveScreenshotWithPlaywright({
-                  imageId,
-                  cookie,
-                  url,
-                  lightdashPage,
-                  chartType: details?.chartType,
-                  organizationUuid: details?.organizationUuid,
-                  gridWidth,
-                  resourceUuid: details?.resourceUuid,
-                  resourceName: details?.title,
-                  selector,
-                  chartTileUuids: details?.chartTileUuids,
-              })
-            : await this.saveScreenshot({
-                  imageId,
-                  cookie,
-                  url,
-                  lightdashPage,
-                  chartType: details?.chartType,
-                  organizationUuid: details?.organizationUuid,
-                  gridWidth,
-                  resourceUuid: details?.resourceUuid,
-                  resourceName: details?.title,
-                  selector,
-              });
+        const buffer = await this.saveScreenshot({
+            imageId,
+            cookie,
+            url,
+            lightdashPage,
+            chartType: details?.chartType,
+            organizationUuid: details?.organizationUuid,
+            gridWidth,
+            resourceUuid: details?.resourceUuid,
+            resourceName: details?.title,
+            selector,
+            chartTileUuids: details?.chartTileUuids,
+        });
 
         let imageUrl;
         let pdfPath;
@@ -370,7 +342,7 @@ export class UnfurlService extends BaseService {
         return unfurlImage.imageUrl;
     }
 
-    private async saveScreenshotWithPlaywright({
+    private async saveScreenshot({
         imageId,
         cookie,
         url,
@@ -650,7 +622,7 @@ export class UnfurlService extends BaseService {
                             code: 2, // Error
                         });
 
-                        return await this.saveScreenshotWithPlaywright({
+                        return await this.saveScreenshot({
                             imageId,
                             cookie,
                             url,
@@ -689,321 +661,6 @@ export class UnfurlService extends BaseService {
                 } finally {
                     if (page) await page.close();
                     if (browser) await browser.close(); // clears all created contexts belonging to this browser and disconnects from the browser server.
-
-                    span.end();
-
-                    const executionTime = Date.now() - startTime;
-                    this.logger.info(
-                        `UnfurlService saveScreenshot took ${executionTime} ms`,
-                    );
-                }
-            },
-        );
-    }
-
-    private async saveScreenshot({
-        imageId,
-        cookie,
-        url,
-        lightdashPage,
-        chartType,
-        organizationUuid,
-        gridWidth = undefined,
-        resourceUuid = undefined,
-        resourceName = undefined,
-        selector = 'body',
-        retries = SCREENSHOT_RETRIES,
-    }: {
-        imageId: string;
-        cookie: string;
-        url: string;
-        lightdashPage?: LightdashPage;
-        chartType?: string;
-        organizationUuid?: string;
-        gridWidth?: number | undefined;
-        resourceUuid?: string;
-        resourceName?: string;
-        selector?: string;
-        retries?: number;
-    }): Promise<Buffer | undefined> {
-        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
-            this.logger.error(
-                `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
-            );
-            throw new Error(
-                `Can't get screenshot if HEADLESS_BROWSER_HOST env variable is not defined`,
-            );
-        }
-        const startTime = Date.now();
-        let hasError = false;
-
-        // eslint-disable-next-line no-param-reassign
-        retries -= 1;
-
-        return wrapSentryTransaction(
-            'UnfurlService.saveScreenshot',
-            {},
-            async (span) => {
-                let browser: Browser | undefined;
-                let page: Page | undefined;
-
-                try {
-                    const browserWSEndpoint = `ws://${
-                        this.lightdashConfig.headlessBrowser?.host
-                    }:${this.lightdashConfig.headlessBrowser?.port || 3001}`;
-                    browser = await puppeteer.connect({
-                        browserWSEndpoint,
-                    });
-
-                    page = await browser.newPage();
-                    const parsedUrl = new URL(url);
-
-                    const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
-                    if (!cookieMatch)
-                        throw new Error('Invalid cookie provided');
-                    const cookieValue = cookieMatch[1];
-                    // Set cookie using `setCookie` instead of `setExtraHTTPHeaders` , otherwise this cookie will be leaked into other domains
-                    await page.setCookie({
-                        name: 'connect.sid',
-                        value: cookieValue,
-                        domain: parsedUrl.hostname, // Don't use ports here, cookies do not provide isolation by port
-                        sameSite: 'Strict',
-                    });
-
-                    if (chartType === ChartType.BIG_NUMBER) {
-                        await page.setViewport(bigNumberViewport);
-                    } else {
-                        await page.setViewport({
-                            ...viewport,
-                            width: gridWidth ?? viewport.width,
-                        });
-                    }
-                    page.on('requestfailed', (request) => {
-                        this.logger.warn(
-                            `Headless browser request error - method: ${request.method()}, url: ${request.url()}, text: ${
-                                request.failure()?.errorText
-                            }`,
-                        );
-                    });
-                    page.on('console', (msg) => {
-                        const type = msg.type();
-                        if (type === 'error') {
-                            this.logger.warn(
-                                `Headless browser console error - file: ${
-                                    msg.location().url
-                                }, text ${msg.text()} `,
-                            );
-                        }
-                    });
-                    /*
-                    // This code can be used to block requests to external domains
-                    // We disabled this so people can use images on markdown
-                    await page.setRequestInterception(true);
-                    await page.on('request', (request: HTTPRequest) => {
-                        const requestUrl = request.url();
-                        const cookie = request.headers()['cookie']
-                        const parsedUrl = new URL(url);
-                        // Only allow request to the same host
-                        if (!requestUrl.includes(parsedUrl.origin)) {
-                            request.abort();
-                            return;
-                        }
-                        request.continue();
-                    });
-                    */
-                    let chartRequests = 0;
-                    let chartRequestErrors = 0;
-
-                    page.on('response', (response) => {
-                        const responseUrl = response.url();
-                        const regexUrlToMatch =
-                            lightdashPage === LightdashPage.EXPLORE
-                                ? /\/saved\/[a-f0-9-]+\/results/
-                                : /\/saved\/[a-f0-9-]+\/chart-and-results/; // NOTE: Chart endpoint in Dashboards is different
-                        if (responseUrl.match(regexUrlToMatch)) {
-                            chartRequests += 1;
-                            response.buffer().then(
-                                (buffer) => {
-                                    const status = response.status();
-                                    if (status >= 400) {
-                                        this.logger.error(
-                                            `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
-                                        );
-                                        chartRequestErrors += 1;
-                                    }
-                                },
-                                (error) => {
-                                    this.logger.error(
-                                        `Headless browser response buffer error: ${error.message}`,
-                                    );
-                                    chartRequestErrors += 1;
-                                },
-                            );
-                        }
-                    });
-                    let timeout = false;
-                    try {
-                        await page.goto(url, {
-                            timeout: 150000, // Wait 2.5 mins for the page to load
-                            waitUntil: 'networkidle0',
-                        });
-                    } catch (e) {
-                        timeout = true;
-                        this.logger.warn(
-                            `Got a timeout when waiting for the page to load, returning current content`,
-                        );
-                    }
-                    // Wait until the page is fully loaded
-                    await page
-                        .waitForSelector('.loading_chart', {
-                            hidden: true,
-                            timeout: 30000,
-                        })
-                        .catch(() => {
-                            timeout = true;
-                            this.logger.warn(
-                                `Got a timeout when waiting for all charts to be loaded, returning current content`,
-                            );
-                        });
-
-                    const path = `/tmp/${imageId}.png`;
-
-                    let finalSelector = selector;
-
-                    if (lightdashPage === LightdashPage.EXPLORE) {
-                        finalSelector = `[data-testid="visualization"]`;
-                    } else if (lightdashPage === LightdashPage.DASHBOARD) {
-                        finalSelector = '.react-grid-layout';
-                    }
-
-                    const element = await page.waitForSelector(finalSelector, {
-                        timeout: 60000,
-                    });
-
-                    if (lightdashPage === LightdashPage.DASHBOARD) {
-                        const fullPage = await page.$('.react-grid-layout');
-                        const fullPageSize = await fullPage?.boundingBox();
-                        await page.setViewport({
-                            width: gridWidth ?? viewport.width,
-                            height: fullPageSize?.height
-                                ? parseInt(fullPageSize.height.toString(), 10)
-                                : viewport.height,
-                        });
-                    }
-
-                    if (!element) {
-                        this.logger.warn(`Can't find element on page`);
-                        return undefined;
-                    }
-
-                    const box = await element.boundingBox();
-                    const pageMetrics = await page.metrics();
-
-                    span.setAttributes({
-                        'page.width': box?.width,
-                        'page.height': box?.height,
-                        'chart.requests.total': chartRequests,
-                        'chart.requests.error': chartRequestErrors,
-                        'page.metrics.task_duration': pageMetrics.TaskDuration,
-                        'page.metrics.heap_size': pageMetrics.JSHeapUsedSize,
-                        'page.metrics.total_size': pageMetrics.JSHeapTotalSize,
-                        'page.type': lightdashPage,
-                        url,
-                        chartType: chartType || 'undefined',
-                        organization_uuid: organizationUuid || 'undefined',
-                        'page.metrics.event_listeners':
-                            pageMetrics.JSEventListeners,
-                        timeout,
-                    });
-
-                    if (this.lightdashConfig.scheduler.screenshotTimeout) {
-                        await new Promise((resolve) => {
-                            setTimeout(
-                                resolve,
-                                this.lightdashConfig.scheduler
-                                    .screenshotTimeout,
-                            );
-                        });
-                    }
-                    const imageBuffer = await element.screenshot({
-                        path,
-                        ...(lightdashPage === LightdashPage.DASHBOARD
-                            ? {
-                                  scrollIntoView: true,
-                              }
-                            : {}),
-                    });
-                    return imageBuffer;
-                } catch (e) {
-                    /**
-                     * An error can be retried if it is a TimeoutError or a ProtocolError
-                     * - TimeoutError: when the page is not loaded in time or the element is not found
-                     * - ProtocolError: when the page is closed before the screenshot is taken
-                     * - That include the message "Target closed" or "Protocol error" - e.g: Protocol error (Page.captureScreenshot): Target closed or Protocol error (DOM.describeNode): Target closed"
-                     */
-                    const isRetryableError =
-                        e instanceof TimeoutError ||
-                        e instanceof ProtocolError ||
-                        e.message.includes('Protocol error') ||
-                        e.message.includes('Target closed');
-
-                    if (isRetryableError && retries) {
-                        this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
-                        );
-                        span.addEvent(e);
-                        span.setAttributes({
-                            'page.type': lightdashPage,
-                            url,
-                            chartType: chartType || 'undefined',
-                            organization_uuid: organizationUuid || 'undefined',
-                            uuid: resourceUuid ?? 'undefined',
-                            title: resourceName ?? 'undefined',
-                            is_retrying: true,
-                            custom_width: `${gridWidth}`,
-                        });
-                        span.setStatus({
-                            code: 2, // Error
-                        });
-
-                        return await this.saveScreenshot({
-                            imageId,
-                            cookie,
-                            url,
-                            lightdashPage,
-                            chartType,
-                            organizationUuid,
-                            gridWidth,
-                            resourceUuid,
-                            resourceName,
-                            selector,
-                            retries,
-                        });
-                    }
-
-                    Sentry.captureException(e);
-                    hasError = true;
-                    span.addEvent(e);
-                    span.setAttributes({
-                        'page.type': lightdashPage,
-                        url,
-                        chartType: chartType || 'undefined',
-                        organization_uuid: organizationUuid || 'undefined',
-                        uuid: resourceUuid ?? 'undefined',
-                        title: resourceName ?? 'undefined',
-                        custom_width: `${gridWidth}`,
-                    });
-                    span.setStatus({
-                        code: 2, // Error
-                    });
-
-                    this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${e.message}`,
-                    );
-                    throw e;
-                } finally {
-                    if (page) await page.close();
-                    if (browser) await browser.disconnect();
 
                     span.end();
 
