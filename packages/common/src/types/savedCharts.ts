@@ -104,7 +104,7 @@ export enum FunnelChartDataInput {
 }
 
 export type FunnelChart = {
-    dataInput: FunnelChartDataInput;
+    dataInput?: FunnelChartDataInput;
     fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
 };
