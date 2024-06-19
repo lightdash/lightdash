@@ -15,6 +15,7 @@ export enum ConditionalOperator {
     NOT_IN_THE_PAST = 'notInThePast',
     IN_THE_NEXT = 'inTheNext',
     IN_THE_CURRENT = 'inTheCurrent',
+    NOT_IN_THE_CURRENT = 'notInTheCurrent',
     IN_BETWEEN = 'inBetween',
 }
 

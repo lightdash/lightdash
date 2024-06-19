@@ -37,6 +37,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
+                case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                     // This can happen if a filter was added using an old table calculation without type, as we default to number
                     console.warn(
@@ -67,6 +68,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
+                case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:
@@ -90,6 +92,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                     // by default it shows a correct placeholder which is "Start date" and "End date"
                     return '';
                 case FilterOperator.IN_THE_CURRENT:
+                case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
                     return '';
@@ -121,6 +124,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_PAST:
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
+                case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:

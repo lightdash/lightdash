@@ -273,6 +273,7 @@ export const renderDateFilterSql = (
         case FilterOperator.IN_THE_CURRENT: {
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
+
             const fromDate = dateFormatter(
                 getMomentDateWithCustomStartOfWeek(startOfWeek)
                     .tz(timezone)
@@ -287,9 +288,35 @@ export const renderDateFilterSql = (
                     .utc()
                     .toDate(),
             );
-            return `((${dimensionSql}) >= ${castValue(
-                fromDate,
-            )} AND (${dimensionSql}) <= ${castValue(untilDate)})`;
+
+            const castedFromDate = castValue(fromDate);
+            const castedUntilDate = castValue(untilDate);
+
+            return `((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate})`;
+        }
+        case FilterOperator.NOT_IN_THE_CURRENT: {
+            const unitOfTime: UnitOfTime =
+                filter.settings?.unitOfTime || UnitOfTime.days;
+
+            const fromDate = dateFormatter(
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .tz(timezone)
+                    .startOf(unitOfTime)
+                    .utc()
+                    .toDate(),
+            );
+            const untilDate = dateFormatter(
+                getMomentDateWithCustomStartOfWeek(startOfWeek)
+                    .tz(timezone)
+                    .endOf(unitOfTime)
+                    .utc()
+                    .toDate(),
+            );
+
+            const castedFromDate = castValue(fromDate);
+            const castedUntilDate = castValue(untilDate);
+
+            return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
         }
         case FilterOperator.IN_BETWEEN: {
             const startDate = dateFormatter(filter.values?.[0]);

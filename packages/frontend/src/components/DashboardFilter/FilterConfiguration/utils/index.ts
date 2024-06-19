@@ -32,6 +32,7 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
                 filterRule.values.length > 0
             );
         case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT:
             return filterRule.settings && filterRule.settings.unitOfTime;
         case FilterOperator.IN_BETWEEN:
             return (

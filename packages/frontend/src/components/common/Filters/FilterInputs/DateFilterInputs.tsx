@@ -270,6 +270,7 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
                 </Flex>
             );
         case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT:
             return (
                 <FilterUnitOfTimeAutoComplete
                     w="100%"
