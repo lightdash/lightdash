@@ -13,6 +13,7 @@ import {
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { type FunnelSeriesDataPoint } from './echarts/useEchartsFunnelConfig';
 
 type FunnelChartConfig = {
     validConfig: FunnelChart;
@@ -25,10 +26,7 @@ type FunnelChartConfig = {
     dataInput: FunnelChartDataInput;
     setDataInput: (dataInput: FunnelChartDataInput) => void;
 
-    data: {
-        name: string;
-        value: number;
-    }[];
+    data: FunnelSeriesDataPoint[];
 };
 
 export type FunnelChartConfigFn = (
@@ -98,7 +96,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         setFieldId(allNumericFieldIds[0] ?? null);
     }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
 
-    const data = useMemo(() => {
+    const data: FunnelSeriesDataPoint[] = useMemo(() => {
         if (
             !resultsData ||
             !fieldId ||
@@ -115,21 +113,26 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                 },
             );
 
-            return resultsData.rows.map<{ name: string; value: number }>(
-                (row) => {
-                    const rowValues = Object.values(row).map(
-                        (col) => col.value,
-                    );
-                    const dataValue = Number(rowValues[fieldIndex].raw);
-                    if (dataValue > maxValue.current) {
-                        maxValue.current = dataValue;
-                    }
-                    return {
-                        name: rowValues[0].formatted,
-                        value: dataValue,
-                    };
-                },
-            );
+            if (fieldIndex === -1) {
+                return [];
+            }
+
+            return resultsData.rows.map<FunnelSeriesDataPoint>((row) => {
+                const rowValues = Object.values(row).map((col) => col.value);
+
+                const dataValue = Number(rowValues[fieldIndex].raw);
+                if (dataValue > maxValue.current) {
+                    maxValue.current = dataValue;
+                }
+                return {
+                    name: rowValues[0].formatted,
+                    value: dataValue,
+                    meta: {
+                        value: rowValues[fieldIndex],
+                        rows: [row],
+                    },
+                };
+            });
         } else {
             return allNumericFieldIds.reduce((acc, id) => {
                 if (resultsData.rows[0][id]) {
@@ -139,11 +142,15 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                     }
                     acc.push({
                         name: id,
-                        value: Number(resultsData.rows[0][id].value.raw),
+                        value: dataValue,
+                        meta: {
+                            value: resultsData.rows[0][id].value,
+                            rows: resultsData.rows,
+                        },
                     });
                 }
                 return acc;
-            }, [] as Array<{ name: string; value: number }>);
+            }, [] as Array<FunnelSeriesDataPoint>);
         }
     }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 

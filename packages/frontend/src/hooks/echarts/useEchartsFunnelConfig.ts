@@ -12,6 +12,7 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
+    name: string;
     meta: {
         value: ResultValue;
         rows: ResultRow[];
