@@ -42,6 +42,40 @@ export const getFloatFromEnvironmentVariable = (
     return parsed;
 };
 
+export const getFloatArrayFromEnvironmentVariable = (
+    name: string,
+): undefined | number[] => {
+    const raw = process.env[name];
+    if (!raw) {
+        return undefined;
+    }
+    return raw.split(',').map((duration) => {
+        const parsed = Number.parseFloat(duration);
+        if (Number.isNaN(parsed)) {
+            throw new ParseError(
+                `Cannot parse environment variable "${name}". All values must be numbers and separated by commas but ${name}=${raw}`,
+            );
+        }
+        return parsed;
+    });
+};
+
+export const getObjectFromEnvironmentVariable = (
+    name: string,
+): undefined | object => {
+    const raw = process.env[name];
+    if (!raw) {
+        return undefined;
+    }
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${e.message}`,
+        );
+    }
+};
+
 /**
  * Given a value, uses the arguments provided to figure out if that value
  * should be decoded as a base64 string.
@@ -599,13 +633,15 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
                 ) ?? 9090,
             path: process.env.LIGHTDASH_PROMETHEUS_PATH || '/metrics',
             prefix: process.env.LIGHTDASH_PROMETHEUS_PREFIX,
-            gcDurationBuckets: (process.env.LIGHTDASH_GC_DURATION_BUCKETS || '')
-                .split(',')
-                .map((domain) => parseFloat(domain.trim())),
+            gcDurationBuckets: getFloatArrayFromEnvironmentVariable(
+                'LIGHTDASH_GC_DURATION_BUCKETS',
+            ),
             eventLoopMonitoringPrecision: getIntegerFromEnvironmentVariable(
                 'LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION',
             ),
-            labels: JSON.parse(process.env.LIGHTDASH_PROMETHEUS_LABELS ?? '{}'),
+            labels: getObjectFromEnvironmentVariable(
+                'LIGHTDASH_PROMETHEUS_LABELS',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

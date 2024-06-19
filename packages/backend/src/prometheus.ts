@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import prometheus from 'prom-client';
 import { LightdashConfig } from './config/parseConfig';
+import Logger from './logging/logger';
 
 export default function initPrometheusMetrics({
     enabled,
@@ -20,5 +21,6 @@ export default function initPrometheusMetrics({
             res.end(await prometheus.register.metrics());
         });
         server.listen(port);
+        Logger.info(`Prometheus metrics available at localhost:${port}${path}`);
     }
 }
