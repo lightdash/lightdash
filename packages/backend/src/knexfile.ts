@@ -14,7 +14,7 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
     connection: CONNECTION,
     pool: {
-        min: lightdashConfig.database.minConnections || 1,
+        min: lightdashConfig.database.minConnections || 0,
         max: lightdashConfig.database.maxConnections || 10,
     },
     migrations: {
