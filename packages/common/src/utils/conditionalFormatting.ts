@@ -118,6 +118,7 @@ export const hasMatchingConditionalRules = (
                 case ConditionalOperator.NOT_IN_THE_PAST:
                 case ConditionalOperator.IN_THE_NEXT:
                 case ConditionalOperator.IN_THE_CURRENT:
+                case ConditionalOperator.NOT_IN_THE_CURRENT:
                 case ConditionalOperator.IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:

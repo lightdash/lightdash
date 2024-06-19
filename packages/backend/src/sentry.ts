@@ -27,10 +27,12 @@ Sentry.init({
     ignoreErrors: [
         'WarehouseQueryError',
         'FieldReferenceError',
+        'NotEnoughResults',
         'CompileError',
         'NotExistsError',
         'NotFoundError',
         'ForbiddenError',
+        'TokenError',
     ],
     tracesSampler: (context) => {
         if (

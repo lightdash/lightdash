@@ -48,6 +48,7 @@ const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NOT_IN_THE_PAST]: 'not in the last',
     [FilterOperator.IN_THE_NEXT]: 'in the next',
     [FilterOperator.IN_THE_CURRENT]: 'in the current',
+    [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
 };
 
@@ -72,6 +73,7 @@ const timeFilterOptions: Array<{
         FilterOperator.NOT_IN_THE_PAST,
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
+        FilterOperator.NOT_IN_THE_CURRENT,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
@@ -179,6 +181,7 @@ const getValueAsString = (
                         false,
                     )} and ${getLocalTimeDisplay(secondValue as MomentInput)}`;
                 case FilterOperator.IN_THE_CURRENT:
+                case FilterOperator.NOT_IN_THE_CURRENT:
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
                     return rule.settings?.unitOfTime.slice(0, -1);
