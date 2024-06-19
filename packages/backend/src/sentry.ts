@@ -24,7 +24,11 @@ const sentry = Sentry.init({
               ]
             : []),
     ],
-    ignoreErrors: ['WarehouseQueryError', 'FieldReferenceError'],
+    ignoreErrors: [
+        'WarehouseQueryError',
+        'FieldReferenceError',
+        'NotEnoughResults',
+    ],
     tracesSampler: (context) => {
         if (
             context.request?.url?.endsWith('/status') ||

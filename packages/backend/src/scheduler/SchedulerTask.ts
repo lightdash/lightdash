@@ -27,7 +27,6 @@ import {
     isTableChartConfig,
     LightdashPage,
     NotEnoughResults,
-    NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
     operatorAction,
@@ -41,7 +40,6 @@ import {
     SlackNotificationPayload,
     ThresholdOperator,
     ThresholdOptions,
-    UnexpectedDatabaseError,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
