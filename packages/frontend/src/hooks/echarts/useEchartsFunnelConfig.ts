@@ -38,7 +38,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
     }, [chartConfig]);
 
     const funnelSeriesOptions: FunnelSeriesOption | undefined = useMemo(() => {
-        if (!chartConfig) return;
+        if (!chartConfig || !seriesData) return;
 
         const {
             validConfig: {},
@@ -57,14 +57,23 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                         value,
                     );
 
-                    return `${marker} <b>${name}</b><br />${percent}% - ${formattedValue}`;
+                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent of total: ${percent}%`;
+                },
+            },
+            label: {
+                show: true,
+                position: 'inside',
+            },
+            emphasis: {
+                label: {
+                    fontSize: 18,
                 },
             },
         };
     }, [chartConfig, colorPalette, seriesData]);
 
     const eChartsOptions: EChartsOption | undefined = useMemo(() => {
-        if (!chartConfig || !funnelSeriesOptions) return;
+        if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
 
         const {
             validConfig: {},
@@ -76,13 +85,14 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             },
             series: [funnelSeriesOptions],
             animation: !isInDashboard,
+            legend: { data: seriesData.map(({ name }) => name) },
         };
-    }, [chartConfig, isInDashboard, funnelSeriesOptions]);
+    }, [chartConfig, funnelSeriesOptions, seriesData, isInDashboard]);
 
     if (!itemsMap) return;
     if (!eChartsOptions) return;
 
-    // console.log({ eChartsOptions });
+    console.log({ eChartsOptions });
 
     return eChartsOptions;
 };
