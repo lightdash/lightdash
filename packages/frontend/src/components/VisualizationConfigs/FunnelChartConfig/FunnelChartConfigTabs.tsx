@@ -50,17 +50,17 @@ export const ConfigTabs: FC = memo(() => {
                                     Data orientation
                                 </Config.Heading>
                                 <Group spacing="xs">
-                                    <Config.Label>Input data is</Config.Label>
+                                    <Config.Label>Steps are</Config.Label>
                                     <SegmentedControl
                                         value={dataInput}
                                         data={[
                                             {
-                                                value: FunnelChartDataInput.ROW,
-                                                label: 'A row',
+                                                value: FunnelChartDataInput.COLUMN,
+                                                label: 'rows',
                                             },
                                             {
-                                                value: FunnelChartDataInput.COLUMN,
-                                                label: 'A column',
+                                                value: FunnelChartDataInput.ROW,
+                                                label: 'columns',
                                             },
                                         ]}
                                         onChange={(value) =>
