@@ -32,6 +32,7 @@ Sentry.init({
         'NotExistsError',
         'NotFoundError',
         'ForbiddenError',
+        'TokenError',
     ],
     tracesSampler: (context) => {
         if (
