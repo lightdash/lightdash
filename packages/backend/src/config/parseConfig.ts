@@ -42,6 +42,40 @@ export const getFloatFromEnvironmentVariable = (
     return parsed;
 };
 
+export const getFloatArrayFromEnvironmentVariable = (
+    name: string,
+): undefined | number[] => {
+    const raw = process.env[name];
+    if (!raw) {
+        return undefined;
+    }
+    return raw.split(',').map((duration) => {
+        const parsed = Number.parseFloat(duration);
+        if (Number.isNaN(parsed)) {
+            throw new ParseError(
+                `Cannot parse environment variable "${name}". All values must be numbers and separated by commas but ${name}=${raw}`,
+            );
+        }
+        return parsed;
+    });
+};
+
+export const getObjectFromEnvironmentVariable = (
+    name: string,
+): undefined | object => {
+    const raw = process.env[name];
+    if (!raw) {
+        return undefined;
+    }
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be valid JSON but ${name}=${raw}. Error: ${e.message}`,
+        );
+    }
+};
+
 /**
  * Given a value, uses the arguments provided to figure out if that value
  * should be decoded as a base64 string.
@@ -183,6 +217,15 @@ export type LightdashConfig = {
         nodeName: string | undefined;
         podName: string | undefined;
         podNamespace: string | undefined;
+    };
+    prometheus: {
+        enabled: boolean;
+        port: string | number;
+        path: string;
+        prefix?: string;
+        gcDurationBuckets?: number[];
+        eventLoopMonitoringPrecision?: number;
+        labels?: Object;
     };
     database: {
         connectionUri: string | undefined;
@@ -580,6 +623,24 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             nodeName: process.env.K8S_NODE_NAME,
             podName: process.env.K8S_POD_NAME,
             podNamespace: process.env.K8S_POD_NAMESPACE,
+        },
+        prometheus: {
+            enabled: process.env.LIGHTDASH_PROMETHEUS_ENABLED === 'true',
+            port:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_PROMETHEUS_PORT',
+                ) ?? 9090,
+            path: process.env.LIGHTDASH_PROMETHEUS_PATH || '/metrics',
+            prefix: process.env.LIGHTDASH_PROMETHEUS_PREFIX,
+            gcDurationBuckets: getFloatArrayFromEnvironmentVariable(
+                'LIGHTDASH_GC_DURATION_BUCKETS',
+            ),
+            eventLoopMonitoringPrecision: getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION',
+            ),
+            labels: getObjectFromEnvironmentVariable(
+                'LIGHTDASH_PROMETHEUS_LABELS',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

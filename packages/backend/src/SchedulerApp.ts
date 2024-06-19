@@ -11,6 +11,7 @@ import {
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import PrometheusMetrics from './prometheus';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
@@ -46,6 +47,8 @@ export default class SchedulerApp {
     private readonly environment: 'production' | 'development';
 
     private readonly clients: ClientRepository;
+
+    private readonly prometheusMetrics: PrometheusMetrics;
 
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
@@ -100,9 +103,13 @@ export default class SchedulerApp {
             clients: this.clients,
             models,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
     }
 
     public async start() {
+        this.prometheusMetrics.start();
         await this.initSentry();
         const worker = await this.initWorker();
         await this.initServer(worker);
@@ -167,6 +174,7 @@ export default class SchedulerApp {
             },
             onSignal: async () => {
                 Logger.debug('SIGTERM signal received: closing HTTP server');
+                this.prometheusMetrics.stop();
                 if (worker && worker.runner) {
                     await worker?.runner?.stop();
                 }

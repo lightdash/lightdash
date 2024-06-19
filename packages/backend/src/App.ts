@@ -55,6 +55,7 @@ import {
 } from './services/ServiceRepository';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+import PrometheusMetrics from './prometheus';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -155,6 +156,8 @@ export default class App {
 
     private readonly schedulerWorkerFactory: typeof schedulerWorkerFactory;
 
+    private readonly prometheusMetrics: PrometheusMetrics;
+
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -208,9 +211,13 @@ export default class App {
         this.slackBotFactory = args.slackBotFactory || slackBotFactory;
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
     }
 
     async start() {
+        this.prometheusMetrics.start();
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
@@ -577,6 +584,7 @@ export default class App {
     }
 
     async stop() {
+        this.prometheusMetrics.stop();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
                 await this.schedulerWorker.runner.stop();
