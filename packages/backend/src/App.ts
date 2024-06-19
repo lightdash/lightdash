@@ -55,6 +55,7 @@ import {
 } from './services/ServiceRepository';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+import initPrometheusMetrics from './prometheus';
 
 // We need to override this interface to have our user typing
 declare global {
@@ -211,6 +212,7 @@ export default class App {
     }
 
     async start() {
+        initPrometheusMetrics(this.lightdashConfig.prometheus);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {

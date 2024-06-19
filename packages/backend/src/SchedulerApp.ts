@@ -11,6 +11,7 @@ import {
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import initPrometheusMetrics from './prometheus';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import {
     OperationContext,
@@ -103,6 +104,7 @@ export default class SchedulerApp {
     }
 
     public async start() {
+        initPrometheusMetrics(this.lightdashConfig.prometheus);
         await this.initSentry();
         const worker = await this.initWorker();
         await this.initServer(worker);

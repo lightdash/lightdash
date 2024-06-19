@@ -45,6 +45,7 @@ services:
       - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
     ports:
       - "8080:8080"
+      - "9090:9090"
       - "3000:3000"
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]

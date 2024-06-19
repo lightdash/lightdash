@@ -184,6 +184,15 @@ export type LightdashConfig = {
         podName: string | undefined;
         podNamespace: string | undefined;
     };
+    prometheus: {
+        enabled: boolean;
+        port: string | number;
+        path: string;
+        prefix?: string;
+        gcDurationBuckets?: number[];
+        eventLoopMonitoringPrecision?: number;
+        labels?: Object;
+    };
     database: {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
@@ -581,6 +590,22 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             nodeName: process.env.K8S_NODE_NAME,
             podName: process.env.K8S_POD_NAME,
             podNamespace: process.env.K8S_POD_NAMESPACE,
+        },
+        prometheus: {
+            enabled: process.env.LIGHTDASH_PROMETHEUS_ENABLED === 'true',
+            port:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_PROMETHEUS_PORT',
+                ) ?? 9090,
+            path: process.env.LIGHTDASH_PROMETHEUS_PATH || '/metrics',
+            prefix: process.env.LIGHTDASH_PROMETHEUS_PREFIX,
+            gcDurationBuckets: (process.env.LIGHTDASH_GC_DURATION_BUCKETS || '')
+                .split(',')
+                .map((domain) => parseFloat(domain.trim())),
+            eventLoopMonitoringPrecision: getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION',
+            ),
+            labels: JSON.parse(process.env.LIGHTDASH_PROMETHEUS_LABELS ?? '{}'),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
