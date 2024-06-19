@@ -1,3 +1,10 @@
+# [0.1135.0](https://github.com/lightdash/lightdash/compare/0.1134.0...0.1135.0) (2024-06-19)
+
+
+### Features
+
+* prometheus metrics ([#10459](https://github.com/lightdash/lightdash/issues/10459)) ([a92383b](https://github.com/lightdash/lightdash/commit/a92383bf6ffc90a47a44fec940f2a7d899d825f5))
+
 # [0.1134.0](https://github.com/lightdash/lightdash/compare/0.1133.17...0.1134.0) (2024-06-19)
 
 
