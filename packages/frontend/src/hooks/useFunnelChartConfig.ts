@@ -12,12 +12,13 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type FunnelChartConfig = {
     validConfig: FunnelChart;
 
     fieldId: string | null;
+    maxValue: number;
     selectedField: Metric | TableCalculation | undefined;
     fieldChange: (fieldId: string | null) => void;
 
@@ -54,6 +55,9 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     const [dataInput, setDataInput] = useState(
         funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
     );
+
+    // The value at the top of the funnel.
+    const maxValue = useRef(0);
 
     const allNumericFieldIds = useMemo(
         () => Object.keys(numericFields),
@@ -103,7 +107,6 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         ) {
             return [];
         }
-        console.log({ resultsData, numericFields });
 
         if (dataInput === FunnelChartDataInput.COLUMN) {
             const fieldIndex = Object.keys(resultsData.rows[0]).findIndex(
@@ -117,15 +120,23 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                     const rowValues = Object.values(row).map(
                         (col) => col.value,
                     );
+                    const dataValue = Number(rowValues[fieldIndex].raw);
+                    if (dataValue > maxValue.current) {
+                        maxValue.current = dataValue;
+                    }
                     return {
                         name: rowValues[0].formatted,
-                        value: Number(rowValues[fieldIndex].raw),
+                        value: dataValue,
                     };
                 },
             );
         } else {
             return allNumericFieldIds.reduce((acc, id) => {
                 if (resultsData.rows[0][id]) {
+                    const dataValue = Number(resultsData.rows[0][id].value.raw);
+                    if (dataValue > maxValue.current) {
+                        maxValue.current = dataValue;
+                    }
                     acc.push({
                         name: id,
                         value: Number(resultsData.rows[0][id].value.raw),
@@ -134,14 +145,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                 return acc;
             }, [] as Array<{ name: string; value: number }>);
         }
-    }, [
-        allNumericFieldIds,
-        dataInput,
-        fieldId,
-        numericFields,
-        resultsData,
-        selectedField,
-    ]);
+    }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 
     const validConfig: FunnelChart = useMemo(
         () => ({
@@ -155,6 +159,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         validConfig,
         selectedField,
         fieldId,
+        maxValue: maxValue.current,
         fieldChange: setFieldId,
         dataInput,
         setDataInput,

@@ -4,6 +4,7 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
+import { round } from 'lodash';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/VisualizationConfigFunnel';
 import { useVisualizationContext } from '../../components/LightdashVisualization/VisualizationProvider';
@@ -51,13 +52,18 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             color: colorPalette,
             tooltip: {
                 trigger: 'item',
-                formatter: ({ marker, name, value, percent }) => {
+                formatter: ({ marker, name, value }) => {
                     const formattedValue = formatItemValue(
                         selectedField,
                         value,
                     );
 
-                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent of total: ${percent}%`;
+                    const percentOfMax = round(
+                        (Number(value) / chartConfig.maxValue) * 100,
+                        2,
+                    );
+
+                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent of start: ${percentOfMax}%`;
                 },
             },
             label: {
@@ -91,8 +97,6 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
 
     if (!itemsMap) return;
     if (!eChartsOptions) return;
-
-    console.log({ eChartsOptions });
 
     return eChartsOptions;
 };
