@@ -1,3 +1,4 @@
+import { NotEnoughResults } from '@lightdash/common';
 import SchedulerTask from './SchedulerTask';
 import {
     resultsWithOneRow,
@@ -16,13 +17,13 @@ describe('isPositiveThresholdAlert', () => {
             SchedulerTask.isPositiveThresholdAlert([], resultsWithOneRow),
         ).toBe(false);
     });
-    it('should return false if operation requires second row but there isnt one', () => {
-        expect(
+    it('should throw error if operation requires second row but there isnt one', () => {
+        expect(() =>
             SchedulerTask.isPositiveThresholdAlert(
                 [thresholdIncreasedByMock],
                 resultsWithOneRow,
             ),
-        ).toBe(false);
+        ).toThrowError(NotEnoughResults);
     });
     it('should return true if condition match', () => {
         expect(

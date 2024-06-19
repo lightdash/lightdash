@@ -291,3 +291,14 @@ export class MissingConfigError extends LightdashError {
         });
     }
 }
+
+export class NotEnoughResults extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'NotEnoughResults',
+            statusCode: 406,
+            data: {},
+        });
+    }
+}

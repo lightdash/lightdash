@@ -27,6 +27,7 @@ Sentry.init({
     ignoreErrors: [
         'WarehouseQueryError',
         'FieldReferenceError',
+        'NotEnoughResults',
         'CompileError',
         'NotExistsError',
         'NotFoundError',
