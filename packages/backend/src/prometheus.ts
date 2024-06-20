@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
@@ -19,6 +20,17 @@ export default class PrometheusMetrics {
             try {
                 prometheus.collectDefaultMetrics({
                     ...rest,
+                });
+                const eventLoopUtilization = new prometheus.Gauge({
+                    name: 'nodejs_eventloop_utilization',
+                    help: 'The utilization value(%) is the calculated Event Loop Utilization (ELU).',
+                    ...rest,
+                    collect() {
+                        // Invoked when the registry collects its metrics' values.
+                        this.set(
+                            performance.eventLoopUtilization().utilization,
+                        );
+                    },
                 });
                 const app = express();
                 this.server = http.createServer(app);
