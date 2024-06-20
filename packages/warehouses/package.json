@@ -16,7 +16,7 @@
         "pg-cursor": "^2.10.0",
         "snowflake-sdk": "^1.10.0",
         "ssh2": "^1.14.0",
-        "trino-client": "^0.2.2"
+        "trino-client": "^0.2.3"
     },
     "devDependencies": {
         "@types/pg": "^8.10.7",
