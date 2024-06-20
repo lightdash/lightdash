@@ -24,6 +24,7 @@ export default class PrometheusMetrics {
                 const eventLoopUtilization = new prometheus.Gauge({
                     name: 'nodejs_eventloop_utilization',
                     help: 'The utilization value(%) is the calculated Event Loop Utilization (ELU).',
+                    ...rest,
                     collect() {
                         // Invoked when the registry collects its metrics' values.
                         this.set(
