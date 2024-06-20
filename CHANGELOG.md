@@ -1,3 +1,10 @@
+# [0.1136.0](https://github.com/lightdash/lightdash/compare/0.1135.3...0.1136.0) (2024-06-20)
+
+
+### Features
+
+* CSP report only configuration ([#10466](https://github.com/lightdash/lightdash/issues/10466)) ([cd260f8](https://github.com/lightdash/lightdash/commit/cd260f8a90d65ce99a5989827cf5ebefabe5a886))
+
 ## [0.1135.3](https://github.com/lightdash/lightdash/compare/0.1135.2...0.1135.3) (2024-06-20)
 
 
