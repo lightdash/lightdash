@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilterOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
@@ -15,23 +16,23 @@ import FunnelChartContextMenu, {
 } from './FunnelChartContextMenu';
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py="xl">
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconFilterOff}
         />
-    </div>
+    </Box>
 );
 
 const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py="xl">
         <SuboptimalState
             title="Loading chart"
             loading
             className="loading_chart"
         />
-    </div>
+    </Box>
 );
 
 type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {

@@ -21,7 +21,7 @@ type FunnelChartConfig = {
     fieldId: string | null;
     maxValue: number;
     selectedField: Metric | TableCalculation | undefined;
-    fieldChange: (fieldId: string | null) => void;
+    onFieldChange: (fieldId: string | null) => void;
 
     dataInput: FunnelChartDataInput;
     setDataInput: (dataInput: FunnelChartDataInput) => void;
@@ -54,7 +54,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
     );
 
-    // The value at the top of the funnel.
+    // The value at the top of the funnel. This is used to calculate
+    // the percentage of the funnel that each step represents
     const maxValue = useRef(0);
 
     const allNumericFieldIds = useMemo(
@@ -63,7 +64,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     );
 
     const selectedField = useMemo(() => {
-        if (!itemsMap || !fieldId) return undefined;
+        if (!itemsMap || !fieldId || !(fieldId in itemsMap)) return undefined;
         const item = itemsMap[fieldId];
 
         if ((isField(item) && isMetric(item)) || isTableCalculation(item))
@@ -134,23 +135,28 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
                 };
             });
         } else {
-            return allNumericFieldIds.reduce((acc, id) => {
-                if (resultsData.rows[0][id]) {
-                    const dataValue = Number(resultsData.rows[0][id].value.raw);
-                    if (dataValue > maxValue.current) {
-                        maxValue.current = dataValue;
+            return allNumericFieldIds.reduce<FunnelSeriesDataPoint[]>(
+                (acc, id) => {
+                    if (resultsData.rows[0][id]) {
+                        const dataValue = Number(
+                            resultsData.rows[0][id].value.raw,
+                        );
+                        if (dataValue > maxValue.current) {
+                            maxValue.current = dataValue;
+                        }
+                        acc.push({
+                            name: id,
+                            value: dataValue,
+                            meta: {
+                                value: resultsData.rows[0][id].value,
+                                rows: resultsData.rows,
+                            },
+                        });
                     }
-                    acc.push({
-                        name: id,
-                        value: dataValue,
-                        meta: {
-                            value: resultsData.rows[0][id].value,
-                            rows: resultsData.rows,
-                        },
-                    });
-                }
-                return acc;
-            }, [] as Array<FunnelSeriesDataPoint>);
+                    return acc;
+                },
+                [],
+            );
         }
     }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 
@@ -167,7 +173,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         selectedField,
         fieldId,
         maxValue: maxValue.current,
-        fieldChange: setFieldId,
+        onFieldChange: setFieldId,
         dataInput,
         setDataInput,
         colorPalette,

@@ -26,7 +26,7 @@ export type FunnelChartContextMenuProps = {
     };
     value?: ResultValue;
     rows?: ResultRow[];
-} & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
+} & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     menuPosition,

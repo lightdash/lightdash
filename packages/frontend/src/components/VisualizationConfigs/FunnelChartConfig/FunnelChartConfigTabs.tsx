@@ -31,7 +31,7 @@ export const ConfigTabs: FC = memo(() => {
     // TODO: dimensions should be selectable for labels
     // const dimensions = Object.values(visualizationConfig.dimensions);
 
-    const { selectedField, fieldChange, dataInput, setDataInput } =
+    const { selectedField, onFieldChange, dataInput, setDataInput } =
         visualizationConfig.chartConfig;
 
     return (
@@ -104,7 +104,7 @@ export const ConfigTabs: FC = memo(() => {
                                                         newField &&
                                                         isField(newField)
                                                     )
-                                                        fieldChange(
+                                                        onFieldChange(
                                                             getItemId(newField),
                                                         );
                                                     else if (
@@ -113,10 +113,10 @@ export const ConfigTabs: FC = memo(() => {
                                                             newField,
                                                         )
                                                     )
-                                                        fieldChange(
+                                                        onFieldChange(
                                                             newField.name,
                                                         );
-                                                    else fieldChange(null);
+                                                    else onFieldChange(null);
                                                 }}
                                                 hasGrouping
                                             />

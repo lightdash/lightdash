@@ -50,9 +50,20 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     const { dimensions, numericFields } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
         const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
+
+        const numericTableCalculations = Object.keys(tableCalculations).reduce<
+            Record<string, TableCalculation>
+        >((acc, key) => {
+            const tableCalculation = tableCalculations[key];
+            if (isNumericItem(tableCalculation)) {
+                acc[key] = tableCalculation;
+            }
+            return acc;
+        }, {});
+
         return {
             dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericFields: { ...metrics, ...tableCalculations },
+            numericFields: { ...metrics, ...numericTableCalculations },
         };
     }, [itemsMap]);
 

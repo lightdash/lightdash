@@ -36,7 +36,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             validConfig: {},
         } = chartConfig;
 
-        return data;
+        return data.length > 0 ? data : undefined;
     }, [chartConfig]);
 
     const funnelSeriesOptions: FunnelSeriesOption | undefined = useMemo(() => {
