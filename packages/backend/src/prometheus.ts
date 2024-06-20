@@ -3,6 +3,7 @@ import http from 'http';
 import prometheus from 'prom-client';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
+import { SchedulerClient } from './scheduler/SchedulerClient';
 
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
@@ -34,6 +35,22 @@ export default class PrometheusMetrics {
             } catch (e) {
                 Logger.error('Error starting prometheus metrics', e);
             }
+        }
+    }
+
+    public monitorQueues(schedulerClient: SchedulerClient) {
+        const { queueMonitoringFrequency, enabled, ...rest } = this.config;
+        if (enabled) {
+            const queueSizeGauge = new prometheus.Gauge({
+                name: 'queue_size',
+                help: 'Number of jobs in the queue',
+                ...rest,
+                collect() {},
+            });
+            setInterval(async () => {
+                const queueSize = await schedulerClient.getQueueSize();
+                queueSizeGauge.set(queueSize);
+            }, queueMonitoringFrequency || 30 * 1000); // 30 seconds
         }
     }
 

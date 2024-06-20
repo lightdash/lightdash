@@ -226,6 +226,7 @@ export type LightdashConfig = {
         gcDurationBuckets?: number[];
         eventLoopMonitoringPrecision?: number;
         labels?: Object;
+        queueMonitoringFrequency?: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -640,6 +641,9 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             ),
             labels: getObjectFromEnvironmentVariable(
                 'LIGHTDASH_PROMETHEUS_LABELS',
+            ),
+            queueMonitoringFrequency: getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_QUEUE_MONITORING_FREQUENCY',
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
