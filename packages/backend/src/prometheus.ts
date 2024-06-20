@@ -4,6 +4,7 @@ import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
+import { SchedulerClient } from './scheduler/SchedulerClient';
 
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
@@ -46,6 +47,21 @@ export default class PrometheusMetrics {
             } catch (e) {
                 Logger.error('Error starting prometheus metrics', e);
             }
+        }
+    }
+
+    public monitorQueues(schedulerClient: SchedulerClient) {
+        const { enabled, ...rest } = this.config;
+        if (enabled) {
+            const queueSizeGauge = new prometheus.Gauge({
+                name: 'queue_size',
+                help: 'Number of jobs in the queue',
+                ...rest,
+                async collect() {
+                    const queueSize = await schedulerClient.getQueueSize();
+                    this.set(queueSize);
+                },
+            });
         }
     }
 

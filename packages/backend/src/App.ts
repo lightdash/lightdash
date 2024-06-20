@@ -244,6 +244,9 @@ export default class App {
 
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
+            this.prometheusMetrics.monitorQueues(
+                this.clients.getSchedulerClient(),
+            );
         }
     }
 

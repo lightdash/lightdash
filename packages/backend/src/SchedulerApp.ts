@@ -112,6 +112,7 @@ export default class SchedulerApp {
         this.prometheusMetrics.start();
         await this.initSentry();
         const worker = await this.initWorker();
+        this.prometheusMetrics.monitorQueues(this.clients.getSchedulerClient());
         await this.initServer(worker);
     }
 

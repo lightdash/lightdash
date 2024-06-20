@@ -211,6 +211,16 @@ export class SchedulerClient {
         }));
     }
 
+    async getQueueSize(): Promise<number> {
+        const graphileClient = await this.graphileUtils;
+        const results = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                'select count(id) as count from graphile_worker.jobs where attempts <> max_attempts',
+            ),
+        );
+        return parseInt(results.rows[0].count, 10);
+    }
+
     async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
         const graphileClient = await this.graphileUtils;
         const jobsToDelete = await this.getScheduledJobs(schedulerUuid);
