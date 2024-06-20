@@ -66,6 +66,11 @@ export const lightdashConfigMock: LightdashConfig = {
         podName: undefined,
         nodeName: undefined,
     },
+    prometheus: {
+        enabled: false,
+        port: 9090,
+        path: '/metrics',
+    },
     chart: { versionHistory: { daysLimit: 0 } },
     customVisualizations: { enabled: false },
     database: {

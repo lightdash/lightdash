@@ -95,3 +95,15 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `DBT_CLOUD_DOMAIN`         | dbt cloud Semantic Layer API domain | Only required if your dbt cloud URL is similar to this `client123.us1.dbt.com`. If so, you should set the value `https://client123.semantic-layer.us1.dbt.com` | https://semantic-layer.cloud.getdbt.com |
 | `DBT_CLOUD_ENVIRONMENT_ID` | dbt environment ID                  | ✅                                                                                                                                                             |                                         |
 | `DBT_CLOUD_BEARER_TOKEN`   | dbt cloud bearer token              | ✅                                                                                                                                                             |                                         |
+
+# Prometheus environment variables
+
+| Variable                                    | Description                                                                     | Required? | Default                     |
+| ------------------------------------------- | ------------------------------------------------------------------------------- | --------- | --------------------------- |
+| `LIGHTDASH_PROMETHEUS_ENABLED`              | Enables/Disables Prometheus metrics endpoint                                    |           | `false`                     |
+| `LIGHTDASH_PROMETHEUS_PORT`                 | Port for Prometheus metrics endpoint                                            |           | `9090`                      |
+| `LIGHTDASH_PROMETHEUS_PATH`                 | Path for Prometheus metrics endpoint                                            |           | `/metrics`                  |
+| `LIGHTDASH_PROMETHEUS_PREFIX`               | Prefix for metric names.                                                        |           |                             |
+| `LIGHTDASH_GC_DURATION_BUCKETS`             | Buckets for duration histogram in seconds.                                      |           | `0.001, 0.01, 0.1, 1, 2, 5` |
+| `LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION` | Precision for event loop monitoring in milliseconds. Must be greater than zero. |           | `10`                        |
+| `LIGHTDASH_PROMETHEUS_LABELS`               | Labels to add to all metrics. Must be valid JSON                                |           |                             |
