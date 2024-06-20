@@ -39,18 +39,17 @@ export default class PrometheusMetrics {
     }
 
     public monitorQueues(schedulerClient: SchedulerClient) {
-        const { queueMonitoringFrequency, enabled, ...rest } = this.config;
+        const { enabled, ...rest } = this.config;
         if (enabled) {
             const queueSizeGauge = new prometheus.Gauge({
                 name: 'queue_size',
                 help: 'Number of jobs in the queue',
                 ...rest,
-                collect() {},
+                async collect() {
+                    const queueSize = await schedulerClient.getQueueSize();
+                    this.set(queueSize);
+                },
             });
-            setInterval(async () => {
-                const queueSize = await schedulerClient.getQueueSize();
-                queueSizeGauge.set(queueSize);
-            }, queueMonitoringFrequency || 30 * 1000); // 30 seconds
         }
     }
 
