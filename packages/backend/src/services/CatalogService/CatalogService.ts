@@ -336,8 +336,6 @@ export class CatalogService<
             ),
         };
 
-        console.log({ metadata });
-
         return metadata;
     }
 
