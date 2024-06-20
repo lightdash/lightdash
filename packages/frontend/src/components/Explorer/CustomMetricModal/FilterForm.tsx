@@ -39,7 +39,7 @@ export const FilterForm: FC<{
     const isEditMode = useExplorerContext(
         (context) => context.state.isEditMode,
     );
-    const { itemsMap: dimensionsMap } =
+    const { itemsMap: dimensionsMap, startOfWeek } =
         useFiltersContext<Record<string, FilterableDimension>>();
 
     const dimensions = Object.values(dimensionsMap);
@@ -56,7 +56,11 @@ export const FilterForm: FC<{
         }
 
         if (isDimension(field)) {
-            const newFilterRule = createFilterRuleFromField(field);
+            const newFilterRule = createFilterRuleFromField(
+                field,
+                null,
+                startOfWeek,
+            );
             setCustomMetricFiltersWithIds([
                 ...customMetricFiltersWithIds,
                 {
@@ -74,6 +78,7 @@ export const FilterForm: FC<{
         dimensions,
         dimensionsMap,
         setCustomMetricFiltersWithIds,
+        startOfWeek,
     ]);
 
     const onChangeItem = useCallback(

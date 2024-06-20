@@ -32,7 +32,7 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
-    const { popoverProps } = useFiltersContext();
+    const { popoverProps, startOfWeek } = useFiltersContext();
     const activeField = useMemo(() => {
         return fields.find(
             (field) => getItemId(field) === filterRule.target.fieldId,
@@ -63,11 +63,17 @@ const FilterRuleForm: FC<Props> = ({
                         },
                     });
                 } else {
-                    onChange(createFilterRuleFromField(selectedField));
+                    onChange(
+                        createFilterRuleFromField(
+                            selectedField,
+                            null,
+                            startOfWeek,
+                        ),
+                    );
                 }
             }
         },
-        [activeField, fields, filterRule, onChange],
+        [activeField, fields, filterRule, onChange, startOfWeek],
     );
     const isRequired = filterRule.required;
     const isRequiredLabel = isRequired
@@ -117,6 +123,7 @@ const FilterRuleForm: FC<Props> = ({
                             (filterRule.values?.length || 0) > 0
                                 ? filterRule.values
                                 : [1],
+                            startOfWeek,
                         ),
                     );
                 }}

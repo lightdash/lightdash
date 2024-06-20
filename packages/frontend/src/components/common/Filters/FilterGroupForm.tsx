@@ -32,6 +32,7 @@ import React, { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
+import { useFiltersContext } from './FiltersProvider';
 
 type Props = {
     hideButtons?: boolean;
@@ -55,6 +56,7 @@ const FilterGroupForm: FC<Props> = ({
     onDelete,
 }) => {
     const items = getItemsFromFilterGroup(filterGroup);
+    const { startOfWeek } = useFiltersContext();
     const [conditionLabel, setConditionLabel] = useState('');
 
     const [dimensions, metrics, tableCalculations] = useMemo<
@@ -137,11 +139,21 @@ const FilterGroupForm: FC<Props> = ({
                 ...filterGroup,
                 [getFilterGroupItemsPropertyName(filterGroup)]: [
                     ...items,
-                    createFilterRuleFromField(availableFieldsForGroupRules[0]),
+                    createFilterRuleFromField(
+                        availableFieldsForGroupRules[0],
+                        null,
+                        startOfWeek,
+                    ),
                 ],
             });
         }
-    }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
+    }, [
+        availableFieldsForGroupRules,
+        filterGroup,
+        items,
+        onChange,
+        startOfWeek,
+    ]);
 
     const onChangeOperator = useCallback(
         (value: FilterGroupOperator) => {
