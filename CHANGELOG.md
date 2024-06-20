@@ -1,3 +1,10 @@
+## [0.1135.2](https://github.com/lightdash/lightdash/compare/0.1135.1...0.1135.2) (2024-06-20)
+
+
+### Bug Fixes
+
+* round 0 on chart label ([#10456](https://github.com/lightdash/lightdash/issues/10456)) ([6fa148d](https://github.com/lightdash/lightdash/commit/6fa148dd87b67f07a1c5022e9ff1b3aa1c946b5e))
+
 ## [0.1135.1](https://github.com/lightdash/lightdash/compare/0.1135.0...0.1135.1) (2024-06-20)
 
 
