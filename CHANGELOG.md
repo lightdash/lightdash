@@ -1,3 +1,10 @@
+## [0.1135.1](https://github.com/lightdash/lightdash/compare/0.1135.0...0.1135.1) (2024-06-20)
+
+
+### Bug Fixes
+
+* packages/warehouses/package.json to reduce vulnerabilities ([#10465](https://github.com/lightdash/lightdash/issues/10465)) ([afc7363](https://github.com/lightdash/lightdash/commit/afc7363ccdf31252dae78be7ea9f1ac5aea5c9ba))
+
 # [0.1135.0](https://github.com/lightdash/lightdash/compare/0.1134.0...0.1135.0) (2024-06-19)
 
 
