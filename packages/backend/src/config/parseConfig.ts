@@ -196,7 +196,9 @@ export type LightdashConfig = {
     secureCookies: boolean;
     security: {
         contentSecurityPolicy: {
+            reportOnly: boolean;
             allowedDomains: string[];
+            reportUri?: string;
         };
     };
     cookiesMaxAgeHours?: number;
@@ -451,11 +453,13 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         mode,
         security: {
             contentSecurityPolicy: {
+                reportOnly: process.env.LIGHTDASH_CSP_REPORT_ONLY !== 'false', // defaults to true
                 allowedDomains: (
                     process.env.LIGHTDASH_CSP_ALLOWED_DOMAINS || ''
                 )
                     .split(',')
                     .map((domain) => domain.trim()),
+                reportUri: process.env.LIGHTDASH_CSP_REPORT_URI,
             },
         },
         smtp: process.env.EMAIL_SMTP_HOST

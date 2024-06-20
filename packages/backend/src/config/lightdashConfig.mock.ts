@@ -145,6 +145,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     security: {
         contentSecurityPolicy: {
+            reportOnly: false,
             allowedDomains: [],
         },
     },
