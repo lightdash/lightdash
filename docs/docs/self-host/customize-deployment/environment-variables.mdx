@@ -110,7 +110,8 @@ These variables enable you to control Single Sign On (SSO) functionality.
 
 # Security
 
-| Variable                        | Description                                                                                  | Required? | Default |
-| ------------------------------- | -------------------------------------------------------------------------------------------- | --------- | ------- |
-| `LIGHTDASH_CSP_REPORT_ONLY`     | Enables Content Security Policy (CSP) reporting only mode                                    |           | `false` |
-| `LIGHTDASH_CSP_ALLOWED_DOMAINS` | List of domains that are allowed to load resources from. Values must be separated by commas. |           |         |
+| Variable                        | Description                                                                                                        | Required? | Default |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------- | ------- |
+| `LIGHTDASH_CSP_REPORT_ONLY`     | Enables Content Security Policy (CSP) reporting only mode. This is recommended to be set to `false` in production. |           | `true`  |
+| `LIGHTDASH_CSP_ALLOWED_DOMAINS` | List of domains that are allowed to load resources from. Values must be separated by commas.                       |           |         |
+| `LIGHTDASH_CSP_REPORT_URI`      | URI to send CSP violation reports to.                                                                              |           |         |
