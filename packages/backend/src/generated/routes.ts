@@ -163,21 +163,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                requiredAttributes: {
-                    ref: 'Record_string.string-or-string-Array_',
+    'Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    description: { dataType: 'string' },
+                    requiredAttributes: {
+                        ref: 'Record_string.string-or-string-Array_',
+                    },
+                    label: { dataType: 'string', required: true },
+                    groupLabel: { dataType: 'string' },
                 },
-                groupLabel: { dataType: 'string' },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InlineErrorType: {
         dataType: 'refEnum',
@@ -255,7 +257,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_TableBase.name-or-groupLabel-or-description-or-requiredAttributes_',
+                    ref: 'Pick_TableBase.name-or-label-or-groupLabel-or-description-or-requiredAttributes_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -2429,8 +2431,8 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                groupLabel: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
+                groupLabel: { dataType: 'string' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2460,8 +2462,8 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                groupLabel: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
+                groupLabel: { dataType: 'string' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
