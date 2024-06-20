@@ -1,3 +1,10 @@
+## [0.1135.3](https://github.com/lightdash/lightdash/compare/0.1135.2...0.1135.3) (2024-06-20)
+
+
+### Bug Fixes
+
+* add queue size prometheus ([#10467](https://github.com/lightdash/lightdash/issues/10467)) ([63a3819](https://github.com/lightdash/lightdash/commit/63a381971ac01a24332f126751b6b6b4adfae1e6))
+
 ## [0.1135.2](https://github.com/lightdash/lightdash/compare/0.1135.1...0.1135.2) (2024-06-20)
 
 
