@@ -166,8 +166,6 @@ export const renderDateFilterSql = (
         }
     };
 
-    console.log('dimensionSql', { dimensionSql, filter });
-
     switch (filter.operator) {
         case 'equals':
             return `(${dimensionSql}) = ${castValue(

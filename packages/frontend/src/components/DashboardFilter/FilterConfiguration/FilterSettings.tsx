@@ -23,7 +23,6 @@ import {
     FilterInputComponent,
     getFilterOperatorOptions,
 } from '../../common/Filters/FilterInputs';
-import { useFiltersContext } from '../../common/Filters/FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../../common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 
 interface FilterSettingsProps {
@@ -43,8 +42,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     popoverProps,
     onChangeFilterRule,
 }) => {
-    const { startOfWeek } = useFiltersContext();
-
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterType = useMemo(() => {
@@ -193,7 +190,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                       field,
                                                       newFilter,
                                                       null,
-                                                      startOfWeek,
                                                   ),
                                         );
                                     }}
@@ -218,7 +214,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                   field,
                                                   newFilter,
                                                   null,
-                                                  startOfWeek,
                                               ),
                                     );
                                 }}

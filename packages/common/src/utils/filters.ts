@@ -47,8 +47,6 @@ import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { formatDate } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
-import { getMomentDateWithCustomStartOfWeek } from './time';
-import { type WeekDay } from './timeFrames';
 
 export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
@@ -152,7 +150,6 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
     values?: any[] | null,
-    startOfWeek?: WeekDay,
 ): T => {
     const filterType = getFilterTypeFromItem(field);
     const filterRuleDefaults: Partial<FilterRule> = {};
@@ -208,10 +205,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                     > = {
                         [TimeFrames.DAY]: moment(),
                         [TimeFrames.WEEK]: moment(
-                            getMomentDateWithCustomStartOfWeek(
-                                startOfWeek,
-                                valueIsDate ? value : undefined,
-                            ),
+                            valueIsDate ? value : undefined,
                         ).startOf('week'),
                         [TimeFrames.MONTH]: moment(
                             valueIsDate ? value : undefined,
@@ -261,7 +255,6 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: any,
-    startOfWeek?: WeekDay,
 ): FilterRule =>
     getFilterRuleWithDefaultValue(
         field,
@@ -273,8 +266,7 @@ export const createFilterRuleFromField = (
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
-        value ? [value] : [],
-        startOfWeek,
+        value ? [value] : null,
     );
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
@@ -330,7 +322,6 @@ export const createDashboardFilterRuleFromField = ({
     availableTileFilters,
     isTemporary,
     value,
-    startOfWeek,
 }: {
     field:
         | Exclude<FilterableItem, TableCalculation | CustomSqlDimension>
@@ -338,7 +329,6 @@ export const createDashboardFilterRuleFromField = ({
     availableTileFilters: Record<string, FilterableDimension[] | undefined>;
     isTemporary: boolean;
     value?: unknown;
-    startOfWeek?: WeekDay;
 }): FilterDashboardToRule =>
     getFilterRuleWithDefaultValue(
         field,
@@ -356,21 +346,18 @@ export const createDashboardFilterRuleFromField = ({
             label: undefined,
         },
         value ? [value] : null, // When `null`, don't set default value if no value is provided
-        startOfWeek,
     );
 
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
     value?: any;
-    startOfWeek?: WeekDay;
 };
 
 export const addFilterRule = ({
     filters,
     field,
     value,
-    startOfWeek,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: any) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -389,7 +376,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value, startOfWeek),
+                createFilterRuleFromField(field, value),
             ],
         },
     };

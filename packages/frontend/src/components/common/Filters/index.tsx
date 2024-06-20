@@ -59,8 +59,7 @@ const getInvalidFilterRules = (
     }, []);
 
 const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
-    const { itemsMap, startOfWeek } =
-        useFiltersContext<FieldsWithSuggestions>();
+    const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
@@ -76,14 +75,11 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
             if (isFilterableField(field)) {
-                setFilters(
-                    addFilterRule({ filters, field, startOfWeek }),
-                    false,
-                );
+                setFilters(addFilterRule({ filters, field }), false);
                 toggleFieldInput(false);
             }
         },
-        [filters, setFilters, startOfWeek, toggleFieldInput],
+        [filters, setFilters, toggleFieldInput],
     );
 
     const updateFiltersFromGroup = useCallback(
