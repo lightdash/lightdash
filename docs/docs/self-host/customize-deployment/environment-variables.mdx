@@ -107,3 +107,10 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `LIGHTDASH_GC_DURATION_BUCKETS`             | Buckets for duration histogram in seconds.                                      |           | `0.001, 0.01, 0.1, 1, 2, 5` |
 | `LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION` | Precision for event loop monitoring in milliseconds. Must be greater than zero. |           | `10`                        |
 | `LIGHTDASH_PROMETHEUS_LABELS`               | Labels to add to all metrics. Must be valid JSON                                |           |                             |
+
+# Security
+
+| Variable                        | Description                                                                                  | Required? | Default |
+| ------------------------------- | -------------------------------------------------------------------------------------------- | --------- | ------- |
+| `LIGHTDASH_CSP_REPORT_ONLY`     | Enables Content Security Policy (CSP) reporting only mode                                    |           | `false` |
+| `LIGHTDASH_CSP_ALLOWED_DOMAINS` | List of domains that are allowed to load resources from. Values must be separated by commas. |           |         |

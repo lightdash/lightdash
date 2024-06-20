@@ -196,6 +196,7 @@ export type LightdashConfig = {
     secureCookies: boolean;
     security: {
         contentSecurityPolicy: {
+            reportOnly: boolean;
             allowedDomains: string[];
         };
     };
@@ -451,6 +452,7 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         mode,
         security: {
             contentSecurityPolicy: {
+                reportOnly: process.env.LIGHTDASH_CSP_REPORT_ONLY === 'true',
                 allowedDomains: (
                     process.env.LIGHTDASH_CSP_ALLOWED_DOMAINS || ''
                 )

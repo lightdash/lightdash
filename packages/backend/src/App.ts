@@ -294,7 +294,7 @@ export default class App {
             'https://apis.google.com',
             'https://accounts.google.com',
             'https://vega.github.io',
-            'https://cdn.jsdelivr.net/npm/monaco-editor',
+            'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
         ];
@@ -327,7 +327,9 @@ export default class App {
                         ],
                         'report-uri': reportUri ? [reportUri.href] : [],
                     },
-                    reportOnly: true,
+                    reportOnly:
+                        this.lightdashConfig.security.contentSecurityPolicy
+                            .reportOnly,
                 },
                 strictTransportSecurity: {
                     maxAge: 31536000,
