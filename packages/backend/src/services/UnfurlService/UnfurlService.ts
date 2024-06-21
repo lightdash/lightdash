@@ -492,14 +492,20 @@ export class UnfurlService extends BaseService {
                                     timeout: 60000,
                                 }); // NOTE: No await here
                             });
-                        } else if (
-                            lightdashPage === LightdashPage.CHART ||
-                            lightdashPage === LightdashPage.EXPLORE
-                        ) {
-                            // Wait for the visualization to load if we are in an explore page
+                        } else if (lightdashPage === LightdashPage.CHART) {
+                            // Wait for the visualization to load if we are in an saved explore page
                             const responsePattern = new RegExp(
                                 `${resourceUuid}/results`,
                             );
+
+                            chartResultsPromises = [
+                                page?.waitForResponse(responsePattern, {
+                                    timeout: 60000,
+                                }), // NOTE: No await here
+                            ];
+                        } else if (lightdashPage === LightdashPage.EXPLORE) {
+                            // Wait for the visualization to load if we are in an unsaved explore page
+                            const responsePattern = /\/runQuery/;
 
                             chartResultsPromises = [
                                 page?.waitForResponse(responsePattern, {
