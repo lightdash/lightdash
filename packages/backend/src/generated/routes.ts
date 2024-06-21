@@ -95,12 +95,13 @@ const models: TsoaRoute.Models = {
         enums: ['metric', 'dimension'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Field.name-or-fieldType-or-tableLabel-or-description_': {
+    'Pick_Field.name-or-label-or-fieldType-or-tableLabel-or-description_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
                 fieldType: { ref: 'FieldType', required: true },
                 tableLabel: { dataType: 'string', required: true },
                 description: { dataType: 'string' },
@@ -142,7 +143,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Field.name-or-fieldType-or-tableLabel-or-description_',
+                    ref: 'Pick_Field.name-or-label-or-fieldType-or-tableLabel-or-description_',
                 },
                 { ref: 'Pick_Dimension.requiredAttributes_' },
                 {
@@ -170,11 +171,11 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     name: { dataType: 'string', required: true },
+                    label: { dataType: 'string', required: true },
                     description: { dataType: 'string' },
                     requiredAttributes: {
                         ref: 'Record_string.string-or-string-Array_',
                     },
-                    label: { dataType: 'string', required: true },
                     groupLabel: { dataType: 'string' },
                 },
                 validators: {},
@@ -364,6 +365,7 @@ const models: TsoaRoute.Models = {
             'pie',
             'table',
             'big_number',
+            'funnel',
             'custom',
         ],
     },
@@ -2017,6 +2019,41 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartType.FUNNEL': {
+        dataType: 'refEnum',
+        enums: ['funnel'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelChartDataInput: {
+        dataType: 'refEnum',
+        enums: ['row', 'column'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelChart: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metadata: { ref: 'Record_string.SeriesMetadata_' },
+                fieldId: { dataType: 'string' },
+                dataInput: { ref: 'FunnelChartDataInput' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'FunnelChart' },
+                type: { ref: 'ChartType.FUNNEL', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartType.TABLE': {
         dataType: 'refEnum',
         enums: ['table'],
@@ -2190,6 +2227,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'CartesianChartConfig' },
                 { ref: 'CustomVisConfig' },
                 { ref: 'PieChartConfig' },
+                { ref: 'FunnelChartConfig' },
                 { ref: 'TableChartConfig' },
             ],
             validators: {},
@@ -3758,7 +3796,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartType: {
         dataType: 'refEnum',
-        enums: ['cartesian', 'table', 'big_number', 'pie', 'custom'],
+        enums: ['cartesian', 'table', 'big_number', 'pie', 'funnel', 'custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_':
