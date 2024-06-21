@@ -1581,6 +1581,16 @@ export default class SchedulerTask {
     ) {
         const schedulerUuid = getSchedulerUuid(schedulerPayload);
 
+        Logger.debug('Sleep 1 minutes');
+        const sleep = (ms: number) =>
+            new Promise((r) => {
+                setTimeout(() => {
+                    r(undefined);
+                }, ms);
+            });
+        await sleep(60000);
+        Logger.debug('Continue delivery');
+
         const scheduler: SchedulerAndTargets | CreateSchedulerAndTargets =
             isCreateScheduler(schedulerPayload)
                 ? schedulerPayload

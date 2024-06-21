@@ -173,10 +173,12 @@ export default class SchedulerApp {
                 '/api/v1/livez': () => Promise.resolve(),
             },
             onSignal: async () => {
-                Logger.debug('SIGTERM signal received: closing HTTP server');
+                Logger.info('SIGTERM signal received: closing scheduler app');
                 this.prometheusMetrics.stop();
                 if (worker && worker.runner) {
+                    Logger.info('Stopping worker');
                     await worker?.runner?.stop();
+                    Logger.info('Stopped worker');
                 }
             },
             logger: Logger.error,
