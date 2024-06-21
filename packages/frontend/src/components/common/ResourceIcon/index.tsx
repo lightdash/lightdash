@@ -20,6 +20,7 @@ import {
     IconChartLine,
     IconChartPie,
     IconCode,
+    IconFilter,
     IconFolder,
     IconLayoutDashboard,
     IconSquareNumber1,
@@ -83,6 +84,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconChartAreaLine;
         case ChartKind.PIE:
             return IconChartPie;
+        case ChartKind.FUNNEL:
+            return IconFilter;
         case ChartKind.TABLE:
             return IconTable;
         case ChartKind.BIG_NUMBER:

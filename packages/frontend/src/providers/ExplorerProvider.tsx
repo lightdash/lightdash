@@ -19,6 +19,7 @@ import {
     type CustomVisConfig,
     type Dimension,
     type FieldId,
+    type FunnelChartConfig,
     type MetricQuery,
     type MetricType,
     type PieChartConfig,
@@ -407,6 +408,19 @@ export const getValidChartConfig = (
                 type: chartType,
                 config:
                     chartConfig && chartConfig.type === ChartType.PIE
+                        ? chartConfig.config
+                        : cachedConfig
+                        ? cachedConfig
+                        : {},
+            };
+        }
+        case ChartType.FUNNEL: {
+            const cachedConfig = cachedConfigs?.[chartType];
+
+            return {
+                type: chartType,
+                config:
+                    chartConfig && chartConfig.type === ChartType.FUNNEL
                         ? chartConfig.config
                         : cachedConfig
                         ? cachedConfig
@@ -1287,6 +1301,7 @@ function reducer(
 
 type ConfigCacheMap = {
     [ChartType.PIE]: PieChartConfig['config'];
+    [ChartType.FUNNEL]: FunnelChartConfig['config'];
     [ChartType.BIG_NUMBER]: BigNumberConfig['config'];
     [ChartType.TABLE]: TableChartConfig['config'];
     [ChartType.CARTESIAN]: CartesianChartConfig['config'];

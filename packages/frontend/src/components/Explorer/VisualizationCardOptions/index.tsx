@@ -15,6 +15,7 @@ import {
     IconChartPie,
     IconChevronDown,
     IconCode,
+    IconFilter,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
@@ -28,6 +29,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/VisualizationBigNumberConfig';
 import { isCartesianVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigCartesian';
+import { isFunnelVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigFunnel';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigPie';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/VisualizationConfigTable';
 import { isCustomVisualizationConfig } from '../../LightdashVisualization/VisualizationCustomConfig';
@@ -162,6 +164,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Pie chart',
                     icon: <MantineIcon icon={IconChartPie} color="gray" />,
+                };
+            case ChartType.FUNNEL:
+                return {
+                    text: 'Funnel chart',
+                    icon: <MantineIcon icon={IconFilter} color="gray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -335,6 +342,24 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Pie chart
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isFunnelVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconFilter} />}
+                    onClick={() => {
+                        setPivotDimensions(undefined);
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.FUNNEL);
+                    }}
+                >
+                    Funnel chart
                 </Menu.Item>
 
                 <Menu.Item

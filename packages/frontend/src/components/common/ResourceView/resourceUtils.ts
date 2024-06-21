@@ -29,6 +29,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Mixed chart';
                 case ChartKind.PIE:
                     return 'Pie chart';
+                case ChartKind.FUNNEL:
+                    return 'Funnel chart';
                 case ChartKind.TABLE:
                     return 'Table';
                 case ChartKind.BIG_NUMBER:

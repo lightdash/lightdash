@@ -199,6 +199,12 @@ export class SavedChartService extends BaseService {
                               savedChart.chartConfig?.config?.isDonut ?? false,
                       }
                     : undefined,
+            funnel:
+                savedChart.chartConfig.type === ChartType.FUNNEL
+                    ? {
+                          dataInput: savedChart.chartConfig?.config?.dataInput,
+                      }
+                    : undefined,
             table:
                 savedChart.chartConfig.type === ChartType.TABLE
                     ? {
