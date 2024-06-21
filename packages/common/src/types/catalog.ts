@@ -28,7 +28,7 @@ export type ApiCatalogSearch = {
 };
 export type CatalogField = Pick<
     Field,
-    'name' | 'fieldType' | 'tableLabel' | 'description'
+    'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
 > &
     Pick<Dimension, 'requiredAttributes'> & {
         type: CatalogType.Field;
