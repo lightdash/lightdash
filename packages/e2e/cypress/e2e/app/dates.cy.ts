@@ -342,7 +342,7 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created year').click();
 
-        cy.contains('button', new Date().getFullYear()).click();
+        cy.contains('button', 'Select a date').click();
         cy.findByRole('dialog').within(() => {
             cy.get('button').find('[data-previous="true"]').click();
             cy.contains('button', 2017).click();
@@ -366,7 +366,7 @@ describe('Date tests', () => {
         cy.contains('Add filter').click();
         cy.contains('Created month').click();
 
-        cy.contains('button', dayjs().format('MMMM YYYY')).click();
+        cy.contains('button', 'Select a date').click();
         cy.findByRole('dialog').within(() => {
             cy.contains('button', dayjs().format('YYYY')).click();
             cy.get('button').find('[data-previous="true"]').click();
