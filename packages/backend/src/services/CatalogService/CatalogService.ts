@@ -131,6 +131,7 @@ export class CatalogService<
                     ...acc,
                     {
                         name: explore.name,
+                        label: explore.label,
                         errors: explore.errors,
                         groupLabel: explore.groupLabel,
                         description:
@@ -152,6 +153,7 @@ export class CatalogService<
                     ...acc,
                     {
                         name: explore.name,
+                        label: explore.label,
                         description:
                             explore.tables[explore.baseTable].description,
                         type: CatalogType.Table,
@@ -333,6 +335,7 @@ export class CatalogService<
                 (joinedTable) => joinedTable.table,
             ),
         };
+
         return metadata;
     }
 

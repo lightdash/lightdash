@@ -164,18 +164,24 @@ export const CatalogMetadata: FC = () => {
                         {' / '}
                     </>
                 )}
-                <Text
-                    fz="lg"
-                    fw={600}
-                    onDoubleClick={() => {
-                        if (metadataErrors) return;
-                        history.push(
-                            `/projects/${projectUuid}/tables/${metadata?.modelName}`,
-                        );
-                    }}
+                <Tooltip
+                    variant="xs"
+                    label={metadata?.modelName}
+                    disabled={!!metadataErrors}
                 >
-                    {metadataErrors ? selection?.table : metadata?.modelName}
-                </Text>
+                    <Text
+                        fz="lg"
+                        fw={600}
+                        onDoubleClick={() => {
+                            if (metadataErrors) return;
+                            history.push(
+                                `/projects/${projectUuid}/tables/${metadata?.modelName}`,
+                            );
+                        }}
+                    >
+                        {metadataErrors ? selection?.table : metadata?.name}
+                    </Text>
+                </Tooltip>
             </Group>
 
             {metadataErrors && metadataErrors.length > 0 ? (

@@ -92,7 +92,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         <Tooltip
                             variant="xs"
                             disabled={!isNameTruncated}
-                            label={table.name}
+                            label={table.label}
                         >
                             <Highlight
                                 ref={ref}
@@ -103,7 +103,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                                 fw={600}
                                 truncate
                             >
-                                {table.name || ''}
+                                {table.label || ''}
                             </Highlight>
                         </Tooltip>
                     </UnstyledButton>

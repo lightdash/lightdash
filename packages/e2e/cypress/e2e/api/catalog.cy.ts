@@ -23,6 +23,7 @@ describe('Lightdash catalog all tables and fields', () => {
             );
             expect(userTable).to.eql({
                 name: 'users',
+                label: 'Users',
                 description: 'users table',
                 type: 'table',
                 joinedTables: [],
@@ -93,6 +94,7 @@ describe('Lightdash catalog search', () => {
 
             expect(table).to.eql({
                 name: 'customers',
+                label: 'Customers',
                 description:
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',
@@ -197,6 +199,7 @@ describe('Lightdash catalog search', () => {
             );
             expect(matchingTable).to.eql({
                 name: 'customers',
+                label: 'Customers',
                 description:
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',

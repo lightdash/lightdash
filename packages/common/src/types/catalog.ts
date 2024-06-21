@@ -40,7 +40,7 @@ export type CatalogField = Pick<
 
 export type CatalogTable = Pick<
     TableBase,
-    'name' | 'groupLabel' | 'description' | 'requiredAttributes'
+    'name' | 'label' | 'groupLabel' | 'description' | 'requiredAttributes'
 > & {
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
