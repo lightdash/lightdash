@@ -1,3 +1,11 @@
+## [0.1137.1](https://github.com/lightdash/lightdash/compare/0.1137.0...0.1137.1) (2024-06-21)
+
+
+### Bug Fixes
+
+* get correct response pattern for explore screenshots ([#10463](https://github.com/lightdash/lightdash/issues/10463)) ([d513b48](https://github.com/lightdash/lightdash/commit/d513b48e510fd1d3169d013d7102393d663f7195))
+* wait for `.loading_chart` regardless of scheduled delivery ([#10480](https://github.com/lightdash/lightdash/issues/10480)) ([c12d457](https://github.com/lightdash/lightdash/commit/c12d457e5e9130083110b5d62972220438329351))
+
 # [0.1137.0](https://github.com/lightdash/lightdash/compare/0.1136.0...0.1137.0) (2024-06-21)
 
 
