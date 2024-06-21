@@ -12,17 +12,17 @@ Promoting content enables you to copy content from one project to another. It's 
 
 ## How promoting works
 
-If you are promoting a chart, from one `development project` to a `production project`, this will happen:
+If you are promoting a chart, from a `development` project to a `production` project, this will happen:
 
-- If the chart exists in both the `development project` and the `production project`, the chart in the `production` will be updated with the changes from `development`. You can always revert this chart to a previous version using [version history](./version-history)
-- If the chart is new, we will replicate this chart into the `production project`. We will also create a new space if needed.
+- If the chart exists (with the same name) in both the `development` project and the `production` project, the chart in `production` will be updated with the changes from `development`. You can always revert this chart to a previous version using [version history](./version-history)
+- If the chart is new, we will replicate the `development` chart into the `production` project. We will also create a new space if a space does not exist with the same name.
 
 ## Configure upstream project
 
 Before you can start promoting content, you need to configure your upstream project.
-To do this, on your `development project` go to settings > Data ops
+To do this, on your `development` project go to settings > Data ops.
 
-In there, select the project where you want to copy the content to.
+Select the project where you want to copy the content to.
 
 <img
 src={SelectProject}
@@ -33,7 +33,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 ## Promote charts
 
-You can promote charts from the `chart` in view mode or from any listing (like home page or all charts), click on the `...` button and then select `promote chart`
+You can promote charts from the `chart` in view mode or from any listing (like home page or all charts), click on the `...` button and then select `promote chart`.
 
 <img
 src={PromoteViewChart}
@@ -51,7 +51,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the chart/space in both the `development project` and the `upstream project`
+You must be a `developer` and have access to the chart and space in both the `development project` and the `upstream project`. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
 
 :::
 
@@ -66,7 +66,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 ## Promote dashboards
 
-You can promote dashboards from the `dashboard` in view mode or from any listing (like home page or all dashboards), click on the `...` button and then select `promote dashboard`
+You can promote dashboards from the `dashboard` in view mode or from any listing (like home page or all dashboards), click on the `...` button and then select `promote dashboard`.
 
 This will promote the dashboard to the `upstream` project as well as all the charts in this dashboard (for both charts within spaces and charts within this dashboard) and all other non-chart tiles like markdown.
 
@@ -88,11 +88,11 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the dashboard/space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard.
+You must be a `developer` and have access to the dashboard and space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
 
 :::
 
-Once the dashboard is promoted, you can click on the `success` banner to open a new tab into this dashboard in the `production project`
+Once the dashboard is promoted, you can click on the `success` banner to open a new tab into this dashboard in the `production project`.
 
 <img
 src={SucessDashboardMessage}
