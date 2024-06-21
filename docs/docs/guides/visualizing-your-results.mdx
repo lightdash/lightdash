@@ -43,6 +43,7 @@ In Lightdash, the data in your results tables can be visualized in a bunch of di
 - [Big Value](#big-value)
 - [Table](#table)
 - [Pie chart](#pie-chart)
+- [Funnel chart](#funnel-chart)
 - [Bar chart](#bar-chart)
 - [Area chart](#area-chart)
 - [Line chart](#line-chart)
@@ -276,6 +277,38 @@ You can adjust the labels and colours for each of the slices of your pie chart i
 />
 
 You can choose to show or hide the legend for your pie chart in the `display` tab.
+
+### Funnel chart
+
+<img
+  src={FunnelChart}
+  width="561"
+  height="309"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Funnel charts work well for showing pipeline performance, product conversion metrics, onboarding flows, or any other process where things move from one discrete stage to another.
+
+To use a funnel chart, you should have discrete stages of a pipeline and numeric counts of entities in each stage.
+
+The funnel will show the count at each stage and the percentage that number represents of the starting count, making it easy to visualize the proportion moving from one stage to the next.
+
+#### General settings
+
+<img
+  src={FunnelChartGeneral}
+  width="266"
+  height="210"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+With the Lightdash funnel chart, you can use either a row or a column to describe the stages in your funnel.
+
+Use the `Data orientation` switch to specify which orientation you would like to use.
+
+When `rows` is selected, each row of your data represent one step. The first column in the data will be treated as the labels for the steps, and you can choose which **numeric** column to treat as the value of the step.
+
+When `columns` is selected, you should have a numeric column for each step you want to display. Only the first row of data will be represented and the column names will be used as the step labels. Non-numeric columns will be ignored.
 
 ### Bar chart
 
