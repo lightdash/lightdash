@@ -1,4 +1,9 @@
-import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
+import {
+    ChartType,
+    FieldType,
+    getItemId,
+    type CatalogMetadata as CatalogMetadataType,
+} from '@lightdash/common';
 import {
     Avatar,
     Box,
@@ -62,6 +67,8 @@ export const CatalogMetadata: FC = () => {
         string | undefined
     >();
 
+    const isViewingField = selectedFieldInTable || selection?.field;
+
     useEffect(() => {
         setSelectedFieldInTable(undefined);
     }, [selection]);
@@ -76,10 +83,9 @@ export const CatalogMetadata: FC = () => {
     );
 
     const metadata = useMemo(() => {
-        const fieldSelected = selection?.field || selectedFieldInTable;
-        if (fieldSelected && metadataResults) {
+        if (metadataResults && (selectedFieldInTable || selection?.field)) {
             const field = metadataResults?.fields?.find(
-                (f) => f.name === fieldSelected,
+                (f) => f.name === (selectedFieldInTable || selection?.field),
             );
             if (!field) return undefined;
             const catalogMetadata: CatalogMetadataType = {
@@ -89,12 +95,13 @@ export const CatalogMetadata: FC = () => {
                 tableLabel: field.tableLabel,
                 description: field.description,
                 fields: [],
+                fieldType: field.fieldType,
             };
             return catalogMetadata;
         } else {
             return metadataResults;
         }
-    }, [metadataResults, selection, selectedFieldInTable]);
+    }, [metadataResults, selectedFieldInTable, selection?.field]);
 
     return (
         <Stack h="100vh" spacing="xl">
