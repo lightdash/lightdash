@@ -215,7 +215,7 @@ export class SchedulerClient {
         const graphileClient = await this.graphileUtils;
         const results = await graphileClient.withPgClient((pgClient) =>
             pgClient.query(
-                'select count(id) as count from graphile_worker.jobs where attempts <> max_attempts',
+                'select count(id) as count from graphile_worker.jobs where attempts <> max_attempts AND run_at < now()',
             ),
         );
         return parseInt(results.rows[0].count, 10);
