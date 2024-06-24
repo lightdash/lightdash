@@ -276,9 +276,7 @@ export const CatalogPanel: FC = () => {
                         groupName !== 'Ungrouped tables' &&
                         filters.hideGroupedTables
                     ) {
-                        {
-                            return acc;
-                        }
+                        return acc;
                     }
                     // Add to the tree if not filtered out
                     if (!acc[groupName]) {
@@ -289,6 +287,7 @@ export const CatalogPanel: FC = () => {
                             name: item.tableName,
                             type: CatalogType.Table,
                             fields: [],
+                            label: item.tableLabel,
                         };
                     }
                     acc[groupName].tables[item.tableName].fields.push(item);

@@ -16,6 +16,7 @@ const parseFieldFromMetricOrDimension = (
     tags: string[],
 ): CatalogField => ({
     name: field.name,
+    label: field.label,
     description: field.description,
     tableLabel: field.tableLabel,
     tableName: table.name,

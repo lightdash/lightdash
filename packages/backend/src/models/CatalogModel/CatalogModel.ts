@@ -1,17 +1,14 @@
 import {
-    CatalogAnalytics,
     CatalogField,
     CatalogTable,
     CatalogType,
     Explore,
-    getBasicType,
     NotFoundError,
     UnexpectedServerError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
-import { SavedChartVersionsTableName } from '../../database/entities/savedCharts';
 import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,

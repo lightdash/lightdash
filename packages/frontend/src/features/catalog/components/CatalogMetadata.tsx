@@ -1,7 +1,6 @@
 import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
 import {
     Avatar,
-    Badge,
     Box,
     Button,
     Divider,
@@ -10,7 +9,6 @@ import {
     LoadingOverlay,
     Paper,
     Stack,
-    Table,
     Tabs,
     Text,
     Tooltip,
@@ -30,17 +28,16 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
 import { useCatalogMetadata } from '../hooks/useCatalogMetadata';
 import { CatalogAnalyticCharts } from './CatalogAnalyticCharts';
+import { CatalogMetadataFieldsTable } from './CatalogMetadataFieldsTable';
 
 export const CatalogMetadata: FC = () => {
     const history = useHistory();
 
-    const { classes, cx } = useTableStyles();
     const { colors } = useMantineTheme();
     const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
 
@@ -371,79 +368,14 @@ export const CatalogMetadata: FC = () => {
 
                                 {selection?.field === undefined &&
                                     !selectedFieldInTable && (
-                                        <Paper withBorder>
-                                            <Table
-                                                className={cx(
-                                                    classes.root,
-                                                    classes.smallPadding,
-                                                )}
-                                            >
-                                                <thead>
-                                                    <tr>
-                                                        <th>Field</th>
-                                                        <th>Type</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {metadata?.fields?.map(
-                                                        (field) => (
-                                                            <tr
-                                                                key={field.name}
-                                                                style={{
-                                                                    border:
-                                                                        selection?.field ===
-                                                                        field.name
-                                                                            ? `2px solid ${colors.blue[6]}`
-                                                                            : undefined,
-                                                                }}
-                                                            >
-                                                                <td
-                                                                    style={{
-                                                                        color: `${colors.blue[6]}`,
-                                                                        cursor: 'pointer',
-                                                                    }}
-                                                                    onClick={() => {
-                                                                        setSelectedFieldInTable(
-                                                                            field.name,
-                                                                        );
-                                                                        if (
-                                                                            selection?.table
-                                                                        )
-                                                                            getAnalytics(
-                                                                                {
-                                                                                    table: selection.table,
-                                                                                    field: field.name,
-                                                                                },
-                                                                            );
-                                                                    }}
-                                                                >
-                                                                    {field.name}
-                                                                </td>
-                                                                <td>
-                                                                    <Badge
-                                                                        color="gray.4"
-                                                                        radius="lg"
-                                                                        size="xs"
-                                                                        fz="xs"
-                                                                        fw={500}
-                                                                        style={{
-                                                                            textTransform:
-                                                                                'none',
-                                                                            color: colors
-                                                                                .gray[6],
-                                                                        }}
-                                                                    >
-                                                                        {
-                                                                            field.basicType
-                                                                        }
-                                                                    </Badge>
-                                                                </td>
-                                                            </tr>
-                                                        ),
-                                                    )}
-                                                </tbody>
-                                            </Table>
-                                        </Paper>
+                                        <CatalogMetadataFieldsTable
+                                            selection={selection}
+                                            metadata={metadata}
+                                            getAnalytics={getAnalytics}
+                                            setSelectedFieldInTable={
+                                                setSelectedFieldInTable
+                                            }
+                                        />
                                     )}
                             </Stack>
                         </Tabs.Panel>
