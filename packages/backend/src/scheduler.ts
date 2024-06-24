@@ -10,7 +10,15 @@ const server = http.createServer(app);
 
         return new Promise((resolve, reject) => {
             console.log('Closing', Date.now());
-            setTimeout(resolve, 30000); // 30 seconds
+            server.close((err) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else {
+                    console.log('Closed', Date.now());
+                    setTimeout(resolve, 30000); // 30 seconds
+                }
+            });
         }).then(() => {
             console.log('Resolved', Date.now());
             process.exit(0);
