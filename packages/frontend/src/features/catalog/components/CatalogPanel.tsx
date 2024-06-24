@@ -121,7 +121,6 @@ export const CatalogPanel: FC = () => {
     const [, startTransition] = useTransition();
     const {
         setMetadata,
-        setMetadataErrors,
         isSidebarOpen,
         setAnalyticsResults,
         setSidebarOpen,
@@ -313,28 +312,15 @@ export const CatalogPanel: FC = () => {
         (selectedItem: CatalogSelection) => {
             if (!selectedItem.table) return;
 
-            // Reset metadata errors when selecting a new item
-            setMetadataErrors(undefined);
-
             if (selectedItem.group === TABLES_WITH_ERRORS_GROUP_NAME) {
                 if (!isSidebarOpen) {
                     setSidebarOpen(true);
                 }
 
-                const errors =
-                    catalogTree &&
-                    catalogTree[TABLES_WITH_ERRORS_GROUP_NAME].tables[
-                        selectedItem.table
-                    ].errors;
-
                 setSelection({
                     table: selectedItem.table,
                     group: selectedItem.group,
                 });
-
-                if (errors) {
-                    setMetadataErrors(errors);
-                }
 
                 return; // no metadata for tables with errors
             }
@@ -371,8 +357,6 @@ export const CatalogPanel: FC = () => {
             isSidebarOpen,
             setSelection,
             catalogResults,
-            catalogTree,
-            setMetadataErrors,
             setSidebarOpen,
             getMetadata,
             getAnalytics,
