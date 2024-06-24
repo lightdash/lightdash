@@ -1,5 +1,6 @@
 import {
     FunnelChartDataInput,
+    FunnelChartLabelPosition,
     isField,
     isMetric,
     isTableCalculation,
@@ -25,6 +26,10 @@ type FunnelChartConfig = {
 
     dataInput: FunnelChartDataInput;
     setDataInput: (dataInput: FunnelChartDataInput) => void;
+
+    label: FunnelChart['label'];
+
+    onLabelChange: (newLabel: FunnelChart['label']) => void;
 
     data: FunnelSeriesDataPoint[];
 };
@@ -52,6 +57,14 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
 
     const [dataInput, setDataInput] = useState(
         funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
+    );
+
+    const [label, setLabel] = useState<FunnelChart['label']>(
+        funnelChartConfig?.label ?? {
+            position: FunnelChartLabelPosition.INSIDE,
+            showValue: true,
+            showPercentage: false,
+        },
     );
 
     // The value at the top of the funnel. This is used to calculate
@@ -160,12 +173,17 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         }
     }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 
+    const onLabelChange = (labelProps: FunnelChart['label']) => {
+        setLabel((prevLabel) => ({ ...prevLabel, ...labelProps }));
+    };
+
     const validConfig: FunnelChart = useMemo(
         () => ({
             dataInput: dataInput,
             fieldId: fieldId ?? undefined,
+            label,
         }),
-        [dataInput, fieldId],
+        [dataInput, fieldId, label],
     );
 
     return {
@@ -176,6 +194,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         onFieldChange: setFieldId,
         dataInput,
         setDataInput,
+        label,
+        onLabelChange,
         colorPalette,
         data,
     };

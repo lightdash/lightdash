@@ -103,10 +103,21 @@ export enum FunnelChartDataInput {
     COLUMN = 'column',
 }
 
+export enum FunnelChartLabelPosition {
+    INSIDE = 'inside',
+    LEFT = 'left',
+    RIGHT = 'right',
+}
+
 export type FunnelChart = {
     dataInput?: FunnelChartDataInput;
     fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
+    label?: {
+        position?: FunnelChartLabelPosition;
+        showValue?: boolean;
+        showPercentage?: boolean;
+    };
 };
 
 export type ColumnProperties = {

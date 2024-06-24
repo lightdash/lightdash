@@ -1,5 +1,6 @@
 import {
     FunnelChartDataInput,
+    FunnelChartLabelPosition,
     getItemId,
     isField,
     isTableCalculation,
@@ -8,6 +9,7 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Checkbox,
     Group,
     MantineProvider,
     SegmentedControl,
@@ -31,8 +33,14 @@ export const ConfigTabs: FC = memo(() => {
     // TODO: dimensions should be selectable for labels
     // const dimensions = Object.values(visualizationConfig.dimensions);
 
-    const { selectedField, onFieldChange, dataInput, setDataInput } =
-        visualizationConfig.chartConfig;
+    const {
+        selectedField,
+        onFieldChange,
+        dataInput,
+        setDataInput,
+        label,
+        onLabelChange,
+    } = visualizationConfig.chartConfig;
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -124,6 +132,66 @@ export const ConfigTabs: FC = memo(() => {
                                     </Tooltip>
                                 </Config.Section>
                             )}
+                        </Config>
+                        <Config>
+                            <Config.Section>
+                                <Config.Heading>Labels</Config.Heading>
+
+                                <Group spacing="xs" noWrap>
+                                    <Config.Label>Position</Config.Label>
+                                    <SegmentedControl
+                                        value={label?.position}
+                                        data={[
+                                            {
+                                                value: FunnelChartLabelPosition.LEFT,
+                                                label: 'Left',
+                                            },
+
+                                            {
+                                                value: FunnelChartLabelPosition.INSIDE,
+                                                label: 'Inside',
+                                            },
+                                            {
+                                                value: FunnelChartLabelPosition.RIGHT,
+                                                label: 'Right',
+                                            },
+                                        ]}
+                                        onChange={(
+                                            newPosition: FunnelChartLabelPosition,
+                                        ) =>
+                                            onLabelChange({
+                                                position: newPosition,
+                                            })
+                                        }
+                                    />
+                                </Group>
+
+                                <Group spacing="xs">
+                                    <Checkbox
+                                        checked={label?.showValue}
+                                        onChange={(newValue) =>
+                                            onLabelChange({
+                                                showValue:
+                                                    newValue.currentTarget
+                                                        .checked,
+                                            })
+                                        }
+                                        label="Show value"
+                                    />
+
+                                    <Checkbox
+                                        checked={label?.showPercentage}
+                                        onChange={(newValue) =>
+                                            onLabelChange({
+                                                showPercentage:
+                                                    newValue.currentTarget
+                                                        .checked,
+                                            })
+                                        }
+                                        label="Show percentage"
+                                    />
+                                </Group>
+                            </Config.Section>
                         </Config>
                     </Stack>
                 </Tabs.Panel>
