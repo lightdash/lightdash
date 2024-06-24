@@ -1,3 +1,10 @@
+# [0.1139.0](https://github.com/lightdash/lightdash/compare/0.1138.1...0.1139.0) (2024-06-24)
+
+
+### Features
+
+* display field labels in catalog metadata ([#10485](https://github.com/lightdash/lightdash/issues/10485)) ([2b0c048](https://github.com/lightdash/lightdash/commit/2b0c04813758b269bbab59269630ab80e6852551))
+
 ## [0.1138.1](https://github.com/lightdash/lightdash/compare/0.1138.0...0.1138.1) (2024-06-24)
 
 
