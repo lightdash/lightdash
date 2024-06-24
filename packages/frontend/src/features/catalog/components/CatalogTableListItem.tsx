@@ -43,6 +43,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { ref, isTruncated: isNameTruncated } =
         useIsTruncated<HTMLDivElement>();
+    const {
+        ref: errorDescriptionRef,
+        isTruncated: isErrorDescriptionTruncated,
+    } = useIsTruncated<HTMLDivElement>();
 
     const countJoinedTables =
         'joinedTables' in table ? table.joinedTables?.length || 0 : 0;
@@ -77,10 +81,11 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         isLast && !isOpen ? theme.radius.md : 0,
                     borderBottomRightRadius:
                         isLast && !isOpen ? theme.radius.md : 0,
+                    opacity: table.errors ? 0.5 : 1,
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
-                onClick={onClick}
+                onClick={() => (!table.errors ? onClick?.() : undefined)}
                 pos="relative"
             >
                 <Grid.Col span={'content'}>
@@ -130,9 +135,24 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
 
                 <Grid.Col span={'auto'}>
                     {table.errors && table.errors.length > 0 ? (
-                        <Text fz="13px" c="gray.7" w="100%" lineClamp={2}>
-                            {table.errors[0].message}
-                        </Text>
+                        <Tooltip
+                            variant="xs"
+                            disabled={isErrorDescriptionTruncated}
+                            label={table.errors[0].message}
+                            withinPortal
+                            multiline
+                            maw={300}
+                        >
+                            <Text
+                                ref={errorDescriptionRef}
+                                fz="13px"
+                                c="gray.7"
+                                w="100%"
+                                lineClamp={2}
+                            >
+                                {table.errors[0].message}
+                            </Text>
+                        </Tooltip>
                     ) : !isSelected ? (
                         <Highlight
                             fz="13px"
