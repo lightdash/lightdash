@@ -137,7 +137,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     {table.errors && table.errors.length > 0 ? (
                         <Tooltip
                             variant="xs"
-                            disabled={isErrorDescriptionTruncated}
+                            disabled={!isErrorDescriptionTruncated}
                             label={table.errors[0].message}
                             withinPortal
                             multiline
