@@ -14,7 +14,7 @@ Promoting content enables you to copy content from one project to another. It's 
 
 If you are promoting a chart, from a `development` project to a `production` project, this will happen:
 
-- If the chart exists (with the same name) in both the `development` project and the `production` project, the chart in `production` will be updated with the changes from `development`. You can always revert this chart to a previous version using [version history](./version-history)
+- If the chart exists in both the `development` project and the `production` project, the chart in `production` will be updated with the changes from `development`. You can always revert this chart to a previous version using [version history](./version-history). Lightdash matches charts based on the name used when you first created them. Even if you change the names later, the two charts will still be linked.
 - If the chart is new, we will replicate the `development` chart into the `production` project. We will also create a new space if a space does not exist with the same name.
 
 ## Configure upstream project
