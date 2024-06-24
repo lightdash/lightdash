@@ -1,3 +1,10 @@
+## [0.1138.1](https://github.com/lightdash/lightdash/compare/0.1138.0...0.1138.1) (2024-06-24)
+
+
+### Bug Fixes
+
+* queue monitoring sql ([#10487](https://github.com/lightdash/lightdash/issues/10487)) ([6760632](https://github.com/lightdash/lightdash/commit/6760632af24c6c16d4a41e2f45d6643286226c69))
+
 # [0.1138.0](https://github.com/lightdash/lightdash/compare/0.1137.1...0.1138.0) (2024-06-21)
 
 
