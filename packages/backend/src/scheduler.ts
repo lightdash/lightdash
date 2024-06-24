@@ -1,29 +1,21 @@
-import { lightdashConfig } from './config/lightdashConfig';
-import knexConfig from './knexfile';
-import Logger from './logging/logger';
-import SchedulerApp from './SchedulerApp';
+import express from 'express';
+import http from 'http';
 
-process
-    .on('unhandledRejection', (reason, p) => {
-        Logger.error('Unhandled Rejection at Promise', reason, p);
-    })
-    .on('uncaughtException', (err) => {
-        Logger.error('Uncaught Exception thrown', err);
-        process.exit(1);
+const app = express();
+const server = http.createServer(app);
+
+['SIGINT', 'SIGTERM', 'SIGQUIT', 'SIGUSR2'].forEach((signal) => {
+    process.on(signal, async () => {
+        console.log(`Received ${signal}`, Date.now());
+
+        return new Promise((resolve, reject) => {
+            console.log('Closing', Date.now());
+            setTimeout(resolve, 30000); // 30 seconds
+        }).then(() => {
+            console.log('Resolved', Date.now());
+            process.exit(0);
+        });
     });
-if (process.env.CI !== 'true') {
-    const schedulerApp = new SchedulerApp({
-        lightdashConfig,
-        port: process.env.PORT || 8081,
-        environment:
-            process.env.NODE_ENV === 'development'
-                ? 'development'
-                : 'production',
-        knexConfig,
-    });
-    schedulerApp.start().catch((e) => {
-        Logger.error('Error starting standalone scheduler worker', e);
-    });
-} else {
-    Logger.info('Not running scheduler on CI');
-}
+});
+
+server.listen(8081);
