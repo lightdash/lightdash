@@ -796,14 +796,7 @@ export class ProjectModel {
                                     .delete();
 
                                 const inserts = await this.database
-                                    .batchInsert(
-                                        CatalogTableName,
-                                        catalogItems.map((catalogItem) => ({
-                                            ...omit(catalogItem, [
-                                                'field_type',
-                                            ]),
-                                        })),
-                                    )
+                                    .batchInsert(CatalogTableName, catalogItems)
                                     .returning('*')
                                     .transacting(trx);
 

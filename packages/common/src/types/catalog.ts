@@ -17,6 +17,12 @@ export enum CatalogType {
     Field = 'field',
 }
 
+export enum CatalogFilter {
+    Tables = 'tables',
+    Dimensions = 'dimensions',
+    Metrics = 'metrics',
+}
+
 export type CatalogSelection = {
     group: string;
     table?: string;
@@ -26,6 +32,7 @@ export type CatalogSelection = {
 export type ApiCatalogSearch = {
     search?: string;
     type?: CatalogType;
+    filter?: CatalogFilter;
 };
 export type CatalogField = Pick<
     Field,
