@@ -1,3 +1,10 @@
+## [0.1143.1](https://github.com/lightdash/lightdash/compare/0.1143.0...0.1143.1) (2024-06-25)
+
+
+### Bug Fixes
+
+* support dbt_project flags ([#10519](https://github.com/lightdash/lightdash/issues/10519)) ([86a58b3](https://github.com/lightdash/lightdash/commit/86a58b3fc6b361c2783e84f9238f7f1498d570c0))
+
 # [0.1143.0](https://github.com/lightdash/lightdash/compare/0.1142.0...0.1143.0) (2024-06-25)
 
 
