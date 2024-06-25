@@ -86,6 +86,10 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             label: {
                 show: true,
                 position: label?.position || FunnelChartLabelPosition.INSIDE,
+                color:
+                    label?.position !== FunnelChartLabelPosition.INSIDE
+                        ? 'black'
+                        : undefined,
                 formatter: ({ name, value }) => {
                     const { formattedValue, percentOfMax } =
                         getValueAndPercentage({
