@@ -19,7 +19,7 @@ export const convertExploresToCatalog = (
         const dimensionsAndMetrics = [
             ...Object.values(baseTable?.dimensions || {}),
             ...Object.values(baseTable?.metrics || {}),
-        ];
+        ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
         const fields = dimensionsAndMetrics.map<DbCatalogIn>((field) => ({
             project_uuid: projectUuid,
             cached_explore_uuid: explore.cachedExploreUuid,
