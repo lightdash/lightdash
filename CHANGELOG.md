@@ -1,3 +1,15 @@
+# [0.1143.0](https://github.com/lightdash/lightdash/compare/0.1142.0...0.1143.0) (2024-06-25)
+
+
+### Bug Fixes
+
+* get correct table label and label on metadata ([#10518](https://github.com/lightdash/lightdash/issues/10518)) ([59b2c29](https://github.com/lightdash/lightdash/commit/59b2c29128545d3dd581251fbd67e5f582b01878))
+
+
+### Features
+
+* add label placement, value and percentage to funnel chart ([#10497](https://github.com/lightdash/lightdash/issues/10497)) ([d25eadd](https://github.com/lightdash/lightdash/commit/d25eaddb15a63fda6c136017e3cf77ff8a1f29be))
+
 # [0.1142.0](https://github.com/lightdash/lightdash/compare/0.1141.0...0.1142.0) (2024-06-25)
 
 
