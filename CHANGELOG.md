@@ -1,3 +1,10 @@
+# [0.1142.0](https://github.com/lightdash/lightdash/compare/0.1141.0...0.1142.0) (2024-06-25)
+
+
+### Features
+
+* analytics events dashboard id ([#10511](https://github.com/lightdash/lightdash/issues/10511)) ([33a50dd](https://github.com/lightdash/lightdash/commit/33a50ddfba283680eb7da970e504ef3e8ce0a9c6))
+
 # [0.1141.0](https://github.com/lightdash/lightdash/compare/0.1140.2...0.1141.0) (2024-06-25)
 
 
