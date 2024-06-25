@@ -120,6 +120,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             })}
         >
             <LoadingOverlay
+                className="loading_chart_overlay"
                 visible={isLoading ?? false}
                 zIndex={getDefaultZIndex('modal') - 10}
             />
