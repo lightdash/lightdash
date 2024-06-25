@@ -1,3 +1,10 @@
+# [0.1141.0](https://github.com/lightdash/lightdash/compare/0.1140.2...0.1141.0) (2024-06-25)
+
+
+### Features
+
+* hide hidden catalog fields ([#10490](https://github.com/lightdash/lightdash/issues/10490)) ([b7296c3](https://github.com/lightdash/lightdash/commit/b7296c39f0d20a67ef4bfbec4b7489add59d2e5c))
+
 ## [0.1140.2](https://github.com/lightdash/lightdash/compare/0.1140.1...0.1140.2) (2024-06-25)
 
 
