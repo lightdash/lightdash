@@ -7,7 +7,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { CatalogTableName, DbCatalog } from '../../database/entities/catalog';
+import { CatalogTableName } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { wrapSentryTransaction } from '../../utils';
 import {
