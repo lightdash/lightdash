@@ -1,8 +1,16 @@
-import { FieldType, type CatalogField } from '@lightdash/common';
+import {
+    ChartType,
+    FieldType,
+    getItemId,
+    type CatalogField,
+} from '@lightdash/common';
 import { Box, Group, Highlight } from '@mantine/core';
 import { Icon123, IconAbc } from '@tabler/icons-react';
-import React, { useState, type FC } from 'react';
+import React, { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useCatalogContext } from '../context/CatalogProvider';
 
 type Props = {
     field: CatalogField;
@@ -19,11 +27,59 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     onClick,
 }) => {
     const [hovered, setHovered] = useState<boolean | undefined>(false);
+    const { projectUuid } = useCatalogContext();
+
+    const exploreWithFieldUrl = useMemo(() => {
+        const draftChartUrl = getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            {
+                tableName: field.tableName,
+                metricQuery: {
+                    exploreName: field.tableName,
+                    dimensions:
+                        field.fieldType === FieldType.DIMENSION
+                            ? [
+                                  getItemId({
+                                      name: field.name,
+                                      table: field.tableName,
+                                  }),
+                              ]
+                            : [],
+                    metrics:
+                        field.fieldType === FieldType.METRIC
+                            ? [
+                                  getItemId({
+                                      name: field.name,
+                                      table: field.tableName,
+                                  }),
+                              ]
+                            : [],
+                    tableCalculations: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                },
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {},
+                        eChartsConfig: {},
+                    },
+                },
+                tableConfig: {
+                    columnOrder: [],
+                },
+            },
+        );
+
+        return `${draftChartUrl.pathname}?${draftChartUrl.search}`;
+    }, [field.fieldType, field.name, field.tableName, projectUuid]);
 
     return (
         <>
             <Group
                 noWrap
+                pos="relative"
                 sx={(theme) => ({
                     cursor: 'pointer',
                     borderRadius: theme.radius.sm,
@@ -76,6 +132,31 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         </Highlight>
                     </Group>
                 </Box>
+                {(hovered || isSelected) && (
+                    <Box
+                        pos={'absolute'}
+                        right={10}
+                        sx={{
+                            zIndex: 20,
+                        }}
+                    >
+                        <MantineLinkButton
+                            size="xs"
+                            href={exploreWithFieldUrl}
+                            target="_blank"
+                            compact
+                            sx={(theme) => ({
+                                backgroundColor: theme.colors.gray[8],
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[9],
+                                },
+                            })}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            Use field
+                        </MantineLinkButton>
+                    </Box>
+                )}
             </Group>
         </>
     );

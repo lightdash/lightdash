@@ -33,6 +33,7 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -435,12 +436,60 @@ export const CatalogMetadata: FC = () => {
                             },
                         })}
                         onClick={() => {
-                            history.push(
+                            if (metadata && isViewingField) {
+                                return history.push(
+                                    getExplorerUrlFromCreateSavedChartVersion(
+                                        projectUuid,
+                                        {
+                                            tableName: metadata.modelName,
+                                            metricQuery: {
+                                                exploreName: metadata.modelName,
+                                                dimensions:
+                                                    metadata?.fieldType ===
+                                                    FieldType.DIMENSION
+                                                        ? [
+                                                              getItemId({
+                                                                  name: metadata.name,
+                                                                  table: metadata.modelName,
+                                                              }),
+                                                          ]
+                                                        : [],
+                                                metrics:
+                                                    metadata.fieldType ===
+                                                    FieldType.METRIC
+                                                        ? [
+                                                              getItemId({
+                                                                  name: metadata.name,
+                                                                  table: metadata.modelName,
+                                                              }),
+                                                          ]
+                                                        : [],
+                                                tableCalculations: [],
+                                                filters: {},
+                                                sorts: [],
+                                                limit: 500,
+                                            },
+                                            chartConfig: {
+                                                type: ChartType.CARTESIAN,
+                                                config: {
+                                                    layout: {},
+                                                    eChartsConfig: {},
+                                                },
+                                            },
+                                            tableConfig: {
+                                                columnOrder: [],
+                                            },
+                                        },
+                                    ),
+                                );
+                            }
+
+                            return history.push(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}
                     >
-                        Select table
+                        Select {isViewingField ? 'field' : 'table'}
                     </Button>
                 </Group>
             </Stack>
