@@ -346,7 +346,8 @@ export class CatalogService<
         );
 
         const metadata: CatalogMetadata = {
-            name: explore.label,
+            name: explore.name,
+            label: explore.label,
             description: baseTable.description,
             modelName: explore.name,
             source: explore.ymlPath,

@@ -85,6 +85,8 @@ export const CatalogMetadata: FC = () => {
             const catalogMetadata: CatalogMetadataType = {
                 ...metadataResults,
                 name: field.name,
+                label: field.label,
+                tableLabel: field.tableLabel,
                 description: field.description,
                 fields: [],
             };
@@ -153,12 +155,12 @@ export const CatalogMetadata: FC = () => {
                             }}
                         >
                             {' '}
-                            {selection?.table}
+                            {metadata?.tableLabel}
                         </Text>
                         {' / '}
                     </>
                 )}
-                <Tooltip variant="xs" label={metadata?.modelName}>
+                <Tooltip variant="xs" label={metadata?.name}>
                     <Text
                         fz="lg"
                         fw={600}
@@ -168,7 +170,7 @@ export const CatalogMetadata: FC = () => {
                             );
                         }}
                     >
-                        {metadata?.name}
+                        {metadata?.label}
                     </Text>
                 </Tooltip>
             </Group>

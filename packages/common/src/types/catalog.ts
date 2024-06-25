@@ -55,11 +55,13 @@ export type ApiCatalogResults = CatalogItem[];
 export type CatalogMetadata = {
     name: string;
     description: string | undefined;
+    label: string;
     // TODO Tags
     modelName: string;
     source: string | undefined;
     fields: CatalogField[];
     joinedTables: string[];
+    tableLabel?: string;
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
 
