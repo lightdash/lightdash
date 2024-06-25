@@ -3,6 +3,7 @@
 import './sentry'; // Sentry has to be initialized before anything else
 
 import {
+    LightdashError,
     LightdashMode,
     SessionUser,
     UnexpectedServerError,
@@ -483,7 +484,10 @@ export default class App {
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
-                if (error instanceof UnexpectedServerError) {
+                if (
+                    error instanceof UnexpectedServerError ||
+                    !(error instanceof LightdashError)
+                ) {
                     console.error(error); // Log original error for debug purposes
                 }
                 Logger.error(
