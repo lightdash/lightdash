@@ -194,10 +194,6 @@ export const profileFromCredentials = (
     );
 
     const profile = yaml.dump({
-        config: {
-            partial_parse: false,
-            send_anonymous_usage_stats: false,
-        },
         [LIGHTDASH_PROFILE_NAME]: {
             target: targetName,
             outputs: {
