@@ -1,3 +1,10 @@
+## [0.1140.2](https://github.com/lightdash/lightdash/compare/0.1140.1...0.1140.2) (2024-06-25)
+
+
+### Bug Fixes
+
+* safari child src fallback ([#10510](https://github.com/lightdash/lightdash/issues/10510)) ([0371634](https://github.com/lightdash/lightdash/commit/0371634b0727163e8997aa68499f3385c7b50923))
+
 ## [0.1140.1](https://github.com/lightdash/lightdash/compare/0.1140.0...0.1140.1) (2024-06-25)
 
 
