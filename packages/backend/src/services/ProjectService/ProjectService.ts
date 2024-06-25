@@ -1719,7 +1719,7 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    this.analytics.track({
+                    await this.analytics.track({
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
@@ -1803,9 +1803,6 @@ export class ProjectService extends BaseService {
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
                             timezone: metricQuery.timezone,
-                            ...(queryTags?.dashboard_uuid
-                                ? { dashboardId: queryTags.dashboard_uuid }
-                                : {}),
                         },
                     });
 
@@ -2569,6 +2566,100 @@ export class ProjectService extends BaseService {
             }
             return acc;
         }, {});
+    }
+
+    async getWarehouseTables(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const showAllSchemas = false;
+
+        const schema = 'schema' in credentials ? credentials.schema : undefined;
+        const schemaFilter =
+            !showAllSchemas && schema ? `AND table_schema = '${schema}'` : ''; // TODo sanitize
+        const query = `
+            SELECT table_catalog, table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_type = 'BASE TABLE' 
+            ${schemaFilter}
+            ORDER BY 1,2,3
+        `;
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
+        await sshTunnel.disconnect();
+    }
+
+    async getWarehouseFields(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const schema = 'schema' in credentials ? credentials.schema : undefined;
+        const schemaFilter = schema ? `AND table_schema = '${schema}'` : ''; // TODo sanitize
+        const query = `
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_name = '${tableName}'
+            ${schemaFilter};
+
+        `;
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+
+        const { rows } = await warehouseClient.runQuery(query, queryTags);
+        await sshTunnel.disconnect();
     }
 
     async getTablesConfiguration(
