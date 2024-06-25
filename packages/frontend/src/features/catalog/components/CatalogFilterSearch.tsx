@@ -7,6 +7,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconBookmark, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -17,6 +18,8 @@ type Props = {
 };
 
 export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
+    const [isPopoverOpen, { open: openPopover, close: closePopover }] =
+        useDisclosure();
     const filterLabels = useMemo(
         () => [
             {
@@ -46,7 +49,15 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
     );
 
     return (
-        <Popover radius="md" shadow="sm">
+        <Popover
+            radius="md"
+            shadow="sm"
+            opened={isPopoverOpen}
+            offset={{
+                mainAxis: 0,
+                crossAxis: 16,
+            }}
+        >
             <Popover.Target>
                 <UnstyledButton
                     h={36}
@@ -62,6 +73,8 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
                             0.8,
                         ),
                     })}
+                    onClick={openPopover}
+                    onBlurCapture={closePopover}
                 >
                     <Group spacing="two">
                         <Text c={filter ? 'gray.8' : 'gray.6'} fw={450}>
@@ -72,35 +85,40 @@ export const CatalogFilterSearch: FC<Props> = ({ filter, setFilter }) => {
                 </UnstyledButton>
             </Popover.Target>
             <Popover.Dropdown p={0}>
-                <Stack spacing="two">
-                    <Stack spacing="xs">
-                        <Text p="xs" pb={0} fw={400} c="gray.6" fz={11}>
-                            Search by:{' '}
-                        </Text>
-                        <Divider color="gray.2" />
-                    </Stack>
+                <Stack spacing="xs">
+                    <Text p="xs" pb={0} fw={400} c="gray.6" fz={11}>
+                        Search by:{' '}
+                    </Text>
+                    <Divider color="gray.2" />
+                </Stack>
 
-                    <Stack spacing="xs" py="xs">
-                        {filterLabels.map(({ type, label }) => (
-                            <UnstyledButton
-                                key={type}
-                                fz="sm"
-                                fw={450}
-                                px="sm"
-                                onClick={() => {
-                                    setFilter(type);
-                                }}
-                            >
-                                <Group spacing="two">
-                                    <MantineIcon
-                                        color="gray.6"
-                                        icon={IconBookmark}
-                                    />
-                                    <Text c="gray.7">{label}</Text>
-                                </Group>
-                            </UnstyledButton>
-                        ))}
-                    </Stack>
+                <Stack spacing={0}>
+                    {filterLabels.map(({ type, label }) => (
+                        <UnstyledButton
+                            key={type}
+                            fz="sm"
+                            fw={450}
+                            p="sm"
+                            py="xs"
+                            onClick={() => {
+                                setFilter(type);
+                                closePopover();
+                            }}
+                            sx={(theme) => ({
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[1],
+                                },
+                            })}
+                        >
+                            <Group spacing="two">
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconBookmark}
+                                />
+                                <Text c="gray.7">{label}</Text>
+                            </Group>
+                        </UnstyledButton>
+                    ))}
                 </Stack>
             </Popover.Dropdown>
         </Popover>
