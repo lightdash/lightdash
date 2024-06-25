@@ -42,11 +42,13 @@ export class CatalogController extends BaseController {
         @Request() req: express.Request,
         @Query() search?: ApiCatalogSearch['search'],
         @Query() type?: ApiCatalogSearch['type'],
+        @Query() filter?: ApiCatalogSearch['filter'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
         const query: ApiCatalogSearch = {
             search,
             type,
+            filter,
         };
 
         const results = await this.services
