@@ -329,7 +329,7 @@ export default class App {
                             ...contentSecurityPolicyAllowedDomains,
                         ],
                         'child-src': [
-                            // Fallback of worker-src for older versions of safari
+                            // Fallback of worker-src for safari older than 15.5
                             "'self'",
                             'blob:',
                             ...contentSecurityPolicyAllowedDomains,
