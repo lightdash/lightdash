@@ -1,7 +1,10 @@
 import {
     formatItemValue,
+    FunnelChartLabelPosition,
+    type Metric,
     type ResultRow,
     type ResultValue,
+    type TableCalculation,
 } from '@lightdash/common';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
 import { round } from 'lodash';
@@ -17,6 +20,21 @@ export type FunnelSeriesDataPoint = NonNullable<
         value: ResultValue;
         rows: ResultRow[];
     };
+};
+
+const getValueAndPercentage = ({
+    field,
+    value,
+    maxValue,
+}: {
+    field?: TableCalculation | Metric;
+    value: any;
+    maxValue: number;
+}) => {
+    const formattedValue = formatItemValue(field, value);
+
+    const percentOfMax = round((Number(value) / maxValue) * 100, 2);
+    return { formattedValue, percentOfMax };
 };
 
 const useEchartsFunnelConfig = (isInDashboard: boolean) => {
@@ -45,6 +63,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         const {
             validConfig: {},
             selectedField,
+            label,
         } = chartConfig;
 
         return {
@@ -54,22 +73,43 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             tooltip: {
                 trigger: 'item',
                 formatter: ({ marker, name, value }) => {
-                    const formattedValue = formatItemValue(
-                        selectedField,
-                        value,
-                    );
+                    const { formattedValue, percentOfMax } =
+                        getValueAndPercentage({
+                            field: selectedField,
+                            value,
+                            maxValue: chartConfig.maxValue,
+                        });
 
-                    const percentOfMax = round(
-                        (Number(value) / chartConfig.maxValue) * 100,
-                        2,
-                    );
-
-                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent of start: ${percentOfMax}%`;
+                    return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent: ${percentOfMax}%`;
                 },
             },
             label: {
                 show: true,
-                position: 'inside',
+                position: label?.position || FunnelChartLabelPosition.INSIDE,
+                color:
+                    label?.position !== FunnelChartLabelPosition.INSIDE
+                        ? 'black'
+                        : undefined,
+                formatter: ({ name, value }) => {
+                    const { formattedValue, percentOfMax } =
+                        getValueAndPercentage({
+                            field: selectedField,
+                            value,
+                            maxValue: chartConfig.maxValue,
+                        });
+
+                    const percentString = label?.showPercentage
+                        ? `${percentOfMax}%`
+                        : '';
+                    const valueString = label?.showValue ? formattedValue : '';
+                    const numbersString = `${
+                        valueString || percentString ? ':' : ''
+                    } ${[percentString, valueString]
+                        .filter(Boolean)
+                        .join(' - ')}`;
+
+                    return `${name}${numbersString}`;
+                },
             },
             emphasis: {
                 label: {
