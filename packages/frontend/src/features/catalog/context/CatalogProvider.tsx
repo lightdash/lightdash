@@ -2,7 +2,6 @@ import {
     type CatalogAnalytics,
     type CatalogMetadata,
     type CatalogSelection,
-    type InlineError,
 } from '@lightdash/common';
 import {
     createContext,
@@ -17,8 +16,6 @@ type CatalogContextValues = {
     projectUuid: string;
     metadata: CatalogMetadata | undefined;
     setMetadata: Dispatch<SetStateAction<CatalogMetadata | undefined>>;
-    metadataErrors: InlineError[] | undefined;
-    setMetadataErrors: Dispatch<SetStateAction<InlineError[] | undefined>>;
     selection: CatalogSelection | undefined;
     setSelection: Dispatch<SetStateAction<CatalogSelection | undefined>>;
     analyticsResults: CatalogAnalytics | undefined;
@@ -40,7 +37,6 @@ export const CatalogProvider: FC<
     >
 > = ({ isSidebarOpen, setSidebarOpen, projectUuid, children }) => {
     const [metadata, setMetadata] = useState<CatalogMetadata>();
-    const [metadataErrors, setMetadataErrors] = useState<InlineError[]>();
     const [analyticsResults, setAnalyticsResults] =
         useState<CatalogAnalytics>();
     const [selection, setSelection] = useState<CatalogSelection>();
@@ -51,8 +47,6 @@ export const CatalogProvider: FC<
                 projectUuid,
                 metadata,
                 setMetadata,
-                metadataErrors,
-                setMetadataErrors,
                 selection,
                 setSelection,
                 analyticsResults,
