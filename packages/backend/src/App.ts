@@ -328,6 +328,12 @@ export default class App {
                             'blob:',
                             ...contentSecurityPolicyAllowedDomains,
                         ],
+                        'child-src': [
+                            // Fallback of worker-src for older versions of safari
+                            "'self'",
+                            'blob:',
+                            ...contentSecurityPolicyAllowedDomains,
+                        ],
                         'script-src': [
                             "'self'",
                             "'unsafe-eval'",
