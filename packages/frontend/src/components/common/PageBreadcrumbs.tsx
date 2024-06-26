@@ -17,6 +17,7 @@ type BreadCrumbItem = {
     onClick?: () => void;
     active?: boolean;
     tooltipProps?: Omit<TooltipProps, 'children'>;
+    state?: unknown;
 };
 
 export interface PageBreadcrumbsProps
@@ -69,7 +70,14 @@ const PageBreadcrumbs: FC<PageBreadcrumbsProps> = ({
                     <Anchor
                         key={item.tooltipProps ? undefined : index}
                         component={Link}
-                        to={item.to}
+                        to={
+                            item.state
+                                ? {
+                                      pathname: item.to,
+                                      state: item.state,
+                                  }
+                                : item.to
+                        }
                         {...commonProps}
                     >
                         {item.title}

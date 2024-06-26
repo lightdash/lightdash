@@ -130,6 +130,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                               {
                                   title: 'Tables',
                                   to: `/projects/${projectUuid}/catalog`,
+                                  state: {
+                                      activeTableName,
+                                  },
                               },
                           ]
                         : []),

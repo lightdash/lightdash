@@ -28,8 +28,15 @@ import {
     IconTable,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, useTransition, type FC } from 'react';
-import { useHistory } from 'react-router-dom';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -364,6 +371,21 @@ export const CatalogPanel: FC = () => {
     );
 
     const history = useHistory();
+    const location = useLocation<
+        | {
+              activeTableName?: string;
+          }
+        | undefined
+    >();
+    const activeTable = location.state?.activeTableName;
+
+    useEffect(() => {
+        if (activeTable) {
+            selectAndGetMetadata({ table: activeTable, group: '' });
+            location.state = undefined;
+        }
+    }, [activeTable, location, selectAndGetMetadata]);
+
     // Keyboard navigation
     useHotkeys(
         [
