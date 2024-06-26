@@ -1,4 +1,8 @@
-import { ApiErrorPayload, ApiSuccessEmpty } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    ApiSuccessEmpty,
+    ApiWarehouseCatalog,
+} from '@lightdash/common';
 import {
     Get,
     Middlewares,
@@ -33,14 +37,13 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
+    ): Promise<ApiWarehouseCatalog> {
         this.setStatus(200);
-        await this.services
-            .getProjectService()
-            .getWarehouseTables(req.user!, projectUuid);
         return {
             status: 'ok',
-            results: undefined,
+            results: await this.services
+                .getProjectService()
+                .getWarehouseTables(req.user!, projectUuid),
         };
     }
 
@@ -56,16 +59,14 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Path() tableName: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
+    ): Promise<ApiWarehouseCatalog> {
         this.setStatus(200);
-
-        await this.services
-            .getProjectService()
-            .getWarehouseFields(req.user!, projectUuid, tableName);
 
         return {
             status: 'ok',
-            results: undefined,
+            results: await this.services
+                .getProjectService()
+                .getWarehouseFields(req.user!, projectUuid, tableName),
         };
     }
 }

@@ -275,6 +275,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return '\\';
     }
 
+    sanitizeInput(sql: string) {
+        return sql.replaceAll(
+            this.getStringQuoteChar(),
+            this.getEscapeStringQuoteChar(),
+        );
+    }
+
     getAdapterType(): SupportedDbtAdapter {
         return SupportedDbtAdapter.BIGQUERY;
     }

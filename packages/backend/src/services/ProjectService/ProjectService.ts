@@ -89,6 +89,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    WarehouseCatalog,
     WarehouseClient,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -2571,7 +2572,7 @@ export class ProjectService extends BaseService {
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<WarehouseCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2593,34 +2594,25 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        const showAllSchemas = false;
-
         const schema = 'schema' in credentials ? credentials.schema : undefined;
-        const schemaFilter =
-            !showAllSchemas && schema ? `AND table_schema = '${schema}'` : ''; // TODo sanitize
-        const query = `
-            SELECT table_catalog, table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE' 
-            ${schemaFilter}
-            ORDER BY 1,2,3
-        `;
 
         const queryTags: RunQueryTags = {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
+        const warehouseTables = warehouseClient.getTables(schema, queryTags);
 
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
+
+        return warehouseTables;
     }
 
     async getWarehouseFields(
         user: SessionUser,
         projectUuid: string,
         tableName: string,
-    ): Promise<void> {
+    ): Promise<WarehouseCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2632,34 +2624,32 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-
         const credentials = await this.getWarehouseCredentials(
             projectUuid,
             user.userUuid,
         );
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
         );
-
-        const schema = 'schema' in credentials ? credentials.schema : undefined;
-        const schemaFilter = schema ? `AND table_schema = '${schema}'` : ''; // TODo sanitize
-        const query = `
-            SELECT column_name, data_type, is_nullable, column_default
-            FROM information_schema.columns
-            WHERE table_name = '${tableName}'
-            ${schemaFilter};
-
-        `;
 
         const queryTags: RunQueryTags = {
             organization_uuid: user.organizationUuid,
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
+        const schema = 'schema' in credentials ? credentials.schema : undefined;
 
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
+        const warehouseCatalog = warehouseClient.getFields(
+            tableName,
+            schema,
+            queryTags,
+        );
+
         await sshTunnel.disconnect();
+
+        return warehouseCatalog;
     }
 
     async getTablesConfiguration(

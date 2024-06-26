@@ -88,4 +88,55 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     concatString(...args: string[]): string {
         return `CONCAT(${args.join(', ')})`;
     }
+
+    async getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    parseWarehouseCatalog(
+        rows: Record<string, any>[],
+        mapFieldType: (type: string) => DimensionType,
+    ): WarehouseCatalog {
+        return rows.reduce(
+            (
+                acc,
+                {
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    data_type,
+                },
+            ) => {
+                acc[table_catalog] = acc[table_catalog] || {};
+                acc[table_catalog][table_schema] =
+                    acc[table_catalog][table_schema] || {};
+                acc[table_catalog][table_schema][table_name] =
+                    acc[table_catalog][table_schema][table_name] || {};
+                if (column_name && data_type)
+                    acc[table_catalog][table_schema][table_name][column_name] =
+                        mapFieldType(data_type);
+                return acc;
+            },
+            {},
+        );
+    }
+
+    sanitizeInput(sql: string) {
+        return sql.replaceAll(
+            this.getStringQuoteChar(),
+            this.getEscapeStringQuoteChar() + this.getStringQuoteChar(),
+        );
+    }
 }

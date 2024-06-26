@@ -7091,6 +7091,42 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
+                "type": "object"
+            },
+            "WarehouseCatalog": {
+                "properties": {},
+                "additionalProperties": {
+                    "properties": {},
+                    "additionalProperties": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                        },
+                        "type": "object"
+                    },
+                    "type": "object"
+                },
+                "type": "object"
+            },
+            "ApiWarehouseCatalog": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseCatalog"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
                     "publicKey": {
@@ -12964,7 +13000,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiWarehouseCatalog"
                                 }
                             }
                         }
@@ -13003,7 +13039,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiWarehouseCatalog"
                                 }
                             }
                         }

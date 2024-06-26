@@ -64,4 +64,25 @@ export interface WarehouseClient {
     getMetricSql(sql: string, metric: Metric): string;
 
     concatString(...args: string[]): string;
+
+    getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog>;
+    getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog>;
+
+    parseWarehouseCatalog(
+        rows: Record<string, any>[],
+        mapFieldType: (type: string) => DimensionType,
+    ): WarehouseCatalog;
+    sanitizeInput(input: string): string;
 }
+
+export type ApiWarehouseCatalog = {
+    status: 'ok';
+    results: WarehouseCatalog;
+};
