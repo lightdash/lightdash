@@ -4,7 +4,10 @@ import { Icon123, IconAbc } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import {
+    DEFAULT_EMPTY_EXPLORE_CONFIG,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 
@@ -27,44 +30,27 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     const { projectUuid } = useCatalogContext();
 
     const exploreWithFieldUrl = useMemo(() => {
+        const fieldToExplore = getItemId({
+            name: field.name,
+            table: field.tableName,
+        });
         const draftChartUrl = getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
             {
+                ...DEFAULT_EMPTY_EXPLORE_CONFIG,
                 tableName: field.tableName,
                 metricQuery: {
+                    ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
                     exploreName: field.tableName,
-                    dimensions:
-                        field.fieldType === FieldType.DIMENSION
-                            ? [
-                                  getItemId({
-                                      name: field.name,
-                                      table: field.tableName,
-                                  }),
-                              ]
-                            : [],
-                    metrics:
-                        field.fieldType === FieldType.METRIC
-                            ? [
-                                  getItemId({
-                                      name: field.name,
-                                      table: field.tableName,
-                                  }),
-                              ]
-                            : [],
-                    tableCalculations: [],
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                },
-                chartConfig: {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: {},
-                        eChartsConfig: {},
-                    },
-                },
-                tableConfig: {
-                    columnOrder: [],
+                    ...(field.fieldType === FieldType.DIMENSION
+                        ? {
+                              dimensions: [fieldToExplore],
+                          }
+                        : field.fieldType === FieldType.METRIC
+                        ? {
+                              metrics: [fieldToExplore],
+                          }
+                        : []),
                 },
             },
         );
