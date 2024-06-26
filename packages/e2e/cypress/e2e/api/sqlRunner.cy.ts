@@ -3,21 +3,24 @@ import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
-Object.entries({ postgresSQL: warehouseConnections.bigQuery }).forEach(
+Object.entries(warehouseConnections).forEach(
     ([warehouseName, warehouseConfig]) => {
-        const getDatabaseName = () => {
+        const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
                 case WarehouseTypes.SNOWFLAKE:
-                    return warehouseConfig.database.toLowerCase();
+                    return [
+                        warehouseConfig.database.toLowerCase(),
+                        warehouseConfig.schema.toLowerCase(),
+                    ];
                     break;
                 case WarehouseTypes.BIGQUERY:
-                    return warehouseConfig.dataset;
+                    return [warehouseConfig.project, warehouseConfig.dataset];
                     break;
                 case WarehouseTypes.REDSHIFT:
                 case WarehouseTypes.POSTGRES:
-                    return warehouseConfig.dbname;
+                    return [warehouseConfig.dbname, warehouseConfig.schema];
                 default:
-                    return 'unknown warehouse type';
+                    return ['unknown', 'unknown'];
             }
         };
         describe(`Get tables and fields for SQL runner on ${warehouseName} `, () => {
@@ -28,7 +31,6 @@ Object.entries({ postgresSQL: warehouseConnections.bigQuery }).forEach(
             });
             before('create upstream project', () => {
                 cy.login();
-
                 cy.createProject(projectName, warehouseConfig).then((puuid) => {
                     projectUuid = puuid;
                 });
@@ -47,19 +49,19 @@ Object.entries({ postgresSQL: warehouseConnections.bigQuery }).forEach(
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
 
-                    const database = getDatabaseName();
+                    const [database, schema] = getDatabaseDetails();
 
                     expect(Object.keys(resp.body.results)).to.include(database);
                     expect(Object.keys(resp.body.results[database])).to.include(
-                        'jaffle',
+                        schema,
                     );
                     ['customers', 'orders', 'payments'].forEach((table) => {
                         expect(
-                            Object.keys(resp.body.results[database].jaffle),
+                            Object.keys(resp.body.results[database][schema]),
                         ).to.include(table);
                     });
                     expect(
-                        Object.keys(resp.body.results[database].jaffle.orders),
+                        Object.keys(resp.body.results[database][schema].orders),
                     ).to.be.deep.eq([]);
                 });
             });
@@ -71,39 +73,25 @@ Object.entries({ postgresSQL: warehouseConnections.bigQuery }).forEach(
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
 
-                    const database = getDatabaseName();
+                    const [database, schema] = getDatabaseDetails();
                     expect(Object.keys(resp.body.results)).to.include(database);
-                    expect(Object.keys(resp.body.results[database])).to.include(
-                        'jaffle',
+                    const databaseResults = resp.body.results[database];
+                    expect(Object.keys(databaseResults)).to.include(schema);
+                    const schemaResults = databaseResults[schema];
+                    expect(Object.keys(schemaResults)).to.include('orders');
+                    expect(Object.keys(schemaResults)).to.not.include(
+                        'customers',
                     );
-                    expect(
-                        Object.keys(resp.body.results[database].jaffle),
-                    ).to.include('orders');
-                    expect(
-                        Object.keys(resp.body.results[database].jaffle),
-                    ).to.not.include('customers');
-                    expect(
-                        Object.keys(resp.body.results[database].jaffle.orders),
-                    ).to.have.length.gt(5);
+                    const fieldResults = schemaResults.orders;
+
+                    expect(Object.keys(fieldResults)).to.have.length.gt(5);
                     ['order_id', 'status', 'amount'].forEach((table) => {
-                        expect(
-                            Object.keys(
-                                resp.body.results[database].jaffle.orders,
-                            ),
-                        ).to.include(table);
+                        expect(Object.keys(fieldResults)).to.include(table);
                     });
-                    expect(
-                        resp.body.results[database].jaffle.orders.amount,
-                    ).to.be.eq('number');
-                    expect(
-                        resp.body.results[database].jaffle.orders.status,
-                    ).to.be.eq('string');
-                    expect(
-                        resp.body.results[database].jaffle.orders.is_completed,
-                    ).to.be.eq('boolean');
-                    expect(
-                        resp.body.results[database].jaffle.orders.order_date,
-                    ).to.be.eq('date');
+                    expect(fieldResults.amount).to.be.eq('number');
+                    expect(fieldResults.status).to.be.eq('string');
+                    expect(fieldResults.is_completed).to.be.eq('boolean');
+                    expect(fieldResults.order_date).to.be.eq('date');
                 });
             });
         });

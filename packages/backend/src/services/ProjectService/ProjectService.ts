@@ -91,6 +91,7 @@ import {
     UserWarehouseCredentials,
     WarehouseCatalog,
     WarehouseClient,
+    WarehouseCredentials,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';
@@ -2569,6 +2570,19 @@ export class ProjectService extends BaseService {
         }, {});
     }
 
+    private static getWarehouseSchema(
+        credentials: WarehouseCredentials,
+    ): string | undefined {
+        switch (credentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return credentials.dataset;
+            case WarehouseTypes.DATABRICKS:
+                return credentials.catalog;
+            default:
+                return credentials.schema;
+        }
+    }
+
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
@@ -2594,7 +2608,7 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        const schema = 'schema' in credentials ? credentials.schema : undefined;
+        const schema = ProjectService.getWarehouseSchema(credentials);
 
         const queryTags: RunQueryTags = {
             organization_uuid: user.organizationUuid,
@@ -2639,7 +2653,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const schema = 'schema' in credentials ? credentials.schema : undefined;
+        const schema = ProjectService.getWarehouseSchema(credentials);
 
         const warehouseCatalog = warehouseClient.getFields(
             tableName,

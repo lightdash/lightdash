@@ -300,41 +300,36 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async getTables(
-        schema?: string,
+        schema: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
         const query = `
             SELECT table_catalog, table_schema, table_name
-            FROM information_schema.tables
+            FROM \`${this.sanitizeInput(schema)}.INFORMATION_SCHEMA.TABLES\`
             WHERE table_type = 'BASE TABLE' 
-            ${schemaFilter}
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(query, tags);
+
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 
     async getFields(
         tableName: string,
-        schema?: string,
+        schema: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
-
         const query = `
-            SELECT table_catalog,
-                   table_schema,
-                   table_name,
-                   column_name, 
-                   data_type
-            FROM information_schema.columns
-            WHERE table_name = '${this.sanitizeInput(tableName)}'
-            ${schemaFilter};
+            SELECT 
+                table_catalog,
+                table_schema,
+                table_name,
+                column_name, 
+                data_type
+            FROM \`${this.sanitizeInput(schema)}.INFORMATION_SCHEMA.COLUMNS\`
+            WHERE  table_name = '${this.sanitizeInput(tableName)}'
+            ORDER BY 1,2,3
+
         `;
         const { rows } = await this.runQuery(query, tags);
 

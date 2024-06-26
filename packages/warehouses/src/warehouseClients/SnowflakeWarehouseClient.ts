@@ -454,9 +454,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ? `AND TABLE_SCHEMA ILIKE '${this.sanitizeInput(schema)}'`
             : '';
         const query = `
-            SELECT LOWER(TABLE_CATALOG) as "table_catalog", 
-            LOWER(TABLE_SCHEMA) as "table_schema",
-             LOWER(TABLE_NAME) as "table_name"
+            SELECT 
+                LOWER(TABLE_CATALOG) as "table_catalog", 
+                LOWER(TABLE_SCHEMA) as "table_schema",
+                LOWER(TABLE_NAME) as "table_name"
             FROM information_schema.tables
             WHERE TABLE_TYPE = 'BASE TABLE' 
             ${schemaFilter}
@@ -476,16 +477,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : '';
 
         const query = `
-            SELECT LOWER(TABLE_CATALOG) as "table_catalog",
-             LOWER(TABLE_SCHEMA) as "table_schema",
-              LOWER(TABLE_NAME) as "table_name",
-                   DATA_TYPE as "data_type",
-
-                   LOWER(COLUMN_NAME) as "column_name"
+            SELECT 
+                LOWER(TABLE_CATALOG) as "table_catalog",
+                LOWER(TABLE_SCHEMA) as "table_schema",
+                LOWER(TABLE_NAME) as "table_name",
+                LOWER(COLUMN_NAME) as "column_name",
+                DATA_TYPE as "data_type"
             FROM information_schema.columns
             WHERE TABLE_NAME ILIKE '${this.sanitizeInput(tableName)}'
             ${schemaFilter}
-            ORDER BY 1,2,3, 4;
+            ORDER BY 1,2,3;
         `;
         const { rows } = await this.runQuery(query, tags);
         return this.parseWarehouseCatalog(rows, mapFieldType);

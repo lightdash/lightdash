@@ -38,7 +38,7 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         timeoutSeconds: undefined,
         priority: 'interactive',
         retries: 0,
-        maximumBytesBilled: 100,
+        maximumBytesBilled: undefined,
         type: WarehouseTypes.BIGQUERY,
     },
     /* databricks: {
