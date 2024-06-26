@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
@@ -32,6 +33,7 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const { activeProjectUuid: projectUuid } = useActiveProjectUuid();
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -127,7 +129,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         ? [
                               {
                                   title: 'Tables',
-                                  onClick: onBack,
+                                  to: `/projects/${projectUuid}/catalog`,
                               },
                           ]
                         : []),
