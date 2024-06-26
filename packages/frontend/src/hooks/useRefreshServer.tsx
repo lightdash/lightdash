@@ -1,6 +1,7 @@
 import {
     JobStatusType,
     JobStepStatusType,
+    JobType,
     type ApiError,
     type ApiRefreshResults,
     type Job,
@@ -99,8 +100,17 @@ export const useJob = (
                 : 500,
         staleTime: 0,
         onSuccess: async (job) => {
+            console.log({ job });
+
             if (job.jobStatus === JobStatusType.DONE) {
                 await queryClient.invalidateQueries(['tables']);
+
+                if (job.jobType === JobType.COMPILE_PROJECT) {
+                    await queryClient.invalidateQueries([
+                        'catalog',
+                        job.projectUuid,
+                    ]);
+                }
             }
             onSuccess(job);
         },
