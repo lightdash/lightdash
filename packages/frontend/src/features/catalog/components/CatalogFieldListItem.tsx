@@ -1,7 +1,7 @@
 import { FieldType, type CatalogField } from '@lightdash/common';
-import { Badge, Box, Grid, Highlight } from '@mantine/core';
+import { Badge, Grid, Highlight } from '@mantine/core';
 import { Icon123, IconAbc } from '@tabler/icons-react';
-import React, { useEffect, useState, type FC } from 'react';
+import React, { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 
@@ -19,27 +19,8 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
-    const { ref: descriptionRef, isTruncated: isDescriptionTruncated } =
-        useIsTruncated<HTMLDivElement>();
+    const { ref: descriptionRef } = useIsTruncated<HTMLDivElement>();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
-
-    // Highlighting is clamped if the highlighted text is not fully visible
-    // We then apply styling to the ellipsis to indicate that some substring in the description is highlighted
-    const [isHighlightClamped, setIsHighlightClamped] = useState(false);
-    useEffect(() => {
-        if (descriptionRef.current && searchString) {
-            const highlightedElements =
-                descriptionRef.current.querySelectorAll('mark');
-            highlightedElements.forEach((element) => {
-                if (
-                    element.offsetTop + element.offsetHeight >
-                    descriptionRef.current.offsetHeight
-                ) {
-                    setIsHighlightClamped(true);
-                }
-            });
-        }
-    }, [descriptionRef, searchString, isDescriptionTruncated]);
 
     return (
         <Grid
@@ -70,7 +51,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                             ? IconAbc
                             : Icon123
                     }
-                    // TODO: update when new icons are added
+                    // TODO: Add icon for field type and for subtype
                     color={
                         field.fieldType === FieldType.DIMENSION
                             ? 'blue'
@@ -92,33 +73,17 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
 
             <Grid.Col span={'auto'}>
                 {!isSelected ? (
-                    <Box pos="relative">
-                        <Highlight
-                            ref={descriptionRef}
-                            fz="13px"
-                            w="auto"
-                            c="gray.7"
-                            lineClamp={2}
-                            highlight={searchString}
-                            highlightColor="yellow"
-                            sx={(theme) => ({
-                                ...(isHighlightClamped && {
-                                    '&::after': {
-                                        content: '""',
-                                        position: 'absolute',
-                                        bottom: 0,
-                                        right: 0,
-                                        height: 10,
-                                        width: 10,
-                                        background: theme.colors.yellow[2],
-                                        opacity: 0.8,
-                                    },
-                                }),
-                            })}
-                        >
-                            {field.description || ''}
-                        </Highlight>
-                    </Box>
+                    <Highlight
+                        ref={descriptionRef}
+                        fz="13px"
+                        w="auto"
+                        c="gray.7"
+                        lineClamp={2}
+                        highlight={searchString}
+                        highlightColor="yellow"
+                    >
+                        {field.description || ''}
+                    </Highlight>
                 ) : (
                     <Badge color="violet">previewing</Badge>
                 )}
