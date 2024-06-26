@@ -1,4 +1,8 @@
-import { type CatalogMetadata as CatalogMetadataType } from '@lightdash/common';
+import {
+    FieldType,
+    getItemId,
+    type CatalogMetadata as CatalogMetadataType,
+} from '@lightdash/common';
 import {
     Avatar,
     Box,
@@ -28,6 +32,10 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    DEFAULT_EMPTY_EXPLORE_CONFIG,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -62,6 +70,8 @@ export const CatalogMetadata: FC = () => {
         string | undefined
     >();
 
+    const isViewingField = selectedFieldInTable || selection?.field;
+
     useEffect(() => {
         setSelectedFieldInTable(undefined);
     }, [selection]);
@@ -76,10 +86,9 @@ export const CatalogMetadata: FC = () => {
     );
 
     const metadata = useMemo(() => {
-        const fieldSelected = selection?.field || selectedFieldInTable;
-        if (fieldSelected && metadataResults) {
+        if (metadataResults && (selectedFieldInTable || selection?.field)) {
             const field = metadataResults?.fields?.find(
-                (f) => f.name === fieldSelected,
+                (f) => f.name === (selectedFieldInTable || selection?.field),
             );
             if (!field) return undefined;
             const catalogMetadata: CatalogMetadataType = {
@@ -89,12 +98,13 @@ export const CatalogMetadata: FC = () => {
                 tableLabel: field.tableLabel,
                 description: field.description,
                 fields: [],
+                fieldType: field.fieldType,
             };
             return catalogMetadata;
         } else {
             return metadataResults;
         }
-    }, [metadataResults, selection, selectedFieldInTable]);
+    }, [metadataResults, selectedFieldInTable, selection?.field]);
 
     return (
         <Stack h="100vh" spacing="xl">
@@ -428,12 +438,47 @@ export const CatalogMetadata: FC = () => {
                             },
                         })}
                         onClick={() => {
-                            history.push(
+                            if (metadata && isViewingField) {
+                                const fieldToExplore = getItemId({
+                                    name: metadata.name,
+                                    table: metadata.modelName,
+                                });
+                                return history.push(
+                                    getExplorerUrlFromCreateSavedChartVersion(
+                                        projectUuid,
+                                        {
+                                            ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+                                            tableName: metadata.modelName,
+                                            metricQuery: {
+                                                ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+                                                exploreName: metadata.modelName,
+                                                ...(metadata.fieldType ===
+                                                FieldType.DIMENSION
+                                                    ? {
+                                                          dimensions: [
+                                                              fieldToExplore,
+                                                          ],
+                                                      }
+                                                    : metadata.fieldType ===
+                                                      FieldType.METRIC
+                                                    ? {
+                                                          metrics: [
+                                                              fieldToExplore,
+                                                          ],
+                                                      }
+                                                    : {}),
+                                            },
+                                        },
+                                    ),
+                                );
+                            }
+
+                            return history.push(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );
                         }}
                     >
-                        Select table
+                        Select {isViewingField ? 'field' : 'table'}
                     </Button>
                 </Group>
             </Stack>

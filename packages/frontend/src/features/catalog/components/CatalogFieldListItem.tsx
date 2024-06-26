@@ -1,9 +1,14 @@
-import { FieldType, type CatalogField } from '@lightdash/common';
-import { Badge, Grid, Highlight } from '@mantine/core';
+import { FieldType, getItemId, type CatalogField } from '@lightdash/common';
+import { Badge, Box, Grid, Highlight } from '@mantine/core';
 import { Icon123, IconAbc } from '@tabler/icons-react';
-import React, { useState, type FC } from 'react';
+import React, { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import {
+    DEFAULT_EMPTY_EXPLORE_CONFIG,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
+import { useCatalogContext } from '../context/CatalogProvider';
 
 type Props = {
     field: CatalogField;
@@ -19,11 +24,41 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
-    const { ref: descriptionRef } = useIsTruncated<HTMLDivElement>();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
+    const { projectUuid } = useCatalogContext();
+
+    const exploreWithFieldUrl = useMemo(() => {
+        const fieldToExplore = getItemId({
+            name: field.name,
+            table: field.tableName,
+        });
+        const draftChartUrl = getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            {
+                ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+                tableName: field.tableName,
+                metricQuery: {
+                    ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+                    exploreName: field.tableName,
+                    ...(field.fieldType === FieldType.DIMENSION
+                        ? {
+                              dimensions: [fieldToExplore],
+                          }
+                        : field.fieldType === FieldType.METRIC
+                        ? {
+                              metrics: [fieldToExplore],
+                          }
+                        : []),
+                },
+            },
+        );
+
+        return `${draftChartUrl.pathname}?${draftChartUrl.search}`;
+    }, [field.fieldType, field.name, field.tableName, projectUuid]);
 
     return (
         <Grid
+            pos="relative"
             gutter="xs"
             columns={24}
             sx={(theme) => ({
@@ -74,7 +109,6 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
             <Grid.Col span={'auto'}>
                 {!isSelected ? (
                     <Highlight
-                        ref={descriptionRef}
                         fz="13px"
                         w="auto"
                         c="gray.7"
@@ -88,6 +122,31 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     <Badge color="violet">previewing</Badge>
                 )}
             </Grid.Col>
+            {(hovered || isSelected) && (
+                <Box
+                    pos={'absolute'}
+                    right={10}
+                    sx={{
+                        zIndex: 20,
+                    }}
+                >
+                    <MantineLinkButton
+                        size="xs"
+                        href={exploreWithFieldUrl}
+                        target="_blank"
+                        compact
+                        sx={(theme) => ({
+                            backgroundColor: theme.colors.gray[8],
+                            '&:hover': {
+                                backgroundColor: theme.colors.gray[9],
+                            },
+                        })}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        Use field
+                    </MantineLinkButton>
+                </Box>
+            )}
         </Grid>
     );
 };

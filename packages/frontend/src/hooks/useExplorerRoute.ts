@@ -16,6 +16,29 @@ import {
 } from '../providers/ExplorerProvider';
 import useToaster from './toaster/useToaster';
 
+export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
+    tableName: '',
+    metricQuery: {
+        exploreName: '',
+        dimensions: [],
+        metrics: [],
+        tableCalculations: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {},
+            eChartsConfig: {},
+        },
+    },
+    tableConfig: {
+        columnOrder: [],
+    },
+};
+
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,

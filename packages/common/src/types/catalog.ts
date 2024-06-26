@@ -7,6 +7,7 @@ import {
     type CompiledMetric,
     type Dimension,
     type Field,
+    type FieldType,
 } from './field';
 import { type ChartSummary } from './savedCharts';
 import { type TableBase } from './table';
@@ -62,6 +63,7 @@ export type CatalogMetadata = {
     fields: CatalogField[];
     joinedTables: string[];
     tableLabel?: string;
+    fieldType?: FieldType;
 };
 export type ApiCatalogMetadataResults = CatalogMetadata;
 
