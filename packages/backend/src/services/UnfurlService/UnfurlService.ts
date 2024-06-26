@@ -529,6 +529,20 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
+                    if (lightdashPage === LightdashPage.DASHBOARD) {
+                        const loadingChartOverlays = await page
+                            .locator('.loading_chart_overlay')
+                            .all();
+                        await Promise.all(
+                            loadingChartOverlays.map((loadingChartOverlay) =>
+                                loadingChartOverlay.waitFor({
+                                    state: 'hidden',
+                                    timeout: 60000,
+                                }),
+                            ),
+                        );
+                    }
+
                     // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
                     // Reference: https://playwright.dev/docs/api/class-locator#locator-all
                     const loadingCharts = await page
