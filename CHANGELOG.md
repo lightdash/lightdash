@@ -1,3 +1,10 @@
+## [0.1143.2](https://github.com/lightdash/lightdash/compare/0.1143.1...0.1143.2) (2024-06-26)
+
+
+### Bug Fixes
+
+* wait for `loading_chart_overlay` before screenshotting dashboard ([#10527](https://github.com/lightdash/lightdash/issues/10527)) ([3e96d62](https://github.com/lightdash/lightdash/commit/3e96d629bf253d306c97f7a115154cd6f9eb23cd))
+
 ## [0.1143.1](https://github.com/lightdash/lightdash/compare/0.1143.0...0.1143.1) (2024-06-25)
 
 
