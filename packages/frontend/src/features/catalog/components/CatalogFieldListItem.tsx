@@ -8,7 +8,6 @@ import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
-import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 
 type Props = {
@@ -25,7 +24,6 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
-    const { ref: descriptionRef } = useIsTruncated<HTMLDivElement>();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { projectUuid } = useCatalogContext();
 
@@ -111,7 +109,6 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
             <Grid.Col span={'auto'}>
                 {!isSelected ? (
                     <Highlight
-                        ref={descriptionRef}
                         fz="13px"
                         w="auto"
                         c="gray.7"
