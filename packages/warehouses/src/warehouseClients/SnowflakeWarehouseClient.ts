@@ -445,4 +445,49 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 return super.getMetricSql(sql, metric);
         }
     }
+
+    async getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema
+            ? `AND TABLE_SCHEMA ILIKE '${this.sanitizeInput(schema)}'`
+            : '';
+        const query = `
+            SELECT LOWER(TABLE_CATALOG) as "table_catalog", 
+            LOWER(TABLE_SCHEMA) as "table_schema",
+             LOWER(TABLE_NAME) as "table_name"
+            FROM information_schema.tables
+            WHERE TABLE_TYPE = 'BASE TABLE' 
+            ${schemaFilter}
+            ORDER BY 1,2,3
+        `;
+        const { rows } = await this.runQuery(query, tags);
+        return this.parseWarehouseCatalog(rows, mapFieldType);
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema
+            ? `AND TABLE_SCHEMA ILIKE '${this.sanitizeInput(schema)}'`
+            : '';
+
+        const query = `
+            SELECT LOWER(TABLE_CATALOG) as "table_catalog",
+             LOWER(TABLE_SCHEMA) as "table_schema",
+              LOWER(TABLE_NAME) as "table_name",
+                   DATA_TYPE as "data_type",
+
+                   LOWER(COLUMN_NAME) as "column_name"
+            FROM information_schema.columns
+            WHERE TABLE_NAME ILIKE '${this.sanitizeInput(tableName)}'
+            ${schemaFilter}
+            ORDER BY 1,2,3, 4;
+        `;
+        const { rows } = await this.runQuery(query, tags);
+        return this.parseWarehouseCatalog(rows, mapFieldType);
+    }
 }
