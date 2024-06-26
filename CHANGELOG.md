@@ -1,3 +1,10 @@
+# [0.1144.0](https://github.com/lightdash/lightdash/compare/0.1143.2...0.1144.0) (2024-06-26)
+
+
+### Features
+
+* display field descriptions ([#10531](https://github.com/lightdash/lightdash/issues/10531)) ([ef497bd](https://github.com/lightdash/lightdash/commit/ef497bdcffec75094df6b1ca8967c25749ef7713))
+
 ## [0.1143.2](https://github.com/lightdash/lightdash/compare/0.1143.1...0.1143.2) (2024-06-26)
 
 
