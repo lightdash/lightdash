@@ -315,6 +315,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                fieldType: { ref: 'FieldType' },
+                tableLabel: { dataType: 'string' },
                 joinedTables: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -334,6 +336,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 modelName: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
                 description: {
                     dataType: 'union',
                     subSchemas: [
@@ -2029,11 +2032,24 @@ const models: TsoaRoute.Models = {
         enums: ['row', 'column'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelChartLabelPosition: {
+        dataType: 'refEnum',
+        enums: ['inside', 'left', 'right'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FunnelChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                label: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        showPercentage: { dataType: 'boolean' },
+                        showValue: { dataType: 'boolean' },
+                        position: { ref: 'FunnelChartLabelPosition' },
+                    },
+                },
                 metadata: { ref: 'Record_string.SeriesMetadata_' },
                 fieldId: { dataType: 'string' },
                 dataInput: { ref: 'FunnelChartDataInput' },

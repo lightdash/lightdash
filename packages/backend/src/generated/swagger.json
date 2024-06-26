@@ -261,6 +261,12 @@
             },
             "CatalogMetadata": {
                 "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
                     "joinedTables": {
                         "items": {
                             "type": "string"
@@ -279,6 +285,9 @@
                     "modelName": {
                         "type": "string"
                     },
+                    "label": {
+                        "type": "string"
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -286,7 +295,13 @@
                         "type": "string"
                     }
                 },
-                "required": ["joinedTables", "fields", "modelName", "name"],
+                "required": [
+                    "joinedTables",
+                    "fields",
+                    "modelName",
+                    "label",
+                    "name"
+                ],
                 "type": "object"
             },
             "ApiCatalogMetadataResults": {
@@ -2179,8 +2194,26 @@
                 "enum": ["row", "column"],
                 "type": "string"
             },
+            "FunnelChartLabelPosition": {
+                "enum": ["inside", "left", "right"],
+                "type": "string"
+            },
             "FunnelChart": {
                 "properties": {
+                    "label": {
+                        "properties": {
+                            "showPercentage": {
+                                "type": "boolean"
+                            },
+                            "showValue": {
+                                "type": "boolean"
+                            },
+                            "position": {
+                                "$ref": "#/components/schemas/FunnelChartLabelPosition"
+                            }
+                        },
+                        "type": "object"
+                    },
                     "metadata": {
                         "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
                     },
@@ -7919,7 +7952,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1138.0",
+        "version": "0.1143.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
