@@ -1,3 +1,10 @@
+## [0.1144.1](https://github.com/lightdash/lightdash/compare/0.1144.0...0.1144.1) (2024-06-26)
+
+
+### Bug Fixes
+
+* don't cache max value when fields change in funnel chart ([#10523](https://github.com/lightdash/lightdash/issues/10523)) ([32af5c4](https://github.com/lightdash/lightdash/commit/32af5c4542e01d5eff666a643d7239a89f17de78))
+
 # [0.1144.0](https://github.com/lightdash/lightdash/compare/0.1143.2...0.1144.0) (2024-06-26)
 
 
