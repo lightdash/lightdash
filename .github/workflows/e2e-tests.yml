@@ -60,7 +60,14 @@ jobs:
         run: yarn install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: yarn common-build      
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       # Run API tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
