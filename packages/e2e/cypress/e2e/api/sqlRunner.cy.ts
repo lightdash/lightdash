@@ -12,10 +12,8 @@ Object.entries(warehouseConnections).forEach(
                         warehouseConfig.database.toLowerCase(),
                         warehouseConfig.schema.toLowerCase(),
                     ];
-                    break;
                 case WarehouseTypes.BIGQUERY:
                     return [warehouseConfig.project, warehouseConfig.dataset];
-                    break;
                 case WarehouseTypes.REDSHIFT:
                 case WarehouseTypes.POSTGRES:
                     return [warehouseConfig.dbname, warehouseConfig.schema];
