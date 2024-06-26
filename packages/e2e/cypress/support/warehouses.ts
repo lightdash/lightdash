@@ -7,16 +7,10 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         user: 'postgres',
         password: Cypress.env('PGPASSWORD') || 'postgres',
         dbname: 'postgres',
-        searchPath: '',
-        role: '',
-        sshTunnelHost: '',
-        sshTunnelUser: '',
+
         schema: 'jaffle',
         port: 5432,
-        keepalivesIdle: 0,
         sslmode: 'disable',
-        sshTunnelPort: 22,
-        requireUserCredentials: false,
         type: WarehouseTypes.POSTGRES,
     },
     redshift: {
