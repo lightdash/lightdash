@@ -4,11 +4,11 @@ import {
     getItemId,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Group, Highlight } from '@mantine/core';
-import { Icon123, IconAbc } from '@tabler/icons-react';
+import { Box, Button, Group, Highlight } from '@mantine/core';
+import { Icon123, IconAbc, IconSearch } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineLinkButton from '../../../components/common/MantineLinkButton';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useCatalogContext } from '../context/CatalogProvider';
 
@@ -26,13 +26,13 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
+    const history = useHistory();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { projectUuid } = useCatalogContext();
 
-    const exploreWithFieldUrl = useMemo(() => {
-        const draftChartUrl = getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid,
-            {
+    const exploreWithFieldUrl = useMemo(
+        () =>
+            getExplorerUrlFromCreateSavedChartVersion(projectUuid, {
                 tableName: field.tableName,
                 metricQuery: {
                     exploreName: field.tableName,
@@ -69,11 +69,9 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 tableConfig: {
                     columnOrder: [],
                 },
-            },
-        );
-
-        return `${draftChartUrl.pathname}?${draftChartUrl.search}`;
-    }, [field.fieldType, field.name, field.tableName, projectUuid]);
+            }),
+        [field.fieldType, field.name, field.tableName, projectUuid],
+    );
 
     return (
         <>
@@ -92,7 +90,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
-                onClick={onClick}
+                onClick={() => history.push(exploreWithFieldUrl)}
                 py="two"
                 mr="xs"
             >
@@ -140,10 +138,8 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                             zIndex: 20,
                         }}
                     >
-                        <MantineLinkButton
+                        <Button
                             size="xs"
-                            href={exploreWithFieldUrl}
-                            target="_blank"
                             compact
                             sx={(theme) => ({
                                 backgroundColor: theme.colors.gray[8],
@@ -151,10 +147,16 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                                     backgroundColor: theme.colors.gray[9],
                                 },
                             })}
-                            onClick={(e) => e.stopPropagation()}
+                            leftIcon={
+                                <MantineIcon icon={IconSearch} size="sm" />
+                            }
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onClick?.();
+                            }}
                         >
-                            Use field
-                        </MantineLinkButton>
+                            More info
+                        </Button>
                     </Box>
                 )}
             </Group>

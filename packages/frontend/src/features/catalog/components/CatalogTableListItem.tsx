@@ -2,6 +2,7 @@ import { type CatalogField, type CatalogTable } from '@lightdash/common';
 import {
     Badge,
     Box,
+    Button,
     Collapse,
     Grid,
     Group,
@@ -10,11 +11,15 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
+import {
+    IconLayersIntersect,
+    IconSearch,
+    IconTable,
+} from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineLinkButton from '../../../components/common/MantineLinkButton';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 
 type Props = {
@@ -39,6 +44,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     onClick,
     children,
 }) => {
+    const history = useHistory();
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { ref, isTruncated: isNameTruncated } =
@@ -85,7 +91,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                 })}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
-                onClick={() => (!table.errors ? onClick?.() : undefined)}
+                onClick={() => (!table.errors ? history.push(url) : undefined)}
                 pos="relative"
             >
                 <Grid.Col span={'content'}>
@@ -177,21 +183,25 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                             zIndex: 20,
                         }}
                     >
-                        <MantineLinkButton
+                        <Button
                             size="sm"
-                            href={url}
-                            target="_blank"
                             compact
+                            leftIcon={
+                                <MantineIcon icon={IconSearch} size="sm" />
+                            }
                             sx={(theme) => ({
                                 backgroundColor: theme.colors.gray[8],
                                 '&:hover': {
                                     backgroundColor: theme.colors.gray[9],
                                 },
                             })}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onClick?.();
+                            }}
                         >
-                            Use table
-                        </MantineLinkButton>
+                            More info
+                        </Button>
                     </Box>
                 )}
             </Grid>
