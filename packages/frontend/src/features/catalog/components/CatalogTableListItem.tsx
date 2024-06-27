@@ -40,7 +40,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     onClick,
     children,
 }) => {
-    const { setSelectedTable } = useCatalogContext();
+    const { setSelectedTable, setIsViewingCatalog } = useCatalogContext();
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { ref, isTruncated: isNameTruncated } =
@@ -191,6 +191,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                             })}
                             onClick={(e) => {
                                 e.stopPropagation();
+                                setIsViewingCatalog(false);
                                 setSelectedTable(table.name);
                             }}
                         >

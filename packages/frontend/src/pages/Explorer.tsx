@@ -44,7 +44,7 @@ const ExplorerWithUrlParams = memo(() => {
     );
 });
 
-const ExplorerPage = memo(() => {
+const ExplorerPage = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const explorerUrlState = useExplorerUrlState();
@@ -82,6 +82,6 @@ const ExplorerPage = memo(() => {
             <ExplorerWithUrlParams />
         </ExplorerProvider>
     );
-});
+};
 
 export default ExplorerPage;

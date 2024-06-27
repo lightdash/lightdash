@@ -24,7 +24,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
-    const { setSelectedTable } = useCatalogContext();
+    const { setSelectedTable, setIsViewingCatalog } = useCatalogContext();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { projectUuid } = useCatalogContext();
 
@@ -144,6 +144,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         onClick={(e) => {
                             e.stopPropagation();
                             setSelectedTable(field.tableName);
+                            setIsViewingCatalog(false);
                         }}
                     >
                         Use field
