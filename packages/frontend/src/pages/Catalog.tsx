@@ -7,7 +7,11 @@ import {
     Modal,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowDownBar, IconMaximize } from '@tabler/icons-react';
+import {
+    IconArrowDownBar,
+    IconArrowUpBar,
+    IconMaximize,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
@@ -45,11 +49,10 @@ const ExploreModal: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 inner: {
                     ...(!isModalMaximized
                         ? {
-                              padding: 10,
-
-                              paddingTop: `100px !important`,
+                              padding: `10px !important`,
+                              paddingTop: `48px !important`,
                               paddingBottom: `100px !important`,
-                              top: isModalMinimized ? `calc(100vh - 130px)` : 0,
+                              top: isModalMinimized ? `calc(100vh - 80px)` : 0,
                           }
                         : {}),
                 },
@@ -66,9 +69,9 @@ const ExploreModal: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     ...(!isModalMaximized
                         ? {
                               height: 'calc(100dvh - (0.5rem * 2))',
-                              width: 'calc(100dvw - (0.5rem * 2))',
-                              maxHeight: 'calc(100vh - 250px) !important',
-                              maxWidth: 'calc(100vw - 100px) !important',
+                              width: 'calc(100dvw - (0.25rem * 2))',
+                              maxHeight: 'calc(100vh - 75px) !important',
+                              maxWidth: 'calc(100vw - 50px) !important',
                           }
                         : {}),
                 },
@@ -102,7 +105,11 @@ const ExploreModal: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             >
                                 <MantineIcon
                                     color="gray.9"
-                                    icon={IconArrowDownBar}
+                                    icon={
+                                        isModalMinimized
+                                            ? IconArrowUpBar
+                                            : IconArrowDownBar
+                                    }
                                 />
                             </ActionIcon>
                         </Tooltip>
