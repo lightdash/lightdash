@@ -11,12 +11,11 @@ import {
     BasicAuth,
     ConnectionOptions,
     Iterator,
-    QueryData,
     QueryResult,
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
-import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -169,21 +168,26 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         };
     }
 
-    async runQuery(
+    async streamQuery(
         sql: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
+        streamCallback: (data: Results) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
         try {
             let alteredQuery = sql;
-            if (tags) {
-                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(tags)}`;
+            if (options?.tags) {
+                alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
+                    options?.tags,
+                )}`;
             }
-            if (timezone) {
-                console.debug(`Setting Trino timezone to ${timezone}`);
-                await session.query(`SET TIME ZONE '${timezone}'`);
+            if (options?.timezone) {
+                console.debug(`Setting Trino timezone to ${options?.timezone}`);
+                await session.query(`SET TIME ZONE '${options?.timezone}'`);
             }
             query = await session.query(alteredQuery);
 
@@ -196,21 +200,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 );
             }
 
-            let result: QueryData = queryResult.value.data ?? [];
             const schema: {
                 name: string;
                 type: string;
                 typeSignature: { rawType: string };
             }[] = queryResult.value.columns ?? [];
-
-            // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
-            // This maintains order and data integrity.
-            while (!queryResult.done) {
-                // eslint-disable-next-line no-await-in-loop
-                queryResult = await query.next();
-                result = result.concat(queryResult.value.data ?? []);
-            }
-
             const fields = schema.reduce(
                 (acc, column) => ({
                     ...acc,
@@ -223,12 +217,50 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 {},
             );
 
-            return { fields, rows: resultHandler(schema, result) };
+            // stream initial data
+            streamCallback({
+                fields,
+                rows: resultHandler(schema, queryResult.value.data),
+            });
+            // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
+            // This maintains order and data integrity.
+            while (!queryResult.done) {
+                // eslint-disable-next-line no-await-in-loop
+                queryResult = await query.next();
+                // stream next chunk of data
+                streamCallback({
+                    fields,
+                    rows: resultHandler(schema, queryResult.value.data),
+                });
+            }
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
             await close();
         }
+    }
+
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
+        let fields: Results['fields'] = {};
+        const rows: Results['rows'] = [];
+
+        await this.streamQuery(
+            sql,
+            (data) => {
+                fields = data.fields;
+                rows.push(...data.rows);
+            },
+            {
+                tags,
+                timezone,
+            },
+        );
+
+        return { fields, rows };
     }
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
