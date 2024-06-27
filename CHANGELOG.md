@@ -1,3 +1,10 @@
+# [0.1147.0](https://github.com/lightdash/lightdash/compare/0.1146.1...0.1147.0) (2024-06-27)
+
+
+### Features
+
+* expose WarehouseClient method to stream results ([#10545](https://github.com/lightdash/lightdash/issues/10545)) ([a2847ca](https://github.com/lightdash/lightdash/commit/a2847ca36d643593aa87781f760c94eae1ef0258))
+
 ## [0.1146.1](https://github.com/lightdash/lightdash/compare/0.1146.0...0.1146.1) (2024-06-27)
 
 
