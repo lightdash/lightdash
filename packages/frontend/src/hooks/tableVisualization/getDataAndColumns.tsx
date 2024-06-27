@@ -40,7 +40,7 @@ const decimalLength = (numStr: number) => {
     if (!pieces[1]) return 0;
     return pieces[1].length;
 };
-const getDecimalPrecision = (addend1: number, addend2: number) =>
+export const getDecimalPrecision = (addend1: number, addend2: number) =>
     Math.pow(10, Math.max(decimalLength(addend1), decimalLength(addend2)));
 
 const getDataAndColumns = ({
