@@ -1,3 +1,10 @@
+## [0.1146.1](https://github.com/lightdash/lightdash/compare/0.1146.0...0.1146.1) (2024-06-27)
+
+
+### Bug Fixes
+
+* increase limit on number of members shown per group ([#10541](https://github.com/lightdash/lightdash/issues/10541)) ([369292a](https://github.com/lightdash/lightdash/commit/369292ab207ab611fa45cf80a9e8ef005913bc8f))
+
 # [0.1146.0](https://github.com/lightdash/lightdash/compare/0.1145.0...0.1146.0) (2024-06-27)
 
 
