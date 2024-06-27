@@ -85,6 +85,13 @@ models:
       joins:
         - join: web_sessions
           sql_on: ${web_sessions.date} = ${sales_stats.date}
+      group_details:
+        product_details: 
+          label: Product Details
+          description: 'Fields that have information about the products in the basket.'
+        item_details:
+          label: Item Details
+          description: 'Fields that have information about the items in the basket.'
     columns:
       - name: revenue
         description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
@@ -95,6 +102,7 @@ models:
               type: SUM
               description: 'Total revenue in GBP'
               sql: 'IF(${revenue} IS NULL, 10, ${revenue})'
+              groups: ['product_details', 'item_details'] # this would add the metric to a nested group: `product details` --> `item details`
               hidden: false
               round: 0
               format: 'gbp'
@@ -118,7 +126,7 @@ Here are all of the properties you can customize:
 | round                                               | No       | number                         | Rounds a number to a specified number of digits                                                                                                                                                                                                      |
 | [format](#format)                                   | No       | string                         | This option will format the output value on the result table and CSV export. Currently supports one of the following: `['km', 'mi', 'usd', 'gbp', 'eur', 'percent', 'id']`                                                                           |
 | [compact](#compact-values)                          | No       | string                         | This option will compact the number value (e.g. 1,500 to 1.50K). Currently supports one of the following: `['thousands', 'millions', 'billions', 'trillions']`                                                                                       |
-| groups                                              | No       | string or string[]             | If you set this property, the metric will be grouped in the sidebar with other metrics with the same group label.                                                                                                                                    |
+| [groups](#groups)                                   | No       | string or string[]             | If you set this property, the metric will be grouped in the sidebar with other metrics with the same group label.                                                                                                                                    |
 | [urls](./dimensions.mdx#urls)                       | No       | Array of { url, label }        | Adding urls to a metric allows your users to click metric values in the UI and take actions, like opening an external tool with a url, or open at a website. You can use liquid templates to customise the link based on the value of the dimension. |
 | [show_underlying_values](#show-underlying-values)   | No       | Array of dimension names       | You can limit which dimensions are shown for a field when a user clicks `View underlying data`. The list must only include dimension names from the base model or from any joined models.                                                            |
 | [filters](#filters)                                 | No       | Array of {filter field: value} | You can add filter logic to limit the values included in the metric calculation. You can add many filters. See which filter types are supported [here](#filters).                                                                                    |
@@ -481,6 +489,47 @@ You can compact values in your YAML. For example, if I wanted all of my revenue 
 | millions  | "M" and "million"  | 1M             |
 | billions  | "B" and "billion"  | 1B             |
 | trillions | "T" and "trillion" | 1T             |
+
+## Groups
+
+You can group your dimensions and metrics in the sidebar using the `groups` parameter. 
+
+To do this, you need to set up `group_details` in the model's configuration. Then, you can use these groups to organize metrics and dimensions. You can create nested groups up to 2 levels.
+
+```yaml
+version: 2
+models:
+  - name: baskets
+    meta:
+      group_details:
+        product_details: 
+          label: Product Details
+          description: 'Fields that have information about the products in the basket.'
+        item_details:
+          label: Item Details
+          description: 'Fields that have information about the items in the basket.'
+
+    columns:
+      - name: basket_item_id
+        description: 'ID for the product item within the basket.'
+        meta:
+          dimension:
+            groups: ['product_details', 'item_details'] # this would add the dimension to a nested group: `product details` --> `item details`
+          metrics:
+            count_total_basket_items:
+              type: count_distinct
+              groups: ['product_details', 'item_details'] # this would add the metric to a nested group: `product details` --> `item details`
+      - name: product_name
+        description: 'Full name of the product.'
+        meta:
+          dimension:
+            label: 'Product name'
+            groups: ['product_details'] # this would add the dimension under the group label: `product_details`
+          metrics:
+            count_total_product_types:
+              type: count_distinct
+              groups: ['product_details'] # this would add the metric under the group label: `product_details`
+```
 
 ## Filters
 
