@@ -54,7 +54,7 @@ export class SqlRunnerController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Get('/tables/{tableName}')
-    @OperationId('getTables')
+    @OperationId('getTableFields')
     async getTableFields(
         @Path() projectUuid: string,
         @Path() tableName: string,
