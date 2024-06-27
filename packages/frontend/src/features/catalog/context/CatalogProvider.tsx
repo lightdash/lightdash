@@ -22,6 +22,8 @@ type CatalogContextValues = {
     setAnalyticsResults: Dispatch<SetStateAction<CatalogAnalytics | undefined>>;
     isSidebarOpen: boolean;
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
+    selectedTable: string | undefined;
+    setSelectedTable: Dispatch<SetStateAction<string | undefined>>;
 };
 
 const CatalogContext = createContext<CatalogContextValues | undefined>(
@@ -36,6 +38,7 @@ export const CatalogProvider: FC<
         >
     >
 > = ({ isSidebarOpen, setSidebarOpen, projectUuid, children }) => {
+    const [selectedTable, setSelectedTable] = useState<string | undefined>();
     const [metadata, setMetadata] = useState<CatalogMetadata>();
     const [analyticsResults, setAnalyticsResults] =
         useState<CatalogAnalytics>();
@@ -53,6 +56,8 @@ export const CatalogProvider: FC<
                 setAnalyticsResults,
                 isSidebarOpen,
                 setSidebarOpen,
+                selectedTable,
+                setSelectedTable,
             }}
         >
             {children}

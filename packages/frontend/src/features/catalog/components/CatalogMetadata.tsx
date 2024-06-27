@@ -58,6 +58,7 @@ export const CatalogMetadata: FC = () => {
         selection,
         setAnalyticsResults,
         setSelection,
+        setSelectedTable,
     } = useCatalogContext();
     const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
     const isMutatingAnalytics = useIsMutating([
@@ -438,11 +439,13 @@ export const CatalogMetadata: FC = () => {
                             },
                         })}
                         onClick={() => {
+                            setSelectedTable(metadata?.modelName);
                             if (metadata && isViewingField) {
                                 const fieldToExplore = getItemId({
                                     name: metadata.name,
                                     table: metadata.modelName,
                                 });
+
                                 return history.push(
                                     getExplorerUrlFromCreateSavedChartVersion(
                                         projectUuid,

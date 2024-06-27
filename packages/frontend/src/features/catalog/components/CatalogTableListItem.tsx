@@ -16,6 +16,7 @@ import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import { useCatalogContext } from '../context/CatalogProvider';
 
 type Props = {
     table: CatalogTable & { fields: CatalogField[] };
@@ -39,6 +40,7 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     onClick,
     children,
 }) => {
+    const { setSelectedTable } = useCatalogContext();
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { ref, isTruncated: isNameTruncated } =
@@ -180,7 +182,6 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         <MantineLinkButton
                             size="sm"
                             href={url}
-                            target="_blank"
                             compact
                             sx={(theme) => ({
                                 backgroundColor: theme.colors.gray[8],
@@ -188,7 +189,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                                     backgroundColor: theme.colors.gray[9],
                                 },
                             })}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTable(table.name);
+                            }}
                         >
                             Use table
                         </MantineLinkButton>

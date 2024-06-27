@@ -20,7 +20,6 @@ import {
     Title,
 } from '@mantine/core';
 import { useDebouncedValue, useHotkeys } from '@mantine/hooks';
-
 import {
     IconAdjustmentsHorizontal,
     IconReportSearch,
