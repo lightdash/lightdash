@@ -5,6 +5,7 @@ FROM node:20-bookworm-slim AS base
 WORKDIR /usr/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    dumb-init \
     build-essential \
     g++ \
     libsasl2-modules-gssapi-mit \
@@ -176,4 +177,6 @@ COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
-CMD ["yarn", "workspace", "backend", "start"]
+CMD ["dumb-init", "yarn", "workspace", "backend", "start"]
+
+STOPSIGNAL SIGTERM

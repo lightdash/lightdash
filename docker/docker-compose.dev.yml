@@ -32,7 +32,7 @@ services:
       - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
       - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
       - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
-      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+      - SCHEDULER_ENABLED=false
       - GROUPS_ENABLED=${GROUPS_ENABLED}
       - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
       - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
@@ -49,6 +49,41 @@ services:
       - "3000:3000"
     command: ""
     entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
+  scheduler-dev:
+    stop_grace_period: 5m
+    build:
+      context: ..
+      dockerfile: dockerfile
+      target: dev
+    depends_on:
+      - db-dev
+    environment:
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=${PGDATABASE}
+      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+      - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
+      - SECURE_COOKIES=${SECURE_COOKIES}
+      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+      - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
+      - NODE_ENV=${NODE_ENV}
+      - LIGHTDASH_CONFIG_FILE=${LIGHTDASH_CONFIG_FILE}
+      - DBT_DEMO_DIR=${DBT_DEMO_DIR}
+      - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
+      - SITE_URL=${SITE_URL}
+      - EXPOSED_SITE_URL=${EXPOSED_SITE_URL}
+      - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+      - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
+      - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
+      - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
+      - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+    volumes:
+      - "../:/usr/app"
+      - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+    entrypoint: [ "dumb-init", "-v", "--" ]
+    command: ["yarn", "workspace", "backend", "scheduler"]
   db-dev:
     image: postgres:15.4
     restart: always
