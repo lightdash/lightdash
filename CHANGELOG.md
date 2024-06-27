@@ -1,3 +1,10 @@
+# [0.1148.0](https://github.com/lightdash/lightdash/compare/0.1147.0...0.1148.0) (2024-06-27)
+
+
+### Features
+
+* enable searching catalog with filters (including search index) ([#10525](https://github.com/lightdash/lightdash/issues/10525)) ([99636c4](https://github.com/lightdash/lightdash/commit/99636c42329cc13f89458d1cf63c4496f1c0af21))
+
 # [0.1147.0](https://github.com/lightdash/lightdash/compare/0.1146.1...0.1147.0) (2024-06-27)
 
 
