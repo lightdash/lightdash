@@ -33,6 +33,7 @@ import { useHistory } from 'react-router-dom';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useCatalogContext } from '../context/CatalogProvider';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCatalogAnalytics } from '../hooks/useCatalogAnalytics';
@@ -452,7 +453,7 @@ export const CatalogPanel: FC = () => {
     return (
         <Stack spacing="xl">
             <Stack>
-                <Group position="apart" align="flex-start">
+                <Group position="apart">
                     <Box mt="xl">
                         <Group>
                             <Paper
@@ -477,6 +478,7 @@ export const CatalogPanel: FC = () => {
                             </Box>
                         </Group>
                     </Box>
+                    <RefreshDbtButton />
                 </Group>
 
                 <Group spacing="xs" align="start">
