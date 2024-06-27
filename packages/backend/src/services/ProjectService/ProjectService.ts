@@ -89,9 +89,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    WarehouseCatalog,
     WarehouseClient,
-    WarehouseCredentials,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';
@@ -1721,7 +1719,7 @@ export class ProjectService extends BaseService {
                         );
                     }
 
-                    await this.analytics.track({
+                    this.analytics.track({
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
@@ -1805,6 +1803,9 @@ export class ProjectService extends BaseService {
                             ...countCustomDimensionsInMetricQuery(metricQuery),
                             dateZoomGranularity: granularity || null,
                             timezone: metricQuery.timezone,
+                            ...(queryTags?.dashboard_uuid
+                                ? { dashboardId: queryTags.dashboard_uuid }
+                                : {}),
                         },
                     });
 
