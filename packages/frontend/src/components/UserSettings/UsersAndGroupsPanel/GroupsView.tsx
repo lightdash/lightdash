@@ -32,6 +32,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import CreateGroupModal from './CreateGroupModal';
 
+const GROUP_MEMBERS_PER_PAGE = 2000;
+
 const GroupListItem: FC<{
     disabled?: boolean;
     group: GroupWithMembers;
@@ -168,7 +170,10 @@ const GroupsView: FC = () => {
     const [search, setSearch] = useState('');
 
     const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups({ search, includeMembers: 100 }); // TODO: pagination
+        useOrganizationGroups({
+            search,
+            includeMembers: GROUP_MEMBERS_PER_PAGE, // TODO: pagination
+        });
 
     const handleDelete = useCallback(() => {
         if (groupToDelete) {
