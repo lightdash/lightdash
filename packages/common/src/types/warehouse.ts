@@ -14,6 +14,11 @@ export type WarehouseCatalog = {
     };
 };
 
+export type WarehouseResults = {
+    fields: Record<string, { type: DimensionType }>;
+    rows: Record<string, any>[];
+};
+
 export interface WarehouseClient {
     credentials: CreateWarehouseCredentials;
     getCatalog: (
@@ -24,14 +29,27 @@ export interface WarehouseClient {
         }[],
     ) => Promise<WarehouseCatalog>;
 
+    streamQuery(
+        query: string,
+        streamCallback: (data: WarehouseResults) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void>;
+
+    /**
+     * Runs a query and returns all the results
+     * @param sql
+     * @param tags
+     * @param timezone
+     * @deprecated Use streamQuery() instead to avoid loading all results into memory
+     */
     runQuery(
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
-    ): Promise<{
-        fields: Record<string, { type: DimensionType }>;
-        rows: Record<string, any>[];
-    }>;
+    ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
 

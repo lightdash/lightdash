@@ -6,6 +6,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     WarehouseQueryError,
+    WarehouseResults,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -149,7 +150,7 @@ export class PostgresClient<
         return alteredQuery;
     }
 
-    private convertQueryResultFields(
+    static convertQueryResultFields(
         fields: QueryResult<any>['fields'],
     ): Record<string, { type: DimensionType }> {
         return fields.reduce(
@@ -163,16 +164,16 @@ export class PostgresClient<
         );
     }
 
-    async runQuery(
+    async streamQuery(
         sql: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
+        streamCallback: (data: WarehouseResults) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
         let pool: pg.Pool | undefined;
-        return new Promise<{
-            fields: Record<string, { type: DimensionType }>;
-            rows: Record<string, any>[];
-        }>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 5000,
@@ -214,17 +215,14 @@ export class PostgresClient<
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
                     const stream = client.query(
-                        new QueryStream(this.getSQLWithMetadata(sql, tags)),
+                        new QueryStream(
+                            this.getSQLWithMetadata(sql, options?.tags),
+                        ),
                     );
-                    const rows: any[] = [];
-                    let fields: QueryResult<any>['fields'] = [];
                     // release the client when the stream is finished
                     stream.on('end', () => {
                         done();
-                        resolve({
-                            rows,
-                            fields: this.convertQueryResultFields(fields),
-                        });
+                        resolve();
                     });
                     stream.on('error', (err2) => {
                         reject(err2);
@@ -242,8 +240,12 @@ export class PostgresClient<
                                     encoding,
                                     callback,
                                 ) {
-                                    rows.push(chunk.row);
-                                    fields = chunk.fields;
+                                    streamCallback({
+                                        fields: PostgresClient.convertQueryResultFields(
+                                            chunk.fields,
+                                        ),
+                                        rows: [chunk.row],
+                                    });
                                     callback();
                                 },
                             }),
@@ -254,12 +256,12 @@ export class PostgresClient<
                         });
                 };
 
-                if (timezone) {
+                if (options?.timezone) {
                     console.debug(
-                        `Setting postgres session timezone ${timezone}`,
+                        `Setting postgres session timezone ${options?.timezone}`,
                     );
                     client
-                        .query(`SET timezone TO '${timezone}';`)
+                        .query(`SET timezone TO '${options?.timezone}';`)
                         .then(() => {
                             runQuery();
                         })

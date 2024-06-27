@@ -1,9 +1,9 @@
 import {
     CreateWarehouseCredentials,
-    DimensionType,
     Metric,
     SupportedDbtAdapter,
     WarehouseCatalog,
+    WarehouseResults,
     WeekDay,
 } from '@lightdash/common';
 import { WarehouseClient } from '../types';
@@ -39,11 +39,38 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         throw new Error('Warehouse method not implemented.');
     }
 
-    async runQuery(sql: string): Promise<{
-        fields: Record<string, { type: DimensionType }>;
-        rows: Record<string, any>[];
-    }> {
+    async streamQuery(
+        query: string,
+        streamCallback: (data: WarehouseResults) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
         throw new Error('Warehouse method not implemented.');
+    }
+
+    async runQuery(
+        sql: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
+        let fields: WarehouseResults['fields'] = {};
+        const rows: WarehouseResults['rows'] = [];
+
+        await this.streamQuery(
+            sql,
+            (data) => {
+                fields = data.fields;
+                rows.push(...data.rows);
+            },
+            {
+                tags,
+                timezone,
+            },
+        );
+
+        return { fields, rows };
     }
 
     getMetricSql(sql: string, metric: Metric): string {
