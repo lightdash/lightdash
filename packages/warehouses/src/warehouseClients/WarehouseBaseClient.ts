@@ -9,6 +9,11 @@ import {
 import { WarehouseClient } from '../types';
 import { getDefaultMetricSql } from '../utils/sql';
 
+export type Results = {
+    fields: Record<string, { type: DimensionType }>;
+    rows: Record<string, any>[];
+};
+
 export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     implements WarehouseClient
 {
@@ -39,10 +44,18 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         throw new Error('Warehouse method not implemented.');
     }
 
-    async runQuery(sql: string): Promise<{
-        fields: Record<string, { type: DimensionType }>;
-        rows: Record<string, any>[];
-    }> {
+    async streamQuery(
+        query: string,
+        streamCallback: (data: Results) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    async runQuery(sql: string): Promise<Results> {
         throw new Error('Warehouse method not implemented.');
     }
 

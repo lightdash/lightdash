@@ -18,7 +18,7 @@ import {
 } from '@lightdash/common';
 import { pipeline, Transform, Writable } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
-import WarehouseBaseClient from './WarehouseBaseClient';
+import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -125,14 +125,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async runQuery(
+    async streamQuery(
         query: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
+        streamCallback: (data: Results) => void,
+        options: {
+            tags?: Record<string, string>;
+            timezone?: string;
+        },
+    ): Promise<void> {
         try {
-            const rows: Record<string, any>[] = [];
-
             const [job] = await this.client.createQueryJob({
                 query,
                 useLegacySql: false,
@@ -144,7 +145,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 jobTimeoutMs:
                     this.credentials.timeoutSeconds &&
                     this.credentials.timeoutSeconds * 1000,
-                labels: tags,
+                labels: options?.tags,
             });
 
             // Get the full api response but we can request zero rows
@@ -165,37 +166,59 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 }
                 return acc;
             }, {});
-            const writePromise = new Promise<{ fields: {}; rows: any[] }>(
-                (resolve, reject) => {
-                    pipeline(
-                        job.getQueryResultsStream(),
-                        new Transform({
-                            objectMode: true,
-                            transform(chunk, encoding, callback) {
-                                callback(null, parseRow(chunk));
-                            },
-                        }),
-                        new Writable({
-                            objectMode: true,
-                            write(chunk, encoding, callback) {
-                                rows.push(chunk);
-                                callback();
-                            },
-                        }),
-                        async (err) => {
-                            if (err) {
-                                reject(err);
-                            }
-                            resolve({ fields, rows });
-                        },
-                    );
-                },
-            );
 
-            return await writePromise;
+            const streamPromise = new Promise<void>((resolve, reject) => {
+                pipeline(
+                    job.getQueryResultsStream(),
+                    new Transform({
+                        objectMode: true,
+                        transform(chunk, _encoding, callback) {
+                            callback(null, parseRow(chunk));
+                        },
+                    }),
+                    new Writable({
+                        objectMode: true,
+                        write(chunk, _encoding, callback) {
+                            streamCallback({ fields, rows: [chunk] });
+                            callback();
+                        },
+                    }),
+                    async (err) => {
+                        if (err) {
+                            reject(err);
+                        }
+                        resolve();
+                    },
+                );
+            });
+
+            await streamPromise;
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
+    }
+
+    async runQuery(
+        query: string,
+        tags?: Record<string, string>,
+        timezone?: string,
+    ) {
+        let fields: Results['fields'] = {};
+        const rows: Results['rows'] = [];
+
+        await this.streamQuery(
+            query,
+            (data) => {
+                fields = data.fields;
+                rows.push(...data.rows);
+            },
+            {
+                tags,
+                timezone,
+            },
+        );
+
+        return { fields, rows };
     }
 
     static async getTableMetadata(
