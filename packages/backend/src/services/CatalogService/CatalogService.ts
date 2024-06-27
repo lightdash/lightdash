@@ -3,6 +3,7 @@ import {
     ApiCatalogSearch,
     CatalogAnalytics,
     CatalogField,
+    CatalogFilter,
     CatalogMetadata,
     CatalogTable,
     CatalogType,
@@ -181,6 +182,8 @@ export class CatalogService<
         projectUuid: string,
         query: string,
         userAttributes: UserAttributeValueMap,
+        type?: CatalogType,
+        filter?: CatalogFilter,
     ): Promise<(CatalogTable | CatalogField)[]> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
@@ -200,6 +203,8 @@ export class CatalogService<
                         this.catalogModel.search({
                             projectUuid,
                             searchQuery: query,
+                            filter,
+                            type,
                         }),
                 );
                 // Filter table selection
@@ -236,7 +241,7 @@ export class CatalogService<
     async getCatalog(
         user: SessionUser,
         projectUuid: string,
-        { search, type }: ApiCatalogSearch,
+        { search, type, filter }: ApiCatalogSearch,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -294,7 +299,13 @@ export class CatalogService<
 
         if (search) {
             // On search we don't show explore errors, because they are not indexed
-            return this.searchCatalog(projectUuid, search, userAttributes);
+            return this.searchCatalog(
+                projectUuid,
+                search,
+                userAttributes,
+                type,
+                filter,
+            );
         }
         if (type === CatalogType.Field)
             return CatalogService.getCatalogFields(

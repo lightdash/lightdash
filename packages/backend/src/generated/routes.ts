@@ -310,6 +310,11 @@ const models: TsoaRoute.Models = {
         enums: ['table', 'field'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogFilter: {
+        dataType: 'refEnum',
+        enums: ['tables', 'dimensions', 'metrics'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogMetadata: {
         dataType: 'refAlias',
         type: {
@@ -7141,6 +7146,7 @@ export function RegisterRoutes(app: express.Router) {
                 },
                 search: { in: 'query', name: 'search', dataType: 'string' },
                 type: { in: 'query', name: 'type', ref: 'CatalogType' },
+                filter: { in: 'query', name: 'filter', ref: 'CatalogFilter' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

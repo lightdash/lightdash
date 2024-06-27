@@ -1,8 +1,10 @@
 import {
     CatalogField,
+    CatalogFilter,
     CatalogTable,
     CatalogType,
     Explore,
+    FieldType,
     NotFoundError,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -33,6 +35,7 @@ export class CatalogModel {
         projectUuid,
         exploreName,
         type,
+        filter,
         limit = 50,
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
@@ -40,6 +43,7 @@ export class CatalogModel {
         searchQuery: string;
         projectUuid: string;
         exploreName?: string;
+        filter?: CatalogFilter;
         type?: CatalogType;
         limit?: number;
         excludeUnmatched?: boolean;
@@ -85,6 +89,20 @@ export class CatalogModel {
                 `${CatalogTableName}.type`,
                 type,
             );
+        }
+        if (filter) {
+            if (filter === CatalogFilter.Dimensions) {
+                catalogItemsQuery = catalogItemsQuery.andWhere(
+                    `${CatalogTableName}.field_type`,
+                    FieldType.DIMENSION,
+                );
+            }
+            if (filter === CatalogFilter.Metrics) {
+                catalogItemsQuery = catalogItemsQuery.andWhere(
+                    `${CatalogTableName}.field_type`,
+                    FieldType.METRIC,
+                );
+            }
         }
 
         if (excludeUnmatched) {
