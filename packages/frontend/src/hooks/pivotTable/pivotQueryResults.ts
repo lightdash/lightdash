@@ -1,13 +1,22 @@
 import {
     FieldType,
+    formatItemValue,
+    type ItemsMap,
     type MetricQuery,
     type PivotConfig,
     type PivotData,
     type ResultRow,
     type ResultValue,
+    type TotalField,
 } from '@lightdash/common';
 import isNumber from 'lodash/isNumber';
+import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { isSummable } from '../useColumnTotals';
+
+type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
+
+type FieldLabelFunction = (fieldId: string) => string | undefined;
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -23,6 +32,8 @@ type PivotQueryResultsArgs = {
     options: {
         maxColumns: number;
     };
+    getField: FieldFunction;
+    getFieldLabel: FieldLabelFunction;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -192,11 +203,161 @@ const getColSpanByKey = (
         }, 0);
 };
 
+const combinedRetrofit = (
+    data: PivotData,
+    getField: FieldFunction,
+    getFieldLabel: FieldLabelFunction,
+) => {
+    const indexValues = data.indexValues.length ? data.indexValues : [[]];
+    const baseIdInfo = last(data.headerValues);
+    const uniqueIdsForDataValueColumns: string[] = Array(
+        data.headerValues[0].length,
+    );
+
+    data.headerValues.forEach((headerRow) => {
+        headerRow.forEach((headerColValue, colIndex) => {
+            uniqueIdsForDataValueColumns[colIndex] =
+                uniqueIdsForDataValueColumns[colIndex] +
+                headerColValue.fieldId +
+                '__';
+        });
+    });
+
+    const getMetricAsRowTotalValueFromAxis = (
+        total: unknown,
+        rowIndex: number,
+    ): ResultValue | null => {
+        const value = last(data.indexValues[rowIndex]);
+        if (!value || !value.fieldId) throw new Error('Invalid pivot data');
+
+        const item = getField(value.fieldId);
+        if (!isSummable(item)) {
+            return null;
+        }
+        const formattedValue = formatItemValue(item, total);
+
+        return {
+            raw: total,
+            formatted: formattedValue,
+        };
+    };
+
+    const getRowTotalValueFromAxis = (
+        field: TotalField | undefined,
+        total: unknown,
+    ): ResultValue => {
+        if (!field || !field.fieldId) throw new Error('Invalid pivot data');
+        const item = getField(field.fieldId);
+
+        const formattedValue = formatItemValue(item, total);
+
+        return {
+            raw: total,
+            formatted: formattedValue,
+        };
+    };
+
+    let firstRowOnly = [] as any[];
+    const allCombinedData = indexValues.map((row, rowIndex) => {
+        const newRow = row.map((cell, colIndex) => {
+            if (cell.type === 'label') {
+                const cellValue = getFieldLabel(cell.fieldId);
+                return {
+                    ...cell,
+                    fieldId: 'label-' + colIndex,
+                    value: {
+                        raw: cellValue,
+                        formatted: cellValue,
+                    },
+                    meta: {
+                        type: 'label',
+                    },
+                };
+            }
+            return {
+                ...cell,
+                meta: {
+                    type: 'indexValue',
+                },
+            };
+        });
+
+        const remappedDataValues = data.dataValues[rowIndex].map(
+            (dataValue, colIndex) => {
+                const baseIdInfoForCol = baseIdInfo
+                    ? baseIdInfo[colIndex]
+                    : undefined;
+                const baseId = baseIdInfoForCol?.fieldId;
+                const id = uniqueIdsForDataValueColumns[colIndex] + colIndex;
+                return {
+                    baseId: baseId,
+                    fieldId: id,
+                    value: dataValue || {},
+                };
+            },
+        );
+
+        const remappedRowTotals = data.rowTotals?.[rowIndex]?.map(
+            (total, colIndex) => {
+                const baseId = 'row-total-' + colIndex;
+                const id = baseId;
+                const underlyingData = last(data.rowTotalFields)?.[colIndex];
+
+                const value = data.pivotConfig.metricsAsRows
+                    ? getMetricAsRowTotalValueFromAxis(total, rowIndex)
+                    : getRowTotalValueFromAxis(underlyingData, total);
+                const underlyingId = data.pivotConfig.metricsAsRows
+                    ? undefined
+                    : underlyingData?.fieldId;
+                return {
+                    baseId: baseId,
+                    fieldId: id,
+                    underlyingId: underlyingId,
+                    value: value,
+                    meta: {
+                        type: 'rowTotal',
+                    },
+                };
+            },
+        );
+
+        const entireRow = [
+            ...newRow,
+            ...remappedDataValues,
+            ...(remappedRowTotals || []),
+        ];
+
+        if (rowIndex === 0) {
+            firstRowOnly = entireRow;
+        }
+
+        const altRow: ResultRow = {};
+        entireRow.forEach((cell) => {
+            const val = cell.value;
+            if (val && 'formatted' in val && val.formatted !== undefined) {
+                altRow[cell.fieldId] = {
+                    value: {
+                        raw: val.raw,
+                        formatted: val.formatted,
+                    },
+                };
+            }
+        });
+
+        return altRow;
+    });
+
+    data.retrofitData = { allCombinedData, firstRowOnly };
+    return data;
+};
+
 export const pivotQueryResults = ({
     pivotConfig,
     metricQuery,
     rows,
     options,
+    getField,
+    getFieldLabel,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -581,7 +742,7 @@ export const pivotQueryResults = ({
 
     const rowsCount = dataValues.length || 0;
 
-    return {
+    const pivotData: PivotData = {
         titleFields,
 
         headerValueTypes: headerValueTypes,
@@ -599,5 +760,12 @@ export const pivotQueryResults = ({
         cellsCount,
         rowsCount,
         pivotConfig,
+
+        retrofitData: {
+            allCombinedData: [],
+            firstRowOnly: [],
+        },
     };
+
+    return combinedRetrofit(pivotData, getField, getFieldLabel);
 };

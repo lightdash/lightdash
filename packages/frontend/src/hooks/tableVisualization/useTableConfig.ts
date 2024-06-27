@@ -322,6 +322,8 @@ const useTableConfig = (
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
+                getField,
+                getFieldLabel,
             })
             .then((data) => {
                 setPivotTableData({
@@ -345,6 +347,7 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
+        getFieldLabel,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
