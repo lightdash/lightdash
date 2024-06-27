@@ -100,7 +100,6 @@ export const useJob = (
                 : 500,
         staleTime: 0,
         onSuccess: async (job) => {
-            console.log({ job });
 
             if (job.jobStatus === JobStatusType.DONE) {
                 await queryClient.invalidateQueries(['tables']);
