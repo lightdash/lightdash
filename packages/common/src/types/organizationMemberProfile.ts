@@ -9,6 +9,15 @@ export enum OrganizationMemberRole {
     ADMIN = 'admin',
 }
 
+export const MemberRoleLabels = {
+    [OrganizationMemberRole.MEMBER]: 'Member',
+    [OrganizationMemberRole.VIEWER]: 'Viewer',
+    [OrganizationMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
+    [OrganizationMemberRole.EDITOR]: 'Editor',
+    [OrganizationMemberRole.DEVELOPER]: 'Developer',
+    [OrganizationMemberRole.ADMIN]: 'Admin',
+} as const;
+
 /**
  * Profile for a user's membership in an organization
  */

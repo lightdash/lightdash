@@ -33,7 +33,7 @@ export const hasDirectAccessToSpace = (
         if (typeof access === 'string') {
             return [...acc, access];
         }
-        if (access.hasDirectAccess) {
+        if (access.hasDirectAccess || access.hasGroupAccess) {
             return [...acc, access.userUuid];
         }
         return acc;

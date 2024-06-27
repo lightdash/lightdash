@@ -5389,29 +5389,26 @@
                 "enum": ["viewer", "editor", "admin"],
                 "type": "string"
             },
+            "RoleType": {
+                "type": "string",
+                "enum": [
+                    "project",
+                    "organization",
+                    "group",
+                    "space_group",
+                    "space"
+                ]
+            },
             "SpaceShare": {
                 "properties": {
-                    "inheritedFrom": {
-                        "type": "string",
-                        "enum": [
-                            "organization",
-                            "project",
-                            "group",
-                            "space_group"
-                        ]
-                    },
-                    "inheritedRole": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/OrganizationMemberRole"
-                            },
-                            {
-                                "$ref": "#/components/schemas/ProjectMemberRole"
-                            }
-                        ]
+                    "hasGroupAccess": {
+                        "type": "boolean"
                     },
                     "hasDirectAccess": {
                         "type": "boolean"
+                    },
+                    "inheritedFrom": {
+                        "$ref": "#/components/schemas/RoleType"
                     },
                     "role": {
                         "$ref": "#/components/schemas/SpaceMemberRole"
@@ -5430,7 +5427,9 @@
                     }
                 },
                 "required": [
+                    "hasGroupAccess",
                     "hasDirectAccess",
+                    "inheritedFrom",
                     "role",
                     "email",
                     "lastName",
@@ -7992,7 +7991,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1148.0",
+        "version": "0.1149.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13032,7 +13031,7 @@
         },
         "/api/v1/projects/{projectUuid}/sqlRunner/tables/{tableName}": {
             "get": {
-                "operationId": "getTables",
+                "operationId": "getTableFields",
                 "responses": {
                     "200": {
                         "description": "Success",

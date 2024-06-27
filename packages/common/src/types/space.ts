@@ -1,8 +1,5 @@
-// eslint-disable-next-line import/no-cycle
 import { type SpaceDashboard } from './dashboard';
-import { type OrganizationMemberRole } from './organizationMemberProfile';
-import { type ProjectMemberRole } from './projectMemberRole';
-// eslint-disable-next-line import/no-cycle
+import { type RoleType } from './projectMemberRole';
 import { type SpaceQuery } from './savedCharts';
 
 export type Space = {
@@ -54,14 +51,9 @@ export type SpaceShare = {
     lastName: string;
     email: string;
     role: SpaceMemberRole;
+    inheritedFrom: RoleType;
     hasDirectAccess: boolean;
-    inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
-    inheritedFrom:
-        | 'organization'
-        | 'project'
-        | 'group'
-        | 'space_group'
-        | undefined;
+    hasGroupAccess: boolean;
 };
 
 export type SpaceGroup = {

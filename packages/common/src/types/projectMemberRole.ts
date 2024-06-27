@@ -8,14 +8,6 @@ export enum ProjectMemberRole {
     ADMIN = 'admin',
 }
 
-export const ProjectMemberRoleLabels: Record<ProjectMemberRole, string> = {
-    [ProjectMemberRole.VIEWER]: 'Viewer',
-    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
-    [ProjectMemberRole.EDITOR]: 'Editor',
-    [ProjectMemberRole.DEVELOPER]: 'Developer',
-    [ProjectMemberRole.ADMIN]: 'Admin',
-} as const;
-
 export type OrganizationRole = {
     type: 'organization';
     role: ProjectMemberRole | undefined;
@@ -36,11 +28,30 @@ export type SpaceGroupAccessRole = {
     role: ProjectMemberRole | undefined;
 };
 
+export type SpaceAccessRole = {
+    type: 'space';
+    role: ProjectMemberRole | undefined;
+};
+
 export type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
 
-const RoleTypes = ['organization', 'project', 'group', 'space_group'] as const;
+const RoleTypes = [
+    'organization',
+    'project',
+    'group',
+    'space_group',
+    'space',
+] as const;
 
 export type RoleType = typeof RoleTypes[number];
+
+export const ProjectRoleTypeLabels: Record<RoleType, string> = {
+    organization: 'Organization',
+    project: 'Project',
+    group: 'Group',
+    space_group: 'Space Group',
+    space: 'Space',
+} as const;
 
 export type InheritedProjectRole = {
     type: RoleType;

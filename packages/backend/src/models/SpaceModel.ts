@@ -5,7 +5,6 @@ import {
     convertProjectRoleToSpaceRole,
     convertSpaceRoleToProjectRole,
     getHighestProjectRole,
-    getHighestSpaceRole,
     GroupRole,
     NotFoundError,
     OrganizationMemberRole,
@@ -13,6 +12,7 @@ import {
     ProjectMemberRole,
     ProjectRole,
     Space,
+    SpaceAccessRole,
     SpaceDashboard,
     SpaceGroup,
     SpaceGroupAccessRole,
@@ -24,7 +24,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
-import { groupBy } from 'lodash';
+import { groupBy, mapValues } from 'lodash';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -730,12 +730,13 @@ export class SpaceModel {
                     last_name: string;
                     email: string;
                     is_private: boolean;
-                    space_role: SpaceMemberRole;
-                    user_with_direct_access: boolean;
+                    space_user_role: SpaceMemberRole | null;
                     project_role: ProjectMemberRole | null;
                     organization_role: OrganizationMemberRole;
                     group_roles: (ProjectMemberRole | null)[];
                     space_group_roles: (SpaceMemberRole | null)[];
+                    user_with_direct_access: boolean;
+                    user_with_group_access: boolean;
                 }[]
             >([
                 `spaces.space_uuid`,
@@ -744,9 +745,12 @@ export class SpaceModel {
                 `users.last_name`,
                 `emails.email`,
                 `spaces.is_private`,
-                `space_user_access.space_role`,
+                `${SpaceUserAccessTableName}.space_role as space_user_role`,
                 this.database.raw(
-                    `CASE WHEN ${SpaceUserAccessTableName}.user_uuid IS NULL AND ( ${SpaceGroupAccessTableName}.group_uuid IS NULL ) THEN false ELSE true end as user_with_direct_access`,
+                    `${SpaceUserAccessTableName}.user_uuid IS NOT NULL AS user_with_direct_access`,
+                ),
+                this.database.raw(
+                    `${SpaceGroupAccessTableName}.group_uuid IS NOT NULL AS user_with_group_access`,
                 ),
                 `${ProjectMembershipsTableName}.role as project_role`,
                 `${OrganizationMembershipsTableName}.role as organization_role`,
@@ -758,100 +762,79 @@ export class SpaceModel {
                 ),
             ]);
 
-        return Object.entries(groupBy(access, 'space_uuid')).reduce<
-            Record<string, SpaceShare[]>
-        >((acc, [spaceUuid, spaceAccess]) => {
-            acc[spaceUuid] = spaceAccess.reduce<SpaceShare[]>(
-                (
-                    acc2,
+        const groupedAccess = groupBy(access, 'space_uuid');
+
+        const spaceAccessMap = mapValues(groupedAccess, (spaceAccesses) =>
+            spaceAccesses.reduce<SpaceShare[]>((acc, spaceAccess) => {
+                const inheritedOrgRole: OrganizationRole = {
+                    type: 'organization',
+                    role: convertOrganizationRoleToProjectRole(
+                        spaceAccess.organization_role,
+                    ),
+                };
+
+                const inheritedProjectRole: ProjectRole = {
+                    type: 'project',
+                    role: spaceAccess.project_role ?? undefined,
+                };
+
+                const inheritedGroupRoles: GroupRole[] =
+                    spaceAccess.group_roles.map((role) => ({
+                        type: 'group',
+                        role: role ?? undefined,
+                    }));
+
+                const spaceGroupAccessRoles: SpaceGroupAccessRole[] =
+                    spaceAccess.space_group_roles.map((role) => ({
+                        type: 'space_group',
+                        role: role
+                            ? convertSpaceRoleToProjectRole(role)
+                            : undefined,
+                    }));
+
+                const spaceAccessRole: SpaceAccessRole = {
+                    type: 'space',
+                    role: spaceAccess.space_user_role
+                        ? convertSpaceRoleToProjectRole(
+                              spaceAccess.space_user_role,
+                          )
+                        : undefined,
+                };
+
+                console.log({
+                    ccc: spaceAccess.space_user_role,
+                    spaceAccessRole,
+                });
+
+                const highestRole = getHighestProjectRole([
+                    // order is important here
+                    spaceAccessRole,
+                    ...spaceGroupAccessRoles,
+                    ...inheritedGroupRoles,
+                    inheritedProjectRole,
+                    inheritedOrgRole,
+                ]);
+
+                // exclude users with no space role
+                if (!highestRole) return acc;
+
+                return [
+                    ...acc,
                     {
-                        user_uuid,
-                        first_name,
-                        last_name,
-                        email,
-                        is_private,
-                        space_role,
-                        user_with_direct_access,
-                        project_role,
-                        organization_role,
-                        group_roles,
-                        space_group_roles,
+                        userUuid: spaceAccess.user_uuid,
+                        firstName: spaceAccess.first_name,
+                        lastName: spaceAccess.last_name,
+                        email: spaceAccess.email,
+                        role: convertProjectRoleToSpaceRole(highestRole.role),
+                        inheritedFrom: highestRole.type,
+                        hasDirectAccess: spaceAccess.user_with_direct_access,
+                        hasGroupAccess: spaceAccess.user_with_group_access,
                     },
-                ) => {
-                    const inheritedOrgRole: OrganizationRole = {
-                        type: 'organization',
-                        role: convertOrganizationRoleToProjectRole(
-                            organization_role,
-                        ),
-                    };
+                ];
+            }, []),
+        );
 
-                    const inheritedProjectRole: ProjectRole = {
-                        type: 'project',
-                        role: project_role ?? undefined,
-                    };
-
-                    const inheritedGroupRoles: GroupRole[] = group_roles.map(
-                        (role) => ({ type: 'group', role: role ?? undefined }),
-                    );
-
-                    const spaceGroupAccessRoles: SpaceGroupAccessRole[] =
-                        space_group_roles.map((role) => ({
-                            type: 'space_group',
-                            role: role
-                                ? convertSpaceRoleToProjectRole(role)
-                                : undefined,
-                        }));
-
-                    const highestRole = getHighestProjectRole([
-                        inheritedOrgRole,
-                        inheritedProjectRole,
-                        ...inheritedGroupRoles,
-                        ...spaceGroupAccessRoles,
-                    ]);
-
-                    // exclude users with no space role
-                    if (!highestRole) {
-                        return acc2;
-                    }
-
-                    let spaceRole;
-
-                    if (highestRole.role === ProjectMemberRole.ADMIN) {
-                        spaceRole = SpaceMemberRole.ADMIN;
-                    } else if (user_with_direct_access) {
-                        spaceRole =
-                            getHighestSpaceRole([
-                                space_role ?? undefined,
-                                ...space_group_roles.map(
-                                    (role) => role ?? undefined,
-                                ),
-                            ]) ?? space_role;
-                    } else if (!is_private && !user_with_direct_access) {
-                        spaceRole = convertProjectRoleToSpaceRole(
-                            highestRole.role,
-                        );
-                    } else {
-                        return acc2;
-                    }
-
-                    return [
-                        ...acc2,
-                        {
-                            userUuid: user_uuid,
-                            firstName: first_name,
-                            lastName: last_name,
-                            email,
-                            role: spaceRole,
-                            hasDirectAccess: !!user_with_direct_access,
-                            inheritedRole: highestRole.role,
-                            inheritedFrom: highestRole.type,
-                        },
-                    ];
-                },
-                [],
-            );
-            return acc;
-        }, {});
+        return spaceAccessMap;
     }
 
     private async _getGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
@@ -1126,6 +1109,8 @@ export class SpaceModel {
 
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
+        const access = await this._getSpaceAccess([space.uuid]);
+
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
@@ -1136,8 +1121,7 @@ export class SpaceModel {
             pinnedListOrder: space.pinnedListOrder,
             queries: await this.getSpaceQueries([space.uuid]),
             dashboards: await this.getSpaceDashboards([space.uuid]),
-            access:
-                (await this._getSpaceAccess([space.uuid]))[space.uuid] ?? [],
+            access: access[space.uuid] ?? [],
             groupsAccess: await this._getGroupAccess(space.uuid),
             slug: space.slug,
         };

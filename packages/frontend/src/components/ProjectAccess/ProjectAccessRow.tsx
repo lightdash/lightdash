@@ -1,7 +1,7 @@
 import {
     getHighestProjectRole,
+    MemberRoleLabels,
     ProjectMemberRole,
-    ProjectMemberRoleLabels,
     type InheritedRoles,
     type OrganizationMemberProfile,
     type ProjectRole,
@@ -136,7 +136,7 @@ const ProjectAccessRow: FC<Props> = ({
                                 data={Object.values(ProjectMemberRole).map(
                                     (role) => ({
                                         value: role,
-                                        label: ProjectMemberRoleLabels[role],
+                                        label: MemberRoleLabels[role],
                                     }),
                                 )}
                                 value={
@@ -163,11 +163,7 @@ const ProjectAccessRow: FC<Props> = ({
                                 <Text color="orange" size="xs">
                                     User inherits higher role{' '}
                                     <Text span fw={600}>
-                                        {
-                                            ProjectMemberRoleLabels[
-                                                highestRole.role
-                                            ]
-                                        }
+                                        {MemberRoleLabels[highestRole.role]}
                                     </Text>{' '}
                                     from{' '}
                                     <Text span fw={600}>

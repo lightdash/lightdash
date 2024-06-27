@@ -1,5 +1,5 @@
 import {
-    ProjectMemberRole,
+    assertUnreachable,
     SpaceMemberRole,
     type LightdashUser,
     type Space,
@@ -137,6 +137,110 @@ const ListCollapse: FC<React.PropsWithChildren<ListCollapseProps>> = ({
     );
 };
 
+type UserAccessItemProps = {
+    sharedUser: SpaceShare;
+    isSessionUser: boolean;
+    needsToBePromotedToInteractiveViewer: boolean;
+    userAccessTypes: AccessOption[];
+    onAccessChange: (
+        action: UserAccessAction,
+        currentUserAccess: SpaceShare,
+    ) => void;
+};
+
+const UserAccessItem: FC<UserAccessItemProps> = ({
+    sharedUser,
+    isSessionUser,
+    needsToBePromotedToInteractiveViewer,
+    userAccessTypes,
+    onAccessChange,
+}) => {
+    return (
+        <Group key={sharedUser.userUuid} spacing="sm" position="apart" noWrap>
+            <Group spacing="xs">
+                <Avatar size={'sm'} radius="xl" tt="uppercase" color="blue">
+                    {getInitials(
+                        sharedUser.userUuid,
+                        sharedUser.firstName,
+                        sharedUser.lastName,
+                        sharedUser.email,
+                    )}
+                </Avatar>
+
+                <Text fw={600} fz="sm">
+                    {getUserNameOrEmail(
+                        sharedUser.userUuid,
+                        sharedUser.firstName,
+                        sharedUser.lastName,
+                        sharedUser.email,
+                    )}
+                    {isSessionUser ? (
+                        <Text fw={400} span c="gray.6">
+                            {' '}
+                            (you)
+                        </Text>
+                    ) : null}
+                </Text>
+            </Group>
+            {isSessionUser ||
+            (!sharedUser.hasDirectAccess &&
+                sharedUser.role === SpaceMemberRole.ADMIN) ? (
+                <Badge size="xs" color="gray.6" radius="xs" mr={'xs'}>
+                    {UserAccessOptions.find(
+                        (option) => option.value === sharedUser.role,
+                    )?.title ?? sharedUser.role}
+                </Badge>
+            ) : (
+                <Tooltip
+                    disabled={!needsToBePromotedToInteractiveViewer}
+                    withinPortal
+                    label="User needs to be promoted to interactive viewer to have this space access"
+                    maw={350}
+                    multiline
+                >
+                    <Select
+                        styles={{
+                            input: {
+                                fontWeight: 500,
+                            },
+                            rightSection: {
+                                pointerEvents: 'none',
+                            },
+                        }}
+                        w="auto"
+                        size="xs"
+                        withinPortal
+                        data={userAccessTypes.map((u) => ({
+                            label: u.title,
+                            ...u,
+                        }))}
+                        value={sharedUser.role}
+                        itemComponent={UserAccessSelectItem}
+                        onChange={(userAccessOption) => {
+                            if (userAccessOption) {
+                                onAccessChange(
+                                    userAccessOption as UserAccessAction,
+                                    sharedUser,
+                                );
+                            }
+                        }}
+                        error={needsToBePromotedToInteractiveViewer}
+                        rightSection={
+                            needsToBePromotedToInteractiveViewer ? (
+                                <MantineIcon
+                                    icon={IconAlertCircle}
+                                    size="sm"
+                                    color="red.6"
+                                />
+                            ) : null
+                        }
+                    />
+                </Tooltip>
+            )}
+        </Group>
+    );
+};
+
 type UserAccessListProps = {
     isPrivate: boolean;
     accessList: SpaceShare[];
@@ -158,131 +262,40 @@ const UserAccessList: FC<UserAccessListProps> = ({
                 .sort(sortByRole(sessionUser?.userUuid))
                 .map((sharedUser) => {
                     const needsToBePromotedToInteractiveViewer =
-                        sharedUser.inheritedRole === ProjectMemberRole.VIEWER &&
-                        sharedUser.role !== SpaceMemberRole.VIEWER;
+                        sharedUser.role === SpaceMemberRole.VIEWER;
+
                     const isSessionUser =
                         sharedUser.userUuid === sessionUser?.userUuid;
 
                     const userAccessTypes = UserAccessOptions.filter(
-                        (accessType) =>
-                            accessType.value !== UserAccessAction.DELETE ||
-                            sharedUser.hasDirectAccess,
-                    ).map((accessType) =>
-                        accessType.value === UserAccessAction.DELETE &&
-                        !isPrivate
+                        (accessType) => {
+                            return (
+                                accessType.value !== UserAccessAction.DELETE ||
+                                sharedUser.hasDirectAccess
+                            );
+                        },
+                    ).map((accessType) => {
+                        return accessType.value === UserAccessAction.DELETE &&
+                            !isPrivate
                             ? {
                                   ...accessType,
                                   title: 'Reset access',
                                   selectDescription: `Reset user's access`,
                               }
-                            : accessType,
-                    );
+                            : accessType;
+                    });
 
                     return (
-                        <Group
+                        <UserAccessItem
                             key={sharedUser.userUuid}
-                            spacing="sm"
-                            position="apart"
-                            noWrap
-                        >
-                            <Group>
-                                <Avatar
-                                    size={'sm'}
-                                    radius="xl"
-                                    tt="uppercase"
-                                    color="blue"
-                                >
-                                    {getInitials(
-                                        sharedUser.userUuid,
-                                        sharedUser.firstName,
-                                        sharedUser.lastName,
-                                        sharedUser.email,
-                                    )}
-                                </Avatar>
-
-                                <Text fw={600} fz="sm">
-                                    {getUserNameOrEmail(
-                                        sharedUser.userUuid,
-                                        sharedUser.firstName,
-                                        sharedUser.lastName,
-                                        sharedUser.email,
-                                    )}
-                                    {isSessionUser ? (
-                                        <Text fw={400} span c="gray.6">
-                                            {' '}
-                                            (you)
-                                        </Text>
-                                    ) : null}
-                                </Text>
-                            </Group>
-                            {isSessionUser ||
-                            (!sharedUser.hasDirectAccess &&
-                                sharedUser.inheritedRole ===
-                                    ProjectMemberRole.ADMIN) ? (
-                                <Badge
-                                    size="xs"
-                                    color="gray.6"
-                                    radius="xs"
-                                    mr={'xs'}
-                                >
-                                    {UserAccessOptions.find(
-                                        (option) =>
-                                            option.value === sharedUser.role,
-                                    )?.title ?? sharedUser.role}
-                                </Badge>
-                            ) : (
-                                <Tooltip
-                                    disabled={
-                                        !needsToBePromotedToInteractiveViewer
-                                    }
-                                    withinPortal
-                                    label="User needs to be promoted to interactive viewer to have this space access"
-                                    maw={350}
-                                    multiline
-                                >
-                                    <Select
-                                        styles={{
-                                            input: {
-                                                fontWeight: 500,
-                                                textAlign: 'right',
-                                            },
-                                            rightSection: {
-                                                pointerEvents: 'none',
-                                            },
-                                        }}
-                                        size="xs"
-                                        variant="unstyled"
-                                        withinPortal
-                                        data={userAccessTypes.map((u) => ({
-                                            label: u.title,
-                                            ...u,
-                                        }))}
-                                        value={sharedUser.role}
-                                        itemComponent={UserAccessSelectItem}
-                                        onChange={(userAccessOption) => {
-                                            if (userAccessOption) {
-                                                onAccessChange(
-                                                    userAccessOption as UserAccessAction,
-                                                    sharedUser,
-                                                );
-                                            }
-                                        }}
-                                        error={
-                                            needsToBePromotedToInteractiveViewer
-                                        }
-                                        rightSection={
-                                            needsToBePromotedToInteractiveViewer ? (
-                                                <MantineIcon
-                                                    icon={IconAlertCircle}
-                                                    size="sm"
-                                                    color="red.6"
-                                                />
-                                            ) : null
-                                        }
-                                    />
-                                </Tooltip>
-                            )}
-                        </Group>
+                            sharedUser={sharedUser}
+                            isSessionUser={isSessionUser}
+                            needsToBePromotedToInteractiveViewer={
+                                needsToBePromotedToInteractiveViewer
+                            }
+                            userAccessTypes={userAccessTypes}
+                            onAccessChange={onAccessChange}
+                        />
                     );
                 })}
         </Stack>
@@ -297,6 +310,7 @@ type GroupAccessListProps = {
         currentGroupAccess: SpaceGroup,
     ) => void;
 };
+
 const GroupsAccessList: FC<GroupAccessListProps> = ({
     isPrivate,
     onAccessChange,
@@ -326,7 +340,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                         position="apart"
                         noWrap
                     >
-                        <Group>
+                        <Group spacing="xs">
                             <Avatar size={'sm'} radius="xl" color="blue">
                                 <MantineIcon
                                     icon={IconUsers}
@@ -343,14 +357,12 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                             styles={{
                                 input: {
                                     fontWeight: 500,
-                                    textAlign: 'right',
                                 },
                                 rightSection: {
                                     pointerEvents: 'none',
                                 },
                             }}
                             size="xs"
-                            variant="unstyled"
                             withinPortal
                             data={userAccessTypes.map((u) => ({
                                 label: u.title,
@@ -378,6 +390,8 @@ type SpaceAccessByType = {
     project: SpaceShare[];
     organisation: SpaceShare[];
     direct: SpaceShare[];
+    group: SpaceShare[];
+    space_group: SpaceShare[];
 };
 
 export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
@@ -410,7 +424,9 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 unshareSpaceMutation(sharedUser.userUuid);
             } else {
                 if (
-                    sharedUser.inheritedRole === ProjectMemberRole.ADMIN &&
+                    (!sharedUser.hasDirectAccess ||
+                        !sharedUser.hasGroupAccess) &&
+                    sharedUser.role === SpaceMemberRole.ADMIN &&
                     userAccessOption !== UserAccessAction.ADMIN
                 ) {
                     showToastError({
@@ -465,18 +481,46 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     const accessByType = useMemo<SpaceAccessByType>(() => {
         return space.access.reduce<SpaceAccessByType>(
             (acc, spaceShare) => {
-                if (spaceShare.hasDirectAccess) {
-                    acc.direct.push(spaceShare);
-                } else if (spaceShare.inheritedFrom === 'project') {
-                    acc.project.push(spaceShare);
-                } else {
-                    acc.organisation.push(spaceShare);
+                const { inheritedFrom } = spaceShare;
+
+                switch (inheritedFrom) {
+                    case 'organization':
+                        return {
+                            ...acc,
+                            organisation: [...acc.organisation, spaceShare],
+                        };
+                    case 'project':
+                        return {
+                            ...acc,
+                            project: [...acc.project, spaceShare],
+                        };
+                    case 'group':
+                        return {
+                            ...acc,
+                            group: [...acc.group, spaceShare],
+                        };
+                    case 'space_group':
+                        return {
+                            ...acc,
+                            space_group: [...acc.space_group, spaceShare],
+                        };
+                    case 'space':
+                        return {
+                            ...acc,
+                            direct: [...acc.direct, spaceShare],
+                        };
+                    default:
+                        return assertUnreachable(
+                            inheritedFrom,
+                            `Unknown type ${inheritedFrom} in spaceShare`,
+                        );
                 }
-                return acc;
             },
             {
                 project: [],
                 organisation: [],
+                group: [],
+                space_group: [],
                 direct: [],
             },
         );
@@ -485,11 +529,13 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     return (
         <Stack spacing={'xs'}>
             {(accessByType.organisation.length > 0 ||
-                accessByType.project.length > 0) && (
+                accessByType.project.length > 0 ||
+                accessByType.group.length > 0) && (
                 <Text fw={400} span c="gray.6">
                     Inherited access
                 </Text>
             )}
+
             {accessByType.organisation.length > 0 && (
                 <ListCollapse
                     icon={IconBuildingBank}
@@ -518,7 +564,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                     />
                 </ListCollapse>
             )}
-            {space.access.length > 0 && (
+            {space.groupsAccess.length > 0 && (
                 <>
                     <Text fw={400} span c="gray.6">
                         Group access
