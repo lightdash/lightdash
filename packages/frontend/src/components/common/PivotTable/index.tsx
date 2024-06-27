@@ -3,6 +3,7 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getItemId,
     isDimension,
     isField,
     isMetric,
@@ -21,7 +22,6 @@ import {
     getCoreRowModel,
     getExpandedRowModel,
     useReactTable,
-    type ColumnDef,
     type GroupingState,
     type Row,
 } from '@tanstack/react-table';
@@ -29,14 +29,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { getDecimalPrecision } from '../../../hooks/tableVisualization/getDataAndColumns';
 import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs';
@@ -44,6 +38,7 @@ import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/styles';
 import MantineIcon from '../MantineIcon';
 import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdash';
+import { countSubRows } from '../Table/ScrollableTable/TableBody';
 import {
     columnHelper,
     ROW_NUMBER_COLUMN_ID,
@@ -51,29 +46,6 @@ import {
 } from '../Table/types';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
-
-// TODO: Remove code duplicated from non-pivot table version.
-// Adapted from https://stackoverflow.com/a/45337588
-const decimalLength = (numStr: number) => {
-    const pieces = numStr.toString().split('.');
-    if (!pieces[1]) return 0;
-    return pieces[1].length;
-};
-
-// TODO: Remove code duplicated from non-pivot table version.
-const getDecimalPrecision = (addend1: number, addend2: number) =>
-    Math.pow(10, Math.max(decimalLength(addend1), decimalLength(addend2)));
-
-// TODO: Remove code duplicated from non-pivot table version.
-const countSubRows = (rowNode: Row<ResultRow>): number => {
-    if (rowNode.subRows?.length) {
-        return rowNode.subRows.reduce((acc: number, nextRowNode) => {
-            return acc + countSubRows(nextRowNode);
-        }, 0);
-    } else {
-        return 1;
-    }
-};
 
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
@@ -115,176 +87,23 @@ const PivotTable: FC<PivotTableProps> = ({
     ...tableProps
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [columns, setColumns] = useState<ColumnDef<ResultRow, any>[]>([]);
-    const [columnOrder, setColumnOrder] = useState<string[]>([]);
-    const [combinedData, setCombinedData] = useState<ResultRow[]>([]);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
 
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
     const hasRowTotals = data.pivotConfig.rowTotals;
 
-    const getMetricAsRowTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue | null => {
-            const value = last(data.indexValues[rowIndex]);
-            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
-
-            const item = getField(value.fieldId);
-            if (!isSummable(item)) {
-                return null;
-            }
-            const formattedValue = formatItemValue(item, total);
-
-            return {
-                raw: total,
-                formatted: formattedValue,
-            };
-        },
-        [data.indexValues, getField],
-    );
-
-    const getRowTotalValueFromAxis = useCallback(
-        (total: unknown, colIndex: number): ResultValue => {
-            const value = last(data.rowTotalFields)?.[colIndex];
-
-            if (!value || !value.fieldId) throw new Error('Invalid pivot data');
-            const item = getField(value.fieldId);
-
-            const formattedValue = formatItemValue(item, total);
-
-            return {
-                raw: total,
-                formatted: formattedValue,
-            };
-        },
-        [data.rowTotalFields, getField],
-    );
-
-    // TODO: indexValues, dataValues, and rowTotalFields should perhaps be combined in pivotQueryResults.ts
-    //  or elsewhere but doing it here for now.
-    //  Alternatively, this whole pivot table implementation should perhaps be combined with the non-pivot tables.
-    useEffect(() => {
-        const indexValues = data.indexValues.length ? data.indexValues : [[]];
-        const baseIdInfo = last(data.headerValues);
-        const uniqueIdsForDataValueColumns: string[] = Array(
-            data.headerValues[0].length,
-        );
-
+    const { columns, columnOrder } = useMemo(() => {
         let headerInfoForColumns = data.headerValues[0].map(() => ({}));
-        data.headerValues.forEach((headerRow) => {
-            headerRow.forEach((headerColValue, colIndex) => {
-                if ('value' in headerColValue) {
-                    const colInfo: { [key: string]: any } =
-                        headerInfoForColumns[colIndex];
-                    colInfo[headerColValue.fieldId] = headerColValue.value;
-                }
-                uniqueIdsForDataValueColumns[colIndex] =
-                    uniqueIdsForDataValueColumns[colIndex] +
-                    headerColValue.fieldId +
-                    '__';
-            });
-        });
-
         headerInfoForColumns = [
             ...Array(data.indexValueTypes.length),
             ...headerInfoForColumns,
         ];
 
-        let firstRowOnly = [] as any[];
-        const allCombinedData = indexValues.map((row, rowIndex) => {
-            const newRow = row.map((cell, colIndex) => {
-                if (cell.type === 'label') {
-                    const cellValue = getFieldLabel(cell.fieldId);
-                    return {
-                        ...cell,
-                        fieldId: 'label-' + colIndex,
-                        value: {
-                            raw: cellValue,
-                            formatted: cellValue,
-                        },
-                        meta: {
-                            type: 'label',
-                        },
-                    };
-                }
-                return {
-                    ...cell,
-                    meta: {
-                        type: 'indexValue',
-                    },
-                };
-            });
-
-            const remappedDataValues = data.dataValues[rowIndex].map(
-                (dataValue, colIndex) => {
-                    const baseIdInfoForCol = baseIdInfo
-                        ? baseIdInfo[colIndex]
-                        : undefined;
-                    const baseId = baseIdInfoForCol?.fieldId;
-                    const id =
-                        uniqueIdsForDataValueColumns[colIndex] + colIndex;
-                    return {
-                        baseId: baseId,
-                        fieldId: id,
-                        value: dataValue || {},
-                    };
-                },
-            );
-
-            const remappedRowTotals = data.rowTotals?.[rowIndex]?.map(
-                (total, colIndex) => {
-                    const baseId = 'row-total-' + colIndex;
-                    const id = baseId;
-                    const value = data.pivotConfig.metricsAsRows
-                        ? getMetricAsRowTotalValueFromAxis(total, rowIndex)
-                        : getRowTotalValueFromAxis(total, colIndex);
-                    const underlyingId = data.pivotConfig.metricsAsRows
-                        ? undefined
-                        : last(data.rowTotalFields)?.[colIndex]?.fieldId;
-                    return {
-                        baseId: baseId,
-                        fieldId: id,
-                        underlyingId: underlyingId,
-                        value: value,
-                        meta: {
-                            type: 'rowTotal',
-                        },
-                    };
-                },
-            );
-
-            const entireRow = [
-                ...newRow,
-                ...remappedDataValues,
-                ...(remappedRowTotals || []),
-            ];
-
-            if (rowIndex === 0) {
-                firstRowOnly = entireRow;
-            }
-
-            const altRow: ResultRow = {};
-            entireRow.forEach((cell) => {
-                const val = cell.value;
-                if (val && 'formatted' in val && val.formatted !== undefined) {
-                    altRow[cell.fieldId] = {
-                        value: {
-                            raw: val.raw,
-                            formatted: val.formatted,
-                        },
-                    };
-                }
-            });
-
-            return altRow;
-        });
-
-        setCombinedData(allCombinedData);
-
         const newColumnOrder: string[] = [];
         if (!hideRowNumbers) newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
 
-        let newColumns = firstRowOnly.map((col, colIndex) => {
+        let newColumns = data.retrofitData.firstRowOnly.map((col, colIndex) => {
             newColumnOrder.push(col.fieldId);
 
             const item = getField(col.underlyingId || col.baseId);
@@ -362,25 +181,17 @@ const PivotTable: FC<PivotTableProps> = ({
 
         if (!hideRowNumbers) newColumns = [rowColumn, ...newColumns];
 
-        setColumns(newColumns);
-        setColumnOrder(newColumnOrder);
+        return { columns: newColumns, columnOrder: newColumnOrder };
     }, [
-        data.indexValues,
+        data.retrofitData.firstRowOnly,
         data.indexValueTypes.length,
-        data.dataValues,
         data.headerValues,
-        data.rowTotals,
-        data.rowTotalFields,
-        data.pivotConfig.metricsAsRows,
         getField,
-        getFieldLabel,
-        getMetricAsRowTotalValueFromAxis,
-        getRowTotalValueFromAxis,
         hideRowNumbers,
     ]);
 
     const table = useReactTable({
-        data: combinedData,
+        data: data.retrofitData.allCombinedData,
         columns: columns,
         state: {
             grouping,
@@ -450,7 +261,7 @@ const PivotTable: FC<PivotTableProps> = ({
             const itemValue = fullItemValue.value;
             let underlyingValues =
                 isField(item) && itemValue
-                    ? { [fieldId(item)]: itemValue }
+                    ? { [getItemId(item)]: itemValue }
                     : {};
             visibleCells.forEach((cell, cellIndex) => {
                 if (cell.column.columnDef.meta?.type === 'indexValue') {
