@@ -1808,7 +1808,6 @@ export class ProjectService extends BaseService {
                                 : {}),
                         },
                     });
-
                     this.logger.debug(
                         `Fetch query results from cache or warehouse`,
                     );
