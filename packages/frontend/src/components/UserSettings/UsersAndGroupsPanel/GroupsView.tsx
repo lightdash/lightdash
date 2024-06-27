@@ -168,7 +168,7 @@ const GroupsView: FC = () => {
     const [search, setSearch] = useState('');
 
     const { data: groups, isInitialLoading: isLoadingGroups } =
-        useOrganizationGroups({ search, includeMembers: 100 }); // TODO: pagination
+        useOrganizationGroups({ search, includeMembers: 2000 }); // TODO: pagination
 
     const handleDelete = useCallback(() => {
         if (groupToDelete) {
