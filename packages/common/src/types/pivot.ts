@@ -1,5 +1,5 @@
 import { type FieldType } from './field';
-import { type ResultValue } from './results';
+import { type ResultRow, type ResultValue } from './results';
 
 export type PivotConfig = {
     pivotDimensions: string[];
@@ -24,7 +24,7 @@ type TitleField = null | {
     direction: 'index' | 'header';
 };
 
-type TotalField = null | {
+export type TotalField = null | {
     fieldId?: string;
 };
 
@@ -52,4 +52,9 @@ export type PivotData = {
     cellsCount: number;
     rowsCount: number;
     pivotConfig: PivotConfig;
+
+    retrofitData: {
+        allCombinedData: ResultRow[];
+        firstRowOnly: any[];
+    };
 };

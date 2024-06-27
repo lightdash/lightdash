@@ -97,6 +97,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
         expect(result).toEqual(expected);
     });
@@ -172,6 +174,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
         expect(result).toEqual(expected);
     });
@@ -236,6 +240,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_1DIM_2METRIC,
             rows: RESULT_ROWS_1DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
         expect(result).toEqual(expected);
     });
@@ -347,6 +353,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
 
         expect(result).toEqual(expected);
@@ -489,6 +497,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_2DIM_2METRIC,
             rows: RESULT_ROWS_2DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
         expect(result).toStrictEqual(expected);
     });
@@ -522,6 +532,8 @@ describe('Should pivot data', () => {
             metricQuery: METRIC_QUERY_0DIM_2METRIC,
             rows: RESULT_ROWS_0DIM_2METRIC,
             options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
         });
         expect(results).toStrictEqual(expected);
     });
