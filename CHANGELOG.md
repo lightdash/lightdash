@@ -1,3 +1,10 @@
+# [0.1146.0](https://github.com/lightdash/lightdash/compare/0.1145.0...0.1146.0) (2024-06-27)
+
+
+### Features
+
+* add refresh dbt button to catalog ([#10533](https://github.com/lightdash/lightdash/issues/10533)) ([421f371](https://github.com/lightdash/lightdash/commit/421f371400588070197536750e856871ca4889b7))
+
 # [0.1145.0](https://github.com/lightdash/lightdash/compare/0.1144.1...0.1145.0) (2024-06-26)
 
 
