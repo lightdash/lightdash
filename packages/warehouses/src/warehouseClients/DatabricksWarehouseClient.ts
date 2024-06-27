@@ -14,9 +14,10 @@ import {
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseResults,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
-import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 type SchemaResult = {
     TABLE_CAT: string;
@@ -228,7 +229,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: Results) => void,
+        streamCallback: (data: WarehouseResults) => void,
         options: {
             tags?: Record<string, string>;
             timezone?: string;
@@ -288,29 +289,6 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             if (query) await query.close();
             await close();
         }
-    }
-
-    async runQuery(
-        sql: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
-        let fields: Results['fields'] = {};
-        const rows: Results['rows'] = [];
-
-        await this.streamQuery(
-            sql,
-            (data) => {
-                fields = data.fields;
-                rows.push(...data.rows);
-            },
-            {
-                tags,
-                timezone,
-            },
-        );
-
-        return { fields, rows };
     }
 
     async getCatalog(

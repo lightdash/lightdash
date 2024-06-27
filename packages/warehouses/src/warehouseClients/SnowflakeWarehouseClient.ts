@@ -8,6 +8,7 @@ import {
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseResults,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -19,7 +20,7 @@ import {
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
-import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 // Prevent snowflake sdk from flooding the output with info logs
 configure({ logLevel: 'ERROR' });
@@ -173,7 +174,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: Results) => void,
+        streamCallback: (data: WarehouseResults) => void,
         options: {
             tags?: Record<string, string>;
             timezone?: string;
@@ -248,33 +249,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
-    async runQuery(
-        sql: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
-        let fields: Results['fields'] = {};
-        const rows: Results['rows'] = [];
-
-        await this.streamQuery(
-            sql,
-            (data) => {
-                fields = data.fields;
-                rows.push(...data.rows);
-            },
-            {
-                tags,
-                timezone,
-            },
-        );
-
-        return { fields, rows };
-    }
-
     private async executeStreamStatement(
         connection: Connection,
         sqlText: string,
-        streamCallback: (data: Results) => void,
+        streamCallback: (data: WarehouseResults) => void,
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             connection.execute({

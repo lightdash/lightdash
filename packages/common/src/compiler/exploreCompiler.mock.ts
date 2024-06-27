@@ -26,6 +26,13 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
+    streamQuery: (_query, streamCallback) => {
+        streamCallback({
+            fields: {},
+            rows: [],
+        });
+        return Promise.resolve();
+    },
     runQuery: () =>
         Promise.resolve({
             fields: {},

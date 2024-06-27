@@ -6,6 +6,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     WarehouseQueryError,
+    WarehouseResults,
 } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -14,7 +15,7 @@ import { PoolConfig, QueryResult } from 'pg';
 import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
-import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
@@ -165,7 +166,7 @@ export class PostgresClient<
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: Results) => void,
+        streamCallback: (data: WarehouseResults) => void,
         options: {
             tags?: Record<string, string>;
             timezone?: string;
@@ -280,29 +281,6 @@ export class PostgresClient<
                     console.info('Failed to end postgres pool');
                 });
             });
-    }
-
-    async runQuery(
-        sql: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
-        let fields: Results['fields'] = {};
-        const rows: Results['rows'] = [];
-
-        await this.streamQuery(
-            sql,
-            (data) => {
-                fields = data.fields;
-                rows.push(...data.rows);
-            },
-            {
-                tags,
-                timezone,
-            },
-        );
-
-        return { fields, rows };
     }
 
     async getCatalog(

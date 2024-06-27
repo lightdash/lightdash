@@ -15,6 +15,7 @@ import {
     SupportedDbtAdapter,
     TimeFrames,
     WarehouseClient,
+    WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
 
@@ -31,6 +32,13 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
+    streamQuery(query, streamCallback) {
+        streamCallback({
+            fields: {},
+            rows: [],
+        });
+        return Promise.resolve();
+    },
     runQuery: () =>
         Promise.resolve({
             fields: {},
@@ -65,6 +73,13 @@ export const bigqueryClientMock: WarehouseClient = {
             },
         },
     }),
+    streamQuery(query, streamCallback) {
+        streamCallback({
+            fields: {},
+            rows: [],
+        });
+        return Promise.resolve();
+    },
     runQuery: () =>
         Promise.resolve({
             fields: {},

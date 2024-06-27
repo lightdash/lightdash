@@ -15,10 +15,11 @@ import {
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseResults,
 } from '@lightdash/common';
 import { pipeline, Transform, Writable } from 'stream';
 import { WarehouseCatalog, WarehouseTableSchema } from '../types';
-import WarehouseBaseClient, { Results } from './WarehouseBaseClient';
+import WarehouseBaseClient from './WarehouseBaseClient';
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -127,7 +128,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     async streamQuery(
         query: string,
-        streamCallback: (data: Results) => void,
+        streamCallback: (data: WarehouseResults) => void,
         options: {
             tags?: Record<string, string>;
             timezone?: string;
@@ -196,29 +197,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         }
-    }
-
-    async runQuery(
-        query: string,
-        tags?: Record<string, string>,
-        timezone?: string,
-    ) {
-        let fields: Results['fields'] = {};
-        const rows: Results['rows'] = [];
-
-        await this.streamQuery(
-            query,
-            (data) => {
-                fields = data.fields;
-                rows.push(...data.rows);
-            },
-            {
-                tags,
-                timezone,
-            },
-        );
-
-        return { fields, rows };
     }
 
     static async getTableMetadata(
