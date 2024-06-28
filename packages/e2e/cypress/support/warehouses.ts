@@ -3,9 +3,9 @@ import bigqueryCredentials from '../fixtures/credentials.json';
 
 const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
     postgresSQL: {
-        host: Cypress.env('PGHOST') || 'localhost',
+        host: Cypress.env('PGHOST') || 'db-dev',
         user: 'postgres',
-        password: Cypress.env('PGPASSWORD') || 'postgres',
+        password: Cypress.env('PGPASSWORD') || 'password',
         dbname: 'postgres',
 
         schema: 'jaffle',
@@ -14,9 +14,9 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         type: WarehouseTypes.POSTGRES,
     },
     redshift: {
-        host: Cypress.env('PGHOST') || 'localhost',
+        host: Cypress.env('PGHOST') || 'db-dev',
         user: 'postgres',
-        password: Cypress.env('PGPASSWORD') || 'postgres',
+        password: Cypress.env('PGPASSWORD') || 'password',
         dbname: 'postgres',
         port: 5432,
         schema: 'jaffle',
