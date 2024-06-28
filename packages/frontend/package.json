@@ -78,6 +78,7 @@
         "react-helmet": "^6.1.0",
         "react-hook-form": "^7.26.1",
         "react-json-view": "^1.21.3",
+        "react-resizable": "^3.0.5",
         "react-router-dom": "5.3.4",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
