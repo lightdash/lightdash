@@ -5,7 +5,6 @@ sidebar_label: Slack integration
 import SlackCreateNewApp from './assets/slack-create-new-app.png';
 import SlackSelectWorkspace from './assets/slack-select-worskpace.png';
 import SlackBasicInformation from './assets/slack-basic-information.png';
-import SlackAppToken from './assets/slack-app-token.png';
 
 # Configure a slack integration for self-hosted Lightdash
 
@@ -35,49 +34,45 @@ Then select the workspace you want to enable this into. Later you can `enable di
 
 Then copy this manifest to allow URL unfurls in your app. **Make sure you update `your Lightdash URL` in the manifest below** (for example, `app.lightdash.cloud` or `eu1.lightdash.cloud`).
 
-```
-{
-    "display_information": {
-        "name": "Lightdash",
-        "description": "Share Lightdash URLs on your Slack",
-        "background_color": "#7262ff"
-    },
-    "features": {
-        "bot_user": {
-            "display_name": "Lightdash",
-            "always_online": false
-        },
-        "unfurl_domains": [
-            "<your Lightdash URL>"
-        ]
-    },
-    "oauth_config": {
-        "redirect_urls": [
-            "https://<your Lightdash URL>/api/v1/slack/oauth_redirect"
-        ],
-        "scopes": {
-            "bot": [
-                "links:read",
-                "links:write"
-            ]
-        }
-    },
-    "settings": {
-        "event_subscriptions": {
-            "request_url": "https://<your Lightdash URL>/slack/events"
-            "bot_events": [
-                "link_shared"
-            ]
-        },
-        "interactivity": {
-            "is_enabled": true
-        },
-        "org_deploy_enabled": false,
-        "socket_mode_enabled": false,
-        "token_rotation_enabled": false
-    }
-}
-
+```yaml
+display_information:
+  name: Lightdash
+  description: Share Lightdash URLs on your Slack
+  background_color: '#7262ff'
+features:
+  bot_user:
+    display_name: Lightdash
+    always_online: false
+  unfurl_domains:
+    - your-lightdash-deployment-url.com
+oauth_config:
+  redirect_urls:
+    - https://your-lightdash-deployment-url.com/api/v1/slack/oauth_redirect
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:join
+      - channels:read
+      - chat:write
+      - files:read
+      - files:write
+      - groups:history
+      - groups:read
+      - links:read
+      - links:write
+      - users:read
+settings:
+  event_subscriptions:
+    request_url: https://your-lightdash-deployment-url.com/slack/events
+    bot_events:
+      - app_mention
+      - link_shared
+  interactivity:
+    is_enabled: true
+    request_url: https://your-lightdash-deployment-url.com/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
 ```
 
 Finally, click on `create`
@@ -98,17 +93,6 @@ From `Basic Information`
 - Client ID
 - Client secret (show and copy)
 - Signing secret (show and copy)
-
-Also create a new App-level token by clicking on `Generate Token and Scopes`
-
-<img
-  src={SlackAppToken}
-  width="500"
-  height="400"
-  style={{ display: 'block', margin: '0 auto 20px auto' }}
-/>
-
-Copy the token it generates.
 
 ### Adding credentials to your local environment
 
