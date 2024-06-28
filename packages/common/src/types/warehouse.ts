@@ -33,6 +33,7 @@ export interface WarehouseClient {
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -43,12 +44,14 @@ export interface WarehouseClient {
      * @param sql
      * @param tags
      * @param timezone
+     * @param values
      * @deprecated Use streamQuery() instead to avoid loading all results into memory
      */
     runQuery(
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
+        values?: any[],
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
@@ -79,7 +82,6 @@ export interface WarehouseClient {
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;
-    sanitizeInput(input: string): string;
 }
 
 export type ApiWarehouseCatalog = {

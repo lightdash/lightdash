@@ -231,6 +231,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -259,6 +260,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             }
             query = await session.executeStatement(alteredQuery, {
                 runAsync: true,
+                ordinalParameters: options?.values,
             });
 
             const schema = await query.getSchema();
@@ -379,9 +381,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         schema?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
+        const schemaFilter = schema ? `AND table_schema = ?` : '';
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
@@ -389,7 +389,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             ${schemaFilter}
             ORDER BY 1,2,3
         `;
-        const { rows } = await this.runQuery(query, tags);
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [schema] : undefined,
+        );
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 
@@ -398,9 +403,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         schema?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
+        const schemaFilter = schema ? `AND table_schema = ?` : '';
 
         const query = `
             SELECT table_catalog,
@@ -409,10 +412,15 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                    column_name, 
                    data_type
             FROM information_schema.columns
-            WHERE table_name = '${this.sanitizeInput(tableName)}'
+            WHERE table_name = ?
             ${schemaFilter};
         `;
-        const { rows } = await this.runQuery(query, tags);
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [tableName, schema] : [tableName],
+        );
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }

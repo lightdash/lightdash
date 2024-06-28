@@ -292,6 +292,13 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         }
     }
 
+    private sanitizeInput(sql: string) {
+        return sql.replaceAll(
+            this.getStringQuoteChar(),
+            this.getEscapeStringQuoteChar() + this.getStringQuoteChar(),
+        );
+    }
+
     async getTables(
         schema?: string,
         tags?: Record<string, string>,

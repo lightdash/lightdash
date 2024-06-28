@@ -89,7 +89,9 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    WarehouseCatalog,
     WarehouseClient,
+    WarehouseCredentials,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';

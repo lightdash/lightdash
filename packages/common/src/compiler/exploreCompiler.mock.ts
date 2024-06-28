@@ -68,9 +68,6 @@ export const warehouseClientMock: WarehouseClient = {
     parseWarehouseCatalog(): WarehouseCatalog {
         throw new Error('Function not implemented.');
     },
-    sanitizeInput(): string {
-        throw new Error('Function not implemented.');
-    },
 };
 
 const sourceMock: Source = {

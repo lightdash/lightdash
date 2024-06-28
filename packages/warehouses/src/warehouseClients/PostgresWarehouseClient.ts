@@ -169,6 +169,7 @@ export class PostgresClient<
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -218,6 +219,7 @@ export class PostgresClient<
                     const stream = client.query(
                         new QueryStream(
                             this.getSQLWithMetadata(sql, options?.tags),
+                            options?.values,
                         ),
                     );
                     // release the client when the stream is finished
@@ -361,17 +363,20 @@ export class PostgresClient<
         schema?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
+        const schemaFilter = schema ? `AND table_schema = $1` : '';
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE' 
-            ${schemaFilter}
-            ORDER BY 1,2,3
+            WHERE table_type = 'BASE TABLE'
+                ${schemaFilter}
+            ORDER BY 1, 2, 3
         `;
-        const { rows } = await this.runQuery(query, tags);
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [schema] : undefined,
+        );
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 
@@ -380,21 +385,24 @@ export class PostgresClient<
         schema?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
+        const schemaFilter = schema ? `AND table_schema = $2` : '';
 
         const query = `
             SELECT table_catalog,
                    table_schema,
                    table_name,
-                   column_name, 
+                   column_name,
                    data_type
             FROM information_schema.columns
-            WHERE table_name = '${this.sanitizeInput(tableName)}'
-            ${schemaFilter};
+            WHERE table_name = $1
+                ${schemaFilter};
         `;
-        const { rows } = await this.runQuery(query, tags);
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [tableName, schema] : [tableName],
+        );
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }

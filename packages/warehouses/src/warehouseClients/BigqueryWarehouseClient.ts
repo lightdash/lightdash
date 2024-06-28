@@ -5,6 +5,7 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    Table,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
@@ -130,6 +131,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -137,6 +139,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         try {
             const [job] = await this.client.createQueryJob({
                 query,
+                params: options?.values,
                 useLegacySql: false,
                 maximumBytesBilled:
                     this.credentials.maximumBytesBilled === undefined
@@ -275,13 +278,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return '\\';
     }
 
-    sanitizeInput(sql: string) {
-        return sql.replaceAll(
-            this.getStringQuoteChar(),
-            this.getEscapeStringQuoteChar(),
-        );
-    }
-
     getAdapterType(): SupportedDbtAdapter {
         return SupportedDbtAdapter.BIGQUERY;
     }
@@ -299,40 +295,49 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async getTables(
-        schema: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const query = `
-            SELECT table_catalog, table_schema, table_name
-            FROM \`${this.sanitizeInput(schema)}.INFORMATION_SCHEMA.TABLES\`
-            WHERE table_type = 'BASE TABLE' 
-            ORDER BY 1,2,3
-        `;
-        const { rows } = await this.runQuery(query, tags);
-
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+    async getTables(schema: string): Promise<WarehouseCatalog> {
+        const client = new BigQuery({
+            projectId: this.credentials.project,
+            location: this.credentials.location,
+            maxRetries: this.credentials.retries,
+            credentials: this.credentials.keyfileContents,
+        });
+        const dataset = client.dataset(schema);
+        const tables = (await dataset.getTables()) as unknown as Table[];
+        return this.parseWarehouseCatalog(
+            tables.map((table: Table) => ({
+                table_catalog: table.dataset.bigQuery.projectId,
+                table_schema: table.dataset.id,
+                table_name: table.id,
+            })),
+            mapFieldType,
+        );
     }
 
     async getFields(
         tableName: string,
         schema: string,
-        tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const query = `
-            SELECT 
-                table_catalog,
-                table_schema,
-                table_name,
-                column_name, 
-                data_type
-            FROM \`${this.sanitizeInput(schema)}.INFORMATION_SCHEMA.COLUMNS\`
-            WHERE  table_name = '${this.sanitizeInput(tableName)}'
-            ORDER BY 1,2,3
-
-        `;
-        const { rows } = await this.runQuery(query, tags);
-
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        const client = new BigQuery({
+            projectId: this.credentials.project,
+            location: this.credentials.location,
+            maxRetries: this.credentials.retries,
+            credentials: this.credentials.keyfileContents,
+        });
+        const dataset = client.dataset(schema);
+        const schemas = await BigqueryWarehouseClient.getTableMetadata(
+            dataset,
+            tableName,
+        );
+        return this.parseWarehouseCatalog(
+            schemas[3].fields.map((column) => ({
+                table_catalog: schemas[0],
+                table_schema: schemas[1],
+                table_name: schemas[2],
+                column_name: column.name,
+                data_type: column.type,
+            })),
+            mapFieldType,
+        );
     }
 }

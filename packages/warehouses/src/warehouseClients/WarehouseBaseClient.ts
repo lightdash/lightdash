@@ -1,5 +1,6 @@
 import {
     CreateWarehouseCredentials,
+    DimensionType,
     Metric,
     SupportedDbtAdapter,
     WarehouseCatalog,
@@ -43,6 +44,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -54,6 +56,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
+        values?: any[],
     ) {
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
@@ -65,6 +68,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                 rows.push(...data.rows);
             },
             {
+                values,
                 tags,
                 timezone,
             },
@@ -130,13 +134,6 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                 return acc;
             },
             {},
-        );
-    }
-
-    sanitizeInput(sql: string) {
-        return sql.replaceAll(
-            this.getStringQuoteChar(),
-            this.getEscapeStringQuoteChar() + this.getStringQuoteChar(),
         );
     }
 }

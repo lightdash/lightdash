@@ -78,9 +78,6 @@ export const warehouseClientMock: WarehouseClient = {
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');
     },
-    sanitizeInput(input: string): string {
-        throw new Error('Function not implemented.');
-    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -132,9 +129,6 @@ export const bigqueryClientMock: WarehouseClient = {
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
-        throw new Error('Function not implemented.');
-    },
-    sanitizeInput(input: string): string {
         throw new Error('Function not implemented.');
     },
 };
