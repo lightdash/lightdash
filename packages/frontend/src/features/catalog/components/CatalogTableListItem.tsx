@@ -12,9 +12,11 @@ import {
 } from '@mantine/core';
 import { IconLayersIntersect, IconTable } from '@tabler/icons-react';
 import React, { useState, type FC } from 'react';
-import { useToggle } from 'react-use';
+import { useHistory } from 'react-router-dom';
+import { useLocation, useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import { useExplorerUrlState } from '../../../hooks/useExplorerRoute';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useCatalogContext } from '../context/CatalogProvider';
 
@@ -40,9 +42,13 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
     onClick,
     children,
 }) => {
-    const { setSelectedTable, setIsViewingCatalog } = useCatalogContext();
+    const explorerUrlState = useExplorerUrlState();
+    const { setSelectedTable, setIsViewingCatalog, setExplorerUrlState } =
+        useCatalogContext();
     const [isOpen, toggleOpen] = useToggle(startOpen);
     const [hovered, setHovered] = useState<boolean | undefined>(false);
+    const location = useLocation();
+    const history = useHistory();
     const { ref, isTruncated: isNameTruncated } =
         useIsTruncated<HTMLDivElement>();
     const {
@@ -193,6 +199,28 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                                 e.stopPropagation();
                                 setIsViewingCatalog(false);
                                 setSelectedTable(table.name);
+                                if (
+                                    table.name !==
+                                    explorerUrlState?.unsavedChartVersion
+                                        .tableName
+                                ) {
+                                    const queryParams = new URLSearchParams(
+                                        location.search,
+                                    );
+                                    if (
+                                        queryParams.has(
+                                            'create_saved_chart_version',
+                                        )
+                                    ) {
+                                        queryParams.delete(
+                                            'create_saved_chart_version',
+                                        );
+                                        history.replace({
+                                            search: queryParams.toString(),
+                                        });
+                                    }
+                                    setExplorerUrlState(undefined);
+                                }
                             }}
                         >
                             Use table

@@ -34,6 +34,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
@@ -51,6 +52,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
+
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );

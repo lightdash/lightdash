@@ -13,14 +13,16 @@ import { useExplorerUrlState } from '../hooks/useExplorerRoute';
 import Explorer from './Explorer';
 
 const ExploreModal: FC<{ projectUuid: string }> = () => {
-    const { isViewingCatalog, setIsViewingCatalog } = useCatalogContext();
-    const explorerUrlState = useExplorerUrlState();
+    const { isViewingCatalog, explorerUrlState, setIsViewingCatalog } =
+        useCatalogContext();
+
+    const explorerUrlStateFromHook = useExplorerUrlState();
 
     useEffect(() => {
-        if (explorerUrlState) {
+        if (explorerUrlState || explorerUrlStateFromHook) {
             setIsViewingCatalog(false);
         }
-    }, [explorerUrlState, setIsViewingCatalog]);
+    }, [explorerUrlState, explorerUrlStateFromHook, setIsViewingCatalog]);
 
     return (
         <Box
@@ -28,7 +30,7 @@ const ExploreModal: FC<{ projectUuid: string }> = () => {
                 display: isViewingCatalog ? 'none' : 'block',
             }}
         >
-            <Explorer />
+            <Explorer explorerUrlState={explorerUrlState} />
         </Box>
     );
 };

@@ -11,6 +11,7 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
+import { type ExplorerReduceState } from '../../../providers/ExplorerProvider';
 
 type CatalogContextValues = {
     projectUuid: string;
@@ -26,6 +27,12 @@ type CatalogContextValues = {
     setSelectedTable: Dispatch<SetStateAction<string | undefined>>;
     isViewingCatalog: boolean;
     setIsViewingCatalog: Dispatch<SetStateAction<boolean>>;
+    explorerUrlState: ExplorerReduceState['unsavedChartVersion'] | undefined;
+    setExplorerUrlState: Dispatch<
+        SetStateAction<ExplorerReduceState['unsavedChartVersion'] | undefined>
+    >;
+    hasSelectedField: boolean;
+    setHasSelectedField: Dispatch<SetStateAction<boolean>>;
 };
 
 const CatalogContext = createContext<CatalogContextValues | undefined>(
@@ -40,6 +47,10 @@ export const CatalogProvider: FC<
         >
     >
 > = ({ isSidebarOpen, setSidebarOpen, projectUuid, children }) => {
+    const [explorerUrlState, setExplorerUrlState] = useState<
+        ExplorerReduceState['unsavedChartVersion'] | undefined
+    >();
+    const [hasSelectedField, setHasSelectedField] = useState<boolean>(false);
     const [isViewingCatalog, setIsViewingCatalog] = useState<boolean>(true);
     const [selectedTable, setSelectedTable] = useState<string | undefined>();
     const [metadata, setMetadata] = useState<CatalogMetadata>();
@@ -63,6 +74,10 @@ export const CatalogProvider: FC<
                 setSelectedTable,
                 isViewingCatalog,
                 setIsViewingCatalog,
+                explorerUrlState,
+                setExplorerUrlState,
+                hasSelectedField,
+                setHasSelectedField,
             }}
         >
             {children}

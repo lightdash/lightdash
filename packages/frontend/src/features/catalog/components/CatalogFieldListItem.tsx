@@ -24,38 +24,47 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
-    const { setSelectedTable, setIsViewingCatalog } = useCatalogContext();
+    const {
+        setSelectedTable,
+        setIsViewingCatalog,
+        setExplorerUrlState,
+        setHasSelectedField,
+    } = useCatalogContext();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { projectUuid } = useCatalogContext();
+    const fieldToExplore = getItemId({
+        name: field.name,
+        table: field.tableName,
+    });
+    const chartDraft = useMemo(
+        () => ({
+            ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+            tableName: field.tableName,
+            metricQuery: {
+                ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+                exploreName: field.tableName,
+                ...(field.fieldType === FieldType.DIMENSION
+                    ? {
+                          dimensions: [fieldToExplore],
+                      }
+                    : field.fieldType === FieldType.METRIC
+                    ? {
+                          metrics: [fieldToExplore],
+                      }
+                    : []),
+            },
+        }),
+        [field.fieldType, field.tableName, fieldToExplore],
+    );
 
     const exploreWithFieldUrl = useMemo(() => {
-        const fieldToExplore = getItemId({
-            name: field.name,
-            table: field.tableName,
-        });
         const draftChartUrl = getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
-            {
-                ...DEFAULT_EMPTY_EXPLORE_CONFIG,
-                tableName: field.tableName,
-                metricQuery: {
-                    ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
-                    exploreName: field.tableName,
-                    ...(field.fieldType === FieldType.DIMENSION
-                        ? {
-                              dimensions: [fieldToExplore],
-                          }
-                        : field.fieldType === FieldType.METRIC
-                        ? {
-                              metrics: [fieldToExplore],
-                          }
-                        : []),
-                },
-            },
+            chartDraft,
         );
 
         return `${draftChartUrl.pathname}?${draftChartUrl.search}`;
-    }, [field.fieldType, field.name, field.tableName, projectUuid]);
+    }, [chartDraft, projectUuid]);
 
     return (
         <Grid
@@ -144,7 +153,13 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                         onClick={(e) => {
                             e.stopPropagation();
                             setSelectedTable(field.tableName);
+                            if (field.tableName !== chartDraft.tableName) {
+                                setExplorerUrlState(undefined);
+                            } else {
+                                setExplorerUrlState(chartDraft);
+                            }
                             setIsViewingCatalog(false);
+                            setHasSelectedField(true);
                         }}
                     >
                         Use field

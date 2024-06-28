@@ -97,7 +97,10 @@ export enum ActionType {
 }
 
 type Action =
-    | { type: ActionType.RESET; payload: ExplorerReduceState }
+    | {
+          type: ActionType.RESET;
+          payload: ExplorerReduceState;
+      }
     | { type: ActionType.SET_FETCH_RESULTS_FALSE }
     | {
           type: ActionType.SET_PREVIOUSLY_FETCHED_STATE;
@@ -261,7 +264,7 @@ export interface ExplorerContext {
     actions: {
         clearExplore: () => void;
         clearQuery: () => void;
-        reset: () => void;
+        reset: (config?: ExplorerReduceState) => void;
         setTableName: (tableName: string) => void;
         removeActiveField: (fieldId: FieldId) => void;
         toggleActiveField: (fieldId: FieldId, isDimension: boolean) => void;
@@ -539,7 +542,12 @@ function reducer(
     };
     switch (action.type) {
         case ActionType.RESET: {
-            return action.payload;
+            if (action.payload) {
+                return {
+                    ...action.payload,
+                };
+            }
+            return state;
         }
         case ActionType.SET_TABLE_NAME: {
             return {
@@ -1340,8 +1348,13 @@ export const ExplorerProvider: FC<
                 ({ name }) => name,
             ),
         ]);
+
         return [fields, fields.size > 0];
-    }, [unsavedChartVersion]);
+    }, [
+        unsavedChartVersion.metricQuery.dimensions,
+        unsavedChartVersion.metricQuery.metrics,
+        unsavedChartVersion.metricQuery.tableCalculations,
+    ]);
 
     const cachedChartConfig = useRef<Partial<ConfigCacheMap>>({});
 
