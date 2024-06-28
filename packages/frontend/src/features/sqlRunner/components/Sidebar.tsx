@@ -9,11 +9,12 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { ColumnsList } from './ColumnsList';
+import { getTables } from '../mock';
+import { TableFieldsList } from './TableFieldsList';
 import { TablesList } from './TablesList';
 
 type Props = {
@@ -21,6 +22,10 @@ type Props = {
 };
 
 export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+    const [activeTable, setActiveTable] = useState<string | undefined>();
+    const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
+    // TODO: remove mock data
+    const tables = Object.keys(getTables().results.postgres.jaffle);
     return (
         <Stack h="100vh">
             <Group position="apart">
@@ -38,22 +43,26 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
             </Group>
             <Flex direction="column" justify="space-between" h="100%">
                 <Box>
-                    <TablesList />
+                    <TablesList
+                        activeTable={activeTable}
+                        setActiveTable={setActiveTable}
+                        tables={tables}
+                    />
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
                         width={Infinity}
-                        height={200}
+                        height={400}
                         minConstraints={[Infinity, 100]}
-                        maxConstraints={[Infinity, 400]}
+                        maxConstraints={[Infinity, 500]}
                         resizeHandles={['n']}
                         axis="y"
                         handle={
                             <Divider
                                 h={3}
-                                bg="gray.4"
+                                bg="gray.3"
                                 pos="absolute"
-                                top={-5}
+                                top={-2}
                                 left={0}
                                 right={0}
                                 sx={{
@@ -62,7 +71,11 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             />
                         }
                     >
-                        <ColumnsList />
+                        <TableFieldsList
+                            activeFields={activeFields}
+                            setActiveFields={setActiveFields}
+                            activeTable={activeTable}
+                        />
                     </ResizableBox>
                 </Box>
             </Flex>
