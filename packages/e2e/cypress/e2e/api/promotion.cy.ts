@@ -4,7 +4,7 @@ import {
     DashboardTileTypes,
     SEED_PROJECT,
 } from '@lightdash/common';
-import { warehouseConnections } from '../../support/warehouses';
+import warehouseConnections from '../../support/warehouses';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
