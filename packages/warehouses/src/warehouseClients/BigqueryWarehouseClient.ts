@@ -5,7 +5,6 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
-    Table,
 } from '@google-cloud/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
@@ -303,9 +302,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             credentials: this.credentials.keyfileContents,
         });
         const dataset = client.dataset(schema);
-        const tables = (await dataset.getTables()) as unknown as Table[];
+        const tables = (await dataset.getTables())?.[0] ?? [];
         return this.parseWarehouseCatalog(
-            tables.map((table: Table) => ({
+            tables.map((table) => ({
                 table_catalog: table.dataset.bigQuery.projectId,
                 table_schema: table.dataset.id,
                 table_name: table.id,
