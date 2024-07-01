@@ -15,6 +15,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { Tables } from './Tables';
 
 import 'react-resizable/css/styles.css';
+import {
+    SIDEBAR_MAX_WIDTH,
+    SIDEBAR_MIN_WIDTH,
+} from '../../../components/common/Page/Sidebar';
 import { TableFields } from './TableFields';
 
 type Props = {
@@ -51,10 +55,9 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
-                        width={Infinity}
                         height={400}
-                        minConstraints={[Infinity, 100]}
-                        maxConstraints={[Infinity, 500]}
+                        minConstraints={[SIDEBAR_MIN_WIDTH, 100]}
+                        maxConstraints={[SIDEBAR_MAX_WIDTH, 500]}
                         resizeHandles={['n']}
                         axis="y"
                         handle={
