@@ -91,7 +91,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             );
         });
         const spacesSharedWithMe = spacesUserCanCreateIn.filter((space) => {
-            return user.data && space.userAccess?.hasDirectAccess;
+            return (
+                user.data &&
+                (space.userAccess?.hasDirectAccess ||
+                    space.userAccess?.hasGroupAccess)
+            );
         });
         const spacesAdminsCanSee = spacesUserCanCreateIn.filter((space) => {
             return (

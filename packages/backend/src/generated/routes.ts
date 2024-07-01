@@ -4860,32 +4860,29 @@ const models: TsoaRoute.Models = {
         enums: ['viewer', 'editor', 'admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoleType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['project'] },
+                { dataType: 'enum', enums: ['organization'] },
+                { dataType: 'enum', enums: ['group'] },
+                { dataType: 'enum', enums: ['space_group'] },
+                { dataType: 'enum', enums: ['space'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SpaceShare: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                inheritedFrom: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['organization'] },
-                        { dataType: 'enum', enums: ['project'] },
-                        { dataType: 'enum', enums: ['group'] },
-                        { dataType: 'enum', enums: ['space_group'] },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                inheritedRole: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'OrganizationMemberRole' },
-                        { ref: 'ProjectMemberRole' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
+                hasGroupAccess: { dataType: 'boolean', required: true },
                 hasDirectAccess: { dataType: 'boolean', required: true },
+                inheritedFrom: { ref: 'RoleType', required: true },
                 role: { ref: 'SpaceMemberRole', required: true },
                 email: { dataType: 'string', required: true },
                 lastName: { dataType: 'string', required: true },

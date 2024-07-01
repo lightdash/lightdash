@@ -7,6 +7,7 @@ import {
     type InheritedProjectRole,
     type OrganizationRole,
     type ProjectRole,
+    type SpaceAccessRole,
     type SpaceGroupAccessRole,
 } from '../types/projectMemberRole';
 import { SpaceMemberRole } from '../types/space';
@@ -56,7 +57,11 @@ export const convertSpaceRoleToProjectRole = (
 
 export const getHighestProjectRole = (
     inheritedRoles: Array<
-        OrganizationRole | ProjectRole | GroupRole | SpaceGroupAccessRole
+        | OrganizationRole
+        | ProjectRole
+        | GroupRole
+        | SpaceGroupAccessRole
+        | SpaceAccessRole
     >,
 ): InheritedProjectRole | undefined =>
     inheritedRoles.reduce<InheritedProjectRole | undefined>(

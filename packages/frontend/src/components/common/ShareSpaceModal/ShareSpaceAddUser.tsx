@@ -159,22 +159,23 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             };
         });
 
-        const groupsSet = groups
-            ?.filter(
-                (group) =>
-                    !space.groupsAccess.some(
-                        (ga) => ga.groupUuid === group.uuid,
-                    ),
-            )
-            .map((group): SelectItem | null => {
-                return {
-                    value: group.uuid,
-                    label: group.name,
-                    group: 'Groups',
-                };
-            });
+        const groupsSet =
+            groups
+                ?.filter(
+                    (group) =>
+                        !space.groupsAccess.some(
+                            (ga) => ga.groupUuid === group.uuid,
+                        ),
+                )
+                .map((group): SelectItem | null => {
+                    return {
+                        value: group.uuid,
+                        label: group.name,
+                        group: 'Groups',
+                    };
+                }) ?? [];
 
-        return [...usersSet, ...(groupsSet ?? [])].filter(
+        return [...usersSet, ...groupsSet].filter(
             (item): item is SelectItem => item !== null,
         );
     }, [
