@@ -27,10 +27,11 @@ type StyleProps = {
     withSidebarFooter?: boolean;
     withRightSidebar?: boolean;
     hasBanner?: boolean;
+    noContentPadding?: boolean;
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
-const PAGE_CONTENT_WIDTH_LARGE = 1200;
+// const PAGE_CONTENT_WIDTH_LARGE = 1200;
 export const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
@@ -45,7 +46,6 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     if (params.hasBanner) {
         containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
     }
-
     return {
         root: {
             ...(params.withFullHeight
@@ -68,11 +68,18 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         },
 
         content: {
-            paddingTop: theme.spacing.lg,
-            paddingBottom: theme.spacing.lg,
-
             width: '100%',
             minWidth: PAGE_CONTENT_WIDTH,
+            display: 'flex',
+
+            ...(params.noContentPadding
+                ? {
+                      padding: 0,
+                  }
+                : {
+                      paddingTop: theme.spacing.lg,
+                      paddingBottom: theme.spacing.lg,
+                  }),
 
             ...(params.withSidebar || params.withRightSidebar
                 ? {
@@ -118,7 +125,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withRightSidebar
                 ? {
-                      width: PAGE_CONTENT_WIDTH_LARGE,
+                      // width: PAGE_CONTENT_WIDTH_LARGE,
                   }
                 : {}),
 
@@ -167,6 +174,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withNavbar = true,
     withPaddedContent = false,
     withSidebarFooter = false,
+    noContentPadding = false,
 
     children,
 }) => {
@@ -195,6 +203,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withSidebarFooter,
             withRightSidebar: !!rightSidebar,
             hasBanner: isCurrentProjectPreview,
+            noContentPadding: noContentPadding,
         },
         { name: 'Page' },
     );
