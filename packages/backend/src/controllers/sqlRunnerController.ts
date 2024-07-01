@@ -1,7 +1,7 @@
 import {
     ApiErrorPayload,
-    ApiSuccessEmpty,
     ApiWarehouseCatalog,
+    ApiWarehouseTableFields,
 } from '@lightdash/common';
 import {
     Get,
@@ -59,7 +59,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Path() tableName: string,
         @Request() req: express.Request,
-    ): Promise<ApiWarehouseCatalog> {
+    ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
         return {

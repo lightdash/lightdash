@@ -92,6 +92,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';
@@ -2628,7 +2629,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         tableName: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2657,7 +2658,7 @@ export class ProjectService extends BaseService {
         };
         const schema = ProjectService.getWarehouseSchema(credentials);
 
-        const warehouseCatalog = warehouseClient.getFields(
+        const warehouseCatalog = await warehouseClient.getFields(
             tableName,
             schema,
             queryTags,
@@ -2665,7 +2666,15 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return warehouseCatalog;
+        if (!schema) {
+            throw new NotFoundError(
+                'Schema not found in warehouse credentials',
+            );
+        }
+
+        return warehouseCatalog[warehouseClient.credentials.type][schema][
+            tableName
+        ];
     }
 
     async getTablesConfiguration(

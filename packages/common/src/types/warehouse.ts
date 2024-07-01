@@ -88,3 +88,8 @@ export type ApiWarehouseCatalog = {
     status: 'ok';
     results: WarehouseCatalog;
 };
+
+export type ApiWarehouseTableFields = {
+    status: 'ok';
+    results: WarehouseTableSchema;
+};
