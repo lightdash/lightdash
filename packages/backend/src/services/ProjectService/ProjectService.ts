@@ -1,3 +1,4 @@
+import { NotFound } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
@@ -31,6 +32,7 @@ import {
     deepEqual,
     DefaultSupportedDbtVersion,
     DimensionType,
+    DownloadFileType,
     Explore,
     ExploreError,
     FilterableDimension,
@@ -98,8 +100,10 @@ import {
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
+import { nanoid } from 'nanoid';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -114,6 +118,7 @@ import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -165,6 +170,7 @@ type ProjectServiceArguments = {
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     schedulerClient: SchedulerClient;
+    downloadFileModel: DownloadFileModel;
 };
 
 export class ProjectService extends BaseService {
@@ -202,6 +208,8 @@ export class ProjectService extends BaseService {
 
     schedulerClient: SchedulerClient;
 
+    downloadFileModel: DownloadFileModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -219,6 +227,7 @@ export class ProjectService extends BaseService {
         userWarehouseCredentialsModel,
         emailModel,
         schedulerClient,
+        downloadFileModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -238,6 +247,7 @@ export class ProjectService extends BaseService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
+        this.downloadFileModel = downloadFileModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1885,27 +1895,54 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    async streamResultsToLocalFile(
+        callback: (writer: (data: ResultRow) => void) => Promise<void>,
+    ): Promise<string> {
+        const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
+        const filePath = `/tmp/${downloadFileId}`;
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.JSONL,
+        );
+        const writeStream = fs.createWriteStream(filePath, {
+            encoding: 'utf8',
+        });
+
+        writeStream.on('error', (err) => {
+            this.logger.error('Error writing to file', err);
+            throw new UnexpectedServerError('Error writing to file');
+        });
+
+        const writer = (data: ResultRow) => {
+            writeStream.write(`${JSON.stringify(data)}\n`);
+        };
+
+        try {
+            await callback(writer);
+        } catch (err) {
+            this.logger.error('Error during streaming', err);
+            throw err;
+        } finally {
+            writeStream.end(() => {
+                this.logger.debug('File has been saved.');
+            });
+        }
+
+        return `/api/v1/download/${downloadFileId}`;
+    }
+
     async streamSqlQueryIntoFile(
-        user: SessionUser,
+        userUuid: string,
         projectUuid: string,
         sql: string,
-        fileId: string,
-    ): Promise<void> {
+    ): Promise<string> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
 
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         await this.analytics.track({
-            userId: user.userUuid,
+            userId: userUuid,
             event: 'sql.executed',
             properties: {
                 projectId: projectUuid,
@@ -1913,18 +1950,30 @@ export class ProjectService extends BaseService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+            await this.getWarehouseCredentials(projectUuid, userUuid),
         );
-        this.logger.debug(`Run query against warehouse`);
+        this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
-            user_uuid: user.userUuid,
+            user_uuid: userUuid,
         };
-        const results = await warehouseClient.streamQuery(sql, (data) => {}, {
-            tags: queryTags,
+
+        // TODO upload to s3 if enabled
+        const fileUrl = await this.streamResultsToLocalFile(async (writter) => {
+            await warehouseClient.streamQuery(
+                sql,
+                async ({ rows, fields }) => {
+                    const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
+                    formattedRows.forEach(writter);
+                },
+                {
+                    tags: queryTags,
+                },
+            );
         });
+
         await sshTunnel.disconnect();
-        return results;
+        return fileUrl;
     }
 
     async searchFieldUniqueValues(

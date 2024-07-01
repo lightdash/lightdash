@@ -1,6 +1,7 @@
 export enum DownloadFileType {
     CSV = 'csv',
     IMAGE = 'image',
+    JSONL = 'jsonl',
 }
 
 export type DownloadFile = {
