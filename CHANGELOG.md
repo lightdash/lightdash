@@ -1,3 +1,10 @@
+# [0.1150.0](https://github.com/lightdash/lightdash/compare/0.1149.2...0.1150.0) (2024-07-01)
+
+
+### Features
+
+* add new sql runner page with tables ([#10563](https://github.com/lightdash/lightdash/issues/10563)) ([ad21821](https://github.com/lightdash/lightdash/commit/ad218217266b1f05d0bc44cf381b5d7cfbb0f458))
+
 ## [0.1149.2](https://github.com/lightdash/lightdash/compare/0.1149.1...0.1149.2) (2024-07-01)
 
 
