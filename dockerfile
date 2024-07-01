@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgnutls28-dev=3.7.9-2+deb12u2  \
     tar=1.34+dfsg-1.2+deb12u1 \ 
-    libsystemd0=252.22-1~deb12u1
+    libsystemd0=252.26-1~deb12u1
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
