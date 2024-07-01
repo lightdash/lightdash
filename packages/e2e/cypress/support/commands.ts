@@ -26,6 +26,7 @@
 import {
     ApiChartSummaryListResponse,
     CreateChartInSpace,
+    CreateWarehouseCredentials,
     DashboardBasicDetails,
     OrganizationProject,
     SavedChart,
@@ -77,7 +78,10 @@ declare global {
 
             deleteChartsByName(names: string[]): Chainable;
 
-            createProject(projectName: string): Chainable<string>;
+            createProject(
+                projectName: string,
+                warehouseConfig: CreateWarehouseCredentials,
+            ): Chainable<string>;
             createSpace(
                 projectUuid: string,
                 spaceName: string,
@@ -368,45 +372,48 @@ Cypress.Commands.add('deleteChartsByName', (names: string[]) => {
         });
     });
 });
-Cypress.Commands.add('createProject', (projectName: string) => {
-    cy.request({
-        url: `api/v1/org/projects`,
-        headers: { 'Content-type': 'application/json' },
-        method: 'POST',
-        body: {
-            name: projectName,
-            type: 'DEFAULT',
-            dbtConnection: {
-                target: '',
-                environment: [],
-                type: 'dbt',
+Cypress.Commands.add(
+    'createProject',
+    (projectName: string, warehouseConfig: CreateWarehouseCredentials) => {
+        cy.request({
+            url: `api/v1/org/projects`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: {
+                name: projectName,
+                type: 'DEFAULT',
+                dbtConnection: {
+                    target: '',
+                    environment: [],
+                    type: 'dbt',
+                },
+                dbtVersion: 'v1.4',
+                warehouseConnection: warehouseConfig || {
+                    host: Cypress.env('PGHOST') || 'localhost',
+                    user: 'postgres',
+                    password: Cypress.env('PGPASSWORD') || 'password',
+                    dbname: 'postgres',
+                    searchPath: '',
+                    role: '',
+                    sshTunnelHost: '',
+                    sshTunnelUser: '',
+                    schema: 'jaffle',
+                    port: 5432,
+                    keepalivesIdle: 0,
+                    sslmode: 'disable',
+                    sshTunnelPort: 22,
+                    requireUserCredentials: false,
+                    type: 'postgres',
+                },
             },
-            dbtVersion: 'v1.4',
-            warehouseConnection: {
-                host: Cypress.env('PGHOST') || 'localhost',
-                user: 'postgres',
-                password: Cypress.env('PGPASSWORD') || 'password',
-                dbname: 'postgres',
-                searchPath: '',
-                role: '',
-                sshTunnelHost: '',
-                sshTunnelUser: '',
-                schema: 'jaffle',
-                port: 5432,
-                keepalivesIdle: 0,
-                sslmode: 'disable',
-                sshTunnelPort: 22,
-                requireUserCredentials: false,
-                type: 'postgres',
-            },
-        },
-    }).then((resp) => {
-        expect(resp.status).to.eq(200);
-        const { projectUuid } = resp.body.results.project;
-        cy.log(`Create project ${projectName} with uuid ${projectUuid}`);
-        cy.wrap(projectUuid);
-    });
-});
+        }).then((resp) => {
+            expect(resp.status).to.eq(200);
+            const { projectUuid } = resp.body.results.project;
+            cy.log(`Create project ${projectName} with uuid ${projectUuid}`);
+            cy.wrap(projectUuid);
+        });
+    },
+);
 
 Cypress.Commands.add(
     'createSpace',

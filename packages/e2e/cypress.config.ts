@@ -1,5 +1,5 @@
 import { defineConfig } from 'cypress';
-import * as cypressSplit from 'cypress-split';
+import cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
 
 export default defineConfig({

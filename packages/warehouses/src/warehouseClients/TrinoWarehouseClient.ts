@@ -291,4 +291,53 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 return super.getMetricSql(sql, metric);
         }
     }
+
+    private sanitizeInput(sql: string) {
+        return sql.replaceAll(
+            this.getStringQuoteChar(),
+            this.getEscapeStringQuoteChar() + this.getStringQuoteChar(),
+        );
+    }
+
+    async getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema
+            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
+            : '';
+        const query = `
+            SELECT table_catalog, table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_type = 'BASE TABLE' 
+            ${schemaFilter}
+            ORDER BY 1,2,3
+        `;
+        const { rows } = await this.runQuery(query, tags);
+        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema
+            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
+            : '';
+
+        const query = `
+            SELECT table_catalog,
+                   table_schema,
+                   table_name,
+                   column_name, 
+                   data_type
+            FROM information_schema.columns
+            WHERE table_name = '${this.sanitizeInput(tableName)}'
+            ${schemaFilter};
+        `;
+        const { rows } = await this.runQuery(query, tags);
+
+        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+    }
 }

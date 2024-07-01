@@ -1,5 +1,6 @@
 import {
     CreateWarehouseCredentials,
+    DimensionType,
     Metric,
     SupportedDbtAdapter,
     WarehouseCatalog,
@@ -43,6 +44,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -54,6 +56,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
+        values?: any[],
     ) {
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
@@ -65,6 +68,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
                 rows.push(...data.rows);
             },
             {
+                values,
                 tags,
                 timezone,
             },
@@ -87,5 +91,49 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
 
     concatString(...args: string[]): string {
         return `CONCAT(${args.join(', ')})`;
+    }
+
+    async getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        throw new Error('Warehouse method not implemented.');
+    }
+
+    parseWarehouseCatalog(
+        rows: Record<string, any>[],
+        mapFieldType: (type: string) => DimensionType,
+    ): WarehouseCatalog {
+        return rows.reduce(
+            (
+                acc,
+                {
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    data_type,
+                },
+            ) => {
+                acc[table_catalog] = acc[table_catalog] || {};
+                acc[table_catalog][table_schema] =
+                    acc[table_catalog][table_schema] || {};
+                acc[table_catalog][table_schema][table_name] =
+                    acc[table_catalog][table_schema][table_name] || {};
+                if (column_name && data_type)
+                    acc[table_catalog][table_schema][table_name][column_name] =
+                        mapFieldType(data_type);
+                return acc;
+            },
+            {},
+        );
     }
 }

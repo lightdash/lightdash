@@ -176,6 +176,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         sql: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -234,7 +235,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
             );
 
-            await this.executeStreamStatement(connection, sql, streamCallback);
+            await this.executeStreamStatement(
+                connection,
+                sql,
+                streamCallback,
+                options,
+            );
         } catch (e) {
             throw new WarehouseQueryError(e.message);
         } finally {
@@ -253,10 +259,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         connection: Connection,
         sqlText: string,
         streamCallback: (data: WarehouseResults) => void,
+        options?: {
+            values?: any[];
+        },
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             connection.execute({
                 sqlText,
+                binds: options?.values,
                 streamResult: true,
                 complete: (err, stmt) => {
                     if (err) {
@@ -444,5 +454,55 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             default:
                 return super.getMetricSql(sql, metric);
         }
+    }
+
+    async getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema ? `AND TABLE_SCHEMA ILIKE ?` : '';
+        const query = `
+            SELECT 
+                LOWER(TABLE_CATALOG) as "table_catalog", 
+                LOWER(TABLE_SCHEMA) as "table_schema",
+                LOWER(TABLE_NAME) as "table_name"
+            FROM information_schema.tables
+            WHERE TABLE_TYPE = 'BASE TABLE' 
+            ${schemaFilter}
+            ORDER BY 1,2,3
+        `;
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [schema] : undefined,
+        );
+        return this.parseWarehouseCatalog(rows, mapFieldType);
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        const schemaFilter = schema ? `AND TABLE_SCHEMA ILIKE ?` : '';
+
+        const query = `
+            SELECT LOWER(TABLE_CATALOG) as "table_catalog",
+                   LOWER(TABLE_SCHEMA)  as "table_schema",
+                   LOWER(TABLE_NAME)    as "table_name",
+                   LOWER(COLUMN_NAME)   as "column_name",
+                   DATA_TYPE            as "data_type"
+            FROM information_schema.columns
+            WHERE TABLE_NAME ILIKE ? ${schemaFilter}
+            ORDER BY 1, 2, 3;
+        `;
+        const { rows } = await this.runQuery(
+            query,
+            tags,
+            undefined,
+            schema ? [tableName, schema] : [tableName],
+        );
+        return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 }

@@ -89,7 +89,9 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    WarehouseCatalog,
     WarehouseClient,
+    WarehouseCredentials,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';
@@ -1808,7 +1810,6 @@ export class ProjectService extends BaseService {
                                 : {}),
                         },
                     });
-
                     this.logger.debug(
                         `Fetch query results from cache or warehouse`,
                     );
@@ -2569,6 +2570,102 @@ export class ProjectService extends BaseService {
             }
             return acc;
         }, {});
+    }
+
+    private static getWarehouseSchema(
+        credentials: WarehouseCredentials,
+    ): string | undefined {
+        switch (credentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return credentials.dataset;
+            case WarehouseTypes.DATABRICKS:
+                return credentials.catalog;
+            default:
+                return credentials.schema;
+        }
+    }
+
+    async getWarehouseTables(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<WarehouseCatalog> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const schema = ProjectService.getWarehouseSchema(credentials);
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+        const warehouseTables = warehouseClient.getTables(schema, queryTags);
+
+        await sshTunnel.disconnect();
+
+        return warehouseTables;
+    }
+
+    async getWarehouseFields(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+    ): Promise<WarehouseCatalog> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const queryTags: RunQueryTags = {
+            organization_uuid: user.organizationUuid,
+            project_uuid: projectUuid,
+            user_uuid: user.userUuid,
+        };
+        const schema = ProjectService.getWarehouseSchema(credentials);
+
+        const warehouseCatalog = warehouseClient.getFields(
+            tableName,
+            schema,
+            queryTags,
+        );
+
+        await sshTunnel.disconnect();
+
+        return warehouseCatalog;
     }
 
     async getTablesConfiguration(

@@ -12,7 +12,10 @@ import {
 import { FilterOperator } from '../types/filter';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import { TimeFrames } from '../types/timeFrames';
-import { type WarehouseClient } from '../types/warehouse';
+import {
+    type WarehouseCatalog,
+    type WarehouseClient,
+} from '../types/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
@@ -56,6 +59,15 @@ export const warehouseClientMock: WarehouseClient = {
         }
     },
     concatString: (...args) => `CONCAT(${args.join(', ')})`,
+    getTables(): Promise<WarehouseCatalog> {
+        throw new Error('Function not implemented.');
+    },
+    getFields(): Promise<WarehouseCatalog> {
+        throw new Error('Function not implemented.');
+    },
+    parseWarehouseCatalog(): WarehouseCatalog {
+        throw new Error('Function not implemented.');
+    },
 };
 
 const sourceMock: Source = {

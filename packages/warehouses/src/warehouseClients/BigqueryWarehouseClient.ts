@@ -130,6 +130,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -137,6 +138,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         try {
             const [job] = await this.client.createQueryJob({
                 query,
+                params: options?.values,
                 useLegacySql: false,
                 maximumBytesBilled:
                     this.credentials.maximumBytesBilled === undefined
@@ -290,5 +292,51 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             default:
                 return super.getMetricSql(sql, metric);
         }
+    }
+
+    async getTables(schema: string): Promise<WarehouseCatalog> {
+        const client = new BigQuery({
+            projectId: this.credentials.project,
+            location: this.credentials.location,
+            maxRetries: this.credentials.retries,
+            credentials: this.credentials.keyfileContents,
+        });
+        const dataset = client.dataset(schema);
+        const tables = (await dataset.getTables())?.[0] ?? [];
+        return this.parseWarehouseCatalog(
+            tables.map((table) => ({
+                table_catalog: table.dataset.bigQuery.projectId,
+                table_schema: table.dataset.id,
+                table_name: table.id,
+            })),
+            mapFieldType,
+        );
+    }
+
+    async getFields(
+        tableName: string,
+        schema: string,
+    ): Promise<WarehouseCatalog> {
+        const client = new BigQuery({
+            projectId: this.credentials.project,
+            location: this.credentials.location,
+            maxRetries: this.credentials.retries,
+            credentials: this.credentials.keyfileContents,
+        });
+        const dataset = client.dataset(schema);
+        const schemas = await BigqueryWarehouseClient.getTableMetadata(
+            dataset,
+            tableName,
+        );
+        return this.parseWarehouseCatalog(
+            schemas[3].fields.map((column) => ({
+                table_catalog: schemas[0],
+                table_schema: schemas[1],
+                table_name: schemas[2],
+                column_name: column.name,
+                data_type: column.type,
+            })),
+            mapFieldType,
+        );
     }
 }

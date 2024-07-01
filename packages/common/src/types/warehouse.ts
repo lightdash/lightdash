@@ -33,6 +33,7 @@ export interface WarehouseClient {
         query: string,
         streamCallback: (data: WarehouseResults) => void,
         options: {
+            values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
         },
@@ -43,12 +44,14 @@ export interface WarehouseClient {
      * @param sql
      * @param tags
      * @param timezone
+     * @param values
      * @deprecated Use streamQuery() instead to avoid loading all results into memory
      */
     runQuery(
         sql: string,
         tags?: Record<string, string>,
         timezone?: string,
+        values?: any[],
     ): Promise<WarehouseResults>;
 
     test(): Promise<void>;
@@ -64,4 +67,24 @@ export interface WarehouseClient {
     getMetricSql(sql: string, metric: Metric): string;
 
     concatString(...args: string[]): string;
+
+    getTables(
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog>;
+    getFields(
+        tableName: string,
+        schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog>;
+
+    parseWarehouseCatalog(
+        rows: Record<string, any>[],
+        mapFieldType: (type: string) => DimensionType,
+    ): WarehouseCatalog;
 }
+
+export type ApiWarehouseCatalog = {
+    status: 'ok';
+    results: WarehouseCatalog;
+};

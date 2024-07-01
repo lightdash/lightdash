@@ -4,6 +4,7 @@ import {
     DashboardTileTypes,
     SEED_PROJECT,
 } from '@lightdash/common';
+import warehouseConnections from '../../support/warehouses';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
@@ -98,7 +99,10 @@ describe('Promotion charts and dashboards', () => {
     before('create upstream project', () => {
         cy.login();
 
-        cy.createProject(upstreamProjectName).then((projectUuid) => {
+        cy.createProject(
+            upstreamProjectName,
+            warehouseConnections.postgresSQL,
+        ).then((projectUuid) => {
             upstreamProjectUuid = projectUuid;
         });
     });

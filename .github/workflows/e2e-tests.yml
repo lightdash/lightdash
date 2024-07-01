@@ -60,7 +60,14 @@ jobs:
         run: yarn install --frozen-lockfile
       # Build packages
       - name: Build packages/common module
-        run: yarn common-build
+        run: yarn common-build      
+      - name: create-json
+        id: create-json
+        uses: jsdaniell/create-json@v1.2.2
+        with:
+          name: "credentials.json"
+          json: ${{ secrets.GCP_CREDENTIALS }}
+          dir: "./packages/e2e/cypress/fixtures/"
       # Run API tests
       - name: Cypress run
         uses: cypress-io/github-action@v5
@@ -70,6 +77,18 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
+          CYPRESS_PGHOST: ${{secrets.PGHOST}}
+          CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
+          CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          CYPRESS_DATABRICKS_PATH: ${{secrets.DATABRICKS_PATH}}
+          CYPRESS_DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          CYPRESS_SNOWFLAKE_ACCOUNT: ${{secrets.SNOWFLAKE_ACCOUNT}}
+          CYPRESS_SNOWFLAKE_USER: ${{secrets.SNOWFLAKE_USER}}
+          CYPRESS_SNOWFLAKE_PASSWORD: ${{secrets.SNOWFLAKE_PASSWORD}}
+          CYPRESS_TRINO_HOST: ${{secrets.TRINO_HOST}}
+          CYPRESS_TRINO_PORT: ${{secrets.TRINO_PORT}}
+          CYPRESS_TRINO_USER: ${{secrets.TRINO_USER}}
+          CYPRESS_TRINO_PASSWORD: ${{secrets.TRINO_PASSWORD}}
           TZ: 'UTC'
           CYPRESS_TZ: 'UTC'
   
