@@ -2658,6 +2658,12 @@ export class ProjectService extends BaseService {
         };
         const schema = ProjectService.getWarehouseSchema(credentials);
 
+        if (!schema) {
+            throw new NotFoundError(
+                'Schema not found in warehouse credentials',
+            );
+        }
+
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
             schema,
@@ -2665,12 +2671,6 @@ export class ProjectService extends BaseService {
         );
 
         await sshTunnel.disconnect();
-
-        if (!schema) {
-            throw new NotFoundError(
-                'Schema not found in warehouse credentials',
-            );
-        }
 
         return warehouseCatalog[warehouseClient.credentials.type][schema][
             tableName
