@@ -1,13 +1,18 @@
 import { LoadingOverlay, Stack, Text, UnstyledButton } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTables } from '../hooks/useTables';
 
 type Props = {
     projectUuid: string;
+    activeTable: string | undefined;
+    setActiveTable: Dispatch<SetStateAction<string | undefined>>;
 };
 
-export const Tables: FC<Props> = ({ projectUuid }) => {
-    const [activeTable, setActiveTable] = useState<string | undefined>();
+export const Tables: FC<Props> = ({
+    activeTable,
+    setActiveTable,
+    projectUuid,
+}) => {
     const { data, isLoading } = useTables({ projectUuid });
 
     return (
