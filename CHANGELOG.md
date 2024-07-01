@@ -1,3 +1,10 @@
+## [0.1149.1](https://github.com/lightdash/lightdash/compare/0.1149.0...0.1149.1) (2024-07-01)
+
+
+### Bug Fixes
+
+* CSP domains for pylon dependencies ([#10561](https://github.com/lightdash/lightdash/issues/10561)) ([189acbf](https://github.com/lightdash/lightdash/commit/189acbf438badd1672198d7f9f4df060a8674f63))
+
 # [0.1149.0](https://github.com/lightdash/lightdash/compare/0.1148.0...0.1149.0) (2024-07-01)
 
 
