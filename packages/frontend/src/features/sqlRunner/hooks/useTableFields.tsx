@@ -30,5 +30,6 @@ export const useTableFields = ({
             }),
         retry: false,
         enabled: !!tableName,
+        // TODO: handle error on no schema found
     });
 };
