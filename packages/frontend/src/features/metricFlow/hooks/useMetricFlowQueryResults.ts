@@ -59,7 +59,7 @@ const useMetricFlowQueryResults = (
                     refetchData.query.status,
                 )
                 ? false
-                : 500;
+                : 1000;
         },
         ...useResultQueryOptions,
     });
