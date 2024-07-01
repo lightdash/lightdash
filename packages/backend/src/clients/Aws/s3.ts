@@ -2,7 +2,6 @@ import {
     GetObjectCommand,
     PutObjectCommandInput,
     S3,
-    SelectObjectContentCommandInput,
 } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -44,43 +43,6 @@ export class S3Client {
             }
 
             this.s3 = new S3(s3Config);
-
-            const command: SelectObjectContentCommandInput = {
-                Bucket: lightdashConfig.s3.bucket,
-                // Key: 'results.json',
-                Key: 'csv-payments-2024-06-27-14-18-47-3670.csv',
-                ExpressionType: 'SQL',
-                Expression: 'SELECT * FROM S3Object LIMIT 5',
-                InputSerialization: {
-                    CSV: {},
-                },
-                OutputSerialization: {
-                    CSV: {},
-                },
-            };
-            console.log('requesting object', command);
-            this.s3
-                .selectObjectContent(command)
-                .then((url) => {
-                    console.log('url', url);
-                })
-                .catch((error) => {
-                    console.error('error s3', error);
-                });
-            /* if (this.lightdashConfig.s3)  getSignedUrl(
-                this.s3,
-                new GetObjectCommand({
-                    Bucket: this.lightdashConfig.s3.bucket,
-                    Key: 'results.json',
-                    ExpressionType: 'SQL',
-                    Expression: 'SELECT * limit 5',
-                }),
-                {
-                    expiresIn: this.lightdashConfig.s3.expirationTime,
-                },
-            ).then((url) => {
-                console.log('url', url)
-            }) */
         } else {
             Logger.debug('Missing S3 bucket configuration');
         }
@@ -97,7 +59,6 @@ export class S3Client {
                 "Missing S3 bucket configuration, can't upload files",
             );
         }
-        console.log('this.lightdashConfig.s3', this.lightdashConfig.s3);
         const upload = new Upload({
             client: this.s3,
             params: {
@@ -124,7 +85,6 @@ export class S3Client {
             );
             return url;
         } catch (error) {
-            console.error('error', error);
             Logger.error(
                 `Failed to upload file to s3 with endpoint: ${
                     this.lightdashConfig.s3.endpoint ?? 'no endpoint'

@@ -118,17 +118,6 @@ export class SqlRunnerController extends BaseController {
             .getProjectService()
             .getResultsFile(req.user!, projectUuid, fileId);
 
-        // TODO set response headers
-        /*
- //https://github.com/lukeautry/tsoa/issues/800
-       const stat: fs.Stats = await fs.promises.stat(filePath);
-
-      this.setStatus(200);
-      this.setHeader('Content-Type', mime.lookup(filePath));
-      this.setHeader('Content-Length', stat.size.toString());
-      // Removing this line will cause to not launch the download, just serve the file as it
-      this.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-      */
         const mystream = fs.createReadStream(resultsFilePath);
         const { res } = req;
         if (res) {
