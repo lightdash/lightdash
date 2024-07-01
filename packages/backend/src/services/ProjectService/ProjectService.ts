@@ -7,6 +7,7 @@ import {
     ApiChartAndResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    assertUnreachable,
     CacheMetadata,
     CalculateTotalFromQuery,
     ChartSummary,
@@ -2586,6 +2587,24 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private static getWarehouseDatabase(
+        credentials: WarehouseCredentials,
+    ): string | undefined {
+        switch (credentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return credentials.project;
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+                return credentials.dbname;
+            case WarehouseTypes.SNOWFLAKE:
+            case WarehouseTypes.DATABRICKS:
+                return credentials.database.toLowerCase();
+            default:
+                return assertUnreachable(credentials, 'Unknown warehouse type');
+        }
+    }
+
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
@@ -2657,10 +2676,16 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
         };
         const schema = ProjectService.getWarehouseSchema(credentials);
+        const database = ProjectService.getWarehouseDatabase(credentials);
 
         if (!schema) {
             throw new NotFoundError(
                 'Schema not found in warehouse credentials',
+            );
+        }
+        if (!database) {
+            throw new NotFoundError(
+                'Database not found in warehouse credentials',
             );
         }
 
@@ -2672,9 +2697,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return warehouseCatalog[warehouseClient.credentials.type][schema][
-            tableName
-        ];
+        return warehouseCatalog[database][schema][tableName];
     }
 
     async getTablesConfiguration(
