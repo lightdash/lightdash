@@ -55,6 +55,7 @@
         "@tiptap/starter-kit": "^2.2.4",
         "@tiptap/suggestion": "^2.2.4",
         "@uiw/react-md-editor": "^3.23.5",
+        "@xstate/react": "^4.1.1",
         "ace-builds": "^1.4.14",
         "canvas-confetti": "^1.6.0",
         "colorjs.io": "^0.4.5",
@@ -94,6 +95,7 @@
         "uuid": "^8.3.2",
         "vega": "^5.26.0",
         "vega-lite": "^5.16.1",
+        "xstate": "^5.14.0",
         "zod": "^3.23.3"
     },
     "devDependencies": {

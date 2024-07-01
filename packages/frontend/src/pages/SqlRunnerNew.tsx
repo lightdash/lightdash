@@ -7,7 +7,11 @@ import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
 import { SqlRunnerProvider } from '../features/sqlRunner/providers/SqlRunnerProvider';
+import { globalActor } from '../machines';
 import { store } from '../store';
+
+// Start the actor
+globalActor.start();
 
 const SqlRunnerNewPage = () => {
     const params = useParams<{ projectUuid: string }>();

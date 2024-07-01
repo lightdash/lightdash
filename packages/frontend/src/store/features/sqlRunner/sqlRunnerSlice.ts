@@ -40,6 +40,6 @@ const sqlRunnerSlice = createSlice({
 });
 
 // Action creators are generated for each case reducer function
-export const { setActiveTable, setActiveFields } = sqlRunnerSlice.actions;
+// const { setActiveTable, setActiveFields } = sqlRunnerSlice.actions;
 
 export default sqlRunnerSlice.reducer;

@@ -6,17 +6,15 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
+import { useSelector } from '@xstate/react';
 import { memo, useCallback, type FC } from 'react';
-import { setActiveFields } from '../../../store/features/sqlRunner/sqlRunnerSlice';
-import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { globalActor } from '../../../machines';
 import { useTableFields } from '../hooks/useTableFields';
 import { useSqlRunnerProvider } from '../providers/SqlRunnerProvider';
 
 const TableField: FC<{ field: string; isActiveField: boolean }> = memo(
     ({ field, isActiveField }) => {
         console.log('rendered TableField', field);
-
-        const dispatch = useAppDispatch();
 
         return (
             <UnstyledButton
@@ -26,7 +24,10 @@ const TableField: FC<{ field: string; isActiveField: boolean }> = memo(
                 c={isActiveField ? 'gray.8' : 'gray.7'}
                 bg={isActiveField ? 'gray.1' : 'transparent'}
                 onClick={() => {
-                    dispatch(setActiveFields(field));
+                    globalActor.send({
+                        type: 'SET_ACTIVE_FIELDS',
+                        payload: field,
+                    });
                 }}
                 sx={(theme) => ({
                     borderRadius: theme.radius.sm,
@@ -42,16 +43,20 @@ const TableField: FC<{ field: string; isActiveField: boolean }> = memo(
 );
 
 export const TableFields: FC = () => {
-    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeTable = useSelector(
+        globalActor,
+        (snapshot) => snapshot.context.activeTable,
+    );
+    const activeFields = useSelector(
+        globalActor,
+        (snapshot) => snapshot.context.activeFields,
+    );
+
     const { projectUuid } = useSqlRunnerProvider();
     const { data: tableFields, isLoading } = useTableFields({
         projectUuid,
         tableName: activeTable,
     });
-
-    const activeFields = useAppSelector(
-        (state) => state.sqlRunner.activeFields,
-    );
 
     const isActiveField = useCallback(
         (field: string) => {

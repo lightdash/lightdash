@@ -7221,6 +7221,14 @@
   resolved "https://registry.npmjs.org/@xobotyi/scrollbar-width/-/scrollbar-width-1.9.5.tgz"
   integrity sha512-N8tkAACJx2ww8vFMneJmaAgmjAG1tnVBZJRLRcx061tmsLRZHSEZSLuGWnwPtunsSLvSqXQ2wfp7Mgqg1I+2dQ==
 
+"@xstate/react@^4.1.1":
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/@xstate/react/-/react-4.1.1.tgz#2f580fc5f83d195f95b56df6cd8061c66660d9fa"
+  integrity sha512-pFp/Y+bnczfaZ0V8B4LOhx3d6Gd71YKAPbzerGqydC2nsYN/mp7RZu3q/w6/kvI2hwR/jeDeetM7xc3JFZH2NA==
+  dependencies:
+    use-isomorphic-layout-effect "^1.1.2"
+    use-sync-external-store "^1.2.0"
+
 a-sync-waterfall@^1.0.0:
   version "1.0.1"
   resolved "https://registry.npmjs.org/a-sync-waterfall/-/a-sync-waterfall-1.0.1.tgz"
@@ -20092,7 +20100,7 @@ use-context-selector@^1.4.1:
   resolved "https://registry.npmjs.org/use-context-selector/-/use-context-selector-1.4.1.tgz"
   integrity sha512-Io2ArvcRO+6MWIhkdfMFt+WKQX+Vb++W8DS2l03z/Vw/rz3BclKpM0ynr4LYGyU85Eke+Yx5oIhTY++QR0ZDoA==
 
-use-isomorphic-layout-effect@^1.1.1:
+use-isomorphic-layout-effect@^1.1.1, use-isomorphic-layout-effect@^1.1.2:
   version "1.1.2"
   resolved "https://registry.npmjs.org/use-isomorphic-layout-effect/-/use-isomorphic-layout-effect-1.1.2.tgz"
   integrity sha512-49L8yCO3iGT/ZF9QttjwLF/ZD9Iwto5LnH5LmEdk/6cFmXddqi2ulF0edxTwjj+7mqvpVVGQWvbXZdn32wRSHA==
@@ -21093,6 +21101,11 @@ xmlchars@^2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/xmlchars/-/xmlchars-2.2.0.tgz#060fe1bcb7f9c76fe2a17db86a9bc3ab894210cb"
   integrity sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==
+
+xstate@^5.14.0:
+  version "5.14.0"
+  resolved "https://registry.yarnpkg.com/xstate/-/xstate-5.14.0.tgz#eef6a67a72810429976b5e792519542de154f38e"
+  integrity sha512-3c1H8dzebSODUSY1vM86zIE3Eg+VFzElvhklaF/ZTN5K2i6HsLc4j38qn9+TF2mHPTUFXrOn4M0Cxw9m63upLA==
 
 xtend@^4.0.0, xtend@~4.0.1:
   version "4.0.2"
