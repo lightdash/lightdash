@@ -1,3 +1,10 @@
+## [0.1149.2](https://github.com/lightdash/lightdash/compare/0.1149.1...0.1149.2) (2024-07-01)
+
+
+### Bug Fixes
+
+* increase pulling intervals for notifications and dbt semantic layer endpoints ([#10564](https://github.com/lightdash/lightdash/issues/10564)) ([cb9b69e](https://github.com/lightdash/lightdash/commit/cb9b69e31455f956435b55285636a6c8ee0a5c98))
+
 ## [0.1149.1](https://github.com/lightdash/lightdash/compare/0.1149.0...0.1149.1) (2024-07-01)
 
 
