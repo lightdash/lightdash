@@ -226,7 +226,7 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/sqlRunnerNew">
+                                    <Route path="/projects/:projectUuid/sql-runner-new">
                                         <NavBar />
 
                                         <SqlRunnerNew />
