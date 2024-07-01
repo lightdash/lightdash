@@ -47,7 +47,7 @@ interface TableRowProps {
 // arbitrary number that is usually smaller than the 300px max width of the cell
 const SMALL_TEXT_LENGTH = 35;
 
-const countSubRows = (rowNode: Row<ResultRow>): number => {
+export const countSubRows = (rowNode: Row<ResultRow>): number => {
     if (rowNode.subRows?.length) {
         return rowNode.subRows.reduce((acc: number, nextRowNode) => {
             return acc + countSubRows(nextRowNode);
