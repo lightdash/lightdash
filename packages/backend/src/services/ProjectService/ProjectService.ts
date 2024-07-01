@@ -1885,6 +1885,48 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    async streamSqlQueryIntoFile(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+        fileId: string,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.analytics.track({
+            userId: user.userUuid,
+            event: 'sql.executed',
+            properties: {
+                projectId: projectUuid,
+            },
+        });
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+        this.logger.debug(`Run query against warehouse`);
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+        };
+        const results = await warehouseClient.streamQuery(sql, (data) => {}, {
+            tags: queryTags,
+        });
+        await sshTunnel.disconnect();
+        return results;
+    }
+
     async searchFieldUniqueValues(
         user: SessionUser,
         projectUuid: string,
@@ -2666,6 +2708,37 @@ export class ProjectService extends BaseService {
         await sshTunnel.disconnect();
 
         return warehouseCatalog;
+    }
+
+    async scheduleSqlJob(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+    ): Promise<{ jobId: string }> {
+        const { organizationUuid, type } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('sqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const jobId = await this.schedulerClient.runSql({
+            userUuid: user.userUuid,
+            organizationUuid,
+            projectUuid,
+            sql,
+        });
+
+        return { jobId };
     }
 
     async getTablesConfiguration(

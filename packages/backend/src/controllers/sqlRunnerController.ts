@@ -1,13 +1,16 @@
 import {
     ApiErrorPayload,
+    ApiJobScheduledResponse,
     ApiSuccessEmpty,
     ApiWarehouseCatalog,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -67,6 +70,30 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getWarehouseFields(req.user!, projectUuid, tableName),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/run')
+    @OperationId('runSql')
+    async runSql(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Body() body: { sql: string },
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .scheduleSqlJob(req.user!, projectUuid, body.sql),
         };
     }
 }
