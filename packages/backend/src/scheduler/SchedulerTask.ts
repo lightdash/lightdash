@@ -38,6 +38,8 @@ import {
     SchedulerLog,
     SessionUser,
     SlackNotificationPayload,
+    sqlRunnerJob,
+    SqlRunnerPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
@@ -827,6 +829,45 @@ export default class SchedulerTask {
                 jobId,
                 payload,
             );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    fileUrl,
+                    createdByUserUuid: payload.userUuid,
+                    truncated,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: { createdByUserUuid: payload.userUuid, error: e },
+            });
+            throw e; // Cascade error to it can be retried by graphile
+        }
+    }
+
+    protected async sqlRunner(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SqlRunnerPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: sqlRunnerJob,
+                jobId,
+                scheduledTime,
+            };
+        try {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.userUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const { fileUrl, truncated } =
+                await this.projectService.streamSqlQuery(jobId, payload);
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
