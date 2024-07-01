@@ -1,18 +1,14 @@
 import { LoadingOverlay, Stack, Text, UnstyledButton } from '@mantine/core';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { type FC } from 'react';
 import { useTables } from '../hooks/useTables';
+import { useSqlRunnerProvider } from '../providers/SqlRunnerProvider';
 
 type Props = {
     projectUuid: string;
-    activeTable: string | undefined;
-    setActiveTable: Dispatch<SetStateAction<string | undefined>>;
 };
 
-export const Tables: FC<Props> = ({
-    activeTable,
-    setActiveTable,
-    projectUuid,
-}) => {
+export const Tables: FC<Props> = ({ projectUuid }) => {
+    const { activeTable, setActiveTable } = useSqlRunnerProvider();
     const { data, isLoading } = useTables({ projectUuid });
 
     return (

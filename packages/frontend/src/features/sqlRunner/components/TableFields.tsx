@@ -6,15 +6,52 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { useTableFields } from '../hooks/useTableFields';
+import { useSqlRunnerProvider } from '../providers/SqlRunnerProvider';
 
-type Props = {
-    projectUuid: string;
-    activeTable: string | undefined;
+const TableField: FC<{ field: string }> = ({ field }) => {
+    console.log('TableField', field, 'rendered');
+
+    const { activeFields, setActiveFields } = useSqlRunnerProvider();
+
+    return (
+        <UnstyledButton
+            fw={500}
+            p={4}
+            fz={13}
+            c={activeFields && activeFields.has(field) ? 'gray.8' : 'gray.7'}
+            bg={
+                activeFields && activeFields.has(field)
+                    ? 'gray.1'
+                    : 'transparent'
+            }
+            onClick={() => {
+                setActiveFields((prev) => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(field)) {
+                        newSet.delete(field);
+                    } else {
+                        newSet.add(field);
+                    }
+                    return newSet;
+                });
+            }}
+            sx={(theme) => ({
+                borderRadius: theme.radius.sm,
+                '&:hover': {
+                    backgroundColor: theme.colors.gray[1],
+                },
+            })}
+        >
+            {field}
+        </UnstyledButton>
+    );
 };
 
-export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
+export const TableFields: FC = () => {
+    const { activeTable, projectUuid, setActiveFields } =
+        useSqlRunnerProvider();
     const {
         data: tableFields,
         isLoading,
@@ -23,13 +60,12 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
         projectUuid,
         tableName: activeTable,
     });
-    const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
 
     useEffect(() => {
         if (isSuccess) {
             setActiveFields(undefined);
         }
-    }, [isSuccess]);
+    }, [isSuccess, setActiveFields]);
 
     return (
         <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
@@ -53,42 +89,7 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                     >
                         <Stack spacing={0}>
                             {Object.keys(tableFields).map((field) => (
-                                <UnstyledButton
-                                    key={field}
-                                    fw={500}
-                                    p={4}
-                                    fz={13}
-                                    c={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.8'
-                                            : 'gray.7'
-                                    }
-                                    bg={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.1'
-                                            : 'transparent'
-                                    }
-                                    onClick={() => {
-                                        setActiveFields((prev) => {
-                                            const newSet = new Set(prev);
-                                            if (newSet.has(field)) {
-                                                newSet.delete(field);
-                                            } else {
-                                                newSet.add(field);
-                                            }
-                                            return newSet;
-                                        });
-                                    }}
-                                    sx={(theme) => ({
-                                        borderRadius: theme.radius.sm,
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
-                                >
-                                    {field}
-                                </UnstyledButton>
+                                <TableField key={field} field={field} />
                             ))}
                         </Stack>
                     </Box>

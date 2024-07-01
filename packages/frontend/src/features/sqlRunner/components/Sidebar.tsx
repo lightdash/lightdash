@@ -9,25 +9,25 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { Tables } from './Tables';
-
-import 'react-resizable/css/styles.css';
 import {
     SIDEBAR_MAX_WIDTH,
     SIDEBAR_MIN_WIDTH,
 } from '../../../components/common/Page/Sidebar';
+import { useSqlRunnerProvider } from '../providers/SqlRunnerProvider';
 import { TableFields } from './TableFields';
+import { Tables } from './Tables';
+
+import 'react-resizable/css/styles.css';
 
 type Props = {
-    projectUuid: string;
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
-    const [activeTable, setActiveTable] = useState<string | undefined>();
+export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+    const { projectUuid } = useSqlRunnerProvider();
 
     return (
         <Stack h="100vh" spacing="xs">
@@ -47,11 +47,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
 
             <Flex direction="column" justify="space-between" h="100%">
                 <Box>
-                    <Tables
-                        activeTable={activeTable}
-                        setActiveTable={setActiveTable}
-                        projectUuid={projectUuid}
-                    />
+                    <Tables projectUuid={projectUuid} />
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
@@ -74,10 +70,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                             />
                         }
                     >
-                        <TableFields
-                            projectUuid={projectUuid}
-                            activeTable={activeTable}
-                        />
+                        <TableFields />
                     </ResizableBox>
                 </Box>
             </Flex>
