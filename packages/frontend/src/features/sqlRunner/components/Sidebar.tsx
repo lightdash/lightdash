@@ -9,7 +9,13 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import {
+    useEffect,
+    useState,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -22,6 +28,11 @@ type Props = {
 };
 
 export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+    useEffect(() => {
+        return () => {
+            console.log('cleanup');
+        };
+    }, []);
     const [activeTable, setActiveTable] = useState<string | undefined>();
     const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
     // TODO: remove mock data

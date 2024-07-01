@@ -144,6 +144,7 @@ type Props = {
     title?: string;
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
+    keepSidebarMounted?: boolean;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
@@ -155,6 +156,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
+    keepSidebarMounted = false,
     rightSidebar,
     isRightSidebarOpen = false,
     rightSidebarWidthProps,

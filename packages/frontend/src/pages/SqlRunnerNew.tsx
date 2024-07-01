@@ -13,6 +13,7 @@ const SqlRunnerNewPage = () => {
             title="SQL Runner"
             withFullHeight
             withPaddedContent
+            keepSidebarMounted
             isSidebarOpen={isSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setSidebarOpen} />}
         >

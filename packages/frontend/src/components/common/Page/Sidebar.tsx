@@ -3,12 +3,10 @@ import {
     Card,
     Flex,
     Stack,
-    Transition,
     type CardProps,
     type FlexProps,
-    type MantineTransition,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -63,21 +61,38 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             mainWidth,
         });
 
-    const transition: MantineTransition = {
-        in: {
-            opacity: 1,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: 0 }
-                : { marginRight: 0 }),
-        },
-        out: {
-            opacity: 0,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: -sidebarWidth }
-                : { marginRight: -sidebarWidth }),
-        },
-        transitionProperty: 'opacity, margin',
+    const [shouldRender, setShouldRender] = useState(isOpen);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            setIsAnimating(true);
+            const timer = setTimeout(() => {
+                setIsAnimating(false);
+            }, 250); // Match this duration with transition duration
+            return () => clearTimeout(timer);
+        } else {
+            setIsAnimating(true);
+            const timer = setTimeout(() => {
+                setIsAnimating(false);
+                setShouldRender(false);
+            }, 250); // Match this duration with transition duration
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
+
+    const transitionStyles = {
+        transition: 'opacity 0.25s ease-in-out, transform 0.25s ease-in-out',
+        opacity: isOpen ? 1 : 0,
+        transform: isOpen
+            ? 'translateX(0)'
+            : `translateX(${
+                  position === SidebarPosition.LEFT ? '-' : ''
+              }${sidebarWidth}px)`,
+        visibility: shouldRender || isAnimating ? 'visible' : 'hidden',
     };
+
     return (
         <TrackSection name={SectionName.SIDEBAR}>
             <Flex
@@ -88,64 +103,56 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 mah="100%"
                 {...containerProps}
             >
-                <Transition
-                    mounted={isOpen}
-                    duration={500}
-                    transition={transition}
+                <Box
+                    style={{
+                        ...transitionStyles,
+                    }}
                 >
-                    {(style) => (
-                        <>
-                            <Card
-                                component={Stack}
-                                display="flex"
-                                radius="unset"
-                                shadow="lg"
-                                padding="lg"
-                                pb={0}
-                                w={sidebarWidth}
-                                style={style}
-                                sx={{ flexGrow: 1 }}
-                            >
-                                {children}
-                            </Card>
+                    <Card
+                        component={Stack}
+                        display="flex"
+                        radius="unset"
+                        shadow="lg"
+                        padding="lg"
+                        pb={0}
+                        w={sidebarWidth}
+                        sx={{ flexGrow: 1 }}
+                        {...cardProps}
+                    >
+                        {children}
+                    </Card>
 
-                            <Box
-                                h="100%"
-                                w={SIDEBAR_RESIZE_HANDLE_WIDTH}
-                                pos="absolute"
-                                top={0}
-                                {...(position === SidebarPosition.LEFT
-                                    ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
-                                    : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
-                                onMouseDown={startResizing}
-                                {...cardProps}
-                                sx={(theme) => ({
-                                    cursor: 'col-resize',
-
-                                    ...(isResizing
-                                        ? {
-                                              background:
-                                                  theme.fn.linearGradient(
-                                                      90,
-                                                      theme.colors.blue[3],
-                                                      'transparent',
-                                                  ),
-                                          }
-                                        : {
-                                              ...theme.fn.hover({
-                                                  background:
-                                                      theme.fn.linearGradient(
-                                                          90,
-                                                          theme.colors.blue[1],
-                                                          'transparent',
-                                                      ),
-                                              }),
-                                          }),
-                                })}
-                            />
-                        </>
-                    )}
-                </Transition>
+                    <Box
+                        h="100%"
+                        w={SIDEBAR_RESIZE_HANDLE_WIDTH}
+                        pos="absolute"
+                        top={0}
+                        {...(position === SidebarPosition.LEFT
+                            ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
+                            : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
+                        onMouseDown={startResizing}
+                        sx={(theme) => ({
+                            cursor: 'col-resize',
+                            ...(isResizing
+                                ? {
+                                      background: theme.fn.linearGradient(
+                                          90,
+                                          theme.colors.blue[3],
+                                          'transparent',
+                                      ),
+                                  }
+                                : {
+                                      ...theme.fn.hover({
+                                          background: theme.fn.linearGradient(
+                                              90,
+                                              theme.colors.blue[1],
+                                              'transparent',
+                                          ),
+                                      }),
+                                  }),
+                        })}
+                    />
+                </Box>
             </Flex>
         </TrackSection>
     );
