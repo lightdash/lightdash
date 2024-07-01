@@ -5,4 +5,8 @@ export type SqlRunnerPayload = {
     organizationUuid: string | undefined;
 };
 
+export type SqlRunnerBody = {
+    sql: string;
+};
+
 export const sqlRunnerJob = 'sqlRunner';

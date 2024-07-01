@@ -1899,7 +1899,7 @@ export class ProjectService extends BaseService {
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-        const filePath = `/tmp/${downloadFileId}`;
+        const filePath = `/tmp/${downloadFileId}.json`;
         await this.downloadFileModel.createDownloadFile(
             downloadFileId,
             filePath,
@@ -1929,7 +1929,7 @@ export class ProjectService extends BaseService {
             });
         }
 
-        return `/api/v1/download/${downloadFileId}`;
+        return downloadFileId;
     }
 
     async streamSqlQueryIntoFile(
@@ -1959,7 +1959,7 @@ export class ProjectService extends BaseService {
         };
 
         // TODO upload to s3 if enabled
-        const fileUrl = await this.streamResultsToLocalFile(async (writter) => {
+        const fileId = await this.streamResultsToLocalFile(async (writter) => {
             await warehouseClient.streamQuery(
                 sql,
                 async ({ rows, fields }) => {
@@ -1973,7 +1973,34 @@ export class ProjectService extends BaseService {
         });
 
         await sshTunnel.disconnect();
-        return fileUrl;
+        return `/api/v1/projects/${projectUuid}/sqlRunner/results/${fileId}`;
+    }
+
+    async getResultsFile(
+        user: SessionUser,
+        projectUuid: string,
+        fileId: string,
+    ): Promise<string> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const downloadFile = await this.downloadFileModel.getDownloadFile(
+            fileId,
+        );
+        if (downloadFile.type !== DownloadFileType.JSONL) {
+            throw new ParameterError('File is not a JSONL file');
+        }
+
+        return downloadFile.path;
     }
 
     async searchFieldUniqueValues(
@@ -2764,14 +2791,14 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         sql: string,
     ): Promise<{ jobId: string }> {
-        const { organizationUuid, type } = await this.projectModel.getSummary(
+        const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
         if (
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('sqlRunner', {
+                subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
                 }),

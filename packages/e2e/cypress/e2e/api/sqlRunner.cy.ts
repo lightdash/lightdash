@@ -92,6 +92,22 @@ Object.entries(warehouseConnections).forEach(
                     expect(fieldResults.order_date).to.be.eq('date');
                 });
             });
+
+            it(`Get streaming results from ${warehouseName}`, () => {
+                const [database, schema] = getDatabaseDetails();
+                const sql = `SELECT * FROM ${database}.${schema}.payments LIMIT 2`;
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql: sql,
+                    }),
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    // TODO
+                });
+            });
         });
     },
 );
