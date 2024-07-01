@@ -35,6 +35,7 @@ import {
     DownloadFileType,
     Explore,
     ExploreError,
+    Field,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -1899,7 +1900,7 @@ export class ProjectService extends BaseService {
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-        const filePath = `/tmp/${downloadFileId}.json`;
+        const filePath = `/tmp/${downloadFileId}.jsonl`;
         await this.downloadFileModel.createDownloadFile(
             downloadFileId,
             filePath,
