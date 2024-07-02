@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconMarkdown, IconVideo } from '@tabler/icons-react';
-import produce from 'immer';
+import { produce } from 'immer';
 import MantineIcon from '../../common/MantineIcon';
 import LoomTileForm, { getLoomId } from './LoomTileForm';
 import MarkdownTileForm, {

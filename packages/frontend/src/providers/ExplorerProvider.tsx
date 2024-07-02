@@ -30,7 +30,7 @@ import {
     type TableChartConfig,
     type TimeZone,
 } from '@lightdash/common';
-import produce from 'immer';
+import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import {
     useCallback,

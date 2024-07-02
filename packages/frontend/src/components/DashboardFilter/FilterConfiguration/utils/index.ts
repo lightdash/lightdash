@@ -3,7 +3,7 @@ import {
     FilterOperator,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import produce from 'immer';
+import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
 
 export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {

@@ -25,7 +25,7 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
-import produce from 'immer';
+import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FieldIcon from '../../common/Filters/FieldIcon';

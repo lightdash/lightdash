@@ -14,7 +14,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Divider } from '@mantine/core';
-import produce from 'immer';
+import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
