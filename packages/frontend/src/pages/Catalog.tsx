@@ -31,6 +31,7 @@ const Catalog: FC = () => {
                 }}
             >
                 <Box
+                    w="100%"
                     sx={
                         isSidebarOpen
                             ? {
