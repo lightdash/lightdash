@@ -16,6 +16,7 @@ export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
     name: string;
+    value: number;
     meta: {
         value: ResultValue;
         rows: ResultRow[];
@@ -61,14 +62,23 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !seriesData) return;
 
         const {
-            validConfig: {},
+            validConfig: { labelOverrides, colorOverrides },
             selectedField,
-            label,
+            labels,
         } = chartConfig;
 
         return {
             type: 'funnel',
-            data: seriesData,
+            data: seriesData.map(({ name, value, meta }) => {
+                return {
+                    name: labelOverrides?.[name] ?? name,
+                    value,
+                    meta,
+                    itemStyle: {
+                        color: colorOverrides?.[name] ?? undefined,
+                    },
+                };
+            }),
             color: colorPalette,
             tooltip: {
                 trigger: 'item',
@@ -85,9 +95,9 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             },
             label: {
                 show: true,
-                position: label?.position || FunnelChartLabelPosition.INSIDE,
+                position: labels?.position || FunnelChartLabelPosition.INSIDE,
                 color:
-                    label?.position !== FunnelChartLabelPosition.INSIDE
+                    labels?.position !== FunnelChartLabelPosition.INSIDE
                         ? 'black'
                         : undefined,
                 formatter: ({ name, value }) => {
@@ -98,10 +108,10 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                             maxValue: chartConfig.maxValue,
                         });
 
-                    const percentString = label?.showPercentage
+                    const percentString = labels?.showPercentage
                         ? `${percentOfMax}%`
                         : '';
-                    const valueString = label?.showValue ? formattedValue : '';
+                    const valueString = labels?.showValue ? formattedValue : '';
                     const numbersString = `${
                         valueString || percentString ? ':' : ''
                     } ${[percentString, valueString]
@@ -138,6 +148,8 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
 
     if (!itemsMap) return;
     if (!eChartsOptions) return;
+
+    console.log({ eChartsOptions });
 
     return eChartsOptions;
 };

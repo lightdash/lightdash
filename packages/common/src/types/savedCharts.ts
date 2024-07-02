@@ -113,7 +113,9 @@ export type FunnelChart = {
     dataInput?: FunnelChartDataInput;
     fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
-    label?: {
+    labelOverrides?: Record<string, string>;
+    colorOverrides?: Record<string, string>;
+    labels?: {
         position?: FunnelChartLabelPosition;
         showValue?: boolean;
         showPercentage?: boolean;

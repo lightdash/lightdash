@@ -23,6 +23,7 @@ import { isFunnelVisualizationConfig } from '../../LightdashVisualization/Visual
 import { useVisualizationContext } from '../../LightdashVisualization/VisualizationProvider';
 import { Config } from '../common/Config';
 import { themeOverride } from '../mantineTheme';
+import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
@@ -38,9 +39,16 @@ export const ConfigTabs: FC = memo(() => {
         onFieldChange,
         dataInput,
         setDataInput,
-        label,
-        onLabelChange,
+        labels,
+        onLabelsChange,
+        labelOverrides,
+        onLabelOverridesChange,
+        colorOverrides,
+        onColorOverridesChange,
+        data,
     } = visualizationConfig.chartConfig;
+
+    console.log({ labelOverrides });
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -48,6 +56,9 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.List mb="sm">
                     <Tabs.Tab px="sm" value="general">
                         General
+                    </Tabs.Tab>
+                    <Tabs.Tab px="sm" value="steps">
+                        Steps
                     </Tabs.Tab>
                 </Tabs.List>
 
@@ -133,6 +144,10 @@ export const ConfigTabs: FC = memo(() => {
                                 </Config.Section>
                             )}
                         </Config>
+                    </Stack>
+                </Tabs.Panel>
+                <Tabs.Panel value="steps">
+                    <Stack>
                         <Config>
                             <Config.Section>
                                 <Config.Heading>Labels</Config.Heading>
@@ -140,7 +155,7 @@ export const ConfigTabs: FC = memo(() => {
                                 <Group spacing="xs" noWrap>
                                     <Config.Label>Position</Config.Label>
                                     <SegmentedControl
-                                        value={label?.position}
+                                        value={labels?.position}
                                         data={[
                                             {
                                                 value: FunnelChartLabelPosition.LEFT,
@@ -159,7 +174,7 @@ export const ConfigTabs: FC = memo(() => {
                                         onChange={(
                                             newPosition: FunnelChartLabelPosition,
                                         ) =>
-                                            onLabelChange({
+                                            onLabelsChange({
                                                 position: newPosition,
                                             })
                                         }
@@ -168,9 +183,9 @@ export const ConfigTabs: FC = memo(() => {
 
                                 <Group spacing="xs">
                                     <Checkbox
-                                        checked={label?.showValue}
+                                        checked={labels?.showValue}
                                         onChange={(newValue) =>
-                                            onLabelChange({
+                                            onLabelsChange({
                                                 showValue:
                                                     newValue.currentTarget
                                                         .checked,
@@ -180,9 +195,9 @@ export const ConfigTabs: FC = memo(() => {
                                     />
 
                                     <Checkbox
-                                        checked={label?.showPercentage}
+                                        checked={labels?.showPercentage}
                                         onChange={(newValue) =>
-                                            onLabelChange({
+                                            onLabelsChange({
                                                 showPercentage:
                                                     newValue.currentTarget
                                                         .checked,
@@ -191,6 +206,30 @@ export const ConfigTabs: FC = memo(() => {
                                         label="Show percentage"
                                     />
                                 </Group>
+                            </Config.Section>
+                        </Config>
+                        <Config>
+                            <Config.Section>
+                                <Config.Heading>Steps</Config.Heading>
+                                {data.map((step) => {
+                                    console.log({ step });
+                                    return (
+                                        <StepConfig
+                                            key={step.name}
+                                            defaultColor="#aaf"
+                                            defaultLabel={step.name}
+                                            swatches={[]}
+                                            color={colorOverrides[step.name]}
+                                            label={labelOverrides[step.name]}
+                                            onColorChange={
+                                                onColorOverridesChange
+                                            }
+                                            onLabelChange={
+                                                onLabelOverridesChange
+                                            }
+                                        />
+                                    );
+                                })}
                             </Config.Section>
                         </Config>
                     </Stack>
