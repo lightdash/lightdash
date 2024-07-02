@@ -18,7 +18,6 @@ import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
-import Explorer from './pages/Explorer';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
@@ -240,18 +239,16 @@ const Routes: FC = () => {
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/tables/:tableId">
-                                        <NavBar />
                                         <TrackPage name={PageName.EXPLORER}>
-                                            <Explorer />
+                                            <Catalog />
                                         </TrackPage>
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/tables">
-                                        <NavBar />
                                         <TrackPage
                                             name={PageName.EXPLORE_TABLES}
                                         >
-                                            <Explorer />
+                                            <Catalog />
                                         </TrackPage>
                                     </Route>
 

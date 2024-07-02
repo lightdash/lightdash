@@ -161,7 +161,9 @@ export const useExplorerRoute = () => {
     }, [pathParams.tableId, clearExplore, setTableName]);
 };
 
-export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
+export const useExplorerUrlState = (
+    unsavedChartVersionDraft?: ExplorerReduceState['unsavedChartVersion'],
+): ExplorerReduceState | undefined => {
     const { showToastError } = useToaster();
     const { search } = useLocation();
     const pathParams = useParams<{
@@ -172,29 +174,29 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
     return useMemo(() => {
         if (pathParams.tableId) {
             try {
-                const unsavedChartVersion = parseExplorerSearchParams(
-                    search,
-                ) || {
-                    tableName: '',
-                    metricQuery: {
-                        exploreName: '',
-                        dimensions: [],
-                        metrics: [],
-                        filters: {},
-                        sorts: [],
-                        limit: 500,
-                        tableCalculations: [],
-                        additionalMetrics: [],
-                    },
-                    pivotConfig: undefined,
-                    tableConfig: {
-                        columnOrder: [],
-                    },
-                    chartConfig: {
-                        type: ChartType.CARTESIAN,
-                        config: { layout: {}, eChartsConfig: {} },
-                    },
-                };
+                const unsavedChartVersion = unsavedChartVersionDraft
+                    ? unsavedChartVersionDraft
+                    : parseExplorerSearchParams(search) || {
+                          tableName: '',
+                          metricQuery: {
+                              exploreName: '',
+                              dimensions: [],
+                              metrics: [],
+                              filters: {},
+                              sorts: [],
+                              limit: 500,
+                              tableCalculations: [],
+                              additionalMetrics: [],
+                          },
+                          pivotConfig: undefined,
+                          tableConfig: {
+                              columnOrder: [],
+                          },
+                          chartConfig: {
+                              type: ChartType.CARTESIAN,
+                              config: { layout: {}, eChartsConfig: {} },
+                          },
+                      };
 
                 return {
                     shouldFetchResults: true,
@@ -222,5 +224,5 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                 });
             }
         }
-    }, [pathParams, search, showToastError]);
+    }, [pathParams.tableId, search, showToastError, unsavedChartVersionDraft]);
 };

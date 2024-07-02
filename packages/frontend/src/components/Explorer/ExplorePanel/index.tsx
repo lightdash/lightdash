@@ -10,7 +10,6 @@ import { Skeleton, Stack } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
-import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
 const LoadingSkeleton = () => (
@@ -35,6 +34,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
+
     const additionalMetrics = useExplorerContext(
         (context) =>
             context.state.unsavedChartVersion.metricQuery.additionalMetrics,
@@ -52,6 +52,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
     );
+
     const toggleActiveField = useExplorerContext(
         (context) => context.actions.toggleActiveField,
     );
@@ -120,24 +121,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <PageBreadcrumbs
-                size="md"
-                items={[
-                    ...(onBack
-                        ? [
-                              {
-                                  title: 'Tables',
-                                  onClick: onBack,
-                              },
-                          ]
-                        : []),
-                    {
-                        title: explore.label,
-                        active: true,
-                    },
-                ]}
-            />
-
             <ItemDetailProvider>
                 <ExploreTree
                     explore={explore}

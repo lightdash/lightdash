@@ -58,6 +58,10 @@ export const CatalogMetadata: FC = () => {
         selection,
         setAnalyticsResults,
         setSelection,
+        setSelectedTable,
+        setHasSelectedField,
+        setIsViewingCatalog,
+        setExplorerUrlState,
     } = useCatalogContext();
     const { reset: resetMetadata } = useCatalogMetadata(projectUuid);
     const isMutatingAnalytics = useIsMutating([
@@ -438,41 +442,46 @@ export const CatalogMetadata: FC = () => {
                             },
                         })}
                         onClick={() => {
+                            setSelectedTable(metadata?.modelName);
                             if (metadata && isViewingField) {
                                 const fieldToExplore = getItemId({
                                     name: metadata.name,
                                     table: metadata.modelName,
                                 });
-                                return history.push(
+                                setIsViewingCatalog(false);
+                                setHasSelectedField(true);
+
+                                const chartDraft = {
+                                    ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+                                    tableName: metadata.modelName,
+                                    metricQuery: {
+                                        ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+                                        exploreName: metadata.modelName,
+                                        ...(metadata.fieldType ===
+                                        FieldType.DIMENSION
+                                            ? {
+                                                  dimensions: [fieldToExplore],
+                                              }
+                                            : metadata.fieldType ===
+                                              FieldType.METRIC
+                                            ? {
+                                                  metrics: [fieldToExplore],
+                                              }
+                                            : {}),
+                                    },
+                                };
+
+                                const route =
                                     getExplorerUrlFromCreateSavedChartVersion(
                                         projectUuid,
-                                        {
-                                            ...DEFAULT_EMPTY_EXPLORE_CONFIG,
-                                            tableName: metadata.modelName,
-                                            metricQuery: {
-                                                ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
-                                                exploreName: metadata.modelName,
-                                                ...(metadata.fieldType ===
-                                                FieldType.DIMENSION
-                                                    ? {
-                                                          dimensions: [
-                                                              fieldToExplore,
-                                                          ],
-                                                      }
-                                                    : metadata.fieldType ===
-                                                      FieldType.METRIC
-                                                    ? {
-                                                          metrics: [
-                                                              fieldToExplore,
-                                                          ],
-                                                      }
-                                                    : {}),
-                                            },
-                                        },
-                                    ),
-                                );
-                            }
+                                        chartDraft,
+                                    );
 
+                                setExplorerUrlState(chartDraft);
+
+                                return history.push(route);
+                            }
+                            setIsViewingCatalog(false);
                             return history.push(
                                 `/projects/${projectUuid}/tables/${metadata?.modelName}`,
                             );

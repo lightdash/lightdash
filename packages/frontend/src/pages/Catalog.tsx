@@ -1,21 +1,48 @@
 import { Box } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
+import { NavBarPOC } from '../components/NavBar/NavBarPOC';
 import { CatalogPanel } from '../features/catalog/components';
 import { CatalogMetadata } from '../features/catalog/components/CatalogMetadata';
-import { CatalogProvider } from '../features/catalog/context/CatalogProvider';
+import {
+    CatalogProvider,
+    useCatalogContext,
+} from '../features/catalog/context/CatalogProvider';
+import { useExplorerUrlState } from '../hooks/useExplorerRoute';
+import Explorer from './Explorer';
 
-const Catalog: FC = () => {
-    const params = useParams<{ projectUuid: string }>();
-    const selectedProjectUuid = params.projectUuid;
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
+const ExploreModal: FC<{ projectUuid: string }> = () => {
+    const { isViewingCatalog, explorerUrlState, setIsViewingCatalog } =
+        useCatalogContext();
+
+    const explorerUrlStateFromHook = useExplorerUrlState();
+
+    useEffect(() => {
+        if (explorerUrlState || explorerUrlStateFromHook) {
+            setIsViewingCatalog(false);
+        }
+    }, [explorerUrlState, explorerUrlStateFromHook, setIsViewingCatalog]);
 
     return (
-        <CatalogProvider
-            projectUuid={selectedProjectUuid}
-            isSidebarOpen={isSidebarOpen}
-            setSidebarOpen={setSidebarOpen}
+        <Box
+            sx={{
+                display: isViewingCatalog ? 'none' : 'block',
+            }}
+        >
+            <Explorer explorerUrlState={explorerUrlState} />
+        </Box>
+    );
+};
+
+const CatalogPage: FC<{ isSidebarOpen: boolean }> = ({ isSidebarOpen }) => {
+    const { isViewingCatalog } = useCatalogContext();
+
+    return (
+        <Box
+            sx={{
+                display: !isViewingCatalog ? 'none' : 'block',
+            }}
         >
             <Page
                 withFitContent
@@ -44,6 +71,25 @@ const Catalog: FC = () => {
                     <CatalogPanel />
                 </Box>
             </Page>
+        </Box>
+    );
+};
+
+const Catalog: FC = () => {
+    const params = useParams<{ projectUuid: string }>();
+    const selectedProjectUuid = params.projectUuid;
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+    return (
+        <CatalogProvider
+            projectUuid={selectedProjectUuid}
+            isSidebarOpen={isSidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+        >
+            <NavBarPOC />
+
+            <CatalogPage isSidebarOpen={isSidebarOpen} />
+            <ExploreModal projectUuid={selectedProjectUuid} />
         </CatalogProvider>
     );
 };
