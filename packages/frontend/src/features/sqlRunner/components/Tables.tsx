@@ -2,7 +2,7 @@ import {
     ActionIcon,
     Center,
     Highlight,
-    LoadingOverlay,
+    Loader,
     Stack,
     Text,
     TextInput,
@@ -33,11 +33,16 @@ export const Tables: FC<Props> = ({
 
     return (
         <>
-            <LoadingOverlay visible={isLoading} />
             <TextInput
                 size="xs"
-                disabled={isLoading || (!data && !isValidSearch)}
-                icon={<MantineIcon icon={IconSearch} />}
+                disabled={!data && !isValidSearch}
+                icon={
+                    isLoading ? (
+                        <Loader size="xs" />
+                    ) : (
+                        <MantineIcon icon={IconSearch} />
+                    )
+                }
                 rightSection={
                     search ? (
                         <ActionIcon onClick={() => setSearch('')}>
