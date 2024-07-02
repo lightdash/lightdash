@@ -53,6 +53,7 @@
         "@tiptap/react": "^2.2.4",
         "@tiptap/starter-kit": "^2.2.4",
         "@tiptap/suggestion": "^2.2.4",
+        "@types/react-resizable": "^3.0.8",
         "@uiw/react-md-editor": "^3.23.5",
         "ace-builds": "^1.4.14",
         "canvas-confetti": "^1.6.0",
