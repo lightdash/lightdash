@@ -1,3 +1,10 @@
+# [0.1151.0](https://github.com/lightdash/lightdash/compare/0.1150.0...0.1151.0) (2024-07-02)
+
+
+### Features
+
+* sql runner table fields ([#10568](https://github.com/lightdash/lightdash/issues/10568)) ([2ddd756](https://github.com/lightdash/lightdash/commit/2ddd7567dc32d720ebffb95ca49744dbf7b9d20c))
+
 # [0.1150.0](https://github.com/lightdash/lightdash/compare/0.1149.2...0.1150.0) (2024-07-01)
 
 
