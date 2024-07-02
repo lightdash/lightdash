@@ -1,3 +1,24 @@
+# [0.1151.0](https://github.com/lightdash/lightdash/compare/0.1150.0...0.1151.0) (2024-07-02)
+
+
+### Features
+
+* sql runner table fields ([#10568](https://github.com/lightdash/lightdash/issues/10568)) ([2ddd756](https://github.com/lightdash/lightdash/commit/2ddd7567dc32d720ebffb95ca49744dbf7b9d20c))
+
+# [0.1150.0](https://github.com/lightdash/lightdash/compare/0.1149.2...0.1150.0) (2024-07-01)
+
+
+### Features
+
+* add new sql runner page with tables ([#10563](https://github.com/lightdash/lightdash/issues/10563)) ([ad21821](https://github.com/lightdash/lightdash/commit/ad218217266b1f05d0bc44cf381b5d7cfbb0f458))
+
+## [0.1149.2](https://github.com/lightdash/lightdash/compare/0.1149.1...0.1149.2) (2024-07-01)
+
+
+### Bug Fixes
+
+* increase pulling intervals for notifications and dbt semantic layer endpoints ([#10564](https://github.com/lightdash/lightdash/issues/10564)) ([cb9b69e](https://github.com/lightdash/lightdash/commit/cb9b69e31455f956435b55285636a6c8ee0a5c98))
+
 ## [0.1149.1](https://github.com/lightdash/lightdash/compare/0.1149.0...0.1149.1) (2024-07-01)
 
 

@@ -38,6 +38,7 @@ import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
+import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 
@@ -223,6 +224,12 @@ const Routes: FC = () => {
                                         <TrackPage name={PageName.SQL_RUNNER}>
                                             <SqlRunner />
                                         </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/sql-runner-new">
+                                        <NavBar />
+
+                                        <SqlRunnerNew />
                                     </Route>
 
                                     <Route path="/projects/:projectUuid/dbtsemanticlayer">

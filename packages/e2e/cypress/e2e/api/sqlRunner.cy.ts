@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { ApiWarehouseTableFields, WarehouseTypes } from '@lightdash/common';
 import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
@@ -65,32 +65,23 @@ Object.entries(warehouseConnections).forEach(
                 });
             });
             it(`Get fields for SQL runner ${warehouseName}`, () => {
-                cy.request({
+                cy.request<ApiWarehouseTableFields>({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables/orders`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'GET',
                 }).then((resp) => {
                     expect(resp.status).to.eq(200);
 
-                    const [database, schema] = getDatabaseDetails();
-                    expect(Object.keys(resp.body.results)).to.include(database);
-                    const databaseResults = resp.body.results[database];
-                    expect(Object.keys(databaseResults)).to.include(schema);
-                    const schemaResults = databaseResults[schema];
-                    expect(Object.keys(schemaResults)).to.include('orders');
-                    expect(Object.keys(schemaResults)).to.not.include(
-                        'customers',
-                    );
-                    const fieldResults = schemaResults.orders;
+                    const { results } = resp.body;
 
-                    expect(Object.keys(fieldResults)).to.have.length.gt(5);
+                    expect(Object.keys(results)).to.have.length.gt(5);
                     ['order_id', 'status', 'amount'].forEach((table) => {
-                        expect(Object.keys(fieldResults)).to.include(table);
+                        expect(Object.keys(results)).to.include(table);
                     });
-                    expect(fieldResults.amount).to.be.eq('number');
-                    expect(fieldResults.status).to.be.eq('string');
-                    expect(fieldResults.is_completed).to.be.eq('boolean');
-                    expect(fieldResults.order_date).to.be.eq('date');
+                    expect(results.amount).to.be.eq('number');
+                    expect(results.status).to.be.eq('string');
+                    expect(results.is_completed).to.be.eq('boolean');
+                    expect(results.order_date).to.be.eq('date');
                 });
             });
 

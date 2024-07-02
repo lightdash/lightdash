@@ -7128,6 +7128,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiWarehouseTableFields": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseTableSchema"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SqlRunnerBody": {
                 "properties": {
                     "sql": {
@@ -8002,7 +8016,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1149.1",
+        "version": "0.1151.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13049,7 +13063,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiWarehouseCatalog"
+                                    "$ref": "#/components/schemas/ApiWarehouseTableFields"
                                 }
                             }
                         }
