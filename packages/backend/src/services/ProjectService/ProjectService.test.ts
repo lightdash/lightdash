@@ -11,6 +11,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
@@ -114,6 +115,7 @@ describe('ProjectService', () => {
             }),
         } as unknown as EmailModel,
         schedulerClient: {} as SchedulerClient,
+        downloadFileModel: {} as unknown as DownloadFileModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
