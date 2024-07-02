@@ -24,6 +24,7 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
     isSelected = false,
     onClick,
 }) => {
+    const { setSelectedTable } = useCatalogContext();
     const [hovered, setHovered] = useState<boolean | undefined>(false);
     const { projectUuid } = useCatalogContext();
 
@@ -133,7 +134,6 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     <MantineLinkButton
                         size="xs"
                         href={exploreWithFieldUrl}
-                        target="_blank"
                         compact
                         sx={(theme) => ({
                             backgroundColor: theme.colors.gray[8],
@@ -141,7 +141,10 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                                 backgroundColor: theme.colors.gray[9],
                             },
                         })}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTable(field.tableName);
+                        }}
                     >
                         Use field
                     </MantineLinkButton>

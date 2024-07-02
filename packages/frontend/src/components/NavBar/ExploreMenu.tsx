@@ -5,8 +5,8 @@ import {
     IconFolderPlus,
     IconLayersIntersect,
     IconLayoutDashboard,
+    IconReportSearch,
     IconSquareRoundedPlus,
-    IconTable,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
@@ -66,10 +66,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     <Menu.Dropdown>
                         <LargeMenuItem
                             component={Link}
-                            title="Query from tables"
-                            description="Build queries and save them as charts."
+                            title="Start exploring"
+                            description="Explore your catalog and build queries."
                             to={`/projects/${projectUuid}/tables`}
-                            icon={IconTable}
+                            icon={IconReportSearch}
                         />
                         {health.data?.hasDbtSemanticLayer && (
                             <LargeMenuItem
