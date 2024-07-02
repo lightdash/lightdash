@@ -1,7 +1,7 @@
 import { Button, Menu, Text, Tooltip } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import { IconChevronDown, IconRefresh } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
@@ -30,7 +30,13 @@ const REFRESH_INTERVAL_OPTIONS = [
     },
 ];
 
-export const DashboardRefreshButton = () => {
+type DashboardRefreshButtonProps = {
+    onIntervalChange: (intervalMin?: number) => void;
+};
+
+export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = ({
+    onIntervalChange,
+}) => {
     const { showToastSuccess } = useToaster();
     const [isOpen, setIsOpen] = useState(false);
     const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
@@ -56,11 +62,15 @@ export const DashboardRefreshButton = () => {
     );
 
     useEffect(() => {
+        onIntervalChange(refreshInterval);
+    }, [onIntervalChange, refreshInterval]);
+
+    useEffect(() => {
         if (refreshInterval !== undefined) {
             interval.start();
         }
         return interval.stop;
-    }, [interval, refreshInterval, showToastSuccess]);
+    }, [interval, refreshInterval]);
 
     return (
         <Button.Group>

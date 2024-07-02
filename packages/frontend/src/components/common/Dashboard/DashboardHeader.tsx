@@ -34,7 +34,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -180,6 +180,34 @@ const DashboardHeader = ({
         }),
     );
 
+    const handleDashboardRefreshUpdateEvent = useCallback(
+        (intervalMin?: number) => {
+            track({
+                name: EventName.DASHBOARD_AUTO_REFRESH_UPDATED,
+                properties: {
+                    useId: user.data?.userUuid,
+                    dashboardId: dashboardUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    frequency: intervalMin ? `${intervalMin} minutes` : 'off',
+                },
+            });
+        },
+        [
+            dashboardUuid,
+            organizationUuid,
+            projectUuid,
+            track,
+            user.data?.userUuid,
+        ],
+    );
+
+    useEffect(() => {
+        // When unmounting the dashboard - navigate away - track the event with undefined interval
+        // Not doing it inside the button component because it get's triggered too often
+        return () => handleDashboardRefreshUpdateEvent(undefined);
+    }, [handleDashboardRefreshUpdateEvent]);
+
     return (
         <PageHeader
             cardProps={{
@@ -309,7 +337,11 @@ const DashboardHeader = ({
                 </PageActionsContainer>
             ) : (
                 <PageActionsContainer>
-                    {userCanExportData && <DashboardRefreshButton />}
+                    {userCanExportData && (
+                        <DashboardRefreshButton
+                            onIntervalChange={handleDashboardRefreshUpdateEvent}
+                        />
+                    )}
 
                     {!isEditMode && document.fullscreenEnabled && (
                         <Tooltip
