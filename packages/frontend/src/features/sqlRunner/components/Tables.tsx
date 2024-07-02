@@ -1,18 +1,17 @@
 import { LoadingOverlay, Stack, Text, UnstyledButton } from '@mantine/core';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { type FC } from 'react';
+import { setActiveTable } from '../../../store/features/sqlRunner/sqlRunnerSlice';
+import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { useTables } from '../hooks/useTables';
 
 type Props = {
     projectUuid: string;
-    activeTable: string | undefined;
-    setActiveTable: Dispatch<SetStateAction<string | undefined>>;
 };
 
-export const Tables: FC<Props> = ({
-    activeTable,
-    setActiveTable,
-    projectUuid,
-}) => {
+export const Tables: FC<Props> = ({ projectUuid }) => {
+    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const dispatch = useAppDispatch();
+
     const { data, isLoading } = useTables({ projectUuid });
 
     return (
@@ -29,7 +28,7 @@ export const Tables: FC<Props> = ({
                                 <UnstyledButton
                                     key={table}
                                     onClick={() => {
-                                        setActiveTable(table);
+                                        dispatch(setActiveTable(table));
                                     }}
                                     fw={500}
                                     p={4}

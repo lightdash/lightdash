@@ -1,6 +1,5 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { uniq } from 'lodash';
 
 export interface SqlRunnerState {
     projectUuid: string;
@@ -19,10 +18,18 @@ const sqlRunnerSlice = createSlice({
     initialState,
     reducers: {
         setActiveFields: (state, action: PayloadAction<string>) => {
-            state.activeFields = uniq([
-                ...(state.activeFields ?? []),
-                action.payload,
-            ]);
+            const field = action.payload;
+            const stateFields = state.activeFields ?? [];
+            const index = stateFields.indexOf(field);
+
+            if (index === -1) {
+                state.activeFields = [...stateFields, field];
+            } else {
+                state.activeFields = [
+                    ...stateFields.slice(0, index),
+                    ...stateFields.slice(index + 1),
+                ];
+            }
         },
         setActiveTable: (state, action: PayloadAction<string | undefined>) => {
             state.activeTable = action.payload;
