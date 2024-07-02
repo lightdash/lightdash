@@ -21,6 +21,7 @@ const Catalog: FC = () => {
                 withFitContent
                 withPaddedContent
                 withRightSidebar
+                withLargeContent
                 isRightSidebarOpen={isSidebarOpen}
                 rightSidebar={<CatalogMetadata />}
                 rightSidebarWidthProps={{

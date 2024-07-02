@@ -17,6 +17,7 @@ import Sidebar, { SidebarPosition, type SidebarWidthProps } from './Sidebar';
 type StyleProps = {
     withCenteredContent?: boolean;
     withFitContent?: boolean;
+    withLargeContent?: boolean;
     withFixedContent?: boolean;
     withFooter?: boolean;
     withFullHeight?: boolean;
@@ -31,7 +32,7 @@ type StyleProps = {
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
-// const PAGE_CONTENT_WIDTH_LARGE = 1200;
+const PAGE_CONTENT_WIDTH_LARGE = 1200;
 export const PAGE_MIN_CONTENT_WIDTH = 600;
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
@@ -123,9 +124,9 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                   }
                 : {}),
 
-            ...(params.withRightSidebar
+            ...(params.withLargeContent
                 ? {
-                      // width: PAGE_CONTENT_WIDTH_LARGE,
+                      width: PAGE_CONTENT_WIDTH_LARGE,
                   }
                 : {}),
 
@@ -169,6 +170,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withCenteredContent = false,
     withFitContent = false,
     withFixedContent = false,
+    withLargeContent = false,
     withFooter = false,
     withFullHeight = false,
     withNavbar = true,
@@ -194,6 +196,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withCenteredContent,
             withFitContent,
             withFixedContent,
+            withLargeContent,
             withFooter,
             withFullHeight,
             withHeader: !!header,
