@@ -19,6 +19,7 @@ const SqlRunnerNewPage = () => {
         <Page
             title="SQL Runner"
             noContentPadding
+            flexContent
             header={<Header />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={
