@@ -206,7 +206,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withSidebarFooter,
             withRightSidebar: !!rightSidebar,
             hasBanner: isCurrentProjectPreview,
-            noContentPadding: noContentPadding,
+            noContentPadding,
         },
         { name: 'Page' },
     );
