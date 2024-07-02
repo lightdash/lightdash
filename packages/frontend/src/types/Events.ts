@@ -110,4 +110,5 @@ export enum EventName {
     DATE_ZOOM_CLICKED = 'date_zoom.clicked',
     COMMENTS_CLICKED = 'comments.clicked',
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
+    DASHBOARD_AUTO_REFRESH_UPDATED = 'dasboard_auto_refresh.updated',
 }
