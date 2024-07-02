@@ -266,7 +266,7 @@ export const createFilterRuleFromField = (
             operator:
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
-        value ? [value] : [],
+        value ? [value] : null,
     );
 
 export const matchFieldExact = (a: Field) => (b: Field) =>

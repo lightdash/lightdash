@@ -4,6 +4,9 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
+    getMomentDateWithCustomStartOfWeek,
+    isDateItem,
+    TimeFrames,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -32,7 +35,7 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
-    const { popoverProps } = useFiltersContext();
+    const { popoverProps, startOfWeek } = useFiltersContext();
     const activeField = useMemo(() => {
         return fields.find(
             (field) => getItemId(field) === filterRule.target.fieldId,
@@ -54,20 +57,40 @@ const FilterRuleForm: FC<Props> = ({
             const selectedField = fields.find(
                 (field) => getItemId(field) === fieldId,
             );
+
             if (selectedField && activeField) {
+                // If we are switching to a week fitler from another
+                // type of date filter, we havel to adjust the values
+                // data to match any custom start of week
+                const dateSwitchingToWeek =
+                    isDateItem(selectedField) &&
+                    isDateItem(activeField) &&
+                    'timeInterval' in selectedField &&
+                    selectedField.timeInterval === TimeFrames.WEEK;
+
+                const values = dateSwitchingToWeek
+                    ? filterRule.values?.map((value) =>
+                          getMomentDateWithCustomStartOfWeek(
+                              startOfWeek,
+                              value,
+                          ).startOf('week'),
+                      )
+                    : filterRule.values;
+
                 if (selectedField.type === activeField.type) {
                     onChange({
                         ...filterRule,
                         target: {
                             fieldId,
                         },
+                        values: values,
                     });
                 } else {
                     onChange(createFilterRuleFromField(selectedField));
                 }
             }
         },
-        [activeField, fields, filterRule, onChange],
+        [activeField, fields, filterRule, onChange, startOfWeek],
     );
     const isRequired = filterRule.required;
     const isRequiredLabel = isRequired
