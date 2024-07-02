@@ -1,12 +1,18 @@
 import {
+    ActionIcon,
     Box,
     Center,
+    Highlight,
     Loader,
     Stack,
     Text,
+    TextInput,
     UnstyledButton,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableFields } from '../hooks/useTableFields';
 
 type Props = {
@@ -15,6 +21,13 @@ type Props = {
 };
 
 export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
+    const [search, setSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(search, 300);
+
+    const isValidSearch = Boolean(
+        debouncedSearch && debouncedSearch.trim().length > 2,
+    );
+
     const {
         data: tableFields,
         isLoading,
@@ -22,6 +35,7 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
     } = useTableFields({
         projectUuid,
         tableName: activeTable,
+        search: isValidSearch ? debouncedSearch : undefined,
     });
     const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
 
@@ -33,18 +47,49 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
 
     return (
         <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
-            {isLoading && !!activeTable && <Loader size="xs" />}
-            {(!activeTable || (!tableFields && !isLoading)) && (
-                <Center p="md">
-                    <Text c="gray.4">No table selected</Text>
-                </Center>
-            )}
-
-            {tableFields && (
+            {activeTable ? (
                 <>
                     <Text fz="sm" fw={600} c="gray.7">
                         {activeTable}
                     </Text>
+                    <TextInput
+                        size="xs"
+                        disabled={!tableFields && !isValidSearch}
+                        icon={
+                            isLoading ? (
+                                <Loader size="xs" />
+                            ) : (
+                                <MantineIcon icon={IconSearch} />
+                            )
+                        }
+                        rightSection={
+                            search ? (
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={() => setSearch('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search fields"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        styles={(theme) => ({
+                            input: {
+                                borderRadius: theme.radius.md,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                            },
+                        })}
+                    />
+                </>
+            ) : (
+                <Center p="md">
+                    <Text c="gray.4">No table selected</Text>
+                </Center>
+            )}
+            {tableFields ? (
+                <>
                     <Box
                         h="100%"
                         sx={{
@@ -52,7 +97,7 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                         }}
                     >
                         <Stack spacing={0}>
-                            {Object.keys(tableFields).map((field) => (
+                            {tableFields.map((field) => (
                                 <UnstyledButton
                                     key={field}
                                     fw={500}
@@ -87,12 +132,21 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                                         },
                                     })}
                                 >
-                                    {field}
+                                    <Highlight
+                                        component={Text}
+                                        highlight={search || ''}
+                                    >
+                                        {field}
+                                    </Highlight>
                                 </UnstyledButton>
                             ))}
                         </Stack>
                     </Box>
                 </>
+            ) : (
+                <Center p="sm">
+                    <Text c="gray.4">No results found</Text>
+                </Center>
             )}
         </Stack>
     );
