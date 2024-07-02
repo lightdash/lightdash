@@ -1,3 +1,10 @@
+## [0.1151.1](https://github.com/lightdash/lightdash/compare/0.1151.0...0.1151.1) (2024-07-02)
+
+
+### Bug Fixes
+
+* pass boolean to see private spaces ([#10583](https://github.com/lightdash/lightdash/issues/10583)) ([8e3d9f5](https://github.com/lightdash/lightdash/commit/8e3d9f5a55f4f6d2edec1cbc369d6a27189c2a12))
+
 # [0.1151.0](https://github.com/lightdash/lightdash/compare/0.1150.0...0.1151.0) (2024-07-02)
 
 
