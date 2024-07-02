@@ -8,9 +8,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
 import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
-import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Tables } from './Tables';
 
