@@ -7,6 +7,7 @@ import {
     ApiChartAndResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    assertUnreachable,
     CacheMetadata,
     CalculateTotalFromQuery,
     ChartSummary,
@@ -92,6 +93,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
 } from '@lightdash/common';
@@ -2585,6 +2587,24 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private static getWarehouseDatabase(
+        credentials: WarehouseCredentials,
+    ): string | undefined {
+        switch (credentials.type) {
+            case WarehouseTypes.BIGQUERY:
+                return credentials.project;
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+                return credentials.dbname;
+            case WarehouseTypes.SNOWFLAKE:
+            case WarehouseTypes.DATABRICKS:
+                return credentials.database.toLowerCase();
+            default:
+                return assertUnreachable(credentials, 'Unknown warehouse type');
+        }
+    }
+
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
@@ -2628,7 +2648,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         tableName: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2656,8 +2676,20 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
         };
         const schema = ProjectService.getWarehouseSchema(credentials);
+        const database = ProjectService.getWarehouseDatabase(credentials);
 
-        const warehouseCatalog = warehouseClient.getFields(
+        if (!schema) {
+            throw new NotFoundError(
+                'Schema not found in warehouse credentials',
+            );
+        }
+        if (!database) {
+            throw new NotFoundError(
+                'Database not found in warehouse credentials',
+            );
+        }
+
+        const warehouseCatalog = await warehouseClient.getFields(
             tableName,
             schema,
             queryTags,
@@ -2665,7 +2697,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return warehouseCatalog;
+        return warehouseCatalog[database][schema][tableName];
     }
 
     async getTablesConfiguration(
