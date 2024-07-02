@@ -1,3 +1,10 @@
+## [0.1151.2](https://github.com/lightdash/lightdash/compare/0.1151.1...0.1151.2) (2024-07-02)
+
+
+### Bug Fixes
+
+* add optional flex content to page.tsx ([#10585](https://github.com/lightdash/lightdash/issues/10585)) ([7140e01](https://github.com/lightdash/lightdash/commit/7140e015ffdf0b470f258d49f1379d4f27ddf984))
+
 ## [0.1151.1](https://github.com/lightdash/lightdash/compare/0.1151.0...0.1151.1) (2024-07-02)
 
 
