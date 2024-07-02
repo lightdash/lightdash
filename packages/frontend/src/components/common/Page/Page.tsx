@@ -27,6 +27,7 @@ type StyleProps = {
     withSidebar?: boolean;
     withSidebarFooter?: boolean;
     withRightSidebar?: boolean;
+    flexContent?: boolean;
     hasBanner?: boolean;
     noContentPadding?: boolean;
 };
@@ -71,8 +72,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
         content: {
             width: '100%',
             minWidth: PAGE_CONTENT_WIDTH,
-            display: 'flex',
-
+            ...(params.flexContent ? { display: 'flex' } : {}),
             ...(params.noContentPadding
                 ? {
                       padding: 0,
@@ -177,6 +177,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withPaddedContent = false,
     withSidebarFooter = false,
     noContentPadding = false,
+    flexContent = false,
 
     children,
 }) => {
@@ -207,6 +208,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withRightSidebar: !!rightSidebar,
             hasBanner: isCurrentProjectPreview,
             noContentPadding,
+            flexContent,
         },
         { name: 'Page' },
     );
