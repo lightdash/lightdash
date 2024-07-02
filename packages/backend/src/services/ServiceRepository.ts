@@ -419,6 +419,7 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
                 }),
         );
     }

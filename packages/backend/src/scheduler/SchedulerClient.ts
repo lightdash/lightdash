@@ -17,6 +17,8 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SlackNotificationPayload,
+    sqlRunnerJob,
+    SqlRunnerPayload,
     UnexpectedServerError,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
@@ -568,6 +570,18 @@ export class SchedulerClient {
             },
         });
 
+        return jobId;
+    }
+
+    async runSql(payload: SqlRunnerPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            sqlRunnerJob,
+            payload,
+            now,
+        );
         return jobId;
     }
 

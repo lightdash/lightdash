@@ -1,13 +1,17 @@
 import {
     ApiErrorPayload,
+    ApiJobScheduledResponse,
     ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    SqlRunnerBody,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -15,6 +19,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import fs from 'fs';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -68,5 +73,62 @@ export class SqlRunnerController extends BaseController {
                 .getProjectService()
                 .getWarehouseFields(req.user!, projectUuid, tableName),
         };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/run')
+    @OperationId('runSql')
+    async runSql(
+        @Path() projectUuid: string,
+        @Body() body: SqlRunnerBody,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .scheduleSqlJob(req.user!, projectUuid, body.sql),
+        };
+    }
+
+    /**
+     * Get results from a file stored locally
+     * @param fileId the fileId for the file
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('results/{fileId}')
+    @OperationId('getLocalResults')
+    async getLocalResults(
+        @Path() fileId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<any> {
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'application/json');
+
+        const resultsFilePath = await this.services
+            .getProjectService()
+            .getResultsFile(req.user!, projectUuid, fileId);
+
+        const mystream = fs.createReadStream(resultsFilePath);
+        const { res } = req;
+        if (res) {
+            mystream.pipe(res);
+            await new Promise<void>((resolve, reject) => {
+                mystream.on('end', () => {
+                    res.end();
+                    resolve();
+                });
+            });
+        }
     }
 }
