@@ -8,6 +8,7 @@ import {
     TextInput,
     UnstyledButton,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,10 +26,14 @@ export const Tables: FC<Props> = ({
     projectUuid,
 }) => {
     const [search, setSearch] = useState<string>('');
-    const isValidSearch = Boolean(search && search.trim().length > 2);
-    const { data, isLoading } = useTables({
+    const [debouncedSearch] = useDebouncedValue(search, 300);
+
+    const isValidSearch = Boolean(
+        debouncedSearch && debouncedSearch.trim().length > 2,
+    );
+    const { data, isLoading, isSuccess } = useTables({
         projectUuid,
-        search: isValidSearch ? search : undefined,
+        search: isValidSearch ? debouncedSearch : undefined,
     });
 
     return (
@@ -45,7 +50,7 @@ export const Tables: FC<Props> = ({
                 }
                 rightSection={
                     search ? (
-                        <ActionIcon onClick={() => setSearch('')}>
+                        <ActionIcon size="xs" onClick={() => setSearch('')}>
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     ) : null
@@ -60,7 +65,7 @@ export const Tables: FC<Props> = ({
                     },
                 })}
             />
-            {data ? (
+            {isSuccess && data ? (
                 data.map(({ schema, tables }) => (
                     <Stack key={schema} spacing="none">
                         <Text p={6} fw={700} fz="md" c="gray.7">
