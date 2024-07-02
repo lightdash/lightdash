@@ -17,7 +17,10 @@ interface Props {
 }
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
-    const { data: spaces, isInitialLoading } = useSpaceSummaries(projectUuid);
+    const { data: spaces, isInitialLoading } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
 
     return (
         <Menu
