@@ -3,9 +3,7 @@ import { IconDeviceFloppy, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
-type Props = {};
-
-export const Header: FC<Props> = ({}) => {
+export const Header: FC = () => {
     return (
         <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
             <Group position="apart">
