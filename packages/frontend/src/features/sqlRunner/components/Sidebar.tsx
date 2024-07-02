@@ -8,7 +8,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowLeft } from '@tabler/icons-react';
+import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
 import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -38,7 +38,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                 <Tooltip variant="xs" label="Close sidebar" position="left">
                     <ActionIcon size="xs">
                         <MantineIcon
-                            icon={IconArrowLeft}
+                            icon={IconLayoutSidebarLeftCollapse}
                             onClick={() => setSidebarOpen(false)}
                         />
                     </ActionIcon>
