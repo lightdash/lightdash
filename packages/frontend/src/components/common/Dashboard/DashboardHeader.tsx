@@ -185,7 +185,7 @@ const DashboardHeader = ({
             track({
                 name: EventName.DASHBOARD_AUTO_REFRESH_UPDATED,
                 properties: {
-                    useId: user.data?.userUuid,
+                    userId: user.data?.userUuid,
                     dashboardId: dashboardUuid,
                     organizationId: organizationUuid,
                     projectId: projectUuid,
