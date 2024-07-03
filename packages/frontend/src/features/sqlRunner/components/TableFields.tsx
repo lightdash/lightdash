@@ -7,14 +7,12 @@ import {
     Stack,
     Text,
     TextInput,
-    UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { memo, useCallback, useState, type FC } from 'react';
+import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { setActiveFields } from '../../../store/features/sqlRunner/sqlRunnerSlice';
-import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { useAppSelector } from '../../../store/hooks';
 import { useTableFields } from '../hooks/useTableFields';
 
 type Props = {
@@ -23,40 +21,26 @@ type Props = {
 
 const TableField: FC<{
     field: string;
-    isActiveField: boolean;
     search: string | undefined;
-}> = memo(({ field, isActiveField, search }) => {
-    const dispatch = useAppDispatch();
-
-    return (
-        <UnstyledButton
-            fw={500}
-            p={4}
-            fz={13}
-            c={isActiveField ? 'gray.8' : 'gray.7'}
-            bg={isActiveField ? 'gray.1' : 'transparent'}
-            onClick={() => {
-                dispatch(setActiveFields(field));
-            }}
-            sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': {
-                    backgroundColor: theme.colors.gray[isActiveField ? 3 : 1],
-                },
-            })}
-        >
-            <Highlight component={Text} highlight={search || ''}>
-                {field}
-            </Highlight>
-        </UnstyledButton>
-    );
-});
+}> = memo(({ field, search }) => (
+    <Box
+        fw={500}
+        p={4}
+        fz={13}
+        c="gray.7"
+        sx={(theme) => ({
+            borderRadius: theme.radius.sm,
+        })}
+    >
+        <Highlight component={Text} highlight={search || ''}>
+            {field}
+        </Highlight>
+    </Box>
+));
 
 export const TableFields: FC<Props> = ({ projectUuid }) => {
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
-    const activeFields = useAppSelector(
-        (state) => state.sqlRunner.activeFields,
-    );
+
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
@@ -72,12 +56,6 @@ export const TableFields: FC<Props> = ({ projectUuid }) => {
         tableName: activeTable,
         search: isValidSearch ? debouncedSearch : undefined,
     });
-
-    const isActiveField = useCallback(
-        (field: string) =>
-            Boolean(activeFields && activeFields.includes(field)),
-        [activeFields],
-    );
 
     return (
         <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
@@ -135,7 +113,6 @@ export const TableFields: FC<Props> = ({ projectUuid }) => {
                                 <TableField
                                     key={field}
                                     field={field}
-                                    isActiveField={isActiveField(field)}
                                     search={search}
                                 />
                             ))}
