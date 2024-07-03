@@ -65,7 +65,8 @@ export const Tables: FC<Props> = ({
                     },
                 })}
             />
-            {isSuccess && data ? (
+            {isSuccess &&
+                data &&
                 data.map(({ schema, tables }) => (
                     <Stack key={schema} spacing="none">
                         <Text p={6} fw={700} fz="md" c="gray.7">
@@ -102,8 +103,8 @@ export const Tables: FC<Props> = ({
                             </UnstyledButton>
                         ))}
                     </Stack>
-                ))
-            ) : (
+                ))}
+            {isSuccess && !data && (
                 <Center p="sm">
                     <Text c="gray.4">No results found</Text>
                 </Center>
