@@ -26,7 +26,7 @@ type TablesBySchema =
 
 export const useTables = ({ projectUuid, search }: GetTablesParams) => {
     return useQuery<ApiWarehouseCatalog, ApiError, TablesBySchema>({
-        queryKey: ['sqlRunner', 'tables', projectUuid, search],
+        queryKey: ['sqlRunner', 'tables', projectUuid],
         queryFn: () =>
             fetchTables({
                 projectUuid,
