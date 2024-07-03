@@ -12,7 +12,7 @@ import {
 import { Anchor, Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
-import produce from 'immer';
+import { produce } from 'immer';
 import orderBy from 'lodash/orderBy';
 import { useMemo, type FC } from 'react';
 import { Link, useParams } from 'react-router-dom';
