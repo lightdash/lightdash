@@ -11,8 +11,8 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { setActiveTable } from '../../../store/features/sqlRunner/sqlRunnerSlice';
-import { useAppDispatch, useAppSelector } from '../../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setActiveTable } from '../store/sqlRunnerSlice';
 
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTables } from '../hooks/useTables';

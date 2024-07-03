@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import sqlRunnerReducer from './features/sqlRunner/sqlRunnerSlice';
+import sqlRunnerReducer from './sqlRunnerSlice';
 
 export const store = configureStore({
     reducer: {

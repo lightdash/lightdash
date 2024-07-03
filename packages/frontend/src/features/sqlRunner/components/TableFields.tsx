@@ -12,8 +12,8 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppSelector } from '../../../store/hooks';
 import { useTableFields } from '../hooks/useTableFields';
+import { useAppSelector } from '../store/hooks';
 
 type Props = {
     projectUuid: string;

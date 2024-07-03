@@ -9,7 +9,7 @@ import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { RightSidebar } from '../features/sqlRunner/components/RightSidebar';
-import { store } from '../store';
+import { store } from '../features/sqlRunner/store';
 
 const SqlRunnerNewPage = () => {
     const params = useParams<{ projectUuid: string }>();
