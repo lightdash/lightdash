@@ -88,7 +88,7 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                     <Text c="gray.4">No table selected</Text>
                 </Center>
             )}
-            {tableFields ? (
+            {isSuccess && tableFields && (
                 <>
                     <Box
                         h="100%"
@@ -143,7 +143,8 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                         </Stack>
                     </Box>
                 </>
-            ) : (
+            )}
+            {isSuccess && !tableFields && (
                 <Center p="sm">
                     <Text c="gray.4">No results found</Text>
                 </Center>
