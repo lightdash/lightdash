@@ -25,7 +25,7 @@ export const useTableFields = ({
     search,
 }: GetTableFieldsParams) => {
     return useQuery<ApiWarehouseTableFields, ApiError, string[] | undefined>({
-        queryKey: ['sqlRunner', 'tables', tableName, projectUuid, search],
+        queryKey: ['sqlRunner', 'tables', tableName, projectUuid],
         queryFn: () =>
             fetchTableFields({
                 projectUuid,
