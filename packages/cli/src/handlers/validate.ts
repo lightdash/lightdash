@@ -20,11 +20,12 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 const requestValidation = async (
     projectUuid: string,
     explores: (Explore | ExploreError)[],
+    onlyTables: boolean,
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         method: 'POST',
         url: `/api/v1/projects/${projectUuid}/validate`,
-        body: JSON.stringify({ explores }),
+        body: JSON.stringify({ explores, onlyTables }),
     });
 
 const getJobState = async (jobUuid: string) =>
@@ -53,6 +54,7 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
     verbose: boolean;
     preview: boolean;
+    onlyTables: boolean;
 };
 
 const waitUntilFinished = async (jobUuid: string): Promise<string> => {
@@ -110,7 +112,13 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     }
 
     const timeStart = new Date();
-    const validationJob = await requestValidation(projectUuid, explores);
+
+    const validationJob = await requestValidation(
+        projectUuid,
+        explores,
+        options.onlyTables,
+    );
+
     const { jobId } = validationJob;
 
     const spinner = GlobalState.startSpinner(
@@ -135,11 +143,13 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         const chartErrors = validation.filter(isChartValidationError);
         const dashboardErrors = validation.filter(isDashboardValidationError);
 
-        console.error(`
+        if (!options.onlyTables) {
+            console.error(`
 - Tables: ${styles.bold(tableErrors.length)} errors
 - Charts: ${styles.bold(chartErrors.length)} errors
 - Dashboards: ${styles.bold(dashboardErrors.length)} errors
-        `);
+            `);
+        }
 
         const validationOutput = validation.map((v) => ({
             name: styles.error(v.name),

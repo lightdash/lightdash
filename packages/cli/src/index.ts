@@ -555,6 +555,7 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option('--only-tables [true|false]', 'Only validate tables', false)
     .action(validateHandler);
 
 program

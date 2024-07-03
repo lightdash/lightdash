@@ -45,7 +45,7 @@ export class ValidationController extends BaseController {
     async post(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: { explores?: any[] }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
+        @Body() body: { explores?: any[]; onlyTables?: boolean }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         const context = getRequestMethod(
@@ -56,7 +56,13 @@ export class ValidationController extends BaseController {
             results: {
                 jobId: await this.services
                     .getValidationService()
-                    .validate(req.user!, projectUuid, context, body.explores),
+                    .validate(
+                        req.user!,
+                        projectUuid,
+                        context,
+                        body.explores,
+                        body.onlyTables,
+                    ),
             },
         };
     }

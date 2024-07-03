@@ -406,6 +406,7 @@ export type ValidateProjectPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     explores?: (Explore | ExploreError)[];
+    onlyTables?: boolean;
 };
 
 export type ApiJobScheduledResponse = {

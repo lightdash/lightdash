@@ -14634,6 +14634,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        onlyTables: { dataType: 'boolean' },
                         explores: {
                             dataType: 'array',
                             array: { dataType: 'any' },

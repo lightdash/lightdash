@@ -13916,6 +13916,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "onlyTables": {
+                                        "type": "boolean"
+                                    },
                                     "explores": {
                                         "items": {},
                                         "type": "array"

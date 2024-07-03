@@ -497,9 +497,12 @@ export class ValidationService extends BaseService {
     async generateValidation(
         projectUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
+        onlyTables?: boolean,
     ): Promise<CreateValidation[]> {
         this.logger.debug(
-            `Generating validation for project ${projectUuid} with explores ${
+            `Generating ${
+                onlyTables ? 'table only validation' : 'validation'
+            } for project ${projectUuid} with explores ${
                 compiledExplores ? 'from CLI' : 'from cache'
             }`,
         );
@@ -553,6 +556,11 @@ export class ValidationService extends BaseService {
         }
 
         const tableErrors = await this.validateTables(projectUuid, explores);
+
+        if (onlyTables) {
+            return [...tableErrors];
+        }
+
         const chartErrors = await this.validateCharts(
             projectUuid,
             exploreFields,
@@ -562,6 +570,7 @@ export class ValidationService extends BaseService {
             existingFields,
             chartErrors,
         );
+
         const validationErrors = [
             ...tableErrors,
             ...chartErrors,
@@ -576,6 +585,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         context?: RequestMethod,
         explores?: (Explore | ExploreError)[],
+        onlyTables?: boolean,
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -601,6 +611,7 @@ export class ValidationService extends BaseService {
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
             explores,
+            onlyTables,
         });
         return jobId;
     }
