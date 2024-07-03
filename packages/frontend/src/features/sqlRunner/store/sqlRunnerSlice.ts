@@ -11,7 +11,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
 };
 
-const sqlRunnerSlice = createSlice({
+export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
@@ -28,5 +28,3 @@ const sqlRunnerSlice = createSlice({
 });
 
 export const { toggleActiveTable, setProjectUuid } = sqlRunnerSlice.actions;
-
-export default sqlRunnerSlice.reducer;
