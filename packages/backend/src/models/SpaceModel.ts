@@ -761,7 +761,6 @@ export class SpaceModel {
         return Object.entries(groupBy(access, 'space_uuid')).reduce<
             Record<string, SpaceShare[]>
         >((acc, [spaceUuid, spaceAccess]) => {
-            console.log(spaceAccess);
             acc[spaceUuid] = spaceAccess.reduce<SpaceShare[]>(
                 (
                     acc2,
