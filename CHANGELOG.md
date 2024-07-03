@@ -1,3 +1,10 @@
+# [0.1155.0](https://github.com/lightdash/lightdash/compare/0.1154.0...0.1155.0) (2024-07-03)
+
+
+### Features
+
+* color and label settings for funnel chart ([#10590](https://github.com/lightdash/lightdash/issues/10590)) ([2500606](https://github.com/lightdash/lightdash/commit/2500606cba09beec9fa1e94a754fb38798ea9c59))
+
 # [0.1154.0](https://github.com/lightdash/lightdash/compare/0.1153.1...0.1154.0) (2024-07-03)
 
 
