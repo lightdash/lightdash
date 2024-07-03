@@ -1,3 +1,10 @@
+# [0.1153.0](https://github.com/lightdash/lightdash/compare/0.1152.0...0.1153.0) (2024-07-03)
+
+
+### Features
+
+* allow searching tables sql runner ([#10586](https://github.com/lightdash/lightdash/issues/10586)) ([c6a1702](https://github.com/lightdash/lightdash/commit/c6a1702aa9668b4565374b78d4f5671b806680d4))
+
 # [0.1152.0](https://github.com/lightdash/lightdash/compare/0.1151.2...0.1152.0) (2024-07-03)
 
 
