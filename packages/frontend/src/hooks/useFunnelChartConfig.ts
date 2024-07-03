@@ -234,13 +234,13 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
 
     const onLabelOverridesChange = useCallback((key: string, value: string) => {
         setLabelOverrides(({ [key]: _, ...rest }) => {
-            return value === '' ? rest : { ...rest, [key]: value };
+            return value.trim() === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
 
     const onColorOverridesChange = useCallback((key: string, value: string) => {
         setColorOverrides(({ [key]: _, ...rest }) => {
-            return value === '' ? rest : { ...rest, [key]: value };
+            return value.trim() === '' ? rest : { ...rest, [key]: value };
         });
     }, []);
 
