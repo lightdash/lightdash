@@ -6,8 +6,6 @@ import {
     isMetric,
     isTableCalculation,
     type ApiQueryResults,
-    type CustomDimension,
-    type Dimension,
     type FunnelChart,
     type ItemsMap,
     type Metric,
@@ -52,7 +50,6 @@ export type FunnelChartConfigFn = (
     resultsData: ApiQueryResults | undefined,
     funnelChartConfig: FunnelChart | undefined,
     itemsMap: ItemsMap | undefined,
-    dimensions: Record<string, CustomDimension | Dimension>,
     numericFields: Record<string, Metric | TableCalculation>,
     colorPalette: string[],
     tableCalculationsMetadata?: TableCalculationMetadata[],
@@ -62,7 +59,6 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     resultsData,
     funnelChartConfig,
     itemsMap,
-    dimensions,
     numericFields,
     colorPalette,
     tableCalculationsMetadata,
@@ -253,7 +249,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
 
     const validConfig: FunnelChart = useMemo(
         () => ({
-            dataInput: dataInput,
+            dataInput,
             fieldId: fieldId ?? undefined,
             labels,
             labelOverrides: debouncedLabelOverrides,
