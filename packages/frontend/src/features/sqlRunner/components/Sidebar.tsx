@@ -22,11 +22,10 @@ import {
 import { TableFields } from './TableFields';
 
 type Props = {
-    projectUuid: string;
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
+export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     return (
         <Stack h="100vh" spacing="xs">
             <Group position="apart">
@@ -45,7 +44,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
 
             <Flex direction="column" justify="space-between" h="100%">
                 <Box>
-                    <Tables projectUuid={projectUuid} />
+                    <Tables />
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
@@ -68,7 +67,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                             />
                         }
                     >
-                        <TableFields projectUuid={projectUuid} />
+                        <TableFields />
                     </ResizableBox>
                 </Box>
             </Flex>

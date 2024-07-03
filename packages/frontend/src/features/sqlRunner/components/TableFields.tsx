@@ -15,10 +15,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableFields } from '../hooks/useTableFields';
 import { useAppSelector } from '../store/hooks';
 
-type Props = {
-    projectUuid: string;
-};
-
 const TableField: FC<{
     field: string;
     search: string | undefined;
@@ -38,7 +34,8 @@ const TableField: FC<{
     </Highlight>
 ));
 
-export const TableFields: FC<Props> = ({ projectUuid }) => {
+export const TableFields: FC = () => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
     const [search, setSearch] = useState<string>('');

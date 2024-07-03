@@ -11,17 +11,13 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setActiveTable } from '../store/sqlRunnerSlice';
 
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useTables } from '../hooks/useTables';
-
-type Props = {
-    projectUuid: string;
-};
-
-export const Tables: FC<Props> = ({ projectUuid }) => {
+export const Tables: FC = () => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
     const dispatch = useAppDispatch();
 
