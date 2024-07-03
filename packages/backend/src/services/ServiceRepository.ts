@@ -420,6 +420,7 @@ export class ServiceRepository
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    s3Client: this.clients.getS3Client(),
                 }),
         );
     }
