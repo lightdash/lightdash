@@ -1894,7 +1894,14 @@ export class ProjectService extends BaseService {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
         };
-        const results = await warehouseClient.runQuery(sql, queryTags);
+
+        // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
+        const cteWithLimit = `
+            WITH cte AS (${sql})
+            SELECT *
+            FROM cte LIMIT ${this.lightdashConfig.query.maxLimit}`;
+
+        const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
         await sshTunnel.disconnect();
         return results;
     }
