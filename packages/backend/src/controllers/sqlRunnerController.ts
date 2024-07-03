@@ -115,16 +115,15 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         this.setHeader('Content-Type', 'application/json');
 
-        const resultsFilePath = await this.services
+        const readStream = await this.services
             .getProjectService()
-            .getResultsFile(req.user!, projectUuid, fileId);
+            .getFileStream(req.user!, projectUuid, fileId);
 
-        const mystream = fs.createReadStream(resultsFilePath);
         const { res } = req;
         if (res) {
-            mystream.pipe(res);
+            readStream.pipe(res);
             await new Promise<void>((resolve, reject) => {
-                mystream.on('end', () => {
+                readStream.on('end', () => {
                     res.end();
                     resolve();
                 });

@@ -2,10 +2,7 @@ import {
     DownloadFile,
     DownloadFileType,
     NotFoundError,
-    ResultRow,
-    UnexpectedServerError,
 } from '@lightdash/common';
-import * as fs from 'fs';
 import { Knex } from 'knex';
 import { DownloadFileTableName } from '../database/entities/downloadFile';
 

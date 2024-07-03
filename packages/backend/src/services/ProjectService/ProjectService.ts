@@ -104,6 +104,7 @@ import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import { ReadStream } from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
@@ -1944,11 +1945,12 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
-        await this.analytics.track({
+        this.analytics.track({
             userId: userUuid,
             event: 'sql.executed',
             properties: {
                 projectId: projectUuid,
+                usingStreaming: true,
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -1976,14 +1978,15 @@ export class ProjectService extends BaseService {
         });
 
         await sshTunnel.disconnect();
-        return `/api/v1/projects/${projectUuid}/sqlRunner/results/${fileId}`;
+        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${fileId}`;
+        return serverUrl;
     }
 
-    async getResultsFile(
+    async getFileStream(
         user: SessionUser,
         projectUuid: string,
         fileId: string,
-    ): Promise<string> {
+    ): Promise<ReadStream> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2002,8 +2005,7 @@ export class ProjectService extends BaseService {
         if (downloadFile.type !== DownloadFileType.JSONL) {
             throw new ParameterError('File is not a JSONL file');
         }
-
-        return downloadFile.path;
+        return fs.createReadStream(downloadFile.path);
     }
 
     async searchFieldUniqueValues(
