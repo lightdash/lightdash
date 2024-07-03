@@ -68,7 +68,12 @@ export const Tables: FC<Props> = ({
             {isSuccess &&
                 data &&
                 data.map(({ schema, tables }) => (
-                    <Stack key={schema} spacing="none">
+                    <Stack
+                        key={schema}
+                        spacing="none"
+                        h="calc(100% - 30px)"
+                        sx={{ overflowY: 'scroll', flexGrow: 1 }}
+                    >
                         <Text p={6} fw={700} fz="md" c="gray.7">
                             {schema}
                         </Text>

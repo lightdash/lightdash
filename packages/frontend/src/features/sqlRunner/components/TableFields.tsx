@@ -91,9 +91,9 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
             {isSuccess && tableFields && (
                 <>
                     <Box
-                        h="100%"
                         sx={{
-                            overflowY: 'auto',
+                            overflowY: 'scroll',
+                            flexGrow: 1,
                         }}
                     >
                         <Stack spacing={0}>

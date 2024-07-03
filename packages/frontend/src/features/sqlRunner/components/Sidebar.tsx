@@ -26,11 +26,18 @@ type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
+const DEFAULT_RESIZABLE_BOX_HEIGHT_PX = 250;
+const MIN_RESIZABLE_BOX_HEIGHT_PX = 150;
+const MAX_RESIZABLE_BOX_HEIGHT_PX = 500;
+
 export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
     const [activeTable, setActiveTable] = useState<string | undefined>();
+    const [resizableBoxHeight, setResizableBoxHeight] = useState(
+        DEFAULT_RESIZABLE_BOX_HEIGHT_PX,
+    );
 
     return (
-        <Stack h="100vh" spacing="xs">
+        <Stack h="100%" spacing="xs">
             <Group position="apart">
                 <Title order={5} fz="sm" c="gray.6">
                     SQL RUNNER
@@ -46,7 +53,12 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
             </Group>
 
             <Flex direction="column" justify="space-between" h="100%">
-                <Box>
+                <Box
+                    sx={{
+                        height: `calc(100% - ${resizableBoxHeight}px)`,
+                        overflowY: 'hidden',
+                    }}
+                >
                     <Tables
                         activeTable={activeTable}
                         setActiveTable={setActiveTable}
@@ -55,14 +67,23 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
-                        height={400}
-                        minConstraints={[SIDEBAR_MIN_WIDTH, 100]}
-                        maxConstraints={[SIDEBAR_MAX_WIDTH, 500]}
+                        height={resizableBoxHeight}
+                        minConstraints={[
+                            SIDEBAR_MIN_WIDTH,
+                            MIN_RESIZABLE_BOX_HEIGHT_PX,
+                        ]}
+                        maxConstraints={[
+                            SIDEBAR_MAX_WIDTH,
+                            MAX_RESIZABLE_BOX_HEIGHT_PX,
+                        ]}
                         resizeHandles={['n']}
                         axis="y"
+                        onResize={(_, data) =>
+                            setResizableBoxHeight(data.size.height)
+                        }
                         handle={
                             <Divider
-                                h={3}
+                                h={5}
                                 bg="gray.3"
                                 pos="absolute"
                                 top={-2}
