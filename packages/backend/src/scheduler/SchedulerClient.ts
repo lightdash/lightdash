@@ -582,6 +582,16 @@ export class SchedulerClient {
             payload,
             now,
         );
+        await this.schedulerModel.logSchedulerJob({
+            task: sqlRunnerJob,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+            },
+        });
+
         return jobId;
     }
 
