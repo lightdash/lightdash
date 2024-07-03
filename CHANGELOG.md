@@ -1,3 +1,10 @@
+## [0.1153.1](https://github.com/lightdash/lightdash/compare/0.1153.0...0.1153.1) (2024-07-03)
+
+
+### Bug Fixes
+
+* allow downgrade of individual user space permissions when in group ([#10591](https://github.com/lightdash/lightdash/issues/10591)) ([303c12f](https://github.com/lightdash/lightdash/commit/303c12fc3d393f85018e34c9e471aae7660c4946))
+
 # [0.1153.0](https://github.com/lightdash/lightdash/compare/0.1152.0...0.1153.0) (2024-07-03)
 
 
