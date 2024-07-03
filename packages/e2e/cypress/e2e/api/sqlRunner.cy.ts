@@ -194,19 +194,17 @@ describe.skip(`Load testing`, () => {
     });
 
     it.only(`Load testing streaming 1M results `, () => {
-        // This SQL generates 1 million random results on Postgres
+        // This SQL generates 50k random results on Postgres
         const sql = `
-    SELECT
-        gs.id AS payment_id,
-        (1000 + random() * 10000)::int AS amount,  -- Random amount between 1000 and 11000
-        (current_date - (random() * 365)::int)::date AS payment_date,  -- Random date within the last year
-        md5(random()::text) AS payment_method,  -- Random payment reference
-        (random() * 100000)::int AS customer_id  -- Random customer_id between 0 and 100000
-    FROM
-        generate_series(1, 50000) AS gs(id)  -- Generate 10k rows
-
-
-                `;
+            SELECT
+                gs.id AS payment_id,
+                (1000 + random() * 10000)::int AS amount,  -- Random amount between 1000 and 11000
+                (current_date - (random() * 365)::int)::date AS payment_date,  -- Random date within the last year
+                md5(random()::text) AS payment_method,  -- Random payment reference
+                (random() * 100000)::int AS customer_id  -- Random customer_id between 0 and 100000
+            FROM
+                generate_series(1, 50000) AS gs(id)  -- Generate 50k rows
+        `;
 
         cy.request({
             url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/run`,
