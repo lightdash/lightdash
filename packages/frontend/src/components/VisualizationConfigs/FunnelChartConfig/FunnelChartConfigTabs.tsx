@@ -1,6 +1,7 @@
 import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
+    FunnelChartLegendPosition,
     getItemId,
     isField,
     isTableCalculation,
@@ -10,10 +11,12 @@ import {
 import {
     Box,
     Checkbox,
+    Collapse,
     Group,
     MantineProvider,
     SegmentedControl,
     Stack,
+    Switch,
     Tabs,
     Tooltip,
 } from '@mantine/core';
@@ -43,12 +46,15 @@ export const ConfigTabs: FC = memo(() => {
         onLabelsChange,
         labelOverrides,
         onLabelOverridesChange,
+        colorDefaults,
         colorOverrides,
         onColorOverridesChange,
         data,
+        showLegend,
+        toggleShowLegend,
+        legendPosition,
+        legendPositionChange,
     } = visualizationConfig.chartConfig;
-
-    console.log({ labelOverrides });
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -59,6 +65,9 @@ export const ConfigTabs: FC = memo(() => {
                     </Tabs.Tab>
                     <Tabs.Tab px="sm" value="steps">
                         Steps
+                    </Tabs.Tab>
+                    <Tabs.Tab px="sm" value="display">
+                        Display
                     </Tabs.Tab>
                 </Tabs.List>
 
@@ -170,6 +179,10 @@ export const ConfigTabs: FC = memo(() => {
                                                 value: FunnelChartLabelPosition.RIGHT,
                                                 label: 'Right',
                                             },
+                                            {
+                                                value: FunnelChartLabelPosition.HIDDEN,
+                                                label: 'Hidden',
+                                            },
                                         ]}
                                         onChange={(
                                             newPosition: FunnelChartLabelPosition,
@@ -211,27 +224,70 @@ export const ConfigTabs: FC = memo(() => {
                         <Config>
                             <Config.Section>
                                 <Config.Heading>Steps</Config.Heading>
-                                {data.map((step) => {
-                                    console.log({ step });
-                                    return (
-                                        <StepConfig
-                                            key={step.name}
-                                            defaultColor="#aaf"
-                                            defaultLabel={step.name}
-                                            swatches={[]}
-                                            color={colorOverrides[step.name]}
-                                            label={labelOverrides[step.name]}
-                                            onColorChange={
-                                                onColorOverridesChange
-                                            }
-                                            onLabelChange={
-                                                onLabelOverridesChange
-                                            }
-                                        />
-                                    );
-                                })}
+                                {data
+                                    .sort((a, b) => b.value - a.value)
+                                    .map((step) => {
+                                        return (
+                                            <StepConfig
+                                                key={step.name}
+                                                defaultColor={
+                                                    colorDefaults[step.name]
+                                                }
+                                                defaultLabel={step.name}
+                                                swatches={[]}
+                                                color={
+                                                    colorOverrides[step.name]
+                                                }
+                                                label={
+                                                    labelOverrides[step.name]
+                                                }
+                                                onColorChange={
+                                                    onColorOverridesChange
+                                                }
+                                                onLabelChange={
+                                                    onLabelOverridesChange
+                                                }
+                                            />
+                                        );
+                                    })}
                             </Config.Section>
                         </Config>
+                    </Stack>
+                </Tabs.Panel>
+                <Tabs.Panel value="display">
+                    <Stack>
+                        <Config>
+                            <Group>
+                                <Config.Heading>Show legend</Config.Heading>
+                                <Switch
+                                    checked={showLegend}
+                                    onChange={toggleShowLegend}
+                                />
+                            </Group>
+                        </Config>
+
+                        <Collapse in={showLegend}>
+                            <Group spacing="xs">
+                                <Config.Label>Orientation</Config.Label>
+                                <SegmentedControl
+                                    name="orient"
+                                    value={legendPosition}
+                                    onChange={(
+                                        val: FunnelChartLegendPosition,
+                                    ) => legendPositionChange(val)}
+                                    data={[
+                                        {
+                                            value: FunnelChartLegendPosition.HORIZONTAL,
+                                            label: 'Horizontal',
+                                        },
+                                        {
+                                            value: FunnelChartLegendPosition.VERTICAL,
+                                            label: 'Vertical',
+                                        },
+                                    ]}
+                                />
+                            </Group>
+                        </Collapse>
                     </Stack>
                 </Tabs.Panel>
             </Tabs>

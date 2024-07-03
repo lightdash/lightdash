@@ -107,6 +107,12 @@ export enum FunnelChartLabelPosition {
     INSIDE = 'inside',
     LEFT = 'left',
     RIGHT = 'right',
+    HIDDEN = 'hidden',
+}
+
+export enum FunnelChartLegendPosition {
+    HORIZONTAL = 'horizontal',
+    VERTICAL = 'vertical',
 }
 
 export type FunnelChart = {
@@ -120,6 +126,8 @@ export type FunnelChart = {
         showValue?: boolean;
         showPercentage?: boolean;
     };
+    showLegend?: boolean;
+    legendPosition?: FunnelChartLegendPosition;
 };
 
 export type ColumnProperties = {

@@ -1,6 +1,7 @@
 import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
+    FunnelChartLegendPosition,
     isField,
     isMetric,
     isTableCalculation,
@@ -34,8 +35,15 @@ type FunnelChartConfig = {
     labelOverrides: Record<string, string>;
     onLabelOverridesChange: (key: string, value: string) => void;
 
+    colorDefaults: Record<string, string>;
+
     colorOverrides: Record<string, string>;
     onColorOverridesChange: (key: string, value: string) => void;
+
+    showLegend: boolean;
+    toggleShowLegend: () => void;
+    legendPosition: FunnelChartLegendPosition;
+    legendPositionChange: (position: FunnelChartLegendPosition) => void;
 
     data: FunnelSeriesDataPoint[];
 };
@@ -81,6 +89,15 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
 
     const [colorOverrides, setColorOverrides] = useState(
         funnelChartConfig?.colorOverrides ?? {},
+    );
+
+    const [showLegend, setShowLegend] = useState(
+        funnelChartConfig?.showLegend ?? true,
+    );
+
+    const [legendPosition, setLegendPosition] = useState(
+        funnelChartConfig?.legendPosition ??
+            FunnelChartLegendPosition.HORIZONTAL,
     );
 
     const allNumericFieldIds = useMemo(
@@ -203,6 +220,14 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         }
     }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 
+    const colorDefaults = useMemo(() => {
+        return Object.fromEntries(
+            data.map((item, index) => {
+                return [item.name, colorPalette[index % colorPalette.length]];
+            }),
+        );
+    }, [data, colorPalette]);
+
     const onLabelsChange = (labelsProps: FunnelChart['labels']) => {
         setLabels((prevLabels) => ({ ...prevLabels, ...labelsProps }));
     };
@@ -219,6 +244,13 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         });
     }, []);
 
+    const handleLegendPositionChange = useCallback(
+        (position: FunnelChartLegendPosition) => {
+            setLegendPosition(position);
+        },
+        [],
+    );
+
     const validConfig: FunnelChart = useMemo(
         () => ({
             dataInput: dataInput,
@@ -226,8 +258,18 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
             labels,
             labelOverrides: debouncedLabelOverrides,
             colorOverrides,
+            showLegend,
+            legendPosition,
         }),
-        [colorOverrides, dataInput, debouncedLabelOverrides, fieldId, labels],
+        [
+            colorOverrides,
+            dataInput,
+            debouncedLabelOverrides,
+            fieldId,
+            labels,
+            legendPosition,
+            showLegend,
+        ],
     );
 
     return {
@@ -242,8 +284,14 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         onLabelsChange,
         labelOverrides,
         onLabelOverridesChange,
+        colorDefaults,
         colorOverrides,
         onColorOverridesChange,
+        showLegend,
+        toggleShowLegend: () => setShowLegend((prev) => !prev),
+        legendPosition: legendPosition,
+        legendPositionChange: handleLegendPositionChange,
+
         colorPalette,
         data,
     };

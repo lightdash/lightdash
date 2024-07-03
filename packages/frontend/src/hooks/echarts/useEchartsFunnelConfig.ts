@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     FunnelChartLabelPosition,
+    FunnelChartLegendPosition,
     type Metric,
     type ResultRow,
     type ResultValue,
@@ -62,9 +63,15 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !seriesData) return;
 
         const {
-            validConfig: { labelOverrides, colorOverrides },
+            validConfig: {
+                labelOverrides,
+                colorOverrides,
+                showLegend,
+                legendPosition,
+            },
             selectedField,
             labels,
+            colorDefaults,
         } = chartConfig;
 
         return {
@@ -75,7 +82,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                     value,
                     meta,
                     itemStyle: {
-                        color: colorOverrides?.[name] ?? undefined,
+                        color: colorOverrides?.[name] ?? colorDefaults[name],
                     },
                 };
             }),
@@ -93,9 +100,18 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                     return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent: ${percentOfMax}%`;
                 },
             },
+            top:
+                legendPosition === FunnelChartLegendPosition.HORIZONTAL &&
+                showLegend
+                    ? 50
+                    : 20,
             label: {
-                show: true,
-                position: labels?.position || FunnelChartLabelPosition.INSIDE,
+                show: labels?.position !== FunnelChartLabelPosition.HIDDEN,
+                position:
+                    labels?.position &&
+                    labels.position !== FunnelChartLabelPosition.HIDDEN
+                        ? labels.position
+                        : FunnelChartLabelPosition.INSIDE,
                 color:
                     labels?.position !== FunnelChartLabelPosition.INSIDE
                         ? 'black'
@@ -133,7 +149,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
 
         const {
-            validConfig: {},
+            validConfig: { showLegend, legendPosition },
         } = chartConfig;
 
         return {
@@ -142,14 +158,29 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             },
             series: [funnelSeriesOptions],
             animation: !isInDashboard,
-            legend: { data: seriesData.map(({ name }) => name) },
+            legend: {
+                show: showLegend,
+                orient: legendPosition,
+                type: 'scroll',
+                ...(legendPosition === 'vertical'
+                    ? {
+                          left: 'left',
+                          top: 'middle',
+                          align: 'left',
+                      }
+                    : {
+                          left: 'center',
+                          top: 'top',
+                          align: 'auto',
+                      }),
+            },
         };
     }, [chartConfig, funnelSeriesOptions, seriesData, isInDashboard]);
 
     if (!itemsMap) return;
     if (!eChartsOptions) return;
 
-    console.log({ eChartsOptions });
+    console.log(eChartsOptions);
 
     return eChartsOptions;
 };
