@@ -14,7 +14,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setActiveTable } from '../store/sqlRunnerSlice';
+import { toggleActiveTable } from '../store/sqlRunnerSlice';
 
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -72,7 +72,7 @@ export const Tables: FC = () => {
                             <UnstyledButton
                                 key={table}
                                 onClick={() => {
-                                    dispatch(setActiveTable(table));
+                                    dispatch(toggleActiveTable(table));
                                 }}
                                 fw={500}
                                 p={4}

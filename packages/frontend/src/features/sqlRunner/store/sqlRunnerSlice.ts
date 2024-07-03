@@ -18,12 +18,15 @@ const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setActiveTable: (state, action: PayloadAction<string | undefined>) => {
+        toggleActiveTable: (
+            state,
+            action: PayloadAction<string | undefined>,
+        ) => {
             state.activeTable = action.payload;
         },
     },
 });
 
-export const { setActiveTable, setProjectUuid } = sqlRunnerSlice.actions;
+export const { toggleActiveTable, setProjectUuid } = sqlRunnerSlice.actions;
 
 export default sqlRunnerSlice.reducer;
