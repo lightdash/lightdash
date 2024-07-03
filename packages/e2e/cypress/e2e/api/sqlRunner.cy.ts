@@ -7,9 +7,8 @@ import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
-Object.entries({ postgres: warehouseConnections.postgres }).forEach(
-    // For testing
-    // Object.entries(warehouseConnections).forEach(
+// Object.entries({ postgres: warehouseConnections.postgres }).forEach(  // For testing
+Object.entries(warehouseConnections).forEach(
     ([warehouseName, warehouseConfig]) => {
         const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
@@ -193,7 +192,7 @@ describe.skip(`Load testing`, () => {
         cy.login();
     });
 
-    it.only(`Load testing streaming 1M results `, () => {
+    it(`Load testing streaming 1M results `, () => {
         // This SQL generates 50k random results on Postgres
         const sql = `
             SELECT
