@@ -171,6 +171,9 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
 COPY lightdash.yml /usr/app/lightdash.yml
 ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 
+# Copy the docker-compose file
+COPY docker-compose.yml /usr/app/docker-compose.yml
+
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 

@@ -1,0 +1,140 @@
+name: Build & Deploy to Numida Docker Hub
+
+on:
+  pull_request:
+    branches:
+      - 'numida'
+  push:
+    tags:
+      - '*'
+      - '!*-alpha*'
+      - '!*-beta*'
+
+    branches:
+      - 'numida'
+
+  workflow_dispatch:
+
+env:
+  REGISTRY_IMAGE: numidatech/lightdash
+
+jobs:
+  # This job builds Docker images for various architectures in parallel
+  # See https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
+  docker-build:
+    runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+    steps:
+      # Write the PLATFORM_PAIR varible to env and replace `/` with `-`
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV     
+      
+      - name: Set up Docker tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=v1.0.0
+
+      # We need this to perform cross-platform Docker builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      # Improved Docker builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Credentials for pushing final image to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          file: dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,mode=min,ref={0}', env.REGISTRY_IMAGE) || '' }}
+      
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # This step "merges" multiple images for various architectures into a single image
+  docker-merge:
+    runs-on: ubuntu-latest
+    environment: production
+    # Should be kept in sync with the jobs.docker-build.steps.build.with.push condition
+    if: ${{ github.event_name != 'pull_request' }}
+    needs:
+      - docker-build
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Set up Docker tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=v1.0.0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+  
+  docker-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    needs: docker-merge
+    steps:
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          key: ${{ secrets.KEY }}
+          host: ${{ secrets.LIGHTDASH_HOST }}
+          username: ${{ secrets.USERNAME }}
+          script: ./bin/deploy_docker_numida

@@ -6,7 +6,7 @@ env:
 
 jobs:
   files-changed:
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/numida'
     name: Detect what files changed
     runs-on: ubuntu-latest
     # Map a step output to a job output
@@ -31,7 +31,7 @@ jobs:
 
   prepare-preview:
     # Only trigger for correct environment and status and if CLI files changed
-    if: needs.files-changed.outputs.cli == 'true'
+    if: needs.files-changed.outputs.cli == 'true' && github.ref != 'refs/heads/numida'
     needs: files-changed
     runs-on: ubuntu-latest
     outputs:
@@ -44,6 +44,7 @@ jobs:
           exit 1
 
   cli-tests:
+    if: needs.files-changed.outputs.cli == 'true' && github.ref != 'refs/heads/numida'
     timeout-minutes: 30
     runs-on: ubuntu-latest
     needs: prepare-preview

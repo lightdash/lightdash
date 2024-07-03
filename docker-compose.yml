@@ -2,7 +2,7 @@ version: "3.8"
 services:
   lightdash:
     platform: linux/amd64
-    image: lightdash/lightdash:latest
+    image: numidatech/lightdash:latest
     depends_on:
       - db
     environment:
@@ -60,6 +60,7 @@ services:
     restart: always
     ports:
       - "3001:3000"
-
+    
 volumes:
   db-data:
+  
