@@ -23,7 +23,8 @@ const TableField: FC<{
     field: string;
     search: string | undefined;
 }> = memo(({ field, search }) => (
-    <Box
+    <Highlight
+        component={Text}
         fw={500}
         p={4}
         fz={13}
@@ -31,11 +32,10 @@ const TableField: FC<{
         sx={(theme) => ({
             borderRadius: theme.radius.sm,
         })}
+        highlight={search || ''}
     >
-        <Highlight component={Text} highlight={search || ''}>
-            {field}
-        </Highlight>
-    </Box>
+        {field}
+    </Highlight>
 ));
 
 export const TableFields: FC<Props> = ({ projectUuid }) => {
