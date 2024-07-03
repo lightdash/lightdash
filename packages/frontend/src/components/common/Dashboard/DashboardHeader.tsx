@@ -202,12 +202,6 @@ const DashboardHeader = ({
         ],
     );
 
-    useEffect(() => {
-        // When unmounting the dashboard - navigate away - track the event with undefined interval
-        // Not doing it inside the button component because it get's triggered too often
-        return () => handleDashboardRefreshUpdateEvent(undefined);
-    }, [handleDashboardRefreshUpdateEvent]);
-
     return (
         <PageHeader
             cardProps={{
