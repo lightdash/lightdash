@@ -162,7 +162,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
-                ...(legendPosition === 'vertical'
+                ...(legendPosition === FunnelChartLegendPosition.VERTICAL
                     ? {
                           left: 'left',
                           top: 'middle',
@@ -179,8 +179,6 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
 
     if (!itemsMap) return;
     if (!eChartsOptions) return;
-
-    console.log(eChartsOptions);
 
     return eChartsOptions;
 };
