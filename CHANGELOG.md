@@ -1,3 +1,10 @@
+# [0.1152.0](https://github.com/lightdash/lightdash/compare/0.1151.2...0.1152.0) (2024-07-03)
+
+
+### Features
+
+* Sql runner job streaming ([#10575](https://github.com/lightdash/lightdash/issues/10575)) ([ebbc6bc](https://github.com/lightdash/lightdash/commit/ebbc6bc6c8d5bcbab38c9586258aeac90dcfdbb2))
+
 ## [0.1151.2](https://github.com/lightdash/lightdash/compare/0.1151.1...0.1151.2) (2024-07-02)
 
 
