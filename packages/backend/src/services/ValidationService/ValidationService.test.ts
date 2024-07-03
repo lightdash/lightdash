@@ -205,6 +205,25 @@ describe('validation', () => {
             'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
+
+    it.only('Should validate only tables in project', async () => {
+        (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
+            async () => [exploreError, exploreWithoutDimension],
+        );
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            true, // onlyTables
+        );
+
+        const expectedErrors: string[] = [
+            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+        ];
+
+        expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
     it('Should validate fields from joined explores', async () => {
         (projectModel.getExploresFromCache as jest.Mock).mockImplementationOnce(
             async () => [explore, exploreWithJoin],
