@@ -1917,12 +1917,11 @@ export class ProjectService extends BaseService {
             passThrough,
             `${downloadFileId}.jsonl`,
         );
-
-        const writer = (data: ResultRow) => {
-            passThrough.write(`${JSON.stringify(data)}\n`);
-        };
-
         try {
+            const writer = (data: ResultRow) => {
+                passThrough.write(`${JSON.stringify(data)}\n`);
+            };
+
             await callback(writer);
         } catch (err) {
             this.logger.error('Error during streaming', err);
