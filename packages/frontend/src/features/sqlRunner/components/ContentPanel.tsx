@@ -54,8 +54,6 @@ export const ContentPanel: FC<Props> = ({
         isLoading,
     } = useSqlQueryRun();
 
-    console.log('queryResults', queryResults);
-
     return (
         <Stack
             spacing="none"

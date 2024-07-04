@@ -27,7 +27,7 @@ const scheduleSqlJob = async ({
     });
 
 export const useSqlQueryRun = () => {
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const queryClient = useQueryClient();
     const sqlQueryRunMutation = useMutation<
@@ -62,11 +62,6 @@ export const useSqlQueryRun = () => {
                 return 2000;
             },
             onSuccess: (data) => {
-                if (data?.status === SchedulerJobStatus.COMPLETED) {
-                    showToastSuccess({
-                        title: 'SQL query ran successfully',
-                    });
-                }
                 if (data?.status === SchedulerJobStatus.ERROR) {
                     showToastError({
                         title: 'Could not run SQL query',
