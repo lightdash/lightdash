@@ -1,9 +1,9 @@
-import type { ResultRow } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
     Divider,
     Group,
+    Loader,
     Paper,
     Stack,
     Title,
@@ -16,16 +16,14 @@ import {
     IconLayoutNavbarExpand,
     IconPlayerPlay,
 } from '@tabler/icons-react';
-import React, { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import AceEditor from 'react-ace';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Table from '../../../components/common/Table';
-import {
-    type TableColumn,
-    type TableHeader,
-} from '../../../components/common/Table/types';
 import { getRawValueCell } from '../../../hooks/useColumns';
+import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import { useAppSelector } from '../store/hooks';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -35,58 +33,13 @@ type Props = {
 
 const MIN_RESULTS_HEIGHT = 50;
 
-const MOCK_RESULTS: ResultRow[] = [
-    {
-        id: { value: { raw: 1, formatted: '1' } },
-        name: { value: { raw: 'John', formatted: 'John' } },
-        age: { value: { raw: 25, formatted: '25' } },
-        country: { value: { raw: 'USA', formatted: 'USA' } },
-    },
-    {
-        id: { value: { raw: 2, formatted: '2' } },
-        name: { value: { raw: 'Jane', formatted: 'Jane' } },
-        age: { value: { raw: 30, formatted: '30' } },
-        country: { value: { raw: 'UK', formatted: 'UK' } },
-    },
-    {
-        id: { value: { raw: 3, formatted: '3' } },
-        name: { value: { raw: 'Alice', formatted: 'Alice' } },
-        age: { value: { raw: 35, formatted: '35' } },
-        country: { value: { raw: 'Germany', formatted: 'Germany' } },
-    },
-];
-const MOCK_COLUMNS: Array<TableColumn | TableHeader> = [
-    {
-        id: 'id',
-        accessorKey: 'id',
-        header: 'ID',
-        cell: getRawValueCell,
-    },
-    {
-        id: 'name',
-        accessorKey: 'name',
-        header: 'Name',
-        cell: getRawValueCell,
-    },
-    {
-        id: 'age',
-        accessorKey: 'age',
-        header: 'Age',
-        cell: getRawValueCell,
-    },
-    {
-        id: 'country',
-        accessorKey: 'country',
-        header: 'Country',
-        cell: getRawValueCell,
-    },
-];
-
 export const ContentPanel: FC<Props> = ({
     isChartConfigOpen,
     openChartConfig,
     closeChartConfig,
 }) => {
+    const [sql, setSql] = useState<string>('');
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 58, [wrapperHeight]);
@@ -94,6 +47,15 @@ export const ContentPanel: FC<Props> = ({
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
     );
+
+    const {
+        mutate: runSqlQuery,
+        data: queryResults,
+        isLoading,
+    } = useSqlQueryRun();
+
+    console.log('queryResults', queryResults);
+
     return (
         <Stack
             spacing="none"
@@ -142,6 +104,14 @@ export const ContentPanel: FC<Props> = ({
                             <Button
                                 size="xs"
                                 leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                                loading={isLoading}
+                                onClick={() => {
+                                    if (!sql) return;
+                                    runSqlQuery({
+                                        projectUuid,
+                                        sql,
+                                    });
+                                }}
                             >
                                 Run query
                             </Button>
@@ -159,9 +129,12 @@ export const ContentPanel: FC<Props> = ({
                 <AceEditor
                     mode="sql"
                     theme="github"
-                    value={'SELECT * FROM table;'}
+                    value={sql}
                     height="100%"
                     width="100%"
+                    onChange={(value: string) => {
+                        setSql(value);
+                    }}
                     editorProps={{ $blockScrolling: true }}
                     enableBasicAutocompletion
                     enableLiveAutocompletion
@@ -196,9 +169,13 @@ export const ContentPanel: FC<Props> = ({
             >
                 <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
                     <Group position="apart">
-                        <Title order={5} c="gray.6">
-                            Results/Chart panel
-                        </Title>
+                        <Group spacing="xs">
+                            <Title order={5} c="gray.6">
+                                Results/Chart panel
+                            </Title>
+                            {isLoading && <Loader size="xs" />}
+                        </Group>
+
                         <Group spacing="md">
                             <Tooltip
                                 variant="xs"
@@ -255,17 +232,24 @@ export const ContentPanel: FC<Props> = ({
                     withBorder
                     style={{ flex: 1 }}
                 >
-                    <Table
-                        status={'success'}
-                        data={MOCK_RESULTS}
-                        columns={MOCK_COLUMNS}
-                        pagination={{
-                            show: false,
-                        }}
-                        footer={{
-                            show: true,
-                        }}
-                    />
+                    {queryResults && (
+                        <Table
+                            status={'success'}
+                            data={queryResults}
+                            columns={Object.keys(queryResults[0]).map((s) => ({
+                                id: s,
+                                accessorKey: s,
+                                header: s.toLocaleUpperCase(),
+                                cell: getRawValueCell,
+                            }))}
+                            pagination={{
+                                show: false,
+                            }}
+                            footer={{
+                                show: true,
+                            }}
+                        />
+                    )}
                 </Paper>
             </ResizableBox>
         </Stack>
