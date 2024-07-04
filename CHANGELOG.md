@@ -1,3 +1,10 @@
+## [0.1157.1](https://github.com/lightdash/lightdash/compare/0.1157.0...0.1157.1) (2024-07-04)
+
+
+### Bug Fixes
+
+* handle resize height and apply correct overflows ([#10599](https://github.com/lightdash/lightdash/issues/10599)) ([018f4cf](https://github.com/lightdash/lightdash/commit/018f4cfc6aa04d2abccf83293414a2a2ecc41aa6))
+
 # [0.1157.0](https://github.com/lightdash/lightdash/compare/0.1156.0...0.1157.0) (2024-07-04)
 
 
