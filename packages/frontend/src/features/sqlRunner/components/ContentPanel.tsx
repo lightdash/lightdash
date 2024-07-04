@@ -6,6 +6,7 @@ import {
     Group,
     Paper,
     Stack,
+    Tabs,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -16,6 +17,7 @@ import {
     IconLayoutNavbarExpand,
     IconPlayerPlay,
 } from '@tabler/icons-react';
+import EChartsReact from 'echarts-for-react';
 import React, { useMemo, useState, type FC } from 'react';
 import AceEditor from 'react-ace';
 import { ResizableBox } from 'react-resizable';
@@ -81,6 +83,35 @@ const MOCK_COLUMNS: Array<TableColumn | TableHeader> = [
         cell: getRawValueCell,
     },
 ];
+
+const MOCK_CHART_DATA = {
+    grid: {
+        height: '250px',
+        top: '90',
+    },
+    xAxis: {
+        type: 'value',
+    },
+    yAxis: [
+        {
+            type: 'value',
+            name: 'Num users',
+            nameLocation: 'center',
+            nameGap: '40',
+        },
+    ],
+    legend: { top: '40' },
+    series: [
+        {
+            name: 'mock chart results',
+            data: MOCK_RESULTS.map((results) => {
+                return [results.id.value.raw, results.age.value.raw];
+            }),
+            type: 'line',
+            color: '#d7c1fa',
+        },
+    ],
+};
 
 export const ContentPanel: FC<Props> = ({
     isChartConfigOpen,
@@ -196,76 +227,81 @@ export const ContentPanel: FC<Props> = ({
             >
                 <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
                     <Group position="apart">
-                        <Title order={5} c="gray.6">
-                            Results/Chart panel
-                        </Title>
-                        <Group spacing="md">
-                            <Tooltip
-                                variant="xs"
-                                label={
-                                    isResultsHeightMoreThanHalf
-                                        ? 'Collapse'
-                                        : 'Expand'
-                                }
-                                position="bottom"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={() =>
-                                        setResultsHeight(
+                        <Tabs defaultValue={'results'} w="100%">
+                            <Tabs.List>
+                                <Tabs.Tab value={'results'}>Results</Tabs.Tab>
+                                <Tabs.Tab value={'chart'}>Chart</Tabs.Tab>
+                                <Group ml="auto" spacing="md">
+                                    <Tooltip
+                                        variant="xs"
+                                        label={
                                             isResultsHeightMoreThanHalf
-                                                ? MIN_RESULTS_HEIGHT
-                                                : maxResultsHeight,
-                                        )
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            isResultsHeightMoreThanHalf
-                                                ? IconLayoutNavbarExpand
-                                                : IconLayoutNavbarCollapse
+                                                ? 'Collapse'
+                                                : 'Expand'
                                         }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                            <Tooltip
-                                variant="xs"
-                                label="Run query"
-                                position="bottom"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={
-                                        isChartConfigOpen
-                                            ? closeChartConfig
-                                            : openChartConfig
-                                    }
-                                >
-                                    <MantineIcon icon={IconAdjustmentsCog} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={() =>
+                                                setResultsHeight(
+                                                    isResultsHeightMoreThanHalf
+                                                        ? MIN_RESULTS_HEIGHT
+                                                        : maxResultsHeight,
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    isResultsHeightMoreThanHalf
+                                                        ? IconLayoutNavbarExpand
+                                                        : IconLayoutNavbarCollapse
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip
+                                        variant="xs"
+                                        label="Run query"
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={
+                                                isChartConfigOpen
+                                                    ? closeChartConfig
+                                                    : openChartConfig
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconAdjustmentsCog}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </Tabs.List>
+                            <Tabs.Panel value={'results'} w="100%">
+                                <Table
+                                    status={'success'}
+                                    data={MOCK_RESULTS}
+                                    columns={MOCK_COLUMNS}
+                                    pagination={{
+                                        show: false,
+                                    }}
+                                    footer={{
+                                        show: true,
+                                    }}
+                                />
+                            </Tabs.Panel>
+                            <Tabs.Panel value={'chart'} w="100%">
+                                <EChartsReact
+                                    style={{ height: '400px' }}
+                                    notMerge
+                                    option={MOCK_CHART_DATA}
+                                />
+                            </Tabs.Panel>
+                        </Tabs>
                     </Group>
-                </Paper>
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    px="md"
-                    py="sm"
-                    withBorder
-                    style={{ flex: 1 }}
-                >
-                    <Table
-                        status={'success'}
-                        data={MOCK_RESULTS}
-                        columns={MOCK_COLUMNS}
-                        pagination={{
-                            show: false,
-                        }}
-                        footer={{
-                            show: true,
-                        }}
-                    />
                 </Paper>
             </ResizableBox>
         </Stack>
