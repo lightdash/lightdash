@@ -26,6 +26,14 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
+/**
+ * Gets the SQL query results from the server
+ *
+ * Steps:
+ * 1. Schedule the SQL query job
+ * 2. Get the status of the scheduled job
+ * 3. Fetch the results of the job
+ */
 export const useSqlQueryRun = () => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
