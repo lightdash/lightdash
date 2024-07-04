@@ -1,9 +1,9 @@
 import {
     ActionIcon,
-    Box,
     Center,
     Highlight,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
@@ -98,24 +98,21 @@ export const TableFields: FC = () => {
                 </Center>
             )}
             {isSuccess && tableFields && (
-                <>
-                    <Box
-                        h="100%"
-                        sx={{
-                            overflowY: 'auto',
-                        }}
-                    >
-                        <Stack spacing={0}>
-                            {tableFields.map((field) => (
-                                <TableField
-                                    key={field}
-                                    field={field}
-                                    search={search}
-                                />
-                            ))}
-                        </Stack>
-                    </Box>
-                </>
+                <ScrollArea
+                    className="only-vertical"
+                    sx={{ flex: 1 }}
+                    type="auto"
+                >
+                    <Stack spacing={0}>
+                        {tableFields.map((field) => (
+                            <TableField
+                                key={field}
+                                field={field}
+                                search={search}
+                            />
+                        ))}
+                    </Stack>
+                </ScrollArea>
             )}
             {isSuccess && !tableFields && (
                 <Center p="sm">

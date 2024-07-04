@@ -3,6 +3,7 @@ import {
     Center,
     Highlight,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
@@ -64,41 +65,53 @@ export const Tables: FC = () => {
             {isSuccess &&
                 data &&
                 data.map(({ schema, tables }) => (
-                    <Stack key={schema} spacing="none">
-                        <Text p={6} fw={700} fz="md" c="gray.7">
-                            {schema}
-                        </Text>
-                        {Object.keys(tables).map((table) => (
-                            <UnstyledButton
-                                key={table}
-                                onClick={() => {
-                                    dispatch(toggleActiveTable(table));
-                                }}
-                                fw={500}
-                                p={4}
-                                fz={13}
-                                c={activeTable === table ? 'gray.8' : 'gray.7'}
-                                bg={
-                                    activeTable === table
-                                        ? 'gray.1'
-                                        : 'transparent'
-                                }
-                                sx={(theme) => ({
-                                    borderRadius: theme.radius.sm,
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.gray[1],
-                                    },
-                                })}
-                            >
-                                <Highlight
-                                    component={Text}
-                                    highlight={search || ''}
+                    <ScrollArea
+                        className="only-vertical"
+                        sx={{ flex: 1 }}
+                        type="auto"
+                        key={schema}
+                    >
+                        <Stack spacing="none">
+                            <Text p={6} fw={700} fz="md" c="gray.7">
+                                {schema}
+                            </Text>
+                            {Object.keys(tables).map((table) => (
+                                <UnstyledButton
+                                    key={table}
+                                    onClick={() => {
+                                        dispatch(toggleActiveTable(table));
+                                    }}
+                                    fw={500}
+                                    p={4}
+                                    fz={13}
+                                    c={
+                                        activeTable === table
+                                            ? 'gray.8'
+                                            : 'gray.7'
+                                    }
+                                    bg={
+                                        activeTable === table
+                                            ? 'gray.1'
+                                            : 'transparent'
+                                    }
+                                    sx={(theme) => ({
+                                        borderRadius: theme.radius.sm,
+                                        '&:hover': {
+                                            backgroundColor:
+                                                theme.colors.gray[1],
+                                        },
+                                    })}
                                 >
-                                    {table}
-                                </Highlight>
-                            </UnstyledButton>
-                        ))}
-                    </Stack>
+                                    <Highlight
+                                        component={Text}
+                                        highlight={search || ''}
+                                    >
+                                        {table}
+                                    </Highlight>
+                                </UnstyledButton>
+                            ))}
+                        </Stack>
+                    </ScrollArea>
                 ))}
             {isSuccess && !data && (
                 <Center p="sm">
