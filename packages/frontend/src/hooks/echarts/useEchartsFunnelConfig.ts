@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     FunnelChartLabelPosition,
+    FunnelChartLegendPosition,
     type Metric,
     type ResultRow,
     type ResultValue,
@@ -16,6 +17,7 @@ export type FunnelSeriesDataPoint = NonNullable<
     FunnelSeriesOption['data']
 >[number] & {
     name: string;
+    value: number;
     meta: {
         value: ResultValue;
         rows: ResultRow[];
@@ -61,14 +63,29 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !seriesData) return;
 
         const {
-            validConfig: {},
+            validConfig: {
+                labelOverrides,
+                colorOverrides,
+                showLegend,
+                legendPosition,
+            },
             selectedField,
-            label,
+            labels,
+            colorDefaults,
         } = chartConfig;
 
         return {
             type: 'funnel',
-            data: seriesData,
+            data: seriesData.map(({ name, value, meta }) => {
+                return {
+                    name: labelOverrides?.[name] ?? name,
+                    value,
+                    meta,
+                    itemStyle: {
+                        color: colorOverrides?.[name] ?? colorDefaults[name],
+                    },
+                };
+            }),
             color: colorPalette,
             tooltip: {
                 trigger: 'item',
@@ -83,11 +100,20 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                     return `${marker}<b>${name}</b><br /> Value: ${formattedValue} <br/> Percent: ${percentOfMax}%`;
                 },
             },
+            top:
+                legendPosition === FunnelChartLegendPosition.HORIZONTAL &&
+                showLegend
+                    ? 50
+                    : 20,
             label: {
-                show: true,
-                position: label?.position || FunnelChartLabelPosition.INSIDE,
+                show: labels?.position !== FunnelChartLabelPosition.HIDDEN,
+                position:
+                    labels?.position &&
+                    labels.position !== FunnelChartLabelPosition.HIDDEN
+                        ? labels.position
+                        : FunnelChartLabelPosition.INSIDE,
                 color:
-                    label?.position !== FunnelChartLabelPosition.INSIDE
+                    labels?.position !== FunnelChartLabelPosition.INSIDE
                         ? 'black'
                         : undefined,
                 formatter: ({ name, value }) => {
@@ -98,10 +124,10 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
                             maxValue: chartConfig.maxValue,
                         });
 
-                    const percentString = label?.showPercentage
+                    const percentString = labels?.showPercentage
                         ? `${percentOfMax}%`
                         : '';
-                    const valueString = label?.showValue ? formattedValue : '';
+                    const valueString = labels?.showValue ? formattedValue : '';
                     const numbersString = `${
                         valueString || percentString ? ':' : ''
                     } ${[percentString, valueString]
@@ -123,7 +149,7 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
 
         const {
-            validConfig: {},
+            validConfig: { showLegend, legendPosition },
         } = chartConfig;
 
         return {
@@ -132,7 +158,22 @@ const useEchartsFunnelConfig = (isInDashboard: boolean) => {
             },
             series: [funnelSeriesOptions],
             animation: !isInDashboard,
-            legend: { data: seriesData.map(({ name }) => name) },
+            legend: {
+                show: showLegend,
+                orient: legendPosition,
+                type: 'scroll',
+                ...(legendPosition === FunnelChartLegendPosition.VERTICAL
+                    ? {
+                          left: 'left',
+                          top: 'middle',
+                          align: 'left',
+                      }
+                    : {
+                          left: 'center',
+                          top: 'top',
+                          align: 'auto',
+                      }),
+            },
         };
     }, [chartConfig, funnelSeriesOptions, seriesData, isInDashboard]);
 

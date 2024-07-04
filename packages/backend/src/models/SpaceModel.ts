@@ -819,13 +819,14 @@ export class SpaceModel {
                     if (highestRole.role === ProjectMemberRole.ADMIN) {
                         spaceRole = SpaceMemberRole.ADMIN;
                     } else if (user_with_direct_access) {
+                        // if user has explicit user role in space use that, otherwise try find the highest group role
                         spaceRole =
-                            getHighestSpaceRole([
-                                space_role ?? undefined,
-                                ...space_group_roles.map(
+                            space_role ??
+                            getHighestSpaceRole(
+                                space_group_roles.map(
                                     (role) => role ?? undefined,
                                 ),
-                            ]) ?? space_role;
+                            );
                     } else if (!is_private && !user_with_direct_access) {
                         spaceRole = convertProjectRoleToSpaceRole(
                             highestRole.role,

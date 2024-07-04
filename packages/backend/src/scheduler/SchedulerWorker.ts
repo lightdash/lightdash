@@ -1,4 +1,4 @@
-import { SchedulerJobStatus } from '@lightdash/common';
+import { SchedulerJobStatus, sqlRunnerJob } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -165,6 +165,7 @@ export class SchedulerWorker extends SchedulerTask {
 
                 await Promise.all(promises);
             },
+
             handleScheduledDelivery: async (
                 payload: any,
                 helpers: JobHelpers,
@@ -403,6 +404,37 @@ export class SchedulerWorker extends SchedulerTask {
                             helpers.job.run_at,
                             payload,
                         );
+                    },
+                );
+            },
+            [sqlRunnerJob]: async (payload: any, helpers: JobHelpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        sqlRunnerJob,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sqlRunner(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: sqlRunnerJob,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
                     },
                 );
             },

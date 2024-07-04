@@ -1,19 +1,19 @@
 import {
     FunnelChartDataInput,
     FunnelChartLabelPosition,
+    FunnelChartLegendPosition,
     isField,
     isMetric,
     isTableCalculation,
     type ApiQueryResults,
-    type CustomDimension,
-    type Dimension,
     type FunnelChart,
     type ItemsMap,
     type Metric,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type FunnelSeriesDataPoint } from './echarts/useEchartsFunnelConfig';
 
 type FunnelChartConfig = {
@@ -27,9 +27,21 @@ type FunnelChartConfig = {
     dataInput: FunnelChartDataInput;
     setDataInput: (dataInput: FunnelChartDataInput) => void;
 
-    label: FunnelChart['label'];
+    labels: FunnelChart['labels'];
+    onLabelsChange: (newLabel: FunnelChart['labels']) => void;
 
-    onLabelChange: (newLabel: FunnelChart['label']) => void;
+    labelOverrides: Record<string, string>;
+    onLabelOverridesChange: (key: string, value: string) => void;
+
+    colorDefaults: Record<string, string>;
+
+    colorOverrides: Record<string, string>;
+    onColorOverridesChange: (key: string, value: string) => void;
+
+    showLegend: boolean;
+    toggleShowLegend: () => void;
+    legendPosition: FunnelChartLegendPosition;
+    legendPositionChange: (position: FunnelChartLegendPosition) => void;
 
     data: FunnelSeriesDataPoint[];
 };
@@ -38,7 +50,6 @@ export type FunnelChartConfigFn = (
     resultsData: ApiQueryResults | undefined,
     funnelChartConfig: FunnelChart | undefined,
     itemsMap: ItemsMap | undefined,
-    dimensions: Record<string, CustomDimension | Dimension>,
     numericFields: Record<string, Metric | TableCalculation>,
     colorPalette: string[],
     tableCalculationsMetadata?: TableCalculationMetadata[],
@@ -48,7 +59,6 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     resultsData,
     funnelChartConfig,
     itemsMap,
-    dimensions,
     numericFields,
     colorPalette,
     tableCalculationsMetadata,
@@ -59,12 +69,31 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         funnelChartConfig?.dataInput ?? FunnelChartDataInput.ROW,
     );
 
-    const [label, setLabel] = useState<FunnelChart['label']>(
-        funnelChartConfig?.label ?? {
+    const [labels, setLabels] = useState<FunnelChart['labels']>(
+        funnelChartConfig?.labels ?? {
             position: FunnelChartLabelPosition.INSIDE,
             showValue: true,
             showPercentage: false,
         },
+    );
+
+    const [labelOverrides, setLabelOverrides] = useState(
+        funnelChartConfig?.labelOverrides ?? {},
+    );
+
+    const [debouncedLabelOverrides] = useDebouncedValue(labelOverrides, 500);
+
+    const [colorOverrides, setColorOverrides] = useState(
+        funnelChartConfig?.colorOverrides ?? {},
+    );
+
+    const [showLegend, setShowLegend] = useState(
+        funnelChartConfig?.showLegend ?? true,
+    );
+
+    const [legendPosition, setLegendPosition] = useState(
+        funnelChartConfig?.legendPosition ??
+            FunnelChartLegendPosition.HORIZONTAL,
     );
 
     const allNumericFieldIds = useMemo(
@@ -187,17 +216,56 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         }
     }, [allNumericFieldIds, dataInput, fieldId, resultsData, selectedField]);
 
-    const onLabelChange = (labelProps: FunnelChart['label']) => {
-        setLabel((prevLabel) => ({ ...prevLabel, ...labelProps }));
+    const colorDefaults = useMemo(() => {
+        return Object.fromEntries(
+            data.map((item, index) => {
+                return [item.name, colorPalette[index % colorPalette.length]];
+            }),
+        );
+    }, [data, colorPalette]);
+
+    const onLabelsChange = (labelsProps: FunnelChart['labels']) => {
+        setLabels((prevLabels) => ({ ...prevLabels, ...labelsProps }));
     };
+
+    const onLabelOverridesChange = useCallback((key: string, value: string) => {
+        setLabelOverrides(({ [key]: _, ...rest }) => {
+            return value.trim() === '' ? rest : { ...rest, [key]: value };
+        });
+    }, []);
+
+    const onColorOverridesChange = useCallback((key: string, value: string) => {
+        setColorOverrides(({ [key]: _, ...rest }) => {
+            return value.trim() === '' ? rest : { ...rest, [key]: value };
+        });
+    }, []);
+
+    const handleLegendPositionChange = useCallback(
+        (position: FunnelChartLegendPosition) => {
+            setLegendPosition(position);
+        },
+        [],
+    );
 
     const validConfig: FunnelChart = useMemo(
         () => ({
-            dataInput: dataInput,
+            dataInput,
             fieldId: fieldId ?? undefined,
-            label,
+            labels,
+            labelOverrides: debouncedLabelOverrides,
+            colorOverrides,
+            showLegend,
+            legendPosition,
         }),
-        [dataInput, fieldId, label],
+        [
+            colorOverrides,
+            dataInput,
+            debouncedLabelOverrides,
+            fieldId,
+            labels,
+            legendPosition,
+            showLegend,
+        ],
     );
 
     return {
@@ -208,8 +276,18 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         onFieldChange: setFieldId,
         dataInput,
         setDataInput,
-        label,
-        onLabelChange,
+        labels,
+        onLabelsChange,
+        labelOverrides,
+        onLabelOverridesChange,
+        colorDefaults,
+        colorOverrides,
+        onColorOverridesChange,
+        showLegend,
+        toggleShowLegend: () => setShowLegend((prev) => !prev),
+        legendPosition: legendPosition,
+        legendPositionChange: handleLegendPositionChange,
+
         colorPalette,
         data,
     };

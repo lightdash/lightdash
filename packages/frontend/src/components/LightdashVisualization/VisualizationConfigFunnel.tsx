@@ -71,7 +71,6 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
         resultsData,
         initialChartConfig,
         itemsMap,
-        dimensions,
         numericFields,
         colorPalette,
         tableCalculationsMetadata,

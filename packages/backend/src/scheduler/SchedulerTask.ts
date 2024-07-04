@@ -38,6 +38,8 @@ import {
     SchedulerLog,
     SessionUser,
     SlackNotificationPayload,
+    sqlRunnerJob,
+    SqlRunnerPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
@@ -844,6 +846,61 @@ export default class SchedulerTask {
             });
             throw e; // Cascade error to it can be retried by graphile
         }
+    }
+
+    private async logWrapper(
+        baseLog: Pick<
+            SchedulerLog,
+            'task' | 'jobId' | 'scheduledTime' | 'details'
+        >,
+        func: () => Promise<Record<string, string> | undefined>, // Returns extra details for the log
+    ) {
+        try {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const details = await func();
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { ...baseLog.details, ...details },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: { ...baseLog.details, error: e.message },
+            });
+            Logger.error(`Error in scheduler task: ${e}`);
+            throw e;
+        }
+    }
+
+    protected async sqlRunner(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SqlRunnerPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: sqlRunnerJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => {
+                const fileUrl =
+                    await this.projectService.streamSqlQueryIntoFile(
+                        payload.userUuid,
+                        payload.projectUuid,
+                        payload.sql,
+                    );
+                return { fileUrl };
+            },
+        );
     }
 
     protected async uploadGsheetFromQuery(

@@ -1,3 +1,59 @@
+# [0.1155.0](https://github.com/lightdash/lightdash/compare/0.1154.0...0.1155.0) (2024-07-03)
+
+
+### Features
+
+* color and label settings for funnel chart ([#10590](https://github.com/lightdash/lightdash/issues/10590)) ([2500606](https://github.com/lightdash/lightdash/commit/2500606cba09beec9fa1e94a754fb38798ea9c59))
+
+# [0.1154.0](https://github.com/lightdash/lightdash/compare/0.1153.1...0.1154.0) (2024-07-03)
+
+
+### Features
+
+* allow searching fields sql runner ([#10587](https://github.com/lightdash/lightdash/issues/10587)) ([58816b2](https://github.com/lightdash/lightdash/commit/58816b27dea58813a7fc6e87e99eb16c487efa04))
+
+## [0.1153.1](https://github.com/lightdash/lightdash/compare/0.1153.0...0.1153.1) (2024-07-03)
+
+
+### Bug Fixes
+
+* allow downgrade of individual user space permissions when in group ([#10591](https://github.com/lightdash/lightdash/issues/10591)) ([303c12f](https://github.com/lightdash/lightdash/commit/303c12fc3d393f85018e34c9e471aae7660c4946))
+
+# [0.1153.0](https://github.com/lightdash/lightdash/compare/0.1152.0...0.1153.0) (2024-07-03)
+
+
+### Features
+
+* allow searching tables sql runner ([#10586](https://github.com/lightdash/lightdash/issues/10586)) ([c6a1702](https://github.com/lightdash/lightdash/commit/c6a1702aa9668b4565374b78d4f5671b806680d4))
+
+# [0.1152.0](https://github.com/lightdash/lightdash/compare/0.1151.2...0.1152.0) (2024-07-03)
+
+
+### Features
+
+* Sql runner job streaming ([#10575](https://github.com/lightdash/lightdash/issues/10575)) ([ebbc6bc](https://github.com/lightdash/lightdash/commit/ebbc6bc6c8d5bcbab38c9586258aeac90dcfdbb2))
+
+## [0.1151.2](https://github.com/lightdash/lightdash/compare/0.1151.1...0.1151.2) (2024-07-02)
+
+
+### Bug Fixes
+
+* add optional flex content to page.tsx ([#10585](https://github.com/lightdash/lightdash/issues/10585)) ([7140e01](https://github.com/lightdash/lightdash/commit/7140e015ffdf0b470f258d49f1379d4f27ddf984))
+
+## [0.1151.1](https://github.com/lightdash/lightdash/compare/0.1151.0...0.1151.1) (2024-07-02)
+
+
+### Bug Fixes
+
+* pass boolean to see private spaces ([#10583](https://github.com/lightdash/lightdash/issues/10583)) ([8e3d9f5](https://github.com/lightdash/lightdash/commit/8e3d9f5a55f4f6d2edec1cbc369d6a27189c2a12))
+
+# [0.1151.0](https://github.com/lightdash/lightdash/compare/0.1150.0...0.1151.0) (2024-07-02)
+
+
+### Features
+
+* sql runner table fields ([#10568](https://github.com/lightdash/lightdash/issues/10568)) ([2ddd756](https://github.com/lightdash/lightdash/commit/2ddd7567dc32d720ebffb95ca49744dbf7b9d20c))
+
 # [0.1150.0](https://github.com/lightdash/lightdash/compare/0.1149.2...0.1150.0) (2024-07-01)
 
 
