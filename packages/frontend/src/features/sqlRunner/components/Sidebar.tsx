@@ -8,20 +8,20 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { Tables } from './Tables';
-
-import 'react-resizable/css/styles.css';
 import {
     SIDEBAR_MAX_WIDTH,
     SIDEBAR_MIN_WIDTH,
 } from '../../../components/common/Page/Sidebar';
+import { useAppSelector } from '../store/hooks';
 import { TableFields } from './TableFields';
+import { Tables } from './Tables';
+
+import 'react-resizable/css/styles.css';
 
 type Props = {
-    projectUuid: string;
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -29,8 +29,8 @@ const DEFAULT_RESIZABLE_BOX_HEIGHT_PX = 250;
 const MIN_RESIZABLE_BOX_HEIGHT_PX = 150;
 const MAX_RESIZABLE_BOX_HEIGHT_PX = 500;
 
-export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
-    const [activeTable, setActiveTable] = useState<string | undefined>();
+export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
@@ -49,11 +49,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
             </Group>
 
             <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                <Tables
-                    activeTable={activeTable}
-                    setActiveTable={setActiveTable}
-                    projectUuid={projectUuid}
-                />
+                <Tables />
 
                 {activeTable && (
                     <Box pos="relative">
@@ -83,10 +79,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                                 />
                             }
                         >
-                            <TableFields
-                                projectUuid={projectUuid}
-                                activeTable={activeTable}
-                            />
+                            <TableFields />
                         </ResizableBox>
                     </Box>
                 )}
