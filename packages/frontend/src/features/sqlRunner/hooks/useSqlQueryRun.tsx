@@ -104,19 +104,22 @@ export const useSqlQueryRun = () => {
             const reader = rb?.getReader();
 
             const stream = new ReadableStream({
-                async start(controller) {
-                    async function push() {
-                        while (true) {
-                            const nextChunk = await reader?.read();
-                            if (nextChunk?.done) {
+                start(controller) {
+                    function push() {
+                        void reader?.read().then(({ done, value }) => {
+                            if (done) {
+                                // Close the stream
                                 controller.close();
-                                break;
+                                return;
                             }
-                            controller.enqueue(nextChunk?.value);
-                        }
+                            // Enqueue the next data chunk into our target stream
+                            controller.enqueue(value);
+
+                            push();
+                        });
                     }
 
-                    await push();
+                    push();
                 },
             });
 
