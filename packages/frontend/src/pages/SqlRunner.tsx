@@ -102,25 +102,8 @@ const SqlRunnerPage = () => {
         () => health.data?.query.maxLimit || 5000,
         [health],
     );
-    const showMissingLimitWarning = useMemo(() => {
-        if (sql) {
-            const selectStatements = sql.match(/select\s+/gi);
-            const limitClauses = sql.match(/limit\s+/gi);
-            // return true if there is more select statements than limit clauses
-            return (
-                selectStatements &&
-                selectStatements.length > (limitClauses || []).length
-            );
-        }
-        return false;
-    }, [sql]);
 
     const showLimitReachedWarning = useMemo(() => {
-        console.log(
-            'showLimitReachedWarning',
-            resultsData?.rows.length,
-            maxLimit,
-        );
         return resultsData && resultsData.rows.length >= maxLimit;
     }, [resultsData, maxLimit]);
 
@@ -279,29 +262,6 @@ const SqlRunnerPage = () => {
                                     sx={{ cursor: 'help' }}
                                 >
                                     Results may be incomplete
-                                </Badge>
-                            </Tooltip>
-                        )}
-                        {showMissingLimitWarning && (
-                            <Tooltip
-                                width={400}
-                                label={`Queries like this can cause increases in warehouse bill costs, so we advise that you always apply a limit in all select statements.`}
-                                multiline
-                                position={'bottom'}
-                            >
-                                <Badge
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconAlertCircle}
-                                            size={'sm'}
-                                        />
-                                    }
-                                    color="yellow"
-                                    variant="outline"
-                                    tt="none"
-                                    sx={{ cursor: 'help' }}
-                                >
-                                    Missing limit clauses
                                 </Badge>
                             </Tooltip>
                         )}
