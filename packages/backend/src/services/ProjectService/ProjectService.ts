@@ -108,6 +108,7 @@ import { ReadStream } from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
+import { PassThrough } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -115,6 +116,7 @@ import {
     LightdashAnalytics,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
+import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -175,6 +177,7 @@ type ProjectServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
+    s3Client: S3Client;
 };
 
 export class ProjectService extends BaseService {
@@ -214,6 +217,8 @@ export class ProjectService extends BaseService {
 
     downloadFileModel: DownloadFileModel;
 
+    s3Client: S3Client;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -232,6 +237,7 @@ export class ProjectService extends BaseService {
         emailModel,
         schedulerClient,
         downloadFileModel,
+        s3Client,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -252,6 +258,7 @@ export class ProjectService extends BaseService {
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
+        this.s3Client = s3Client;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -1906,7 +1913,39 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    async streamResultsToCloudStorage(
+        projectUuid: string,
+        callback: (writer: (data: ResultRow) => void) => Promise<void>,
+    ): Promise<string> {
+        const downloadFileId = nanoid();
+        const passThrough = new PassThrough();
+
+        const endUpload = await this.s3Client.streamResults(
+            passThrough,
+            `${downloadFileId}.jsonl`,
+        );
+        try {
+            const writer = (data: ResultRow) => {
+                passThrough.write(`${JSON.stringify(data)}\n`);
+            };
+
+            await callback(writer);
+        } catch (err) {
+            this.logger.error('Error during streaming', err);
+            throw err;
+        } finally {
+            passThrough.end();
+        }
+
+        const fileUrl = await endUpload();
+        this.logger.debug('File has been uploaded to S3.');
+
+        return fileUrl;
+    }
+
     async streamResultsToLocalFile(
+        projectUuid: string,
+
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
@@ -1940,7 +1979,8 @@ export class ProjectService extends BaseService {
             });
         }
 
-        return downloadFileId;
+        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
+        return serverUrl;
     }
 
     async streamSqlQueryIntoFile(
@@ -1970,8 +2010,11 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        // TODO upload to s3 if enabled
-        const fileId = await this.streamResultsToLocalFile(async (writter) => {
+        const streamFunction = this.s3Client.isEnabled()
+            ? this.streamResultsToCloudStorage.bind(this)
+            : this.streamResultsToLocalFile.bind(this);
+
+        const fileUrl = await streamFunction(projectUuid, async (writter) => {
             await warehouseClient.streamQuery(
                 sql,
                 async ({ rows, fields }) => {
@@ -1985,8 +2028,8 @@ export class ProjectService extends BaseService {
         });
 
         await sshTunnel.disconnect();
-        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${fileId}`;
-        return serverUrl;
+
+        return fileUrl;
     }
 
     async getFileStream(

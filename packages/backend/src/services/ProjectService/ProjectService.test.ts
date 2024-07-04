@@ -6,6 +6,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -116,6 +117,7 @@ describe('ProjectService', () => {
         } as unknown as EmailModel,
         schedulerClient: {} as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
+        s3Client: {} as S3Client,
     });
     afterEach(() => {
         jest.clearAllMocks();

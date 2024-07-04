@@ -50,6 +50,7 @@ describe('Csv service', () => {
             } as unknown as EmailModel,
             schedulerClient: {} as SchedulerClient,
             downloadFileModel: {} as DownloadFileModel,
+            s3Client: {} as S3Client,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,
