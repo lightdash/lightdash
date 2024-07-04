@@ -1,3 +1,10 @@
+# [0.1156.0](https://github.com/lightdash/lightdash/compare/0.1155.0...0.1156.0) (2024-07-04)
+
+
+### Features
+
+* apply limit to SQL runner queries and show warning on missing l… ([#10596](https://github.com/lightdash/lightdash/issues/10596)) ([ba5b357](https://github.com/lightdash/lightdash/commit/ba5b357f1c8bbeaaa03b714662a8320905986eb7))
+
 # [0.1155.0](https://github.com/lightdash/lightdash/compare/0.1154.0...0.1155.0) (2024-07-03)
 
 
