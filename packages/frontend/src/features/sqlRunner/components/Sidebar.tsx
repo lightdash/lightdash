@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Tables } from './Tables';
@@ -22,13 +22,10 @@ import {
 import { TableFields } from './TableFields';
 
 type Props = {
-    projectUuid: string;
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
-    const [activeTable, setActiveTable] = useState<string | undefined>();
-
+export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     return (
         <Stack h="100vh" spacing="xs">
             <Group position="apart">
@@ -47,11 +44,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
 
             <Flex direction="column" justify="space-between" h="100%">
                 <Box>
-                    <Tables
-                        activeTable={activeTable}
-                        setActiveTable={setActiveTable}
-                        projectUuid={projectUuid}
-                    />
+                    <Tables />
                 </Box>
                 <Box pos="relative">
                     <ResizableBox
@@ -74,10 +67,7 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                             />
                         }
                     >
-                        <TableFields
-                            projectUuid={projectUuid}
-                            activeTable={activeTable}
-                        />
+                        <TableFields />
                     </ResizableBox>
                 </Box>
             </Flex>

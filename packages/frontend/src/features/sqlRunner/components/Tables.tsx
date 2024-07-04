@@ -10,27 +10,23 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { useState, type Dispatch, type FC, type SetStateAction } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTables } from '../hooks/useTables';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { toggleActiveTable } from '../store/sqlRunnerSlice';
 
-type Props = {
-    projectUuid: string;
-    activeTable: string | undefined;
-    setActiveTable: Dispatch<SetStateAction<string | undefined>>;
-};
+export const Tables: FC = () => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const dispatch = useAppDispatch();
 
-export const Tables: FC<Props> = ({
-    activeTable,
-    setActiveTable,
-    projectUuid,
-}) => {
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-
     const isValidSearch = Boolean(
         debouncedSearch && debouncedSearch.trim().length > 2,
     );
+
     const { data, isLoading, isSuccess } = useTables({
         projectUuid,
         search: isValidSearch ? debouncedSearch : undefined,
@@ -76,7 +72,7 @@ export const Tables: FC<Props> = ({
                             <UnstyledButton
                                 key={table}
                                 onClick={() => {
-                                    setActiveTable(table);
+                                    dispatch(toggleActiveTable(table));
                                 }}
                                 fw={500}
                                 p={4}

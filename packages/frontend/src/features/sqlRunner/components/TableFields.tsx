@@ -7,27 +7,43 @@ import {
     Stack,
     Text,
     TextInput,
-    UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableFields } from '../hooks/useTableFields';
+import { useAppSelector } from '../store/hooks';
 
-type Props = {
-    projectUuid: string;
-    activeTable: string | undefined;
-};
+const TableField: FC<{
+    field: string;
+    search: string | undefined;
+}> = memo(({ field, search }) => (
+    <Highlight
+        component={Text}
+        fw={500}
+        p={4}
+        fz={13}
+        c="gray.7"
+        sx={(theme) => ({
+            borderRadius: theme.radius.sm,
+        })}
+        highlight={search || ''}
+    >
+        {field}
+    </Highlight>
+));
 
-export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
+export const TableFields: FC = () => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
     const isValidSearch = Boolean(
         debouncedSearch && debouncedSearch.trim().length > 2,
     );
-
     const {
         data: tableFields,
         isLoading,
@@ -37,13 +53,6 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
         tableName: activeTable,
         search: isValidSearch ? debouncedSearch : undefined,
     });
-    const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
-
-    useEffect(() => {
-        if (isSuccess) {
-            setActiveFields(undefined);
-        }
-    }, [isSuccess]);
 
     return (
         <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
@@ -98,47 +107,11 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                     >
                         <Stack spacing={0}>
                             {tableFields.map((field) => (
-                                <UnstyledButton
+                                <TableField
                                     key={field}
-                                    fw={500}
-                                    p={4}
-                                    fz={13}
-                                    c={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.8'
-                                            : 'gray.7'
-                                    }
-                                    bg={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.1'
-                                            : 'transparent'
-                                    }
-                                    onClick={() => {
-                                        setActiveFields((prev) => {
-                                            const newSet = new Set(prev);
-                                            if (newSet.has(field)) {
-                                                newSet.delete(field);
-                                            } else {
-                                                newSet.add(field);
-                                            }
-                                            return newSet;
-                                        });
-                                    }}
-                                    sx={(theme) => ({
-                                        borderRadius: theme.radius.sm,
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
-                                >
-                                    <Highlight
-                                        component={Text}
-                                        highlight={search || ''}
-                                    >
-                                        {field}
-                                    </Highlight>
-                                </UnstyledButton>
+                                    field={field}
+                                    search={search}
+                                />
                             ))}
                         </Stack>
                     </Box>
