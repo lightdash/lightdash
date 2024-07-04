@@ -107,17 +107,27 @@ export enum FunnelChartLabelPosition {
     INSIDE = 'inside',
     LEFT = 'left',
     RIGHT = 'right',
+    HIDDEN = 'hidden',
+}
+
+export enum FunnelChartLegendPosition {
+    HORIZONTAL = 'horizontal',
+    VERTICAL = 'vertical',
 }
 
 export type FunnelChart = {
     dataInput?: FunnelChartDataInput;
     fieldId?: string;
     metadata?: Record<string, SeriesMetadata>;
-    label?: {
+    labelOverrides?: Record<string, string>;
+    colorOverrides?: Record<string, string>;
+    labels?: {
         position?: FunnelChartLabelPosition;
         showValue?: boolean;
         showPercentage?: boolean;
     };
+    showLegend?: boolean;
+    legendPosition?: FunnelChartLegendPosition;
 };
 
 export type ColumnProperties = {

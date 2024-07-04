@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.1151.2",
+    "version": "0.1155.0",
     "private": true,
     "scripts": {
         "start": "vite",
@@ -30,7 +30,7 @@
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "^0.1151.2",
+        "@lightdash/common": "^0.1155.0",
         "@mantine/core": "^6.0.21",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
@@ -63,7 +63,7 @@
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
         "fuse.js": "^6.5.3",
-        "immer": "^9.0.15",
+        "immer": "^10.1.1",
         "jspdf": "^2.5.1",
         "lodash": "^4.17.21",
         "monaco-editor": "^0.44.0",

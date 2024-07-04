@@ -46,7 +46,8 @@ export type SchedulerLog = {
         | 'uploadGsheetFromQuery'
         | 'compileProject'
         | 'testAndCompileProject'
-        | 'validateProject';
+        | 'validateProject'
+        | 'sqlRunner';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
