@@ -2,7 +2,6 @@ import {
     ActionIcon,
     Box,
     Divider,
-    Flex,
     Group,
     Stack,
     Title,
@@ -32,12 +31,9 @@ const MAX_RESIZABLE_BOX_HEIGHT_PX = 500;
 
 export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
     const [activeTable, setActiveTable] = useState<string | undefined>();
-    const [resizableBoxHeight, setResizableBoxHeight] = useState(
-        DEFAULT_RESIZABLE_BOX_HEIGHT_PX,
-    );
 
     return (
-        <Stack h="100%" spacing="xs">
+        <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart">
                 <Title order={5} fz="sm" c="gray.6">
                     SQL RUNNER
@@ -52,56 +48,49 @@ export const Sidebar: FC<Props> = ({ projectUuid, setSidebarOpen }) => {
                 </Tooltip>
             </Group>
 
-            <Flex direction="column" justify="space-between" h="100%">
-                <Box
-                    sx={{
-                        height: `calc(100% - ${resizableBoxHeight}px)`,
-                        overflowY: 'hidden',
-                    }}
-                >
-                    <Tables
-                        activeTable={activeTable}
-                        setActiveTable={setActiveTable}
-                        projectUuid={projectUuid}
-                    />
-                </Box>
-                <Box pos="relative">
-                    <ResizableBox
-                        height={resizableBoxHeight}
-                        minConstraints={[
-                            SIDEBAR_MIN_WIDTH,
-                            MIN_RESIZABLE_BOX_HEIGHT_PX,
-                        ]}
-                        maxConstraints={[
-                            SIDEBAR_MAX_WIDTH,
-                            MAX_RESIZABLE_BOX_HEIGHT_PX,
-                        ]}
-                        resizeHandles={['n']}
-                        axis="y"
-                        onResize={(_, data) =>
-                            setResizableBoxHeight(data.size.height)
-                        }
-                        handle={
-                            <Divider
-                                h={5}
-                                bg="gray.3"
-                                pos="absolute"
-                                top={-2}
-                                left={0}
-                                right={0}
-                                sx={{
-                                    cursor: 'ns-resize',
-                                }}
+            <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                <Tables
+                    activeTable={activeTable}
+                    setActiveTable={setActiveTable}
+                    projectUuid={projectUuid}
+                />
+
+                {activeTable && (
+                    <Box pos="relative">
+                        <ResizableBox
+                            height={DEFAULT_RESIZABLE_BOX_HEIGHT_PX}
+                            minConstraints={[
+                                SIDEBAR_MIN_WIDTH,
+                                MIN_RESIZABLE_BOX_HEIGHT_PX,
+                            ]}
+                            maxConstraints={[
+                                SIDEBAR_MAX_WIDTH,
+                                MAX_RESIZABLE_BOX_HEIGHT_PX,
+                            ]}
+                            resizeHandles={['n']}
+                            axis="y"
+                            handle={
+                                <Divider
+                                    h={5}
+                                    bg="gray.3"
+                                    pos="absolute"
+                                    top={-2}
+                                    left={0}
+                                    right={0}
+                                    sx={{
+                                        cursor: 'ns-resize',
+                                    }}
+                                />
+                            }
+                        >
+                            <TableFields
+                                projectUuid={projectUuid}
+                                activeTable={activeTable}
                             />
-                        }
-                    >
-                        <TableFields
-                            projectUuid={projectUuid}
-                            activeTable={activeTable}
-                        />
-                    </ResizableBox>
-                </Box>
-            </Flex>
+                        </ResizableBox>
+                    </Box>
+                )}
+            </Stack>
         </Stack>
     );
 };

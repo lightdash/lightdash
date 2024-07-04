@@ -1,9 +1,9 @@
 import {
     ActionIcon,
-    Box,
     Center,
     Highlight,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
@@ -89,60 +89,56 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                 </Center>
             )}
             {isSuccess && tableFields && (
-                <>
-                    <Box
-                        sx={{
-                            overflowY: 'scroll',
-                            flexGrow: 1,
-                        }}
-                    >
-                        <Stack spacing={0}>
-                            {tableFields.map((field) => (
-                                <UnstyledButton
-                                    key={field}
-                                    fw={500}
-                                    p={4}
-                                    fz={13}
-                                    c={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.8'
-                                            : 'gray.7'
-                                    }
-                                    bg={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.1'
-                                            : 'transparent'
-                                    }
-                                    onClick={() => {
-                                        setActiveFields((prev) => {
-                                            const newSet = new Set(prev);
-                                            if (newSet.has(field)) {
-                                                newSet.delete(field);
-                                            } else {
-                                                newSet.add(field);
-                                            }
-                                            return newSet;
-                                        });
-                                    }}
-                                    sx={(theme) => ({
-                                        borderRadius: theme.radius.sm,
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
+                <ScrollArea
+                    className="only-vertical"
+                    sx={{ flex: 1 }}
+                    type="auto"
+                >
+                    <Stack spacing="none">
+                        {tableFields.map((field) => (
+                            <UnstyledButton
+                                key={field}
+                                fw={500}
+                                p={4}
+                                fz={13}
+                                c={
+                                    activeFields && activeFields.has(field)
+                                        ? 'gray.8'
+                                        : 'gray.7'
+                                }
+                                bg={
+                                    activeFields && activeFields.has(field)
+                                        ? 'gray.1'
+                                        : 'transparent'
+                                }
+                                onClick={() => {
+                                    setActiveFields((prev) => {
+                                        const newSet = new Set(prev);
+                                        if (newSet.has(field)) {
+                                            newSet.delete(field);
+                                        } else {
+                                            newSet.add(field);
+                                        }
+                                        return newSet;
+                                    });
+                                }}
+                                sx={(theme) => ({
+                                    borderRadius: theme.radius.sm,
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[1],
+                                    },
+                                })}
+                            >
+                                <Highlight
+                                    component={Text}
+                                    highlight={search || ''}
                                 >
-                                    <Highlight
-                                        component={Text}
-                                        highlight={search || ''}
-                                    >
-                                        {field}
-                                    </Highlight>
-                                </UnstyledButton>
-                            ))}
-                        </Stack>
-                    </Box>
-                </>
+                                    {field}
+                                </Highlight>
+                            </UnstyledButton>
+                        ))}
+                    </Stack>
+                </ScrollArea>
             )}
             {isSuccess && !tableFields && (
                 <Center p="sm">
