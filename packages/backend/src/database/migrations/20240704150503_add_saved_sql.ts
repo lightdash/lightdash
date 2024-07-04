@@ -85,7 +85,7 @@ export async function up(knex: Knex): Promise<void> {
             ) STORED;
         `);
 
-        // create index on catalog search_vector column
+        // create index on saved_sql search_vector column
         await knex.schema.alterTable(SAVED_SQL_TABLE_NAME, (table) => {
             table.index('search_vector', 'saved_sql_vector_idx', 'GIN');
         });
