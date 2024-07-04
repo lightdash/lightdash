@@ -13,11 +13,6 @@ export async function up(knex: Knex): Promise<void> {
                 .primary()
                 .defaultTo(knex.raw('uuid_generate_v4()'));
             table
-                .uuid('project_uuid')
-                .references('project_uuid')
-                .inTable('projects')
-                .onDelete('CASCADE');
-            table
                 .uuid('space_uuid')
                 .nullable()
                 .references('space_uuid')
@@ -26,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
                 .index();
             table
                 .uuid('dashboard_uuid')
-                .nullable()
+                .notNullable()
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');
@@ -34,12 +29,6 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
-            table
-                .uuid('created_by_user_uuid')
-                .nullable()
-                .references('user_uuid')
-                .inTable('users')
-                .onDelete('SET NULL');
             table.text('name').notNullable();
             table.text('description').nullable();
             table
@@ -57,8 +46,6 @@ export async function up(knex: Knex): Promise<void> {
             table.text('slug').nullable().index();
             table.integer('views_count').defaultTo(0).notNullable();
             table.timestamp('first_viewed_at').nullable();
-
-            table.unique(['project_uuid', 'slug']);
         });
 
         await knex.schema.createTable(
@@ -70,7 +57,7 @@ export async function up(knex: Knex): Promise<void> {
                     .defaultTo(knex.raw('uuid_generate_v4()'));
                 table
                     .uuid('saved_sql_uuid')
-                    .notNullable()
+                    .nullable()
                     .references('saved_sql_uuid')
                     .inTable(SAVED_SQL_TABLE_NAME)
                     .onDelete('CASCADE')
@@ -79,11 +66,10 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('created_at', { useTz: false })
                     .notNullable()
                     .defaultTo(knex.fn.now());
-                table.text('sql').notNullable();
+                table.text('sql').nullable();
                 table.jsonb('config').defaultTo({});
-                table.string('chart_kind').defaultTo(ChartKind.VERTICAL_BAR);
                 table
-                    .uuid('created_by_user_uuid')
+                    .uuid('last_version_updated_at')
                     .nullable()
                     .references('user_uuid')
                     .inTable('users')
@@ -99,7 +85,7 @@ export async function up(knex: Knex): Promise<void> {
             ) STORED;
         `);
 
-        // create index on saved_sql search_vector column
+        // create index on catalog search_vector column
         await knex.schema.alterTable(SAVED_SQL_TABLE_NAME, (table) => {
             table.index('search_vector', 'saved_sql_vector_idx', 'GIN');
         });
@@ -107,6 +93,6 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTableIfExists(SAVED_SQL_VERSIONS_TABLE_NAME);
     await knex.schema.dropTableIfExists(SAVED_SQL_TABLE_NAME);
+    await knex.schema.dropTableIfExists(SAVED_SQL_VERSIONS_TABLE_NAME);
 }
