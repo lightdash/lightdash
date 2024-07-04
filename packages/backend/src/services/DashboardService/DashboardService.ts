@@ -340,11 +340,17 @@ export class DashboardService extends BaseService {
             );
         }
 
+        const newTabs = dashboard.tabs.map((tab) => ({
+            ...tab,
+            uuid: uuidv4(), // generate new uuid for copied tabs
+        }));
+
         const duplicatedDashboard = {
             ...dashboard,
             description: data.dashboardDesc,
             name: data.dashboardName,
             slug: generateSlug(dashboard.name),
+            tabs: newTabs,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -406,12 +412,17 @@ export class DashboardService extends BaseService {
                 }),
             );
 
+            const newTabbedTiles = updatedTiles.map((tile) => ({
+                ...tile,
+                tabUuid: newTabs.find((tab) => tab.uuid === tile.tabUuid)?.uuid,
+            }));
+
             await this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
-                    tiles: [...updatedTiles],
+                    tiles: [...newTabbedTiles],
                     filters: newDashboard.filters,
-                    tabs: newDashboard.tabs,
+                    tabs: newTabs,
                 },
                 user,
                 projectUuid,
