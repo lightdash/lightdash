@@ -32,7 +32,7 @@ const getSchedulerLogs = async (projectUuid: string) =>
         body: undefined,
     });
 
-const getSchedulerJobStatus = async (jobId: string) =>
+export const getSchedulerJobStatus = async (jobId: string) =>
     lightdashApi<ApiJobStatusResponse['results']>({
         url: `/schedulers/job/${jobId}/status`,
         method: 'GET',
