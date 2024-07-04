@@ -1,3 +1,10 @@
+# [0.1157.0](https://github.com/lightdash/lightdash/compare/0.1156.0...0.1157.0) (2024-07-04)
+
+
+### Features
+
+* s3 result streaming ([#10598](https://github.com/lightdash/lightdash/issues/10598)) ([8b5be2e](https://github.com/lightdash/lightdash/commit/8b5be2ec7f6dcf8cfef8bc991a0822a0f8e68f32))
+
 # [0.1156.0](https://github.com/lightdash/lightdash/compare/0.1155.0...0.1156.0) (2024-07-04)
 
 
