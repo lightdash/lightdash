@@ -39,7 +39,7 @@ export function getGroupedRowModelLightdash<TData extends RowData>(): (
         memo(
             () => [table.getState().grouping, table.getPreGroupedRowModel()],
             (grouping, rowModel) => {
-                if (!rowModel.rows.length || !grouping.length) {
+                if (!rowModel?.rows.length || !grouping.length) {
                     return rowModel;
                 }
 

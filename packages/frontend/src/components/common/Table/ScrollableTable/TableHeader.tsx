@@ -59,7 +59,7 @@ const TableHeader: FC<TableHeaderProps> = ({
         }
     }, [showSubtotals, columns, headerContextMenu, table]);
 
-    if (columns.length <= 0) {
+    if (columns?.length <= 0) {
         return null;
     }
 

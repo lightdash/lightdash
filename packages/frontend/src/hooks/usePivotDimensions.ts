@@ -10,8 +10,8 @@ const usePivotDimensions = (
     );
 
     const validPivotDimensions = useMemo(() => {
-        if (resultsData) {
-            const availableDimensions = resultsData.metricQuery.dimensions;
+        if (resultsData && resultsData.metricQuery?.dimensions) {
+            const availableDimensions = resultsData.metricQuery?.dimensions;
 
             if (
                 dirtyPivotDimensions &&

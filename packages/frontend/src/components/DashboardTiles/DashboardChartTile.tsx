@@ -11,11 +11,13 @@ import {
     getItemMap,
     getVisibleFields,
     hasCustomDimension,
+    isApiSqlChartAndResults,
     isChartTile,
     isFilterableField,
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
+    type ApiSqlChartAndResults,
     type Dashboard,
     type DashboardChartTile as IDashboardChartTile,
     type DashboardFilterRule,
@@ -60,6 +62,8 @@ import { downloadCsv } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
+import { useStreamedSqlQueryResults } from '../../features/sqlRunner/hooks/useSqlQueryRun';
+import { explore } from '../../hooks/cartesianChartConfig/useCartesianChartConfig.mock';
 import useDashboardChart from '../../hooks/dashboard/useDashboardChart';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { type EChartSeries } from '../../hooks/echarts/useEchartsCartesianConfig';
@@ -89,6 +93,7 @@ import MetricQueryDataProvider, {
 } from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
+import SimpleTable from '../SimpleTable';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
 
@@ -168,7 +173,7 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
 
 const ValidDashboardChartTile: FC<{
     tileUuid: string;
-    chartAndResults: ApiChartAndResults;
+    chartAndResults: ApiChartAndResults | ApiSqlChartAndResults;
     isTitleHidden?: boolean;
     project: string;
     onSeriesContextMenu?: (
@@ -178,7 +183,7 @@ const ValidDashboardChartTile: FC<{
 }> = ({
     tileUuid,
     isTitleHidden = false,
-    chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
+    chartAndResults,
     onSeriesContextMenu,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -191,17 +196,25 @@ const ValidDashboardChartTile: FC<{
     const { health } = useApp();
 
     useEffect(() => {
-        addResultsCacheTime(cacheMetadata);
-    }, [cacheMetadata, addResultsCacheTime]);
+        if (!isApiSqlChartAndResults(chartAndResults)) {
+            addResultsCacheTime(chartAndResults.cacheMetadata);
+        }
+    }, [addResultsCacheTime, chartAndResults]);
 
     const resultData = useMemo(
         () => ({
-            rows,
-            metricQuery,
-            cacheMetadata,
-            fields,
+            rows: chartAndResults.rows,
+            metricQuery: !isApiSqlChartAndResults(chartAndResults)
+                ? chartAndResults.metricQuery
+                : undefined,
+            cacheMetadata: !isApiSqlChartAndResults(chartAndResults)
+                ? chartAndResults.cacheMetadata
+                : undefined,
+            fields: !isApiSqlChartAndResults(chartAndResults)
+                ? chartAndResults.fields
+                : undefined,
         }),
-        [rows, metricQuery, cacheMetadata, fields],
+        [chartAndResults],
     );
 
     if (health.isInitialLoading || !health.data) {
@@ -210,17 +223,17 @@ const ValidDashboardChartTile: FC<{
 
     return (
         <VisualizationProvider
-            chartConfig={chart.chartConfig}
-            initialPivotDimensions={chart.pivotConfig?.columns}
+            chartConfig={chartAndResults.chart.chartConfig}
+            initialPivotDimensions={chartAndResults.chart.pivotConfig?.columns}
             resultsData={resultData}
             isLoading={false}
             onSeriesContextMenu={onSeriesContextMenu}
-            columnOrder={chart.tableConfig.columnOrder}
+            columnOrder={chartAndResults.chart.tableConfig.columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-            savedChartUuid={chart.uuid}
+            savedChartUuid={chartAndResults.chart.uuid}
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
-            colorPalette={chart.colorPalette}
+            colorPalette={chartAndResults.chart.colorPalette}
         >
             <LightdashVisualization
                 isDashboard
@@ -282,7 +295,7 @@ interface DashboardChartTileMainProps
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: IDashboardChartTile;
-    chartAndResults: ApiChartAndResults;
+    chartAndResults: ApiChartAndResults | ApiSqlChartAndResults;
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
 }
 
@@ -303,8 +316,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         chartAndResults,
         isEditMode,
     } = props;
-    const { chart, explore, metricQuery, rows, appliedDashboardFilters } =
-        chartAndResults;
+
+    const { chart, rows } = chartAndResults;
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -425,7 +438,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 },
             });
 
-            const fields = explore ? getFields(explore) : [];
+            const fields = isApiSqlChartAndResults(chartAndResults)
+                ? []
+                : chartAndResults.explore
+                ? getFields(chartAndResults.explore)
+                : [];
             const field = fields.find(
                 (f) => getItemId(f) === filter.target.fieldId,
             );
@@ -444,10 +461,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [
             track,
             isEditMode,
-            addDimensionDashboardFilter,
-            explore,
+            chartAndResults,
             projectUuid,
             dashboardUuid,
+            addDimensionDashboardFilter,
         ],
     );
 
@@ -542,21 +559,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 dimensions: queryDimensions,
             });
         },
-        [explore, chart],
+        [chart],
     );
-    const appliedFilterRules = appliedDashboardFilters
-        ? [
-              ...appliedDashboardFilters.dimensions,
-              ...appliedDashboardFilters.metrics,
-          ]
-        : [];
+    const appliedFilterRules =
+        !isApiSqlChartAndResults(chartAndResults) &&
+        chartAndResults.appliedDashboardFilters
+            ? [
+                  ...chartAndResults.appliedDashboardFilters.dimensions,
+                  ...chartAndResults.appliedDashboardFilters.metrics,
+              ]
+            : [];
 
     const chartWithDashboardFilters = useMemo(
         () => ({
             ...chart,
-            metricQuery,
+            ...(!isApiSqlChartAndResults(chartAndResults) && {
+                metricQuery: chartAndResults.metricQuery,
+            }),
         }),
-        [chart, metricQuery],
+        [chart, chartAndResults],
     );
     const { pathname: chartPathname, search: chartSearch } = useMemo(
         () =>
@@ -699,11 +720,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     </>
                 }
                 titleLeftIcon={
-                    metricQuery.metadata?.hasADateDimension ? (
+                    !isApiSqlChartAndResults(chartAndResults) &&
+                    chartAndResults.metricQuery.metadata?.hasADateDimension ? (
                         <DateZoomInfoOnTile
                             chartUuid={savedChartUuid}
                             dateDimension={
-                                metricQuery.metadata.hasADateDimension
+                                chartAndResults.metricQuery.metadata
+                                    .hasADateDimension
                             }
                         />
                     ) : null
@@ -857,14 +880,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     projectUuid: projectUuid,
                                 })}
                             >
-                                {!hasCustomDimension(metricQuery) && (
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconStack} />}
-                                        onClick={handleViewUnderlyingData}
-                                    >
-                                        View underlying data
-                                    </Menu.Item>
-                                )}
+                                {!isApiSqlChartAndResults(chartAndResults) &&
+                                    !hasCustomDimension(
+                                        chartAndResults.metricQuery,
+                                    ) && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconStack} />
+                                            }
+                                            onClick={handleViewUnderlyingData}
+                                        >
+                                            View underlying data
+                                        </Menu.Item>
+                                    )}
                             </Can>
 
                             <Can
@@ -988,7 +1016,7 @@ type DashboardChartTileProps = Omit<
 export const GenericDashboardChartTile: FC<
     DashboardChartTileProps & {
         isLoading: boolean;
-        data: ApiChartAndResults | undefined;
+        data: ApiChartAndResults | ApiSqlChartAndResults | undefined;
         error: ApiError | null;
     }
 > = ({
@@ -1065,9 +1093,11 @@ export const GenericDashboardChartTile: FC<
 
     return (
         <MetricQueryDataProvider
-            metricQuery={data?.metricQuery}
+            metricQuery={
+                isApiSqlChartAndResults(data) ? undefined : data?.metricQuery
+            }
             tableName={data?.chart.tableName || ''}
-            explore={data?.explore}
+            explore={isApiSqlChartAndResults(data) ? undefined : data?.explore}
         >
             {minimal ? (
                 <DashboardChartTileMinimal
@@ -1102,6 +1132,50 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             isLoading={isInitialLoading}
             data={data}
             error={error}
+        />
+    );
+};
+
+export const DashboardSqlChartTile: FC<DashboardChartTileProps> = (props) => {
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const { data, isLoading } = useStreamedSqlQueryResults(
+        // @ts-ignore testing
+        props.tile.properties.fileUrl,
+    );
+
+    const config = useMemo(
+        () => ({
+            rows: data ?? [],
+            chart: {
+                chartConfig: {
+                    type: ChartType.TABLE,
+                },
+                tableConfig: {
+                    columnOrder: [],
+                },
+
+                colorPalette: [],
+                description: '',
+                name: '',
+                organizationUuid: '',
+                projectUuid: projectUuid ?? '',
+                tableName: '',
+                uuid: '',
+            },
+
+            sql: `testing`,
+        }),
+        [data, projectUuid],
+    );
+
+    if (isLoading || !data) return null;
+
+    return (
+        <GenericDashboardChartTile
+            {...props}
+            isLoading={isLoading}
+            data={config}
+            error={null}
         />
     );
 };

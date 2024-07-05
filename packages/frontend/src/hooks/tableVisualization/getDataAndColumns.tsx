@@ -23,8 +23,8 @@ import {
 import { getFormattedValueCell } from '../useColumns';
 
 type Args = {
-    itemsMap: ItemsMap;
-    selectedItemIds: string[];
+    itemsMap?: ItemsMap;
+    selectedItemIds?: string[];
     resultsData: ApiQueryResults;
     isColumnVisible: (key: string) => boolean;
     isColumnFrozen: (key: string) => boolean;
@@ -58,11 +58,11 @@ const getDataAndColumns = ({
     columns: Array<TableHeader | TableColumn>;
     error?: string;
 } => {
-    const columns = selectedItemIds.reduce<Array<TableHeader | TableColumn>>(
+    const columns = selectedItemIds?.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
-            const item = itemsMap[itemId] as
-                | typeof itemsMap[number]
-                | undefined;
+            const item =
+                itemsMap &&
+                (itemsMap[itemId] as typeof itemsMap[number] | undefined);
 
             if (!columnOrder.includes(itemId)) {
                 return acc;
@@ -177,9 +177,37 @@ const getDataAndColumns = ({
         },
         [],
     );
+
     return {
-        rows: resultsData.rows,
-        columns,
+        rows: resultsData?.rows,
+        columns: itemsMap
+            ? columns
+            : Object.keys(resultsData.rows[0]).map((key) => {
+                  const column: TableHeader | TableColumn =
+                      columnHelper.accessor((row) => row[key], {
+                          id: key,
+                          header: () => (
+                              <TableHeaderLabelContainer>
+                                  <TableHeaderBoldLabel>
+                                      {key}
+                                  </TableHeaderBoldLabel>
+                              </TableHeaderLabelContainer>
+                          ),
+                          cell: getFormattedValueCell,
+
+                          // Some features work in the TanStack Table demos but not here, for unknown reasons.
+                          // For example, setting grouping value here does not work. The workaround is to use
+                          // a custom getGroupedRowModel.
+                          // getGroupingValue: (row) => { // Never gets called.
+                          //     const value = row[itemId]?.value.raw;
+                          //     return value === null || value === undefined ? 'null' : value;
+                          // },
+                          // aggregationFn: 'sum', // Not working.
+                          // aggregationFn: 'max', // At least results in a cell value, although it's incorrect.
+                      });
+
+                  return column;
+              }),
     };
 };
 

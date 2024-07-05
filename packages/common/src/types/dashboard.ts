@@ -9,6 +9,7 @@ export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
     MARKDOWN = 'markdown',
     LOOM = 'loom',
+    SQL_CHART = 'sql_chart',
 }
 
 type CreateDashboardTileBase = {

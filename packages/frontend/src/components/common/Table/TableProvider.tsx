@@ -107,14 +107,14 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
     const withTotals = showColumnCalculation ? 60 : 0;
     const rowColumnWidth = hideRowNumbers
         ? 0
-        : Math.max(withTotals, `${data.length}`.length * 10 + 20);
+        : Math.max(withTotals, `${data?.length}`.length * 10 + 20);
     const frozenColumns = useMemo(
-        () => columns.filter((col) => col.meta?.frozen),
+        () => columns?.filter((col) => col.meta?.frozen),
         [columns],
     );
     const frozenColumnWidth = 100; // TODO this should be dynamic
     const stickyColumns = useMemo(() => {
-        return frozenColumns.map((col, i) => ({
+        return frozenColumns?.map((col, i) => ({
             ...col,
             meta: {
                 ...col.meta,
@@ -131,11 +131,11 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
     }, [frozenColumns, frozenColumnWidth, hideRowNumbers, rowColumnWidth]);
 
     const otherColumns = useMemo(
-        () => columns.filter((col) => !col.meta?.frozen),
+        () => columns?.filter((col) => !col.meta?.frozen),
         [columns],
     );
     const stickyRowColumn = useMemo(() => {
-        if (stickyColumns.length === 0) return rowColumn;
+        if (stickyColumns?.length === 0) return rowColumn;
 
         return {
             ...rowColumn,
@@ -153,8 +153,12 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const visibleColumns = useMemo(() => {
         return hideRowNumbers
-            ? [...stickyColumns, ...otherColumns]
-            : [stickyRowColumn, ...stickyColumns, ...otherColumns];
+            ? [...(stickyColumns ?? []), ...otherColumns]
+            : [
+                  stickyRowColumn,
+                  ...(stickyColumns ?? []),
+                  ...(otherColumns ?? []),
+              ];
     }, [hideRowNumbers, stickyColumns, otherColumns, stickyRowColumn]);
 
     const table = useReactTable({
@@ -167,7 +171,7 @@ export const TableProvider: FC<React.PropsWithChildren<Props>> = ({
             columnPinning: {
                 left: [
                     ROW_NUMBER_COLUMN_ID,
-                    ...stickyColumns.map((c) => c.id || ''),
+                    ...(stickyColumns ?? [])?.map((c) => c.id || ''),
                 ],
             },
         },

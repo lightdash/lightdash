@@ -195,7 +195,7 @@ const useTableConfig = (
               }
             : {
                   metricQuery: resultsData?.metricQuery,
-                  explore: resultsData?.metricQuery.exploreName,
+                  explore: resultsData?.metricQuery?.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
                   showColumnCalculation:
@@ -207,7 +207,7 @@ const useTableConfig = (
         columns: Array<TableColumn | TableHeader>;
         error?: string;
     }>(() => {
-        if (!resultsData || !selectedItemIds || !itemsMap) {
+        if (!resultsData) {
             return {
                 rows: [],
                 columns: [],
@@ -233,17 +233,20 @@ const useTableConfig = (
             totals: totalCalculations,
         });
     }, [
-        columnOrder,
-        selectedItemIds,
-        pivotDimensions,
-        itemsMap,
         resultsData,
+        selectedItemIds,
+        itemsMap,
+        pivotDimensions,
         isColumnVisible,
         showTableNames,
-        isColumnFrozen,
         getFieldLabelOverride,
+        isColumnFrozen,
+        columnOrder,
         totalCalculations,
     ]);
+
+    console.log({ rows, columns, error });
+
     const worker = useWorker(createWorker);
     const [pivotTableData, setPivotTableData] = useState<{
         loading: boolean;
@@ -315,7 +318,7 @@ const useTableConfig = (
                     columnTotals: tableChartConfig?.showColumnCalculation,
                     rowTotals: tableChartConfig?.showRowCalculation,
                 },
-                metricQuery: resultsData.metricQuery,
+                metricQuery: resultsData.metricQuery ?? {},
                 rows: resultsData.rows,
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,

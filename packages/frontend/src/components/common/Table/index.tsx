@@ -39,6 +39,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     const IdleState = idleState || ExploreIdleState;
     const EmptyState = emptyState || ExploreEmptyQueryState;
 
+    // TODO: data comes empty
     return (
         <TableProvider {...rest}>
             <TableContainer
@@ -56,7 +57,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
 
                 {status === 'loading' && <LoadingState />}
                 {status === 'idle' && <IdleState />}
-                {status === 'success' && rest.data.length === 0 && (
+                {status === 'success' && rest.data?.length === 0 && (
                     <EmptyState />
                 )}
 

@@ -7,7 +7,9 @@ import {
 import { Box } from '@mantine/core';
 import { useProfiler } from '@sentry/react';
 import { memo, type FC } from 'react';
-import ChartTile from '../DashboardTiles/DashboardChartTile';
+import ChartTile, {
+    DashboardSqlChartTile,
+} from '../DashboardTiles/DashboardChartTile';
 import LoomTile from '../DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../DashboardTiles/DashboardMarkdownTile';
 import TileBase from '../DashboardTiles/TileBase';
@@ -35,6 +37,8 @@ const GridTile: FC<
     }
 
     switch (tile.type) {
+        case DashboardTileTypes.SQL_CHART:
+            return <DashboardSqlChartTile {...props} tile={tile} />;
         case DashboardTileTypes.SAVED_CHART:
             return <ChartTile {...props} tile={tile} />;
         case DashboardTileTypes.MARKDOWN:

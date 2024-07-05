@@ -26,6 +26,78 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
+export const useStreamedSqlQueryResults = (fileUrl: string) => {
+    const { showToastError } = useToaster();
+
+    const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
+        ResultRow[] | undefined,
+        ApiError
+    >(
+        ['sqlQueryResults', fileUrl],
+        async () => {
+            const response = await fetch(fileUrl, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
+            const rb = response.body;
+            const reader = rb?.getReader();
+
+            const stream = new ReadableStream({
+                start(controller) {
+                    function push() {
+                        void reader?.read().then(({ done, value }) => {
+                            if (done) {
+                                // Close the stream
+                                controller.close();
+                                return;
+                            }
+                            // Enqueue the next data chunk into our target stream
+                            controller.enqueue(value);
+
+                            push();
+                        });
+                    }
+
+                    push();
+                },
+            });
+
+            const responseStream = new Response(stream, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const result = await responseStream.text();
+
+            // Split the JSON strings by newline
+            const jsonStrings = result.trim().split('\n');
+            const jsonObjects = jsonStrings
+                .map((jsonString) => {
+                    try {
+                        return JSON.parse(jsonString);
+                    } catch (e) {
+                        throw new Error('Error parsing JSON');
+                    }
+                })
+                .filter((obj) => obj !== null);
+
+            return jsonObjects;
+        },
+        {
+            onError: () => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                });
+            },
+        },
+    );
+
+    return {
+        data: sqlQueryResults,
+        isLoading: isResultsLoading,
+    };
+};
+
 /**
  * Gets the SQL query results from the server
  *

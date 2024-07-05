@@ -378,10 +378,10 @@ export type CacheMetadata = {
 };
 
 export type ApiQueryResults = {
-    metricQuery: MetricQuery;
-    cacheMetadata: CacheMetadata;
+    metricQuery?: MetricQuery;
+    cacheMetadata?: CacheMetadata;
     rows: ResultRow[];
-    fields: ItemsMap;
+    fields?: ItemsMap;
 };
 
 export type ApiChartAndResults = {
@@ -393,6 +393,16 @@ export type ApiChartAndResults = {
     rows: ResultRow[];
     fields: ItemsMap;
 };
+
+export type ApiSqlChartAndResults = {
+    chart: SavedChart;
+    sql: string;
+    rows: ResultRow[];
+};
+
+export const isApiSqlChartAndResults = (
+    data: ApiChartAndResults | ApiSqlChartAndResults,
+): data is ApiSqlChartAndResults => 'sql' in data;
 
 export type ApiSqlQueryResults = {
     fields: Record<string, { type: DimensionType }>;

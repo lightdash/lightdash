@@ -1,5 +1,6 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    DashboardTileTypes,
     type Dashboard as IDashboard,
     type DashboardTab,
     type DashboardTile,
@@ -90,15 +91,35 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
 
-    const sortedTiles = dashboardTiles?.sort((a, b) => {
-        if (a.y === b.y) {
-            // If 'y' is the same, sort by 'x'
-            return a.x - b.x;
-        } else {
-            // Otherwise, sort by 'y'
-            return a.y - b.y;
-        }
-    });
+    const sortedTiles = dashboardTiles
+        ?.sort((a, b) => {
+            if (a.y === b.y) {
+                // If 'y' is the same, sort by 'x'
+                return a.x - b.x;
+            } else {
+                // Otherwise, sort by 'y'
+                return a.y - b.y;
+            }
+        })
+        .concat({
+            uuid: '3c13e0f8-7a7c-49ce-a15b-b56d4e838beb',
+            x: 0,
+            y: 0,
+            h: 10,
+            w: 11,
+            tabUuid: null,
+            type: DashboardTileTypes.SQL_CHART,
+            properties: {
+                title: '',
+                hideTitle: false,
+                savedChartUuid: '10d34f57-d868-4f64-8775-f988dd736738',
+                belongsToDashboard: false,
+                chartName: 'SQL chart',
+                lastVersionChartKind: 'table',
+                fileUrl:
+                    'http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/sqlRunner/results/_tO81BMLlFxeOCY3-56MH',
+            },
+        });
 
     const isActiveTile = (tile: DashboardTile) => {
         const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
