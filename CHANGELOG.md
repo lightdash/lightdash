@@ -1,3 +1,10 @@
+# [0.1160.0](https://github.com/lightdash/lightdash/compare/0.1159.0...0.1160.0) (2024-07-05)
+
+
+### Features
+
+* show sql runner field type and truncate long names ([#10619](https://github.com/lightdash/lightdash/issues/10619)) ([b0eeaab](https://github.com/lightdash/lightdash/commit/b0eeaaba4fe11f68a6c94b8cf4c087f1612ab33c))
+
 # [0.1159.0](https://github.com/lightdash/lightdash/compare/0.1158.0...0.1159.0) (2024-07-05)
 
 
