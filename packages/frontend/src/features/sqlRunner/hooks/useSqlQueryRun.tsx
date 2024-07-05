@@ -6,7 +6,7 @@ import {
     type ResultRow,
     type SqlRunnerBody,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -37,7 +37,6 @@ const scheduleSqlJob = async ({
 export const useSqlQueryRun = () => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const queryClient = useQueryClient();
     const sqlQueryRunMutation = useMutation<
         ApiJobScheduledResponse['results'],
         ApiError,
@@ -61,8 +60,9 @@ export const useSqlQueryRun = () => {
             return getSchedulerJobStatus(sqlQueryJob.jobId);
         },
         {
-            refetchInterval: (data) => {
+            refetchInterval: (data, query) => {
                 if (
+                    !!query.state.error ||
                     data?.status === SchedulerJobStatus.COMPLETED ||
                     data?.status === SchedulerJobStatus.ERROR
                 )
@@ -76,12 +76,6 @@ export const useSqlQueryRun = () => {
                         subtitle: data.details?.error,
                     });
                 }
-            },
-            onError: async () => {
-                await queryClient.cancelQueries([
-                    'jobStatus',
-                    sqlQueryJob?.jobId,
-                ]);
             },
             enabled: Boolean(sqlQueryJob && sqlQueryJob?.jobId !== undefined),
         },
