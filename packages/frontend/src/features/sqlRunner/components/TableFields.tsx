@@ -56,16 +56,17 @@ const TableFieldIcon: FC<{
 });
 
 const TableField: FC<{
+    activeTable: string;
     field: WarehouseTableField;
     search: string | undefined;
-}> = memo(({ field, search }) => {
+}> = memo(({ activeTable, field, search }) => {
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
         <Group spacing={'xs'} noWrap ref={hoverRef}>
             {hovered ? (
                 <Box display={hovered ? 'block' : 'none'}>
-                    <CopyButton value={field.name}>
+                    <CopyButton value={`${activeTable}.${field.name}`}>
                         {({ copied, copy }) => (
                             <ActionIcon size={16} onClick={copy} bg="gray.1">
                                 <MantineIcon
@@ -172,7 +173,7 @@ export const TableFields: FC = () => {
                     <Text c="gray.4">No table selected</Text>
                 </Center>
             )}
-            {isSuccess && tableFields && (
+            {isSuccess && tableFields && activeTable && (
                 <ScrollArea
                     offsetScrollbars
                     variant="primary"
@@ -184,6 +185,7 @@ export const TableFields: FC = () => {
                         {tableFields.map((field) => (
                             <TableField
                                 key={field.name}
+                                activeTable={activeTable}
                                 field={field}
                                 search={search}
                             />
