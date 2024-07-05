@@ -1,3 +1,10 @@
+# [0.1158.0](https://github.com/lightdash/lightdash/compare/0.1157.1...0.1158.0) (2024-07-05)
+
+
+### Features
+
+* stream data to sql runner page ([#10608](https://github.com/lightdash/lightdash/issues/10608)) ([7a52a51](https://github.com/lightdash/lightdash/commit/7a52a51d21b4ea131342e4e0a4a84fa6859440de))
+
 ## [0.1157.1](https://github.com/lightdash/lightdash/compare/0.1157.0...0.1157.1) (2024-07-04)
 
 
