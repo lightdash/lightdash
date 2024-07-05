@@ -88,7 +88,8 @@ const getReferencedTable = (
 ) =>
     Object.values(tables).find((table) => {
         const nameMatch =
-            table.name === refTable || table.originalName === refTable;
+            (table.name === currentTable && table.originalName === refTable) ||
+            table.name === refTable;
         if (nameMatch) return true;
 
         if (!joinAliases?.[currentTable]) return false;
