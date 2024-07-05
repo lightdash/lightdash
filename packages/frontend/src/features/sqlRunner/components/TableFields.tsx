@@ -1,7 +1,9 @@
 import { type DimensionType } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Center,
+    CopyButton,
     Group,
     Highlight,
     Loader,
@@ -11,12 +13,13 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     Icon123,
     IconAbc,
     IconCalendar,
     IconClockHour4,
+    IconCopy,
     IconQuestionMark,
     IconSearch,
     IconX,
@@ -56,10 +59,28 @@ const TableField: FC<{
     field: WarehouseTableField;
     search: string | undefined;
 }> = memo(({ field, search }) => {
-    const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
+    const { ref: hoverRef, hovered } = useHover();
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
-        <Group spacing={'xs'} noWrap>
-            <TableFieldIcon fieldType={field.type} />
+        <Group spacing={'xs'} noWrap ref={hoverRef}>
+            {hovered ? (
+                <Box display={hovered ? 'block' : 'none'}>
+                    <CopyButton value={field.name}>
+                        {({ copied, copy }) => (
+                            <ActionIcon size={16} onClick={copy} bg="gray.1">
+                                <MantineIcon
+                                    icon={IconCopy}
+                                    color={copied ? 'green' : 'blue'}
+                                    onClick={copy}
+                                />
+                            </ActionIcon>
+                        )}
+                    </CopyButton>
+                </Box>
+            ) : (
+                <TableFieldIcon fieldType={field.type} />
+            )}
+
             <Tooltip
                 withinPortal
                 variant="xs"
@@ -67,7 +88,7 @@ const TableField: FC<{
                 disabled={!isTruncated}
             >
                 <Highlight
-                    ref={ref}
+                    ref={truncatedRef}
                     component={Text}
                     fw={500}
                     p={4}
@@ -141,7 +162,6 @@ export const TableFields: FC = () => {
                         onChange={(e) => setSearch(e.target.value)}
                         styles={(theme) => ({
                             input: {
-                                borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
                             },
                         })}
