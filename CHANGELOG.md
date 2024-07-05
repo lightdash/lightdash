@@ -1,3 +1,15 @@
+# [0.1159.0](https://github.com/lightdash/lightdash/compare/0.1158.0...0.1159.0) (2024-07-05)
+
+
+### Bug Fixes
+
+* show edit button tooltip when user doesn't have permission to edit ([#10617](https://github.com/lightdash/lightdash/issues/10617)) ([1e94d21](https://github.com/lightdash/lightdash/commit/1e94d21863aba74366983ac119c143ea4a3c0bbd))
+
+
+### Features
+
+* add table only validation to cli ([#10597](https://github.com/lightdash/lightdash/issues/10597)) ([cc6270e](https://github.com/lightdash/lightdash/commit/cc6270e1142f3459a182c45432014bf3dce5e694))
+
 # [0.1158.0](https://github.com/lightdash/lightdash/compare/0.1157.1...0.1158.0) (2024-07-05)
 
 
