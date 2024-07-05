@@ -73,7 +73,7 @@ const TableField: FC<{
                     p={4}
                     fz={13}
                     c="gray.7"
-                    sx={(theme) => ({
+                    sx={() => ({
                         flex: 1,
                     })}
                     highlight={search || ''}
