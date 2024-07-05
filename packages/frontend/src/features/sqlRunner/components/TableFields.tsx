@@ -1,7 +1,9 @@
 import { type DimensionType } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Center,
+    CopyButton,
     Group,
     Highlight,
     Loader,
@@ -11,12 +13,13 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     Icon123,
     IconAbc,
     IconCalendar,
     IconClockHour4,
+    IconCopy,
     IconQuestionMark,
     IconSearch,
     IconX,
@@ -53,13 +56,32 @@ const TableFieldIcon: FC<{
 });
 
 const TableField: FC<{
+    activeTable: string;
     field: WarehouseTableField;
     search: string | undefined;
-}> = memo(({ field, search }) => {
-    const { ref, isTruncated } = useIsTruncated<HTMLDivElement>();
+}> = memo(({ activeTable, field, search }) => {
+    const { ref: hoverRef, hovered } = useHover();
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
-        <Group spacing={'xs'} noWrap>
-            <TableFieldIcon fieldType={field.type} />
+        <Group spacing={'xs'} noWrap ref={hoverRef}>
+            {hovered ? (
+                <Box display={hovered ? 'block' : 'none'}>
+                    <CopyButton value={`${activeTable}.${field.name}`}>
+                        {({ copied, copy }) => (
+                            <ActionIcon size={16} onClick={copy} bg="gray.1">
+                                <MantineIcon
+                                    icon={IconCopy}
+                                    color={copied ? 'green' : 'blue'}
+                                    onClick={copy}
+                                />
+                            </ActionIcon>
+                        )}
+                    </CopyButton>
+                </Box>
+            ) : (
+                <TableFieldIcon fieldType={field.type} />
+            )}
+
             <Tooltip
                 withinPortal
                 variant="xs"
@@ -67,15 +89,15 @@ const TableField: FC<{
                 disabled={!isTruncated}
             >
                 <Highlight
-                    ref={ref}
+                    ref={truncatedRef}
                     component={Text}
                     fw={500}
                     p={4}
                     fz={13}
                     c="gray.7"
-                    sx={() => ({
+                    sx={{
                         flex: 1,
-                    })}
+                    }}
                     highlight={search || ''}
                     truncate
                 >
@@ -141,7 +163,6 @@ export const TableFields: FC = () => {
                         onChange={(e) => setSearch(e.target.value)}
                         styles={(theme) => ({
                             input: {
-                                borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
                             },
                         })}
@@ -152,7 +173,7 @@ export const TableFields: FC = () => {
                     <Text c="gray.4">No table selected</Text>
                 </Center>
             )}
-            {isSuccess && tableFields && (
+            {isSuccess && tableFields && activeTable && (
                 <ScrollArea
                     offsetScrollbars
                     variant="primary"
@@ -164,6 +185,7 @@ export const TableFields: FC = () => {
                         {tableFields.map((field) => (
                             <TableField
                                 key={field.name}
+                                activeTable={activeTable}
                                 field={field}
                                 search={search}
                             />
