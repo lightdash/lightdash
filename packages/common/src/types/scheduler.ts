@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
 import { type MetricQuery } from './metricQuery';
+import { type ValidationTarget } from './validation';
 
 export type SchedulerCsvOptions = {
     formatted: boolean;
@@ -406,6 +407,7 @@ export type ValidateProjectPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     explores?: (Explore | ExploreError)[];
+    validationTargets?: ValidationTarget[];
 };
 
 export type ApiJobScheduledResponse = {

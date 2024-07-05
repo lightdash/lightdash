@@ -14,6 +14,7 @@ import {
     getItemId,
     InlineErrorType,
     isExploreError,
+    isValidationTargetValid,
     OrganizationMemberRole,
     RequestMethod,
     SessionUser,
@@ -22,6 +23,7 @@ import {
     ValidationErrorType,
     ValidationResponse,
     ValidationSourceType,
+    ValidationTarget,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -497,9 +499,31 @@ export class ValidationService extends BaseService {
     async generateValidation(
         projectUuid: string,
         compiledExplores?: (Explore | ExploreError)[],
+        validationTargets?: Set<ValidationTarget>,
     ): Promise<CreateValidation[]> {
+        const hasValidationTargets =
+            validationTargets && validationTargets.size > 0;
+
+        const invalidValidationTargets = hasValidationTargets
+            ? Array.from(validationTargets).filter(
+                  (target) => !isValidationTargetValid(target),
+              )
+            : [];
+
+        if (hasValidationTargets && invalidValidationTargets?.length > 0) {
+            throw new Error(
+                `Invalid validation targets: ${invalidValidationTargets.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        const targetsString = hasValidationTargets
+            ? `${Array.from(validationTargets).join(', ')}`
+            : 'every target';
+
         this.logger.debug(
-            `Generating validation for project ${projectUuid} with explores ${
+            `Generating validation of ${targetsString} for project ${projectUuid} with explores ${
                 compiledExplores ? 'from CLI' : 'from cache'
             }`,
         );
@@ -552,23 +576,30 @@ export class ValidationService extends BaseService {
             return [];
         }
 
-        const tableErrors = await this.validateTables(projectUuid, explores);
-        const chartErrors = await this.validateCharts(
-            projectUuid,
-            exploreFields,
-        );
-        const dashboardErrors = await this.validateDashboards(
-            projectUuid,
-            existingFields,
-            chartErrors,
-        );
-        const validationErrors = [
-            ...tableErrors,
-            ...chartErrors,
-            ...dashboardErrors,
-        ];
+        const tableErrors =
+            !hasValidationTargets ||
+            validationTargets.has(ValidationTarget.TABLES)
+                ? await this.validateTables(projectUuid, explores)
+                : [];
 
-        return validationErrors;
+        const chartErrors =
+            !hasValidationTargets ||
+            validationTargets.has(ValidationTarget.CHARTS) ||
+            validationTargets.has(ValidationTarget.DASHBOARDS) // chartErrors are reused for dashboard validation
+                ? await this.validateCharts(projectUuid, exploreFields)
+                : [];
+
+        const dashboardErrors =
+            !hasValidationTargets ||
+            validationTargets.has(ValidationTarget.DASHBOARDS)
+                ? await this.validateDashboards(
+                      projectUuid,
+                      existingFields,
+                      chartErrors,
+                  )
+                : [];
+
+        return [...tableErrors, ...chartErrors, ...dashboardErrors];
     }
 
     async validate(
@@ -576,6 +607,7 @@ export class ValidationService extends BaseService {
         projectUuid: string,
         context?: RequestMethod,
         explores?: (Explore | ExploreError)[],
+        validationTargets?: ValidationTarget[],
     ): Promise<string> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -601,6 +633,7 @@ export class ValidationService extends BaseService {
             context: fromCLI ? 'cli' : 'lightdash_app',
             organizationUuid: user.organizationUuid,
             explores,
+            validationTargets,
         });
         return jobId;
     }

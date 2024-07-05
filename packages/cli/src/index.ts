@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { LightdashError } from '@lightdash/common';
+import { LightdashError, ValidationTarget } from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
 import * as os from 'os';
 import * as path from 'path';
@@ -554,6 +554,11 @@ program
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
+    )
+    .addOption(
+        new Option('--only <elems...>', 'Specify project elements to validate')
+            .choices(Object.values(ValidationTarget))
+            .default(Object.values(ValidationTarget)),
     )
     .action(validateHandler);
 

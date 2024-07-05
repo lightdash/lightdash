@@ -17,7 +17,7 @@ You can run `lightdash validate` to check if your changes break any of the conte
 By default, `lightdash validate` will check your changes against the content in the project you've selected on the CLI.
 You can change your project using `lightdash config set-project`.
 
-```
+```bash
 lightdash validate
 ```
 
@@ -30,7 +30,7 @@ These errors will not be reflected on the validation table on Lightdash settings
 
 You can run a validation on any project by specifying the project UUID in the `lightdash validate` command.
 
-```
+```bash
 lightdash validate --project <project uuid>
 ```
 
@@ -43,13 +43,27 @@ lightdash validate --project <project uuid>
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+### Validate only specific elements of your project
+
+You can select which parts of your project you would like to validate using the `--only` argument.
+
+```bash
+lightdash validate --only tables charts dashboards
+```
+
+Available options:
+
+- `tables`
+- `charts`
+- `dashboards`
+
 ## Configure Github actions
 
 This command will create a preview environment, and then validate this preview by specifying `--preview` on the validate command.
 `lightdash validate` will return an error (return code 1) if there is at least 1 validation error on your project.
 You can use this output to block a deploy on Github actions like this
 
-```
+```bash
 - name: Start preview
   run: lightdash start-preview
 - name: Validate preview
