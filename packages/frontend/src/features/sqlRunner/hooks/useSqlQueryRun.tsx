@@ -151,9 +151,15 @@ export const useSqlQueryRun = () => {
 
     const isLoading = useMemo(
         () =>
-            scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED &&
+            sqlQueryRunMutation.isLoading ||
+            (scheduledDeliveryJobStatus?.status ===
+                SchedulerJobStatus.STARTED &&
+                isResultsLoading),
+        [
+            sqlQueryRunMutation.isLoading,
+            scheduledDeliveryJobStatus?.status,
             isResultsLoading,
-        [scheduledDeliveryJobStatus?.status, isResultsLoading],
+        ],
     );
 
     return {
