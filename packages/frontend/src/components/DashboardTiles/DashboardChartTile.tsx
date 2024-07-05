@@ -587,6 +587,36 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [showComments, isCommentsMenuOpen, tileUuid],
     );
 
+    const editButtonTooltipLabel = useMemo(() => {
+        const canManageChartSpace = user.data?.ability?.can(
+            'manage',
+            subject('Space', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+                spaceUuid: chart.spaceUuid,
+            }),
+        );
+
+        if (!canManageChartSpace) {
+            return (
+                <Text>
+                    Cannot edit chart belonging to space:{' '}
+                    <Text span fw={500}>
+                        {chart.spaceName}
+                    </Text>
+                </Text>
+            );
+        }
+
+        return <Text>You do not have permission to edit this chart</Text>;
+    }, [
+        chart.organizationUuid,
+        chart.projectUuid,
+        chart.spaceName,
+        chart.spaceUuid,
+        user.data?.ability,
+    ]);
+
     return (
         <>
             <TileBase
@@ -722,14 +752,27 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <Tooltip
                                 disabled={!isEditMode}
                                 label="Finish editing dashboard to use these actions"
+                                variant="xs"
                             >
                                 <Box>
-                                    {userCanManageChart && (
-                                        <EditChartMenuItem
-                                            tile={props.tile}
-                                            disabled={isEditMode}
-                                        />
-                                    )}
+                                    <Tooltip
+                                        disabled={
+                                            userCanManageChart || isEditMode
+                                        }
+                                        label={editButtonTooltipLabel}
+                                        position="top-start"
+                                        variant="xs"
+                                    >
+                                        <Box>
+                                            <EditChartMenuItem
+                                                tile={props.tile}
+                                                disabled={
+                                                    isEditMode ||
+                                                    !userCanManageChart
+                                                }
+                                            />
+                                        </Box>
+                                    </Tooltip>
 
                                     {userCanManageExplore && chartPathname && (
                                         <Menu.Item
