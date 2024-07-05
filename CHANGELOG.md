@@ -1,3 +1,10 @@
+## [0.1160.1](https://github.com/lightdash/lightdash/compare/0.1160.0...0.1160.1) (2024-07-05)
+
+
+### Bug Fixes
+
+* alias join on the same table ([#10620](https://github.com/lightdash/lightdash/issues/10620)) ([80f0692](https://github.com/lightdash/lightdash/commit/80f069262ccaa4ac06ff0235dfc0d81ac5a7c2cc))
+
 # [0.1160.0](https://github.com/lightdash/lightdash/compare/0.1159.0...0.1160.0) (2024-07-05)
 
 
