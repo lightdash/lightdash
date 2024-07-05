@@ -75,7 +75,6 @@ const TableField: FC<{
                     c="gray.7"
                     sx={(theme) => ({
                         flex: 1,
-                        borderRadius: theme.radius.sm,
                     })}
                     highlight={search || ''}
                     truncate
