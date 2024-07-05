@@ -67,7 +67,7 @@ export const useSqlQueryRun = () => {
                     data?.status === SchedulerJobStatus.ERROR
                 )
                     return false;
-                return 2000;
+                return 1000;
             },
             onSuccess: (data) => {
                 if (data?.status === SchedulerJobStatus.ERROR) {
