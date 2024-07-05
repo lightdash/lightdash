@@ -1,3 +1,10 @@
+# [0.1161.0](https://github.com/lightdash/lightdash/compare/0.1160.1...0.1161.0) (2024-07-05)
+
+
+### Features
+
+* sql runner fields copy to clipboard ([#10621](https://github.com/lightdash/lightdash/issues/10621)) ([0059ed0](https://github.com/lightdash/lightdash/commit/0059ed08f03dba3582a3f76151e1e5971a2aa949))
+
 ## [0.1160.1](https://github.com/lightdash/lightdash/compare/0.1160.0...0.1160.1) (2024-07-05)
 
 
