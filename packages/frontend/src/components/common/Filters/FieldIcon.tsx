@@ -27,7 +27,7 @@ import {
 import { forwardRef } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
-const getItemIconName = (
+export const getItemIconName = (
     type: DimensionType | MetricType | TableCalculationType,
 ) => {
     switch (type) {
