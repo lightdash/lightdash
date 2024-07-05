@@ -41,7 +41,6 @@ export const useSqlQueryRun = () => {
         ApiJobScheduledResponse['results'],
         ApiError,
         {
-            projectUuid: string;
             sql: SqlRunnerBody['sql'];
         }
     >(({ sql }) => scheduleSqlJob({ projectUuid, sql }), {
