@@ -7779,6 +7779,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ValidationTarget": {
+                "enum": ["charts", "dashboards", "tables"],
+                "type": "string"
+            },
             "ValidationErrorType": {
                 "enum": [
                     "chart",
@@ -13916,8 +13920,11 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "onlyTables": {
-                                        "type": "boolean"
+                                    "validateOnly": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ValidationTarget"
+                                        },
+                                        "type": "array"
                                     },
                                     "explores": {
                                         "items": {},

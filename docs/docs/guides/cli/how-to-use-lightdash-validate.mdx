@@ -43,14 +43,19 @@ lightdash validate --project <project uuid>
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-### Validate only the tables
+### Validate only specific elements of your project
 
-You can run a table only validation using the `--only-tables` argument.
-When passing this argument, the `validate` command will not validate any `chart` or `dashboard` in your project.
+You can select which parts of your project you would like to validate using the `--only` argument.
 
 ```bash
-lightdash validate --only-tables
+lightdash validate --only tables charts dashboards
 ```
+
+Available options:
+
+- `tables`
+- `charts`
+- `dashboards`
 
 ## Configure Github actions
 

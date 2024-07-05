@@ -746,10 +746,11 @@ export default class SchedulerTask {
             },
         });
         try {
+            const validationTargetsSet = new Set(payload.validationTargets);
             const errors = await this.validationService.generateValidation(
                 payload.projectUuid,
                 payload.explores,
-                payload.onlyTables,
+                validationTargetsSet,
             );
 
             const contentIds = errors.map((validation) => {

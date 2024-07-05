@@ -122,3 +122,15 @@ export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
     error.source === ValidationSourceType.Dashboard;
+
+export enum ValidationTarget {
+    CHARTS = 'charts',
+    DASHBOARDS = 'dashboards',
+    TABLES = 'tables',
+}
+
+export function isValidationTargetValid(validationTarget: string) {
+    return Object.values(ValidationTarget).includes(
+        validationTarget as ValidationTarget,
+    );
+}

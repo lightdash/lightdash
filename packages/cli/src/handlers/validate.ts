@@ -9,6 +9,7 @@ import {
     isTableValidationError,
     ParameterError,
     SchedulerJobStatus,
+    ValidationTarget,
 } from '@lightdash/common';
 import columnify from 'columnify';
 import { getConfig } from '../config';
@@ -20,12 +21,12 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 const requestValidation = async (
     projectUuid: string,
     explores: (Explore | ExploreError)[],
-    onlyTables: boolean,
+    validationTargets: ValidationTarget[],
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         method: 'POST',
         url: `/api/v1/projects/${projectUuid}/validate`,
-        body: JSON.stringify({ explores, onlyTables }),
+        body: JSON.stringify({ explores, validationTargets }),
     });
 
 const getJobState = async (jobUuid: string) =>
@@ -54,7 +55,7 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     project?: string;
     verbose: boolean;
     preview: boolean;
-    onlyTables: boolean;
+    only: ValidationTarget[];
 };
 
 const waitUntilFinished = async (jobUuid: string): Promise<string> => {
@@ -112,11 +113,11 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     }
 
     const timeStart = new Date();
-
+    const validationTargets = options.only ? options.only : [];
     const validationJob = await requestValidation(
         projectUuid,
         explores,
-        options.onlyTables,
+        validationTargets,
     );
 
     const { jobId } = validationJob;
@@ -142,14 +143,39 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
         const tableErrors = validation.filter(isTableValidationError);
         const chartErrors = validation.filter(isChartValidationError);
         const dashboardErrors = validation.filter(isDashboardValidationError);
+        const validationTargetsSet = new Set(validationTargets);
+        const hasValidationTargets = validationTargetsSet.size > 0;
 
-        if (!options.onlyTables) {
-            console.error(`
-- Tables: ${styles.bold(tableErrors.length)} errors
-- Charts: ${styles.bold(chartErrors.length)} errors
-- Dashboards: ${styles.bold(dashboardErrors.length)} errors
-            `);
+        console.error('\n');
+
+        if (
+            !hasValidationTargets ||
+            validationTargetsSet.has(ValidationTarget.TABLES)
+        ) {
+            console.error(
+                `- Tables: ${styles.bold(tableErrors.length)} errors`,
+            );
         }
+
+        if (
+            !hasValidationTargets ||
+            validationTargetsSet.has(ValidationTarget.CHARTS)
+        ) {
+            console.error(
+                `- Charts: ${styles.bold(chartErrors.length)} errors`,
+            );
+        }
+
+        if (
+            !hasValidationTargets ||
+            validationTargetsSet.has(ValidationTarget.DASHBOARDS)
+        ) {
+            console.error(
+                `- Dashboards: ${styles.bold(dashboardErrors.length)} errors`,
+            );
+        }
+
+        console.error('\n');
 
         const validationOutput = validation.map((v) => ({
             name: styles.error(v.name),

@@ -6989,6 +6989,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidationTarget: {
+        dataType: 'refEnum',
+        enums: ['charts', 'dashboards', 'tables'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationErrorType: {
         dataType: 'refEnum',
         enums: [
@@ -14634,7 +14639,13 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        onlyTables: { dataType: 'boolean' },
+                        validateOnly: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refEnum',
+                                ref: 'ValidationTarget',
+                            },
+                        },
                         explores: {
                             dataType: 'array',
                             array: { dataType: 'any' },
