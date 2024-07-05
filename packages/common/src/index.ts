@@ -116,6 +116,7 @@ import {
 } from './types/catalog';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import { TimeFrames } from './types/timeFrames';
+import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -643,6 +644,7 @@ type ApiResults =
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
+    | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

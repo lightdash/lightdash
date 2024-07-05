@@ -1,4 +1,8 @@
-import { type ApiError, type ApiWarehouseTableFields } from '@lightdash/common';
+import {
+    type ApiError,
+    type DimensionType,
+    type WarehouseTableSchema,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
@@ -13,18 +17,27 @@ const fetchTableFields = async ({
     projectUuid,
     tableName,
 }: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName'>) =>
-    lightdashApi<ApiWarehouseTableFields>({
+    lightdashApi<WarehouseTableSchema>({
         url: `/projects/${projectUuid}/sqlRunner/tables/${tableName}`,
         method: 'GET',
         body: undefined,
     });
+
+export type WarehouseTableField = {
+    name: string;
+    type: DimensionType;
+};
 
 export const useTableFields = ({
     projectUuid,
     tableName,
     search,
 }: GetTableFieldsParams) => {
-    return useQuery<ApiWarehouseTableFields, ApiError, string[] | undefined>({
+    return useQuery<
+        WarehouseTableSchema,
+        ApiError,
+        Array<WarehouseTableField> | undefined
+    >({
         queryKey: ['sqlRunner', 'tables', tableName, projectUuid],
         queryFn: () =>
             fetchTableFields({
@@ -34,13 +47,16 @@ export const useTableFields = ({
         retry: false,
         enabled: !!tableName,
         select(data) {
-            const fieldNames = Object.keys(data);
+            const fields = Object.entries(data).map<WarehouseTableField>(
+                ([name, type]) => ({ name, type }),
+            );
 
-            if (!search) return fieldNames;
+            if (!search) return fields;
 
-            const fuse = new Fuse(fieldNames, {
+            const fuse = new Fuse(fields, {
                 threshold: 0.3,
                 isCaseSensitive: false,
+                keys: ['name'],
             });
 
             const searchResults = fuse.search(search).map((res) => res.item);
