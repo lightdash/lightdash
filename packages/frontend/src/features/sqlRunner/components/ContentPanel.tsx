@@ -23,7 +23,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import Table from '../../../components/common/Table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
-import { useAppSelector } from '../store/hooks';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -39,7 +38,6 @@ export const ContentPanel: FC<Props> = ({
     closeChartConfig,
 }) => {
     const [sql, setSql] = useState<string>('');
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 58, [wrapperHeight]);
@@ -106,7 +104,6 @@ export const ContentPanel: FC<Props> = ({
                                 onClick={() => {
                                     if (!sql) return;
                                     runSqlQuery({
-                                        projectUuid,
                                         sql,
                                     });
                                 }}
