@@ -3,6 +3,7 @@ import {
     flexRender,
     getCoreRowModel,
     useReactTable,
+    type ColumnDef,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRef, type FC } from 'react';
@@ -20,20 +21,60 @@ import {
 import { getRawValueCell } from '../../../../hooks/useColumns';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 
+type TableChartSqlConfig =
+    | {
+          columns: Record<
+              string,
+              {
+                  visible: boolean;
+                  reference: string;
+                  label: string;
+                  frozen: boolean;
+                  order?: number;
+              }
+          >;
+      }
+    | undefined;
+
+class TableDataProcessor {
+    private results: SqlRunnerResultsTransformer;
+
+    constructor(
+        sqlRunnerTransformer: SqlRunnerResultsTransformer,
+        private config: TableChartSqlConfig,
+    ) {
+        this.results = sqlRunnerTransformer;
+    }
+
+    public getColumns(): ColumnDef<ResultRow, any>[] {
+        const columns = this.results.getColumns();
+        return columns
+            .filter((column) =>
+                this.config ? this.config.columns[column]?.visible : true,
+            )
+            .map((column) => ({
+                id: column,
+                accessorKey: column,
+                header: this.config?.columns[column].label ?? column,
+                cell: getRawValueCell,
+            }));
+    }
+
+    public getRows(): ResultRow[] {
+        return this.results.getRows();
+    }
+}
+
 type Props = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
 };
 
 export const Table: FC<Props> = ({ data }) => {
     const results = new SqlRunnerResultsTransformer({ data });
+    const processor = new TableDataProcessor(results, undefined); // TODO: add config once we have it
 
-    const rows = results.getRows();
-    const columns = results.getColumns().map((s) => ({
-        id: s,
-        accessorKey: s,
-        header: s.toLocaleUpperCase(),
-        cell: getRawValueCell,
-    }));
+    const columns = processor.getColumns();
+    const rows = processor.getRows();
 
     const table = useReactTable({
         data: rows,
@@ -47,7 +88,7 @@ export const Table: FC<Props> = ({ data }) => {
 
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
-        count: rows.length,
+        count: rowModelRows.length,
         estimateSize: () => ROW_HEIGHT_PX,
         overscan: 25,
     });
@@ -75,7 +116,7 @@ export const Table: FC<Props> = ({ data }) => {
                                         backgroundColor: TABLE_HEADER_BG,
                                     }}
                                 >
-                                    {/* TODO: do I need to check if it's a
+                                    {/* TODO: do we need to check if it's a
                                         placeholder? */}
                                     {flexRender(
                                         header.column.columnDef.header,
