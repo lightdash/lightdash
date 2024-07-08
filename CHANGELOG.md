@@ -1,3 +1,10 @@
+## [0.1161.1](https://github.com/lightdash/lightdash/compare/0.1161.0...0.1161.1) (2024-07-08)
+
+
+### Bug Fixes
+
+* focus on editable text on pencil icon click ([#10622](https://github.com/lightdash/lightdash/issues/10622)) ([5400527](https://github.com/lightdash/lightdash/commit/5400527b3231d6b8d573961795f4770b109ee8e1))
+
 # [0.1161.0](https://github.com/lightdash/lightdash/compare/0.1160.1...0.1161.0) (2024-07-05)
 
 
