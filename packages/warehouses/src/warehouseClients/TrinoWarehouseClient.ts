@@ -221,7 +221,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // stream initial data
             streamCallback({
                 fields,
-                rows: resultHandler(schema, queryResult.value.data),
+                rows: resultHandler(schema, queryResult.value.data ?? []),
             });
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
@@ -231,7 +231,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 // stream next chunk of data
                 streamCallback({
                     fields,
-                    rows: resultHandler(schema, queryResult.value.data),
+                    rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
             }
         } catch (e: any) {
