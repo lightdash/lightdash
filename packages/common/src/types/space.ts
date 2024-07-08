@@ -55,6 +55,7 @@ export type SpaceShare = {
     email: string;
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
+    projectRole: ProjectMemberRole | undefined;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
     inheritedFrom:
         | 'organization'

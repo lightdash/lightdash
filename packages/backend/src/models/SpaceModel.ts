@@ -809,6 +809,11 @@ export class SpaceModel {
                         ...spaceGroupAccessRoles,
                     ]);
 
+                    const highestProjectRole = getHighestProjectRole([
+                        inheritedOrgRole,
+                        inheritedProjectRole,
+                    ]);
+
                     // exclude users with no space role
                     if (!highestRole) {
                         return acc2;
@@ -846,6 +851,7 @@ export class SpaceModel {
                             hasDirectAccess: !!user_with_direct_access,
                             inheritedRole: highestRole.role,
                             inheritedFrom: highestRole.type,
+                            projectRole: highestProjectRole?.role,
                         },
                     ];
                 },
