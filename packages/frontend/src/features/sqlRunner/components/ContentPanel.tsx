@@ -17,12 +17,12 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import AceEditor from 'react-ace';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Table from '../../../components/common/Table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import { SqlEditor } from './SqlEditor';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -121,20 +121,7 @@ export const ContentPanel: FC<Props> = ({
                 withBorder
                 style={{ flex: 1 }}
             >
-                <AceEditor
-                    mode="sql"
-                    theme="github"
-                    value={sql}
-                    height="100%"
-                    width="100%"
-                    onChange={(value: string) => {
-                        setSql(value);
-                    }}
-                    editorProps={{ $blockScrolling: true }}
-                    enableBasicAutocompletion
-                    enableLiveAutocompletion
-                    wrapEnabled={true}
-                />
+                <SqlEditor sql={sql} onSqlChange={setSql} />
             </Paper>
             <ResizableBox
                 height={resultsHeight}
