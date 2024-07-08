@@ -1,5 +1,4 @@
 import { SqlRunnerResultsTransformer, type ResultRow } from '@lightdash/common';
-import { Box } from '@mantine/core';
 import {
     flexRender,
     getCoreRowModel,
@@ -13,7 +12,9 @@ import { VirtualizedArea } from '../../../../components/common/Table/ScrollableT
 import {
     ROW_HEIGHT_PX,
     Table as TableStyled,
+    TableContainer,
     TableScrollableWrapper,
+    TABLE_HEADER_BG,
     Tr,
 } from '../../../../components/common/Table/Table.styles';
 import { getRawValueCell } from '../../../../hooks/useColumns';
@@ -61,34 +62,28 @@ export const Table: FC<Props> = ({ data }) => {
             : 0;
     const cellsCount = rowModelRows[0]?.getVisibleCells().length || 0;
 
-    console.log(rowModelRows[0]?.getVisibleCells());
-
     return (
-        <Box
-            sx={{
-                overflow: 'hidden',
-                minWidth: '100%',
-                fontFamily: 'Inter, sans-serif',
-                fontFeatureSettings: '"tnum"',
-            }}
-        >
+        <TableContainer>
             <TableScrollableWrapper ref={tableContainerRef}>
                 <TableStyled>
                     <thead>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <tr key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <th key={header.id}>
-                                        {/* TODO: do I need to check if it's a
+                        {table.getHeaderGroups().map((headerGroup) =>
+                            headerGroup.headers.map((header) => (
+                                <th
+                                    key={header.id}
+                                    style={{
+                                        backgroundColor: TABLE_HEADER_BG,
+                                    }}
+                                >
+                                    {/* TODO: do I need to check if it's a
                                         placeholder? */}
-                                        {flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext(),
-                                        )}
-                                    </th>
-                                ))}
-                            </tr>
-                        ))}
+                                    {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext(),
+                                    )}
+                                </th>
+                            )),
+                        )}
                     </thead>
                     <tbody>
                         {paddingTop > 0 && (
@@ -147,6 +142,6 @@ export const Table: FC<Props> = ({ data }) => {
                     </tbody>
                 </TableStyled>
             </TableScrollableWrapper>
-        </Box>
+        </TableContainer>
     );
 };
