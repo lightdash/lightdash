@@ -31,6 +31,7 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { up } from '../../database/migrations/20210713230243_users';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -340,7 +341,7 @@ export class DashboardService extends BaseService {
             );
         }
 
-        const newTabs = dashboard.tabs.map((tab) => ({
+        const newTabsMap = dashboard.tabs.map((tab) => ({
             ...tab,
             uuid: uuidv4(), // generate new uuid for copied tabs
         }));
@@ -350,7 +351,7 @@ export class DashboardService extends BaseService {
             description: data.dashboardDesc,
             name: data.dashboardName,
             slug: generateSlug(dashboard.name),
-            tabs: newTabs,
+            tabs: newTabsMap,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -408,21 +409,21 @@ export class DashboardService extends BaseService {
                             },
                         };
                     }
-                    return tile;
+                    return {
+                        ...tile,
+                        tabUuid: newTabsMap.find(
+                            (tab) => tab.uuid === tile.tabUuid,
+                        )?.uuid,
+                    };
                 }),
             );
-
-            const newTabbedTiles = updatedTiles.map((tile) => ({
-                ...tile,
-                tabUuid: newTabs.find((tab) => tab.uuid === tile.tabUuid)?.uuid,
-            }));
 
             await this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
-                    tiles: [...newTabbedTiles],
+                    tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: newTabs,
+                    tabs: newTabsMap,
                 },
                 user,
                 projectUuid,
