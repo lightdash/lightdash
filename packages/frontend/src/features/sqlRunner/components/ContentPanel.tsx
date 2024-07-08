@@ -6,6 +6,7 @@ import {
     Group,
     Loader,
     Paper,
+    ScrollArea,
     Stack,
     Title,
     Tooltip,
@@ -221,16 +222,23 @@ export const ContentPanel: FC<Props> = ({
                     </Group>
                 </Paper>
                 {queryResults && !isLoading && (
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        px="md"
-                        py="sm"
-                        withBorder
-                        style={{ flex: 1 }}
+                    <ScrollArea
+                        offsetScrollbars
+                        variant="primary"
+                        sx={{ flex: 1 }}
+                        type="auto"
                     >
-                        <Table data={queryResults} />
-                    </Paper>
+                        <Paper
+                            shadow="none"
+                            radius={0}
+                            px="md"
+                            py="sm"
+                            withBorder
+                            style={{ flex: 1 }}
+                        >
+                            <Table data={queryResults} />
+                        </Paper>
+                    </ScrollArea>
                 )}
             </ResizableBox>
         </Stack>
