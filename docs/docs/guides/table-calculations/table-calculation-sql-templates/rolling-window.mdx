@@ -2,7 +2,7 @@ import RollingWindow from './assets/rolling-window.jpg';
 
 # Rolling window
 
-Rolling windows, or lookbacks, calculate metrics using the current row combined with N previous rows. This can be useful for smoothing out volatile time series data to better understand long term trends.
+Rolling windows, or lookbacks, calculate metrics like rolling averages using the current row combined with N previous rows. This can be useful for smoothing out volatile time series data to better understand long term trends.
 
 [Just gimme the code! 👾](#heres-the-sql-you-can-copy-paste-to-calculate-rolling-windows)
 
@@ -28,11 +28,13 @@ sum(${dbt_orders.count_distinct_user_id})
 The SQL used for calculating rolling windows has at least two bits, with an optional third:
 
 - `first_column_I_want_to_sum` is the column with the values you want to add up (sometimes this is an average)
-- `column_I_want_to_order_by` is the column you want to order your running total over
+- `column_I_want_to_order_by` is the column you want to order by when defining your lookback window
 - `N` is the number of previous rows you want to include in your calculation (don't forget the current row is included, so for a four week lookback window, we'll use N=3)
 - `second_column_I_want_to_sum` is optional, another column with values you want to add up to compare to your first column, like when calculating averages (which is how we use it in this example)
 
 ### Here's the SQL you can copy-paste to calculate rolling windows
+
+Make sure you swap out the columns AND choose a number value for `N`.
 
 ```sql
 sum(${table.column_I_want_to_sum}) over (
@@ -44,6 +46,6 @@ sum(${table.column_I_want_to_sum}) over (
 sum(${table.second_column_I_want_to_sum}) over (
   order by
     ${table.column_I_want_to_order_by} 
-  rows between 3 preceding and current row
+  rows between N preceding and current row
 )
 ```
