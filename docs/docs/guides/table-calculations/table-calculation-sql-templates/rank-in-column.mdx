@@ -18,7 +18,12 @@ Here's an example of a percent change calculation:
 And here's the SQL used to generate it:
 
 ```sql
-ROW_NUMBER() OVER(PARTITION BY ${orders.order_date_month} ORDER BY ${orders.total_order_amount} DESC)
+ROW_NUMBER() OVER (
+  PARTITION BY 
+    ${orders.order_date_month} 
+  ORDER BY
+    ${orders.total_order_amount} DESC
+)
 ```
 
 In general, the SQL used for calculating the rank in a column has just one important column and one other important parameter:
@@ -29,5 +34,8 @@ In general, the SQL used for calculating the rank in a column has just one impor
 ### Here's the SQL you can copy-paste to calculate your rank in column
 
 ```sql
-ROW_NUMBER() OVER(ORDER BY ${table.column_i_want_to_rank} DESC)
+ROW_NUMBER() OVER (
+  ORDER BY 
+    ${table.column_i_want_to_rank} DESC
+)
 ```
