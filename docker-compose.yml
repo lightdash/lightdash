@@ -3,8 +3,8 @@ services:
   lightdash:
     platform: linux/amd64
     image: lightdash/lightdash:latest
-    depends_on:
-      - db
+    # depends_on:
+    #   - db
     environment:
       - PGHOST=${PGHOST:-db}
       - PGPORT=${PGPORT:-5432}
@@ -45,15 +45,15 @@ services:
     ports:
       - ${PORT:-8080}:${PORT:-8080}
 
-  db:
-    image: postgres:15.4
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: ${PGPASSWORD}
-      POSTGRES_USER: ${PGUSER:-postgres}
-      POSTGRES_DB: ${PGDATABASE:-postgres}
-    volumes:
-      - db-data:/var/lib/postgresql/data
+  # db:
+  #   image: postgres:15.4
+  #   restart: always
+  #   environment:
+  #     POSTGRES_PASSWORD: ${PGPASSWORD}
+  #     POSTGRES_USER: ${PGUSER:-postgres}
+  #     POSTGRES_DB: ${PGDATABASE:-postgres}
+  #   volumes:
+  #     - db-data:/var/lib/postgresql/data
 
   headless-browser:
     image: browserless/chrome
@@ -61,5 +61,5 @@ services:
     ports:
       - "3001:3000"
 
-volumes:
-  db-data:
+# volumes:
+#   db-data:

@@ -26,15 +26,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
-RUN python3 -m venv /usr/local/dbt1.4 \
-    && /usr/local/dbt1.4/bin/pip install \
-    "dbt-postgres~=1.4.0" \
-    "dbt-redshift~=1.4.0" \
-    "dbt-snowflake~=1.4.0" \
-    "dbt-bigquery~=1.4.0" \
-    "dbt-databricks~=1.4.0" \
-    "dbt-trino~=1.4.0" \
-    "psycopg2-binary==2.9.6"
+# RUN python3 -m venv /usr/local/dbt1.4 \
+#     && /usr/local/dbt1.4/bin/pip install \
+#     "dbt-postgres~=1.4.0" \
+#     "dbt-redshift~=1.4.0" \
+#     "dbt-snowflake~=1.4.0" \
+#     "dbt-bigquery~=1.4.0" \
+#     "dbt-databricks~=1.4.0" \
+#     "dbt-trino~=1.4.0" \
+#     "psycopg2-binary==2.9.6"
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && python3 -m venv /usr/local/dbt1.5 \
@@ -56,30 +56,30 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     "dbt-databricks~=1.6.0" \
     "dbt-trino==1.6.0" \
     "psycopg2-binary==2.9.6"\
-    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
-    && python3 -m venv /usr/local/dbt1.7 \
-    && /usr/local/dbt1.7/bin/pip install \
-    "dbt-postgres~=1.7.0" \
-    "dbt-redshift~=1.7.0" \
-    "dbt-snowflake~=1.7.0" \
-    "dbt-bigquery~=1.7.0" \
-    "dbt-databricks~=1.7.0" \
-    "dbt-trino==1.7.0" \
-    "psycopg2-binary==2.9.6" \
-    && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
-    && python3 -m venv /usr/local/dbt1.8 \
-    && /usr/local/dbt1.8/bin/pip install \
+    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6
+    # && python3 -m venv /usr/local/dbt1.7 \
+    # && /usr/local/dbt1.7/bin/pip install \
+    # "dbt-postgres~=1.7.0" \
+    # "dbt-redshift~=1.7.0" \
+    # "dbt-snowflake~=1.7.0" \
+    # "dbt-bigquery~=1.7.0" \
+    # "dbt-databricks~=1.7.0" \
+    # "dbt-trino==1.7.0" \
+    # "psycopg2-binary==2.9.6" \
+    # && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
+    # && python3 -m venv /usr/local/dbt1.8 \
+    # && /usr/local/dbt1.8/bin/pip install \
     # from 1.8, dbt-core needs to be explicitly installed
-    "dbt-core~=1.8.0" \
+    # "dbt-core~=1.8.0" \
     # regression (https://github.com/dbt-labs/dbt-postgres/issues/96)
     # "dbt-postgres~=1.8.0" \
     # "dbt-redshift~=1.8.0" \
-    "dbt-snowflake~=1.8.0" \
-    "dbt-bigquery~=1.8.0" \
+    # "dbt-snowflake~=1.8.0" \
+    # "dbt-bigquery~=1.8.0" \
     # databricks adaptor not available yet
     # "dbt-databricks~=1.8.0" \
-    "dbt-trino~=1.8.0" \
-    && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
+    # "dbt-trino~=1.8.0" \
+    # && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
 
 # -----------------------------
 # Stage 1: stop here for dev environment
@@ -153,18 +153,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
-COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
+# COPY --from=prod-builder  /usr/local/dbt1.4 /usr/local/dbt1.4
+# COPY --from=prod-builder  /usr/local/dbt1.5 /usr/local/dbt1.5
 COPY --from=prod-builder  /usr/local/dbt1.6 /usr/local/dbt1.6
-COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
-COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
+# COPY --from=prod-builder  /usr/local/dbt1.7 /usr/local/dbt1.7
+# COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
 COPY --from=prod-builder /usr/app /usr/app
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
-    && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
-    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
-    && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
-    && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
+    # && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
+    && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6
+    # && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
+    # && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
 
 
 # Production config
