@@ -17,7 +17,7 @@ import { ROW_HEIGHT_PX, Tr } from '../Table.styles';
 import { useTableContext, type TableContext } from '../TableProvider';
 import BodyCell from './BodyCell';
 
-const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
+export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
     padding,
 }) => {
