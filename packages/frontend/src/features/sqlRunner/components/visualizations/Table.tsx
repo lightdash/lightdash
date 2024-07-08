@@ -4,8 +4,9 @@ import {
     getCoreRowModel,
     useReactTable,
     type ColumnDef,
+    type Table as TableType,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import { useRef, type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../../../components/common/LightTable';
 import BodyCell from '../../../../components/common/Table/ScrollableTable/BodyCell';
@@ -37,17 +38,23 @@ type TableChartSqlConfig =
     | undefined;
 
 class TableDataProcessor {
-    private results: SqlRunnerResultsTransformer;
+    private transformer: SqlRunnerResultsTransformer;
+
+    private columns: ColumnDef<ResultRow, any>[];
+
+    private rows: ResultRow[];
 
     constructor(
-        sqlRunnerTransformer: SqlRunnerResultsTransformer,
+        data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
         private config: TableChartSqlConfig,
     ) {
-        this.results = sqlRunnerTransformer;
+        this.transformer = new SqlRunnerResultsTransformer({ data });
+        this.columns = this.createColumns();
+        this.rows = this.transformer.getRows();
     }
 
-    public getColumns(): ColumnDef<ResultRow, any>[] {
-        const columns = this.results.getColumns();
+    private createColumns(): ColumnDef<ResultRow, any>[] {
+        const columns = this.transformer.getColumns();
         return columns
             .filter((column) =>
                 this.config ? this.config.columns[column]?.visible : true,
@@ -55,26 +62,59 @@ class TableDataProcessor {
             .map((column) => ({
                 id: column,
                 accessorKey: column,
-                header: this.config?.columns[column].label ?? column,
+                header: this.config?.columns[column].label || column,
                 cell: getRawValueCell,
             }));
     }
 
+    public getColumns(): ColumnDef<ResultRow, any>[] {
+        return this.columns;
+    }
+
     public getRows(): ResultRow[] {
-        return this.results.getRows();
+        return this.rows;
+    }
+
+    public getRowHeight(): number {
+        return ROW_HEIGHT_PX;
+    }
+
+    public getRowsCount(): number {
+        return this.rows.length;
+    }
+
+    public getColumnsCount(): number {
+        return this.columns.length;
+    }
+
+    public getTableData(
+        table: TableType<ResultRow>,
+        rowVirtualizer: Virtualizer<HTMLDivElement, Element>,
+    ) {
+        const { rows: rowModelRows } = table.getRowModel();
+        const virtualRows = rowVirtualizer.getVirtualItems();
+
+        return {
+            headerGroups: table.getHeaderGroups(),
+            virtualRows,
+            rowModelRows,
+        };
     }
 }
 
 type Props = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
+    config?: TableChartSqlConfig;
 };
 
 export const Table: FC<Props> = ({ data }) => {
-    const results = new SqlRunnerResultsTransformer({ data });
-    const processor = new TableDataProcessor(results, undefined); // TODO: add config once we have it
+    const processor = new TableDataProcessor(data, undefined); // TODO: add config once we have it
 
     const columns = processor.getColumns();
     const rows = processor.getRows();
+    const rowsCount = processor.getRowsCount();
+    const rowHeight = processor.getRowHeight();
+    const columnsCount = processor.getColumnsCount();
 
     const table = useReactTable({
         data: rows,
@@ -84,31 +124,31 @@ export const Table: FC<Props> = ({ data }) => {
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const { rows: rowModelRows } = table.getRowModel();
-
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
-        count: rowModelRows.length,
-        estimateSize: () => ROW_HEIGHT_PX,
+        count: rowsCount,
+        estimateSize: () => rowHeight,
         overscan: 25,
     });
 
-    const virtualRows = rowVirtualizer.getVirtualItems();
-    const paddingTop =
-        virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
+    const { headerGroups, virtualRows, rowModelRows } = processor.getTableData(
+        table,
+        rowVirtualizer,
+    );
+
+    const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
     const paddingBottom =
         virtualRows.length > 0
             ? rowVirtualizer.getTotalSize() -
-              (virtualRows?.[virtualRows.length - 1]?.end || 0)
+              (virtualRows[virtualRows.length - 1]?.end || 0)
             : 0;
-    const cellsCount = rowModelRows[0]?.getVisibleCells().length || 0;
 
     return (
         <TableContainer>
             <TableScrollableWrapper ref={tableContainerRef}>
                 <TableStyled>
                     <thead>
-                        {table.getHeaderGroups().map((headerGroup) =>
+                        {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => (
                                 <th
                                     key={header.id}
@@ -129,7 +169,7 @@ export const Table: FC<Props> = ({ data }) => {
                     <tbody>
                         {paddingTop > 0 && (
                             <VirtualizedArea
-                                cellCount={cellsCount}
+                                cellCount={columnsCount}
                                 padding={paddingTop}
                             />
                         )}
@@ -176,7 +216,7 @@ export const Table: FC<Props> = ({ data }) => {
                         })}
                         {paddingBottom > 0 && (
                             <VirtualizedArea
-                                cellCount={cellsCount}
+                                cellCount={columnsCount}
                                 padding={paddingBottom}
                             />
                         )}
