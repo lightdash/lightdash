@@ -373,7 +373,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jpetey75"><img src="https://avatars.githubusercontent.com/u/5532776?v=4?s=100" width="100px;" alt="Jake Peterson"/><br /><sub><b>Jake Peterson</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=jpetey75" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/cooldude6000"><img src="https://avatars.githubusercontent.com/u/143312648?v=4?s=100" width="100px;" alt="cooldude6000"/><br /><sub><b>cooldude6000</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=cooldude6000" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/cooldude6000"><img src="https://avatars.githubusercontent.com/u/143312648?v=4?s=100" width="100px;" alt="cooldude6000"/><br /><sub><b>cooldude6000</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=cooldude6000" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=cooldude6000" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
