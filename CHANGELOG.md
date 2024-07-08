@@ -1,3 +1,10 @@
+## [0.1161.2](https://github.com/lightdash/lightdash/compare/0.1161.1...0.1161.2) (2024-07-08)
+
+
+### Bug Fixes
+
+* pass empty array when null or undefined to resultHandler ([#10633](https://github.com/lightdash/lightdash/issues/10633)) ([74e9b1d](https://github.com/lightdash/lightdash/commit/74e9b1d45b138b72c94cd0851da7a92fdef447c4))
+
 ## [0.1161.1](https://github.com/lightdash/lightdash/compare/0.1161.0...0.1161.1) (2024-07-08)
 
 
