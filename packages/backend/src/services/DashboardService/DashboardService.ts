@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardDAO,
+    DashboardTab,
     DashboardTileTypes,
     ForbiddenError,
     generateSlug,
@@ -31,7 +32,6 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { up } from '../../database/migrations/20210713230243_users';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -342,16 +342,27 @@ export class DashboardService extends BaseService {
         }
 
         const newTabsMap = dashboard.tabs.map((tab) => ({
+            uuid: tab.uuid,
+            newUuid: uuidv4(), // generate new uuid for copied tabs
+        }));
+
+        const newTabs: DashboardTab[] = dashboard.tabs.map((tab) => ({
             ...tab,
-            uuid: uuidv4(), // generate new uuid for copied tabs
+            uuid: newTabsMap.find((tabMap) => tabMap.uuid === tab.uuid)
+                ?.newUuid!,
         }));
 
         const duplicatedDashboard = {
             ...dashboard,
+            tiles: dashboard.tiles.map((tile) => ({
+                ...tile,
+                tabUuid: newTabsMap.find((tab) => tab.uuid === tile.tabUuid)
+                    ?.newUuid!,
+            })),
             description: data.dashboardDesc,
             name: data.dashboardName,
             slug: generateSlug(dashboard.name),
-            tabs: newTabsMap,
+            tabs: newTabs,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -409,12 +420,7 @@ export class DashboardService extends BaseService {
                             },
                         };
                     }
-                    return {
-                        ...tile,
-                        tabUuid: newTabsMap.find(
-                            (tab) => tab.uuid === tile.tabUuid,
-                        )?.uuid,
-                    };
+                    return tile;
                 }),
             );
 
@@ -423,7 +429,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: newTabsMap,
+                    tabs: newTabs,
                 },
                 user,
                 projectUuid,
