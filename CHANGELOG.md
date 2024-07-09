@@ -1,3 +1,10 @@
+## [0.1161.4](https://github.com/lightdash/lightdash/compare/0.1161.3...0.1161.4) (2024-07-09)
+
+
+### Bug Fixes
+
+* stream s3 sql runner results from backend ([#10654](https://github.com/lightdash/lightdash/issues/10654)) ([9150a7e](https://github.com/lightdash/lightdash/commit/9150a7eae56b10753bd4553be6ff501a67919aac))
+
 ## [0.1161.3](https://github.com/lightdash/lightdash/compare/0.1161.2...0.1161.3) (2024-07-09)
 
 
