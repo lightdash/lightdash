@@ -1,0 +1,55 @@
+import RollingWindow from './assets/rolling-window.jpg';
+
+# Rolling window
+
+Rolling windows, or lookbacks, calculate metrics like rolling averages using the current row combined with N previous rows. This can be useful for smoothing out volatile time series data to better understand long term trends.
+
+[Just gimme the code! 👾](#heres-the-sql-you-can-copy-paste-to-calculate-rolling-windows)
+
+Here's an example of a rolling window:
+
+<img
+  src={RollingWindow}
+  width="638"
+  height="357"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+And here's the SQL used in the table calculation:
+
+```sql
+SUM(${dbt_orders.count_distinct_order_id}) OVER (
+  ORDER BY
+    ${dbt_orders.order_date_week}
+  ROWS BETWEEN 3 PRECEDING AND CURRENT ROW
+) /
+  SUM(${dbt_orders.count_distinct_user_id}) OVER (
+    ORDER BY
+      ${dbt_orders.order_date_week} 
+    ROWS BETWEEN 3 PRECEDING AND CURRENT ROW
+  )
+```
+
+The SQL used for calculating rolling windows has at least two bits, with an optional third:
+
+- `first_column_I_want_to_sum` is the column with the values you want to add up (sometimes this is an average)
+- `column_I_want_to_order_by` is the column you want to order by when defining your lookback window
+- `N` is the number of previous rows you want to include in your calculation (don't forget the current row is included, so for a four week lookback window, we'll use N=3)
+- `second_column_I_want_to_sum` is optional, another column with values you want to add up to compare to your first column, like when calculating averages (which is how we use it in this example)
+
+### Here's the SQL you can copy-paste to calculate rolling windows
+
+Make sure you swap out the columns AND choose a number value for `N`.
+
+```sql
+SUM(${table.column_I_want_to_sum}) OVER (
+  ORDER BY
+    ${table.column_I_want_to_order_by} 
+  ROWS BETWEEN N PRECEDING AND CURRENT ROW
+) /
+  SUM(${table.second_column_I_want_to_sum}) OVER (
+    ORDER BY
+      ${table.column_I_want_to_order_by} 
+    ROWS BETWEEN N PRECEDING AND CURRENT ROW
+  )
+```
