@@ -4448,6 +4448,11 @@
   resolved "https://registry.yarnpkg.com/@popperjs/core/-/core-2.11.8.tgz#6b79032e760a0899cd4204710beede972a3a185f"
   integrity sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==
 
+"@popsql/monaco-sql-languages@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@popsql/monaco-sql-languages/-/monaco-sql-languages-0.2.0.tgz#095df54dff07abb1e746cd379b357cdf3e906cf8"
+  integrity sha512-lxNXYCPP6Oth7Y7yj/U4O0NXHqeTRXhUz4bR3safTcfKCtidMVy5mMUHLkJg2jwKXK5X6ZZwqVq7B+2k+LSsEA==
+
 "@prisma/instrumentation@5.15.0":
   version "5.15.0"
   resolved "https://registry.yarnpkg.com/@prisma/instrumentation/-/instrumentation-5.15.0.tgz#9ec061b35761579ffa896bdf19c6a0bf53247593"
@@ -7408,6 +7413,18 @@ ansi-styles@^6.1.0, ansi-styles@^6.2.1:
   resolved "https://registry.npmjs.org/ansi-styles/-/ansi-styles-6.2.1.tgz"
   integrity sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug==
 
+antlr4-c3@3.3.7:
+  version "3.3.7"
+  resolved "https://registry.yarnpkg.com/antlr4-c3/-/antlr4-c3-3.3.7.tgz#f459fd3cfddfa8811a1f944bd7567df455f8ad27"
+  integrity sha512-F3ndE38wwA6z6AjUbL3heSdEGl4TxulGDPf9xB0/IY4dbRHWBh6XNaqFwur8vHKQk9FS5yNABHeg2wqlqIYO0w==
+  dependencies:
+    antlr4ng "2.0.11"
+
+antlr4ng@2.0.11:
+  version "2.0.11"
+  resolved "https://registry.yarnpkg.com/antlr4ng/-/antlr4ng-2.0.11.tgz#daa000ee6a50fa90d5391d53de2579c6e1d80211"
+  integrity sha512-9jM91VVtHSqHkAHQsXHaoaiewFETMvUTI1/tXvwTiFw4f7zke3IGlwEyoKN9NS0FqIwDKFvUNW2e1cKPniTkVQ==
+
 anymatch@^3.0.3, anymatch@~3.1.2:
   version "3.1.2"
   resolved "https://registry.npmjs.org/anymatch/-/anymatch-3.1.2.tgz"
@@ -9938,6 +9955,14 @@ dotenv@^16.0.2:
   version "16.0.3"
   resolved "https://registry.npmjs.org/dotenv/-/dotenv-16.0.3.tgz"
   integrity sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==
+
+dt-sql-parser@4.0.2:
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/dt-sql-parser/-/dt-sql-parser-4.0.2.tgz#95bc937db5e021250c61e74de90bf4af40bedb30"
+  integrity sha512-8D/kfYLW+wgz7Cwf5K+OCtex7QHiCyIuI18pw0a5vjSXRKCpfQqNQeG7tU5vp4D0RQEZJiMBuKJPBYwoqWxoAA==
+  dependencies:
+    antlr4-c3 "3.3.7"
+    antlr4ng "2.0.11"
 
 duplexify@^4.0.0, duplexify@^4.1.1:
   version "4.1.2"
@@ -15395,6 +15420,13 @@ monaco-editor@^0.44.0:
   version "0.44.0"
   resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.44.0.tgz#3c0fe3655923bbf7dd647057302070b5095b6c59"
   integrity sha512-5SmjNStN6bSuSE5WPT2ZV+iYn1/yI9sd4Igtk23ChvqB7kDk9lZbB9F5frsuvpB+2njdIeGGFf2G4gbE6rCC9Q==
+
+monaco-sql-languages@^0.12.2:
+  version "0.12.2"
+  resolved "https://registry.yarnpkg.com/monaco-sql-languages/-/monaco-sql-languages-0.12.2.tgz#34413a0ff9978e9720b871d2c54942557f66ef17"
+  integrity sha512-FNo/9FLF9JqYmdSBjQtnCCxg+Bo9hGCRDIatEX+0XUB6zvZSis7JJX7yq64kENqL7KwmX4N2ILkhbBxX5F9wyw==
+  dependencies:
+    dt-sql-parser "4.0.2"
 
 mri@^1.1.0:
   version "1.2.0"
