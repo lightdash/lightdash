@@ -101,12 +101,7 @@ export const ContentPanel: FC<Props> = ({
                 },
             ],
         },
-        seriesConfig: [
-            {
-                reference: 'total_amount',
-                yIndex: 0,
-            },
-        ],
+        seriesConfig: [],
     };
 
     return (

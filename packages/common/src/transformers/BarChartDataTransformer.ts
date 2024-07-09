@@ -51,15 +51,15 @@ export class BarChartDataTransformer {
                     return newRow;
                 }),
             },
-            series: seriesConfig.map(() => ({
-                dimensions: [xField, yField],
+            series: columns.slice(1).map((s) => ({
+                dimensions: [xField, s],
                 type: 'bar',
                 encode: {
-                    seriesName: axesConfig.y[0].reference ?? yField,
+                    seriesName: axesConfig.y[0].reference ?? s,
                     x: xField,
                     xRef: { field: xField },
-                    y: yField,
-                    yRef: { field: yField },
+                    y: s,
+                    yRef: { field: s },
                 },
             })),
         };
