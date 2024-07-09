@@ -12,14 +12,19 @@ export class BarChartDataTransformer {
     public getEchartsSpec(config: BarChartConfig) {
         const data = this.transformer.getRows();
         const columns = this.transformer.getColumns();
-        const { axis, series } = config;
+        const { axesConfig, seriesConfig } = config;
+
+        if (config.type !== 'barChart') return {};
 
         console.log({
             data,
             columns,
-            axis,
-            series,
+            axesConfig,
+            seriesConfig,
         });
+
+        const xField = columns[0];
+        const yField = columns[1];
 
         return {
             title: {
@@ -28,11 +33,11 @@ export class BarChartDataTransformer {
             tooltip: {},
             xAxis: {
                 type: 'category',
-                name: axis.x.label,
+                name: axesConfig.x.label ?? xField,
             },
             yAxis: {
                 type: 'value',
-                name: axis.y[0].label,
+                name: axesConfig.y[0].label ?? yField,
             },
             dataset: {
                 id: 'dataset',
@@ -46,15 +51,15 @@ export class BarChartDataTransformer {
                     return newRow;
                 }),
             },
-            series: series.map((s) => ({
-                dimensions: [axis.x.reference, s.reference],
+            series: seriesConfig.map(() => ({
+                dimensions: [xField, yField],
                 type: 'bar',
                 encode: {
-                    seriesName: s.reference,
-                    x: axis.x.reference,
-                    xRef: { field: axis.x.reference },
-                    y: s.reference,
-                    yRef: { field: s.reference },
+                    seriesName: axesConfig.y[0].reference ?? yField,
+                    x: xField,
+                    xRef: { field: xField },
+                    y: yField,
+                    yRef: { field: yField },
                 },
             })),
         };

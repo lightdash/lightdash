@@ -13,7 +13,7 @@ export type BarChartConfig = {
               }
             | undefined;
     };
-    axis: {
+    axesConfig: {
         x: {
             reference: string;
             label: string;
@@ -24,7 +24,7 @@ export type BarChartConfig = {
             label: string;
         }[];
     };
-    series: {
+    seriesConfig: {
         reference: string;
         yIndex: number;
     }[];

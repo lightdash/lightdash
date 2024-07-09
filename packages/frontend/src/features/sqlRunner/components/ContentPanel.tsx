@@ -88,7 +88,7 @@ export const ContentPanel: FC<Props> = ({
                 align: 'start',
             },
         },
-        axis: {
+        axesConfig: {
             x: {
                 reference: 'status',
                 label: 'moo',
@@ -101,7 +101,7 @@ export const ContentPanel: FC<Props> = ({
                 },
             ],
         },
-        series: [
+        seriesConfig: [
             {
                 reference: 'total_amount',
                 yIndex: 0,
