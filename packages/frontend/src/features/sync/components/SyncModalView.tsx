@@ -1,7 +1,8 @@
-import { SchedulerFormat } from '@lightdash/common';
+import { SchedulerFormat, type Scheduler } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Box,
     Button,
     Card,
     Flex,
@@ -9,7 +10,9 @@ import {
     Menu,
     Popover,
     Stack,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import {
     IconDots,
@@ -21,14 +24,42 @@ import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
+import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
+const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
+    const { mutate: mutateSchedulerEnabled } =
+        useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
+
+    return (
+        <Tooltip
+            label={
+                scheduler.enabled
+                    ? 'Toggle off to temporarily pause notifications'
+                    : 'Notifications paused. Toggle on to resume'
+            }
+        >
+            <Box>
+                <Switch
+                    mr="sm"
+                    onLabel="on"
+                    offLabel="paused"
+                    checked={scheduler.enabled}
+                    onChange={() => {
+                        mutateSchedulerEnabled(!scheduler.enabled);
+                    }}
+                />
+            </Box>
+        </Tooltip>
+    );
+};
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
     const googleSheetsSyncs = data?.filter(
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
+
     return (
         <>
             <Stack spacing="lg" mih={300}>
@@ -57,6 +88,7 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                     </Flex>
                                 </Stack>
 
+                                <ToggleSyncEnabled scheduler={sync} />
                                 <Menu
                                     shadow="md"
                                     withinPortal
