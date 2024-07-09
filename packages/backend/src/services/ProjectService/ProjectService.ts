@@ -108,7 +108,7 @@ import { ReadStream } from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -1919,10 +1919,10 @@ export class ProjectService extends BaseService {
     ): Promise<string> {
         const downloadFileId = nanoid();
         const passThrough = new PassThrough();
-
+        const s3FileId = `${downloadFileId}.jsonl`;
         const endUpload = await this.s3Client.streamResults(
             passThrough,
-            `${downloadFileId}.jsonl`,
+            s3FileId,
         );
         try {
             const writer = (data: ResultRow) => {
@@ -1937,10 +1937,19 @@ export class ProjectService extends BaseService {
             passThrough.end();
         }
 
-        const fileUrl = await endUpload();
+        await endUpload();
+        // Instead of returning the s3 signed URL to download,
+        // we will store the fileId inside our downloadFile table
+        // and serve the s3 stream from the backend on the sqlRunner/results endpoint
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            s3FileId,
+            DownloadFileType.S3_JSONL,
+        );
         this.logger.debug('File has been uploaded to S3.');
 
-        return fileUrl;
+        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
+        return serverUrl;
     }
 
     async streamResultsToLocalFile(
@@ -2036,7 +2045,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         fileId: string,
-    ): Promise<ReadStream> {
+    ): Promise<Readable> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2052,10 +2061,15 @@ export class ProjectService extends BaseService {
         const downloadFile = await this.downloadFileModel.getDownloadFile(
             fileId,
         );
-        if (downloadFile.type !== DownloadFileType.JSONL) {
-            throw new ParameterError('File is not a JSONL file');
+
+        switch (downloadFile.type) {
+            case DownloadFileType.JSONL:
+                return fs.createReadStream(downloadFile.path);
+            case DownloadFileType.S3_JSONL:
+                return this.s3Client.getS3FileStream(downloadFile.path);
+            default:
+                throw new ParameterError('File is not a valid JSONL file');
         }
-        return fs.createReadStream(downloadFile.path);
     }
 
     async searchFieldUniqueValues(
