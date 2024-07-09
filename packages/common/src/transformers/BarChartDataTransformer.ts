@@ -33,7 +33,7 @@ export class BarChartDataTransformer {
             tooltip: {},
             xAxis: {
                 type: 'category',
-                name: axesConfig.x.label ?? xField,
+                name: axesConfig?.x?.label ?? xField,
             },
             yAxis: {
                 type: 'value',
