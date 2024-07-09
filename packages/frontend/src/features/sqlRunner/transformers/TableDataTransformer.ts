@@ -1,11 +1,9 @@
 import { SqlRunnerResultsTransformer, type ResultRow } from '@lightdash/common';
-import { type ColumnDef, type Table } from '@tanstack/react-table';
-import { type Virtualizer } from '@tanstack/react-virtual';
-import { ROW_HEIGHT_PX } from '../../../components/common/Table/Table.styles';
+import { type ColumnDef } from '@tanstack/react-table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 
-// TODO: This should be moved to the common package
+// TODO: Move to the common package
 export type TableChartSqlConfig =
     | {
           columns: Record<
@@ -26,15 +24,12 @@ export class TableDataTransformer {
 
     private columns: ColumnDef<ResultRow, any>[];
 
-    private rows: ResultRow[];
-
     constructor(
-        data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
-        private config: TableChartSqlConfig,
+        private data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
+        private config: TableChartSqlConfig | undefined,
     ) {
-        this.transformer = new SqlRunnerResultsTransformer({ data });
+        this.transformer = new SqlRunnerResultsTransformer({ data: this.data });
         this.columns = this.createColumns();
-        this.rows = this.transformer.getRows();
     }
 
     private createColumns(): ColumnDef<ResultRow, any>[] {
@@ -56,32 +51,14 @@ export class TableDataTransformer {
     }
 
     public getRows(): ResultRow[] {
-        return this.rows;
-    }
-
-    public getRowHeight(): number {
-        return ROW_HEIGHT_PX;
+        return this.transformer.getRows();
     }
 
     public getRowsCount(): number {
-        return this.rows.length;
+        return this.getRows().length;
     }
 
     public getColumnsCount(): number {
-        return this.columns.length;
-    }
-
-    public getTableData(
-        table: Table<ResultRow>,
-        virtualizer: Virtualizer<HTMLDivElement, Element>,
-    ) {
-        const { rows: rowModelRows } = table.getRowModel();
-        const virtualRows = virtualizer.getVirtualItems();
-
-        return {
-            headerGroups: table.getHeaderGroups(),
-            virtualRows,
-            rowModelRows,
-        };
+        return this.getColumns().length;
     }
 }

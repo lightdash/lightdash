@@ -1,11 +1,6 @@
 import { type ResultRow } from '@lightdash/common';
-import {
-    flexRender,
-    getCoreRowModel,
-    useReactTable,
-} from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRef, type FC } from 'react';
+import { flexRender } from '@tanstack/react-table';
+import { type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../../../components/common/LightTable';
 import BodyCell from '../../../../components/common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../../../components/common/Table/ScrollableTable/TableBody';
@@ -17,10 +12,8 @@ import {
     Tr,
 } from '../../../../components/common/Table/Table.styles';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
-import {
-    TableDataTransformer,
-    type TableChartSqlConfig,
-} from '../../transformers/TableDataTransformer';
+import { type TableChartSqlConfig } from '../../transformers/TableDataTransformer';
+import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
 type Props = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
@@ -28,38 +21,16 @@ type Props = {
 };
 
 export const Table: FC<Props> = ({ data }) => {
-    const tableTransformer = new TableDataTransformer(data, undefined); // TODO: add config once we have it
+    const {
+        tableContainerRef,
+        getColumnsCount,
+        getTableData,
+        paddingTop,
+        paddingBottom,
+    } = useTableDataTransformer(data, undefined);
 
-    const columns = tableTransformer.getColumns();
-    const rows = tableTransformer.getRows();
-    const rowsCount = tableTransformer.getRowsCount();
-    const rowHeight = tableTransformer.getRowHeight();
-    const columnsCount = tableTransformer.getColumnsCount();
-
-    const table = useReactTable({
-        data: rows,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-    });
-
-    const tableContainerRef = useRef<HTMLDivElement>(null);
-
-    const virtualizer = useVirtualizer({
-        getScrollElement: () => tableContainerRef.current,
-        count: rowsCount,
-        estimateSize: () => rowHeight,
-        overscan: 25,
-    });
-
-    const { headerGroups, virtualRows, rowModelRows } =
-        tableTransformer.getTableData(table, virtualizer);
-
-    const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
-    const paddingBottom =
-        virtualRows.length > 0
-            ? virtualizer.getTotalSize() -
-              (virtualRows[virtualRows.length - 1]?.end || 0)
-            : 0;
+    const columnsCount = getColumnsCount();
+    const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     return (
         <TableContainer>
