@@ -1,4 +1,8 @@
-import { SqlRunnerResultsTransformer } from '@lightdash/common';
+import {
+    BarChartDataTransformer,
+    SqlRunnerResultsTransformer,
+} from '@lightdash/common';
+import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
 import {
     ActionIcon,
     Button,
@@ -24,7 +28,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import Table from '../../../components/common/Table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
-import { type BarChartConfig } from '../store/sqlRunnerSlice';
 import BarChart from './visualizations/BarChart';
 
 type Props = {
@@ -55,9 +58,23 @@ export const ContentPanel: FC<Props> = ({
         isLoading,
     } = useSqlQueryRun();
 
-    const sqlResultsTransformer = queryResults
-        ? new SqlRunnerResultsTransformer({ data: queryResults })
-        : undefined;
+    const sqlResultsTransformer = useMemo(
+        () =>
+            queryResults
+                ? new SqlRunnerResultsTransformer({ data: queryResults })
+                : undefined,
+        [queryResults],
+    );
+
+    const barChartTransformer = useMemo(
+        () =>
+            sqlResultsTransformer
+                ? new BarChartDataTransformer({
+                      transformer: sqlResultsTransformer,
+                  })
+                : undefined,
+        [sqlResultsTransformer],
+    );
 
     // TODO: should come from the store
     const barChartConfig: BarChartConfig = {
@@ -285,9 +302,9 @@ export const ContentPanel: FC<Props> = ({
                             }}
                         />
                     )}
-                    {sqlResultsTransformer && (
+                    {barChartTransformer && (
                         <BarChart
-                            resultsTransformer={sqlResultsTransformer}
+                            transformer={barChartTransformer}
                             config={barChartConfig}
                         />
                     )}
