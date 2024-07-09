@@ -28,13 +28,13 @@ type Props = {
 };
 
 export const Table: FC<Props> = ({ data }) => {
-    const processor = new TableDataTransformer(data, undefined); // TODO: add config once we have it
+    const tableTransformer = new TableDataTransformer(data, undefined); // TODO: add config once we have it
 
-    const columns = processor.getColumns();
-    const rows = processor.getRows();
-    const rowsCount = processor.getRowsCount();
-    const rowHeight = processor.getRowHeight();
-    const columnsCount = processor.getColumnsCount();
+    const columns = tableTransformer.getColumns();
+    const rows = tableTransformer.getRows();
+    const rowsCount = tableTransformer.getRowsCount();
+    const rowHeight = tableTransformer.getRowHeight();
+    const columnsCount = tableTransformer.getColumnsCount();
 
     const table = useReactTable({
         data: rows,
@@ -51,10 +51,8 @@ export const Table: FC<Props> = ({ data }) => {
         overscan: 25,
     });
 
-    const { headerGroups, virtualRows, rowModelRows } = processor.getTableData(
-        table,
-        virtualizer,
-    );
+    const { headerGroups, virtualRows, rowModelRows } =
+        tableTransformer.getTableData(table, virtualizer);
 
     const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
     const paddingBottom =
