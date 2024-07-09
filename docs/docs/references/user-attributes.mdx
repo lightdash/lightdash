@@ -4,6 +4,7 @@ tags:
 ---
 
 import DefaultValue from './assets/user-attribute-default-value.png';
+import MissingAttributeEmailError from './assets/missing-user-attribute-email-error.png';
 
 # User Attributes
 
@@ -73,6 +74,26 @@ When referencing user attributes in SQL you can use the following [SQL variables
   - (optional) `ld` as an alias for `lightdash`
   - available intrinsic user attributes:
     - `email`
+
+:::info
+
+The user email is only available when it is verified.
+This is a security measure to prevent users from creating/updating an account with any email they don't own and gain access to data they shouldn't see.
+
+If the user email is not verified you will get the following error:
+
+<img src={MissingAttributeEmailError} style={{ margin: '0 auto 20px auto' }} />
+
+```yaml
+models:
+  - name: example
+    meta:
+      sql_filter: ${lightdash.user.email} = 'example@lightdash.com'
+```
+
+If you are self hosting you can enable [SMTP](/self-host/customize-deployment/configure-smtp-for-lightdash-email-notifications) or [SSO](/self-host/customize-deployment/use-sso-login-for-self-hosted-lightdash) authentication to allow users to verify their email address.
+
+:::
 
 ### Row filtering with `sql_filter`
 
