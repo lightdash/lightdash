@@ -1,3 +1,4 @@
+import { SqlRunnerResultsTransformer } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -23,6 +24,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import Table from '../../../components/common/Table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import { type BarChartConfig } from '../store/sqlRunnerSlice';
+import BarChart from './visualizations/BarChart';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -51,6 +54,43 @@ export const ContentPanel: FC<Props> = ({
         data: queryResults,
         isLoading,
     } = useSqlQueryRun();
+
+    const sqlResultsTransformer = queryResults
+        ? new SqlRunnerResultsTransformer({ data: queryResults })
+        : undefined;
+
+    // TODO: should come from the store
+    const barChartConfig: BarChartConfig = {
+        metadata: {
+            version: 1,
+        },
+        type: 'barChart',
+        style: {
+            legend: {
+                position: 'top',
+                align: 'start',
+            },
+        },
+        axis: {
+            x: {
+                reference: 'status',
+                label: 'moo',
+            },
+            y: [
+                {
+                    reference: 'total_amount',
+                    position: 'left',
+                    label: 'baz',
+                },
+            ],
+        },
+        series: [
+            {
+                reference: 'total_amount',
+                yIndex: 0,
+            },
+        ],
+    };
 
     return (
         <Stack
@@ -243,6 +283,12 @@ export const ContentPanel: FC<Props> = ({
                             footer={{
                                 show: true,
                             }}
+                        />
+                    )}
+                    {sqlResultsTransformer && (
+                        <BarChart
+                            resultsTransformer={sqlResultsTransformer}
+                            config={barChartConfig}
                         />
                     )}
                 </Paper>

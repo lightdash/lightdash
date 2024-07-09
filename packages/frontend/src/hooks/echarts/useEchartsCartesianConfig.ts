@@ -1923,6 +1923,8 @@ const useEchartsCartesianConfig = (
         return undefined;
     }
 
+    console.log('eChartsOptions', eChartsOptions);
+
     return eChartsOptions;
 };
 
