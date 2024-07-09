@@ -12,6 +12,7 @@ import {
     Tr,
 } from '../../../../components/common/Table/Table.styles';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
+import { useAppSelector } from '../../store/hooks';
 import { type TableChartSqlConfig } from '../../transformers/TableDataTransformer';
 import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
@@ -21,13 +22,16 @@ type Props = {
 };
 
 export const Table: FC<Props> = ({ data }) => {
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
+    );
     const {
         tableContainerRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataTransformer(data, undefined);
+    } = useTableDataTransformer(data, resultsTableConfig);
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
