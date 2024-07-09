@@ -18,9 +18,9 @@ import {
 } from '../../../../components/common/Table/Table.styles';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import {
-    TableDataProcessor,
+    TableDataTransformer,
     type TableChartSqlConfig,
-} from '../../processors/TableDataProcessor';
+} from '../../transformers/TableDataTransformer';
 
 type Props = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
@@ -28,7 +28,7 @@ type Props = {
 };
 
 export const Table: FC<Props> = ({ data }) => {
-    const processor = new TableDataProcessor(data, undefined); // TODO: add config once we have it
+    const processor = new TableDataTransformer(data, undefined); // TODO: add config once we have it
 
     const columns = processor.getColumns();
     const rows = processor.getRows();
@@ -44,7 +44,7 @@ export const Table: FC<Props> = ({ data }) => {
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const rowVirtualizer = useVirtualizer({
+    const virtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
         count: rowsCount,
         estimateSize: () => rowHeight,
@@ -53,13 +53,13 @@ export const Table: FC<Props> = ({ data }) => {
 
     const { headerGroups, virtualRows, rowModelRows } = processor.getTableData(
         table,
-        rowVirtualizer,
+        virtualizer,
     );
 
     const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
     const paddingBottom =
         virtualRows.length > 0
-            ? rowVirtualizer.getTotalSize() -
+            ? virtualizer.getTotalSize() -
               (virtualRows[virtualRows.length - 1]?.end || 0)
             : 0;
 

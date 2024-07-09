@@ -5,6 +5,7 @@ import { ROW_HEIGHT_PX } from '../../../components/common/Table/Table.styles';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 
+// TODO: This should be moved to the common package
 export type TableChartSqlConfig =
     | {
           columns: Record<
@@ -20,7 +21,7 @@ export type TableChartSqlConfig =
       }
     | undefined;
 
-export class TableDataProcessor {
+export class TableDataTransformer {
     private transformer: SqlRunnerResultsTransformer;
 
     private columns: ColumnDef<ResultRow, any>[];
@@ -72,10 +73,10 @@ export class TableDataProcessor {
 
     public getTableData(
         table: Table<ResultRow>,
-        rowVirtualizer: Virtualizer<HTMLDivElement, Element>,
+        virtualizer: Virtualizer<HTMLDivElement, Element>,
     ) {
         const { rows: rowModelRows } = table.getRowModel();
-        const virtualRows = rowVirtualizer.getVirtualItems();
+        const virtualRows = virtualizer.getVirtualItems();
 
         return {
             headerGroups: table.getHeaderGroups(),
