@@ -86,7 +86,7 @@ export const SqlEditor: FC<{
         () => getLanguage(data?.warehouseConnection?.type),
         [data],
     );
-    const onMount = useCallback(
+    const beforeMount = useCallback(
         (monaco: Monaco) => {
             registerMonacoLanguage(monaco, language);
         },
@@ -109,7 +109,7 @@ export const SqlEditor: FC<{
     return (
         <Editor
             loading={<Loader color="gray" size="xs" />}
-            beforeMount={onMount}
+            beforeMount={beforeMount}
             language={language}
             value={sql}
             onChange={(value) => onSqlChange(value ?? '')}
