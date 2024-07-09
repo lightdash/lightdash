@@ -94,6 +94,11 @@ export const sqlRunnerSlice = createSlice({
             action: PayloadAction<SqlRunnerChartType>,
         ) => {
             state.selectedChartType = action.payload;
+
+            if (state.resultsTableConfig) {
+                state.resultsTableConfig.columns[action.payload[0]].label =
+                    action.payload[1];
+            }
         },
         toggleActiveTable: (
             state,

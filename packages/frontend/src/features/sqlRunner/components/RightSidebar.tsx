@@ -82,6 +82,7 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                         )}
                     </Stack>
                 )}
+
         </Stack>
     );
 };
