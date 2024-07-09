@@ -2199,12 +2199,22 @@
                 "type": "string"
             },
             "FunnelChartLabelPosition": {
-                "enum": ["inside", "left", "right"],
+                "enum": ["inside", "left", "right", "hidden"],
+                "type": "string"
+            },
+            "FunnelChartLegendPosition": {
+                "enum": ["horizontal", "vertical"],
                 "type": "string"
             },
             "FunnelChart": {
                 "properties": {
-                    "label": {
+                    "legendPosition": {
+                        "$ref": "#/components/schemas/FunnelChartLegendPosition"
+                    },
+                    "showLegend": {
+                        "type": "boolean"
+                    },
+                    "labels": {
                         "properties": {
                             "showPercentage": {
                                 "type": "boolean"
@@ -2217,6 +2227,12 @@
                             }
                         },
                         "type": "object"
+                    },
+                    "colorOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "labelOverrides": {
+                        "$ref": "#/components/schemas/Record_string.string_"
                     },
                     "metadata": {
                         "$ref": "#/components/schemas/Record_string.SeriesMetadata_"
@@ -8020,7 +8036,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1153.0",
+        "version": "0.1161.4",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13920,7 +13936,7 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "validateOnly": {
+                                    "validationTargets": {
                                         "items": {
                                             "$ref": "#/components/schemas/ValidationTarget"
                                         },
