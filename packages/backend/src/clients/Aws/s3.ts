@@ -8,7 +8,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { MissingConfigError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { ReadStream } from 'fs';
-import { PassThrough } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 
@@ -140,17 +140,7 @@ export class S3Client {
         const onEnd = async () => {
             try {
                 await upload.done();
-                const url = await getSignedUrl(
-                    this.s3!,
-                    new GetObjectCommand({
-                        Bucket: this.lightdashConfig.s3!.bucket,
-                        Key: fileId,
-                    }),
-                    {
-                        expiresIn: this.lightdashConfig.s3!.expirationTime,
-                    },
-                );
-                return url;
+                return fileId; // We don't need to return signed url, we will stream the file from the fileId
             } catch (error) {
                 Logger.error(
                     `Failed to upload file to s3 with endpoint: ${
@@ -164,6 +154,24 @@ export class S3Client {
         };
 
         return onEnd;
+    }
+
+    async getS3FileStream(fileId: string): Promise<Readable> {
+        const command = new GetObjectCommand({
+            Bucket: this.lightdashConfig.s3!.bucket,
+            Key: fileId,
+        });
+
+        try {
+            const response = await this.s3?.send(command);
+            if (response === undefined) {
+                throw new Error('No response from S3');
+            }
+            return response.Body as Readable;
+        } catch (error) {
+            console.error('Error fetching the file from S3:', error);
+            throw error;
+        }
     }
 
     isEnabled(): boolean {
