@@ -1,3 +1,10 @@
+## [0.1161.3](https://github.com/lightdash/lightdash/compare/0.1161.2...0.1161.3) (2024-07-09)
+
+
+### Bug Fixes
+
+* embedding guide link ([#10632](https://github.com/lightdash/lightdash/issues/10632)) ([6726e7e](https://github.com/lightdash/lightdash/commit/6726e7ec8aa90f0661fa0ea7798ec28aa85fb07b))
+
 ## [0.1161.2](https://github.com/lightdash/lightdash/compare/0.1161.1...0.1161.2) (2024-07-08)
 
 
