@@ -133,6 +133,7 @@ export const CreateSpaceAddUser: FC<CreateSpaceAddUserProps> = ({
                         hasDirectAccess: true,
                         inheritedRole: undefined,
                         inheritedFrom: undefined,
+                        projectRole: undefined,
                     })),
                 });
             }}
