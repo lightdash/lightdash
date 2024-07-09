@@ -13,3 +13,23 @@ reusable
   - (optional) `ld` as an alias for `lightdash`
   - available intrinsic user attributes:
     - `email`
+
+:::info
+
+There are cases when the user can get the following error:
+"Missing user attribute "email" on sql_filter ..."
+```
+
+models:
+- name: example
+  meta:
+    sql_filter: ${lightdash.user.email} = 'example@lightdash.com'
+
+```
+The user email is only available if it is verified.
+This is a security measure to prevent users from creating/updating an account with any email they don't own and gain access to data they shouldn't see.
+
+If you are self hosting you can enable SMTP or SSO authentication to allow users to verify their email address.
+
+:::
+
