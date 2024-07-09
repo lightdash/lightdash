@@ -1,9 +1,4 @@
 import {
-    BarChartDataTransformer,
-    SqlRunnerResultsTransformer,
-} from '@lightdash/common';
-import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
-import {
     ActionIcon,
     Button,
     Divider,
@@ -57,52 +52,6 @@ export const ContentPanel: FC<Props> = ({
         data: queryResults,
         isLoading,
     } = useSqlQueryRun();
-
-    const sqlResultsTransformer = useMemo(
-        () =>
-            queryResults
-                ? new SqlRunnerResultsTransformer({ data: queryResults })
-                : undefined,
-        [queryResults],
-    );
-
-    const barChartTransformer = useMemo(
-        () =>
-            sqlResultsTransformer
-                ? new BarChartDataTransformer({
-                      transformer: sqlResultsTransformer,
-                  })
-                : undefined,
-        [sqlResultsTransformer],
-    );
-
-    // TODO: should come from the store
-    const barChartConfig: BarChartConfig = {
-        metadata: {
-            version: 1,
-        },
-        type: 'barChart',
-        style: {
-            legend: {
-                position: 'top',
-                align: 'start',
-            },
-        },
-        axesConfig: {
-            x: {
-                reference: 'status',
-                label: 'moo',
-            },
-            y: [
-                {
-                    reference: 'total_amount',
-                    position: 'left',
-                    label: 'baz',
-                },
-            ],
-        },
-        seriesConfig: [],
-    };
 
     return (
         <Stack
@@ -297,12 +246,7 @@ export const ContentPanel: FC<Props> = ({
                             }}
                         />
                     )}
-                    {barChartTransformer && (
-                        <BarChart
-                            transformer={barChartTransformer}
-                            config={barChartConfig}
-                        />
-                    )}
+                    {queryResults && <BarChart data={queryResults} />}
                 </Paper>
             </ResizableBox>
         </Stack>

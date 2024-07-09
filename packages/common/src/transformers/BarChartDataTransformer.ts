@@ -1,12 +1,13 @@
+import { type ResultRow } from '../types/results';
 import { type BarChartConfig } from '../types/visualizations';
-import { type SqlRunnerResultsTransformer } from './ResultTransformers';
+import { SqlRunnerResultsTransformer } from './ResultTransformers';
 
 // TODO: Should this just be ChartDataTransformer?
 export class BarChartDataTransformer {
     private transformer: SqlRunnerResultsTransformer;
 
-    constructor(args: { transformer: SqlRunnerResultsTransformer }) {
-        this.transformer = args.transformer;
+    constructor(args: { data: ResultRow[] }) {
+        this.transformer = new SqlRunnerResultsTransformer(args);
     }
 
     public getEchartsSpec(config: BarChartConfig) {
