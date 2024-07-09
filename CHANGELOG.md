@@ -1,3 +1,10 @@
+# [0.1162.0](https://github.com/lightdash/lightdash/compare/0.1161.4...0.1162.0) (2024-07-09)
+
+
+### Features
+
+* sql runner monaco editor ([#10650](https://github.com/lightdash/lightdash/issues/10650)) ([16fbc7c](https://github.com/lightdash/lightdash/commit/16fbc7cff51b1d202953bdf0d1c7e54e90fa9070))
+
 ## [0.1161.4](https://github.com/lightdash/lightdash/compare/0.1161.3...0.1161.4) (2024-07-09)
 
 
