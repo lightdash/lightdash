@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Box,
     Button,
     Divider,
     Group,
@@ -37,6 +38,11 @@ export const ContentPanel: FC<Props> = ({
     openChartConfig,
     closeChartConfig,
 }) => {
+    const {
+        ref: inputSectionRef,
+        width: inputSectionWidth,
+        height: inputSectionHeight,
+    } = useElementSize();
     const [sql, setSql] = useState<string>('');
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
@@ -115,13 +121,22 @@ export const ContentPanel: FC<Props> = ({
                 </Group>
             </Paper>
             <Paper
+                ref={inputSectionRef}
                 shadow="none"
                 radius={0}
                 p="none"
                 withBorder
                 style={{ flex: 1 }}
             >
-                <SqlEditor sql={sql} onSqlChange={setSql} />
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        height: inputSectionHeight,
+                        width: inputSectionWidth,
+                    }}
+                >
+                    <SqlEditor sql={sql} onSqlChange={setSql} />
+                </Box>
             </Paper>
             <ResizableBox
                 height={resultsHeight}
