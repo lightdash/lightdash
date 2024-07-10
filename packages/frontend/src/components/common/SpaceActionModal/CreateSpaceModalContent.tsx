@@ -103,6 +103,7 @@ const CreateSpaceModalContent: FC<CreateSpaceModalBody> = ({
                         hasDirectAccess: false,
                         inheritedFrom: undefined,
                         inheritedRole: undefined,
+                        projectRole: undefined,
                     },
                 ];
             } else return acc;
