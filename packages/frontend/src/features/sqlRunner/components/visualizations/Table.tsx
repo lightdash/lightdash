@@ -1,4 +1,5 @@
 import { type ResultRow, type TableChartSqlConfig } from '@lightdash/common';
+import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../../../components/common/LightTable';
@@ -7,7 +8,6 @@ import { VirtualizedArea } from '../../../../components/common/Table/ScrollableT
 import {
     Table as TableStyled,
     TableContainer,
-    TableScrollableWrapper,
     TABLE_HEADER_BG,
     Tr,
 } from '../../../../components/common/Table/Table.styles';
@@ -25,7 +25,7 @@ export const Table: FC<Props> = ({ data }) => {
         (state) => state.sqlRunner.resultsTableConfig,
     );
     const {
-        tableContainerRef,
+        tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
@@ -36,8 +36,16 @@ export const Table: FC<Props> = ({ data }) => {
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     return (
-        <TableContainer>
-            <TableScrollableWrapper ref={tableContainerRef}>
+        <TableContainer $shouldExpand>
+            <Flex
+                ref={tableWrapperRef}
+                dir="column"
+                miw="100%"
+                sx={{
+                    flex: 1,
+                    overflow: 'auto',
+                }}
+            >
                 <TableStyled>
                     <thead>
                         {headerGroups.map((headerGroup) =>
@@ -114,7 +122,7 @@ export const Table: FC<Props> = ({ data }) => {
                         )}
                     </tbody>
                 </TableStyled>
-            </TableScrollableWrapper>
+            </Flex>
         </TableContainer>
     );
 };

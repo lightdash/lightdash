@@ -26,10 +26,10 @@ export const useTableDataTransformer = (
 
     const getRowHeight = useCallback(() => ROW_HEIGHT_PX, []);
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const tableWrapperRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
-        getScrollElement: () => tableContainerRef.current,
+        getScrollElement: () => tableWrapperRef.current,
         count: transformer.getRowsCount(),
         estimateSize: () => getRowHeight(),
         overscan: 25,
@@ -59,7 +59,7 @@ export const useTableDataTransformer = (
             : 0;
 
     return {
-        tableContainerRef,
+        tableWrapperRef,
         columns,
         rows,
         getRowHeight,
