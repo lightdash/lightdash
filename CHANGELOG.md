@@ -1,3 +1,10 @@
+# [0.1165.0](https://github.com/lightdash/lightdash/compare/0.1164.0...0.1165.0) (2024-07-10)
+
+
+### Features
+
+* support dbt postgres 1.8 ([#10680](https://github.com/lightdash/lightdash/issues/10680)) ([3e4c687](https://github.com/lightdash/lightdash/commit/3e4c6877b81e7017782005d45a7a94e7de1f721f))
+
 # [0.1164.0](https://github.com/lightdash/lightdash/compare/0.1163.1...0.1164.0) (2024-07-10)
 
 
