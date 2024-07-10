@@ -4894,6 +4894,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                projectRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ProjectMemberRole' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 hasDirectAccess: { dataType: 'boolean', required: true },
                 role: { ref: 'SpaceMemberRole', required: true },
                 email: { dataType: 'string', required: true },

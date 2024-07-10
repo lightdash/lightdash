@@ -20,7 +20,7 @@ And here's the SQL that was used to generate it:
 
 ```sql
 (
-  ${orders.total_order_amount} / 
+  ${orders.total_order_amount} /
     LAG(${orders.total_order_amount}) OVER (
       ORDER BY
         ${orders.order_date_week}

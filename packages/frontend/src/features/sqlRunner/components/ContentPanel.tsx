@@ -22,6 +22,7 @@ import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { SqlEditor } from './SqlEditor';
+import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
 
 type Props = {
@@ -220,6 +221,7 @@ export const ContentPanel: FC<Props> = ({
                         </Group>
                     </Group>
                 </Paper>
+
                 {queryResults && !isLoading && (
                     <Paper
                         shadow="none"
@@ -230,6 +232,7 @@ export const ContentPanel: FC<Props> = ({
                         style={{ flex: 1 }}
                     >
                         <Table data={queryResults} />
+                        <BarChart data={queryResults} />
                     </Paper>
                 )}
             </ResizableBox>
