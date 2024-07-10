@@ -32,6 +32,7 @@ import {
 } from './types/field';
 import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
 import {
+    type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './types/organizationMemberProfile';
@@ -162,6 +163,7 @@ export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
 export * from './types/job';
+export * from './types/knex-paginate';
 export * from './types/metricQuery';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
@@ -646,7 +648,8 @@ type ApiResults =
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
-    | ApiTogglePinnedItem['results'];
+    | ApiTogglePinnedItem['results']
+    | ApiOrganizationMemberProfiles['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

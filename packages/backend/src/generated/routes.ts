@@ -3425,6 +3425,66 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexQueryBuilderResult_T_: {
+        dataType: 'refAlias',
+        type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'KnexQueryBuilderResult_OrganizationMemberProfile-Array_': {
+        dataType: 'refAlias',
+        type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    IKnexPaginateArgs: {
+        dataType: 'refObject',
+        properties: {
+            pageSize: { dataType: 'double', required: true },
+            page: { dataType: 'double', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'IKnexPaginatedData_OrganizationMemberProfile-Array_': {
+        dataType: 'refObject',
+        properties: {
+            data: {
+                ref: 'KnexQueryBuilderResult_OrganizationMemberProfile-Array_',
+                required: true,
+            },
+            pagination: {
+                dataType: 'intersection',
+                subSchemas: [
+                    { ref: 'IKnexPaginateArgs' },
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            totalPageCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationMemberProfiles: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'IKnexPaginatedData_OrganizationMemberProfile-Array_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationMemberRole: {
         dataType: 'refEnum',
         enums: [
@@ -3450,25 +3510,6 @@ const models: TsoaRoute.Models = {
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiOrganizationMemberProfiles: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'OrganizationMemberProfile',
-                    },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -9975,6 +10016,8 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'includeGroups',
                     dataType: 'double',
                 },
+                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+                page: { in: 'query', name: 'page', dataType: 'double' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

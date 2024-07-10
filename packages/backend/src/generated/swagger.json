@@ -3750,6 +3750,68 @@
                 "type": "object",
                 "description": "List of projects in the current organization"
             },
+            "KnexQueryBuilderResult_T_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            },
+            "KnexQueryBuilderResult_OrganizationMemberProfile-Array_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            },
+            "IKnexPaginateArgs": {
+                "properties": {
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["pageSize", "page"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "IKnexPaginatedData_OrganizationMemberProfile-Array_": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_OrganizationMemberProfile-Array_"
+                    },
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/IKnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                },
+                "required": ["data"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiOrganizationMemberProfiles": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/IKnexPaginatedData_OrganizationMemberProfile-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "OrganizationMemberRole": {
                 "enum": [
                     "member",
@@ -3805,23 +3867,6 @@
                 ],
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
-            },
-            "ApiOrganizationMemberProfiles": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationMemberProfile"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
             },
             "ApiOrganizationMemberProfile": {
                 "properties": {
@@ -10290,6 +10335,24 @@
                     {
                         "in": "query",
                         "name": "includeGroups",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
                         "required": false,
                         "schema": {
                             "format": "double",

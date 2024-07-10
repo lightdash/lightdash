@@ -10,6 +10,7 @@ import {
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
+    IKnexPaginateArgs,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
@@ -175,13 +176,24 @@ export class OrganizationController extends BaseController {
     async getOrganizationMembers(
         @Request() req: express.Request,
         @Query() includeGroups?: number,
+        @Query() pageSize?: number,
+        @Query() page?: number,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
+        let paginateArgs: IKnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getUsers(req.user!, includeGroups),
+                .getUsers(req.user!, includeGroups, paginateArgs),
         };
     }
 

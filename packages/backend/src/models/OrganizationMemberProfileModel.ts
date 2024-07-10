@@ -1,4 +1,6 @@
 import {
+    IKnexPaginateArgs,
+    IKnexPaginatedData,
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
@@ -20,6 +22,7 @@ import {
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
+import KnexPaginate from '../database/pagination';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;
@@ -109,20 +112,31 @@ export class OrganizationMemberProfileModel {
 
     async getOrganizationMembers(
         organizationUuid: string,
-    ): Promise<OrganizationMemberProfile[]> {
-        const members = await this.queryBuilder()
+        paginateArgs?: IKnexPaginateArgs,
+    ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
+        const query = this.queryBuilder()
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
-        return members.map(OrganizationMemberProfileModel.parseRow);
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: data.map(OrganizationMemberProfileModel.parseRow),
+        };
     }
 
     async getOrganizationMembersAndGroups(
         organizationUuid: string,
         includeGroups?: number,
-    ): Promise<OrganizationMemberProfileWithGroups[]> {
+        paginateArgs?: IKnexPaginateArgs,
+    ): Promise<IKnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             .leftJoin(
                 OrganizationMembershipsTableName,
@@ -178,7 +192,7 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationMembershipsTableName}.role`,
                 `${InviteLinkTableName}.expires_at`,
             )
-            .select(
+            .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(
                     `ARRAY_AGG(DISTINCT ${GroupTableName}.group_uuid) FILTER (WHERE ${GroupTableName}.group_uuid IS NOT NULL) as group_uuids`,
                 ),
@@ -192,11 +206,17 @@ export class OrganizationMemberProfileModel {
                 orgMembersAndGroupsQuery.limit(includeGroups);
         }
 
-        const result: (DbOrganizationMemberProfile & {
+        const { pagination, data } = await KnexPaginate.paginate(
+            orgMembersAndGroupsQuery,
+            paginateArgs,
+        );
+
+        // Had to cast data as the typescript types do not pick up the raw select keys
+        const result = data as (DbOrganizationMemberProfile & {
             group_uuids: string[];
             group_names: string[];
             groups: { name: string; uuid: string }[];
-        })[] = await orgMembersAndGroupsQuery;
+        })[];
 
         const updatedMembers = result.map((row) => ({
             ...row,
@@ -209,10 +229,13 @@ export class OrganizationMemberProfileModel {
                       })),
         }));
 
-        return updatedMembers.map((m) => ({
-            ...OrganizationMemberProfileModel.parseRow(m),
-            groups: m.groups,
-        }));
+        return {
+            pagination,
+            data: updatedMembers.map((m) => ({
+                ...OrganizationMemberProfileModel.parseRow(m),
+                groups: m.groups,
+            })),
+        };
     }
 
     async getOrganizationAdmins(

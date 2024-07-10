@@ -6,6 +6,8 @@ import {
     ForbiddenError,
     Group,
     GroupWithMembers,
+    IKnexPaginateArgs,
+    IKnexPaginatedData,
     isUserWithOrg,
     LightdashMode,
     NotExistsError,
@@ -156,7 +158,7 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const orgUsers =
+        const { pagination, data: orgUsers } =
             await this.organizationMemberProfileModel.getOrganizationMembers(
                 organizationUuid,
             );
@@ -198,7 +200,8 @@ export class OrganizationService extends BaseService {
     async getUsers(
         user: SessionUser,
         includeGroups?: number,
-    ): Promise<OrganizationMemberProfile[]> {
+        paginateArgs?: IKnexPaginateArgs,
+    ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
             throw new ForbiddenError();
@@ -206,21 +209,26 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
-        const members = includeGroups
+        const { pagination, data: members } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
                   organizationUuid,
                   includeGroups,
+                  paginateArgs,
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers(
                   organizationUuid,
+                  paginateArgs,
               );
 
-        return members.filter((member) =>
-            user.ability.can(
-                'view',
-                subject('OrganizationMemberProfile', member),
+        return {
+            data: members.filter((member) =>
+                user.ability.can(
+                    'view',
+                    subject('OrganizationMemberProfile', member),
+                ),
             ),
-        );
+            pagination,
+        };
     }
 
     async getProjects(user: SessionUser): Promise<OrganizationProject[]> {
