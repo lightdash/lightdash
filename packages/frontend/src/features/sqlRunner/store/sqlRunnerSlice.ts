@@ -26,28 +26,33 @@ export const sqlRunnerSlice = createSlice({
             state,
             action: PayloadAction<ResultRow[]>,
         ) => {
-            state.resultsTableConfig = {
-                columns: Object.entries<ResultRow>(action.payload).reduce<
-                    TableChartSqlConfig['columns']
-                >((acc, [key]) => {
-                    acc[key] = {
+            const columns = Object.keys(action.payload[0]).reduce<
+                TableChartSqlConfig['columns']
+            >(
+                (acc, key) => ({
+                    ...acc,
+                    [key]: {
                         visible: true,
                         reference: key,
                         label: key,
-                        frozen: false,
+                        frozen: true,
                         order: undefined,
-                    };
-                    return acc;
-                }, {}),
+                    },
+                }),
+                {},
+            );
+
+            state.resultsTableConfig = {
+                columns,
             };
         },
         updateResultsTableFieldConfigLabel: (
             state,
-            action: PayloadAction<[string, string]>,
+            action: PayloadAction<Record<'reference' | 'label', string>>,
         ) => {
+            const { reference, label } = action.payload;
             if (state.resultsTableConfig) {
-                state.resultsTableConfig.columns[action.payload[0]].label =
-                    action.payload[1];
+                state.resultsTableConfig.columns[reference].label = label;
             }
         },
         toggleActiveTable: (

@@ -34,20 +34,24 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
 
             {resultsTableConfig && (
                 <Stack spacing="xs">
-                    {Object.entries(resultsTableConfig.columns).map(([key]) => (
-                        <EditableText
-                            key={key}
-                            value={resultsTableConfig.columns[key].label}
-                            onChange={(e) => {
-                                dispatch(
-                                    updateResultsTableFieldConfigLabel([
-                                        key,
-                                        e.target.value,
-                                    ]),
-                                );
-                            }}
-                        />
-                    ))}
+                    {Object.keys(resultsTableConfig.columns).map(
+                        (reference) => (
+                            <EditableText
+                                key={reference}
+                                value={
+                                    resultsTableConfig.columns[reference].label
+                                }
+                                onChange={(e) => {
+                                    dispatch(
+                                        updateResultsTableFieldConfigLabel({
+                                            reference: reference,
+                                            label: e.target.value,
+                                        }),
+                                    );
+                                }}
+                            />
+                        ),
+                    )}
                 </Stack>
             )}
         </Stack>
