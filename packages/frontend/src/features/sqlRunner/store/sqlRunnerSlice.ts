@@ -5,7 +5,7 @@ import { createSlice } from '@reduxjs/toolkit';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    chartConfig: BarChartConfig | undefined;
+    chartConfig: BarChartConfig;
 }
 
 const initialState: SqlRunnerState = {
@@ -22,17 +22,8 @@ const initialState: SqlRunnerState = {
             },
         },
         axes: {
-            x: {
-                reference: 'status',
-                label: 'moo',
-            },
-            y: [
-                {
-                    reference: 'total_amount',
-                    position: 'left',
-                    label: 'baz',
-                },
-            ],
+            x: {},
+            y: [],
         },
         series: [],
     },

@@ -12,8 +12,8 @@ export type BarChartConfig = {
     };
     axes: {
         x: {
-            reference: string;
-            label: string;
+            reference?: string;
+            label?: string;
         };
         y: {
             reference: string;

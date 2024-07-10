@@ -10,7 +10,7 @@ export class BarChartDataTransformer {
         this.transformer = new SqlRunnerResultsTransformer(args);
     }
 
-    public getEchartsSpec(config: BarChartConfig | undefined) {
+    public getEchartsSpec(config: BarChartConfig) {
         const data = this.transformer.getRows();
         const columns = this.transformer.getColumns();
         const { axes } = config || { axes: undefined };

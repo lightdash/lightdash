@@ -9,16 +9,14 @@ type BarChartProps = Omit<EChartsReactProps, 'option'> & {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
 };
 
-const BarChart: FC<BarChartProps> = memo(({ data, className, ...rest }) => {
-    // TODO: fix store type
+const BarChart: FC<BarChartProps> = memo(({ data, ...rest }) => {
     const barChartConfig = useAppSelector(
-        (state: any) => state.sqlRunner.chartConfig,
+        (state) => state.sqlRunner.chartConfig,
     );
     const { spec } = useBarChartDataTransformer(data, barChartConfig);
 
     return (
         <EChartsReact
-            className={className}
             option={spec}
             notMerge
             opts={{
