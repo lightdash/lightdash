@@ -1,3 +1,10 @@
+# [0.1166.0](https://github.com/lightdash/lightdash/compare/0.1165.0...0.1166.0) (2024-07-10)
+
+
+### Features
+
+* open results on successful sql query ([#10684](https://github.com/lightdash/lightdash/issues/10684)) ([ccd1d42](https://github.com/lightdash/lightdash/commit/ccd1d428b3e6b655ab67d36781e5c28df39d2293))
+
 # [0.1165.0](https://github.com/lightdash/lightdash/compare/0.1164.0...0.1165.0) (2024-07-10)
 
 
