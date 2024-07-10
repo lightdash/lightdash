@@ -1,3 +1,10 @@
+## [0.1162.1](https://github.com/lightdash/lightdash/compare/0.1162.0...0.1162.1) (2024-07-10)
+
+
+### Bug Fixes
+
+* use project level role to show warning on frontend ([#10644](https://github.com/lightdash/lightdash/issues/10644)) ([02785ce](https://github.com/lightdash/lightdash/commit/02785ce53c9672a82d8c4a4ca62cab49c3f31d0f))
+
 # [0.1162.0](https://github.com/lightdash/lightdash/compare/0.1161.4...0.1162.0) (2024-07-09)
 
 
