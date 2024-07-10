@@ -1662,6 +1662,7 @@ export class ProjectModel {
             const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
                 uuid: dashboardTabs[i].uuid,
                 newUuid: c.uuid,
+                newDashboardVersionId: c.dashboard_version_id,
             }));
 
             const dashboardViews = await trx(DashboardViewsTableName).whereIn(
@@ -1737,7 +1738,10 @@ export class ProjectModel {
                                               m.id === d.dashboard_version_id,
                                       )?.newId!,
                                   tab_uuid: dashboardTabsMapping.find(
-                                      (m) => m.uuid === d.tab_uuid,
+                                      (m) =>
+                                          m.uuid === d.tab_uuid &&
+                                          m.newDashboardVersionId ===
+                                              d.dashboard_version_id,
                                   )?.newUuid,
                               })),
                           )
