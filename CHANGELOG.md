@@ -1,3 +1,10 @@
+# [0.1163.0](https://github.com/lightdash/lightdash/compare/0.1162.1...0.1163.0) (2024-07-10)
+
+
+### Features
+
+* add table config panel ([#10663](https://github.com/lightdash/lightdash/issues/10663)) ([b428b5d](https://github.com/lightdash/lightdash/commit/b428b5d2f0ccaf59676f2024127edf8ac6cce9af))
+
 ## [0.1162.1](https://github.com/lightdash/lightdash/compare/0.1162.0...0.1162.1) (2024-07-10)
 
 
