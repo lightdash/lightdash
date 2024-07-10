@@ -22,7 +22,8 @@ import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setInitialResultsTableConfig } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
@@ -40,6 +41,7 @@ export const ContentPanel: FC<Props> = ({
     openChartConfig,
     closeChartConfig,
 }) => {
+    const dispatch = useAppDispatch();
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -62,7 +64,16 @@ export const ContentPanel: FC<Props> = ({
         mutate: runSqlQuery,
         data: queryResults,
         isLoading,
-    } = useSqlQueryRun();
+    } = useSqlQueryRun({
+        onSuccess: (data) => {
+            if (data) {
+                dispatch(setInitialResultsTableConfig(data));
+                if (resultsHeight === MIN_RESULTS_HEIGHT) {
+                    setResultsHeight(inputSectionHeight / 2);
+                }
+            }
+        },
+    });
 
     return (
         <Stack
