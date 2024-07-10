@@ -1,22 +1,13 @@
-import { SqlRunnerResultsTransformer, type ResultRow } from '@lightdash/common';
+import {
+    SqlRunnerResultsTransformer,
+    type ResultRow,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
 import { type ColumnDef } from '@tanstack/react-table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 
 // TODO: Move to the common package
-export type TableChartSqlConfig = {
-    columns: Record<
-        string,
-        {
-            visible: boolean;
-            reference: string;
-            label: string;
-            frozen: boolean;
-            order?: number;
-        }
-    >;
-};
-
 export class TableDataTransformer {
     private transformer: SqlRunnerResultsTransformer;
 

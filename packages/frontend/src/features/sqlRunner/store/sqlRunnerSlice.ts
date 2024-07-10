@@ -1,8 +1,7 @@
-import { type ResultRow } from '@lightdash/common';
+import { type ResultRow, type TableChartSqlConfig } from '@lightdash/common';
 import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { type TableChartSqlConfig } from '../transformers/TableDataTransformer';
 
 export interface SqlRunnerState {
     projectUuid: string;
