@@ -15,14 +15,13 @@ const initialState: SqlRunnerState = {
         metadata: {
             version: 1,
         },
-        type: 'barChart',
         style: {
             legend: {
                 position: 'top',
                 align: 'start',
             },
         },
-        axesConfig: {
+        axes: {
             x: {
                 reference: 'status',
                 label: 'moo',
@@ -35,7 +34,7 @@ const initialState: SqlRunnerState = {
                 },
             ],
         },
-        seriesConfig: [],
+        series: [],
     },
 };
 

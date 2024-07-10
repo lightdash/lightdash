@@ -1,8 +1,8 @@
 import EChartsReact from 'echarts-for-react';
 import { type EChartsReactProps } from 'echarts-for-react/lib/types';
 import { memo, type FC } from 'react';
-import { useSelector } from 'react-redux';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
+import { useAppSelector } from '../../store/hooks';
 import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTransformer';
 
 type BarChartProps = Omit<EChartsReactProps, 'option'> & {
@@ -11,7 +11,7 @@ type BarChartProps = Omit<EChartsReactProps, 'option'> & {
 
 const BarChart: FC<BarChartProps> = memo(({ data, className, ...rest }) => {
     // TODO: fix store type
-    const barChartConfig = useSelector(
+    const barChartConfig = useAppSelector(
         (state: any) => state.sqlRunner.chartConfig,
     );
     const { spec } = useBarChartDataTransformer(data, barChartConfig);

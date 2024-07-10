@@ -10,35 +10,26 @@ export class BarChartDataTransformer {
         this.transformer = new SqlRunnerResultsTransformer(args);
     }
 
-    public getEchartsSpec(config: BarChartConfig) {
+    public getEchartsSpec(config: BarChartConfig | undefined) {
         const data = this.transformer.getRows();
         const columns = this.transformer.getColumns();
-        const { axesConfig, seriesConfig } = config;
-
-        if (config.type !== 'barChart') return {};
-
-        console.log({
-            data,
-            columns,
-            axesConfig,
-            seriesConfig,
-        });
+        const { axes } = config || { axes: undefined };
 
         const xField = columns[0];
         const yField = columns[1];
 
         return {
             title: {
-                text: 'Moo',
+                text: 'Bar chart',
             },
             tooltip: {},
             xAxis: {
                 type: 'category',
-                name: axesConfig?.x?.label ?? xField,
+                name: axes?.x?.label ?? xField,
             },
             yAxis: {
                 type: 'value',
-                name: axesConfig.y[0].label ?? yField,
+                name: axes?.y[0]?.label ?? yField,
             },
             dataset: {
                 id: 'dataset',
@@ -56,7 +47,7 @@ export class BarChartDataTransformer {
                 dimensions: [xField, s],
                 type: 'bar',
                 encode: {
-                    seriesName: axesConfig.y[0].reference ?? s,
+                    seriesName: axes?.y[0]?.reference ?? s,
                     x: xField,
                     xRef: { field: xField },
                     y: s,
