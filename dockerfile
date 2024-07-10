@@ -176,5 +176,5 @@ ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
-ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
+ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "packages/backend/dist/index.js"]
