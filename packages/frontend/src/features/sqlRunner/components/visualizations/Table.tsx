@@ -1,4 +1,4 @@
-import { type ResultRow } from '@lightdash/common';
+import { type ResultRow, type TableChartSqlConfig } from '@lightdash/common';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../../../components/common/LightTable';
@@ -13,7 +13,6 @@ import {
 } from '../../../../components/common/Table/Table.styles';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useAppSelector } from '../../store/hooks';
-import { type TableChartSqlConfig } from '../../transformers/TableDataTransformer';
 import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
 type Props = {

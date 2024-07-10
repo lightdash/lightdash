@@ -1,16 +1,17 @@
-import { type ResultRow } from '@lightdash/common';
 import {
     SqlRunnerChartType,
     type BarChartConfig,
-} from '@lightdash/common/src/types/visualizations';
+    type ResultRow,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { type TableChartSqlConfig } from '../transformers/TableDataTransformer';
 
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
     selectedChartType: SqlRunnerChartType;
+
     resultsTableConfig: TableChartSqlConfig | undefined;
     chartConfig: BarChartConfig;
 }

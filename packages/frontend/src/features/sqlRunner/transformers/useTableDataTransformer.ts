@@ -1,12 +1,10 @@
+import { type TableChartSqlConfig } from '@lightdash/common';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { ROW_HEIGHT_PX } from '../../../components/common/Table/Table.styles';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
-import {
-    TableDataTransformer,
-    type TableChartSqlConfig,
-} from './TableDataTransformer';
+import { TableDataTransformer } from './TableDataTransformer';
 
 export const useTableDataTransformer = (
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
