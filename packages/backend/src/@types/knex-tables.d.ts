@@ -105,7 +105,6 @@ import {
 import { SessionTable, SessionTableName } from '../database/entities/sessions';
 import { ShareTable, ShareTableName } from '../database/entities/share';
 import {
-    DbSlackAuthTokens,
     SlackAuthTokensTable,
     SlackAuthTokensTableName,
 } from '../database/entities/slackAuthentication';
@@ -164,6 +163,12 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    SavedSqlTable,
+    SavedSqlTableName,
+    SavedSqlVersionsTable,
+    SavedSqlVersionsTableName,
+} from '../database/entities/savedSql';
+import {
     SchedulerEmailTargetTable,
     SchedulerEmailTargetTableName,
     SchedulerLogTable,
@@ -213,6 +218,8 @@ declare module 'knex/types/tables' {
         [SavedChartVersionSortsTableName]: SavedChartVersionSortsTable;
         [SavedChartTableCalculationTableName]: SavedChartTableCalculationTable;
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
+        [SavedSqlTableName]: SavedSqlTable;
+        [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
