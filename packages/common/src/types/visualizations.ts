@@ -26,3 +26,16 @@ export type BarChartConfig = {
         yIndex: number;
     }[];
 };
+
+export type TableChartSqlConfig = {
+    columns: Record<
+        string,
+        {
+            visible: boolean;
+            reference: string;
+            label: string;
+            frozen: boolean;
+            order?: number;
+        }
+    >;
+};

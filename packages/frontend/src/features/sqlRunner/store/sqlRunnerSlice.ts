@@ -1,3 +1,4 @@
+import { type ResultRow, type TableChartSqlConfig } from '@lightdash/common';
 import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -5,12 +6,14 @@ import { createSlice } from '@reduxjs/toolkit';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
+    resultsTableConfig: TableChartSqlConfig | undefined;
     chartConfig: BarChartConfig;
 }
 
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
+    resultsTableConfig: undefined,
     chartConfig: {
         metadata: {
             version: 1,
@@ -36,6 +39,39 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
+        setInitialResultsTableConfig: (
+            state,
+            action: PayloadAction<ResultRow[]>,
+        ) => {
+            const columns = Object.keys(action.payload[0]).reduce<
+                TableChartSqlConfig['columns']
+            >(
+                (acc, key) => ({
+                    ...acc,
+                    [key]: {
+                        visible: true,
+                        reference: key,
+                        label: key,
+                        frozen: true,
+                        order: undefined,
+                    },
+                }),
+                {},
+            );
+
+            state.resultsTableConfig = {
+                columns,
+            };
+        },
+        updateResultsTableFieldConfigLabel: (
+            state,
+            action: PayloadAction<Record<'reference' | 'label', string>>,
+        ) => {
+            const { reference, label } = action.payload;
+            if (state.resultsTableConfig) {
+                state.resultsTableConfig.columns[reference].label = label;
+            }
+        },
         toggleActiveTable: (
             state,
             action: PayloadAction<string | undefined>,
@@ -45,4 +81,9 @@ export const sqlRunnerSlice = createSlice({
     },
 });
 
-export const { toggleActiveTable, setProjectUuid } = sqlRunnerSlice.actions;
+export const {
+    toggleActiveTable,
+    setProjectUuid,
+    setInitialResultsTableConfig,
+    updateResultsTableFieldConfigLabel,
+} = sqlRunnerSlice.actions;

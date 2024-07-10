@@ -11,7 +11,8 @@ import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setInitialResultsTableConfig } from '../store/sqlRunnerSlice';
 
 const scheduleSqlJob = async ({
     projectUuid,
@@ -36,6 +37,7 @@ const scheduleSqlJob = async ({
  */
 export const useSqlQueryRun = () => {
     const { showToastError } = useToaster();
+    const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sqlQueryRunMutation = useMutation<
         ApiJobScheduledResponse['results'],
@@ -123,7 +125,7 @@ export const useSqlQueryRun = () => {
 
             // Split the JSON strings by newline
             const jsonStrings = result.trim().split('\n');
-            const jsonObjects = jsonStrings
+            const jsonObjects: ResultRow[] = jsonStrings
                 .map((jsonString) => {
                     try {
                         return JSON.parse(jsonString);
@@ -146,6 +148,13 @@ export const useSqlQueryRun = () => {
                     SchedulerJobStatus.COMPLETED &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
+            onSuccess: (data) => {
+                if (data) {
+                    // TODO: set initial results table config from data
+                    // Update this once we start saving SQL-runner charts in the DB
+                    dispatch(setInitialResultsTableConfig(data));
+                }
+            },
         },
     );
 
