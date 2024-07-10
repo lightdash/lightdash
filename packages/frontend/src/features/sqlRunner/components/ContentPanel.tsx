@@ -21,6 +21,7 @@ import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import { useAppSelector } from '../store/hooks';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
@@ -50,6 +51,10 @@ export const ContentPanel: FC<Props> = ({
     const isResultsHeightMoreThanHalf = useMemo(
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
+    );
+
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
     );
 
     const {
@@ -231,8 +236,12 @@ export const ContentPanel: FC<Props> = ({
                         withBorder
                         style={{ flex: 1 }}
                     >
-                        <Table data={queryResults} />
-                        <BarChart data={queryResults} />
+                        {selectedChartType === 'table' && (
+                            <Table data={queryResults} />
+                        )}
+                        {selectedChartType === 'bar' && (
+                            <BarChart data={queryResults} />
+                        )}
                     </Paper>
                 )}
             </ResizableBox>

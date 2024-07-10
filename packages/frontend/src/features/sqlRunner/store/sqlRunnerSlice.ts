@@ -1,5 +1,8 @@
 import { type ResultRow } from '@lightdash/common';
-import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
+import {
+    SqlRunnerChartType,
+    type BarChartConfig,
+} from '@lightdash/common/src/types/visualizations';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type TableChartSqlConfig } from '../transformers/TableDataTransformer';
@@ -7,6 +10,7 @@ import { type TableChartSqlConfig } from '../transformers/TableDataTransformer';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
+    selectedChartType: SqlRunnerChartType;
     resultsTableConfig: TableChartSqlConfig | undefined;
     chartConfig: BarChartConfig;
 }
@@ -14,6 +18,7 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
+    selectedChartType: SqlRunnerChartType.TABLE,
     resultsTableConfig: undefined,
     chartConfig: {
         metadata: {
@@ -73,6 +78,12 @@ export const sqlRunnerSlice = createSlice({
                 state.resultsTableConfig.columns[reference].label = label;
             }
         },
+        setSelectedChartType: (
+            state,
+            action: PayloadAction<SqlRunnerChartType>,
+        ) => {
+            state.selectedChartType = action.payload;
+        },
         toggleActiveTable: (
             state,
             action: PayloadAction<string | undefined>,
@@ -87,4 +98,5 @@ export const {
     setProjectUuid,
     setInitialResultsTableConfig,
     updateResultsTableFieldConfigLabel,
+    setSelectedChartType,
 } = sqlRunnerSlice.actions;
