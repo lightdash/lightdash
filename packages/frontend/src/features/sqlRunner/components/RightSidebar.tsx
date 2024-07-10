@@ -53,8 +53,8 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     dispatch(setSelectedChartType(value))
                 }
                 data={[
-                    { value: 'table', label: 'Table' },
-                    { value: 'bar', label: 'Bar chart' },
+                    { value: SqlRunnerChartType.TABLE, label: 'Table' },
+                    { value: SqlRunnerChartType.BAR, label: 'Bar chart' },
                 ]}
             />
 

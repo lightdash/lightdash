@@ -1,3 +1,4 @@
+import { SqlRunnerChartType } from '@lightdash/common/src/types/visualizations';
 import {
     ActionIcon,
     Box,
@@ -236,10 +237,10 @@ export const ContentPanel: FC<Props> = ({
                         withBorder
                         style={{ flex: 1 }}
                     >
-                        {selectedChartType === 'table' && (
+                        {selectedChartType === SqlRunnerChartType.TABLE && (
                             <Table data={queryResults} />
                         )}
-                        {selectedChartType === 'bar' && (
+                        {selectedChartType === SqlRunnerChartType.BAR && (
                             <BarChart data={queryResults} />
                         )}
                     </Paper>
