@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dbt: ['1.4', '1.5', '1.6', '1.7']
+        dbt: ['1.4', '1.5', '1.6', '1.7', '1.8']
     name: dbt ${{ matrix.dbt }}
     steps:
       - name: Checkout
