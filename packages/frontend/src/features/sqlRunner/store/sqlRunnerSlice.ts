@@ -14,6 +14,11 @@ export interface SqlRunnerState {
 
     resultsTableConfig: TableChartSqlConfig | undefined;
     chartConfig: BarChartConfig;
+    modals: {
+        saveChartModal: {
+            isOpen: boolean;
+        };
+    };
 }
 
 const initialState: SqlRunnerState = {
@@ -36,6 +41,11 @@ const initialState: SqlRunnerState = {
             y: [],
         },
         series: [],
+    },
+    modals: {
+        saveChartModal: {
+            isOpen: false,
+        },
     },
 };
 
@@ -91,6 +101,13 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.activeTable = action.payload;
         },
+        toggleModal: (
+            state,
+            action: PayloadAction<keyof SqlRunnerState['modals']>,
+        ) => {
+            state.modals[action.payload].isOpen =
+                !state.modals[action.payload].isOpen;
+        },
     },
 });
 
@@ -100,4 +117,5 @@ export const {
     setInitialResultsTableConfig,
     updateResultsTableFieldConfigLabel,
     setSelectedChartType,
+    toggleModal,
 } = sqlRunnerSlice.actions;
