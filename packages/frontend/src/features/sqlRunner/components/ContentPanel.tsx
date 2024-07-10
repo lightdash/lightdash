@@ -235,7 +235,8 @@ export const ContentPanel: FC<Props> = ({
                         px="md"
                         py="sm"
                         withBorder
-                        style={{ flex: 1 }}
+                        sx={{ flex: 1, overflow: 'auto' }}
+                        h="100%"
                     >
                         {selectedChartType === SqlRunnerChartType.TABLE && (
                             <Table data={queryResults} />
