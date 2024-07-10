@@ -23,10 +23,11 @@ import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setInitialResultsTableConfig } from '../store/sqlRunnerSlice';
+
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
+import { setInitialResultsTableConfig } from '../store/sqlRunnerSlice';
 
 type Props = {
     isChartConfigOpen: boolean;

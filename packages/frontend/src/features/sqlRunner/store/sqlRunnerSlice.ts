@@ -4,6 +4,7 @@ import {
     type ResultRow,
     type TableChartSqlConfig,
 } from '@lightdash/common';
+
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
