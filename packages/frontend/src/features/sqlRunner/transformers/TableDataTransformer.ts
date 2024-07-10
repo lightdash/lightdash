@@ -6,8 +6,6 @@ import {
 import { type ColumnDef } from '@tanstack/react-table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
-
-// TODO: Move to the common package
 export class TableDataTransformer {
     private transformer: SqlRunnerResultsTransformer;
 

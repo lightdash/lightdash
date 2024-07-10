@@ -1,3 +1,8 @@
+export enum SqlRunnerChartType {
+    BAR = 'bar',
+    TABLE = 'table',
+}
+
 export type BarChartConfig = {
     metadata: {
         version: number;
