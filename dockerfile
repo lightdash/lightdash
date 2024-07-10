@@ -71,13 +71,11 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && /usr/local/dbt1.8/bin/pip install \
     # from 1.8, dbt-core needs to be explicitly installed
     "dbt-core~=1.8.0" \
-    # regression (https://github.com/dbt-labs/dbt-postgres/issues/96)
-    # "dbt-postgres~=1.8.0" \
-    # "dbt-redshift~=1.8.0" \
+    "dbt-postgres~=1.8.0" \
+    "dbt-redshift~=1.8.0" \
     "dbt-snowflake~=1.8.0" \
     "dbt-bigquery~=1.8.0" \
-    # databricks adaptor not available yet
-    # "dbt-databricks~=1.8.0" \
+    "dbt-databricks~=1.8.0" \
     "dbt-trino~=1.8.0" \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
 
