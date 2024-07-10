@@ -20,10 +20,9 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import Table from '../../../components/common/Table';
-import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { SqlEditor } from './SqlEditor';
+import { Table } from './visualizations/Table';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -221,33 +220,18 @@ export const ContentPanel: FC<Props> = ({
                         </Group>
                     </Group>
                 </Paper>
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    px="md"
-                    py="sm"
-                    withBorder
-                    style={{ flex: 1 }}
-                >
-                    {queryResults && (
-                        <Table
-                            status={'success'}
-                            data={queryResults}
-                            columns={Object.keys(queryResults[0]).map((s) => ({
-                                id: s,
-                                accessorKey: s,
-                                header: s.toLocaleUpperCase(),
-                                cell: getRawValueCell,
-                            }))}
-                            pagination={{
-                                show: false,
-                            }}
-                            footer={{
-                                show: true,
-                            }}
-                        />
-                    )}
-                </Paper>
+                {queryResults && !isLoading && (
+                    <Paper
+                        shadow="none"
+                        radius={0}
+                        px="md"
+                        py="sm"
+                        withBorder
+                        style={{ flex: 1 }}
+                    >
+                        <Table data={queryResults} />
+                    </Paper>
+                )}
             </ResizableBox>
         </Stack>
     );
