@@ -29,6 +29,7 @@ export type BarChartConfig = {
     series: {
         reference: string;
         yIndex: number;
+        label: string;
     }[];
 };
 

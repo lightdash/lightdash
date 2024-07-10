@@ -14,6 +14,7 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     setSelectedChartType,
+    updateChartSeriesLabel,
     updateResultsTableFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
 
@@ -26,6 +27,7 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
+    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -82,6 +84,41 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                         )}
                     </Stack>
                 )}
+            {chartConfig && selectedChartType === SqlRunnerChartType.BAR && (
+                <Stack spacing="xs">
+                    <Title order={6} fz="sm" c="gray.6">
+                        X axis
+                    </Title>
+                    <EditableText
+                        value={chartConfig.axes.x.label}
+                        // onChange={(e) => {
+                        //     dispatch(
+                        //         updateChartSeriesLabel({
+                        //             index: index,
+                        //             label: e.target.value,
+                        //         }),
+                        //     );
+                        // }}
+                    />
+                    <Title order={6} fz="sm" c="gray.6">
+                        Series
+                    </Title>
+                    {chartConfig.series.map(({ label, reference }, index) => (
+                        <EditableText
+                            key={reference}
+                            value={label ?? reference}
+                            onChange={(e) => {
+                                dispatch(
+                                    updateChartSeriesLabel({
+                                        index: index,
+                                        label: e.target.value,
+                                    }),
+                                );
+                            }}
+                        />
+                    ))}
+                </Stack>
+            )}
         </Stack>
     );
 };

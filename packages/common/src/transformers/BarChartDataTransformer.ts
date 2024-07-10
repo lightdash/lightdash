@@ -13,7 +13,7 @@ export class BarChartDataTransformer {
     public getEchartsSpec(config: BarChartConfig) {
         const data = this.transformer.getRows();
         const columns = this.transformer.getColumns();
-        const { axes } = config || { axes: undefined };
+        const { axes, series } = config || { axes: undefined };
 
         const xField = columns[0];
         const yField = columns[1];
@@ -43,15 +43,15 @@ export class BarChartDataTransformer {
                     return newRow;
                 }),
             },
-            series: columns.slice(1).map((s) => ({
-                dimensions: [xField, s],
+            series: series.map((s) => ({
+                dimensions: [xField, s.reference],
                 type: 'bar',
                 encode: {
-                    seriesName: axes?.y[0]?.reference ?? s,
+                    seriesName: axes?.y[0]?.reference ?? s.label,
                     x: xField,
                     xRef: { field: xField },
-                    y: s,
-                    yRef: { field: s },
+                    y: s.reference,
+                    yRef: { field: s.reference },
                 },
             })),
         };

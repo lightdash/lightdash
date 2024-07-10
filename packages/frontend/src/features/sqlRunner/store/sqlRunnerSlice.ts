@@ -57,10 +57,11 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setInitialResultsTableConfig: (
+        setInitialResultsAndSeries: (
             state,
             action: PayloadAction<ResultRow[]>,
         ) => {
+            // Set the initial results table config
             const columns = Object.keys(action.payload[0]).reduce<
                 TableChartSqlConfig['columns']
             >(
@@ -76,10 +77,22 @@ export const sqlRunnerSlice = createSlice({
                 }),
                 {},
             );
-
             state.resultsTableConfig = {
                 columns,
             };
+
+            // Set add fields to the chart config
+            state.chartConfig.axes.x = {
+                reference: Object.keys(action.payload[0])[0],
+                label: Object.keys(action.payload[0])[0],
+            };
+            state.chartConfig.series = Object.keys(action.payload[0])
+                .slice(1)
+                .map((reference, index) => ({
+                    reference,
+                    label: reference,
+                    yIndex: index,
+                }));
         },
         updateResultsTableFieldConfigLabel: (
             state,
@@ -89,6 +102,13 @@ export const sqlRunnerSlice = createSlice({
             if (state.resultsTableConfig) {
                 state.resultsTableConfig.columns[reference].label = label;
             }
+        },
+        updateChartSeriesLabel: (
+            state,
+            action: PayloadAction<{ index: number; label: string }>,
+        ) => {
+            const { index, label } = action.payload;
+            state.chartConfig.series[index].label = label;
         },
         setSelectedChartType: (
             state,
@@ -115,8 +135,9 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    setInitialResultsTableConfig,
+    setInitialResultsAndSeries,
     updateResultsTableFieldConfigLabel,
+    updateChartSeriesLabel,
     setSelectedChartType,
     toggleModal,
 } = sqlRunnerSlice.actions;
