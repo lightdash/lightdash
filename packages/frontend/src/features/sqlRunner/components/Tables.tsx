@@ -28,7 +28,6 @@ const TableItem: FC<{
     database: string;
     isActive: boolean;
 }> = memo(({ table, search, schema, database, isActive }) => {
-    console.log('im rendering');
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     const dispatch = useAppDispatch();
