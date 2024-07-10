@@ -5,6 +5,7 @@ import {
     CreateSchedulerLog,
     DashboardDAO,
     ForbiddenError,
+    isAllowedCronExpression,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
@@ -206,6 +207,13 @@ export class SchedulerService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
+        if (!isAllowedCronExpression(updatedScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
+        }
+
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
