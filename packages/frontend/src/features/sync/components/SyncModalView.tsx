@@ -21,7 +21,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
@@ -31,6 +31,9 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const { mutate: mutateSchedulerEnabled } =
         useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
 
+    const [schedulerEnabled, setSchedulerEnabled] = useState<boolean>(
+        scheduler.enabled,
+    ); // To avoid delay on toggle
     return (
         <Tooltip
             label={
@@ -44,9 +47,10 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
                     mr="sm"
                     onLabel="on"
                     offLabel="paused"
-                    checked={scheduler.enabled}
+                    checked={schedulerEnabled}
                     onChange={() => {
-                        mutateSchedulerEnabled(!scheduler.enabled);
+                        mutateSchedulerEnabled(!schedulerEnabled);
+                        setSchedulerEnabled(!schedulerEnabled);
                     }}
                 />
             </Box>
@@ -71,24 +75,34 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                 withBorder
                                 pos="relative"
                                 p="xs"
+                                sx={{
+                                    overflow: 'visible', // To show tooltips on hover
+                                }}
                             >
-                                <Stack spacing="xs">
-                                    <Text fz="sm" fw={500}>
-                                        {sync.name}
-                                    </Text>
-
-                                    <Flex align="center">
-                                        <Text span size="xs" color="gray.6">
-                                            {cronstrue.toString(sync.cron, {
-                                                verbose: true,
-                                                throwExceptionOnParseError:
-                                                    false,
-                                            })}
+                                <Flex align="center" justify="space-between">
+                                    <Stack spacing="xs">
+                                        <Text fz="sm" fw={500}>
+                                            {sync.name}
                                         </Text>
-                                    </Flex>
-                                </Stack>
 
-                                <ToggleSyncEnabled scheduler={sync} />
+                                        <Flex
+                                            align="center"
+                                            justify="space-between"
+                                        >
+                                            <Text span size="xs" color="gray.6">
+                                                {cronstrue.toString(sync.cron, {
+                                                    verbose: true,
+                                                    throwExceptionOnParseError:
+                                                        false,
+                                                })}
+                                            </Text>
+                                        </Flex>
+                                    </Stack>
+                                    <Group mr="lg">
+                                        <ToggleSyncEnabled scheduler={sync} />
+                                    </Group>
+                                </Flex>
+
                                 <Menu
                                     shadow="md"
                                     withinPortal
