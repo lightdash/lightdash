@@ -4897,7 +4897,7 @@ const models: TsoaRoute.Models = {
                 projectRole: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'OrganizationMemberRole' },
+                        { ref: 'ProjectMemberRole' },
                         { dataType: 'undefined' },
                     ],
                     required: true,

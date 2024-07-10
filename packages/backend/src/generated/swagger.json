@@ -5427,7 +5427,7 @@
                         ]
                     },
                     "projectRole": {
-                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                        "$ref": "#/components/schemas/ProjectMemberRole"
                     },
                     "hasDirectAccess": {
                         "type": "boolean"
@@ -8039,7 +8039,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1161.4",
+        "version": "0.1162.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
