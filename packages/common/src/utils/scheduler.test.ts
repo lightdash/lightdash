@@ -37,7 +37,7 @@ describe('Scheduler utils', () => {
         });
     });
 
-    describe('isAllowedCronExpression', () => {
+    describe('isValidFrequency', () => {
         test('check valid expression', async () => {
             expect(isValidFrequency('* * * *')).toEqual(false);
             expect(isValidFrequency('* * * * * *')).toEqual(false);

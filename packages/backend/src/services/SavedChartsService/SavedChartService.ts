@@ -12,12 +12,12 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     ForbiddenError,
     generateSlug,
-    isAllowedCronExpression,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
     isUserWithOrg,
+    isValidFrequency,
     ParameterError,
     SavedChart,
     SavedChartDAO,
@@ -838,7 +838,7 @@ export class SavedChartService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        if (!isAllowedCronExpression(newScheduler.cron)) {
+        if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
             );

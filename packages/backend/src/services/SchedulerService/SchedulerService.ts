@@ -5,11 +5,11 @@ import {
     CreateSchedulerLog,
     DashboardDAO,
     ForbiddenError,
-    isAllowedCronExpression,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isUserWithOrg,
+    isValidFrequency,
     ParameterError,
     ScheduledJobs,
     Scheduler,
@@ -208,7 +208,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        if (!isAllowedCronExpression(updatedScheduler.cron)) {
+        if (!isValidFrequency(updatedScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
             );

@@ -9,13 +9,13 @@ import {
     ForbiddenError,
     generateSlug,
     hasChartsInDashboard,
-    isAllowedCronExpression,
     isChartScheduler,
     isChartTile,
     isDashboardScheduler,
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
+    isValidFrequency,
     ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
@@ -775,7 +775,7 @@ export class DashboardService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        if (!isAllowedCronExpression(newScheduler.cron)) {
+        if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
             );
