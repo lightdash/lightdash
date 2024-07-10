@@ -1,3 +1,10 @@
+# [0.1164.0](https://github.com/lightdash/lightdash/compare/0.1163.1...0.1164.0) (2024-07-10)
+
+
+### Features
+
+* limit schedulers hourly ([#10671](https://github.com/lightdash/lightdash/issues/10671)) ([ef80c97](https://github.com/lightdash/lightdash/commit/ef80c979f209ee40bab38fd2a9b620d2011fd143))
+
 ## [0.1163.1](https://github.com/lightdash/lightdash/compare/0.1163.0...0.1163.1) (2024-07-10)
 
 
