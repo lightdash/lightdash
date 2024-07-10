@@ -14,6 +14,7 @@ import useQueryError from './useQueryError';
 const getOrganizationUsersQuery = async (
     includeGroups?: number,
     paginateArgs?: IKnexPaginateArgs,
+    searchQuery?: string,
 ) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -23,6 +24,7 @@ const getOrganizationUsersQuery = async (
               }
             : {}),
         ...(includeGroups ? { includeGroups: String(includeGroups) } : {}),
+        ...(searchQuery ? { searchQuery } : {}),
     }).toString();
 
     return lightdashApi<ApiOrganizationMemberProfiles['results']>({
@@ -86,28 +88,15 @@ export const usePaginatedOrganizationUsers = (params: {
             'organization_users',
             params.includeGroups,
             params.paginateArgs,
+            params.searchInput,
         ],
         queryFn: () =>
             getOrganizationUsersQuery(
                 params.includeGroups,
                 params.paginateArgs,
+                params.searchInput,
             ),
         onError: (result) => setErrorResponse(result),
-        select: (result) => {
-            if (params.searchInput) {
-                return {
-                    ...result,
-                    data: new Fuse(result.data, {
-                        keys: ['firstName', 'lastName', 'email', 'role'],
-                        ignoreLocation: true,
-                        threshold: 0.3,
-                    })
-                        .search(params.searchInput)
-                        .map((r) => r.item),
-                };
-            }
-            return result;
-        },
     });
 };
 

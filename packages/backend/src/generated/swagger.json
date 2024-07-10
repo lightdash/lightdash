@@ -10358,6 +10358,14 @@
                             "format": "double",
                             "type": "number"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ]
             }

@@ -178,6 +178,7 @@ export class OrganizationController extends BaseController {
         @Query() includeGroups?: number,
         @Query() pageSize?: number,
         @Query() page?: number,
+        @Query() searchQuery?: string,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         let paginateArgs: IKnexPaginateArgs | undefined;
@@ -193,7 +194,7 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getUsers(req.user!, includeGroups, paginateArgs),
+                .getUsers(req.user!, includeGroups, paginateArgs, searchQuery),
         };
     }
 

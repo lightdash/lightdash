@@ -26,6 +26,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconHelp,
@@ -320,7 +321,7 @@ const UserListItem: FC<{
     );
 };
 
-const DEFAULT_PAGE_SIZE = 1;
+const DEFAULT_PAGE_SIZE = 10;
 
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
@@ -329,11 +330,12 @@ const UsersView: FC = () => {
     const [page, setPage] = useState(1);
 
     const [search, setSearch] = useState('');
+    const [debouncedSearchQuery] = useDebouncedValue(search, 300);
 
     // TODO: fix the hardcoded groups number. This should be paginated.
     const { data: paginatedUsers, isInitialLoading: isLoadingUsers } =
         usePaginatedOrganizationUsers({
-            searchInput: search,
+            searchInput: debouncedSearchQuery,
             includeGroups: 10000,
             paginateArgs: {
                 page,
@@ -432,7 +434,7 @@ const UsersView: FC = () => {
                         )}
                     </tbody>
                 </Table>
-                {pagination?.totalPageCount && pagination.totalPageCount > 1 && (
+                {pagination?.totalPageCount && pagination.totalPageCount > 1 ? (
                     <Flex m="sm" align="center" justify="center">
                         <Pagination
                             size="sm"
@@ -442,7 +444,7 @@ const UsersView: FC = () => {
                             mt="sm"
                         />
                     </Flex>
-                )}
+                ) : null}
             </SettingsCard>
             <InvitesModal
                 key={`invite-modal-${showInviteModal}`}

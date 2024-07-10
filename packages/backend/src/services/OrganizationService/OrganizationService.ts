@@ -158,7 +158,7 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { pagination, data: orgUsers } =
+        const { data: orgUsers } =
             await this.organizationMemberProfileModel.getOrganizationMembers(
                 organizationUuid,
             );
@@ -201,6 +201,7 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
         includeGroups?: number,
         paginateArgs?: IKnexPaginateArgs,
+        searchQuery?: string,
     ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
@@ -209,15 +210,18 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
         }
+
         const { pagination, data: members } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
                   organizationUuid,
                   includeGroups,
                   paginateArgs,
+                  searchQuery,
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers(
                   organizationUuid,
                   paginateArgs,
+                  searchQuery,
               );
 
         return {

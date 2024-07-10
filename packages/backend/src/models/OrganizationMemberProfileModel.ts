@@ -23,6 +23,7 @@ import {
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
+import { getQuereColumnMatchRegexSql } from './SearchModel/utils/search';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;
@@ -113,13 +114,23 @@ export class OrganizationMemberProfileModel {
     async getOrganizationMembers(
         organizationUuid: string,
         paginateArgs?: IKnexPaginateArgs,
+        searchQuery?: string,
     ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
-        const query = this.queryBuilder()
+        let query = this.queryBuilder()
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
+
+        if (searchQuery) {
+            query = getQuereColumnMatchRegexSql(query, searchQuery, [
+                'first_name',
+                'last_name',
+                'email',
+                'role',
+            ]);
+        }
 
         const { pagination, data } = await KnexPaginate.paginate(
             query,
@@ -136,6 +147,7 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
         includeGroups?: number,
         paginateArgs?: IKnexPaginateArgs,
+        searchQuery?: string,
     ): Promise<IKnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             .leftJoin(
@@ -204,6 +216,14 @@ export class OrganizationMemberProfileModel {
         if (includeGroups !== undefined) {
             orgMembersAndGroupsQuery =
                 orgMembersAndGroupsQuery.limit(includeGroups);
+        }
+
+        if (searchQuery) {
+            orgMembersAndGroupsQuery = getQuereColumnMatchRegexSql(
+                orgMembersAndGroupsQuery,
+                searchQuery,
+                ['first_name', 'last_name', 'email', 'role'],
+            );
         }
 
         const { pagination, data } = await KnexPaginate.paginate(
