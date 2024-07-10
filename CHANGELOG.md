@@ -1,3 +1,24 @@
+# [0.1162.0](https://github.com/lightdash/lightdash/compare/0.1161.4...0.1162.0) (2024-07-09)
+
+
+### Features
+
+* sql runner monaco editor ([#10650](https://github.com/lightdash/lightdash/issues/10650)) ([16fbc7c](https://github.com/lightdash/lightdash/commit/16fbc7cff51b1d202953bdf0d1c7e54e90fa9070))
+
+## [0.1161.4](https://github.com/lightdash/lightdash/compare/0.1161.3...0.1161.4) (2024-07-09)
+
+
+### Bug Fixes
+
+* stream s3 sql runner results from backend ([#10654](https://github.com/lightdash/lightdash/issues/10654)) ([9150a7e](https://github.com/lightdash/lightdash/commit/9150a7eae56b10753bd4553be6ff501a67919aac))
+
+## [0.1161.3](https://github.com/lightdash/lightdash/compare/0.1161.2...0.1161.3) (2024-07-09)
+
+
+### Bug Fixes
+
+* embedding guide link ([#10632](https://github.com/lightdash/lightdash/issues/10632)) ([6726e7e](https://github.com/lightdash/lightdash/commit/6726e7ec8aa90f0661fa0ea7798ec28aa85fb07b))
+
 ## [0.1161.2](https://github.com/lightdash/lightdash/compare/0.1161.1...0.1161.2) (2024-07-08)
 
 

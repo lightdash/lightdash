@@ -5,7 +5,7 @@ import FormatPercent from './assets/format-percent.jpg';
 
 The percent of the group/pivot total will give you the percentage of each value in a group out of the total sum of the values for that group.
 
-[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-group-pivot-total)
+[Just gimme the code! 👾](#heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-grouppivot-total)
 
 Here's an example of a percent of the total group/pivot:
 
@@ -19,7 +19,11 @@ Here's an example of a percent of the total group/pivot:
 And here's the SQL used in the table calculation:
 
 ```sql
-${orders.total_order_amount} / SUM(${orders.total_order_amount}) OVER(PARTITION BY ${orders.status})
+${orders.total_order_amount} /
+  SUM(${orders.total_order_amount}) OVER (
+    PARTITION BY
+      ${orders.status}
+  )
 ```
 
 In general, the SQL used for calculating the percent of the total has two important columns:
@@ -31,7 +35,10 @@ In general, the SQL used for calculating the percent of the total has two import
 
 ```sql
 ${table.column_i_want_to_see_the_percent_of_total} /
-  SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER(PARTITION BY ${table.column_i_want_to_group_by})
+  SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER (
+    PARTITION BY
+      ${table.column_i_want_to_group_by}
+  )
 ```
 
 ### Make sure to add percent formatting to your calculation

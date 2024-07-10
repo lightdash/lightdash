@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.1161.2",
+    "version": "0.1162.0",
     "private": true,
     "scripts": {
         "start": "vite",
@@ -30,7 +30,7 @@
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "^0.1161.2",
+        "@lightdash/common": "^0.1162.0",
         "@mantine/core": "^6.0.21",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
@@ -39,6 +39,7 @@
         "@mantine/prism": "^6.0.21",
         "@mantine/tiptap": "6.0.21",
         "@monaco-editor/react": "^4.6.0",
+        "@popsql/monaco-sql-languages": "^0.2.0",
         "@reduxjs/toolkit": "^2.2.6",
         "@sentry/react": "^8.9.2",
         "@shopify/react-web-worker": "^5.0.13",
@@ -68,6 +69,7 @@
         "jspdf": "^2.5.1",
         "lodash": "^4.17.21",
         "monaco-editor": "^0.44.0",
+        "monaco-sql-languages": "^0.12.2",
         "polished": "^4.2.2",
         "posthog-js": "^1.88.3",
         "react": "^18.2.0",

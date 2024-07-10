@@ -4,7 +4,7 @@ import RunningTotal from './assets/running-total.jpg';
 
 Running totals give you the sum of a value + all of the previous values in that column.
 
-[Just gimme the code! 👾](#-heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-previous-value)
+[Just gimme the code! 👾](#heres-the-sql-you-can-copy-paste-to-calculate-a-running-total)
 
 Here's an example of a running total:
 
@@ -18,7 +18,7 @@ Here's an example of a running total:
 And here's the SQL used in the table calculation:
 
 ```sql
-SUM(${orders.total_order_amount}) OVER(
+SUM(${orders.total_order_amount}) OVER (
   ORDER BY
     ${orders.order_date_month}
   ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -34,7 +34,7 @@ In general, the SQL used for calculating running totals has two bits (with an op
 ### Here's the SQL you can copy-paste to calculate a running total
 
 ```sql
-SUM(${table.column_I_want_to_sum}) OVER(
+SUM(${table.column_I_want_to_sum}) OVER (
   ORDER BY
     ${table.column_I_want_to_order_by},
     ${table.optional_other_column_I_want_to_order_by}
@@ -50,12 +50,11 @@ SUM(${table.column_I_want_to_sum}) OVER(
   By default, a column will be ordered in ascending order - so if you want it ordered ascending, you don't need to add anything.
 
 ```sql
-SUM(${table.column_I_want_to_sum})
-  OVER(
-    ORDER BY
-      ${table.column_I_want_to_order_by} ASC,
-      ${table.optional_other_column_I_want_to_order_by} DESC
-    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+SUM(${table.column_I_want_to_sum}) OVER (
+  ORDER BY
+    ${table.column_I_want_to_order_by} ASC,
+    ${table.optional_other_column_I_want_to_order_by} DESC
+  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 )
 ```
 

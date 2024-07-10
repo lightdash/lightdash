@@ -2041,7 +2041,12 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FunnelChartLabelPosition: {
         dataType: 'refEnum',
-        enums: ['inside', 'left', 'right'],
+        enums: ['inside', 'left', 'right', 'hidden'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelChartLegendPosition: {
+        dataType: 'refEnum',
+        enums: ['horizontal', 'vertical'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FunnelChart: {
@@ -2049,7 +2054,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                label: {
+                legendPosition: { ref: 'FunnelChartLegendPosition' },
+                showLegend: { dataType: 'boolean' },
+                labels: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         showPercentage: { dataType: 'boolean' },
@@ -2057,6 +2064,8 @@ const models: TsoaRoute.Models = {
                         position: { ref: 'FunnelChartLabelPosition' },
                     },
                 },
+                colorOverrides: { ref: 'Record_string.string_' },
+                labelOverrides: { ref: 'Record_string.string_' },
                 metadata: { ref: 'Record_string.SeriesMetadata_' },
                 fieldId: { dataType: 'string' },
                 dataInput: { ref: 'FunnelChartDataInput' },
@@ -14639,7 +14648,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        validateOnly: {
+                        validationTargets: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refEnum',

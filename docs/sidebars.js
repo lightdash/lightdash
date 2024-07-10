@@ -123,6 +123,7 @@ module.exports = {
                         'guides/table-calculations/table-calculation-sql-templates/percent-of-group-pivot-total',
                         'guides/table-calculations/table-calculation-sql-templates/rank-in-column',
                         'guides/table-calculations/table-calculation-sql-templates/running-total',
+                        'guides/table-calculations/table-calculation-sql-templates/rolling-window',
                     ],
                 },
                 'guides/how-to-create-custom-fields',

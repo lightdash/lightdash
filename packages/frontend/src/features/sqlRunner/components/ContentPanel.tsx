@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Box,
     Button,
     Divider,
     Group,
@@ -17,13 +18,12 @@ import {
     IconPlayerPlay,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import AceEditor from 'react-ace';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import Table from '../../../components/common/Table';
-import { getRawValueCell } from '../../../hooks/useColumns';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
+import { Table } from './visualizations/Table';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -38,6 +38,11 @@ export const ContentPanel: FC<Props> = ({
     openChartConfig,
     closeChartConfig,
 }) => {
+    const {
+        ref: inputSectionRef,
+        width: inputSectionWidth,
+        height: inputSectionHeight,
+    } = useElementSize();
     const [sql, setSql] = useState<string>('');
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
@@ -116,26 +121,22 @@ export const ContentPanel: FC<Props> = ({
                 </Group>
             </Paper>
             <Paper
+                ref={inputSectionRef}
                 shadow="none"
                 radius={0}
                 p="none"
                 withBorder
                 style={{ flex: 1 }}
             >
-                <AceEditor
-                    mode="sql"
-                    theme="github"
-                    value={sql}
-                    height="100%"
-                    width="100%"
-                    onChange={(value: string) => {
-                        setSql(value);
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        height: inputSectionHeight,
+                        width: inputSectionWidth,
                     }}
-                    editorProps={{ $blockScrolling: true }}
-                    enableBasicAutocompletion
-                    enableLiveAutocompletion
-                    wrapEnabled={true}
-                />
+                >
+                    <SqlEditor sql={sql} onSqlChange={setSql} />
+                </Box>
             </Paper>
             <ResizableBox
                 height={resultsHeight}
@@ -220,34 +221,20 @@ export const ContentPanel: FC<Props> = ({
                         </Group>
                     </Group>
                 </Paper>
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    px="md"
-                    py="sm"
-                    withBorder
-                    style={{ flex: 1 }}
-                >
-                    {queryResults && (
-                        <Table
-                            status={'success'}
-                            data={queryResults}
-                            columns={Object.keys(queryResults[0]).map((s) => ({
-                                id: s,
-                                accessorKey: s,
-                                header: s.toLocaleUpperCase(),
-                                cell: getRawValueCell,
-                            }))}
-                            pagination={{
-                                show: false,
-                            }}
-                            footer={{
-                                show: true,
-                            }}
-                        />
-                    )}
-                    {queryResults && <BarChart data={queryResults} />}
-                </Paper>
+
+                {queryResults && !isLoading && (
+                    <Paper
+                        shadow="none"
+                        radius={0}
+                        px="md"
+                        py="sm"
+                        withBorder
+                        style={{ flex: 1 }}
+                    >
+                        <Table data={queryResults} />
+                        <BarChart data={queryResults} />
+                    </Paper>
+                )}
             </ResizableBox>
         </Stack>
     );
