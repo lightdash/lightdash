@@ -1,26 +1,108 @@
 import {
     ActionIcon,
+    Box,
     Center,
+    CopyButton,
     Highlight,
     Loader,
     ScrollArea,
     Stack,
     Text,
     TextInput,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
-import { IconSearch, IconX } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
+import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleActiveTable } from '../store/sqlRunnerSlice';
 
+const TableItem: FC<{
+    table: string;
+    search: string;
+    schema: string;
+    database: string;
+    isActive: boolean;
+}> = memo(({ table, search, schema, database, isActive }) => {
+    console.log('im rendering');
+    const { ref: hoverRef, hovered } = useHover();
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+    const dispatch = useAppDispatch();
+
+    return (
+        <Box ref={hoverRef} pos="relative">
+            <UnstyledButton
+                onClick={() => {
+                    dispatch(toggleActiveTable(table));
+                }}
+                fw={500}
+                w="100%"
+                p={4}
+                fz={13}
+                c={isActive ? 'gray.8' : 'gray.7'}
+                bg={isActive ? 'gray.1' : 'transparent'}
+                sx={(theme) => ({
+                    borderRadius: theme.radius.sm,
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
+                    },
+                    flex: 1,
+                })}
+            >
+                <Tooltip
+                    withinPortal
+                    variant="xs"
+                    label={table}
+                    disabled={!isTruncated}
+                    multiline
+                    maw={300}
+                    sx={{
+                        wordBreak: 'break-word',
+                    }}
+                >
+                    <Highlight
+                        ref={truncatedRef}
+                        component={Text}
+                        highlight={search || ''}
+                        truncate
+                        sx={{
+                            flex: 1,
+                        }}
+                    >
+                        {table}
+                    </Highlight>
+                </Tooltip>
+            </UnstyledButton>
+
+            <Box
+                pos="absolute"
+                top={4}
+                right={8}
+                display={hovered ? 'block' : 'none'}
+            >
+                <CopyButton value={`${database}.${schema}.${table}`}>
+                    {({ copied, copy }) => (
+                        <ActionIcon size={16} onClick={copy} bg="gray.1">
+                            <MantineIcon
+                                icon={IconCopy}
+                                color={copied ? 'green' : 'blue'}
+                                onClick={copy}
+                            />
+                        </ActionIcon>
+                    )}
+                </CopyButton>
+            </Box>
+        </Box>
+    );
+});
+
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
-    const dispatch = useAppDispatch();
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -64,51 +146,28 @@ export const Tables: FC = () => {
             />
             {isSuccess &&
                 data &&
-                data.map(({ schema, tables }) => (
+                data.tablesBySchema?.map(({ schema, tables }) => (
                     <ScrollArea
+                        offsetScrollbars
+                        variant="primary"
                         className="only-vertical"
                         sx={{ flex: 1 }}
                         type="auto"
                         key={schema}
                     >
-                        <Stack spacing="none">
+                        <Stack spacing={0}>
                             <Text p={6} fw={700} fz="md" c="gray.7">
                                 {schema}
                             </Text>
                             {Object.keys(tables).map((table) => (
-                                <UnstyledButton
+                                <TableItem
                                     key={table}
-                                    onClick={() => {
-                                        dispatch(toggleActiveTable(table));
-                                    }}
-                                    fw={500}
-                                    p={4}
-                                    fz={13}
-                                    c={
-                                        activeTable === table
-                                            ? 'gray.8'
-                                            : 'gray.7'
-                                    }
-                                    bg={
-                                        activeTable === table
-                                            ? 'gray.1'
-                                            : 'transparent'
-                                    }
-                                    sx={(theme) => ({
-                                        borderRadius: theme.radius.sm,
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
-                                >
-                                    <Highlight
-                                        component={Text}
-                                        highlight={search || ''}
-                                    >
-                                        {table}
-                                    </Highlight>
-                                </UnstyledButton>
+                                    search={search}
+                                    isActive={activeTable === table}
+                                    table={table}
+                                    schema={`${schema}`}
+                                    database={data.database}
+                                />
                             ))}
                         </Stack>
                     </ScrollArea>
