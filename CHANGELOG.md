@@ -1,3 +1,10 @@
+## [0.1163.1](https://github.com/lightdash/lightdash/compare/0.1163.0...0.1163.1) (2024-07-10)
+
+
+### Bug Fixes
+
+* custom sql dimensions not saving ([#10659](https://github.com/lightdash/lightdash/issues/10659)) ([1ee370b](https://github.com/lightdash/lightdash/commit/1ee370b3eab8c987cb451bcb670d492ff4eeafbc))
+
 # [0.1163.0](https://github.com/lightdash/lightdash/compare/0.1162.1...0.1163.0) (2024-07-10)
 
 
