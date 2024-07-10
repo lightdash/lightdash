@@ -15,6 +15,8 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
+    isValidFrequency,
+    ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -771,6 +773,12 @@ export class DashboardService extends BaseService {
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (!isValidFrequency(newScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
         }
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);

@@ -1,4 +1,4 @@
-import { validateGithubToken } from '@lightdash/common';
+import { isValidFrequency, validateGithubToken } from '@lightdash/common';
 
 type FieldValidator<T> = (
     fieldName: string,
@@ -50,11 +50,14 @@ export const isInvalidCronExpression: FieldValidator<string> =
             if (cronValues.length !== 5) {
                 return `${fieldName} should only have 5 values separated by a space.`;
             }
-            const hasInvalidValues = cronValues.some(
-                (item: string) => !item.match(cronValueRegex),
-            );
-            return hasInvalidValues
-                ? `${fieldName} has invalid values. Example of valid values: "1", "1,2,3", "1-3", "*/5" and "*".`
-                : undefined;
+            if (
+                cronValues.some((item: string) => !item.match(cronValueRegex))
+            ) {
+                return `${fieldName} has invalid values. Example of valid values: "1", "1,2,3", "1-3", "*/5" and "*".`;
+            }
+            if (!isValidFrequency(value)) {
+                return `${fieldName} has invalid frequency, custom cron input is limited to hourly`;
+            }
+            return undefined;
         }
     };
