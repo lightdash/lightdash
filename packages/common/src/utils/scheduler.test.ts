@@ -1,7 +1,4 @@
-import {
-    getHumanReadableCronExpression,
-    isAllowedCronExpression,
-} from './scheduler';
+import { getHumanReadableCronExpression, isValidFrequency } from './scheduler';
 
 describe('Scheduler utils', () => {
     describe('getHumanReadableCronExpression', () => {
@@ -42,28 +39,28 @@ describe('Scheduler utils', () => {
 
     describe('isAllowedCronExpression', () => {
         test('check valid expression', async () => {
-            expect(isAllowedCronExpression('* * * *')).toEqual(false);
-            expect(isAllowedCronExpression('* * * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('30 30 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('30 , 30 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('30-25 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('55-65 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('55,65 * * * *')).toEqual(false);
+            expect(isValidFrequency('* * * *')).toEqual(false);
+            expect(isValidFrequency('* * * * * *')).toEqual(false);
+            expect(isValidFrequency('30 30 * * * *')).toEqual(false);
+            expect(isValidFrequency('30 , 30 * * * *')).toEqual(false);
+            expect(isValidFrequency('30-25 * * * *')).toEqual(false);
+            expect(isValidFrequency('55-65 * * * *')).toEqual(false);
+            expect(isValidFrequency('55,65 * * * *')).toEqual(false);
         });
         test('should check if frequency happens multiple times per hour', async () => {
-            expect(isAllowedCronExpression('0 * * * *')).toEqual(true);
-            expect(isAllowedCronExpression('30 * * * *')).toEqual(true);
-            expect(isAllowedCronExpression('0 0 * * *')).toEqual(true);
-            expect(isAllowedCronExpression('0 0 1 * *')).toEqual(true);
+            expect(isValidFrequency('0 * * * *')).toEqual(true);
+            expect(isValidFrequency('30 * * * *')).toEqual(true);
+            expect(isValidFrequency('0 0 * * *')).toEqual(true);
+            expect(isValidFrequency('0 0 1 * *')).toEqual(true);
 
-            expect(isAllowedCronExpression('* * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('*/5 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('*/59 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('0,15 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('0,15 * * * *')).toEqual(false);
-            expect(isAllowedCronExpression('3-5 * * * *')).toEqual(false); // At every minute from 3 through 5.
-            expect(isAllowedCronExpression('* 0 * * *')).toEqual(false);
-            expect(isAllowedCronExpression('*/5,15 * * * *')).toEqual(false);
+            expect(isValidFrequency('* * * * *')).toEqual(false);
+            expect(isValidFrequency('*/5 * * * *')).toEqual(false);
+            expect(isValidFrequency('*/59 * * * *')).toEqual(false);
+            expect(isValidFrequency('0,15 * * * *')).toEqual(false);
+            expect(isValidFrequency('0,15 * * * *')).toEqual(false);
+            expect(isValidFrequency('3-5 * * * *')).toEqual(false); // At every minute from 3 through 5.
+            expect(isValidFrequency('* 0 * * *')).toEqual(false);
+            expect(isValidFrequency('*/5,15 * * * *')).toEqual(false);
         });
     });
 });

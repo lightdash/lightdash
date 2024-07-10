@@ -1,4 +1,3 @@
-import { isAllowedCronExpression } from '@lightdash/common';
 import { Group } from '@mantine/core';
 import React, { useCallback, useEffect, useState, type FC } from 'react';
 import {
@@ -37,21 +36,15 @@ export const CronInternalInputs: FC<
         mapCronExpressionToFrequency(value),
     );
 
-    const [isAllowedFrequency, setIsAllowedFrequency] = useState<boolean>(true);
-
     useEffect(() => {
         if (frequency !== Frequency.CUSTOM) {
             setFrequency(mapCronExpressionToFrequency(value));
-            setIsAllowedFrequency(isAllowedCronExpression(value));
-        } else {
-            setIsAllowedFrequency(isAllowedCronExpression(value));
         }
     }, [frequency, value]);
 
     const onFrequencyChange = useCallback(
         (newFrequency: Frequency) => {
             setFrequency(newFrequency);
-            setIsAllowedFrequency(isAllowedCronExpression(value));
             onChange(getFrequencyCronExpression(newFrequency, value));
         },
         [onChange, value],
@@ -82,11 +75,7 @@ export const CronInternalInputs: FC<
                     cronExpression={value}
                     onChange={onChange}
                     errors={errors}
-                    error={
-                        !isAllowedFrequency
-                            ? 'Frequency not allowed, custom input is limited to hourly'
-                            : error
-                    }
+                    error={error}
                 />
             )}
         </Group>

@@ -12,7 +12,7 @@ export function getHumanReadableCronExpression(cronExpression: string) {
     return valueWithUTC[0].toLowerCase() + valueWithUTC.slice(1);
 }
 
-export function isAllowedCronExpression(cronExpression: string): boolean {
+export function isValidFrequency(cronExpression: string): boolean {
     /** This function will return False if:
      * - the cronExpression is not valid (not 5 parts separated by spaces)
      * - the cronExpression frequency is less than 1 hour
