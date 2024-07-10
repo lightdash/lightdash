@@ -19,8 +19,8 @@ And here's the SQL used to generate it:
 
 ```sql
 ROW_NUMBER() OVER (
-  PARTITION BY 
-    ${orders.order_date_month} 
+  PARTITION BY
+    ${orders.order_date_month}
   ORDER BY
     ${orders.total_order_amount} DESC
 )
@@ -35,7 +35,7 @@ In general, the SQL used for calculating the rank in a column has just one impor
 
 ```sql
 ROW_NUMBER() OVER (
-  ORDER BY 
+  ORDER BY
     ${table.column_i_want_to_rank} DESC
 )
 ```
