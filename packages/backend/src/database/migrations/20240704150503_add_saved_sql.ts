@@ -21,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
                 .index();
             table
                 .uuid('dashboard_uuid')
-                .notNullable()
+                .nullable()
                 .references('dashboard_uuid')
                 .inTable('dashboards')
                 .onDelete('CASCADE');
@@ -29,6 +29,12 @@ export async function up(knex: Knex): Promise<void> {
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
                 .defaultTo(knex.fn.now());
+            table
+                .uuid('created_by_user_uuid')
+                .nullable()
+                .references('user_uuid')
+                .inTable('users')
+                .onDelete('SET NULL');
             table.text('name').notNullable();
             table.text('description').nullable();
             table
@@ -57,7 +63,7 @@ export async function up(knex: Knex): Promise<void> {
                     .defaultTo(knex.raw('uuid_generate_v4()'));
                 table
                     .uuid('saved_sql_uuid')
-                    .nullable()
+                    .notNullable()
                     .references('saved_sql_uuid')
                     .inTable(SAVED_SQL_TABLE_NAME)
                     .onDelete('CASCADE')
@@ -66,10 +72,11 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('created_at', { useTz: false })
                     .notNullable()
                     .defaultTo(knex.fn.now());
-                table.text('sql').nullable();
+                table.text('sql').notNullable();
                 table.jsonb('config').defaultTo({});
+                table.string('chart_kind').defaultTo(ChartKind.VERTICAL_BAR);
                 table
-                    .uuid('last_version_updated_at')
+                    .uuid('created_by_user_uuid')
                     .nullable()
                     .references('user_uuid')
                     .inTable('users')
