@@ -328,24 +328,26 @@ const UsersView: FC = () => {
     const { user, health } = useApp();
     const { classes } = useTableStyles();
     const [page, setPage] = useState(1);
-
     const [search, setSearch] = useState('');
-    const [debouncedSearchQuery] = useDebouncedValue(search, 500);
+    const [debouncedSearchQueryAndPage] = useDebouncedValue(
+        { search, page },
+        300,
+    );
 
     // TODO: fix the hardcoded groups number. This should be paginated.
     const { data: paginatedUsers, isInitialLoading: isLoadingUsers } =
         usePaginatedOrganizationUsers({
-            searchInput: debouncedSearchQuery,
+            searchInput: debouncedSearchQueryAndPage.search,
             includeGroups: 10000,
             paginateArgs: {
-                page,
+                page: debouncedSearchQueryAndPage.page,
                 pageSize: DEFAULT_PAGE_SIZE,
             },
         });
 
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearchQuery]);
+    }, [search]);
 
     const organizationUsers = useMemo(() => {
         return paginatedUsers?.data;
