@@ -17,12 +17,12 @@ export type BarChartConfig = {
     };
     axes: {
         x: {
-            reference?: string;
+            reference: string;
             label?: string;
         };
         y: {
             reference: string;
-            position: 'left' | 'right';
+            position?: 'left' | 'right';
             label: string;
         }[];
     };

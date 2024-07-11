@@ -10,26 +10,42 @@ export class BarChartDataTransformer {
         this.transformer = new SqlRunnerResultsTransformer(args);
     }
 
-    public getEchartsSpec(config: BarChartConfig) {
+    public getEchartsSpec(config?: BarChartConfig) {
         const data = this.transformer.getRows();
         const columns = this.transformer.getColumns();
-        const { axes } = config || { axes: undefined };
+        const { axes, series } = config || { axes: undefined };
 
-        const xField = columns[0];
-        const yField = columns[1];
+        const xField = axes?.x?.reference ?? columns[0];
 
         return {
             title: {
                 text: 'Bar chart',
             },
             tooltip: {},
+            legend: {
+                show: true,
+                type: 'scroll',
+                selected: {},
+            },
             xAxis: {
                 type: 'category',
-                name: axes?.x?.label ?? xField,
+                name: axes?.x?.label ?? axes?.x.reference,
+                nameLocation: 'center',
+                nameGap: 30,
+
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                },
             },
             yAxis: {
                 type: 'value',
-                name: axes?.y[0]?.label ?? yField,
+                name: axes?.y[0]?.label ?? axes?.y[0].reference,
+                nameLocation: 'center',
+                nameGap: 50,
+                nameRotate: 90,
+                nameTextStyle: {
+                    fontWeight: 'bold',
+                },
             },
             dataset: {
                 id: 'dataset',
@@ -43,15 +59,16 @@ export class BarChartDataTransformer {
                     return newRow;
                 }),
             },
-            series: columns.slice(1).map((s) => ({
-                dimensions: [xField, s],
+            series: series?.map((s, idx) => ({
+                dimensions: [xField, s.reference],
                 type: 'bar',
+                name: axes?.y[idx]?.label ?? s.reference,
                 encode: {
-                    seriesName: axes?.y[0]?.reference ?? s,
+                    seriesName: s.reference,
                     x: xField,
                     xRef: { field: xField },
-                    y: s,
-                    yRef: { field: s },
+                    y: s.reference,
+                    yRef: { field: s.reference },
                 },
             })),
         };
