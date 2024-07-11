@@ -6,9 +6,9 @@ import {
     ForbiddenError,
     Group,
     GroupWithMembers,
-    IKnexPaginateArgs,
-    IKnexPaginatedData,
     isUserWithOrg,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashMode,
     NotExistsError,
     OnbordingRecord,
@@ -200,9 +200,9 @@ export class OrganizationService extends BaseService {
     async getUsers(
         user: SessionUser,
         includeGroups?: number,
-        paginateArgs?: IKnexPaginateArgs,
+        paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
-    ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
+    ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
         if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
             throw new ForbiddenError();

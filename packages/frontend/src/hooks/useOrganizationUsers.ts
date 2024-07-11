@@ -1,7 +1,7 @@
 import {
     type ApiError,
     type ApiOrganizationMemberProfiles,
-    type IKnexPaginateArgs,
+    type KnexPaginateArgs,
     type OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,7 @@ import useQueryError from './useQueryError';
 
 const getOrganizationUsersQuery = async (
     includeGroups?: number,
-    paginateArgs?: IKnexPaginateArgs,
+    paginateArgs?: KnexPaginateArgs,
     searchQuery?: string,
 ) => {
     const urlParams = new URLSearchParams({
@@ -80,7 +80,7 @@ export const useOrganizationUsers = (params?: {
 export const usePaginatedOrganizationUsers = (params: {
     searchInput?: string;
     includeGroups?: number;
-    paginateArgs?: IKnexPaginateArgs;
+    paginateArgs?: KnexPaginateArgs;
 }) => {
     const setErrorResponse = useQueryError();
     return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({

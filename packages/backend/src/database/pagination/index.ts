@@ -1,12 +1,12 @@
-import { IKnexPaginateArgs, IKnexPaginatedData } from '@lightdash/common';
+import { KnexPaginateArgs, KnexPaginatedData } from '@lightdash/common';
 import { Knex } from 'knex';
 import { KnexPaginationError } from './errors';
 
 export default class KnexPaginate {
     static async paginate<T extends Knex.QueryBuilder>(
         query: T,
-        paginateArgs?: IKnexPaginateArgs,
-    ): Promise<IKnexPaginatedData<typeof query>> {
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<typeof query>> {
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
             if (page < 1) {

@@ -10,7 +10,7 @@ import {
     ApiSuccessEmpty,
     CreateGroup,
     CreateOrganization,
-    IKnexPaginateArgs,
+    KnexPaginateArgs,
     OrganizationMemberProfileUpdate,
     UpdateAllowedEmailDomains,
     UpdateOrganization,
@@ -181,7 +181,7 @@ export class OrganizationController extends BaseController {
         @Query() searchQuery?: string,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
-        let paginateArgs: IKnexPaginateArgs | undefined;
+        let paginateArgs: KnexPaginateArgs | undefined;
 
         if (pageSize && page) {
             paginateArgs = {

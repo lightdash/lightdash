@@ -1,6 +1,6 @@
 import {
-    IKnexPaginateArgs,
-    IKnexPaginatedData,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
@@ -113,9 +113,9 @@ export class OrganizationMemberProfileModel {
 
     async getOrganizationMembers(
         organizationUuid: string,
-        paginateArgs?: IKnexPaginateArgs,
+        paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
-    ): Promise<IKnexPaginatedData<OrganizationMemberProfile[]>> {
+    ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         let query = this.queryBuilder()
             .where(
                 `${OrganizationTableName}.organization_uuid`,
@@ -146,9 +146,9 @@ export class OrganizationMemberProfileModel {
     async getOrganizationMembersAndGroups(
         organizationUuid: string,
         includeGroups?: number,
-        paginateArgs?: IKnexPaginateArgs,
+        paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
-    ): Promise<IKnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
+    ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             .leftJoin(
                 OrganizationMembershipsTableName,

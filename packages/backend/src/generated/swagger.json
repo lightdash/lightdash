@@ -3756,30 +3756,26 @@
             "KnexQueryBuilderResult_OrganizationMemberProfile-Array_": {
                 "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
             },
-            "IKnexPaginateArgs": {
+            "KnexPaginateArgs": {
                 "properties": {
-                    "pageSize": {
+                    "page": {
                         "type": "number",
                         "format": "double"
                     },
-                    "page": {
+                    "pageSize": {
                         "type": "number",
                         "format": "double"
                     }
                 },
-                "required": ["pageSize", "page"],
-                "type": "object",
-                "additionalProperties": true
+                "required": ["page", "pageSize"],
+                "type": "object"
             },
-            "IKnexPaginatedData_OrganizationMemberProfile-Array_": {
+            "KnexPaginatedData_OrganizationMemberProfile-Array_": {
                 "properties": {
-                    "data": {
-                        "$ref": "#/components/schemas/KnexQueryBuilderResult_OrganizationMemberProfile-Array_"
-                    },
                     "pagination": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/IKnexPaginateArgs"
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
                             },
                             {
                                 "properties": {
@@ -3792,16 +3788,18 @@
                                 "type": "object"
                             }
                         ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_OrganizationMemberProfile-Array_"
                     }
                 },
                 "required": ["data"],
-                "type": "object",
-                "additionalProperties": true
+                "type": "object"
             },
             "ApiOrganizationMemberProfiles": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/IKnexPaginatedData_OrganizationMemberProfile-Array_"
+                        "$ref": "#/components/schemas/KnexPaginatedData_OrganizationMemberProfile-Array_"
                     },
                     "status": {
                         "type": "string",

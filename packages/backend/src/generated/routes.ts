@@ -3435,39 +3435,45 @@ const models: TsoaRoute.Models = {
         type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    IKnexPaginateArgs: {
-        dataType: 'refObject',
-        properties: {
-            pageSize: { dataType: 'double', required: true },
-            page: { dataType: 'double', required: true },
+    KnexPaginateArgs: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                page: { dataType: 'double', required: true },
+                pageSize: { dataType: 'double', required: true },
+            },
+            validators: {},
         },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'IKnexPaginatedData_OrganizationMemberProfile-Array_': {
-        dataType: 'refObject',
-        properties: {
-            data: {
-                ref: 'KnexQueryBuilderResult_OrganizationMemberProfile-Array_',
-                required: true,
-            },
-            pagination: {
-                dataType: 'intersection',
-                subSchemas: [
-                    { ref: 'IKnexPaginateArgs' },
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            totalPageCount: {
-                                dataType: 'double',
-                                required: true,
+    'KnexPaginatedData_OrganizationMemberProfile-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                             },
                         },
-                    },
-                ],
+                    ],
+                },
+                data: {
+                    ref: 'KnexQueryBuilderResult_OrganizationMemberProfile-Array_',
+                    required: true,
+                },
             },
+            validators: {},
         },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiOrganizationMemberProfiles: {
@@ -3476,7 +3482,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    ref: 'IKnexPaginatedData_OrganizationMemberProfile-Array_',
+                    ref: 'KnexPaginatedData_OrganizationMemberProfile-Array_',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },

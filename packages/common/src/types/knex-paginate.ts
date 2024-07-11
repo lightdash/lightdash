@@ -1,7 +1,7 @@
-export interface IKnexPaginateArgs {
+export type KnexPaginateArgs = {
     pageSize: number;
     page: number;
-}
+};
 
 //! This is type helper type to unwrap the value of a the QueryBuilder result - copied from the Awaited type in TS but returning V instead of Awaited<V>
 type KnexQueryBuilderResult<T> = T extends null | undefined
@@ -12,9 +12,9 @@ type KnexQueryBuilderResult<T> = T extends null | undefined
         : never // the argument to `then` was not callable
     : T; // non-object or non-thenable
 
-export interface IKnexPaginatedData<T> {
+export type KnexPaginatedData<T> = {
     data: KnexQueryBuilderResult<T>;
-    pagination?: IKnexPaginateArgs & {
+    pagination?: KnexPaginateArgs & {
         totalPageCount: number;
     };
-}
+};

@@ -1,5 +1,5 @@
 import { type Group } from './groups';
-import { type IKnexPaginatedData } from './knex-paginate';
+import { type KnexPaginatedData } from './knex-paginate';
 
 export enum OrganizationMemberRole {
     MEMBER = 'member',
@@ -54,7 +54,7 @@ export type OrganizationMemberProfileUpdate = {
 
 export type ApiOrganizationMemberProfiles = {
     status: 'ok';
-    results: IKnexPaginatedData<OrganizationMemberProfile[]>;
+    results: KnexPaginatedData<OrganizationMemberProfile[]>;
 };
 
 export type ApiOrganizationMemberProfile = {
