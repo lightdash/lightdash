@@ -1,11 +1,10 @@
 import {
     ChartKind,
-    Dashboard,
+    CreateSqlChart,
     NotFoundError,
-    Organization,
-    Project,
-    Space,
-    type LightdashUser,
+    SqlChart,
+    UpdateUnversionedSqlChart,
+    UpdateVersionedSqlChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
@@ -50,49 +49,6 @@ type SelectSavedSql = Pick<
         last_updated_by_user_first_name: string | null;
         last_updated_by_user_last_name: string | null;
     };
-
-type SqlChart = {
-    savedSqlUuid: string;
-    name: string;
-    description: string | null;
-    slug: string;
-    sql: string;
-    config: object;
-    chartKind: ChartKind;
-    createdAt: Date;
-    createdBy: Pick<
-        LightdashUser,
-        'userUuid' | 'firstName' | 'lastName'
-    > | null;
-    lastUpdatedAt: Date;
-    lastUpdatedBy: Pick<
-        LightdashUser,
-        'userUuid' | 'firstName' | 'lastName'
-    > | null;
-    space: Pick<Space, 'uuid' | 'name'>;
-    dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
-    project: Pick<Project, 'projectUuid'>;
-    organization: Pick<Organization, 'organizationUuid'>;
-};
-
-type CreateSqlChart = {
-    name: string;
-    description: string | null;
-    sql: string;
-    config: object;
-    spaceUuid: string;
-};
-
-type UpdateUnversionedSqlChart = {
-    name: string;
-    description: string | null;
-    spaceUuid: string;
-};
-
-type UpdateVersionedSqlChart = {
-    sql: string;
-    config: object;
-};
 
 export class SavedSqlModel {
     private database: Knex;

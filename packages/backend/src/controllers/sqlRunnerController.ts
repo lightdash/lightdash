@@ -1,15 +1,22 @@
 import {
+    ApiCreateSqlChart,
     ApiErrorPayload,
     ApiJobScheduledResponse,
+    ApiSqlChart,
+    ApiUpdateSqlChart,
     ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    ChartKind,
+    CreateSqlChart,
     SqlRunnerBody,
+    UpdateSqlChart,
 } from '@lightdash/common';
 import {
     Body,
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -19,7 +26,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import fs from 'fs';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -129,5 +135,102 @@ export class SqlRunnerController extends BaseController {
                 });
             });
         }
+    }
+
+    /**
+     * Get saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param uuid the uuid for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}')
+    @OperationId('getSavedSqlChart')
+    async getSavedSqlChart(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                savedSqlUuid: 'example',
+                name: 'example',
+                description: 'example',
+                slug: 'example',
+                sql: 'example',
+                config: {},
+                chartKind: ChartKind.VERTICAL_BAR,
+                createdAt: new Date(),
+                createdBy: null,
+                lastUpdatedAt: new Date(),
+                lastUpdatedBy: null,
+                space: { uuid: 'example', name: 'example' },
+                dashboard: null,
+                project: { projectUuid: 'example' },
+                organization: { organizationUuid: 'example' },
+            },
+        };
+    }
+
+    /**
+     * Create sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     * @param body the sql chart to create
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('saved')
+    @OperationId('createSqlChart')
+    async createSqlChart(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateSqlChart,
+    ): Promise<ApiCreateSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                savedSqlUuid: 'example',
+            },
+        };
+    }
+
+    /**
+     * Update sql chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     * @param body the sql chart details to update
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('saved/{uuid}')
+    @OperationId('updateSqlChart')
+    async updateSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateSqlChart,
+    ): Promise<ApiUpdateSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                savedSqlUuid: 'example',
+                savedSqlVersionUuid: 'example',
+            },
+        };
     }
 }

@@ -7170,6 +7170,267 @@
                 "required": ["sql"],
                 "type": "object"
             },
+            "Pick_Space.uuid-or-name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Dashboard.uuid-or-name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Project.projectUuid_": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["projectUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_Organization.organizationUuid_": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string",
+                        "description": "The unique identifier of the organization",
+                        "format": "uuid"
+                    }
+                },
+                "required": ["organizationUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SqlChart": {
+                "properties": {
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                    },
+                    "dashboard": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Pick_Space.uuid-or-name_"
+                    },
+                    "lastUpdatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "config": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "savedSqlUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "organization",
+                    "project",
+                    "dashboard",
+                    "space",
+                    "lastUpdatedBy",
+                    "lastUpdatedAt",
+                    "createdBy",
+                    "createdAt",
+                    "chartKind",
+                    "config",
+                    "sql",
+                    "slug",
+                    "description",
+                    "name",
+                    "savedSqlUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSqlChart": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SqlChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateSqlChart": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedSqlUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateSqlChart": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "config": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceUuid",
+                    "config",
+                    "sql",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ApiUpdateSqlChart": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "savedSqlVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "savedSqlUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedSqlVersionUuid", "savedSqlUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateUnversionedSqlChart": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["spaceUuid", "description", "name"],
+                "type": "object"
+            },
+            "UpdateVersionedSqlChart": {
+                "properties": {
+                    "config": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "sql"],
+                "type": "object"
+            },
+            "UpdateSqlChart": {
+                "properties": {
+                    "versionedData": {
+                        "$ref": "#/components/schemas/UpdateVersionedSqlChart"
+                    },
+                    "unversionedData": {
+                        "$ref": "#/components/schemas/UpdateUnversionedSqlChart"
+                    }
+                },
+                "type": "object"
+            },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
                     "publicKey": {
@@ -8039,7 +8300,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1162.0",
+        "version": "0.1167.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13218,6 +13479,169 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}": {
+            "get": {
+                "operationId": "getSavedSqlChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSqlChart"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get saved sql chart",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid for the saved sql chart",
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid for the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateSqlChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateSqlChart"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update sql chart",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid for the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "the uuid for the saved sql chart",
+                        "in": "path",
+                        "name": "uuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the sql chart details to update",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSqlChart",
+                                "description": "the sql chart details to update"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/sqlRunner/saved": {
+            "post": {
+                "operationId": "createSqlChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateSqlChart"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create sql chart",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid for the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the sql chart to create",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSqlChart",
+                                "description": "the sql chart to create"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/ssh/key-pairs": {
