@@ -1,3 +1,10 @@
+## [0.1168.1](https://github.com/lightdash/lightdash/compare/0.1168.0...0.1168.1) (2024-07-11)
+
+
+### Bug Fixes
+
+* run backend from packages/backend directory ([#10704](https://github.com/lightdash/lightdash/issues/10704)) ([4cd08f2](https://github.com/lightdash/lightdash/commit/4cd08f271809335479525be01de6334dd3660bdf))
+
 # [0.1168.0](https://github.com/lightdash/lightdash/compare/0.1167.1...0.1168.0) (2024-07-11)
 
 
