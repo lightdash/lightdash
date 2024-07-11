@@ -23,8 +23,15 @@ export default class KnexPaginate {
             }
 
             const offset = (page - 1) * pageSize;
-            const count = await query.clone().clear('select').count();
-            const data = await query.clone().offset(offset).limit(pageSize);
+            const totalRecordsCountPromise = query
+                .clone()
+                .clear('select')
+                .count();
+            const dataPromise = query.clone().offset(offset).limit(pageSize);
+            const [count, data] = await Promise.all([
+                totalRecordsCountPromise,
+                dataPromise,
+            ]);
 
             return {
                 data,
