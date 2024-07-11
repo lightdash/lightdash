@@ -567,15 +567,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }),
         [chart, metricQuery],
     );
-    const cannotUseCustomDimensions = useMemo(
-        () =>
-            !userCanRunCustomSql &&
-            chartWithDashboardFilters.metricQuery.customDimensions,
-        [
-            userCanRunCustomSql,
-            chartWithDashboardFilters.metricQuery.customDimensions,
-        ],
-    );
+    const cannotUseCustomDimensions =
+        !userCanRunCustomSql &&
+        chartWithDashboardFilters.metricQuery.customDimensions;
+
     const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
         if (cannotUseCustomDimensions) {
             const queryWithoutCustomDimensions = {
