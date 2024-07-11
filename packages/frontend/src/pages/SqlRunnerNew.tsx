@@ -14,13 +14,16 @@ import {
     useAppDispatch,
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
-import { setProjectUuid } from '../features/sqlRunner/store/sqlRunnerSlice';
+import {
+    setProjectUuid,
+    setSavedChartUuid,
+} from '../features/sqlRunner/store/sqlRunnerSlice';
 
 const SqlRunnerNew = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
-    const params = useParams<{ projectUuid: string }>();
+    const params = useParams<{ projectUuid: string; chartUuid: string }>();
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
@@ -29,7 +32,10 @@ const SqlRunnerNew = () => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
-    }, [dispatch, params.projectUuid, projectUuid]);
+        if (params.chartUuid) {
+            dispatch(setSavedChartUuid(params.chartUuid));
+        }
+    }, [dispatch, params.chartUuid, params.projectUuid, projectUuid]);
 
     if (!projectUuid) {
         return null;

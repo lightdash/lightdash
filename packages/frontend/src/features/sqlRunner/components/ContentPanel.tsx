@@ -20,7 +20,9 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
+import { useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useSavedSqlChart } from '../hooks/useSavedSqlCharts';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
@@ -43,6 +45,8 @@ export const ContentPanel: FC<Props> = ({
     closeChartConfig,
 }) => {
     const dispatch = useAppDispatch();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -55,6 +59,10 @@ export const ContentPanel: FC<Props> = ({
     const isResultsHeightMoreThanHalf = useMemo(
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
+    );
+
+    const savedChartUuid = useAppSelector(
+        (state) => state.sqlRunner.savedChartUuid,
     );
 
     const selectedChartType = useAppSelector(
@@ -75,6 +83,13 @@ export const ContentPanel: FC<Props> = ({
             }
         },
     });
+
+    // TODO: move this to the store and do something with the results
+    const { data: chartData } = useSavedSqlChart({
+        projectUuid,
+        uuid: savedChartUuid,
+    });
+    console.log('-------', chartData);
 
     return (
         <Stack
