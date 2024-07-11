@@ -1,6 +1,9 @@
-import { KnexPaginateArgs, KnexPaginatedData } from '@lightdash/common';
+import {
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    KnexPaginationError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
-import { KnexPaginationError } from './errors';
 
 export default class KnexPaginate {
     static async paginate<T extends Knex.QueryBuilder>(
