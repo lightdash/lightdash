@@ -148,6 +148,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-psycopg2 \
     python3-venv \
     git \
+    dumb-init \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -173,5 +174,5 @@ ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 
 EXPOSE 8080
-ENTRYPOINT ["/usr/bin/prod-entrypoint.sh"]
-CMD ["yarn", "workspace", "backend", "start"]
+ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
+CMD ["node", "packages/backend/dist/index.js"]
