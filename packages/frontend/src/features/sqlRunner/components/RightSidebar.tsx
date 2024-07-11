@@ -118,15 +118,15 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     <Title order={6} fz="sm" c="gray.6">
                         Series
                     </Title>
-                    {chartConfig.series.map(({ reference }, index) => (
+                    {chartConfig.series.map(({ name, reference }, index) => (
                         <EditableText
                             key={reference}
-                            value={chartConfig.axes.y[index].label}
+                            value={name ?? reference}
                             onChange={(e) => {
                                 dispatch(
                                     updateChartSeriesLabel({
                                         index: index,
-                                        label: e.target.value,
+                                        name: e.target.value,
                                     }),
                                 );
                             }}
