@@ -24,6 +24,7 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
@@ -76,6 +77,7 @@ export type ModelManifest = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
+    savedSqlModel: SavedSqlModel;
 
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
@@ -450,6 +452,13 @@ export class ModelRepository
         return this.getModel(
             'catalogModel',
             () => new CatalogModel({ database: this.database }),
+        );
+    }
+
+    public getSavedSqlModel(): SavedSqlModel {
+        return this.getModel(
+            'savedSqlModel',
+            () => new SavedSqlModel({ database: this.database }),
         );
     }
 

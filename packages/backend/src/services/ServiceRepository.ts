@@ -21,6 +21,7 @@ import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
@@ -66,6 +67,7 @@ interface ServiceManifest {
     validationService: ValidationService;
     catalogService: CatalogService;
     promoteService: PromoteService;
+    savedSqlService: SavedSqlService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -623,6 +625,19 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
+                }),
+        );
+    }
+
+    public getSavedSqlService(): SavedSqlService {
+        return this.getService(
+            'savedSqlService',
+            () =>
+                new SavedSqlService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                 }),
         );
     }
