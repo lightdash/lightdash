@@ -84,10 +84,12 @@ export const sqlRunnerSlice = createSlice({
                         reference: fieldIds[0],
                         label: fieldIds[0],
                     },
-                    y: fieldIds.slice(1).map((reference) => ({
-                        reference,
-                        label: reference,
-                    })),
+                    y: [
+                        {
+                            reference: fieldIds[1],
+                            label: fieldIds[1],
+                        },
+                    ],
                 },
                 series: fieldIds.slice(1).map((reference, index) => ({
                     reference,
@@ -124,11 +126,11 @@ export const sqlRunnerSlice = createSlice({
         },
         updateChartSeriesLabel: (
             state,
-            action: PayloadAction<{ index: number; label: string }>,
+            action: PayloadAction<{ index: number; name: string }>,
         ) => {
             if (!state.chartConfig) return;
-            const { index, label } = action.payload;
-            state.chartConfig.axes.y[index].label = label;
+            const { index, name } = action.payload;
+            state.chartConfig.series[index].name = name;
         },
         setSelectedChartType: (
             state,
