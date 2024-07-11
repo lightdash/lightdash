@@ -226,6 +226,12 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
+                                    <Route path="/projects/:projectUuid/sql-runner-new/saved/:chartUuid">
+                                        <NavBar />
+
+                                        <SqlRunnerNew />
+                                    </Route>
+
                                     <Route path="/projects/:projectUuid/sql-runner-new">
                                         <NavBar />
 

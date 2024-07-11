@@ -11,6 +11,7 @@ import { createSlice } from '@reduxjs/toolkit';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
+    savedChartUuid: string | undefined;
     selectedChartType: SqlRunnerChartType;
 
     resultsTableConfig: TableChartSqlConfig | undefined;
@@ -25,6 +26,7 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
+    savedChartUuid: undefined,
     selectedChartType: SqlRunnerChartType.TABLE,
     resultsTableConfig: undefined,
     chartConfig: undefined,
@@ -41,6 +43,9 @@ export const sqlRunnerSlice = createSlice({
     reducers: {
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        setSavedChartUuid: (state, action: PayloadAction<string>) => {
+            state.savedChartUuid = action.payload;
         },
         setInitialResultsAndSeries: (
             state,
@@ -158,6 +163,7 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setInitialResultsAndSeries,
+    setSavedChartUuid,
     updateResultsTableFieldConfigLabel,
     updateChartAxisLabel,
     updateChartSeriesLabel,
