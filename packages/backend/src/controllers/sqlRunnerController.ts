@@ -3,10 +3,10 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSqlChart,
+    ApiSuccessEmpty,
     ApiUpdateSqlChart,
     ApiWarehouseCatalog,
     ApiWarehouseTableFields,
-    ChartKind,
     CreateSqlChart,
     SqlRunnerBody,
     UpdateSqlChart,
@@ -158,23 +158,9 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: {
-                savedSqlUuid: 'example',
-                name: 'example',
-                description: 'example',
-                slug: 'example',
-                sql: 'example',
-                config: {},
-                chartKind: ChartKind.VERTICAL_BAR,
-                createdAt: new Date(),
-                createdBy: null,
-                lastUpdatedAt: new Date(),
-                lastUpdatedBy: null,
-                space: { uuid: 'example', name: 'example' },
-                dashboard: null,
-                project: { projectUuid: 'example' },
-                organization: { organizationUuid: 'example' },
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChart(req.user!, projectUuid, uuid),
         };
     }
 
@@ -201,7 +187,9 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: {
-                savedSqlUuid: 'example',
+                savedSqlUuid: await this.services
+                    .getSavedSqlService()
+                    .createSqlChart(req.user!, projectUuid, body),
             },
         };
     }
@@ -230,10 +218,38 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: {
-                savedSqlUuid: 'example',
-                savedSqlVersionUuid: 'example',
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .updateSqlChart(req.user!, projectUuid, uuid, body),
+        };
+    }
+
+    /**
+     * Delete sql chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('saved/{uuid}')
+    @OperationId('deleteSqlChart')
+    async deleteSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSavedSqlService()
+            .deleteSqlChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
