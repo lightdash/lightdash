@@ -1,7 +1,8 @@
-import { SchedulerFormat } from '@lightdash/common';
+import { SchedulerFormat, type Scheduler } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Box,
     Button,
     Card,
     Flex,
@@ -9,7 +10,9 @@ import {
     Menu,
     Popover,
     Stack,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import {
     IconDots,
@@ -18,17 +21,49 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
+import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction, useSyncModal } from '../providers/SyncModalProvider';
 
+const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
+    const { mutate: mutateSchedulerEnabled } =
+        useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
+
+    const [schedulerEnabled, setSchedulerEnabled] = useState<boolean>(
+        scheduler.enabled,
+    ); // To avoid delay on toggle
+    return (
+        <Tooltip
+            label={
+                scheduler.enabled
+                    ? 'Toggle off to temporarily pause notifications'
+                    : 'Notifications paused. Toggle on to resume'
+            }
+        >
+            <Box>
+                <Switch
+                    mr="sm"
+                    onLabel="on"
+                    offLabel="paused"
+                    checked={schedulerEnabled}
+                    onChange={() => {
+                        mutateSchedulerEnabled(!schedulerEnabled);
+                        setSchedulerEnabled(!schedulerEnabled);
+                    }}
+                />
+            </Box>
+        </Tooltip>
+    );
+};
 export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     const { data } = useChartSchedulers(chartUuid);
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
     const googleSheetsSyncs = data?.filter(
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
+
     return (
         <>
             <Stack spacing="lg" mih={300}>
@@ -40,22 +75,33 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                 withBorder
                                 pos="relative"
                                 p="xs"
+                                sx={{
+                                    overflow: 'visible', // To show tooltips on hover
+                                }}
                             >
-                                <Stack spacing="xs">
-                                    <Text fz="sm" fw={500}>
-                                        {sync.name}
-                                    </Text>
-
-                                    <Flex align="center">
-                                        <Text span size="xs" color="gray.6">
-                                            {cronstrue.toString(sync.cron, {
-                                                verbose: true,
-                                                throwExceptionOnParseError:
-                                                    false,
-                                            })}
+                                <Flex align="center" justify="space-between">
+                                    <Stack spacing="xs">
+                                        <Text fz="sm" fw={500}>
+                                            {sync.name}
                                         </Text>
-                                    </Flex>
-                                </Stack>
+
+                                        <Flex
+                                            align="center"
+                                            justify="space-between"
+                                        >
+                                            <Text span size="xs" color="gray.6">
+                                                {cronstrue.toString(sync.cron, {
+                                                    verbose: true,
+                                                    throwExceptionOnParseError:
+                                                        false,
+                                                })}
+                                            </Text>
+                                        </Flex>
+                                    </Stack>
+                                    <Group mr="lg">
+                                        <ToggleSyncEnabled scheduler={sync} />
+                                    </Group>
+                                </Flex>
 
                                 <Menu
                                     shadow="md"
