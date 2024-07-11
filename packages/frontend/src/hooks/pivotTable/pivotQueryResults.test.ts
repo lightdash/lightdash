@@ -91,6 +91,62 @@ describe('Should pivot data', () => {
             pivotConfig,
             titleFields: [[{ direction: 'header', fieldId: 'page' }], [null]],
             cellsCount: 7,
+            retrofitData: {
+                allCombinedData: [
+                    {
+                        undefinedpage__views__0: {
+                            value: { raw: 6, formatted: '6.0' },
+                        },
+                        undefinedpage__devices__1: {
+                            value: { raw: 7, formatted: '7.0' },
+                        },
+                        undefinedpage__views__2: {
+                            value: { raw: 12, formatted: '12.0' },
+                        },
+                        undefinedpage__devices__3: {
+                            value: { raw: 0, formatted: '0.0' },
+                        },
+                        undefinedpage__views__4: {
+                            value: { raw: 11, formatted: '11.0' },
+                        },
+                        undefinedpage__devices__5: {
+                            value: { raw: 1, formatted: '1.0' },
+                        },
+                    },
+                ],
+                firstRowOnly: [
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedpage__views__0',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefinedpage__devices__1',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedpage__views__2',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefinedpage__devices__3',
+                        value: { raw: 0, formatted: '0.0' },
+                    },
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedpage__views__4',
+                        value: { raw: 11, formatted: '11.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefinedpage__devices__5',
+                        value: { raw: 1, formatted: '1.0' },
+                    },
+                ],
+            },
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -168,6 +224,61 @@ describe('Should pivot data', () => {
             titleFields: [[{ fieldId: 'page', direction: 'index' }]],
             cellsCount: 3,
             rowsCount: 3,
+            retrofitData: {
+                allCombinedData: [
+                    {
+                        page: { value: { raw: '/home', formatted: '/home' } },
+                        undefinedviews__0: {
+                            value: { raw: 6, formatted: '6.0' },
+                        },
+                        undefineddevices__1: {
+                            value: { raw: 7, formatted: '7.0' },
+                        },
+                    },
+                    {
+                        page: { value: { raw: '/about', formatted: '/about' } },
+                        undefinedviews__0: {
+                            value: { raw: 12, formatted: '12.0' },
+                        },
+                        undefineddevices__1: {
+                            value: { raw: 0, formatted: '0.0' },
+                        },
+                    },
+                    {
+                        page: {
+                            value: {
+                                raw: '/first-post',
+                                formatted: '/first-post',
+                            },
+                        },
+                        undefinedviews__0: {
+                            value: { raw: 11, formatted: '11.0' },
+                        },
+                        undefineddevices__1: {
+                            value: { raw: 1, formatted: '1.0' },
+                        },
+                    },
+                ],
+                firstRowOnly: [
+                    {
+                        type: 'value',
+                        fieldId: 'page',
+                        value: { raw: '/home', formatted: '/home' },
+                        colSpan: 1,
+                        meta: { type: 'indexValue' },
+                    },
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedviews__0',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefineddevices__1',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                ],
+            },
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -234,6 +345,61 @@ describe('Should pivot data', () => {
             titleFields: [[{ fieldId: 'page', direction: 'header' }]],
             cellsCount: 4,
             rowsCount: 2,
+            retrofitData: {
+                allCombinedData: [
+                    {
+                        'label-0': {
+                            value: { raw: 'views', formatted: 'views' },
+                        },
+                        undefinedpage__0: {
+                            value: { raw: 6, formatted: '6.0' },
+                        },
+                        undefinedpage__1: {
+                            value: { raw: 12, formatted: '12.0' },
+                        },
+                        undefinedpage__2: {
+                            value: { raw: 11, formatted: '11.0' },
+                        },
+                    },
+                    {
+                        'label-0': {
+                            value: { raw: 'devices', formatted: 'devices' },
+                        },
+                        undefinedpage__0: {
+                            value: { raw: 7, formatted: '7.0' },
+                        },
+                        undefinedpage__1: {
+                            value: { raw: 0, formatted: '0.0' },
+                        },
+                        undefinedpage__2: {
+                            value: { raw: 1, formatted: '1.0' },
+                        },
+                    },
+                ],
+                firstRowOnly: [
+                    {
+                        type: 'label',
+                        fieldId: 'label-0',
+                        value: { raw: 'views', formatted: 'views' },
+                        meta: { type: 'label' },
+                    },
+                    {
+                        baseId: 'page',
+                        fieldId: 'undefinedpage__0',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        baseId: 'page',
+                        fieldId: 'undefinedpage__1',
+                        value: { raw: 12, formatted: '12.0' },
+                    },
+                    {
+                        baseId: 'page',
+                        fieldId: 'undefinedpage__2',
+                        value: { raw: 11, formatted: '11.0' },
+                    },
+                ],
+            },
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -347,6 +513,83 @@ describe('Should pivot data', () => {
             rowTotals: undefined,
             cellsCount: 5,
             rowsCount: 3,
+            retrofitData: {
+                allCombinedData: [
+                    {
+                        page: { value: { raw: '/home', formatted: '/home' } },
+                        undefinedsite__views__0: {
+                            value: { raw: 6, formatted: '6.0' },
+                        },
+                        undefinedsite__devices__1: {
+                            value: { raw: 7, formatted: '7.0' },
+                        },
+                        undefinedsite__views__2: {
+                            value: { raw: 2, formatted: '2.0' },
+                        },
+                        undefinedsite__devices__3: {
+                            value: { raw: 10, formatted: '10.0' },
+                        },
+                    },
+                    {
+                        page: { value: { raw: '/about', formatted: '/about' } },
+                        undefinedsite__views__0: {
+                            value: { raw: 12, formatted: '12.0' },
+                        },
+                        undefinedsite__devices__1: {
+                            value: { raw: 0, formatted: '0.0' },
+                        },
+                        undefinedsite__views__2: {
+                            value: { raw: 2, formatted: '2.0' },
+                        },
+                        undefinedsite__devices__3: {
+                            value: { raw: 13, formatted: '13.0' },
+                        },
+                    },
+                    {
+                        page: {
+                            value: {
+                                raw: '/first-post',
+                                formatted: '/first-post',
+                            },
+                        },
+                        undefinedsite__views__0: {
+                            value: { raw: 11, formatted: '11.0' },
+                        },
+                        undefinedsite__devices__1: {
+                            value: { raw: 1, formatted: '1.0' },
+                        },
+                    },
+                ],
+                firstRowOnly: [
+                    {
+                        type: 'value',
+                        fieldId: 'page',
+                        value: { raw: '/home', formatted: '/home' },
+                        colSpan: 1,
+                        meta: { type: 'indexValue' },
+                    },
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedsite__views__0',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefinedsite__devices__1',
+                        value: { raw: 7, formatted: '7.0' },
+                    },
+                    {
+                        baseId: 'views',
+                        fieldId: 'undefinedsite__views__2',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                    {
+                        baseId: 'devices',
+                        fieldId: 'undefinedsite__devices__3',
+                        value: { raw: 10, formatted: '10.0' },
+                    },
+                ],
+            },
         };
         const result = pivotQueryResults({
             pivotConfig,
@@ -478,6 +721,118 @@ describe('Should pivot data', () => {
                 pivotDimensions: ['site'],
                 metricsAsRows: true,
                 rowTotals: true,
+            },
+            retrofitData: {
+                allCombinedData: [
+                    {
+                        page: { value: { raw: '/home', formatted: '/home' } },
+                        'label-1': {
+                            value: { raw: 'views', formatted: 'views' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 6, formatted: '6.0' },
+                        },
+                        undefinedsite__1: {
+                            value: { raw: 2, formatted: '2.0' },
+                        },
+                    },
+                    {
+                        page: { value: { raw: '/home', formatted: '/home' } },
+                        'label-1': {
+                            value: { raw: 'devices', formatted: 'devices' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 7, formatted: '7.0' },
+                        },
+                        undefinedsite__1: {
+                            value: { raw: 10, formatted: '10.0' },
+                        },
+                    },
+                    {
+                        page: { value: { raw: '/about', formatted: '/about' } },
+                        'label-1': {
+                            value: { raw: 'views', formatted: 'views' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 12, formatted: '12.0' },
+                        },
+                        undefinedsite__1: {
+                            value: { raw: 2, formatted: '2.0' },
+                        },
+                    },
+                    {
+                        page: { value: { raw: '/about', formatted: '/about' } },
+                        'label-1': {
+                            value: { raw: 'devices', formatted: 'devices' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 0, formatted: '0.0' },
+                        },
+                        undefinedsite__1: {
+                            value: { raw: 13, formatted: '13.0' },
+                        },
+                    },
+                    {
+                        page: {
+                            value: {
+                                raw: '/first-post',
+                                formatted: '/first-post',
+                            },
+                        },
+                        'label-1': {
+                            value: { raw: 'views', formatted: 'views' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 11, formatted: '11.0' },
+                        },
+                    },
+                    {
+                        page: {
+                            value: {
+                                raw: '/first-post',
+                                formatted: '/first-post',
+                            },
+                        },
+                        'label-1': {
+                            value: { raw: 'devices', formatted: 'devices' },
+                        },
+                        undefinedsite__0: {
+                            value: { raw: 1, formatted: '1.0' },
+                        },
+                    },
+                ],
+                firstRowOnly: [
+                    {
+                        type: 'value',
+                        fieldId: 'page',
+                        value: { raw: '/home', formatted: '/home' },
+                        colSpan: 1,
+                        meta: { type: 'indexValue' },
+                    },
+                    {
+                        type: 'label',
+                        fieldId: 'label-1',
+                        value: { raw: 'views', formatted: 'views' },
+                        meta: { type: 'label' },
+                    },
+                    {
+                        baseId: 'site',
+                        fieldId: 'undefinedsite__0',
+                        value: { raw: 6, formatted: '6.0' },
+                    },
+                    {
+                        baseId: 'site',
+                        fieldId: 'undefinedsite__1',
+                        value: { raw: 2, formatted: '2.0' },
+                    },
+                    {
+                        baseId: 'row-total-0',
+                        fieldId: 'row-total-0',
+                        underlyingId: undefined,
+                        value: null,
+                        meta: { type: 'rowTotal' },
+                    },
+                ],
             },
             titleFields: [
                 [
