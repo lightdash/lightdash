@@ -38,18 +38,18 @@ const TableItem: FC<{
                 onClick={() => {
                     dispatch(toggleActiveTable(table));
                 }}
-                fw={500}
                 w="100%"
                 p={4}
-                fz={13}
-                c={isActive ? 'gray.8' : 'gray.7'}
-                bg={isActive ? 'gray.1' : 'transparent'}
                 sx={(theme) => ({
+                    fontWeight: 500,
+                    fontSize: 13,
                     borderRadius: theme.radius.sm,
+                    color: isActive ? 'gray.8' : 'gray.7',
+                    backgroundColor: isActive ? 'gray.1' : 'transparent',
+                    flex: 1,
                     '&:hover': {
                         backgroundColor: theme.colors.gray[1],
                     },
-                    flex: 1,
                 })}
             >
                 <Tooltip
