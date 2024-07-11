@@ -1,3 +1,10 @@
+# [0.1167.0](https://github.com/lightdash/lightdash/compare/0.1166.0...0.1167.0) (2024-07-11)
+
+
+### Features
+
+* disable sync ui ([#10662](https://github.com/lightdash/lightdash/issues/10662)) ([0328c1d](https://github.com/lightdash/lightdash/commit/0328c1dc75de4b157e1bba94fa2526f56945d54f))
+
 # [0.1166.0](https://github.com/lightdash/lightdash/compare/0.1165.0...0.1166.0) (2024-07-10)
 
 
