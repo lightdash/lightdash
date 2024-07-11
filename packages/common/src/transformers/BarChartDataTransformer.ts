@@ -59,10 +59,10 @@ export class BarChartDataTransformer {
                     return newRow;
                 }),
             },
-            series: series?.map((s) => ({
+            series: series?.map((s, idx) => ({
                 dimensions: [xField, s.reference],
                 type: 'bar',
-                name: s.name,
+                name: axes?.y[idx]?.label ?? s.reference,
                 encode: {
                     seriesName: s.reference,
                     x: xField,

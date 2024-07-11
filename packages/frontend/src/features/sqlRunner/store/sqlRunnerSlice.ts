@@ -68,6 +68,7 @@ export const sqlRunnerSlice = createSlice({
 
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
+            const fieldIds = Object.keys(action.payload[0]);
             state.chartConfig = {
                 metadata: {
                     version: 1,
@@ -80,23 +81,19 @@ export const sqlRunnerSlice = createSlice({
                 },
                 axes: {
                     x: {
-                        reference: Object.keys(action.payload[0])[0],
-                        label: Object.keys(action.payload[0])[0],
+                        reference: fieldIds[0],
+                        label: fieldIds[0],
                     },
-                    y: [
-                        {
-                            reference: Object.keys(action.payload[0])[1],
-                            label: Object.keys(action.payload[0])[1],
-                        },
-                    ],
-                },
-                series: Object.keys(action.payload[0])
-                    .slice(1)
-                    .map((reference, index) => ({
+                    y: fieldIds.slice(1).map((reference) => ({
                         reference,
-                        name: reference,
-                        yIndex: index,
+                        label: reference,
                     })),
+                },
+                series: fieldIds.slice(1).map((reference, index) => ({
+                    reference,
+                    name: reference,
+                    yIndex: index,
+                })),
             };
         },
         updateResultsTableFieldConfigLabel: (
@@ -127,11 +124,11 @@ export const sqlRunnerSlice = createSlice({
         },
         updateChartSeriesLabel: (
             state,
-            action: PayloadAction<{ index: number; name: string }>,
+            action: PayloadAction<{ index: number; label: string }>,
         ) => {
             if (!state.chartConfig) return;
-            const { index, name } = action.payload;
-            state.chartConfig.series[index].name = name;
+            const { index, label } = action.payload;
+            state.chartConfig.axes.y[index].label = label;
         },
         setSelectedChartType: (
             state,
