@@ -1,6 +1,8 @@
 import {
     ApiWarehouseTableFields,
+    CreateSqlChart,
     SEED_PROJECT,
+    UpdateSqlChart,
     WarehouseTypes,
 } from '@lightdash/common';
 import warehouseConnections from '../../support/warehouses';
@@ -98,7 +100,8 @@ Object.entries(warehouseConnections).forEach(
                 amount as "amount", 
                 payment_method as "payment_method"`; // Need to lowercase column ids in snowflake
                 const sql = `SELECT ${selectFields}
-                     FROM ${database}.${schema}.payments ORDER BY payment_id asc LIMIT 2`;
+                             FROM ${database}.${schema}.payments
+                             ORDER BY payment_id asc LIMIT 2`;
 
                 cy.request({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
@@ -195,14 +198,10 @@ describe.skip(`Load testing`, () => {
     it(`Load testing streaming 1M results `, () => {
         // This SQL generates 50k random results on Postgres
         const sql = `
-            SELECT
-                gs.id AS payment_id,
-                (1000 + random() * 10000)::int AS amount,  -- Random amount between 1000 and 11000
-                (current_date - (random() * 365)::int)::date AS payment_date,  -- Random date within the last year
-                md5(random()::text) AS payment_method,  -- Random payment reference
-                (random() * 100000)::int AS customer_id  -- Random customer_id between 0 and 100000
-            FROM
-                generate_series(1, 50000) AS gs(id)  -- Generate 50k rows
+            SELECT gs.id AS payment_id,
+                   (1000 + random() * 10000)::int AS amount,  -- Random amount between 1000 and 11000 (current_date - (random() * 365)::int)::date AS payment_date,  -- Random date within the last year md5(random()::text) AS payment_method, -- Random payment reference
+                   (random() * 100000)::int AS customer_id  -- Random customer_id between 0 and 100000
+            FROM generate_series(1, 50000) AS gs(id) -- Generate 50k rows
         `;
 
         cy.request({
@@ -260,6 +259,82 @@ describe.skip(`Load testing`, () => {
                 });
             };
             poll();
+        });
+    });
+});
+
+describe.only(`Saved SQL chart`, () => {
+    beforeEach(() => {
+        cy.login();
+    });
+
+    it(`save & update SQL chart`, () => {
+        // get spaces
+        cy.request({
+            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+        }).then((spaceResp) => {
+            const space = spaceResp.body.results[0];
+
+            const sqlChartToCreate: CreateSqlChart = {
+                name: 'test',
+                description: null,
+                sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 21',
+                config: {},
+                spaceUuid: space.uuid,
+            };
+
+            // create sql chart
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'POST',
+                body: JSON.stringify(sqlChartToCreate),
+            }).then((createResp) => {
+                expect(createResp.status).to.eq(200);
+                const { savedSqlUuid } = createResp.body.results;
+
+                const sqlChartToUpdate: UpdateSqlChart = {
+                    unversionedData: {
+                        name: 'test update',
+                        description: null,
+                        spaceUuid: space.uuid,
+                    },
+                    versionedData: {
+                        sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                        config: {},
+                    },
+                };
+
+                // Update sql chart
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'PATCH',
+                    body: JSON.stringify(sqlChartToUpdate),
+                }).then((updateResp) => {
+                    expect(updateResp.status).to.eq(200);
+                    // get sql chart
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+                    }).then((getResp) => {
+                        expect(getResp.status).to.eq(200);
+                        const { results } = getResp.body;
+                        expect(results.name).to.be.eq('test update');
+                        expect(results.sql).to.be.eq(
+                            'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                        );
+
+                        // delete sql chart
+                        cy.request({
+                            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
+                            headers: { 'Content-type': 'application/json' },
+                            method: 'DELETE',
+                        }).then((deleteResp) => {
+                            expect(deleteResp.status).to.eq(200);
+                        });
+                    });
+                });
+            });
         });
     });
 });

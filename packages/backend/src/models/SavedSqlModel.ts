@@ -3,11 +3,9 @@ import {
     CreateSqlChart,
     NotFoundError,
     SqlChart,
-    UpdateUnversionedSqlChart,
-    UpdateVersionedSqlChart,
+    UpdateSqlChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import {
     DbOrganization,
@@ -53,11 +51,8 @@ type SelectSavedSql = Pick<
 export class SavedSqlModel {
     private database: Knex;
 
-    private lightdashConfig: LightdashConfig;
-
-    constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
+    constructor(args: { database: Knex }) {
         this.database = args.database;
-        this.lightdashConfig = args.lightdashConfig;
     }
 
     static convertSelectSavedSql(row: SelectSavedSql): SqlChart {
@@ -141,17 +136,16 @@ export class SavedSqlModel {
             .leftJoin(
                 `${UserTableName} as createdByUser`,
                 `${SavedSqlTableName}.created_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
+                `createdByUser.user_uuid`,
             )
             .leftJoin(
                 `${UserTableName} as updatedByUser`,
-                `${SavedSqlTableName}.last_updated_by_user_uuid`,
-                `${UserTableName}.user_uuid`,
+                `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
+                `updatedByUser.user_uuid`,
             )
             .select<SelectSavedSql[]>([
                 `${ProjectTableName}.project_uuid`,
-                `${SavedSqlTableName}.saved_query_id`,
-                `${SavedSqlTableName}.saved_query_uuid`,
+                `${SavedSqlTableName}.saved_sql_uuid`,
                 `${SavedSqlTableName}.name`,
                 `${SavedSqlTableName}.description`,
                 `${SavedSqlTableName}.dashboard_uuid`,
@@ -190,7 +184,9 @@ export class SavedSqlModel {
                         .max('created_at')
                         .where(
                             `${SavedSqlVersionsTableName}.saved_sql_uuid`,
-                            `${SavedSqlTableName}.saved_sql_uuid`,
+                            this.database.ref(
+                                `${SavedSqlTableName}.saved_sql_uuid`,
+                            ),
                         ),
                 );
             })
@@ -271,31 +267,36 @@ export class SavedSqlModel {
     async update(data: {
         userUuid: string;
         savedSqlUuid: string;
-        unversionedData?: UpdateUnversionedSqlChart;
-        versionedData?: UpdateVersionedSqlChart;
+        sqlChart: UpdateSqlChart;
     }): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         return this.database.transaction(async (trx) => {
-            if (data.unversionedData) {
+            if (data.sqlChart.unversionedData) {
                 await trx(SavedSqlTableName)
                     .update({
-                        name: data.unversionedData.name,
-                        description: data.unversionedData.description,
-                        space_uuid: data.unversionedData.spaceUuid,
+                        name: data.sqlChart.unversionedData.name,
+                        description: data.sqlChart.unversionedData.description,
+                        space_uuid: data.sqlChart.unversionedData.spaceUuid,
                     })
                     .where('saved_sql_uuid', data.savedSqlUuid);
             }
 
             let savedSqlVersionUuid: string | null = null;
-            if (data.versionedData) {
+            if (data.sqlChart.versionedData) {
                 savedSqlVersionUuid = await SavedSqlModel.createVersion(trx, {
                     savedSqlUuid: data.savedSqlUuid,
                     userUuid: data.userUuid,
-                    config: data.versionedData.config,
-                    sql: data.versionedData.sql,
+                    config: data.sqlChart.versionedData.config,
+                    sql: data.sqlChart.versionedData.sql,
                 });
             }
 
             return { savedSqlUuid: data.savedSqlUuid, savedSqlVersionUuid };
         });
+    }
+
+    async delete(uuid: string) {
+        await this.database(SavedSqlTableName)
+            .where('saved_sql_uuid', uuid)
+            .delete();
     }
 }
