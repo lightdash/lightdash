@@ -24,10 +24,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
+import { setInitialResultsAndSeries } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
-import { setInitialResultsTableConfig } from '../store/sqlRunnerSlice';
 
 type Props = {
     isChartConfigOpen: boolean;
@@ -68,7 +68,7 @@ export const ContentPanel: FC<Props> = ({
     } = useSqlQueryRun({
         onSuccess: (data) => {
             if (data) {
-                dispatch(setInitialResultsTableConfig(data));
+                dispatch(setInitialResultsAndSeries(data));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
