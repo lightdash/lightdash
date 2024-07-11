@@ -35,7 +35,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
@@ -342,6 +342,10 @@ const UsersView: FC = () => {
                 pageSize: DEFAULT_PAGE_SIZE,
             },
         });
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearchQuery]);
 
     const organizationUsers = useMemo(() => {
         return paginatedUsers?.data;
