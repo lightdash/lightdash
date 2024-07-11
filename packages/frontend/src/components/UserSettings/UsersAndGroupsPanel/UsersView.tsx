@@ -330,7 +330,7 @@ const UsersView: FC = () => {
     const [page, setPage] = useState(1);
 
     const [search, setSearch] = useState('');
-    const [debouncedSearchQuery] = useDebouncedValue(search, 300);
+    const [debouncedSearchQuery] = useDebouncedValue(search, 500);
 
     // TODO: fix the hardcoded groups number. This should be paginated.
     const { data: paginatedUsers, isInitialLoading: isLoadingUsers } =
