@@ -1,3 +1,10 @@
+## [0.1167.1](https://github.com/lightdash/lightdash/compare/0.1167.0...0.1167.1) (2024-07-11)
+
+
+### Bug Fixes
+
+* handle SIGTERM gracefully on scheduler ([#10670](https://github.com/lightdash/lightdash/issues/10670)) ([a08bce5](https://github.com/lightdash/lightdash/commit/a08bce556c0f5079c80c9938e20ba34ebb83778e))
+
 # [0.1167.0](https://github.com/lightdash/lightdash/compare/0.1166.0...0.1167.0) (2024-07-11)
 
 
