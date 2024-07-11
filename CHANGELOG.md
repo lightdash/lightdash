@@ -1,3 +1,10 @@
+# [0.1168.0](https://github.com/lightdash/lightdash/compare/0.1167.1...0.1168.0) (2024-07-11)
+
+
+### Features
+
+* truncate tables and allow copying table reference ([#10688](https://github.com/lightdash/lightdash/issues/10688)) ([b29c2d0](https://github.com/lightdash/lightdash/commit/b29c2d065d9d90e280d935cda9093b1d88fd23d1))
+
 ## [0.1167.1](https://github.com/lightdash/lightdash/compare/0.1167.0...0.1167.1) (2024-07-11)
 
 
