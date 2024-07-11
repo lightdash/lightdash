@@ -23,7 +23,7 @@ import {
 } from '../database/entities/organizations';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
-import { getQuereColumnMatchRegexSql } from './SearchModel/utils/search';
+import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;
@@ -124,7 +124,7 @@ export class OrganizationMemberProfileModel {
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
 
         if (searchQuery) {
-            query = getQuereColumnMatchRegexSql(query, searchQuery, [
+            query = getColumnMatchRegexQuery(query, searchQuery, [
                 'first_name',
                 'last_name',
                 'email',
@@ -219,7 +219,7 @@ export class OrganizationMemberProfileModel {
         }
 
         if (searchQuery) {
-            orgMembersAndGroupsQuery = getQuereColumnMatchRegexSql(
+            orgMembersAndGroupsQuery = getColumnMatchRegexQuery(
                 orgMembersAndGroupsQuery,
                 searchQuery,
                 ['first_name', 'last_name', 'email', 'role'],

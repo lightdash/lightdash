@@ -45,7 +45,7 @@ export function getRegexFromUserQuery(query: string) {
     return new RegExp(splitQuery.join('|'), 'ig');
 }
 
-export function getQuereColumnMatchRegexSql(
+export function getColumnMatchRegexQuery(
     queryBuilder: Knex.QueryBuilder,
     searchQuery: string,
     columns: string[],
