@@ -14,7 +14,7 @@ export interface SqlRunnerState {
     selectedChartType: SqlRunnerChartType;
 
     resultsTableConfig: TableChartSqlConfig | undefined;
-    chartConfig: BarChartConfig;
+    chartConfig: BarChartConfig | undefined;
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -27,22 +27,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
     selectedChartType: SqlRunnerChartType.TABLE,
     resultsTableConfig: undefined,
-    chartConfig: {
-        metadata: {
-            version: 1,
-        },
-        style: {
-            legend: {
-                position: 'top',
-                align: 'start',
-            },
-        },
-        axes: {
-            x: {},
-            y: [],
-        },
-        series: [],
-    },
+    chartConfig: undefined,
     modals: {
         saveChartModal: {
             isOpen: false,
@@ -81,18 +66,38 @@ export const sqlRunnerSlice = createSlice({
                 columns,
             };
 
-            // Set add fields to the chart config
-            state.chartConfig.axes.x = {
-                reference: Object.keys(action.payload[0])[0],
-                label: Object.keys(action.payload[0])[0],
+            // TODO: this initialization should be put somewhere it
+            // can be shared between the frontend and backend
+            state.chartConfig = {
+                metadata: {
+                    version: 1,
+                },
+                style: {
+                    legend: {
+                        position: 'top',
+                        align: 'center',
+                    },
+                },
+                axes: {
+                    x: {
+                        reference: Object.keys(action.payload[0])[0],
+                        label: Object.keys(action.payload[0])[0],
+                    },
+                    y: [
+                        {
+                            reference: Object.keys(action.payload[0])[1],
+                            label: Object.keys(action.payload[0])[1],
+                        },
+                    ],
+                },
+                series: Object.keys(action.payload[0])
+                    .slice(1)
+                    .map((reference, index) => ({
+                        reference,
+                        name: reference,
+                        yIndex: index,
+                    })),
             };
-            state.chartConfig.series = Object.keys(action.payload[0])
-                .slice(1)
-                .map((reference, index) => ({
-                    reference,
-                    label: reference,
-                    yIndex: index,
-                }));
         },
         updateResultsTableFieldConfigLabel: (
             state,
@@ -103,12 +108,30 @@ export const sqlRunnerSlice = createSlice({
                 state.resultsTableConfig.columns[reference].label = label;
             }
         },
+        updateChartAxisLabel: (
+            state,
+            action: PayloadAction<{ reference: string; label: string }>,
+        ) => {
+            if (!state.chartConfig) {
+                return;
+            }
+            const { reference, label } = action.payload;
+            if (state.chartConfig.axes.x.reference === reference) {
+                state.chartConfig.axes.x.label = label;
+            } else {
+                const index = state.chartConfig.axes.y.findIndex(
+                    (axis) => axis.reference === reference,
+                );
+                state.chartConfig.axes.y[index].label = label;
+            }
+        },
         updateChartSeriesLabel: (
             state,
-            action: PayloadAction<{ index: number; label: string }>,
+            action: PayloadAction<{ index: number; name: string }>,
         ) => {
-            const { index, label } = action.payload;
-            state.chartConfig.series[index].label = label;
+            if (!state.chartConfig) return;
+            const { index, name } = action.payload;
+            state.chartConfig.series[index].name = name;
         },
         setSelectedChartType: (
             state,
@@ -137,6 +160,7 @@ export const {
     setProjectUuid,
     setInitialResultsAndSeries,
     updateResultsTableFieldConfigLabel,
+    updateChartAxisLabel,
     updateChartSeriesLabel,
     setSelectedChartType,
     toggleModal,

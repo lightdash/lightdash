@@ -5,7 +5,7 @@ import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 
 export const useBarChartDataTransformer = (
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
-    config: BarChartConfig,
+    config?: BarChartConfig,
 ) => {
     const transformer = useMemo(
         () => new BarChartDataTransformer({ data }),

@@ -14,6 +14,7 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     setSelectedChartType,
+    updateChartAxisLabel,
     updateChartSeriesLabel,
     updateResultsTableFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
@@ -90,28 +91,42 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                         X axis
                     </Title>
                     <EditableText
-                        value={chartConfig.axes.x.label}
-                        // onChange={(e) => {
-                        //     dispatch(
-                        //         updateChartSeriesLabel({
-                        //             index: index,
-                        //             label: e.target.value,
-                        //         }),
-                        //     );
-                        // }}
+                        value={chartConfig?.axes?.x.label}
+                        onChange={(e) => {
+                            dispatch(
+                                updateChartAxisLabel({
+                                    reference: chartConfig.axes.x.reference,
+                                    label: e.target.value,
+                                }),
+                            );
+                        }}
+                    />
+                    <Title order={6} fz="sm" c="gray.6">
+                        Y axis
+                    </Title>
+                    <EditableText
+                        value={chartConfig?.axes?.y[0]?.label}
+                        onChange={(e) => {
+                            dispatch(
+                                updateChartAxisLabel({
+                                    reference: chartConfig.axes.y[0].reference,
+                                    label: e.target.value,
+                                }),
+                            );
+                        }}
                     />
                     <Title order={6} fz="sm" c="gray.6">
                         Series
                     </Title>
-                    {chartConfig.series.map(({ label, reference }, index) => (
+                    {chartConfig.series.map(({ name, reference }, index) => (
                         <EditableText
                             key={reference}
-                            value={label ?? reference}
+                            value={name ?? reference}
                             onChange={(e) => {
                                 dispatch(
                                     updateChartSeriesLabel({
                                         index: index,
-                                        label: e.target.value,
+                                        name: e.target.value,
                                     }),
                                 );
                             }}
