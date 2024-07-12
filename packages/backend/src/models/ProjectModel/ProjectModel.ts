@@ -1662,7 +1662,7 @@ export class ProjectModel {
             const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
                 uuid: dashboardTabs[i].uuid,
                 newUuid: c.uuid,
-                newDashboardVersionId: c.dashboard_version_id,
+                dashboardVersionId: dashboardTabs[i].dashboard_version_id,
             }));
 
             const dashboardViews = await trx(DashboardViewsTableName).whereIn(
@@ -1725,6 +1725,9 @@ export class ProjectModel {
             );
             await Promise.all(updateChartInDashboards);
 
+            console.log(dashboardTabsMapping);
+            console.log(dashboardTiles);
+
             const newDashboardTiles =
                 dashboardTiles.length > 0
                     ? await trx('dashboard_tiles')
@@ -1740,7 +1743,7 @@ export class ProjectModel {
                                   tab_uuid: dashboardTabsMapping.find(
                                       (m) =>
                                           m.uuid === d.tab_uuid &&
-                                          m.newDashboardVersionId ===
+                                          m.dashboardVersionId ===
                                               d.dashboard_version_id,
                                   )?.newUuid,
                               })),
