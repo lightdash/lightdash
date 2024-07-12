@@ -1,5 +1,7 @@
+import { subject } from '@casl/ability';
 import {
     CreateSqlChart,
+    ForbiddenError,
     SessionUser,
     SqlChart,
     UpdateSqlChart,
@@ -39,8 +41,31 @@ export class SavedSqlService extends BaseService {
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<SqlChart> {
-        // todo: check permissions to project, space, sql
-        return this.savedSqlModel.get(savedSqlUuid);
+        const savedChart = await this.savedSqlModel.get(savedSqlUuid, {
+            projectUuid,
+        });
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.space.uuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            savedChart.space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+        return savedChart;
     }
 
     async createSqlChart(
@@ -48,7 +73,38 @@ export class SavedSqlService extends BaseService {
         projectUuid: string,
         sqlChart: CreateSqlChart,
     ): Promise<string> {
-        // todo: check permissions to project, space, sql
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const space = await this.spaceModel.getSpaceSummary(sqlChart.spaceUuid);
+        const { isPrivate } = space;
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            sqlChart.spaceUuid,
+        );
+        if (
+            user.ability.cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have permission to create this chart",
+            );
+        }
         const { savedSqlUuid } = await this.savedSqlModel.create(
             user.userUuid,
             sqlChart,
@@ -62,7 +118,73 @@ export class SavedSqlService extends BaseService {
         savedSqlUuid: string,
         sqlChart: UpdateSqlChart,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
-        // todo: check permissions to project, space, sql chart, sql
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const savedChart = await this.savedSqlModel.get(savedSqlUuid, {
+            projectUuid,
+        });
+        const space = await this.spaceModel.getSpaceSummary(
+            savedChart.space.uuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    isPrivate: space.isPrivate,
+                    access: await this.spaceModel.getUserSpaceAccess(
+                        user.userUuid,
+                        savedChart.space.uuid,
+                    ),
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have permission to update this chart",
+            );
+        }
+
+        // check permission if the chart is being moved to a different space
+        if (
+            sqlChart.unversionedData &&
+            savedChart.space.uuid !== sqlChart.unversionedData.spaceUuid
+        ) {
+            const newSpace = await this.spaceModel.getSpaceSummary(
+                sqlChart.unversionedData.spaceUuid,
+            );
+            if (
+                user.ability.cannot(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid:
+                            savedChart.organization.organizationUuid,
+                        projectUuid: savedChart.project.projectUuid,
+                        isPrivate: newSpace.isPrivate,
+                        access: await this.spaceModel.getUserSpaceAccess(
+                            user.userUuid,
+                            sqlChart.unversionedData.spaceUuid,
+                        ),
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    "You don't have permission to move this chart to the new space",
+                );
+            }
+        }
+
         return this.savedSqlModel.update({
             userUuid: user.userUuid,
             savedSqlUuid,
@@ -75,7 +197,29 @@ export class SavedSqlService extends BaseService {
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<void> {
-        // todo: check permissions to project, sql chart
+        const sqlChart = await this.savedSqlModel.get(savedSqlUuid, {
+            projectUuid,
+        });
+        const space = await this.spaceModel.getSpaceSummary(
+            sqlChart.space.uuid,
+        );
+        const access = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            sqlChart.space.uuid,
+        );
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('SavedChart', {
+                    organizationUuid: sqlChart.organization.organizationUuid,
+                    projectUuid: sqlChart.project.projectUuid,
+                    isPrivate: space.isPrivate,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         await this.savedSqlModel.delete(savedSqlUuid);
     }
 }
