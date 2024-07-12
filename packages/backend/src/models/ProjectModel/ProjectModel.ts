@@ -1725,9 +1725,6 @@ export class ProjectModel {
             );
             await Promise.all(updateChartInDashboards);
 
-            console.log(dashboardTabsMapping);
-            console.log(dashboardTiles);
-
             const newDashboardTiles =
                 dashboardTiles.length > 0
                     ? await trx('dashboard_tiles')
