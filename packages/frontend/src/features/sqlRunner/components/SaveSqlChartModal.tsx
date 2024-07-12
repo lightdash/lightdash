@@ -1,8 +1,11 @@
+import { SqlRunnerChartType } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
+import { useCallback, useEffect } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleModal } from '../store/sqlRunnerSlice';
@@ -16,16 +19,7 @@ type FormValues = z.infer<typeof validationSchema>;
 export const SaveSqlChartModal = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const isOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.saveChartModal.isOpen,
-    );
-
-    const {
-        mutateAsync: createSavedSqlChart,
-        isLoading: isCreatingSavedSqlChart,
-    } = useCreateSqlChartMutation(projectUuid);
-
-    const onClose = () => dispatch(toggleModal('saveChartModal'));
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -34,15 +28,59 @@ export const SaveSqlChartModal = () => {
         validate: zodResolver(validationSchema),
     });
 
-    const handleOnSubmit = async () => {
+    const isOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.saveChartModal.isOpen,
+    );
+    const onClose = useCallback(
+        () => dispatch(toggleModal('saveChartModal')),
+        [dispatch],
+    );
+
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const chartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
+    );
+
+    const {
+        mutateAsync: createSavedSqlChart,
+        isLoading: isCreatingSavedSqlChart,
+        isSuccess: isSavedSqlChartCreated,
+    } = useCreateSqlChartMutation(projectUuid);
+
+    useEffect(() => {
+        if (isSavedSqlChartCreated) {
+            onClose();
+        }
+    }, [isSavedSqlChartCreated, onClose]);
+
+    const handleOnSubmit = useCallback(async () => {
+        if (spaces.length === 0) {
+            return;
+        }
         await createSavedSqlChart({
-            name: 'bah',
-            description: 'moo',
-            sql: 'SELECT * from farm',
-            config: {},
-            spaceUuid: '56e5546b-9c8e-48ce-95fe-700325a0364e',
+            name: form.values.name,
+            description: 'A test saved chart',
+            sql: sql,
+            config:
+                chartType === SqlRunnerChartType.TABLE
+                    ? resultsTableConfig || {}
+                    : chartConfig || {},
+            // TODO: add space selection
+            spaceUuid: spaces[0].uuid,
         });
-    };
+    }, [
+        chartConfig,
+        chartType,
+        createSavedSqlChart,
+        form.values.name,
+        resultsTableConfig,
+        spaces,
+        sql,
+    ]);
 
     return (
         <Modal

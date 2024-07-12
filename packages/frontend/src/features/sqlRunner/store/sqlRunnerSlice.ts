@@ -2,6 +2,7 @@ import {
     SqlRunnerChartType,
     type BarChartConfig,
     type ResultRow,
+    type SqlChart,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 
@@ -12,10 +13,13 @@ export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
     savedChartUuid: string | undefined;
-    selectedChartType: SqlRunnerChartType;
 
+    sql: string;
+
+    selectedChartType: SqlRunnerChartType;
     resultsTableConfig: TableChartSqlConfig | undefined;
-    chartConfig: BarChartConfig | undefined;
+    chartConfig: BarChartConfig | TableChartSqlConfig | undefined;
+
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -27,6 +31,8 @@ const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
     savedChartUuid: undefined,
+
+    sql: '',
     selectedChartType: SqlRunnerChartType.TABLE,
     resultsTableConfig: undefined,
     chartConfig: undefined,
@@ -73,35 +79,52 @@ export const sqlRunnerSlice = createSlice({
 
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
-            const fieldIds = Object.keys(action.payload[0]);
-            state.chartConfig = {
-                metadata: {
-                    version: 1,
-                },
-                style: {
-                    legend: {
-                        position: 'top',
-                        align: 'center',
+            if (state.chartConfig === undefined) {
+                const fieldIds = Object.keys(action.payload[0]);
+                state.chartConfig = {
+                    metadata: {
+                        version: 1,
                     },
-                },
-                axes: {
-                    x: {
-                        reference: fieldIds[0],
-                        label: fieldIds[0],
-                    },
-                    y: [
-                        {
-                            reference: fieldIds[1],
-                            label: fieldIds[1],
+                    style: {
+                        legend: {
+                            position: 'top',
+                            align: 'center',
                         },
-                    ],
-                },
-                series: fieldIds.slice(1).map((reference, index) => ({
-                    reference,
-                    name: reference,
-                    yIndex: index,
-                })),
-            };
+                    },
+                    axes: {
+                        x: {
+                            reference: fieldIds[0],
+                            label: fieldIds[0],
+                        },
+                        y: [
+                            {
+                                reference: fieldIds[1],
+                                label: fieldIds[1],
+                            },
+                        ],
+                    },
+                    series: fieldIds.slice(1).map((reference, index) => ({
+                        reference,
+                        name: reference,
+                        yIndex: index,
+                    })),
+                };
+            }
+        },
+        setSql: (state, action: PayloadAction<string>) => {
+            state.sql = action.payload;
+        },
+        // TODO: type is incorrect
+        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.sql = action.payload.sql;
+            state.selectedChartType =
+                action.payload.type === SqlRunnerChartType.TABLE
+                    ? SqlRunnerChartType.TABLE
+                    : SqlRunnerChartType.BAR;
+            state.chartConfig =
+                action.payload.type === SqlRunnerChartType.TABLE
+                    ? undefined
+                    : action.payload.config;
         },
         updateResultsTableFieldConfigLabel: (
             state,
@@ -164,6 +187,8 @@ export const {
     setProjectUuid,
     setInitialResultsAndSeries,
     setSavedChartUuid,
+    setSql,
+    setSaveChartData,
     updateResultsTableFieldConfigLabel,
     updateChartAxisLabel,
     updateChartSeriesLabel,
