@@ -459,6 +459,11 @@ export class UserService extends BaseService {
                 `User with email ${openIdUser.openId.email} is not allowed to login with ${openIdUser.openId.issuerType}`,
             );
         }
+        this.logger.info(
+            `Logging with OpenId email ${openIdUser.openId.email} and groups ${
+                openIdUser.openId.groups
+            }, is authenticated: ${authenticatedUser !== undefined}`,
+        );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
             const organization = this.loginToOrganization(
