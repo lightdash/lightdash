@@ -1,7 +1,7 @@
-import { type ResultRow } from './results';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';
+import { type ResultRow } from './results';
 import { type ChartKind } from './savedCharts';
 import { type Space } from './space';
 import { type LightdashUser } from './user';
