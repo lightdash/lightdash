@@ -1,6 +1,7 @@
 import {
     ChartKind,
     CreateSqlChart,
+    generateSlug,
     NotFoundError,
     SqlChart,
     UpdateSqlChart,
@@ -252,7 +253,7 @@ export class SavedSqlModel {
                 SavedSqlTableName,
             ).insert(
                 {
-                    slug: '',
+                    slug: generateSlug(data.name),
                     name: data.name,
                     description: data.description,
                     created_by_user_uuid: userUuid,
