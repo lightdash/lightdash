@@ -372,6 +372,7 @@ const UsersView: FC = () => {
                     <Group align="center" position="apart">
                         <TextInput
                             size="xs"
+                            data-testid="org-users-search-input"
                             placeholder="Search users by name, email, or role"
                             onChange={(e) => setSearch(e.target.value)}
                             value={search}
