@@ -46,6 +46,8 @@ describe('Settings - Invites', () => {
         cy.findByRole('menuitem', { name: 'Organization settings' }).click();
 
         cy.contains('Users & groups').click();
+        cy.findByTestId('org-users-search-input').clear().type('marygreen');
+        cy.wait(500);
         cy.get('table')
             .contains('tr', 'demo+marygreen@lightdash.com')
             .scrollIntoView()

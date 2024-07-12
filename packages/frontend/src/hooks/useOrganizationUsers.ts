@@ -1,8 +1,8 @@
 import {
     type ApiError,
-    type OrganizationMemberProfile,
+    type ApiOrganizationMemberProfiles,
+    type KnexPaginateArgs,
     type OrganizationMemberProfileUpdate,
-    type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
@@ -11,16 +11,28 @@ import { useApp } from '../providers/AppProvider';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-const getOrganizationUsersQuery = async (includeGroups?: number) =>
-    lightdashApi<
-        OrganizationMemberProfile[] | OrganizationMemberProfileWithGroups[]
-    >({
-        url: `/org/users${
-            includeGroups ? `?includeGroups=${includeGroups}` : ''
-        }`,
+const getOrganizationUsersQuery = async (
+    includeGroups?: number,
+    paginateArgs?: KnexPaginateArgs,
+    searchQuery?: string,
+) => {
+    const urlParams = new URLSearchParams({
+        ...(paginateArgs
+            ? {
+                  page: String(paginateArgs.page),
+                  pageSize: String(paginateArgs.pageSize),
+              }
+            : {}),
+        ...(includeGroups ? { includeGroups: String(includeGroups) } : {}),
+        ...(searchQuery ? { searchQuery } : {}),
+    }).toString();
+
+    return lightdashApi<ApiOrganizationMemberProfiles['results']>({
+        url: `/org/users${urlParams ? `?${urlParams}` : ''}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 const deleteUserQuery = async (id: string) =>
     lightdashApi<null>({
@@ -41,22 +53,50 @@ export const useOrganizationUsers = (params?: {
     includeGroups?: number;
 }) => {
     const setErrorResponse = useQueryError();
-    return useQuery<OrganizationMemberProfile[], ApiError>({
-        queryKey: ['organization_users', params?.includeGroups],
-        queryFn: () => getOrganizationUsersQuery(params?.includeGroups),
-        onError: (result) => setErrorResponse(result),
-        select: (data) => {
-            if (params?.searchInput) {
-                return new Fuse(Object.values(data), {
-                    keys: ['firstName', 'lastName', 'email', 'role'],
-                    ignoreLocation: true,
-                    threshold: 0.3,
-                })
-                    .search(params.searchInput)
-                    .map((result) => result.item);
-            }
-            return data;
+    return useQuery<ApiOrganizationMemberProfiles['results']['data'], ApiError>(
+        {
+            queryKey: ['organization_users', params?.includeGroups],
+            queryFn: async () => {
+                return (await getOrganizationUsersQuery(params?.includeGroups))
+                    .data;
+            },
+            onError: (result) => setErrorResponse(result),
+            select: (data) => {
+                if (params?.searchInput) {
+                    return new Fuse(Object.values(data), {
+                        keys: ['firstName', 'lastName', 'email', 'role'],
+                        ignoreLocation: true,
+                        threshold: 0.3,
+                    })
+                        .search(params.searchInput)
+                        .map((result) => result.item);
+                }
+                return data;
+            },
         },
+    );
+};
+
+export const usePaginatedOrganizationUsers = (params: {
+    searchInput?: string;
+    includeGroups?: number;
+    paginateArgs?: KnexPaginateArgs;
+}) => {
+    const setErrorResponse = useQueryError();
+    return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
+        queryKey: [
+            'organization_users',
+            params.includeGroups,
+            params.paginateArgs,
+            params.searchInput,
+        ],
+        queryFn: () =>
+            getOrganizationUsersQuery(
+                params.includeGroups,
+                params.paginateArgs,
+                params.searchInput,
+            ),
+        onError: (result) => setErrorResponse(result),
     });
 };
 

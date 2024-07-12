@@ -3750,6 +3750,66 @@
                 "type": "object",
                 "description": "List of projects in the current organization"
             },
+            "KnexQueryBuilderResult_T_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            },
+            "KnexQueryBuilderResult_OrganizationMemberProfile-Array_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_OrganizationMemberProfile-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_OrganizationMemberProfile-Array_"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiOrganizationMemberProfiles": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_OrganizationMemberProfile-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "OrganizationMemberRole": {
                 "enum": [
                     "member",
@@ -3805,23 +3865,6 @@
                 ],
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
-            },
-            "ApiOrganizationMemberProfiles": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/OrganizationMemberProfile"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
             },
             "ApiOrganizationMemberProfile": {
                 "properties": {
@@ -8039,7 +8082,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1162.0",
+        "version": "0.1167.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10294,6 +10337,32 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
