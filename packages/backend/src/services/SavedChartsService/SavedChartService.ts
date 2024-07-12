@@ -771,12 +771,13 @@ export class SavedChartService extends BaseService {
             updatedByUser: UpdatedByUser;
             slug: string;
         };
+
         const base = {
             ...chart,
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
-            slug: generateSlug(data.chartName),
+            slug: generateSlug(`${data.chartName} ${Date.now()}`), // Ensure unique slug for duplicated charts
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {
