@@ -165,6 +165,30 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Get saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param slug the slug for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/slug/{slug}')
+    @OperationId('getSavedSqlChartBySlug')
+    async getSavedSqlChartBySlug(
+        @Path() slug: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChart(req.user!, projectUuid, undefined, slug),
+        };
+    }
+
+    /**
      * Create sql chart
      * @param projectUuid the uuid for the project
      * @param req express request

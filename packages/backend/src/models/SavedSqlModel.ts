@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { SqlRunnerChartConfig } from '@lightdash/common/src/types/sqlRunner';
 import { Knex } from 'knex';
+import { customAlphabet } from 'nanoid';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import {
     DbOrganization,
@@ -100,7 +101,11 @@ export class SavedSqlModel {
         };
     }
 
-    async find(options: { uuid?: string; projectUuid?: string }) {
+    async find(options: {
+        uuid?: string;
+        slug?: string;
+        projectUuid?: string;
+    }) {
         return this.database
             .from(SavedSqlTableName)
             .leftJoin(
@@ -176,6 +181,13 @@ export class SavedSqlModel {
                     );
                 }
 
+                if (options.slug) {
+                    void builder.where(
+                        `${SavedSqlTableName}.slug`,
+                        options.slug,
+                    );
+                }
+
                 if (options.projectUuid) {
                     void builder.where(
                         `${ProjectTableName}.project_uuid`,
@@ -201,7 +213,16 @@ export class SavedSqlModel {
             .orderBy(`${SavedSqlVersionsTableName}.created_at`, 'desc');
     }
 
-    async get(uuid: string, options: { projectUuid?: string }) {
+    async getBySlug(projectUuid: string, slug: string) {
+        const results = await this.find({ slug, projectUuid });
+        const [result] = results;
+        if (!result) {
+            throw new NotFoundError('Saved sql not found');
+        }
+        return SavedSqlModel.convertSelectSavedSql(result);
+    }
+
+    async getByUuid(uuid: string, options: { projectUuid?: string }) {
         const results = await this.find({ uuid, ...options });
         const [result] = results;
         if (!result) {
@@ -241,6 +262,23 @@ export class SavedSqlModel {
         return savedSqlVersionUuid;
     }
 
+    static async generateSlug(trx: Knex, name: string) {
+        let slug = generateSlug(name);
+        const matchingSlugs: string[] = await trx(SavedSqlTableName)
+            .select('slug')
+            .where('slug', 'like', `${slug}%`)
+            .pluck('slug');
+
+        while (matchingSlugs.includes(slug)) {
+            // generate a new slug with a random alphanumeric lowercase 4 character suffix
+            slug = `${slug}-${customAlphabet(
+                '0123456789abcdefghijklmnopqrstuvwxyz',
+                4,
+            )}`;
+        }
+        return slug;
+    }
+
     async create(
         userUuid: string,
         projectUuid: string,
@@ -250,11 +288,12 @@ export class SavedSqlModel {
         savedSqlVersionUuid: string;
     }> {
         return this.database.transaction(async (trx) => {
+            const slug = await SavedSqlModel.generateSlug(trx, data.name);
             const [{ saved_sql_uuid: savedSqlUuid }] = await trx(
                 SavedSqlTableName,
             ).insert(
                 {
-                    slug: generateSlug(data.name),
+                    slug,
                     name: data.name,
                     description: data.description,
                     created_by_user_uuid: userUuid,
