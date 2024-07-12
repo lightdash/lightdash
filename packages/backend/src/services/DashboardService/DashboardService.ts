@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardDAO,
+    DashboardTab,
     DashboardTileTypes,
     ForbiddenError,
     generateSlug,
@@ -342,11 +343,28 @@ export class DashboardService extends BaseService {
             );
         }
 
+        const newTabsMap = dashboard.tabs.map((tab) => ({
+            uuid: tab.uuid,
+            newUuid: uuidv4(), // generate new uuid for copied tabs
+        }));
+
+        const newTabs: DashboardTab[] = dashboard.tabs.map((tab) => ({
+            ...tab,
+            uuid: newTabsMap.find((tabMap) => tabMap.uuid === tab.uuid)
+                ?.newUuid!,
+        }));
+
         const duplicatedDashboard = {
             ...dashboard,
+            tiles: dashboard.tiles.map((tile) => ({
+                ...tile,
+                tabUuid: newTabsMap.find((tab) => tab.uuid === tile.tabUuid)
+                    ?.newUuid!,
+            })),
             description: data.dashboardDesc,
             name: data.dashboardName,
             slug: generateSlug(dashboard.name),
+            tabs: newTabs,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -413,7 +431,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: newDashboard.tabs,
+                    tabs: newTabs,
                 },
                 user,
                 projectUuid,
