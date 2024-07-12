@@ -1,3 +1,10 @@
+## [0.1169.1](https://github.com/lightdash/lightdash/compare/0.1169.0...0.1169.1) (2024-07-12)
+
+
+### Bug Fixes
+
+* fix duplicate copied tabbed dashboard error ([#10609](https://github.com/lightdash/lightdash/issues/10609)) ([1e8b53a](https://github.com/lightdash/lightdash/commit/1e8b53a0000094baf348a17a5abab2bf8f942685))
+
 # [0.1169.0](https://github.com/lightdash/lightdash/compare/0.1168.2...0.1169.0) (2024-07-12)
 
 
