@@ -1,3 +1,10 @@
+## [0.1169.2](https://github.com/lightdash/lightdash/compare/0.1169.1...0.1169.2) (2024-07-12)
+
+
+### Bug Fixes
+
+* add user to group on creation okta ([#10713](https://github.com/lightdash/lightdash/issues/10713)) ([70c4e66](https://github.com/lightdash/lightdash/commit/70c4e66b14c8e6c7a665040d3fe42c7aefd95170))
+
 ## [0.1169.1](https://github.com/lightdash/lightdash/compare/0.1169.0...0.1169.1) (2024-07-12)
 
 
