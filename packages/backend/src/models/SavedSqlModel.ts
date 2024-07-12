@@ -99,7 +99,7 @@ export class SavedSqlModel {
         };
     }
 
-    async find(options: { uuid: string }) {
+    async find(options: { uuid?: string; projectUuid?: string }) {
         return this.database
             .from(SavedSqlTableName)
             .leftJoin(
@@ -175,6 +175,13 @@ export class SavedSqlModel {
                     );
                 }
 
+                if (options.projectUuid) {
+                    void builder.where(
+                        `${ProjectTableName}.project_uuid`,
+                        options.projectUuid,
+                    );
+                }
+
                 // Required filter to join only the latest version
                 void builder.where(
                     `${SavedSqlVersionsTableName}.created_at`,
@@ -193,8 +200,8 @@ export class SavedSqlModel {
             .orderBy(`${SavedSqlVersionsTableName}.created_at`, 'desc');
     }
 
-    async get(uuid: string) {
-        const results = await this.find({ uuid });
+    async get(uuid: string, options: { projectUuid?: string }) {
+        const results = await this.find({ uuid, ...options });
         const [result] = results;
         if (!result) {
             throw new NotFoundError('Saved sql not found');
