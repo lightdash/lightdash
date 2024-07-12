@@ -1,3 +1,10 @@
+# [0.1169.0](https://github.com/lightdash/lightdash/compare/0.1168.2...0.1169.0) (2024-07-12)
+
+
+### Features
+
+* user list pagination ([#10681](https://github.com/lightdash/lightdash/issues/10681)) ([ed6b78a](https://github.com/lightdash/lightdash/commit/ed6b78ab97acd0a468a5baea5e91eccfd1f91e87))
+
 ## [0.1168.2](https://github.com/lightdash/lightdash/compare/0.1168.1...0.1168.2) (2024-07-12)
 
 
