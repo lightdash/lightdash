@@ -243,6 +243,7 @@ export class SavedSqlModel {
 
     async create(
         userUuid: string,
+        projectUuid: string,
         data: CreateSqlChart,
     ): Promise<{
         savedSqlUuid: string;
@@ -257,8 +258,9 @@ export class SavedSqlModel {
                     name: data.name,
                     description: data.description,
                     created_by_user_uuid: userUuid,
+                    project_uuid: projectUuid,
                     space_uuid: data.spaceUuid,
-                    dashboard_uuid: null, // todo: support saving sql to dashboard
+                    dashboard_uuid: null,
                 },
                 ['saved_sql_uuid'],
             );

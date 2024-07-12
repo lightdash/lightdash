@@ -13,6 +13,11 @@ export async function up(knex: Knex): Promise<void> {
                 .primary()
                 .defaultTo(knex.raw('uuid_generate_v4()'));
             table
+                .uuid('project_uuid')
+                .references('project_uuid')
+                .inTable('projects')
+                .onDelete('CASCADE');
+            table
                 .uuid('space_uuid')
                 .nullable()
                 .references('space_uuid')
@@ -52,6 +57,8 @@ export async function up(knex: Knex): Promise<void> {
             table.text('slug').nullable().index();
             table.integer('views_count').defaultTo(0).notNullable();
             table.timestamp('first_viewed_at').nullable();
+
+            table.unique(['project_uuid', 'slug']);
         });
 
         await knex.schema.createTable(

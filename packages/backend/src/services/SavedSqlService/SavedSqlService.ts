@@ -107,6 +107,7 @@ export class SavedSqlService extends BaseService {
         }
         const { savedSqlUuid } = await this.savedSqlModel.create(
             user.userUuid,
+            projectUuid,
             sqlChart,
         );
         return savedSqlUuid;
