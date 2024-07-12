@@ -1,18 +1,4 @@
-import {
-    BinRange,
-    ChartConfig,
-    ChartKind,
-    ChartType,
-    CompactOrAlias,
-    CustomFormat,
-    DBFieldTypes,
-    DimensionType,
-    MetricFilterRule,
-    MetricType,
-    NumberSeparator,
-    TableCalculationType,
-    TimeZone,
-} from '@lightdash/common';
+import { ChartKind } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedSqlTableName = 'saved_sql';
@@ -20,6 +6,7 @@ export const SavedSqlVersionsTableName = 'saved_sql_versions';
 
 export type DbSavedSql = {
     saved_sql_uuid: string;
+    project_uuid: string;
     space_uuid: string | null;
     dashboard_uuid: string | null;
     name: string;
@@ -35,21 +22,17 @@ export type DbSavedSql = {
     first_viewed_at: Date | null;
 };
 
-type InsertSqlInSpace = Pick<
+type InsertSqlBase = Pick<
     DbSavedSql,
-    'name' | 'description' | 'created_by_user_uuid' | 'slug'
-> & {
+    'name' | 'description' | 'project_uuid' | 'created_by_user_uuid' | 'slug'
+>;
+
+type InsertSqlInSpace = InsertSqlBase & {
     space_uuid: string;
     dashboard_uuid: null;
 };
 
-type InsertSqlInDashboard = Pick<
-    DbSavedSql,
-    | 'name'
-    | 'description'
-    | 'last_version_chart_kind'
-    | 'last_version_updated_by_user_uuid'
-> & {
+type InsertSqlInDashboard = InsertSqlBase & {
     space_uuid: null;
     dashboard_uuid: string;
 };
