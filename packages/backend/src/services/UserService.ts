@@ -535,6 +535,19 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
+                if (
+                    this.lightdashConfig.groups.enabled === true &&
+                    this.lightdashConfig.auth.enableGroupSync === true &&
+                    Array.isArray(openIdUser.openId.groups) &&
+                    openIdUser.openId.groups.length &&
+                    sessionUser.organizationUuid
+                )
+                    await this.tryAddUserToGroups({
+                        userUuid: sessionUser.userUuid,
+                        groups: openIdUser.openId.groups,
+                        organizationUuid: sessionUser.organizationUuid,
+                    });
+
                 return this.linkOpenIdIdentityToUser(
                     sessionUser,
                     openIdUser,
@@ -545,6 +558,19 @@ export class UserService extends BaseService {
 
         // Link openid identity to currently logged in user
         if (authenticatedUser) {
+            if (
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
+                Array.isArray(openIdUser.openId.groups) &&
+                openIdUser.openId.groups.length &&
+                authenticatedUser.organizationUuid
+            )
+                await this.tryAddUserToGroups({
+                    userUuid: authenticatedUser.userUuid,
+                    groups: openIdUser.openId.groups,
+                    organizationUuid: authenticatedUser.organizationUuid,
+                });
+
             return this.linkOpenIdIdentityToUser(
                 authenticatedUser,
                 openIdUser,
