@@ -1,3 +1,10 @@
+## [0.1168.2](https://github.com/lightdash/lightdash/compare/0.1168.1...0.1168.2) (2024-07-12)
+
+
+### Bug Fixes
+
+* fix slugs for duplicated charts ([#10707](https://github.com/lightdash/lightdash/issues/10707)) ([b139aee](https://github.com/lightdash/lightdash/commit/b139aeec27e9021c4c3f3b4580e96aa936f271bb))
+
 ## [0.1168.1](https://github.com/lightdash/lightdash/compare/0.1168.0...0.1168.1) (2024-07-11)
 
 
