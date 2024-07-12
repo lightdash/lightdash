@@ -11,7 +11,7 @@ type BarChartProps = Omit<EChartsReactProps, 'option'> & {
 
 const BarChart: FC<BarChartProps> = memo(({ data, ...rest }) => {
     const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.chartConfig,
+        (state) => state.sqlRunner.barChartConfig,
     );
     const { spec } = useBarChartDataTransformer(data, barChartConfig);
 

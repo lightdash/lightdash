@@ -200,7 +200,6 @@ export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
-export * from './types/visualizations';
 export * from './types/warehouse';
 export * from './utils/additionalMetrics';
 export * from './utils/api';

@@ -1,5 +1,7 @@
-import { BarChartDataTransformer } from '@lightdash/common';
-import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
+import {
+    BarChartDataTransformer,
+    type BarChartConfig,
+} from '@lightdash/common';
 import { useMemo } from 'react';
 import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 

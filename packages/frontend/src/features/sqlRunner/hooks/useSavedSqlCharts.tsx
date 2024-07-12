@@ -1,7 +1,5 @@
 import {
-    type ApiCreateSqlChart,
     type ApiError,
-    type ApiSqlChart,
     type CreateSqlChart,
     type SqlChart,
 } from '@lightdash/common';
@@ -27,7 +25,9 @@ const fetchSavedSqlChart = async ({
     });
 
 const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
-    lightdashApi<ApiSqlChart>({
+    lightdashApi<{
+        savedSqlUuid: string;
+    }>({
         url: `/projects/${projectUuid}/sqlRunner/saved`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -52,27 +52,30 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const history = useHistory();
 
-    return useMutation<ApiCreateSqlChart, ApiError, CreateSqlChart>(
-        (data) => createSavedSqlChart(projectUuid, data),
+    return useMutation<
         {
-            mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
-            onSuccess: (data) => {
-                console.log('chart create data', data);
-
-                history.replace(
-                    `/projects/${projectUuid}/sql-runner-new/saved/${data.savedSqlUuid}`,
-                );
-
-                showToastSuccess({
-                    title: `Success! SQL chart created`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to create chart`,
-                    apiError: error,
-                });
-            },
+            savedSqlUuid: string;
         },
-    );
+        ApiError,
+        CreateSqlChart
+    >((data) => createSavedSqlChart(projectUuid, data), {
+        mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
+        onSuccess: (data) => {
+            console.log('chart create data', data);
+
+            history.replace(
+                `/projects/${projectUuid}/sql-runner-new/saved/${data.savedSqlUuid}`,
+            );
+
+            showToastSuccess({
+                title: `Success! SQL chart created`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to create chart`,
+                apiError: error,
+            });
+        },
+    });
 };

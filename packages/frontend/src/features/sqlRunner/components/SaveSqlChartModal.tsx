@@ -1,4 +1,4 @@
-import { SqlRunnerChartType } from '@lightdash/common';
+import { ChartKind } from '@lightdash/common';
 import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
@@ -40,7 +40,9 @@ export const SaveSqlChartModal = () => {
     const chartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
-    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
+    const chartConfig = useAppSelector(
+        (state) => state.sqlRunner.barChartConfig,
+    );
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
@@ -66,7 +68,7 @@ export const SaveSqlChartModal = () => {
             description: 'A test saved chart',
             sql: sql,
             config:
-                chartType === SqlRunnerChartType.TABLE
+                chartType === ChartKind.TABLE
                     ? resultsTableConfig || {}
                     : chartConfig || {},
             // TODO: add space selection

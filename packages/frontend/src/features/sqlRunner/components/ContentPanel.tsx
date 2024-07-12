@@ -1,4 +1,3 @@
-import { SqlRunnerChartType } from '@lightdash/common/src/types/visualizations';
 import {
     ActionIcon,
     Box,
@@ -26,6 +25,7 @@ import { useSavedSqlChart } from '../hooks/useSavedSqlCharts';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
+import { ChartKind } from '@lightdash/common';
 import {
     setInitialResultsAndSeries,
     setSaveChartData,
@@ -288,10 +288,10 @@ export const ContentPanel: FC<Props> = ({
                             sx={{ flex: 1, overflow: 'auto' }}
                             h="100%"
                         >
-                            {selectedChartType === SqlRunnerChartType.TABLE && (
+                            {selectedChartType === ChartKind.TABLE && (
                                 <Table data={queryResults} />
                             )}
-                            {selectedChartType === SqlRunnerChartType.BAR && (
+                            {selectedChartType === ChartKind.VERTICAL_BAR && (
                                 <BarChart data={queryResults} />
                             )}
                         </Paper>
