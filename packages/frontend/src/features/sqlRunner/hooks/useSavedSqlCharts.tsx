@@ -3,21 +3,24 @@ import {
     type ApiError,
     type ApiSqlChart,
     type CreateSqlChart,
+    type SqlChart,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
 export type GetSavedSqlChartParams = {
     projectUuid: string;
     uuid: string | undefined;
+    onSuccess?: (data: SqlChart) => void;
 };
 
 const fetchSavedSqlChart = async ({
     projectUuid,
     uuid,
 }: GetSavedSqlChartParams) =>
-    lightdashApi<ApiSqlChart>({
+    lightdashApi<SqlChart>({
         url: `/projects/${projectUuid}/sqlRunner/saved/${uuid}`,
         method: 'GET',
         body: undefined,
@@ -33,20 +36,21 @@ const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
 export const useSavedSqlChart = ({
     projectUuid,
     uuid,
+    onSuccess,
 }: GetSavedSqlChartParams) => {
-    return useQuery<ApiSqlChart, ApiError>({
+    return useQuery<SqlChart, ApiError>({
         queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, uuid],
-        queryFn: () =>
-            fetchSavedSqlChart({
-                projectUuid,
-                uuid,
-            }),
+        queryFn: () => fetchSavedSqlChart({ projectUuid, uuid }),
         retry: false,
+        onSuccess: (data) => {
+            if (onSuccess) onSuccess(data);
+        },
     });
 };
 
 export const useCreateSqlChartMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
+    const history = useHistory();
 
     return useMutation<ApiCreateSqlChart, ApiError, CreateSqlChart>(
         (data) => createSavedSqlChart(projectUuid, data),
@@ -55,13 +59,17 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
             onSuccess: (data) => {
                 console.log('chart create data', data);
 
+                history.replace(
+                    `/projects/${projectUuid}/sql-runner-new/saved/${data.savedSqlUuid}`,
+                );
+
                 showToastSuccess({
                     title: `Success! SQL chart created`,
                 });
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create project`,
+                    title: `Failed to create chart`,
                     apiError: error,
                 });
             },

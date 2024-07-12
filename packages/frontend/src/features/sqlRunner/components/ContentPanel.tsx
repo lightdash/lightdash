@@ -18,7 +18,7 @@ import {
     IconLayoutNavbarExpand,
     IconPlayerPlay,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import { useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -26,7 +26,11 @@ import { useSavedSqlChart } from '../hooks/useSavedSqlCharts';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
-import { setInitialResultsAndSeries } from '../store/sqlRunnerSlice';
+import {
+    setInitialResultsAndSeries,
+    setSaveChartData,
+    setSql,
+} from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
@@ -52,7 +56,6 @@ export const ContentPanel: FC<Props> = ({
         width: inputSectionWidth,
         height: inputSectionHeight,
     } = useElementSize();
-    const [sql, setSql] = useState<string>('');
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 58, [wrapperHeight]);
@@ -61,13 +64,22 @@ export const ContentPanel: FC<Props> = ({
         [resultsHeight, wrapperHeight],
     );
 
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+
     const savedChartUuid = useAppSelector(
         (state) => state.sqlRunner.savedChartUuid,
     );
 
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
+    useSavedSqlChart({
+        projectUuid,
+        uuid: savedChartUuid,
+        onSuccess: (data) => {
+            dispatch(setSaveChartData(data));
+        },
+    });
 
     const {
         mutate: runSqlQuery,
@@ -84,12 +96,11 @@ export const ContentPanel: FC<Props> = ({
         },
     });
 
-    // TODO: move this to the store and do something with the results
-    const { data: chartData } = useSavedSqlChart({
-        projectUuid,
-        uuid: savedChartUuid,
-    });
-    console.log('-------', chartData);
+    useEffect(() => {
+        if (savedChartUuid && !queryResults) {
+            console.log('need results');
+        }
+    }, [dispatch, projectUuid, queryResults, savedChartUuid]);
 
     return (
         <Stack
@@ -172,7 +183,10 @@ export const ContentPanel: FC<Props> = ({
                             width: inputSectionWidth,
                         }}
                     >
-                        <SqlEditor sql={sql} onSqlChange={setSql} />
+                        <SqlEditor
+                            sql={sql}
+                            onSqlChange={(newSql) => dispatch(setSql(newSql))}
+                        />
                     </Box>
                 </Paper>
                 <ResizableBox
