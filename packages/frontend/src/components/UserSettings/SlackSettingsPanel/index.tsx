@@ -54,9 +54,13 @@ const SlackSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGetSlack();
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
+        data?.slackEnabled ?
         useSlackChannels({
             enabled: isValidSlack,
-        });
+        }) : {
+            data: [],
+            isInitialLoading: false,
+        };
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();
