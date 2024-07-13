@@ -23,7 +23,7 @@ const SqlRunnerNew = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
-    const params = useParams<{ projectUuid: string; chartUuid: string }>();
+    const params = useParams<{ projectUuid: string; chartUuid?: string }>();
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
