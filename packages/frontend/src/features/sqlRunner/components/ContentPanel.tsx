@@ -17,9 +17,8 @@ import {
     IconLayoutNavbarExpand,
     IconPlayerPlay,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
-import { useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSavedSqlChart } from '../hooks/useSavedSqlCharts';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
@@ -49,7 +48,7 @@ export const ContentPanel: FC<Props> = ({
     closeChartConfig,
 }) => {
     const dispatch = useAppDispatch();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const {
         ref: inputSectionRef,
@@ -95,12 +94,6 @@ export const ContentPanel: FC<Props> = ({
             }
         },
     });
-
-    useEffect(() => {
-        if (savedChartUuid && !queryResults) {
-            console.log('need results');
-        }
-    }, [dispatch, projectUuid, queryResults, savedChartUuid]);
 
     return (
         <Stack

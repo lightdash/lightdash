@@ -61,8 +61,6 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
     >((data) => createSavedSqlChart(projectUuid, data), {
         mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
         onSuccess: (data) => {
-            console.log('chart create data', data);
-
             history.replace(
                 `/projects/${projectUuid}/sql-runner-new/saved/${data.savedSqlUuid}`,
             );
