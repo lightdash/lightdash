@@ -338,6 +338,7 @@ const SchedulerForm: FC<Props> = ({
     });
 
     const slackQuery = useGetSlack();
+    const isSlackEnabled = slackQuery.data?.slackEnabled ? true : false
     const slackState = useMemo(() => {
         if (slackQuery.isInitialLoading) {
             return SlackStates.LOADING;
@@ -354,10 +355,10 @@ const SchedulerForm: FC<Props> = ({
         }
     }, [slackQuery]);
 
-    const slackChannelsQuery = useSlackChannels();
+    const slackChannelsQuery = isSlackEnabled ? useSlackChannels() : undefined;
 
     const slackChannels = useMemo(() => {
-        return (slackChannelsQuery.data || [])
+        return (slackChannelsQuery?.data || [])
             .map((channel) => {
                 const channelPrefix = channel.name.charAt(0);
 
@@ -373,7 +374,7 @@ const SchedulerForm: FC<Props> = ({
                 };
             })
             .concat(privateChannels);
-    }, [slackChannelsQuery.data, privateChannels]);
+    }, [slackChannelsQuery?.data, privateChannels]);
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
@@ -865,7 +866,7 @@ const SchedulerForm: FC<Props> = ({
                                                                 .slackTargets
                                                         }
                                                         rightSection={
-                                                            slackChannelsQuery.isInitialLoading ?? (
+                                                            slackChannelsQuery?.isInitialLoading ?? (
                                                                 <Loader size="sm" />
                                                             )
                                                         }
