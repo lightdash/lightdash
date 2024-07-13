@@ -1,11 +1,11 @@
 import {
-    ChartKind,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
     SqlChart,
     UpdateSqlChart,
 } from '@lightdash/common';
+import { SqlRunnerChartConfig } from '@lightdash/common/src/types/sqlRunner';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import {
@@ -79,7 +79,7 @@ export class SavedSqlModel {
                   }
                 : null,
             sql: row.sql,
-            config: row.config,
+            config: row.config as SqlRunnerChartConfig,
             chartKind: row.chart_kind,
             space: {
                 uuid: row.space_uuid,
@@ -215,7 +215,7 @@ export class SavedSqlModel {
         data: {
             savedSqlUuid: string;
             userUuid: string;
-            config: object;
+            config: SqlRunnerChartConfig;
             sql: string;
         },
     ): Promise<string> {
@@ -226,14 +226,14 @@ export class SavedSqlModel {
                 saved_sql_uuid: data.savedSqlUuid,
                 sql: data.sql,
                 config: data.config,
-                chart_kind: ChartKind.VERTICAL_BAR, // todo: get chart kind from config
+                chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
             },
             ['saved_sql_version_uuid'],
         );
         await trx(SavedSqlTableName)
             .update({
-                last_version_chart_kind: ChartKind.VERTICAL_BAR, // todo: get chart kind from config
+                last_version_chart_kind: data.config.type,
                 last_version_updated_at: new Date(),
                 last_version_updated_by_user_uuid: data.userUuid,
             })

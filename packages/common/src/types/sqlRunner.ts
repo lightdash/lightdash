@@ -110,7 +110,7 @@ export type CreateSqlChart = {
     name: string;
     description: string | null;
     sql: string;
-    config: object;
+    config: SqlRunnerChartConfig;
     spaceUuid: string;
 };
 
@@ -122,7 +122,7 @@ export type UpdateUnversionedSqlChart = {
 
 export type UpdateVersionedSqlChart = {
     sql: string;
-    config: object;
+    config: SqlRunnerChartConfig;
 };
 
 export type UpdateSqlChart = {
