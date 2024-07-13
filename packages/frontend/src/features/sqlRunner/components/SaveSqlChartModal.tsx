@@ -37,14 +37,10 @@ export const SaveSqlChartModal = () => {
     );
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const chartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-    const chartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
-    );
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+    const config = useAppSelector((state) =>
+        state.sqlRunner.selectedChartType === ChartKind.TABLE
+            ? state.sqlRunner.tableChartConfig
+            : state.sqlRunner.barChartConfig,
     );
 
     const {
@@ -60,29 +56,18 @@ export const SaveSqlChartModal = () => {
     }, [isSavedSqlChartCreated, onClose]);
 
     const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0) {
+        if (spaces.length === 0 || !config || !sql) {
             return;
         }
         await createSavedSqlChart({
             name: form.values.name,
             description: 'A test saved chart',
             sql: sql,
-            config:
-                chartType === ChartKind.TABLE
-                    ? resultsTableConfig || {}
-                    : chartConfig || {},
+            config: config,
             // TODO: add space selection
             spaceUuid: spaces[0].uuid,
         });
-    }, [
-        chartConfig,
-        chartType,
-        createSavedSqlChart,
-        form.values.name,
-        resultsTableConfig,
-        spaces,
-        sql,
-    ]);
+    }, [config, createSavedSqlChart, form.values.name, spaces, sql]);
 
     return (
         <Modal

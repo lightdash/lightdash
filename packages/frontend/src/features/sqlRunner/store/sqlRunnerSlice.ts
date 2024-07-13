@@ -81,14 +81,18 @@ export const sqlRunnerSlice = createSlice({
                 columns,
             };
 
-            // Editable table chart
-            state.tableChartConfig = {
-                type: ChartKind.TABLE,
-                metadata: {
-                    version: 1,
-                },
-                columns,
-            };
+            // TODO: this initialization should be put somewhere it
+            // can be shared between the frontend and backend
+            if (state.tableChartConfig === undefined) {
+                // Editable table chart
+                state.tableChartConfig = {
+                    type: ChartKind.TABLE,
+                    metadata: {
+                        version: 1,
+                    },
+                    columns,
+                };
+            }
 
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
