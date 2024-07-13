@@ -1,3 +1,10 @@
+# [0.1170.0](https://github.com/lightdash/lightdash/compare/0.1169.2...0.1170.0) (2024-07-13)
+
+
+### Features
+
+* save sql charts ([#10610](https://github.com/lightdash/lightdash/issues/10610)) ([96e5986](https://github.com/lightdash/lightdash/commit/96e5986e0f9882b1c2695bf9b4de8b908ca71890))
+
 ## [0.1169.2](https://github.com/lightdash/lightdash/compare/0.1169.1...0.1169.2) (2024-07-12)
 
 
