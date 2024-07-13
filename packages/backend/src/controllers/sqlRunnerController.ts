@@ -1,15 +1,24 @@
 import {
+    ApiCreateSqlChart,
     ApiErrorPayload,
     ApiJobScheduledResponse,
+    ApiSqlChart,
+    ApiSuccessEmpty,
+    ApiUpdateSqlChart,
     ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    CreateSqlChart,
     SqlRunnerBody,
+    UpdateSqlChart,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -19,7 +28,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import fs from 'fs';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -30,6 +38,7 @@ import { BaseController } from './baseController';
 @Route('/api/v1/projects/{projectUuid}/sqlRunner')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SQL runner')
+@Hidden() // Hide from documentation while in beta
 export class SqlRunnerController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
@@ -129,5 +138,118 @@ export class SqlRunnerController extends BaseController {
                 });
             });
         }
+    }
+
+    /**
+     * Get saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param uuid the uuid for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}')
+    @OperationId('getSavedSqlChart')
+    async getSavedSqlChart(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChart(req.user!, projectUuid, uuid),
+        };
+    }
+
+    /**
+     * Create sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     * @param body the sql chart to create
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('saved')
+    @OperationId('createSqlChart')
+    async createSqlChart(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateSqlChart,
+    ): Promise<ApiCreateSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                savedSqlUuid: await this.services
+                    .getSavedSqlService()
+                    .createSqlChart(req.user!, projectUuid, body),
+            },
+        };
+    }
+
+    /**
+     * Update sql chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     * @param body the sql chart details to update
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('saved/{uuid}')
+    @OperationId('updateSqlChart')
+    async updateSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateSqlChart,
+    ): Promise<ApiUpdateSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .updateSqlChart(req.user!, projectUuid, uuid, body),
+        };
+    }
+
+    /**
+     * Delete sql chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('saved/{uuid}')
+    @OperationId('deleteSqlChart')
+    async deleteSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSavedSqlService()
+            .deleteSqlChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 }

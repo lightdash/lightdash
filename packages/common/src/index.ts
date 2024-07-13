@@ -116,6 +116,11 @@ import {
     type ApiCatalogMetadataResults,
 } from './types/catalog';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import {
+    type ApiCreateSqlChart,
+    type ApiSqlChart,
+    type ApiUpdateSqlChart,
+} from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
@@ -649,7 +654,10 @@ type ApiResults =
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
     | ApiTogglePinnedItem['results']
-    | ApiOrganizationMemberProfiles['results'];
+    | ApiOrganizationMemberProfiles['results']
+    | ApiSqlChart['results']
+    | ApiCreateSqlChart['results']
+    | ApiUpdateSqlChart['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
