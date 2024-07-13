@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateSqlChart,
     type SqlChart,
+    type UpdateSqlChart,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useHistory } from 'react-router-dom';
@@ -30,6 +31,19 @@ const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
     }>({
         url: `/projects/${projectUuid}/sqlRunner/saved`,
         method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const updateSavedSqlChart = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+    data: UpdateSqlChart,
+) =>
+    lightdashApi<{
+        savedSqlUuid: string;
+    }>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}`,
+        method: 'PATCH',
         body: JSON.stringify(data),
     });
 
@@ -76,4 +90,29 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
             });
         },
     });
+};
+
+export const useUpdateSqlChartMutation = (
+    projectUuid: string,
+    savedSqlUuid: string,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<{ savedSqlUuid: string }, ApiError, UpdateSqlChart>(
+        (data) => updateSavedSqlChart(projectUuid, savedSqlUuid!, data),
+        {
+            mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
+            onSuccess: () => {
+                showToastSuccess({
+                    title: `Success! SQL chart update`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to update chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
 };

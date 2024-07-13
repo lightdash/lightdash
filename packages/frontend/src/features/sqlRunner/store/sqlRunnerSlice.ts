@@ -14,7 +14,7 @@ export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
     savedChartUuid: string | undefined;
-
+    name: string;
     sql: string;
 
     selectedChartType: ChartKind;
@@ -34,6 +34,7 @@ const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
     savedChartUuid: undefined,
+    name: 'Untitled SQL Query',
     sql: '',
     selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
@@ -133,6 +134,7 @@ export const sqlRunnerSlice = createSlice({
             state.sql = action.payload;
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.name = action.payload.name;
             state.sql = action.payload.sql;
             state.selectedChartType =
                 action.payload.config.type === ChartKind.TABLE
