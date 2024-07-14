@@ -329,6 +329,7 @@ const SqlRunnerPage = () => {
                     onToggle={(value) =>
                         handleCardExpand(SqlRunnerCards.SQL, value)
                     }
+                    //sql={sql}
                 >
                     <SqlRunnerInput
                         sql={sql}

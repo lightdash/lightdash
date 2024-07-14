@@ -1,7 +1,9 @@
 import {
+    ActionIcon,
     Box,
     Button,
     Card,
+    CopyButton,
     Flex,
     Group,
     Title,
@@ -10,7 +12,12 @@ import {
     type ButtonProps,
     type PopoverProps,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import {
+    IconCheck,
+    IconChevronDown,
+    IconChevronRight,
+    IconClipboard,
+} from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from './MantineIcon';
 
@@ -48,6 +55,7 @@ interface CollapsableCardProps {
     headerElement?: JSX.Element;
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
+    // sql?: string;
 }
 
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
@@ -61,6 +69,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     headerElement,
     rightHeaderElement,
     minHeight = 300,
+    // sql,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -124,6 +133,30 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     </Title>
                     <Group spacing="xs">{headerElement}</Group>
                 </Group>
+
+                {!isOpen && title === 'SQL' && (
+                    <CopyButton value="{sql}" timeout={1000}>
+                        {({ copied, copy }) => (
+                            <Tooltip
+                                label={copied ? 'Copied to clipboard!' : 'Copy'}
+                                withArrow
+                                position="right"
+                                color={copied ? 'green' : 'dark'}
+                            >
+                                <ActionIcon
+                                    color={copied ? 'teal' : 'gray'}
+                                    onClick={copy}
+                                >
+                                    {copied ? (
+                                        <IconCheck size="1rem" />
+                                    ) : (
+                                        <IconClipboard size="1rem" />
+                                    )}
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </CopyButton>
+                )}
 
                 {rightHeaderElement && (
                     <>
