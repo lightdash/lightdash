@@ -15,6 +15,8 @@ export enum VisTabs {
     RESULTS = 'results',
 }
 
+export const DEFAULT_NAME = 'Untitled SQL Query';
+
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
@@ -40,7 +42,7 @@ const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
     savedChartUuid: undefined,
-    name: 'Untitled SQL Query',
+    name: '',
     sql: '',
     activeVisTab: VisTabs.CHART,
     selectedChartType: ChartKind.VERTICAL_BAR,
@@ -134,6 +136,9 @@ export const sqlRunnerSlice = createSlice({
                 };
             }
         },
+        updateName: (state, action: PayloadAction<string>) => {
+            state.name = action.payload;
+        },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
@@ -211,6 +216,7 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setInitialResultsAndSeries,
+    updateName,
     setSql,
     setActiveVisTab,
     setSaveChartData,

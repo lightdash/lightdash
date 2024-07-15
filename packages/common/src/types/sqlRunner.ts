@@ -110,7 +110,7 @@ export type CreateSqlChart = {
     name: string;
     description: string | null;
     sql: string;
-    config: SqlRunnerChartConfig;
+    config: SqlRunnerChartConfig | {};
     spaceUuid: string;
 };
 
