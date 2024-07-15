@@ -1,5 +1,6 @@
 import {
     ApiWarehouseTableFields,
+    ChartKind,
     CreateSqlChart,
     SEED_PROJECT,
     UpdateSqlChart,
@@ -301,7 +302,13 @@ describe.only(`Saved SQL chart`, () => {
                     },
                     versionedData: {
                         sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 22',
-                        config: {},
+                        config: {
+                            metadata: {
+                                version: 1,
+                            },
+                            type: ChartKind.TABLE,
+                            columns: {},
+                        },
                     },
                 };
 
