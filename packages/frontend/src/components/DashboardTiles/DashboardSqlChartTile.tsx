@@ -6,6 +6,8 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 // import { Table } from '../../features/sqlRunner/components/visualizations/Table';
+// import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
+// import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import TileBase from './TileBase';
 
@@ -92,7 +94,12 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
                     onDelete={() => {}}
                     onEdit={() => {}}
                 >
-                    {/* <Table data={data.results} config={data.config} /> */}
+                    {/* {data.config.type === ChartKind.TABLE && (
+                        <Table data={data.results} config={data.config} />
+                    )}
+                    {data.config.type === ChartKind.VERTICAL_BAR && (
+                        <BarChart data={data.results} config={data.config} />
+                    )} */}
                 </TileBase>
             ) : (
                 <div>No data</div>

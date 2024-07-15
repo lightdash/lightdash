@@ -77,6 +77,9 @@ export const ContentPanel: FC<Props> = ({
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
+    const barChartConfig = useAppSelector(
+        (state) => state.sqlRunner.barChartConfig,
+    );
 
     // configurable table
     const tableVisConfig = useAppSelector(
@@ -319,17 +322,18 @@ export const ContentPanel: FC<Props> = ({
                                     )}
                                     {selectedChartType ===
                                         ChartKind.VERTICAL_BAR && (
-                                        <BarChart data={queryResults} />
+                                        <BarChart
+                                            data={queryResults}
+                                            config={barChartConfig}
+                                        />
                                     )}
                                 </>
                             )}
                             {activeVisTab === VisTabs.RESULTS && (
-                                <>
-                                    <Table
-                                        data={queryResults}
-                                        config={resultsTableConfig}
-                                    />
-                                </>
+                                <Table
+                                    data={queryResults}
+                                    config={resultsTableConfig}
+                                />
                             )}
                         </Paper>
                     )}
