@@ -43,29 +43,18 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
         if (isDatabricksIntegrationEnabled) {
             return (
                 <>
-                    {/* <Button
-                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                        component={Link}
-                        to={`/projects/${projectUuid}/sqlRunner?${searchParams.toString()}`}
-                        leftIcon={
-                            <MantineIcon icon={IconTerminal2} color="gray" />
-                        }
-                        disabled={isInitialLoading || !!error}
-                    >
-                        Open in SQL Runner
-                    </Button> */}
                     <Button
                         {...COLLAPSABLE_CARD_BUTTON_PROPS}
                         onClick={() => setIsOpen(true)}
                         disabled={isInitialLoading || !!error}
                         leftIcon={
                             <MantineIcon
-                                color="orange"
+                                color="#ee3d2d"
                                 icon={IconBrandDatabricks}
                             />
                         }
                         variant="outline"
-                        color="orange.5"
+                        color="orange.8"
                     >
                         <Text c="black">Open in Databricks</Text>
                     </Button>
@@ -153,14 +142,10 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                                         component={Link}
                                         to={`/projects/${projectUuid}/sqlRunner?${searchParams.toString()}`}
                                         leftIcon={
-                                            <MantineIcon
-                                                icon={IconTerminal2}
-                                                color="indigo"
-                                            />
+                                            <MantineIcon icon={IconTerminal2} />
                                         }
                                         disabled={isInitialLoading || !!error}
-                                        variant="outline"
-                                        color="indigo"
+                                        variant="default"
                                     >
                                         Open in SQL Runner
                                     </Button>
@@ -170,11 +155,12 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                                         type="submit"
                                         leftIcon={
                                             <MantineIcon
+                                                color="#ee3d2d"
                                                 icon={IconBrandDatabricks}
-                                                color="white"
                                             />
                                         }
-                                        color="orange.5"
+                                        variant="outline"
+                                        color="orange.8"
                                     >
                                         Create Databricks notebook
                                     </Button>
