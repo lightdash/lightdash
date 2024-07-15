@@ -1,5 +1,7 @@
 import {
+    type ApiCreateSqlChart,
     type ApiError,
+    type ApiUpdateSqlChart,
     type CreateSqlChart,
     type SqlChart,
     type UpdateSqlChart,
@@ -11,24 +13,22 @@ import useToaster from '../../../hooks/toaster/useToaster';
 
 export type GetSavedSqlChartParams = {
     projectUuid: string;
-    uuid: string | undefined;
+    slug: string | undefined;
     onSuccess?: (data: SqlChart) => void;
 };
 
 const fetchSavedSqlChart = async ({
     projectUuid,
-    uuid,
+    slug,
 }: GetSavedSqlChartParams) =>
     lightdashApi<SqlChart>({
-        url: `/projects/${projectUuid}/sqlRunner/saved/${uuid}`,
+        url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}`,
         method: 'GET',
         body: undefined,
     });
 
 const createSavedSqlChart = async (projectUuid: string, data: CreateSqlChart) =>
-    lightdashApi<{
-        savedSqlUuid: string;
-    }>({
+    lightdashApi<ApiCreateSqlChart['results']>({
         url: `/projects/${projectUuid}/sqlRunner/saved`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -39,9 +39,7 @@ const updateSavedSqlChart = async (
     savedSqlUuid: string,
     data: UpdateSqlChart,
 ) =>
-    lightdashApi<{
-        savedSqlUuid: string;
-    }>({
+    lightdashApi<ApiUpdateSqlChart['results']>({
         url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -49,12 +47,12 @@ const updateSavedSqlChart = async (
 
 export const useSavedSqlChart = ({
     projectUuid,
-    uuid,
+    slug,
     onSuccess,
 }: GetSavedSqlChartParams) => {
     return useQuery<SqlChart, ApiError>({
-        queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, uuid],
-        queryFn: () => fetchSavedSqlChart({ projectUuid, uuid }),
+        queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, slug],
+        queryFn: () => fetchSavedSqlChart({ projectUuid, slug }),
         retry: false,
         onSuccess: (data) => {
             if (onSuccess) onSuccess(data);
@@ -66,30 +64,27 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const history = useHistory();
 
-    return useMutation<
+    return useMutation<ApiCreateSqlChart['results'], ApiError, CreateSqlChart>(
+        (data) => createSavedSqlChart(projectUuid, data),
         {
-            savedSqlUuid: string;
-        },
-        ApiError,
-        CreateSqlChart
-    >((data) => createSavedSqlChart(projectUuid, data), {
-        mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
-        onSuccess: (data) => {
-            history.replace(
-                `/projects/${projectUuid}/sql-runner-new/saved/${data.savedSqlUuid}`,
-            );
+            mutationKey: ['sqlRunner', 'createSqlChart', projectUuid],
+            onSuccess: (data) => {
+                history.replace(
+                    `/projects/${projectUuid}/sql-runner-new/saved/${data.slug}`,
+                );
 
-            showToastSuccess({
-                title: `Success! SQL chart created`,
-            });
+                showToastSuccess({
+                    title: `Success! SQL chart created`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to create chart`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create chart`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useUpdateSqlChartMutation = (

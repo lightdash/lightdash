@@ -9,6 +9,7 @@ import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { RightSidebar } from '../features/sqlRunner/components/RightSidebar';
+import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -16,14 +17,14 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     setProjectUuid,
-    setSavedChartUuid,
+    setSaveChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 const SqlRunnerNew = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
-    const params = useParams<{ projectUuid: string; chartUuid?: string }>();
+    const params = useParams<{ projectUuid: string; slug?: string }>();
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
@@ -32,10 +33,15 @@ const SqlRunnerNew = () => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
-        if (params.chartUuid) {
-            dispatch(setSavedChartUuid(params.chartUuid));
-        }
-    }, [dispatch, params.chartUuid, params.projectUuid, projectUuid]);
+    }, [dispatch, params.projectUuid, projectUuid]);
+
+    useSavedSqlChart({
+        projectUuid,
+        slug: params.slug,
+        onSuccess: (data) => {
+            dispatch(setSaveChartData(data));
+        },
+    });
 
     if (!projectUuid) {
         return null;

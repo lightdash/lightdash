@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ApiCreateSqlChart,
     CreateSqlChart,
     ForbiddenError,
     SessionUser,
@@ -39,11 +40,19 @@ export class SavedSqlService extends BaseService {
     async getSqlChart(
         user: SessionUser,
         projectUuid: string,
-        savedSqlUuid: string,
+        savedSqlUuid: string | undefined,
+        slug?: string,
     ): Promise<SqlChart> {
-        const savedChart = await this.savedSqlModel.get(savedSqlUuid, {
-            projectUuid,
-        });
+        let savedChart;
+        if (savedSqlUuid) {
+            savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+                projectUuid,
+            });
+        } else if (slug) {
+            savedChart = await this.savedSqlModel.getBySlug(projectUuid, slug);
+        } else {
+            throw new Error('Either savedSqlUuid or slug must be provided');
+        }
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.space.uuid,
         );
@@ -72,7 +81,7 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sqlChart: CreateSqlChart,
-    ): Promise<string> {
+    ): Promise<ApiCreateSqlChart['results']> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -105,12 +114,7 @@ export class SavedSqlService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
-        const { savedSqlUuid } = await this.savedSqlModel.create(
-            user.userUuid,
-            projectUuid,
-            sqlChart,
-        );
-        return savedSqlUuid;
+        return this.savedSqlModel.create(user.userUuid, projectUuid, sqlChart);
     }
 
     async updateSqlChart(
@@ -131,7 +135,7 @@ export class SavedSqlService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const savedChart = await this.savedSqlModel.get(savedSqlUuid, {
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
         const space = await this.spaceModel.getSpaceSummary(
@@ -198,7 +202,7 @@ export class SavedSqlService extends BaseService {
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<void> {
-        const sqlChart = await this.savedSqlModel.get(savedSqlUuid, {
+        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
         const space = await this.spaceModel.getSpaceSummary(

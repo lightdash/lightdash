@@ -20,16 +20,11 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useSavedSqlChart } from '../hooks/useSavedSqlCharts';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 import { ChartKind } from '@lightdash/common';
-import {
-    setInitialResultsAndSeries,
-    setSaveChartData,
-    setSql,
-} from '../store/sqlRunnerSlice';
+import { setInitialResultsAndSeries, setSql } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
@@ -48,7 +43,6 @@ export const ContentPanel: FC<Props> = ({
     closeChartConfig,
 }) => {
     const dispatch = useAppDispatch();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const {
         ref: inputSectionRef,
@@ -67,18 +61,6 @@ export const ContentPanel: FC<Props> = ({
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
-
-    const savedChartUuid = useAppSelector(
-        (state) => state.sqlRunner.savedChartUuid,
-    );
-
-    useSavedSqlChart({
-        projectUuid,
-        uuid: savedChartUuid,
-        onSuccess: (data) => {
-            dispatch(setSaveChartData(data));
-        },
-    });
 
     const {
         mutate: runSqlQuery,

@@ -7213,6 +7213,163 @@
                 "required": ["sql"],
                 "type": "object"
             },
+            "Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "SqlTableConfig": {
+                "properties": {
+                    "columns": {
+                        "$ref": "#/components/schemas/Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__"
+                    }
+                },
+                "required": ["columns"],
+                "type": "object"
+            },
+            "ChartKind.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "TableChartSqlConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlTableConfig"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.TABLE"
+                            },
+                            "metadata": {
+                                "properties": {
+                                    "version": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["version"],
+                                "type": "object"
+                            }
+                        },
+                        "required": ["type", "metadata"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.VERTICAL_BAR": {
+                "enum": ["vertical_bar"],
+                "type": "string"
+            },
+            "BarChartConfig": {
+                "properties": {
+                    "series": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "yIndex": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "yIndex", "reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "axes": {
+                        "properties": {
+                            "y": {
+                                "items": {
+                                    "properties": {
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "position": {
+                                            "type": "string",
+                                            "enum": ["left", "right"]
+                                        },
+                                        "reference": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["label", "reference"],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            "x": {
+                                "properties": {
+                                    "label": {
+                                        "type": "string"
+                                    },
+                                    "reference": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["reference"],
+                                "type": "object"
+                            }
+                        },
+                        "required": ["y", "x"],
+                        "type": "object"
+                    },
+                    "style": {
+                        "properties": {
+                            "legend": {
+                                "properties": {
+                                    "align": {
+                                        "type": "string",
+                                        "enum": ["start", "center", "end"]
+                                    },
+                                    "position": {
+                                        "type": "string",
+                                        "enum": [
+                                            "top",
+                                            "bottom",
+                                            "left",
+                                            "right"
+                                        ]
+                                    }
+                                },
+                                "required": ["align", "position"],
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                    },
+                    "metadata": {
+                        "properties": {
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["version"],
+                        "type": "object"
+                    }
+                },
+                "required": ["series", "axes", "style", "type", "metadata"],
+                "type": "object"
+            },
+            "SqlRunnerChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/BarChartConfig"
+                    }
+                ]
+            },
             "Pick_Space.uuid-or-name_": {
                 "properties": {
                     "name": {
@@ -7308,8 +7465,7 @@
                         "$ref": "#/components/schemas/ChartKind"
                     },
                     "config": {
-                        "additionalProperties": true,
-                        "type": "object"
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
                     "sql": {
                         "type": "string"
@@ -7365,11 +7521,14 @@
                 "properties": {
                     "results": {
                         "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
                             "savedSqlUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["savedSqlUuid"],
+                        "required": ["slug", "savedSqlUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -7387,8 +7546,7 @@
                         "type": "string"
                     },
                     "config": {
-                        "additionalProperties": true,
-                        "type": "object"
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
                     "sql": {
                         "type": "string"
@@ -7453,8 +7611,7 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "additionalProperties": true,
-                        "type": "object"
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
                     "sql": {
                         "type": "string"
@@ -8343,7 +8500,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1169.0",
+        "version": "0.1170.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
