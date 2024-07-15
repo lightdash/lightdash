@@ -1,4 +1,4 @@
-import { SqlRunnerChartType } from '@lightdash/common/src/types/visualizations';
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -16,7 +16,7 @@ import {
     setSelectedChartType,
     updateChartAxisLabel,
     updateChartSeriesLabel,
-    updateResultsTableFieldConfigLabel,
+    updateTableChartFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
 
 type Props = {
@@ -25,10 +25,12 @@ type Props = {
 
 export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const dispatch = useAppDispatch();
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+    const tableChartConfig = useAppSelector(
+        (state) => state.sqlRunner.tableChartConfig,
     );
-    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
+    const chartConfig = useAppSelector(
+        (state) => state.sqlRunner.barChartConfig,
+    );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -52,40 +54,34 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
             <SegmentedControl
                 size="xs"
                 value={selectedChartType}
-                onChange={(value: SqlRunnerChartType) =>
+                onChange={(value: ChartKind) =>
                     dispatch(setSelectedChartType(value))
                 }
                 data={[
-                    { value: SqlRunnerChartType.TABLE, label: 'Table' },
-                    { value: SqlRunnerChartType.BAR, label: 'Bar chart' },
+                    { value: ChartKind.TABLE, label: 'Table' },
+                    { value: ChartKind.VERTICAL_BAR, label: 'Bar chart' },
                 ]}
             />
 
-            {resultsTableConfig &&
-                selectedChartType === SqlRunnerChartType.TABLE && (
-                    <Stack spacing="xs">
-                        {Object.keys(resultsTableConfig.columns).map(
-                            (reference) => (
-                                <EditableText
-                                    key={reference}
-                                    value={
-                                        resultsTableConfig.columns[reference]
-                                            .label
-                                    }
-                                    onChange={(e) => {
-                                        dispatch(
-                                            updateResultsTableFieldConfigLabel({
-                                                reference: reference,
-                                                label: e.target.value,
-                                            }),
-                                        );
-                                    }}
-                                />
-                            ),
-                        )}
-                    </Stack>
-                )}
-            {chartConfig && selectedChartType === SqlRunnerChartType.BAR && (
+            {tableChartConfig && selectedChartType === ChartKind.TABLE && (
+                <Stack spacing="xs">
+                    {Object.keys(tableChartConfig.columns).map((reference) => (
+                        <EditableText
+                            key={reference}
+                            value={tableChartConfig.columns[reference].label}
+                            onChange={(e) => {
+                                dispatch(
+                                    updateTableChartFieldConfigLabel({
+                                        reference: reference,
+                                        label: e.target.value,
+                                    }),
+                                );
+                            }}
+                        />
+                    ))}
+                </Stack>
+            )}
+            {chartConfig && selectedChartType === ChartKind.VERTICAL_BAR && (
                 <Stack spacing="xs">
                     <Title order={6} fz="sm" c="gray.6">
                         X axis

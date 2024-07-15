@@ -22,8 +22,9 @@ type Props = {
 
 export const Table: FC<Props> = ({ data }) => {
     const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+        (state) => state.sqlRunner.tableChartConfig,
     );
+
     const {
         tableWrapperRef,
         getColumnsCount,

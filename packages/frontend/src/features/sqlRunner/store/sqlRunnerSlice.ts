@@ -1,7 +1,9 @@
 import {
-    SqlRunnerChartType,
+    ChartKind,
     type BarChartConfig,
     type ResultRow,
+    type SqlChart,
+    type SqlTableConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 
@@ -11,10 +13,16 @@ import { createSlice } from '@reduxjs/toolkit';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    selectedChartType: SqlRunnerChartType;
+    savedChartUuid: string | undefined;
+    name: string;
+    sql: string;
 
-    resultsTableConfig: TableChartSqlConfig | undefined;
-    chartConfig: BarChartConfig | undefined;
+    selectedChartType: ChartKind;
+
+    resultsTableConfig: SqlTableConfig | undefined;
+    barChartConfig: BarChartConfig | undefined;
+    tableChartConfig: TableChartSqlConfig | undefined;
+
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -25,9 +33,13 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
-    selectedChartType: SqlRunnerChartType.TABLE,
+    savedChartUuid: undefined,
+    name: 'Untitled SQL Query',
+    sql: '',
+    selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
-    chartConfig: undefined,
+    barChartConfig: undefined,
+    tableChartConfig: undefined,
     modals: {
         saveChartModal: {
             isOpen: false,
@@ -41,6 +53,9 @@ export const sqlRunnerSlice = createSlice({
     reducers: {
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        setSavedChartUuid: (state, action: PayloadAction<string>) => {
+            state.savedChartUuid = action.payload;
         },
         setInitialResultsAndSeries: (
             state,
@@ -62,80 +77,110 @@ export const sqlRunnerSlice = createSlice({
                 }),
                 {},
             );
+            // Set static results table
             state.resultsTableConfig = {
                 columns,
             };
 
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
-            const fieldIds = Object.keys(action.payload[0]);
-            state.chartConfig = {
-                metadata: {
-                    version: 1,
-                },
-                style: {
-                    legend: {
-                        position: 'top',
-                        align: 'center',
+            if (state.tableChartConfig === undefined) {
+                // Editable table chart
+                state.tableChartConfig = {
+                    type: ChartKind.TABLE,
+                    metadata: {
+                        version: 1,
                     },
-                },
-                axes: {
-                    x: {
-                        reference: fieldIds[0],
-                        label: fieldIds[0],
+                    columns,
+                };
+            }
+
+            // TODO: this initialization should be put somewhere it
+            // can be shared between the frontend and backend
+            if (state.barChartConfig === undefined) {
+                const fieldIds = Object.keys(action.payload[0]);
+                state.barChartConfig = {
+                    metadata: {
+                        version: 1,
                     },
-                    y: [
-                        {
-                            reference: fieldIds[1],
-                            label: fieldIds[1],
+                    type: ChartKind.VERTICAL_BAR,
+                    style: {
+                        legend: {
+                            position: 'top',
+                            align: 'center',
                         },
-                    ],
-                },
-                series: fieldIds.slice(1).map((reference, index) => ({
-                    reference,
-                    name: reference,
-                    yIndex: index,
-                })),
-            };
+                    },
+                    axes: {
+                        x: {
+                            reference: fieldIds[0],
+                            label: fieldIds[0],
+                        },
+                        y: [
+                            {
+                                reference: fieldIds[1],
+                                label: fieldIds[1],
+                            },
+                        ],
+                    },
+                    series: fieldIds.slice(1).map((reference, index) => ({
+                        reference,
+                        name: reference,
+                        yIndex: index,
+                    })),
+                };
+            }
         },
-        updateResultsTableFieldConfigLabel: (
+        setSql: (state, action: PayloadAction<string>) => {
+            state.sql = action.payload;
+        },
+        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.name = action.payload.name;
+            state.sql = action.payload.sql;
+            state.selectedChartType =
+                action.payload.config.type === ChartKind.TABLE
+                    ? ChartKind.TABLE
+                    : ChartKind.VERTICAL_BAR;
+            if (action.payload.config.type === ChartKind.TABLE) {
+                state.tableChartConfig = action.payload.config;
+            } else if (action.payload.config.type === ChartKind.VERTICAL_BAR) {
+                state.barChartConfig = action.payload.config;
+            }
+        },
+        updateTableChartFieldConfigLabel: (
             state,
             action: PayloadAction<Record<'reference' | 'label', string>>,
         ) => {
             const { reference, label } = action.payload;
-            if (state.resultsTableConfig) {
-                state.resultsTableConfig.columns[reference].label = label;
+            if (state.tableChartConfig) {
+                state.tableChartConfig.columns[reference].label = label;
             }
         },
         updateChartAxisLabel: (
             state,
             action: PayloadAction<{ reference: string; label: string }>,
         ) => {
-            if (!state.chartConfig) {
+            if (!state.barChartConfig) {
                 return;
             }
             const { reference, label } = action.payload;
-            if (state.chartConfig.axes.x.reference === reference) {
-                state.chartConfig.axes.x.label = label;
+            if (state.barChartConfig.axes.x.reference === reference) {
+                state.barChartConfig.axes.x.label = label;
             } else {
-                const index = state.chartConfig.axes.y.findIndex(
+                const index = state.barChartConfig.axes.y.findIndex(
                     (axis) => axis.reference === reference,
                 );
-                state.chartConfig.axes.y[index].label = label;
+                state.barChartConfig.axes.y[index].label = label;
             }
         },
         updateChartSeriesLabel: (
             state,
             action: PayloadAction<{ index: number; name: string }>,
         ) => {
-            if (!state.chartConfig) return;
+            if (!state.barChartConfig) return;
             const { index, name } = action.payload;
-            state.chartConfig.series[index].name = name;
+            state.barChartConfig.series[index].name = name;
         },
-        setSelectedChartType: (
-            state,
-            action: PayloadAction<SqlRunnerChartType>,
-        ) => {
+        setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
         },
         toggleActiveTable: (
@@ -158,7 +203,10 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setInitialResultsAndSeries,
-    updateResultsTableFieldConfigLabel,
+    setSavedChartUuid,
+    setSql,
+    setSaveChartData,
+    updateTableChartFieldConfigLabel,
     updateChartAxisLabel,
     updateChartSeriesLabel,
     setSelectedChartType,
