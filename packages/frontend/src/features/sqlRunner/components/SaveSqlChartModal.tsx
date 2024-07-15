@@ -1,5 +1,13 @@
 import { ChartKind } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
@@ -12,6 +20,7 @@ import { updateName } from '../store/sqlRunnerSlice';
 
 const validationSchema = z.object({
     name: z.string().min(1),
+    description: z.string(),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -27,10 +36,12 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
     const name = useAppSelector((state) => state.sqlRunner.name);
+    const description = useAppSelector((state) => state.sqlRunner.description);
 
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
+            description: '',
         },
         validate: zodResolver(validationSchema),
     });
@@ -39,7 +50,10 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
         if (!form.values.name && name) {
             form.setFieldValue('name', name);
         }
-    }, [name, form]);
+        if (!form.values.description && description) {
+            form.setFieldValue('description', description);
+        }
+    }, [name, form, description]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
@@ -66,7 +80,7 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
         }
         await createSavedSqlChart({
             name: form.values.name,
-            description: 'A test saved chart',
+            description: form.values.description,
             sql: sql,
             config: config || {},
             // TODO: add space selection
@@ -78,6 +92,7 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
         config,
         createSavedSqlChart,
         dispatch,
+        form.values.description,
         form.values.name,
         onClose,
         spaces,
@@ -108,6 +123,10 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}
+                        />
+                        <Textarea
+                            label="Description"
+                            {...form.getInputProps('description')}
                         />
                     </Stack>
                 </Stack>
