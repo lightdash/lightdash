@@ -104,7 +104,7 @@ export const useUpdateSqlChartMutation = (
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: () => {
                 showToastSuccess({
-                    title: `Success! SQL chart update`,
+                    title: `Success! SQL chart updated`,
                 });
             },
             onError: ({ error }) => {
