@@ -139,6 +139,7 @@ export type ApiCreateSqlChart = {
     status: 'ok';
     results: {
         savedSqlUuid: string;
+        slug: string;
     };
 };
 

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ApiCreateSqlChart,
     CreateSqlChart,
     ForbiddenError,
     SessionUser,
@@ -80,7 +81,7 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sqlChart: CreateSqlChart,
-    ): Promise<string> {
+    ): Promise<ApiCreateSqlChart['results']> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -113,12 +114,7 @@ export class SavedSqlService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
-        const { savedSqlUuid } = await this.savedSqlModel.create(
-            user.userUuid,
-            projectUuid,
-            sqlChart,
-        );
-        return savedSqlUuid;
+        return this.savedSqlModel.create(user.userUuid, projectUuid, sqlChart);
     }
 
     async updateSqlChart(

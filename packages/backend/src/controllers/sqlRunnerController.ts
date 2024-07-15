@@ -210,11 +210,9 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: {
-                savedSqlUuid: await this.services
-                    .getSavedSqlService()
-                    .createSqlChart(req.user!, projectUuid, body),
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .createSqlChart(req.user!, projectUuid, body),
         };
     }
 

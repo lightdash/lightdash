@@ -1,4 +1,5 @@
 import {
+    ApiCreateSqlChart,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
@@ -7,7 +8,6 @@ import {
 } from '@lightdash/common';
 import { SqlRunnerChartConfig } from '@lightdash/common/src/types/sqlRunner';
 import { Knex } from 'knex';
-import { customAlphabet } from 'nanoid';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import {
     DbOrganization,
@@ -262,19 +262,17 @@ export class SavedSqlModel {
         return savedSqlVersionUuid;
     }
 
-    static async generateSlug(trx: Knex, name: string) {
-        let slug = generateSlug(name);
+    static async generateSavedSqlSlug(trx: Knex, name: string) {
+        const baseSlug = generateSlug(name);
         const matchingSlugs: string[] = await trx(SavedSqlTableName)
             .select('slug')
-            .where('slug', 'like', `${slug}%`)
+            .where('slug', 'like', `${baseSlug}%`)
             .pluck('slug');
-
+        let slug = generateSlug(name);
+        let inc = 0;
         while (matchingSlugs.includes(slug)) {
-            // generate a new slug with a random alphanumeric lowercase 4 character suffix
-            slug = `${slug}-${customAlphabet(
-                '0123456789abcdefghijklmnopqrstuvwxyz',
-                4,
-            )}`;
+            inc += 1;
+            slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
         }
         return slug;
     }
@@ -283,17 +281,16 @@ export class SavedSqlModel {
         userUuid: string,
         projectUuid: string,
         data: CreateSqlChart,
-    ): Promise<{
-        savedSqlUuid: string;
-        savedSqlVersionUuid: string;
-    }> {
+    ): Promise<ApiCreateSqlChart['results']> {
         return this.database.transaction(async (trx) => {
-            const slug = await SavedSqlModel.generateSlug(trx, data.name);
-            const [{ saved_sql_uuid: savedSqlUuid }] = await trx(
+            const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
                 SavedSqlTableName,
             ).insert(
                 {
-                    slug,
+                    slug: await SavedSqlModel.generateSavedSqlSlug(
+                        trx,
+                        data.name,
+                    ),
                     name: data.name,
                     description: data.description,
                     created_by_user_uuid: userUuid,
@@ -301,7 +298,7 @@ export class SavedSqlModel {
                     space_uuid: data.spaceUuid,
                     dashboard_uuid: null,
                 },
-                ['saved_sql_uuid'],
+                ['saved_sql_uuid', 'slug'],
             );
             const savedSqlVersionUuid = await SavedSqlModel.createVersion(trx, {
                 savedSqlUuid,
@@ -309,7 +306,7 @@ export class SavedSqlModel {
                 config: data.config,
                 sql: data.sql,
             });
-            return { savedSqlUuid, savedSqlVersionUuid };
+            return { savedSqlUuid, slug, savedSqlVersionUuid };
         });
     }
 

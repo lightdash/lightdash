@@ -54,9 +54,6 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setSavedChartUuid: (state, action: PayloadAction<string>) => {
-            state.savedChartUuid = action.payload;
-        },
         setInitialResultsAndSeries: (
             state,
             action: PayloadAction<ResultRow[]>,
@@ -134,6 +131,7 @@ export const sqlRunnerSlice = createSlice({
             state.sql = action.payload;
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.savedChartUuid = action.payload.savedSqlUuid;
             state.name = action.payload.name;
             state.sql = action.payload.sql;
             state.selectedChartType =
@@ -203,7 +201,6 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setInitialResultsAndSeries,
-    setSavedChartUuid,
     setSql,
     setSaveChartData,
     updateTableChartFieldConfigLabel,
