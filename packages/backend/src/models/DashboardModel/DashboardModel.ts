@@ -4,11 +4,13 @@ import {
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
+    CreateDashboardSqlChartTile,
     DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
+    DashboardSqlChartTile,
     DashboardTab,
     DashboardTileTypes,
     DashboardUnversionedFields,
@@ -153,6 +155,7 @@ export class DashboardModel {
             | (CreateDashboardChartTile & { uuid: string })
             | (CreateDashboardMarkdownTile & { uuid: string })
             | (CreateDashboardLoomTile & { uuid: string })
+            | (CreateDashboardSqlChartTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -828,6 +831,17 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     url: url || '',
+                                },
+                            };
+                        case DashboardTileTypes.SQL_CHART:
+                            return <DashboardSqlChartTile>{
+                                ...base,
+                                type: DashboardTileTypes.SQL_CHART,
+                                properties: {
+                                    ...commonProperties,
+                                    savedSqlUuid: '',
+                                    // TODO: add saved_sql_uuid
+                                    // savedSqlUuid: saved_sql_uuid || '',
                                 },
                             };
                         default: {
