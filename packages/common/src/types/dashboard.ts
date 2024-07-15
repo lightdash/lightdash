@@ -56,6 +56,7 @@ export type DashboardChartTileProperties = {
 export type DashboardSqlChartTileProperties = {
     type: DashboardTileTypes.SQL_CHART;
     properties: {
+        title?: string;
         savedSqlUuid: string | null;
         chartName?: string | null;
         hideTitle?: boolean;
