@@ -10,6 +10,11 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
+export enum VisTabs {
+    CHART = 'chart',
+    RESULTS = 'results',
+}
+
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
@@ -17,6 +22,7 @@ export interface SqlRunnerState {
     name: string;
     sql: string;
 
+    activeVisTab: VisTabs;
     selectedChartType: ChartKind;
 
     resultsTableConfig: SqlTableConfig | undefined;
@@ -36,6 +42,7 @@ const initialState: SqlRunnerState = {
     savedChartUuid: undefined,
     name: 'Untitled SQL Query',
     sql: '',
+    activeVisTab: VisTabs.CHART,
     selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
     barChartConfig: undefined,
@@ -130,6 +137,9 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
+        setActiveVisTab: (state, action: PayloadAction<VisTabs>) => {
+            state.activeVisTab = action.payload;
+        },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
             state.savedChartUuid = action.payload.savedSqlUuid;
             state.name = action.payload.name;
@@ -202,6 +212,7 @@ export const {
     setProjectUuid,
     setInitialResultsAndSeries,
     setSql,
+    setActiveVisTab,
     setSaveChartData,
     updateTableChartFieldConfigLabel,
     updateChartAxisLabel,
