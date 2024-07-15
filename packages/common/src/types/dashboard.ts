@@ -76,6 +76,8 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 
+export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
+    DashboardSqlChartTileProperties;
 export type DashboardSqlChartTile = DashboardTileBase &
     DashboardSqlChartTileProperties;
 
@@ -90,6 +92,7 @@ export type CreateDashboard = {
         | CreateDashboardChartTile
         | CreateDashboardMarkdownTile
         | CreateDashboardLoomTile
+        | CreateDashboardSqlChartTile
     >;
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
