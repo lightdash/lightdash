@@ -1,3 +1,10 @@
+# [0.1171.0](https://github.com/lightdash/lightdash/compare/0.1170.0...0.1171.0) (2024-07-15)
+
+
+### Features
+
+* sql runner slug ([#10718](https://github.com/lightdash/lightdash/issues/10718)) ([decd76e](https://github.com/lightdash/lightdash/commit/decd76e8e0ce1f20de59f8043992065dde8f3106))
+
 # [0.1170.0](https://github.com/lightdash/lightdash/compare/0.1169.2...0.1170.0) (2024-07-13)
 
 
