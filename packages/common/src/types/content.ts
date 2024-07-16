@@ -1,3 +1,4 @@
+import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
 
 export enum ContentType {
@@ -73,10 +74,10 @@ export type SummaryContent = ChartContent | DashboardContent; // Note: more type
 
 export type ApiContentResponse = {
     status: 'ok';
-    results: SummaryContent[];
+    results: KnexPaginatedData<SummaryContent[]>;
 };
 
 export type ApiChartContentResponse = {
     status: 'ok';
-    results: ChartContent[];
+    results: KnexPaginatedData<ChartContent[]>;
 };

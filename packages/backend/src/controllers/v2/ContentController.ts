@@ -36,15 +36,25 @@ export class ContentController extends BaseController {
         @Query() projectUuids?: string[],
         @Query() spaceUuids?: string[],
         @Query() contentTypes?: ContentType[],
+        @Query() pageSize?: number,
+        @Query() page?: number,
     ): Promise<ApiContentResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.services.getContentService().find(req.user!, {
-                projectUuids,
-                spaceUuids,
-                contentTypes,
-            }),
+            results: await this.services.getContentService().find(
+                req.user!,
+                {
+                    projectUuids,
+                    spaceUuids,
+                    contentTypes,
+                },
+                {
+                    page: page || 1,
+                    pageSize: pageSize || 10,
+                },
+            ),
         };
     }
 }

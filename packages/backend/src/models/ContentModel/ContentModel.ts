@@ -1,6 +1,10 @@
-import { SummaryContent } from '@lightdash/common';
+import {
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    SummaryContent,
+} from '@lightdash/common';
 import { Knex } from 'knex';
-import Logger from '../../logging/logger';
+import KnexPaginate from '../../database/pagination';
 import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
 import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
@@ -28,17 +32,16 @@ export class ContentModel {
 
     async findSummaryContents(
         filters: ContentFilters,
-    ): Promise<SummaryContent[]> {
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SummaryContent[]>> {
         const matchingConfigurations = this.contentConfigurations.filter(
             (config) => config.shouldQueryBeIncluded(filters),
         );
-        console.log(
-            'matchingConfigurations',
-            matchingConfigurations.length,
-            filters,
-        );
+
         if (matchingConfigurations.length === 0) {
-            return [];
+            return {
+                data: [],
+            };
         }
 
         const query = this.database.select<SummaryContentRow[]>('*');
@@ -47,23 +50,26 @@ export class ContentModel {
             void query.unionAll(config.getSummaryQuery(this.database, filters));
         });
 
-        console.log('query', query.toSQL());
-        const results = await query;
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
 
-        return results.reduce<SummaryContent[]>((acc, result) => {
-            const matchingConfig = matchingConfigurations.find((config) =>
-                config.shouldRowBeConverted(result),
-            );
-
-            if (!matchingConfig) {
-                Logger.warn(
-                    `No matching configuration found to convert content row with uuid ${result.uuid}`,
+        return {
+            pagination,
+            data: data.map((result) => {
+                const matchingConfig = matchingConfigurations.find((config) =>
+                    config.shouldRowBeConverted(result),
                 );
-            } else {
-                acc.push(matchingConfig.convertSummaryRow(result));
-            }
 
-            return acc;
-        }, []);
+                if (!matchingConfig) {
+                    throw new Error(
+                        `No matching configuration found to convert content row with uuid ${result.uuid}`,
+                    );
+                }
+
+                return matchingConfig.convertSummaryRow(result);
+            }),
+        };
     }
 }

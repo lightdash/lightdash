@@ -7491,139 +7491,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ContentType.CHART': {
-        dataType: 'refEnum',
-        enums: ['chart'],
+    'KnexQueryBuilderResult_ChartContent-Array_': {
+        dataType: 'refAlias',
+        type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartSourceType: {
-        dataType: 'refEnum',
-        enums: ['dbt_explore', 'sql'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ContentType: {
-        dataType: 'refEnum',
-        enums: ['chart', 'dashboard'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ChartContent: {
-        dataType: 'refObject',
-        properties: {
-            contentType: { ref: 'ContentType.CHART', required: true },
-            uuid: { dataType: 'string', required: true },
-            slug: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            description: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            createdAt: { dataType: 'datetime', required: true },
-            createdBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
+    'KnexPaginatedData_ChartContent-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
                         },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            project: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
+                    ],
                 },
-                required: true,
-            },
-            organization: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
+                data: {
+                    ref: 'KnexQueryBuilderResult_ChartContent-Array_',
+                    required: true,
                 },
-                required: true,
             },
-            space: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            pinnedList: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            views: { dataType: 'double', required: true },
-            firstViewedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            source: { ref: 'ChartSourceType', required: true },
-            chartKind: { ref: 'ChartKind', required: true },
-            dashboard: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            name: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
+            validators: {},
         },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiChartContentResponse: {
@@ -7632,8 +7531,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'ChartContent' },
+                    ref: 'KnexPaginatedData_ChartContent-Array_',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -7642,120 +7540,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ContentType.DASHBOARD': {
-        dataType: 'refEnum',
-        enums: ['dashboard'],
+    'KnexQueryBuilderResult_SummaryContent-Array_': {
+        dataType: 'refAlias',
+        type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardContent: {
-        dataType: 'refObject',
-        properties: {
-            contentType: { ref: 'ContentType.DASHBOARD', required: true },
-            uuid: { dataType: 'string', required: true },
-            slug: { dataType: 'string', required: true },
-            name: { dataType: 'string', required: true },
-            description: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            createdAt: { dataType: 'datetime', required: true },
-            createdBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            lastUpdatedBy: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            lastName: { dataType: 'string', required: true },
-                            firstName: { dataType: 'string', required: true },
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            project: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            organization: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            space: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    name: { dataType: 'string', required: true },
-                    uuid: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            pinnedList: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            uuid: { dataType: 'string', required: true },
-                        },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            views: { dataType: 'double', required: true },
-            firstViewedAt: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'datetime' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SummaryContent: {
+    'KnexPaginatedData_SummaryContent-Array_': {
         dataType: 'refAlias',
         type: {
-            dataType: 'union',
-            subSchemas: [{ ref: 'ChartContent' }, { ref: 'DashboardContent' }],
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: {
+                    ref: 'KnexQueryBuilderResult_SummaryContent-Array_',
+                    required: true,
+                },
+            },
             validators: {},
         },
     },
@@ -7766,14 +7580,18 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SummaryContent' },
+                    ref: 'KnexPaginatedData_SummaryContent-Array_',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentType: {
+        dataType: 'refEnum',
+        enums: ['chart', 'dashboard'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationTarget: {
@@ -15754,6 +15572,8 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+                page: { in: 'query', name: 'page', dataType: 'double' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -15822,6 +15642,8 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'refEnum', ref: 'ContentType' },
                 },
+                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+                page: { in: 'query', name: 'page', dataType: 'double' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

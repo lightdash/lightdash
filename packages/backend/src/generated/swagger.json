@@ -8259,182 +8259,39 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ContentType.CHART": {
-                "enum": ["chart"],
-                "type": "string"
+            "KnexQueryBuilderResult_ChartContent-Array_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
             },
-            "ChartSourceType": {
-                "enum": ["dbt_explore", "sql"],
-                "type": "string"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard"],
-                "type": "string"
-            },
-            "ChartContent": {
+            "KnexPaginatedData_ChartContent-Array_": {
                 "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.CHART"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
                             },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
                             }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
+                        ]
                     },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ChartSourceType"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "dashboard": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object",
-                        "nullable": true
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_ChartContent-Array_"
                     }
                 },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "source",
-                    "chartKind",
-                    "dashboard"
-                ],
-                "type": "object",
-                "additionalProperties": true
+                "required": ["data"],
+                "type": "object"
             },
             "ApiChartContentResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartContent"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/KnexPaginatedData_ChartContent-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -8445,162 +8302,39 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ContentType.DASHBOARD": {
-                "enum": ["dashboard"],
-                "type": "string"
+            "KnexQueryBuilderResult_SummaryContent-Array_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
             },
-            "DashboardContent": {
+            "KnexPaginatedData_SummaryContent-Array_": {
                 "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
                             },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
                             }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
+                        ]
                     },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_SummaryContent-Array_"
                     }
                 },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "SummaryContent": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ChartContent"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardContent"
-                    }
-                ]
+                "required": ["data"],
+                "type": "object"
             },
             "ApiContentResponse": {
                 "properties": {
                     "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/SummaryContent"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/KnexPaginatedData_SummaryContent-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -8610,6 +8344,10 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard"],
+                "type": "string"
             },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],

@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     ChartContent,
     ContentType,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotExistsError,
     SessionUser,
     SummaryContent,
@@ -42,7 +44,8 @@ export class ContentService extends BaseService {
     async find(
         user: SessionUser,
         filters: ContentFilters,
-    ): Promise<SummaryContent[]> {
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SummaryContent[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
             throw new NotExistsError('Organization not found');
@@ -82,20 +85,28 @@ export class ContentService extends BaseService {
             )
             .map((space) => space.uuid);
 
-        return this.contentModel.findSummaryContents({
-            ...filters,
-            projectUuids: allowedProjectUuids,
-            spaceUuids: allowedSpaceUuids,
-        });
+        return this.contentModel.findSummaryContents(
+            {
+                ...filters,
+                projectUuids: allowedProjectUuids,
+                spaceUuids: allowedSpaceUuids,
+            },
+            paginateArgs,
+        );
     }
 
     async findCharts(
         user: SessionUser,
         filters: ContentFilters,
-    ): Promise<ChartContent[]> {
-        return (await this.find(user, {
-            ...filters,
-            contentTypes: [ContentType.CHART],
-        })) as ChartContent[];
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<ChartContent[]>> {
+        return (await this.find(
+            user,
+            {
+                ...filters,
+                contentTypes: [ContentType.CHART],
+            },
+            paginateArgs,
+        )) as KnexPaginatedData<ChartContent[]>;
     }
 }
