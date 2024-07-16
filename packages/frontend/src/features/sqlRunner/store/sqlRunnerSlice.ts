@@ -175,9 +175,9 @@ export const sqlRunnerSlice = createSlice({
         },
         updateChartAxisLabel: (
             state,
-            action: PayloadAction<{ reference: string; label: string }>,
+            action: PayloadAction<{ reference?: string; label: string }>,
         ) => {
-            if (!state.barChartConfig) {
+            if (!state.barChartConfig || !action.payload.reference) {
                 return;
             }
             const { reference, label } = action.payload;

@@ -91,7 +91,7 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                         onChange={(e) => {
                             dispatch(
                                 updateChartAxisLabel({
-                                    reference: chartConfig.axes.x.reference,
+                                    reference: chartConfig.axes?.x.reference,
                                     label: e.target.value,
                                 }),
                             );
@@ -105,7 +105,7 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                         onChange={(e) => {
                             dispatch(
                                 updateChartAxisLabel({
-                                    reference: chartConfig.axes.y[0].reference,
+                                    reference: chartConfig.axes?.y[0].reference,
                                     label: e.target.value,
                                 }),
                             );
@@ -114,20 +114,21 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     <Title order={6} fz="sm" c="gray.6">
                         Series
                     </Title>
-                    {chartConfig.series.map(({ name, reference }, index) => (
-                        <EditableText
-                            key={reference}
-                            value={name ?? reference}
-                            onChange={(e) => {
-                                dispatch(
-                                    updateChartSeriesLabel({
-                                        index: index,
-                                        name: e.target.value,
-                                    }),
-                                );
-                            }}
-                        />
-                    ))}
+                    {chartConfig.series &&
+                        chartConfig.series.map(({ name, reference }, index) => (
+                            <EditableText
+                                key={reference}
+                                value={name ?? reference}
+                                onChange={(e) => {
+                                    dispatch(
+                                        updateChartSeriesLabel({
+                                            index: index,
+                                            name: e.target.value,
+                                        }),
+                                    );
+                                }}
+                            />
+                        ))}
                 </Stack>
             )}
         </Stack>
