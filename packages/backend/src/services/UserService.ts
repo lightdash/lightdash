@@ -600,7 +600,7 @@ export class UserService extends BaseService {
             openIdUser.openId.groups.length;
         let { organizationUuid } = createdUser;
         if (
-            !createdUser.organizationUuid &&
+            !organizationUuid &&
             !inviteCode &&
             hasGroups &&
             allowedOrgs.length === 1
