@@ -589,21 +589,40 @@ export class UserService extends BaseService {
             inviteCode,
         );
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
-
-        if (
+        const allowedOrgs =
+            await this.organizationModel.getAllowedOrgsForDomain(
+                getEmailDomain(openIdUser.openId.email),
+            );
+        const hasGroups =
             this.lightdashConfig.groups.enabled === true &&
             this.lightdashConfig.auth.enableGroupSync === true &&
             Array.isArray(openIdUser.openId.groups) &&
-            openIdUser.openId.groups.length &&
-            createdUser.organizationUuid
-        )
+            openIdUser.openId.groups.length;
+        let { organizationUuid } = createdUser;
+        if (
+            !createdUser.organizationUuid &&
+            !inviteCode &&
+            hasGroups &&
+            allowedOrgs.length === 1
+        ) {
+            organizationUuid = allowedOrgs[0].organizationUuid;
+            this.logger.info(
+                `Automatically joining user '${createdUser.email}' whitelisted organization ${organizationUuid}`,
+            );
+            await this.joinOrg(createdUser, organizationUuid); // Join automatically the whitelisted org so we can apply groups
+        }
+
+        if (hasGroups && organizationUuid)
             await this.tryAddUserToGroups({
                 userUuid: createdUser.userUuid,
-                groups: openIdUser.openId.groups,
-                organizationUuid: createdUser.organizationUuid,
+                groups: openIdUser.openId.groups!,
+                organizationUuid,
             });
 
-        return createdUser;
+        return {
+            ...createdUser,
+            organizationUuid,
+        };
     }
 
     private async activateUserWithOpenId(
