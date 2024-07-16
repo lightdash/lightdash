@@ -624,7 +624,9 @@ export class UserModel {
             .select('*', 'organizations.created_at as organization_created_at');
 
         if (user === undefined) {
-            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+            throw new NotFoundError(
+                `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
+            );
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(

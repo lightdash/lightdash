@@ -62,6 +62,7 @@ const emailClient = {
 
 const organizationModel = {
     get: jest.fn(async () => organisation),
+    getAllowedOrgsForDomain: jest.fn(async () => []),
 };
 
 const createUserService = (lightdashConfig: LightdashConfig) =>
