@@ -84,7 +84,17 @@ export const ContentPanel: FC<Props> = ({
             ref={wrapperRef}
         >
             <Tooltip.Group>
-                <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
+                <Paper
+                    shadow="none"
+                    radius={0}
+                    px="md"
+                    py="sm"
+                    sx={(theme) => ({
+                        borderWidth: '0 0 1px 1px',
+                        borderStyle: 'solid',
+                        borderColor: theme.colors.gray[3],
+                    })}
+                >
                     <Group position="apart">
                         <Title order={5} c="gray.6">
                             SQL panel
@@ -119,27 +129,20 @@ export const ContentPanel: FC<Props> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
-                            <Tooltip
-                                variant="xs"
-                                label="Run query"
-                                position="bottom"
+
+                            <Button
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                                loading={isLoading}
+                                onClick={() => {
+                                    if (!sql) return;
+                                    runSqlQuery({
+                                        sql,
+                                    });
+                                }}
                             >
-                                <Button
-                                    size="xs"
-                                    leftIcon={
-                                        <MantineIcon icon={IconPlayerPlay} />
-                                    }
-                                    loading={isLoading}
-                                    onClick={() => {
-                                        if (!sql) return;
-                                        runSqlQuery({
-                                            sql,
-                                        });
-                                    }}
-                                >
-                                    Run query
-                                </Button>
-                            </Tooltip>
+                                Run query
+                            </Button>
                         </Group>
                     </Group>
                 </Paper>
@@ -148,8 +151,12 @@ export const ContentPanel: FC<Props> = ({
                     shadow="none"
                     radius={0}
                     p="none"
-                    withBorder
                     style={{ flex: 1 }}
+                    sx={(theme) => ({
+                        borderWidth: '0 0 0 1px',
+                        borderStyle: 'solid',
+                        borderColor: theme.colors.gray[3],
+                    })}
                 >
                     <Box
                         sx={{
@@ -192,85 +199,105 @@ export const ContentPanel: FC<Props> = ({
                         setResultsHeight(data.size.height)
                     }
                 >
-                    <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
-                        <Group position="apart">
-                            <Group spacing="xs">
-                                <Title order={5} c="gray.6">
-                                    Results/Chart panel
-                                </Title>
-                                {isLoading && <Loader size="xs" />}
-                            </Group>
-
-                            <Group spacing="md">
-                                <Tooltip
-                                    key={String(isResultsHeightMoreThanHalf)}
-                                    variant="xs"
-                                    label={
-                                        isResultsHeightMoreThanHalf
-                                            ? 'Collapse'
-                                            : 'Expand'
-                                    }
-                                    position="bottom"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() =>
-                                            setResultsHeight(
-                                                isResultsHeightMoreThanHalf
-                                                    ? MIN_RESULTS_HEIGHT
-                                                    : maxResultsHeight,
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={
-                                                isResultsHeightMoreThanHalf
-                                                    ? IconLayoutNavbarExpand
-                                                    : IconLayoutNavbarCollapse
-                                            }
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip
-                                    variant="xs"
-                                    label="Configure"
-                                    position="bottom"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={
-                                            isChartConfigOpen
-                                                ? closeChartConfig
-                                                : openChartConfig
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconAdjustmentsCog}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Group>
-                        </Group>
-                    </Paper>
-
-                    {queryResults && !isLoading && (
+                    <Stack h="100%" spacing={0}>
                         <Paper
                             shadow="none"
                             radius={0}
                             px="md"
                             py="sm"
-                            withBorder
-                            sx={{ flex: 1, overflow: 'auto' }}
-                            h="100%"
+                            sx={(theme) => ({
+                                borderWidth: '0 0 1px 1px',
+                                borderStyle: 'solid',
+                                borderColor: theme.colors.gray[3],
+                            })}
                         >
-                            {selectedChartType === ChartKind.TABLE && (
-                                <Table data={queryResults} />
-                            )}
-                            {selectedChartType === ChartKind.VERTICAL_BAR && (
-                                <BarChart data={queryResults} />
-                            )}
+                            <Group position="apart">
+                                <Group spacing="xs">
+                                    <Title order={5} c="gray.6">
+                                        Results/Chart panel
+                                    </Title>
+                                    {isLoading && <Loader size="xs" />}
+                                </Group>
+
+                                <Group spacing="md">
+                                    <Tooltip
+                                        key={String(
+                                            isResultsHeightMoreThanHalf,
+                                        )}
+                                        variant="xs"
+                                        label={
+                                            isResultsHeightMoreThanHalf
+                                                ? 'Collapse'
+                                                : 'Expand'
+                                        }
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={() =>
+                                                setResultsHeight(
+                                                    isResultsHeightMoreThanHalf
+                                                        ? MIN_RESULTS_HEIGHT
+                                                        : maxResultsHeight,
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    isResultsHeightMoreThanHalf
+                                                        ? IconLayoutNavbarExpand
+                                                        : IconLayoutNavbarCollapse
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip
+                                        variant="xs"
+                                        label="Configure"
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={
+                                                isChartConfigOpen
+                                                    ? closeChartConfig
+                                                    : openChartConfig
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconAdjustmentsCog}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </Group>
                         </Paper>
-                    )}
+
+                        {queryResults && !isLoading && (
+                            <Paper
+                                shadow="none"
+                                radius={0}
+                                px="md"
+                                py="sm"
+                                sx={(theme) => ({
+                                    flex: 1,
+                                    overflow: 'auto',
+                                    borderWidth: '0 0 1px 1px',
+                                    borderStyle: 'solid',
+                                    borderColor: theme.colors.gray[3],
+                                })}
+                                h="100%"
+                            >
+                                {selectedChartType === ChartKind.TABLE && (
+                                    <Table data={queryResults} />
+                                )}
+                                {selectedChartType ===
+                                    ChartKind.VERTICAL_BAR && (
+                                    <BarChart data={queryResults} />
+                                )}
+                            </Paper>
+                        )}
+                    </Stack>
                 </ResizableBox>
             </Tooltip.Group>
         </Stack>

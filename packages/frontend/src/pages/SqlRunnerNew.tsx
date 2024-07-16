@@ -72,7 +72,6 @@ const SqlRunnerNew = () => {
                         radius={0}
                         px="md"
                         py="lg"
-                        withBorder
                         style={{ flexGrow: 0 }}
                     >
                         <Tooltip
