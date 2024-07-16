@@ -1,3 +1,10 @@
+## [0.1171.1](https://github.com/lightdash/lightdash/compare/0.1171.0...0.1171.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* show warning custom dimension viewers ([#10699](https://github.com/lightdash/lightdash/issues/10699)) ([a949017](https://github.com/lightdash/lightdash/commit/a949017ebe67e9b33ea539495bdaff759c9021e2))
+
 # [0.1171.0](https://github.com/lightdash/lightdash/compare/0.1170.0...0.1171.0) (2024-07-15)
 
 
