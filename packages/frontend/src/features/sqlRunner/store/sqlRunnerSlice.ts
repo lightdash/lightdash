@@ -181,13 +181,19 @@ export const sqlRunnerSlice = createSlice({
                 return;
             }
             const { reference, label } = action.payload;
-            if (state.barChartConfig.axes.x.reference === reference) {
+            if (state.barChartConfig?.axes?.x.reference === reference) {
                 state.barChartConfig.axes.x.label = label;
             } else {
-                const index = state.barChartConfig.axes.y.findIndex(
+                const index = state.barChartConfig?.axes?.y.findIndex(
                     (axis) => axis.reference === reference,
                 );
-                state.barChartConfig.axes.y[index].label = label;
+
+                if (
+                    index !== undefined &&
+                    state.barChartConfig?.axes?.y[index]
+                ) {
+                    state.barChartConfig.axes.y[index].label = label;
+                }
             }
         },
         updateChartSeriesLabel: (
@@ -196,7 +202,12 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             if (!state.barChartConfig) return;
             const { index, name } = action.payload;
-            state.barChartConfig.series[index].name = name;
+            if (
+                state.barChartConfig.series &&
+                state.barChartConfig.series[index]
+            ) {
+                state.barChartConfig.series[index].name = name;
+            }
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;

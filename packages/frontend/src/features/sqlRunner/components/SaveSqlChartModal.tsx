@@ -7,6 +7,7 @@ import {
     Text,
     Textarea,
     TextInput,
+    type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
@@ -25,12 +26,9 @@ const validationSchema = z.object({
 
 type FormValues = z.infer<typeof validationSchema>;
 
-type Props = {
-    isOpen: boolean;
-    onClose: () => void;
-};
+type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
-export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
+export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
@@ -82,7 +80,11 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
             name: form.values.name,
             description: form.values.description,
             sql: sql,
-            config: config || {},
+            // TODO: should initial version get generated on the BE?
+            config: config || {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+            },
             // TODO: add space selection
             spaceUuid: spaces[0].uuid,
         });
@@ -101,7 +103,7 @@ export const SaveSqlChartModal: FC<Props> = ({ isOpen, onClose }) => {
 
     return (
         <Modal
-            opened={isOpen}
+            opened={opened}
             onClose={onClose}
             keepMounted={false}
             title={

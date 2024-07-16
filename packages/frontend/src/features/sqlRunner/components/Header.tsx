@@ -89,7 +89,7 @@ export const Header: FC = () => {
             </Paper>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
-                isOpen={isSaveModalOpen}
+                opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
             />
         </>
