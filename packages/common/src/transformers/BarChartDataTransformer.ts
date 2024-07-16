@@ -18,9 +18,6 @@ export class BarChartDataTransformer {
         const xField = axes?.x?.reference ?? columns[0];
 
         return {
-            title: {
-                text: 'Bar chart',
-            },
             tooltip: {},
             legend: {
                 show: true,
