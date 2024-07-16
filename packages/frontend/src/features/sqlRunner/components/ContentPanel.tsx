@@ -51,10 +51,14 @@ export const ContentPanel: FC<Props> = ({
     } = useElementSize();
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
-    const maxResultsHeight = useMemo(() => wrapperHeight - 58, [wrapperHeight]);
+    const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
     const isResultsHeightMoreThanHalf = useMemo(
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
+    );
+    const isResultsPanelFullHeight = useMemo(
+        () => resultsHeight === maxResultsHeight,
+        [resultsHeight, maxResultsHeight],
     );
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -90,7 +94,9 @@ export const ContentPanel: FC<Props> = ({
                     px="md"
                     py="sm"
                     sx={(theme) => ({
-                        borderWidth: '0 0 1px 1px',
+                        borderWidth: isResultsPanelFullHeight
+                            ? '0 0 0 1px'
+                            : '0 0 1px 1px',
                         borderStyle: 'solid',
                         borderColor: theme.colors.gray[3],
                     })}
