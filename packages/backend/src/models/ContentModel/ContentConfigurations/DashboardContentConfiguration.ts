@@ -1,11 +1,10 @@
-import { ChartContent, ChartKind, ContentType } from '@lightdash/common';
+import { ChartKind, ContentType, DashboardContent } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
+import { PinnedDashboardTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
-import { SavedSqlTableName } from '../../../database/entities/savedSql';
 import { SpaceTableName } from '../../../database/entities/spaces';
-import { UserTableName } from '../../../database/entities/users';
 import {
     ContentConfiguration,
     ContentFilters,
@@ -19,32 +18,21 @@ type SelectSavedSql = SummaryContentRow<{
     dashboard_name: string | null;
 }>;
 
-export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> =
+export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql> =
     {
-        shouldQueryBeIncluded: (filters: ContentFilters) => {
-            const contentTypeMatch =
-                !filters.contentTypes ||
-                filters.contentTypes?.includes(ContentType.CHART);
-            const sourceMatch =
-                !filters.chart?.sources ||
-                filters.chart.sources?.includes('sql');
-            return contentTypeMatch && sourceMatch;
-        },
+        shouldQueryBeIncluded: (filters: ContentFilters) =>
+            !filters.contentTypes ||
+            filters.contentTypes?.includes(ContentType.DASHBOARD),
         getSummaryQuery: (
             knex: Knex,
             filters: ContentFilters,
         ): Knex.QueryBuilder =>
             knex
-                .from(SavedSqlTableName)
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SavedSqlTableName}.dashboard_uuid`,
-                )
+                .from(DashboardsTableName)
                 .innerJoin(
                     SpaceTableName,
-                    `${SpaceTableName}.space_uuid`,
-                    `${SavedSqlTableName}.space_uuid`,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
                 )
                 .innerJoin(
                     ProjectTableName,
@@ -57,48 +45,36 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `${ProjectTableName}.organization_id`,
                 )
                 .leftJoin(
-                    `${UserTableName} as createdByUser`,
-                    `${SavedSqlTableName}.created_by_user_uuid`,
-                    `createdByUser.user_uuid`,
-                )
-                .leftJoin(
-                    `${UserTableName} as updatedByUser`,
-                    `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
-                    `updatedByUser.user_uuid`,
+                    PinnedDashboardTableName,
+                    `${PinnedDashboardTableName}.dashboard_uuid`,
+                    `${DashboardsTableName}.dashboard_uuid`,
                 )
                 .select<SelectSavedSql[]>([
-                    knex.raw(`'${ContentType.CHART}' as content_type`),
+                    knex.raw(`'dashboard' as content_type`),
                     knex.raw(
-                        `${SavedSqlTableName}.saved_sql_uuid::text as uuid`,
+                        `${DashboardsTableName}.dashboard_uuid::text as uuid`,
                     ),
-                    `${SavedSqlTableName}.name`,
-                    `${SavedSqlTableName}.description`,
-                    `${SavedSqlTableName}.slug`,
+                    `${DashboardsTableName}.name`,
+                    `${DashboardsTableName}.description`,
+                    `${DashboardsTableName}.slug`,
                     `${SpaceTableName}.space_uuid`,
                     `${SpaceTableName}.name as space_name`,
                     `${ProjectTableName}.project_uuid`,
                     `${ProjectTableName}.name as project_name`,
                     `${OrganizationTableName}.organization_uuid`,
                     `${OrganizationTableName}.organization_name`,
-                    knex.raw(`NULL as pinned_list_uuid`), // TODO: Implement pinned lists
+                    `${PinnedDashboardTableName}.pinned_list_uuid as pinned_list_uuid`, // TODO: Implement pinned lists
                     knex.raw(
-                        `${SavedSqlTableName}.created_at::timestamp as created_at`,
+                        `${DashboardsTableName}.created_at::timestamp as created_at`,
                     ),
-                    `createdByUser.user_uuid as created_by_user_uuid`,
-                    `createdByUser.first_name as created_by_user_first_name`,
-                    `createdByUser.last_name as created_by_user_last_name`,
-                    knex.raw(
-                        `${SavedSqlTableName}.last_version_updated_at::timestamp as last_updated_at`,
-                    ),
-                    `updatedByUser.user_uuid as last_updated_by_user_uuid`,
-                    `updatedByUser.first_name as last_updated_by_user_first_name`,
-                    `updatedByUser.last_name as last_updated_by_user_last_name`,
-                    knex.raw(`json_build_object(
-                    'source','sql',
-                    'chart_kind', ${SavedSqlTableName}.last_version_chart_kind, 
-                    'dashboard_uuid', ${DashboardsTableName}.dashboard_uuid,
-                    'dashboard_name', ${DashboardsTableName}.name
-                ) as metadata`),
+                    knex.raw(`NULL as created_by_user_uuid`),
+                    knex.raw(`NULL as created_by_user_first_name`),
+                    knex.raw(`NULL as created_by_user_last_name`),
+                    knex.raw(`NULL as last_updated_at`),
+                    knex.raw(`NULL as last_updated_by_user_uuid`),
+                    knex.raw(`NULL as last_updated_by_user_first_name`),
+                    knex.raw(`NULL as last_updated_by_user_last_name`),
+                    knex.raw(`json_build_object() as metadata`),
                 ])
                 .where((builder) => {
                     if (filters.projectUuids) {
@@ -115,17 +91,14 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                         );
                     }
                 }),
-        shouldRowBeConverted: (value): value is SelectSavedSql => {
-            const contentTypeMatch = value.content_type === ContentType.CHART;
-            const sourceMatch = value.metadata.source === 'sql';
-            return contentTypeMatch && sourceMatch;
-        },
-        convertSummaryRow: (value): ChartContent => {
-            if (!sqlChartContentConfiguration.shouldRowBeConverted(value)) {
+        shouldRowBeConverted: (value): value is SelectSavedSql =>
+            value.content_type === ContentType.DASHBOARD,
+        convertSummaryRow: (value): DashboardContent => {
+            if (!dashboardContentConfiguration.shouldRowBeConverted(value)) {
                 throw new Error('Invalid content row');
             }
             return {
-                contentType: ContentType.CHART,
+                contentType: ContentType.DASHBOARD,
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,
@@ -155,18 +128,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     uuid: value.organization_uuid,
                     name: value.organization_name,
                 },
-                source: value.metadata.source,
-                chartKind: value.metadata.chart_kind,
                 space: {
                     uuid: value.space_uuid,
                     name: value.space_name,
                 },
-                dashboard: value.metadata.dashboard_uuid
-                    ? {
-                          uuid: value.metadata.dashboard_uuid,
-                          name: value.metadata.dashboard_name ?? '',
-                      }
-                    : null,
                 pinnedList: value.pinned_list_uuid
                     ? {
                           uuid: value.pinned_list_uuid,

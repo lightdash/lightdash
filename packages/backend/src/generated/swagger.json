@@ -8259,12 +8259,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentType.CHART": {
+                "enum": ["chart"],
+                "type": "string"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard"],
+                "type": "string"
+            },
             "ChartContent": {
                 "properties": {
-                    "resourceType": {
-                        "type": "string",
-                        "enum": ["chart"],
-                        "nullable": false
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.CHART"
                     },
                     "uuid": {
                         "type": "string"
@@ -8301,7 +8307,8 @@
                     },
                     "lastUpdatedAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "lastUpdatedBy": {
                         "properties": {
@@ -8387,7 +8394,7 @@
                     }
                 },
                 "required": [
-                    "resourceType",
+                    "contentType",
                     "uuid",
                     "slug",
                     "name",
@@ -8412,6 +8419,161 @@
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/ChartContent"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentType.DASHBOARD": {
+                "enum": ["dashboard"],
+                "type": "string"
+            },
+            "DashboardContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "SummaryContent": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardContent"
+                    }
+                ]
+            },
+            "ApiContentResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SummaryContent"
                         },
                         "type": "array"
                     },

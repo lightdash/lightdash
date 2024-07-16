@@ -1,4 +1,4 @@
-import { ChartContent, ChartKind } from '@lightdash/common';
+import { ChartContent, ChartKind, ContentType } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
@@ -26,13 +26,13 @@ type SelectSavedChart = SummaryContentRow<{
 export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSavedChart> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
-            const resourceTypeMatch =
-                !filters.resourceTypes ||
-                filters.resourceTypes?.includes('chart');
+            const contentTypeMatch =
+                !filters.contentTypes ||
+                filters.contentTypes?.includes(ContentType.CHART);
             const sourceMatch =
                 !filters.chart?.sources ||
                 filters.chart.sources?.includes('dbt_explore');
-            return resourceTypeMatch && sourceMatch;
+            return contentTypeMatch && sourceMatch;
         },
         getSummaryQuery: (
             knex: Knex,
@@ -76,7 +76,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     `updatedByUser.user_uuid`,
                 )
                 .select<SelectSavedChart[]>([
-                    knex.raw(`'chart' as resource_type`),
+                    knex.raw(`'${ContentType.CHART}' as content_type`),
                     knex.raw(
                         `${SavedChartsTableName}.saved_query_uuid::text as uuid`,
                     ),
@@ -125,9 +125,9 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     }
                 }),
         shouldRowBeConverted: (value): value is SelectSavedChart => {
-            const resourceTypeMatch = value.resource_type === 'chart';
+            const contentTypeMatch = value.content_type === ContentType.CHART;
             const sourceMatch = value.metadata.source === 'dbt_explore';
-            return resourceTypeMatch && sourceMatch;
+            return contentTypeMatch && sourceMatch;
         },
         convertSummaryRow: (value): ChartContent => {
             if (
@@ -136,7 +136,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                 throw new Error('Invalid content row');
             }
             return {
-                resourceType: 'chart',
+                contentType: ContentType.CHART,
                 uuid: value.uuid,
                 slug: value.slug,
                 name: value.name,

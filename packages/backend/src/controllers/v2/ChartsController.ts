@@ -1,9 +1,4 @@
-import {
-    ApiContentResponse,
-    ApiErrorPayload,
-    Content,
-    ContentType,
-} from '@lightdash/common';
+import { ApiChartContentResponse, ApiErrorPayload } from '@lightdash/common';
 import {
     Get,
     Hidden,
@@ -20,32 +15,32 @@ import express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
-@Route('/api/v2/content')
+@Route('/api/v2/charts')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('v2', 'Content')
+@Tags('v2', 'Charts')
 @Hidden() // Hide this endpoint from the documentation for now
-export class ContentController extends BaseController {
+export class ChartsController extends BaseController {
     /**
-     * Get content (charts, dashboards, etc.)
+     * Get charts
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
-    @OperationId('List content')
+    @OperationId('List charts')
     async listCharts(
         @Request() req: express.Request,
         @Query() projectUuids?: string[],
         @Query() spaceUuids?: string[],
-        @Query() contentTypes?: ContentType[],
-    ): Promise<ApiContentResponse> {
+    ): Promise<ApiChartContentResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.services.getContentService().find(req.user!, {
-                projectUuids,
-                spaceUuids,
-                contentTypes,
-            }),
+            results: await this.services
+                .getContentService()
+                .findCharts(req.user!, {
+                    projectUuids,
+                    spaceUuids,
+                }),
         };
     }
 }

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartContent,
+    ContentType,
     NotExistsError,
     SessionUser,
     SummaryContent,
@@ -38,7 +39,7 @@ export class ContentService extends BaseService {
         this.contentModel = args.contentModel;
     }
 
-    private async find(
+    async find(
         user: SessionUser,
         filters: ContentFilters,
     ): Promise<SummaryContent[]> {
@@ -92,9 +93,9 @@ export class ContentService extends BaseService {
         user: SessionUser,
         filters: ContentFilters,
     ): Promise<ChartContent[]> {
-        return this.find(user, {
+        return (await this.find(user, {
             ...filters,
-            resourceTypes: ['chart'],
-        });
+            contentTypes: [ContentType.CHART],
+        })) as ChartContent[];
     }
 }

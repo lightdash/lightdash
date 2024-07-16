@@ -1,6 +1,7 @@
 import { SummaryContent } from '@lightdash/common';
 import { Knex } from 'knex';
 import Logger from '../../logging/logger';
+import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
 import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
 import { ContentFilters, SummaryContentRow } from './ContentModelTypes';
@@ -18,6 +19,7 @@ export class ContentModel {
     private contentConfigurations = [
         sqlChartContentConfiguration,
         dbtExploreChartContentConfiguration,
+        dashboardContentConfiguration,
     ];
 
     constructor(args: { database: Knex }) {
@@ -30,7 +32,11 @@ export class ContentModel {
         const matchingConfigurations = this.contentConfigurations.filter(
             (config) => config.shouldQueryBeIncluded(filters),
         );
-
+        console.log(
+            'matchingConfigurations',
+            matchingConfigurations.length,
+            filters,
+        );
         if (matchingConfigurations.length === 0) {
             return [];
         }
@@ -41,6 +47,7 @@ export class ContentModel {
             void query.unionAll(config.getSummaryQuery(this.database, filters));
         });
 
+        console.log('query', query.toSQL());
         const results = await query;
 
         return results.reduce<SummaryContent[]>((acc, result) => {

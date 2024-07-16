@@ -1,7 +1,12 @@
 import { type ChartKind } from './savedCharts';
 
+export enum ContentType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+}
+
 export interface Content {
-    resourceType: 'chart'; // Note: more types will be added. 'dashboard' | 'chart' | 'notebook' | 'report';
+    contentType: ContentType;
     uuid: string;
     slug: string;
     name: string;
@@ -12,7 +17,7 @@ export interface Content {
         firstName: string;
         lastName: string;
     } | null;
-    lastUpdatedAt: Date;
+    lastUpdatedAt: Date | null;
     lastUpdatedBy: {
         uuid: string;
         firstName: string;
@@ -38,7 +43,7 @@ export interface Content {
 // Chart types
 
 export interface ChartContent extends Content {
-    resourceType: 'chart';
+    contentType: ContentType.CHART;
     source: 'dbt_explore' | 'sql';
     chartKind: ChartKind;
     dashboard: {
@@ -47,11 +52,22 @@ export interface ChartContent extends Content {
     } | null;
 }
 
+// Dashboard types
+
+export interface DashboardContent extends Content {
+    contentType: ContentType.DASHBOARD;
+}
+
 // Group types
 
-export type SummaryContent = ChartContent; // Note: more types will be added.
+export type SummaryContent = ChartContent | DashboardContent; // Note: more types will be added.
 
 // API types
+
+export type ApiContentResponse = {
+    status: 'ok';
+    results: SummaryContent[];
+};
 
 export type ApiChartContentResponse = {
     status: 'ok';
