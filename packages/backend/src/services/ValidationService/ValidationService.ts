@@ -14,6 +14,7 @@ import {
     getItemId,
     InlineErrorType,
     isExploreError,
+    isTableEnabled,
     isValidationTargetValid,
     OrganizationMemberRole,
     RequestMethod,
@@ -118,60 +119,9 @@ export class ValidationService extends BaseService {
             return [];
         }
 
-        const isTableEnabled = (explore: Explore | ExploreError) => {
-            switch (tablesConfiguration.tableSelection.type) {
-                case TableSelectionType.ALL:
-                    return true;
-                case TableSelectionType.WITH_TAGS:
-                    const hasSelectedJoinedExploredWithTags = explores.some(
-                        (e) =>
-                            e.joinedTables?.some(
-                                (jt) => jt.table === explore.name,
-                            ) &&
-                            e.tags?.some((tag) =>
-                                tablesConfiguration.tableSelection.value?.includes(
-                                    tag,
-                                ),
-                            ),
-                    );
-                    const exploreIsSelectedWithTags = explore.tags?.some(
-                        (tag) =>
-                            tablesConfiguration.tableSelection.value?.includes(
-                                tag,
-                            ),
-                    );
-                    return (
-                        hasSelectedJoinedExploredWithTags ||
-                        exploreIsSelectedWithTags
-                    );
-
-                case TableSelectionType.WITH_NAMES:
-                    const hasSelectedJoinedExplored = explores.some(
-                        (e) =>
-                            e.joinedTables?.some(
-                                (jt) => jt.table === explore.name,
-                            ) &&
-                            tablesConfiguration.tableSelection.value?.includes(
-                                e.name,
-                            ),
-                    );
-                    const exploreIsSelected =
-                        tablesConfiguration.tableSelection.value?.includes(
-                            explore.name,
-                        );
-
-                    return hasSelectedJoinedExplored || exploreIsSelected;
-                default:
-                    return assertUnreachable(
-                        tablesConfiguration.tableSelection.type,
-                        'Invalid table selection type',
-                    );
-            }
-        };
-
         const errors = explores.reduce<CreateTableValidation[]>(
             (acc, explore) => {
-                if (!isTableEnabled(explore)) {
+                if (!isTableEnabled(explores, explore, tablesConfiguration)) {
                     this.logger.debug(
                         `Table ${explore.name} is disabled, skipping validation`,
                     );

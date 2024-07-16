@@ -56,6 +56,7 @@ import {
     isDateItem,
     isExploreError,
     isFilterableDimension,
+    isTableEnabled,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -732,7 +733,21 @@ export class ProjectService extends BaseService {
                     JobStepType.COMPILING,
                     async () => {
                         try {
-                            return await adapter.compileAllExplores();
+                            const tablesConfiguration =
+                                await this.projectModel.getTablesConfiguration(
+                                    updatedProject.projectUuid,
+                                );
+                            const allExplores =
+                                await adapter.compileAllExplores();
+
+                            // Filter only the enabled explores for the project
+                            return allExplores.filter((e) =>
+                                isTableEnabled(
+                                    allExplores,
+                                    e,
+                                    tablesConfiguration,
+                                ),
+                            );
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
@@ -2224,7 +2239,16 @@ export class ProjectService extends BaseService {
         );
         const packages = await adapter.getDbtPackages();
         try {
-            const explores = await adapter.compileAllExplores();
+            const tablesConfiguration =
+                await this.projectModel.getTablesConfiguration(projectUuid);
+
+            let explores = await adapter.compileAllExplores();
+
+            // Filter only the enabled explores for the project
+            explores = explores.filter((e) =>
+                isTableEnabled(explores, e, tablesConfiguration),
+            );
+
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,

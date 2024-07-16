@@ -9,7 +9,11 @@ import {
     type DashboardSummary,
 } from './types/dashboard';
 import { type DbtCloudIntegration } from './types/dbtCloud';
-import { type Explore, type SummaryExplore } from './types/explore';
+import {
+    type Explore,
+    type ExploreError,
+    type SummaryExplore,
+} from './types/explore';
 import {
     DimensionType,
     friendlyName,
@@ -124,6 +128,7 @@ import {
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
+import assertUnreachable from './utils/assertUnreachable';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
@@ -1102,3 +1107,46 @@ export const deepEqual = (
         );
     });
 };
+
+export function isTableEnabled(
+    explores: (Explore | ExploreError)[],
+    explore: Explore | ExploreError,
+    tablesConfiguration: TablesConfiguration,
+) {
+    switch (tablesConfiguration.tableSelection.type) {
+        case TableSelectionType.ALL:
+            return true;
+        case TableSelectionType.WITH_TAGS:
+            const hasSelectedJoinedExploredWithTags = explores.some(
+                (e) =>
+                    e.joinedTables?.some((jt) => jt.table === explore.name) &&
+                    e.tags?.some((tag) =>
+                        tablesConfiguration.tableSelection.value?.includes(tag),
+                    ),
+            );
+            const exploreIsSelectedWithTags = explore.tags?.some((tag) =>
+                tablesConfiguration.tableSelection.value?.includes(tag),
+            );
+            return (
+                hasSelectedJoinedExploredWithTags || exploreIsSelectedWithTags
+            );
+
+        case TableSelectionType.WITH_NAMES:
+            const hasSelectedJoinedExplored = explores.some(
+                (e) =>
+                    e.joinedTables?.some((jt) => jt.table === explore.name) &&
+                    tablesConfiguration.tableSelection.value?.includes(e.name),
+            );
+            const exploreIsSelected =
+                tablesConfiguration.tableSelection.value?.includes(
+                    explore.name,
+                );
+
+            return hasSelectedJoinedExplored || exploreIsSelected;
+        default:
+            return assertUnreachable(
+                tablesConfiguration.tableSelection.type,
+                'Invalid table selection type',
+            );
+    }
+}
