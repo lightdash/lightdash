@@ -40,15 +40,17 @@ const TableItem: FC<{
                 }}
                 w="100%"
                 p={4}
+                bg={isActive ? 'gray.1' : 'transparent'}
                 sx={(theme) => ({
                     fontWeight: 500,
                     fontSize: 13,
                     borderRadius: theme.radius.sm,
                     color: isActive ? 'gray.8' : 'gray.7',
-                    backgroundColor: isActive ? 'gray.1' : 'transparent',
                     flex: 1,
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: isActive
+                            ? theme.colors.gray[3]
+                            : theme.colors.gray[2],
                     },
                 })}
             >
