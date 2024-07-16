@@ -1,7 +1,6 @@
 import {
     ApiContentResponse,
     ApiErrorPayload,
-    Content,
     ContentType,
 } from '@lightdash/common';
 import {

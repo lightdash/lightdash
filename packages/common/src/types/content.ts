@@ -42,9 +42,14 @@ export interface Content {
 
 // Chart types
 
+export enum ChartSourceType {
+    DBT_EXPLORE = 'dbt_explore',
+    SQL = 'sql',
+}
+
 export interface ChartContent extends Content {
     contentType: ContentType.CHART;
-    source: 'dbt_explore' | 'sql';
+    source: ChartSourceType;
     chartKind: ChartKind;
     dashboard: {
         uuid: string;

@@ -1,4 +1,9 @@
-import { ChartContent, ChartKind, ContentType } from '@lightdash/common';
+import {
+    ChartContent,
+    ChartKind,
+    ChartSourceType,
+    ContentType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
@@ -13,7 +18,7 @@ import {
 } from '../ContentModelTypes';
 
 type SelectSavedSql = SummaryContentRow<{
-    source: 'sql';
+    source: ChartSourceType.SQL;
     chart_kind: ChartKind;
     dashboard_uuid: string | null;
     dashboard_name: string | null;
@@ -27,7 +32,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                 filters.contentTypes?.includes(ContentType.CHART);
             const sourceMatch =
                 !filters.chart?.sources ||
-                filters.chart.sources?.includes('sql');
+                filters.chart.sources?.includes(ChartSourceType.SQL);
             return contentTypeMatch && sourceMatch;
         },
         getSummaryQuery: (
@@ -94,7 +99,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `updatedByUser.first_name as last_updated_by_user_first_name`,
                     `updatedByUser.last_name as last_updated_by_user_last_name`,
                     knex.raw(`json_build_object(
-                    'source','sql',
+                    'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind, 
                     'dashboard_uuid', ${DashboardsTableName}.dashboard_uuid,
                     'dashboard_name', ${DashboardsTableName}.name
@@ -117,7 +122,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                 }),
         shouldRowBeConverted: (value): value is SelectSavedSql => {
             const contentTypeMatch = value.content_type === ContentType.CHART;
-            const sourceMatch = value.metadata.source === 'sql';
+            const sourceMatch = value.metadata.source === ChartSourceType.SQL;
             return contentTypeMatch && sourceMatch;
         },
         convertSummaryRow: (value): ChartContent => {

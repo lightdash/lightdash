@@ -1,4 +1,9 @@
-import { ChartContent, ChartKind, ContentType } from '@lightdash/common';
+import {
+    ChartContent,
+    ChartKind,
+    ChartSourceType,
+    ContentType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
@@ -17,7 +22,7 @@ import {
 } from '../ContentModelTypes';
 
 type SelectSavedChart = SummaryContentRow<{
-    source: 'dbt_explore';
+    source: ChartSourceType.DBT_EXPLORE;
     chart_kind: ChartKind;
     dashboard_uuid: string | null;
     dashboard_name: string | null;
@@ -31,7 +36,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                 filters.contentTypes?.includes(ContentType.CHART);
             const sourceMatch =
                 !filters.chart?.sources ||
-                filters.chart.sources?.includes('dbt_explore');
+                filters.chart.sources?.includes(ChartSourceType.DBT_EXPLORE);
             return contentTypeMatch && sourceMatch;
         },
         getSummaryQuery: (
@@ -103,7 +108,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     `updatedByUser.first_name as last_updated_by_user_first_name`,
                     `updatedByUser.last_name as last_updated_by_user_last_name`,
                     knex.raw(`json_build_object(
-                    'source','dbt_explore',
+                    'source','${ChartSourceType.DBT_EXPLORE}',
                     'chart_kind', ${SavedChartsTableName}.last_version_chart_kind,
                     'dashboard_uuid', ${DashboardsTableName}.dashboard_uuid,
                     'dashboard_name', ${DashboardsTableName}.name
@@ -126,7 +131,8 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                 }),
         shouldRowBeConverted: (value): value is SelectSavedChart => {
             const contentTypeMatch = value.content_type === ContentType.CHART;
-            const sourceMatch = value.metadata.source === 'dbt_explore';
+            const sourceMatch =
+                value.metadata.source === ChartSourceType.DBT_EXPLORE;
             return contentTypeMatch && sourceMatch;
         },
         convertSummaryRow: (value): ChartContent => {
