@@ -1,5 +1,5 @@
 import { type BarChartConfig } from '@lightdash/common';
-import EChartsReact from 'echarts-for-react';
+import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { type FC } from 'react';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTransformer';
@@ -7,9 +7,9 @@ import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTr
 type BarChartProps = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
     config: BarChartConfig | undefined;
-};
+} & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const BarChart: FC<BarChartProps> = ({ data, config }) => {
+const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
     const { spec } = useBarChartDataTransformer(data, config);
     return (
         <EChartsReact
@@ -17,12 +17,10 @@ const BarChart: FC<BarChartProps> = ({ data, config }) => {
             notMerge
             opts={{
                 renderer: 'svg',
+                width: 'auto',
+                height: 'auto',
             }}
-            style={{
-                minHeight: 'inherit',
-                height: '100%',
-                width: '100%',
-            }}
+            style={style}
         />
     );
 };

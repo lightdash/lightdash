@@ -7,7 +7,6 @@ import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
 // import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 // import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
-// import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import TileBase from './TileBase';
 
@@ -95,10 +94,10 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
                     onEdit={() => {}}
                 >
                     {/* {data.config.type === ChartKind.TABLE && (
-                        <Table data={data.results} config={data.config} />
+                        <Table data={data.results} config={data.config}  />
                     )}
                     {data.config.type === ChartKind.VERTICAL_BAR && (
-                        <BarChart data={data.results} config={data.config} />
+                        <BarChart data={data.results} config={data.config} style={{minHeight: 'inherit', height: '100%', width: '100%'}} />
                     )} */}
                 </TileBase>
             ) : (
