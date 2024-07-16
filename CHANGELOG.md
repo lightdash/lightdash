@@ -1,3 +1,10 @@
+## [0.1171.2](https://github.com/lightdash/lightdash/compare/0.1171.1...0.1171.2) (2024-07-16)
+
+
+### Bug Fixes
+
+* auto join org to apply okta group ([#10729](https://github.com/lightdash/lightdash/issues/10729)) ([49b6687](https://github.com/lightdash/lightdash/commit/49b6687ef05754e77a688c7c20d8226c275b4f5c))
+
 ## [0.1171.1](https://github.com/lightdash/lightdash/compare/0.1171.0...0.1171.1) (2024-07-16)
 
 

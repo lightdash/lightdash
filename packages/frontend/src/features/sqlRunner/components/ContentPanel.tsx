@@ -7,6 +7,7 @@ import {
     Loader,
     Paper,
     Stack,
+    Tabs,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -24,7 +25,13 @@ import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 import { ChartKind } from '@lightdash/common';
-import { setInitialResultsAndSeries, setSql } from '../store/sqlRunnerSlice';
+
+import {
+    setActiveVisTab,
+    setInitialResultsAndSeries,
+    setSql,
+    VisTabs,
+} from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
@@ -62,8 +69,22 @@ export const ContentPanel: FC<Props> = ({
     );
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const activeVisTab = useAppSelector(
+        (state) => state.sqlRunner.activeVisTab,
+    );
+
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
+    );
+
+    // Static results table
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
+    );
+
+    // configurable table
+    const tableVisConfig = useAppSelector(
+        (state) => state.sqlRunner.tableChartConfig,
     );
 
     const {
@@ -210,22 +231,39 @@ export const ContentPanel: FC<Props> = ({
                             shadow="none"
                             radius={0}
                             px="md"
-                            py="sm"
-                            sx={(theme) => ({
-                                borderWidth: '0 0 1px 1px',
-                                borderStyle: 'solid',
-                                borderColor: theme.colors.gray[3],
-                            })}
+                            pb={0}
+                            pt="sm"
+                            withBorder
                         >
-                            <Group position="apart">
-                                <Group spacing="xs">
-                                    <Title order={5} c="gray.6">
-                                        Results/Chart panel
-                                    </Title>
-                                    {isLoading && <Loader size="xs" />}
-                                </Group>
+                            <Group position="apart" pb={0} noWrap>
+                                <Tabs
+                                    value={activeVisTab}
+                                    onTabChange={(val: VisTabs) => {
+                                        dispatch(setActiveVisTab(val));
+                                    }}
+                                    // Negative margin to ge the tab indicator on the border
+                                    mb={-2}
+                                >
+                                    <Tabs.List>
+                                        <Tabs.Tab
+                                            value={VisTabs.CHART}
+                                            disabled={isLoading}
+                                        >
+                                            Chart
+                                        </Tabs.Tab>
+                                        <Tabs.Tab
+                                            value={VisTabs.RESULTS}
+                                            disabled={isLoading}
+                                        >
+                                            Results
+                                        </Tabs.Tab>
+                                        {isLoading && (
+                                            <Loader mt="xs" size="xs" />
+                                        )}
+                                    </Tabs.List>
+                                </Tabs>
 
-                                <Group spacing="md">
+                                <Group spacing="md" pb="sm" noWrap>
                                     <Tooltip
                                         key={String(
                                             isResultsHeightMoreThanHalf,
@@ -294,12 +332,28 @@ export const ContentPanel: FC<Props> = ({
                                 })}
                                 h="100%"
                             >
-                                {selectedChartType === ChartKind.TABLE && (
-                                    <Table data={queryResults} />
+                                {activeVisTab === VisTabs.CHART && (
+                                    <>
+                                        {selectedChartType ===
+                                            ChartKind.TABLE && (
+                                            <Table
+                                                data={queryResults}
+                                                config={tableVisConfig}
+                                            />
+                                        )}
+                                        {selectedChartType ===
+                                            ChartKind.VERTICAL_BAR && (
+                                            <BarChart data={queryResults} />
+                                        )}
+                                    </>
                                 )}
-                                {selectedChartType ===
-                                    ChartKind.VERTICAL_BAR && (
-                                    <BarChart data={queryResults} />
+                                {activeVisTab === VisTabs.RESULTS && (
+                                    <>
+                                        <Table
+                                            data={queryResults}
+                                            config={resultsTableConfig}
+                                        />
+                                    </>
                                 )}
                             </Paper>
                         )}

@@ -1,4 +1,4 @@
-import { type TableChartSqlConfig } from '@lightdash/common';
+import { type SqlTableConfig } from '@lightdash/common';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
@@ -8,7 +8,7 @@ import { TableDataTransformer } from './TableDataTransformer';
 
 export const useTableDataTransformer = (
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
-    config: TableChartSqlConfig | undefined,
+    config: SqlTableConfig | undefined,
 ) => {
     const transformer = useMemo(
         () => new TableDataTransformer(data, config),
