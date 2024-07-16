@@ -189,6 +189,12 @@ export class SqlRunnerController extends BaseController {
         };
     }
 
+    /**
+     * Gets chart and schedules a job to get its results
+     * @param projectUuid - the uuid of the project
+     * @param uuid - the uuid of the saved chart
+     * @param req - express request
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('saved/{uuid}/chart-and-results')
