@@ -8259,6 +8259,171 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ChartContent": {
+                "properties": {
+                    "resourceType": {
+                        "type": "string",
+                        "enum": ["chart"],
+                        "nullable": false
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["dbt_explore", "sql"]
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "dashboard": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "resourceType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "source",
+                    "chartKind",
+                    "dashboard"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiChartContentResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartContent"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"
@@ -8500,7 +8665,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1170.0",
+        "version": "0.1171.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

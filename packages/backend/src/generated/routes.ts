@@ -62,6 +62,8 @@ import { UserAttributesController } from './../controllers/userAttributesControl
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { ChartsController } from './../controllers/v2/ContentController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { IocContainer, IocContainerFactory } from '@tsoa/runtime';
 import type { RequestHandler } from 'express';
 import * as express from 'express';
@@ -7481,6 +7483,137 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'LoginOptions', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartContent: {
+        dataType: 'refObject',
+        properties: {
+            resourceType: {
+                dataType: 'enum',
+                enums: ['chart'],
+                required: true,
+            },
+            uuid: { dataType: 'string', required: true },
+            slug: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+            description: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            createdAt: { dataType: 'datetime', required: true },
+            createdBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            lastUpdatedAt: { dataType: 'datetime', required: true },
+            lastUpdatedBy: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            lastName: { dataType: 'string', required: true },
+                            firstName: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            project: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            organization: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            space: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    name: { dataType: 'string', required: true },
+                    uuid: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            pinnedList: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            source: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'enum', enums: ['dbt_explore'] },
+                    { dataType: 'enum', enums: ['sql'] },
+                ],
+                required: true,
+            },
+            chartKind: { ref: 'ChartKind', required: true },
+            dashboard: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            name: { dataType: 'string', required: true },
+                            uuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiChartContentResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'ChartContent' },
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -15428,6 +15561,68 @@ export function RegisterRoutes(app: express.Router) {
                     validatedArgs as any,
                 );
                 promiseHandler(controller, promise, response, undefined, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v2/charts',
+        ...fetchMiddlewares<RequestHandler>(ChartsController),
+        ...fetchMiddlewares<RequestHandler>(
+            ChartsController.prototype.listCharts,
+        ),
+
+        async function ChartsController_listCharts(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                projectUuids: {
+                    in: 'query',
+                    name: 'projectUuids',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                spaceUuids: {
+                    in: 'query',
+                    name: 'spaceUuids',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ChartsController>(
+                    ChartsController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.listCharts.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);
             }

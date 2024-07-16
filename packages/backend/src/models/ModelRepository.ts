@@ -4,6 +4,7 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
@@ -78,6 +79,7 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
+    contentModel: ContentModel;
 
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
@@ -459,6 +461,13 @@ export class ModelRepository
         return this.getModel(
             'savedSqlModel',
             () => new SavedSqlModel({ database: this.database }),
+        );
+    }
+
+    public getContentModel(): ContentModel {
+        return this.getModel(
+            'contentModel',
+            () => new ContentModel({ database: this.database }),
         );
     }
 

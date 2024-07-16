@@ -6,6 +6,7 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CommentService } from './CommentService/CommentService';
+import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
@@ -68,6 +69,7 @@ interface ServiceManifest {
     catalogService: CatalogService;
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
+    contentService: ContentService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -638,6 +640,19 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                }),
+        );
+    }
+
+    public getContentService(): ContentService {
+        return this.getService(
+            'contentService',
+            () =>
+                new ContentService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    contentModel: this.models.getContentModel(),
                 }),
         );
     }

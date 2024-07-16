@@ -286,7 +286,9 @@ export class SpaceModel {
 
     async find(filters: {
         projectUuid?: string;
+        projectUuids?: string[];
         spaceUuid?: string;
+        spaceUuids?: string[];
         slug?: string;
     }): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
         return Sentry.startSpan(
@@ -371,8 +373,17 @@ export class SpaceModel {
                         filters.projectUuid,
                     );
                 }
+                if (filters.projectUuids) {
+                    void query.whereIn(
+                        'projects.project_uuid',
+                        filters.projectUuids,
+                    );
+                }
                 if (filters.spaceUuid) {
                     void query.where('spaces.space_uuid', filters.spaceUuid);
+                }
+                if (filters.spaceUuids) {
+                    void query.whereIn('spaces.space_uuid', filters.spaceUuids);
                 }
                 if (filters.slug) {
                     void query.where('spaces.slug', filters.slug);
