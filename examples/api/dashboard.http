@@ -24,16 +24,21 @@ PATCH http://localhost:3000/api/v1/dashboards/6cd56785-ffa0-457e-80a4-54df671cc6
 Content-Type: application/json
 
 { 
-"description":"",
-"name": "dashboard test",
-"tiles": [{
-    "uuid":"aaf5e72e-dbd9-4342-acdd-123db36c7706",
-    "properties":{
-        "chartName":"How much revenue do we have per payment method?"},
-        //"savedChartUuid":"e6908a39-7c78-4234-99ef-e67659954f22",
+    "description":"",
+    "name": "dashboard test",
+    "tiles": [{
+        "h":9,"w":15,"x":0,"y":0,
+        "uuid":"aaf5e72e-dbd9-4342-acdd-123db36c7706",
         //"type":"saved_chart",
-        "savedSqlUuid":"1a6ae0ba-3f8c-49fe-aca0-af6a105ad51c",
         "type":"sql_chart",
-        "h":9,"w":15,"x":0,"y":0
+
+        "properties":{
+            "title": "Test chart saved from http",
+            "chartName":"How much revenue do we have per payment method?",
+            //"savedChartUuid":"e6908a39-7c78-4234-99ef-e67659954f22"
+            "savedSqlUuid":"1a6ae0ba-3f8c-49fe-aca0-af6a105ad51c"
+        }
     }]
 }
+
+

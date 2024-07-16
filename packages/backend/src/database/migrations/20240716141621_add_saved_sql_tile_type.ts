@@ -23,6 +23,7 @@ export async function up(knex: Knex): Promise<void> {
                 .uuid('saved_sql_uuid')
                 .references('saved_sql_uuid')
                 .inTable('saved_sql')
+                .notNullable()
                 .onDelete('CASCADE');
             table.text('title').nullable();
             table.boolean('hide_title').defaultTo(false);
