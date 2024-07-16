@@ -18,3 +18,22 @@ Content-Type: application/json
 "spaceUuid": "c219601e-034d-44a3-b0cd-853d7a8bf31f",
 "tiles": []
 }
+
+#### Update dashboard
+PATCH http://localhost:3000/api/v1/dashboards/6cd56785-ffa0-457e-80a4-54df671cc63f
+Content-Type: application/json
+
+{ 
+"description":"",
+"name": "dashboard test",
+"tiles": [{
+    "uuid":"aaf5e72e-dbd9-4342-acdd-123db36c7706",
+    "properties":{
+        "chartName":"How much revenue do we have per payment method?"},
+        //"savedChartUuid":"e6908a39-7c78-4234-99ef-e67659954f22",
+        //"type":"saved_chart",
+        "savedSqlUuid":"1a6ae0ba-3f8c-49fe-aca0-af6a105ad51c",
+        "type":"sql_chart",
+        "h":9,"w":15,"x":0,"y":0
+    }]
+}

@@ -4,11 +4,13 @@ import {
     CreateDashboardChartTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
+    CreateDashboardSqlChartTile,
     DashboardBasicDetails,
     DashboardChartTile,
     DashboardDAO,
     DashboardLoomTile,
     DashboardMarkdownTile,
+    DashboardSqlChartTile,
     DashboardTab,
     DashboardTileTypes,
     DashboardUnversionedFields,
@@ -17,6 +19,7 @@ import {
     isDashboardChartTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
+    isDashboardSqlChartTile,
     LightdashUser,
     NotFoundError,
     sanitizeHtml,
@@ -36,6 +39,7 @@ import {
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
+    DashboardTileSqlChartTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
@@ -153,6 +157,7 @@ export class DashboardModel {
             | (CreateDashboardChartTile & { uuid: string })
             | (CreateDashboardMarkdownTile & { uuid: string })
             | (CreateDashboardLoomTile & { uuid: string })
+            | (CreateDashboardSqlChartTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -235,6 +240,19 @@ export class DashboardModel {
                         properties.content,
                         HTML_SANITIZE_MARKDOWN_TILE_RULES,
                     ),
+                })),
+            );
+        }
+
+        const sqlChartTiles = tilesWithUuids.filter(isDashboardSqlChartTile);
+        if (sqlChartTiles.length > 0) {
+            await trx(DashboardTileSqlChartTableName).insert(
+                sqlChartTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    saved_sql_uuid: properties.savedSqlUuid,
+                    hide_title: properties.hideTitle,
+                    title: properties.title,
                 })),
             );
         }
@@ -828,6 +846,18 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     url: url || '',
+                                },
+                            };
+                        case DashboardTileTypes.SQL_CHART:
+                            return <DashboardSqlChartTile>{
+                                ...base,
+                                type: DashboardTileTypes.SQL_CHART,
+                                properties: {
+                                    ...commonProperties,
+                                    savedSqlUuid: '',
+
+                                    // TODO: add saved_sql_uuid
+                                    // savedSqlUuid: saved_sql_uuid || '',
                                 },
                             };
                         default: {
