@@ -1,8 +1,5 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, CopyButton, Tooltip } from '@mantine/core';
-import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useApp } from '../../../providers/AppProvider';
 import {
     ExplorerSection,
@@ -29,8 +26,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     );
     const { user } = useApp();
 
-    const { data: sql } = useCompiledSql();
-
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
     return (
         <CollapsableCard
@@ -39,7 +34,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
             rightHeaderElement={
-                sqlIsOpen ? (
+                sqlIsOpen && (
                     <Can
                         I="manage"
                         this={subject('SqlRunner', {
@@ -49,28 +44,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                     >
                         <OpenInSqlRunnerButton projectUuid={projectUuid} />
                     </Can>
-                ) : (
-                    <CopyButton value={sql || ''} timeout={2000}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard!' : 'Copy'}
-                                withArrow
-                                position="right"
-                                color={copied ? 'green' : 'dark'}
-                            >
-                                <ActionIcon
-                                    color={copied ? 'teal' : 'gray'}
-                                    onClick={copy}
-                                >
-                                    {copied ? (
-                                        <IconCheck size="1rem" />
-                                    ) : (
-                                        <IconClipboard size="1rem" />
-                                    )}
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
                 )
             }
         >
