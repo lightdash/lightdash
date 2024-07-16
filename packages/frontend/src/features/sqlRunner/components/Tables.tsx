@@ -45,10 +45,12 @@ const TableItem: FC<{
                     fontSize: 13,
                     borderRadius: theme.radius.sm,
                     color: isActive ? 'gray.8' : 'gray.7',
-                    backgroundColor: isActive ? 'gray.1' : 'transparent',
                     flex: 1,
+                    background: isActive ? theme.colors.gray[1] : 'transparent',
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        background: isActive
+                            ? theme.colors.gray[3]
+                            : theme.colors.gray[2],
                     },
                 })}
             >
