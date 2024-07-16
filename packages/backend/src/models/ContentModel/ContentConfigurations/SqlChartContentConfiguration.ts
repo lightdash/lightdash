@@ -98,6 +98,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `updatedByUser.user_uuid as last_updated_by_user_uuid`,
                     `updatedByUser.first_name as last_updated_by_user_first_name`,
                     `updatedByUser.last_name as last_updated_by_user_last_name`,
+                    `${SavedSqlTableName}.views_count as views`,
+                    knex.raw(
+                        `${SavedSqlTableName}.first_viewed_at::timestamp as first_viewed_at`,
+                    ),
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind, 
@@ -177,6 +181,8 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                           uuid: value.pinned_list_uuid,
                       }
                     : null,
+                views: value.views,
+                firstViewedAt: value.first_viewed_at,
             };
         },
     };

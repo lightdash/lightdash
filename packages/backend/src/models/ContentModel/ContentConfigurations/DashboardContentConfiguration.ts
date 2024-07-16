@@ -74,6 +74,10 @@ export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql>
                     knex.raw(`NULL as last_updated_by_user_uuid`),
                     knex.raw(`NULL as last_updated_by_user_first_name`),
                     knex.raw(`NULL as last_updated_by_user_last_name`),
+                    `${DashboardsTableName}.views_count as views`,
+                    knex.raw(
+                        `${DashboardsTableName}.first_viewed_at::timestamp as first_viewed_at`,
+                    ),
                     knex.raw(`json_build_object() as metadata`),
                 ])
                 .where((builder) => {
@@ -137,6 +141,8 @@ export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql>
                           uuid: value.pinned_list_uuid,
                       }
                     : null,
+                views: value.views,
+                firstViewedAt: value.first_viewed_at,
             };
         },
     };

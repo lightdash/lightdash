@@ -7496,6 +7496,11 @@ const models: TsoaRoute.Models = {
         enums: ['chart'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartSourceType: {
+        dataType: 'refEnum',
+        enums: ['dbt_explore', 'sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ContentType: {
         dataType: 'refEnum',
         enums: ['chart', 'dashboard'],
@@ -7592,14 +7597,16 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
-            source: {
+            views: { dataType: 'double', required: true },
+            firstViewedAt: {
                 dataType: 'union',
                 subSchemas: [
-                    { dataType: 'enum', enums: ['dbt_explore'] },
-                    { dataType: 'enum', enums: ['sql'] },
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
             },
+            source: { ref: 'ChartSourceType', required: true },
             chartKind: { ref: 'ChartKind', required: true },
             dashboard: {
                 dataType: 'union',
@@ -7727,6 +7734,15 @@ const models: TsoaRoute.Models = {
                             uuid: { dataType: 'string', required: true },
                         },
                     },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            views: { dataType: 'double', required: true },
+            firstViewedAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,

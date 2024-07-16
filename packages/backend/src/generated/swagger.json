@@ -8263,6 +8263,10 @@
                 "enum": ["chart"],
                 "type": "string"
             },
+            "ChartSourceType": {
+                "enum": ["dbt_explore", "sql"],
+                "type": "string"
+            },
             "ContentType": {
                 "enum": ["chart", "dashboard"],
                 "type": "string"
@@ -8372,9 +8376,17 @@
                         "type": "object",
                         "nullable": true
                     },
-                    "source": {
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
                         "type": "string",
-                        "enum": ["dbt_explore", "sql"]
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ChartSourceType"
                     },
                     "chartKind": {
                         "$ref": "#/components/schemas/ChartKind"
@@ -8407,6 +8419,8 @@
                     "organization",
                     "space",
                     "pinnedList",
+                    "views",
+                    "firstViewedAt",
                     "source",
                     "chartKind",
                     "dashboard"
@@ -8539,6 +8553,15 @@
                         "required": ["uuid"],
                         "type": "object",
                         "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -8554,7 +8577,9 @@
                     "project",
                     "organization",
                     "space",
-                    "pinnedList"
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt"
                 ],
                 "type": "object",
                 "additionalProperties": true

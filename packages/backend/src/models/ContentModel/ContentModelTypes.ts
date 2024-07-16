@@ -33,6 +33,8 @@ export type SummaryContentRow<
     last_updated_by_user_uuid: string | null;
     last_updated_by_user_first_name: string | null;
     last_updated_by_user_last_name: string | null;
+    views: number;
+    first_viewed_at: Date | null;
     metadata: T;
 };
 

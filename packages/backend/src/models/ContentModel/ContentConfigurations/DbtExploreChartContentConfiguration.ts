@@ -107,6 +107,10 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     `updatedByUser.user_uuid as last_updated_by_user_uuid`,
                     `updatedByUser.first_name as last_updated_by_user_first_name`,
                     `updatedByUser.last_name as last_updated_by_user_last_name`,
+                    `${SavedChartsTableName}.views_count as views`,
+                    knex.raw(
+                        `${SavedChartsTableName}.first_viewed_at::timestamp as first_viewed_at`,
+                    ),
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.DBT_EXPLORE}',
                     'chart_kind', ${SavedChartsTableName}.last_version_chart_kind,
@@ -189,6 +193,8 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                           uuid: value.pinned_list_uuid,
                       }
                     : null,
+                views: value.views,
+                firstViewedAt: value.first_viewed_at,
             };
         },
     };

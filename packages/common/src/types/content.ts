@@ -38,6 +38,8 @@ export interface Content {
     pinnedList: {
         uuid: string;
     } | null;
+    views: number;
+    firstViewedAt: Date | null;
 }
 
 // Chart types
