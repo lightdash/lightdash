@@ -88,7 +88,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
         // Validate models in the manifest - models with invalid metadata will compile to failed Explores
         const models = Object.values(manifest.nodes).filter(
-            (node: any) => node.resource_type === 'model',
+            (node: any) => node.resource_type === 'model' && node.meta !== null, //
         ) as DbtRawModelNode[];
         const manifestVersion = GetDbtManifestVersion(this.dbtVersion);
         Logger.debug(
