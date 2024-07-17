@@ -7562,6 +7562,29 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSqlChartWithResults": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "chart": {
+                                "$ref": "#/components/schemas/SqlChart"
+                            },
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chart", "jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCreateSqlChart": {
                 "properties": {
                     "results": {

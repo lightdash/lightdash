@@ -3,6 +3,7 @@ import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
 import { ChartKind } from './savedCharts';
+import { type ApiJobScheduledResponse } from './scheduler';
 import { type Space } from './space';
 import { type LightdashUser } from './user';
 
@@ -148,5 +149,13 @@ export type ApiUpdateSqlChart = {
     results: {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
+    };
+};
+
+export type ApiSqlChartWithResults = {
+    status: 'ok';
+    results: {
+        jobId: ApiJobScheduledResponse['results']['jobId'];
+        chart: SqlChart;
     };
 };
