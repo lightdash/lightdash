@@ -94,19 +94,4 @@ export class ContentService extends BaseService {
             paginateArgs,
         );
     }
-
-    async findCharts(
-        user: SessionUser,
-        filters: ContentFilters,
-        paginateArgs: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<ChartContent[]>> {
-        return (await this.find(
-            user,
-            {
-                ...filters,
-                contentTypes: [ContentType.CHART],
-            },
-            paginateArgs,
-        )) as KnexPaginatedData<ChartContent[]>;
-    }
 }

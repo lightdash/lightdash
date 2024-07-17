@@ -1,4 +1,10 @@
-import { ApiChartContentResponse, ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiChartContentResponse,
+    ApiErrorPayload,
+    ChartContent,
+    ContentType,
+    KnexPaginatedData,
+} from '@lightdash/common';
 import {
     Get,
     Hidden,
@@ -35,19 +41,21 @@ export class ChartsController extends BaseController {
         @Query() page?: number,
     ): Promise<ApiChartContentResponse> {
         this.setStatus(200);
+        const results = await this.services.getContentService().find(
+            req.user!,
+            {
+                projectUuids,
+                spaceUuids,
+                contentTypes: [ContentType.CHART],
+            },
+            {
+                page: page || 1,
+                pageSize: pageSize || 10,
+            },
+        );
         return {
             status: 'ok',
-            results: await this.services.getContentService().findCharts(
-                req.user!,
-                {
-                    projectUuids,
-                    spaceUuids,
-                },
-                {
-                    page: page || 1,
-                    pageSize: pageSize || 10,
-                },
-            ),
+            results: results as KnexPaginatedData<ChartContent[]>,
         };
     }
 }
