@@ -252,7 +252,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: uuid,
                     saved_sql_uuid: properties.savedSqlUuid,
                     hide_title: properties.hideTitle,
-                    title: properties.title,
+                    title: properties.title ?? properties.chartName,
                 })),
             );
         }
@@ -789,6 +789,8 @@ export class DashboardModel {
         const tableCalculationFilters = view?.filters?.tableCalculations;
         view.filters.tableCalculations = tableCalculationFilters || [];
 
+        console.log(JSON.stringify(tiles, null, 2));
+
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
@@ -873,7 +875,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SQL_CHART,
                                 properties: {
                                     ...commonProperties,
-                                    chartName: name,
+                                    chartName: name ?? title ?? '',
                                     savedSqlUuid: saved_sql_uuid,
                                 },
                             };
