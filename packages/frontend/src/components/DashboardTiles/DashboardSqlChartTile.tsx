@@ -1,12 +1,14 @@
 import {
+    ChartKind,
     type Dashboard,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
-// import { Table } from '../../features/sqlRunner/components/visualizations/Table';
-// import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
+import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
+import { Table } from '../../features/sqlRunner/components/visualizations/Table';
+import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import TileBase from './TileBase';
 
@@ -21,10 +23,7 @@ interface Props
 
 /**
  * TODO
- * Use new hook that calls endpoint to get chart results + config - hook can be called: useSqlChartResults(tile.properties.savedSqlUuid)
  * Handle minimal mode
- * Handle error
- * Handle delete
  * Handle edit
  * Add support for description and title
  */
@@ -34,16 +33,10 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const data = {
-        results: undefined,
-        config: undefined,
-    };
-    const isLoading = false;
-    const error = undefined;
-    // TODO: use new hook that calls endpoint to get chart results + config - hook can be called: useSqlChartResults(tile.properties.savedSqlUuid)
-    // const { data, isLoading, error } = useSqlChartResults(
-    //     tile.properties.savedSqlUuid,
-    // );
+    const { data, isLoading, error } = useSqlChartAndResults({
+        projectUuid,
+        savedSqlUuid: tile.properties.savedSqlUuid,
+    });
 
     if (isLoading) {
         return (
@@ -82,7 +75,7 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
 
     return (
         <>
-            {data ? (
+            {data.chart && data.results ? (
                 <TileBase
                     isEditMode={isEditMode}
                     chartName={tile.properties.chartName ?? ''}
@@ -93,12 +86,20 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
                     onDelete={() => {}}
                     onEdit={() => {}}
                 >
-                    {/* {data.config.type === ChartKind.TABLE && (
-                        <Table data={data.results} config={data.config}  />
+                    {data.chart.config.type === ChartKind.TABLE && (
+                        <Table data={data.results} config={data.chart.config} />
                     )}
-                    {data.config.type === ChartKind.VERTICAL_BAR && (
-                        <BarChart data={data.results} config={data.config} style={{minHeight: 'inherit', height: '100%', width: '100%'}} />
-                    )} */}
+                    {data.chart.config.type === ChartKind.VERTICAL_BAR && (
+                        <BarChart
+                            data={data.results}
+                            config={data.chart.config}
+                            style={{
+                                minHeight: 'inherit',
+                                height: '100%',
+                                width: '100%',
+                            }}
+                        />
+                    )}
                 </TileBase>
             ) : (
                 <div>No data</div>
