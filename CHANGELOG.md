@@ -1,3 +1,10 @@
+# [0.1174.0](https://github.com/lightdash/lightdash/compare/0.1173.0...0.1174.0) (2024-07-17)
+
+
+### Features
+
+* save sql chart tile ([#10737](https://github.com/lightdash/lightdash/issues/10737)) ([97a07d9](https://github.com/lightdash/lightdash/commit/97a07d9fdf6875a9662df9f2784114ce7736049c))
+
 # [0.1173.0](https://github.com/lightdash/lightdash/compare/0.1172.0...0.1173.0) (2024-07-17)
 
 
