@@ -2,7 +2,7 @@ import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
@@ -16,11 +16,14 @@ import {
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
 import {
+    loadState,
     setProjectUuid,
     setSaveChartData,
+    type SqlRunnerState,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 const SqlRunnerNew = () => {
+    const location = useLocation<SqlRunnerState>();
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
@@ -28,6 +31,12 @@ const SqlRunnerNew = () => {
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
+
+    useEffect(() => {
+        if (location.state) {
+            dispatch(loadState(location.state));
+        }
+    }, [dispatch, location.state]);
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {

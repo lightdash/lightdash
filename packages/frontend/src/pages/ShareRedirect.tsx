@@ -11,7 +11,9 @@ const ShareRedirect: FC = () => {
     const history = useHistory();
 
     useEffect(() => {
-        if (data && data.url) {
+        if (data?.path.endsWith('/sql-runner-new')) {
+            history.push(data.path, JSON.parse(data.params));
+        } else if (data && data.url) {
             history.push(data.url);
         }
     }, [data, history]);
