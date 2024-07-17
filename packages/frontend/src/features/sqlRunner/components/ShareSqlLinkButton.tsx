@@ -26,12 +26,7 @@ const ShareSqlLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     const { handleCopy, copied } = useAsyncClipboard(getSharedUrl);
 
     return (
-        <ActionIcon
-            variant="minimal"
-            onClick={handleCopy}
-            disabled={isDisabled}
-            color="gray"
-        >
+        <ActionIcon size="xs" onClick={handleCopy} disabled={isDisabled}>
             <MantineIcon
                 icon={copied ? IconCheck : IconLink}
                 color={copied ? 'green' : undefined}

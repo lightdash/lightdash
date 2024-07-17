@@ -81,9 +81,7 @@ export const Header: FC = () => {
                             label="Share URL"
                             position="bottom"
                         >
-                            <ActionIcon size="xs">
-                                <ShareSqlLinkButton />
-                            </ActionIcon>
+                            <ShareSqlLinkButton />
                         </Tooltip>
                     </Group>
                 </Group>
