@@ -2,11 +2,13 @@ import {
     ChartSourceType,
     DashboardTileTypes,
     defaultTileSize,
+    type ChartKind,
     type Dashboard,
 } from '@lightdash/common';
 import {
     Button,
     Flex,
+    getDefaultZIndex,
     Group,
     Modal,
     MultiSelect,
@@ -23,6 +25,7 @@ import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { ChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
@@ -32,18 +35,24 @@ type Props = {
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
     label: string;
     description?: string;
+    chartKind: ChartKind;
 }
 
 const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ label, description, ...others }: ItemProps, ref) => (
+    ({ label, description, chartKind, ...others }: ItemProps, ref) => (
         <div ref={ref} {...others}>
-            <Stack spacing="two">
+            <Stack spacing="one">
                 <Tooltip
                     label={description}
                     disabled={!description}
                     position="top-start"
                 >
-                    <Text>{label}</Text>
+                    <Group spacing="xs">
+                        <ChartIcon chartKind={chartKind} />
+                        <Text c="gray.8" fw={500} fz="xs">
+                            {label}
+                        </Text>
+                    </Group>
                 </Tooltip>
             </Stack>
         </div>
@@ -71,25 +80,28 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 ? 1
                 : 0,
         );
-        return (reorderedCharts || []).map(({ uuid, name, space }) => {
-            const alreadyAddedChart = dashboardTiles?.find((tile) => {
-                return (
-                    (tile.type === DashboardTileTypes.SAVED_CHART &&
-                        tile.properties.savedChartUuid === uuid) ||
-                    (tile.type === DashboardTileTypes.SQL_CHART &&
-                        tile.properties.savedSqlUuid === uuid)
-                );
-            });
+        return (reorderedCharts || []).map(
+            ({ uuid, name, space, chartKind }) => {
+                const alreadyAddedChart = dashboardTiles?.find((tile) => {
+                    return (
+                        (tile.type === DashboardTileTypes.SAVED_CHART &&
+                            tile.properties.savedChartUuid === uuid) ||
+                        (tile.type === DashboardTileTypes.SQL_CHART &&
+                            tile.properties.savedSqlUuid === uuid)
+                    );
+                });
 
-            return {
-                value: uuid,
-                label: name,
-                group: space.name,
-                description: alreadyAddedChart
-                    ? 'This chart has already been added to this dashboard'
-                    : undefined,
-            };
-        });
+                return {
+                    value: uuid,
+                    label: name,
+                    group: space.name,
+                    description: alreadyAddedChart
+                        ? 'This chart has already been added to this dashboard'
+                        : undefined,
+                    chartKind,
+                };
+            },
+        );
     }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
@@ -156,10 +168,16 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                                 position: 'sticky',
                                 top: 0,
                                 backgroundColor: 'white',
+                                zIndex: getDefaultZIndex('modal'),
                             },
                             separatorLabel: {
                                 color: theme.colors.gray[6],
                                 fontWeight: 500,
+                                backgroundColor: 'white',
+                            },
+                            item: {
+                                paddingTop: 4,
+                                paddingBottom: 4,
                             },
                         })}
                         id="saved-charts"
