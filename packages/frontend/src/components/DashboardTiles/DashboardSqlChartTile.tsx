@@ -79,9 +79,12 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
                 <TileBase
                     isEditMode={isEditMode}
                     chartName={tile.properties.chartName ?? ''}
-                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}/`}
+                    // TODO: Fix this link - should we use uuid or slug?
+                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}`}
                     tile={tile}
-                    title={tile.properties.chartName || ''}
+                    title={
+                        tile.properties.title || tile.properties.chartName || ''
+                    }
                     // TODO: see if we can remove these
                     onDelete={() => {}}
                     onEdit={() => {}}
