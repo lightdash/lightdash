@@ -1,13 +1,18 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Loader } from '@mantine/core';
-import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
+import Editor, {
+    type BeforeMount,
+    type EditorProps,
+    type Monaco,
+    type OnMount,
+} from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
-import React, { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
 import { useAppSelector } from '../store/hooks';
@@ -78,20 +83,38 @@ const registerMonacoLanguage = (monaco: Monaco, language: string) => {
 export const SqlEditor: FC<{
     sql: string;
     onSqlChange: (value: string) => void;
-}> = ({ sql, onSqlChange }) => {
+    onSubmit?: () => void;
+}> = ({ sql, onSqlChange, onSubmit }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data, isLoading } = useProject(projectUuid);
+    const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
+    const sqlRef = useRef(sql);
+    const onSubmitRef = useRef(onSubmit);
+
+    useEffect(() => {
+        sqlRef.current = sql;
+        onSubmitRef.current = onSubmit;
+    }, [sql, onSubmit]);
 
     const language = useMemo(
         () => getLanguage(data?.warehouseConnection?.type),
         [data],
     );
-    const beforeMount = useCallback(
-        (monaco: Monaco) => {
+
+    const beforeMount: BeforeMount = useCallback(
+        (monaco) => {
             registerMonacoLanguage(monaco, language);
         },
         [language],
     );
+
+    const onMount: OnMount = useCallback((editor, monaco) => {
+        editorRef.current = editor;
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+            // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
+            onSubmitRef.current?.();
+        });
+    }, []);
 
     if (isLoading) {
         return <Loader color="gray" size="xs" />;
@@ -110,6 +133,7 @@ export const SqlEditor: FC<{
         <Editor
             loading={<Loader color="gray" size="xs" />}
             beforeMount={beforeMount}
+            onMount={onMount}
             language={language}
             value={sql}
             onChange={(value) => onSqlChange(value ?? '')}
