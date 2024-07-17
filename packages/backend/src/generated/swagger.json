@@ -532,7 +532,7 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": ["saved_chart", "markdown", "loom"],
+                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -697,6 +697,48 @@
                     }
                 ]
             },
+            "DashboardTileTypes.SQL_CHART": {
+                "enum": ["sql_chart"],
+                "type": "string"
+            },
+            "DashboardSqlChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSqlUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartName", "savedSqlUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSqlChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -707,6 +749,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardLoomTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTile"
                     }
                 ]
             },
@@ -7357,7 +7402,7 @@
                         "type": "object"
                     }
                 },
-                "required": ["series", "axes", "style", "type", "metadata"],
+                "required": ["type", "metadata"],
                 "type": "object"
             },
             "SqlRunnerChartConfig": {
@@ -8523,7 +8568,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1171.2",
+        "version": "0.1172.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
