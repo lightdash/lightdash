@@ -1,3 +1,17 @@
+# [0.1174.0](https://github.com/lightdash/lightdash/compare/0.1173.0...0.1174.0) (2024-07-17)
+
+
+### Features
+
+* save sql chart tile ([#10737](https://github.com/lightdash/lightdash/issues/10737)) ([97a07d9](https://github.com/lightdash/lightdash/commit/97a07d9fdf6875a9662df9f2784114ce7736049c))
+
+# [0.1173.0](https://github.com/lightdash/lightdash/compare/0.1172.0...0.1173.0) (2024-07-17)
+
+
+### Features
+
+* run query on cmd+enter ([#10740](https://github.com/lightdash/lightdash/issues/10740)) ([9d530c9](https://github.com/lightdash/lightdash/commit/9d530c9697e04a38aa52748f6b8b1cbd4eaada47))
+
 # [0.1172.0](https://github.com/lightdash/lightdash/compare/0.1171.2...0.1172.0) (2024-07-16)
 
 

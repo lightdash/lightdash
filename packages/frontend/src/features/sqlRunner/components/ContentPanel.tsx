@@ -1,7 +1,7 @@
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    Button,
     Divider,
     Group,
     Loader,
@@ -11,21 +11,18 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
+import { useElementSize, useHotkeys } from '@mantine/hooks';
 import {
     IconAdjustmentsCog,
     IconLayoutNavbarCollapse,
     IconLayoutNavbarExpand,
-    IconPlayerPlay,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import MantineIcon from '../../../components/common/MantineIcon';
+import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-
-import { ChartKind } from '@lightdash/common';
-
 import {
     setActiveVisTab,
     setInitialResultsAndSeries,
@@ -105,6 +102,17 @@ export const ContentPanel: FC<Props> = ({
         },
     });
 
+    // Run query on cmd + enter
+    useHotkeys([
+        [
+            'mod + enter',
+            () => {
+                if (sql) runSqlQuery({ sql });
+            },
+            { preventDefault: true },
+        ],
+    ]);
+
     return (
         <Stack
             spacing="none"
@@ -159,20 +167,15 @@ export const ContentPanel: FC<Props> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
-
-                            <Button
-                                size="xs"
-                                leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                                loading={isLoading}
-                                onClick={() => {
+                            <RunSqlQueryButton
+                                isLoading={isLoading}
+                                onSubmit={() => {
                                     if (!sql) return;
                                     runSqlQuery({
                                         sql,
                                     });
                                 }}
-                            >
-                                Run query
-                            </Button>
+                            />
                         </Group>
                     </Group>
                 </Paper>
@@ -198,6 +201,7 @@ export const ContentPanel: FC<Props> = ({
                         <SqlEditor
                             sql={sql}
                             onSqlChange={(newSql) => dispatch(setSql(newSql))}
+                            onSubmit={() => runSqlQuery({ sql })}
                         />
                     </Box>
                 </Paper>
