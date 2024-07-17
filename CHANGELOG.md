@@ -1,3 +1,10 @@
+# [0.1175.0](https://github.com/lightdash/lightdash/compare/0.1174.0...0.1175.0) (2024-07-17)
+
+
+### Features
+
+* display sql chart with new endpoint to get results in dashboard ([#10735](https://github.com/lightdash/lightdash/issues/10735)) ([59aae8d](https://github.com/lightdash/lightdash/commit/59aae8d9ec84c67420fa5eff3d56b335e0e61fee))
+
 # [0.1174.0](https://github.com/lightdash/lightdash/compare/0.1173.0...0.1174.0) (2024-07-17)
 
 
