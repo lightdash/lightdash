@@ -1,4 +1,5 @@
 import {
+    ChartSourceType,
     DashboardTileTypes,
     defaultTileSize,
     type Dashboard,
@@ -19,7 +20,7 @@ import { IconChartAreaLine } from '@tabler/icons-react';
 import React, { forwardRef, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import { useChartSummaries } from '../../../hooks/useChartSummaries';
+import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -51,8 +52,8 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
 
 const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: savedCharts, isInitialLoading } =
-        useChartSummaries(projectUuid);
+    const { data: savedQueries, isInitialLoading } =
+        useChartSummariesV2(projectUuid);
 
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -63,43 +64,58 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         },
     });
     const allSavedCharts = useMemo(() => {
-        const reorderedCharts = savedCharts?.sort((chartA, chartB) =>
-            chartA.spaceUuid === dashboard?.spaceUuid
+        const reorderedCharts = savedQueries?.sort((chartA, chartB) =>
+            chartA.space.uuid === dashboard?.spaceUuid
                 ? -1
-                : chartB.spaceUuid === dashboard?.spaceUuid
+                : chartB.space.uuid === dashboard?.spaceUuid
                 ? 1
                 : 0,
         );
-        return (reorderedCharts || []).map(({ uuid, name, spaceName }) => {
+        return (reorderedCharts || []).map(({ uuid, name, space }) => {
             const alreadyAddedChart = dashboardTiles?.find((tile) => {
                 return (
-                    tile.type === DashboardTileTypes.SAVED_CHART &&
-                    tile.properties.savedChartUuid === uuid
+                    (tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.savedChartUuid === uuid) ||
+                    (tile.type === DashboardTileTypes.SQL_CHART &&
+                        tile.properties.savedSqlUuid === uuid)
                 );
             });
 
             return {
                 value: uuid,
                 label: name,
-                group: spaceName,
+                group: space.name,
                 description: alreadyAddedChart
                     ? 'This chart has already been added to this dashboard'
                     : undefined,
             };
         });
-    }, [dashboardTiles, savedCharts, dashboard?.spaceUuid]);
+    }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
             savedChartsUuids.map((uuid) => {
-                const chart = savedCharts?.find((c) => c.uuid === uuid);
+                const chart = savedQueries?.find((c) => c.uuid === uuid);
+                const isSqlChart = chart?.source === ChartSourceType.SQL;
+                if (isSqlChart) {
+                    return {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: {
+                            savedSqlUuid: uuid,
+                            chartName: chart?.name ?? '',
+                        },
+                        tabUuid: undefined,
+                        ...defaultTileSize,
+                    };
+                }
                 return {
                     uuid: uuid4(),
+                    type: DashboardTileTypes.SAVED_CHART,
                     properties: {
                         savedChartUuid: uuid,
                         chartName: chart?.name ?? '',
                     },
-                    type: DashboardTileTypes.SAVED_CHART,
                     tabUuid: undefined,
                     ...defaultTileSize,
                 };
@@ -108,7 +124,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    if (!savedCharts || !dashboardTiles || isInitialLoading) return null;
+    if (!savedQueries || !dashboardTiles || isInitialLoading) return null;
 
     return (
         <Modal
