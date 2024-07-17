@@ -4,11 +4,11 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { API_PREFIX_V2, lightdashApi } from '../api';
 
 const getChartSummariesInProjectV2 = async (projectUuid: string) => {
     return lightdashApi<ApiChartContentResponse['results']>({
-        apiPrefix: '/api/v2',
+        apiPrefix: API_PREFIX_V2,
         url: `/content?projectUuids=${projectUuid}&contentTypes=${ContentType.CHART}&pageSize=${Number.MAX_SAFE_INTEGER}`, // TODO: remove pageSize max once we have pagination
         method: 'GET',
         body: undefined,
