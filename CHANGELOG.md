@@ -1,3 +1,10 @@
+## [0.1175.1](https://github.com/lightdash/lightdash/compare/0.1175.0...0.1175.1) (2024-07-17)
+
+
+### Bug Fixes
+
+* filter out dbt model nodes with null meta field ([#10755](https://github.com/lightdash/lightdash/issues/10755)) ([3ee9bc4](https://github.com/lightdash/lightdash/commit/3ee9bc4e8847b0af6f492cded9615168e41ae782))
+
 # [0.1175.0](https://github.com/lightdash/lightdash/compare/0.1174.0...0.1175.0) (2024-07-17)
 
 
