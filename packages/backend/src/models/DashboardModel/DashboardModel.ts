@@ -873,6 +873,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SQL_CHART,
                                 properties: {
                                     ...commonProperties,
+                                    chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
                                 },
                             };
