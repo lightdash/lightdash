@@ -19,6 +19,7 @@ import {
     isDashboardChartTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
+    isDashboardSqlChartTile,
     LightdashUser,
     NotFoundError,
     sanitizeHtml,
@@ -38,6 +39,7 @@ import {
     DashboardTileChartTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
+    DashboardTileSqlChartTableName,
     DashboardTilesTableName,
     DashboardVersionsTableName,
     DashboardVersionTable,
@@ -238,6 +240,19 @@ export class DashboardModel {
                         properties.content,
                         HTML_SANITIZE_MARKDOWN_TILE_RULES,
                     ),
+                })),
+            );
+        }
+
+        const sqlChartTiles = tilesWithUuids.filter(isDashboardSqlChartTile);
+        if (sqlChartTiles.length > 0) {
+            await trx(DashboardTileSqlChartTableName).insert(
+                sqlChartTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    saved_sql_uuid: properties.savedSqlUuid,
+                    hide_title: properties.hideTitle,
+                    title: properties.title,
                 })),
             );
         }
@@ -651,6 +666,7 @@ export class DashboardModel {
                     height: number;
                     dashboard_tile_uuid: string;
                     saved_query_uuid: string | null;
+                    saved_sql_uuid: string | null;
                     url: string | null;
                     content: string | null;
                     hide_title: boolean | null;
@@ -673,6 +689,7 @@ export class DashboardModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.last_version_chart_kind`,
+                `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 this.database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
                 ),
@@ -680,13 +697,17 @@ export class DashboardModel {
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
                         ${DashboardTileLoomsTableName}.title,
-                        ${DashboardTileMarkdownsTableName}.title
+                        ${DashboardTileMarkdownsTableName}.title,
+                        ${DashboardTileSqlChartTableName}.title
+
                     ) AS title`,
                 ),
                 this.database.raw(
                     `COALESCE(
                         ${DashboardTileLoomsTableName}.hide_title,
-                        ${DashboardTileChartTableName}.hide_title
+                        ${DashboardTileChartTableName}.hide_title,
+                        ${DashboardTileSqlChartTableName}.hide_title
+
                     ) AS hide_title`,
                 ),
                 `${DashboardTileLoomsTableName}.url`,
@@ -700,6 +721,18 @@ export class DashboardModel {
                 );
                 this.andOn(
                     `${DashboardTileChartTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .leftJoin(DashboardTileSqlChartTableName, function sqlChartsJoin() {
+                this.on(
+                    `${DashboardTileSqlChartTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileSqlChartTableName}.dashboard_version_id`,
                     '=',
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
@@ -775,6 +808,7 @@ export class DashboardModel {
                     y_offset,
                     dashboard_tile_uuid,
                     saved_query_uuid,
+                    saved_sql_uuid,
                     title,
                     hide_title,
                     url,
@@ -839,9 +873,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SQL_CHART,
                                 properties: {
                                     ...commonProperties,
-                                    savedSqlUuid: '',
-                                    // TODO: add saved_sql_uuid
-                                    // savedSqlUuid: saved_sql_uuid || '',
+                                    savedSqlUuid: saved_sql_uuid,
                                 },
                             };
                         default: {

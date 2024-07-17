@@ -571,7 +571,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardTileTypes: {
         dataType: 'refEnum',
-        enums: ['saved_chart', 'markdown', 'loom'],
+        enums: ['saved_chart', 'sql_chart', 'markdown', 'loom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Required_CreateDashboardTileBase_: {
@@ -735,6 +735,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DashboardTileTypes.SQL_CHART': {
+        dataType: 'refEnum',
+        enums: ['sql_chart'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardSqlChartTileProperties: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                properties: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        hideTitle: { dataType: 'boolean' },
+                        chartName: { dataType: 'string', required: true },
+                        savedSqlUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        title: { dataType: 'string' },
+                    },
+                    required: true,
+                },
+                type: { ref: 'DashboardTileTypes.SQL_CHART', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardSqlChartTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileBase' },
+                { ref: 'DashboardSqlChartTileProperties' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardTile: {
         dataType: 'refAlias',
         type: {
@@ -743,6 +788,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardChartTile' },
                 { ref: 'DashboardMarkdownTile' },
                 { ref: 'DashboardLoomTile' },
+                { ref: 'DashboardSqlChartTile' },
             ],
             validators: {},
         },
@@ -6548,7 +6594,6 @@ const models: TsoaRoute.Models = {
                             reference: { dataType: 'string', required: true },
                         },
                     },
-                    required: true,
                 },
                 axes: {
                     dataType: 'nestedObjectLiteral',
@@ -6595,7 +6640,6 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
-                    required: true,
                 },
                 style: {
                     dataType: 'nestedObjectLiteral',
@@ -6653,7 +6697,6 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
-                    required: true,
                 },
                 type: { ref: 'ChartKind.VERTICAL_BAR', required: true },
                 metadata: {
