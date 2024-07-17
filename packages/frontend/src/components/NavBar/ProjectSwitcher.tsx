@@ -174,14 +174,20 @@ const ProjectSwitcher = () => {
                         key={item.projectUuid}
                         onClick={() => handleProjectChange(item.projectUuid)}
                     >
-                        <Group spacing="sm">
+                        <Group
+                            spacing="sm"
+                            style={{ justifyContent: 'space-between' }}
+                        >
+                            <Text style={{ flexGrow: 1 }}>{item.name}</Text>
                             {item.type === ProjectType.PREVIEW && (
-                                <Badge color="blue" variant="filled" size="xs">
+                                <Badge
+                                    color="orange"
+                                    variant="outline"
+                                    size="xs"
+                                >
                                     Preview
                                 </Badge>
                             )}
-
-                            <Text>{item.name}</Text>
                         </Group>
                     </Menu.Item>
                 ))}
