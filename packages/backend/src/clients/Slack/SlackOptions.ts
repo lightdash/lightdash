@@ -6,6 +6,7 @@ export const slackOptions = {
     clientId: lightdashConfig.slack?.clientId || '',
     clientSecret: lightdashConfig.slack?.clientSecret || '',
     stateSecret: lightdashConfig.slack?.stateSecret || '',
+    appToken: lightdashConfig.slack?.appToken || '',
     scopes: slackRequiredScopes,
 
     // Slack only allow https on redirections

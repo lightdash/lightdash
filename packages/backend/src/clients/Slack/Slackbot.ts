@@ -92,6 +92,7 @@ export class SlackBot {
                 ...slackOptions,
 
                 receiver: slackReceiver,
+                socketMode: !!slackOptions.appToken,
             });
 
             this.addEventListeners(app);
