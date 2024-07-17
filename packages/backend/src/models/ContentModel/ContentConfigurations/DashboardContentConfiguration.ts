@@ -1,4 +1,4 @@
-import { ChartKind, ContentType, DashboardContent } from '@lightdash/common';
+import { ContentType, DashboardContent } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
@@ -11,14 +11,7 @@ import {
     SummaryContentRow,
 } from '../ContentModelTypes';
 
-type SelectSavedSql = SummaryContentRow<{
-    source: 'sql';
-    chart_kind: ChartKind;
-    dashboard_uuid: string | null;
-    dashboard_name: string | null;
-}>;
-
-export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql> =
+export const dashboardContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) =>
             !filters.contentTypes ||
@@ -49,7 +42,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql>
                     `${PinnedDashboardTableName}.dashboard_uuid`,
                     `${DashboardsTableName}.dashboard_uuid`,
                 )
-                .select<SelectSavedSql[]>([
+                .select<SummaryContentRow[]>([
                     knex.raw(`'dashboard' as content_type`),
                     knex.raw(
                         `${DashboardsTableName}.dashboard_uuid::text as uuid`,
@@ -95,7 +88,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SelectSavedSql>
                         );
                     }
                 }),
-        shouldRowBeConverted: (value): value is SelectSavedSql =>
+        shouldRowBeConverted: (value): value is SummaryContentRow =>
             value.content_type === ContentType.DASHBOARD,
         convertSummaryRow: (value): DashboardContent => {
             if (!dashboardContentConfiguration.shouldRowBeConverted(value)) {

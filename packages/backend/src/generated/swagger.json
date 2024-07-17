@@ -8259,49 +8259,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "KnexQueryBuilderResult_ChartContent-Array_": {
-                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
-            },
-            "KnexPaginatedData_ChartContent-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "$ref": "#/components/schemas/KnexQueryBuilderResult_ChartContent-Array_"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiChartContentResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_ChartContent-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "KnexQueryBuilderResult_SummaryContent-Array_": {
                 "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
             },

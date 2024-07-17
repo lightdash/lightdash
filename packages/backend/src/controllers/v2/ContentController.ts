@@ -31,7 +31,7 @@ export class ContentController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('List content')
-    async listCharts(
+    async listContent(
         @Request() req: express.Request,
         @Query() projectUuids?: string[],
         @Query() spaceUuids?: string[],

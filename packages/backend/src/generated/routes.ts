@@ -62,8 +62,6 @@ import { UserAttributesController } from './../controllers/userAttributesControl
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { UserController } from './../controllers/userController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-import { ChartsController } from './../controllers/v2/ChartsController';
-// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ContentController } from './../controllers/v2/ContentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { IocContainer, IocContainerFactory } from '@tsoa/runtime';
@@ -7485,55 +7483,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'LoginOptions', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'KnexQueryBuilderResult_ChartContent-Array_': {
-        dataType: 'refAlias',
-        type: { ref: 'KnexQueryBuilderResult_T_', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'KnexPaginatedData_ChartContent-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pagination: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'KnexPaginateArgs' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                totalPageCount: {
-                                    dataType: 'double',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                },
-                data: {
-                    ref: 'KnexQueryBuilderResult_ChartContent-Array_',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiChartContentResponse: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    ref: 'KnexPaginatedData_ChartContent-Array_',
-                    required: true,
-                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -15542,77 +15491,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/charts',
-        ...fetchMiddlewares<RequestHandler>(ChartsController),
-        ...fetchMiddlewares<RequestHandler>(
-            ChartsController.prototype.listCharts,
-        ),
-
-        async function ChartsController_listCharts(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuids: {
-                    in: 'query',
-                    name: 'projectUuids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                spaceUuids: {
-                    in: 'query',
-                    name: 'spaceUuids',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
-                page: { in: 'query', name: 'page', dataType: 'double' },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any = await container.get<ChartsController>(
-                    ChartsController,
-                );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                const promise = controller.listCharts.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
         '/api/v2/content',
         ...fetchMiddlewares<RequestHandler>(ContentController),
         ...fetchMiddlewares<RequestHandler>(
-            ContentController.prototype.listCharts,
+            ContentController.prototype.listContent,
         ),
 
-        async function ContentController_listCharts(
+        async function ContentController_listContent(
             request: any,
             response: any,
             next: any,
@@ -15664,7 +15549,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.listCharts.apply(
+                const promise = controller.listContent.apply(
                     controller,
                     validatedArgs as any,
                 );
