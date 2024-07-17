@@ -1,3 +1,10 @@
+# [0.1172.0](https://github.com/lightdash/lightdash/compare/0.1171.2...0.1172.0) (2024-07-16)
+
+
+### Features
+
+* allow dashboards to render SQL runner charts  ([#10727](https://github.com/lightdash/lightdash/issues/10727)) ([5de82c0](https://github.com/lightdash/lightdash/commit/5de82c09bbe8b3384129bc533cedef8150dafd48))
+
 ## [0.1171.2](https://github.com/lightdash/lightdash/compare/0.1171.1...0.1171.2) (2024-07-16)
 
 

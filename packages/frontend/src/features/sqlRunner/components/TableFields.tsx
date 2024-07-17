@@ -163,6 +163,7 @@ export const TableFields: FC = () => {
                         onChange={(e) => setSearch(e.target.value)}
                         styles={(theme) => ({
                             input: {
+                                borderRadius: theme.radius.md,
                                 border: `1px solid ${theme.colors.gray[3]}`,
                             },
                         })}

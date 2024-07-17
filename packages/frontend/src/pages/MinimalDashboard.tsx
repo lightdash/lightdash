@@ -18,6 +18,7 @@ import {
     getResponsiveGridLayoutProps,
 } from './Dashboard';
 
+import { DashboardSqlChartTile as SqlChartTile } from '../components/DashboardTiles/DashboardSqlChartTile';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import '../styles/react-grid.css';
 
@@ -108,6 +109,14 @@ const MinimalDashboard: FC = () => {
                             />
                         ) : tile.type === DashboardTileTypes.LOOM ? (
                             <LoomTile
+                                key={tile.uuid}
+                                tile={tile}
+                                isEditMode={false}
+                                onDelete={() => {}}
+                                onEdit={() => {}}
+                            />
+                        ) : tile.type === DashboardTileTypes.SQL_CHART ? (
+                            <SqlChartTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}

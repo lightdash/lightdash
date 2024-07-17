@@ -1,40 +1,57 @@
 import { ChartKind } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+    type ModalProps,
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleModal } from '../store/sqlRunnerSlice';
+import { updateName } from '../store/sqlRunnerSlice';
 
 const validationSchema = z.object({
     name: z.string().min(1),
+    description: z.string(),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
 
-export const SaveSqlChartModal = () => {
+type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+
+export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
+    const name = useAppSelector((state) => state.sqlRunner.name);
+    const description = useAppSelector((state) => state.sqlRunner.description);
+
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
+            description: '',
         },
         validate: zodResolver(validationSchema),
     });
 
-    const isOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.saveChartModal.isOpen,
-    );
-    const onClose = useCallback(
-        () => dispatch(toggleModal('saveChartModal')),
-        [dispatch],
-    );
+    useEffect(() => {
+        if (!form.values.name && name) {
+            form.setFieldValue('name', name);
+        }
+        if (!form.values.description && description) {
+            form.setFieldValue('description', description);
+        }
+    }, [name, form, description]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
@@ -56,22 +73,37 @@ export const SaveSqlChartModal = () => {
     }, [isSavedSqlChartCreated, onClose]);
 
     const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0 || !config || !sql) {
+        if (spaces.length === 0) {
             return;
         }
         await createSavedSqlChart({
             name: form.values.name,
-            description: 'A test saved chart',
+            description: form.values.description,
             sql: sql,
-            config: config,
+            // TODO: should initial version get generated on the BE?
+            config: config || {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+            },
             // TODO: add space selection
             spaceUuid: spaces[0].uuid,
         });
-    }, [config, createSavedSqlChart, form.values.name, spaces, sql]);
+        dispatch(updateName(form.values.name));
+        onClose();
+    }, [
+        config,
+        createSavedSqlChart,
+        dispatch,
+        form.values.description,
+        form.values.name,
+        onClose,
+        spaces,
+        sql,
+    ]);
 
     return (
         <Modal
-            opened={isOpen}
+            opened={opened}
             onClose={onClose}
             keepMounted={false}
             title={
@@ -93,6 +125,10 @@ export const SaveSqlChartModal = () => {
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}
+                        />
+                        <Textarea
+                            label="Description"
+                            {...form.getInputProps('description')}
                         />
                     </Stack>
                 </Stack>

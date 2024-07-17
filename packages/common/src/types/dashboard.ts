@@ -63,11 +63,6 @@ export type DashboardSqlChartTileProperties = {
     };
 };
 
-export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
-    DashboardSqlChartTileProperties;
-export type DashboardSqlChartTile = DashboardTileBase &
-    DashboardSqlChartTileProperties;
-
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -81,6 +76,11 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
     DashboardChartTileProperties;
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
+
+export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
+    DashboardSqlChartTileProperties;
+export type DashboardSqlChartTile = DashboardTileBase &
+    DashboardSqlChartTileProperties;
 
 export const isChartTile = (
     tile: DashboardTileBase,

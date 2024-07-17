@@ -1,11 +1,12 @@
 import { ChartKind } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconDeviceFloppy, IconLink } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleModal } from '../store/sqlRunnerSlice';
+import { DEFAULT_NAME, toggleModal, updateName } from '../store/sqlRunnerSlice';
 import { SaveSqlChartModal } from './SaveSqlChartModal';
 
 export const Header: FC = () => {
@@ -25,13 +26,27 @@ export const Header: FC = () => {
         projectUuid,
         savedChartUuid || '',
     );
+
+    const isSaveModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.saveChartModal.isOpen,
+    );
+    const onCloseSaveModal = useCallback(() => {
+        dispatch(toggleModal('saveChartModal'));
+    }, [dispatch]);
+
     return (
         <>
-            <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
+            <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
                 <Group position="apart">
-                    <Title order={2} c="gray.6">
-                        {name}
-                    </Title>
+                    <EditableText
+                        size="lg"
+                        placeholder={DEFAULT_NAME}
+                        value={name}
+                        w={400}
+                        onChange={(e) =>
+                            dispatch(updateName(e.currentTarget.value))
+                        }
+                    />
                     <Group spacing="md">
                         <Tooltip
                             variant="xs"
@@ -72,7 +87,11 @@ export const Header: FC = () => {
                     </Group>
                 </Group>
             </Paper>
-            <SaveSqlChartModal />
+            <SaveSqlChartModal
+                key={`${isSaveModalOpen}-saveChartModal`}
+                opened={isSaveModalOpen}
+                onClose={onCloseSaveModal}
+            />
         </>
     );
 };

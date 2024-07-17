@@ -58,10 +58,14 @@ export const ContentPanel: FC<Props> = ({
     } = useElementSize();
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
-    const maxResultsHeight = useMemo(() => wrapperHeight - 58, [wrapperHeight]);
+    const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
     const isResultsHeightMoreThanHalf = useMemo(
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
+    );
+    const isResultsPanelFullHeight = useMemo(
+        () => resultsHeight === maxResultsHeight,
+        [resultsHeight, maxResultsHeight],
     );
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -76,6 +80,9 @@ export const ContentPanel: FC<Props> = ({
     // Static results table
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
+    );
+    const barChartConfig = useAppSelector(
+        (state) => state.sqlRunner.barChartConfig,
     );
 
     // configurable table
@@ -105,7 +112,19 @@ export const ContentPanel: FC<Props> = ({
             ref={wrapperRef}
         >
             <Tooltip.Group>
-                <Paper shadow="none" radius={0} px="md" py="sm" withBorder>
+                <Paper
+                    shadow="none"
+                    radius={0}
+                    px="md"
+                    py="sm"
+                    sx={(theme) => ({
+                        borderWidth: isResultsPanelFullHeight
+                            ? '0 0 0 1px'
+                            : '0 0 1px 1px',
+                        borderStyle: 'solid',
+                        borderColor: theme.colors.gray[3],
+                    })}
+                >
                     <Group position="apart">
                         <Title order={5} c="gray.6">
                             SQL panel
@@ -140,27 +159,20 @@ export const ContentPanel: FC<Props> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
-                            <Tooltip
-                                variant="xs"
-                                label="Run query"
-                                position="bottom"
+
+                            <Button
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                                loading={isLoading}
+                                onClick={() => {
+                                    if (!sql) return;
+                                    runSqlQuery({
+                                        sql,
+                                    });
+                                }}
                             >
-                                <Button
-                                    size="xs"
-                                    leftIcon={
-                                        <MantineIcon icon={IconPlayerPlay} />
-                                    }
-                                    loading={isLoading}
-                                    onClick={() => {
-                                        if (!sql) return;
-                                        runSqlQuery({
-                                            sql,
-                                        });
-                                    }}
-                                >
-                                    Run query
-                                </Button>
-                            </Tooltip>
+                                Run query
+                            </Button>
                         </Group>
                     </Group>
                 </Paper>
@@ -169,8 +181,12 @@ export const ContentPanel: FC<Props> = ({
                     shadow="none"
                     radius={0}
                     p="none"
-                    withBorder
                     style={{ flex: 1 }}
+                    sx={(theme) => ({
+                        borderWidth: '0 0 0 1px',
+                        borderStyle: 'solid',
+                        borderColor: theme.colors.gray[3],
+                    })}
                 >
                     <Box
                         sx={{
@@ -213,126 +229,141 @@ export const ContentPanel: FC<Props> = ({
                         setResultsHeight(data.size.height)
                     }
                 >
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        px="md"
-                        pb={0}
-                        pt="sm"
-                        withBorder
-                    >
-                        <Group position="apart" pb={0} noWrap>
-                            <Tabs
-                                value={activeVisTab}
-                                onTabChange={(val: VisTabs) => {
-                                    dispatch(setActiveVisTab(val));
-                                }}
-                                // Negative margin to ge the tab indicator on the border
-                                mb={-2}
-                            >
-                                <Tabs.List>
-                                    <Tabs.Tab
-                                        value={VisTabs.CHART}
-                                        disabled={isLoading}
-                                    >
-                                        Chart
-                                    </Tabs.Tab>
-                                    <Tabs.Tab
-                                        value={VisTabs.RESULTS}
-                                        disabled={isLoading}
-                                    >
-                                        Results
-                                    </Tabs.Tab>
-                                    {isLoading && <Loader mt="xs" size="xs" />}
-                                </Tabs.List>
-                            </Tabs>
-
-                            <Group spacing="md" pb="sm" noWrap>
-                                <Tooltip
-                                    key={String(isResultsHeightMoreThanHalf)}
-                                    variant="xs"
-                                    label={
-                                        isResultsHeightMoreThanHalf
-                                            ? 'Collapse'
-                                            : 'Expand'
-                                    }
-                                    position="bottom"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() =>
-                                            setResultsHeight(
-                                                isResultsHeightMoreThanHalf
-                                                    ? MIN_RESULTS_HEIGHT
-                                                    : maxResultsHeight,
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={
-                                                isResultsHeightMoreThanHalf
-                                                    ? IconLayoutNavbarExpand
-                                                    : IconLayoutNavbarCollapse
-                                            }
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip
-                                    variant="xs"
-                                    label="Configure"
-                                    position="bottom"
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={
-                                            isChartConfigOpen
-                                                ? closeChartConfig
-                                                : openChartConfig
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconAdjustmentsCog}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Group>
-                        </Group>
-                    </Paper>
-
-                    {queryResults && !isLoading && (
+                    <Stack h="100%" spacing={0}>
                         <Paper
                             shadow="none"
                             radius={0}
                             px="md"
-                            py="sm"
+                            pb={0}
+                            pt="sm"
                             withBorder
-                            sx={{ flex: 1, overflow: 'auto' }}
-                            h="100%"
                         >
-                            {activeVisTab === VisTabs.CHART && (
-                                <>
-                                    {selectedChartType === ChartKind.TABLE && (
+                            <Group position="apart" pb={0} noWrap>
+                                <Tabs
+                                    value={activeVisTab}
+                                    onTabChange={(val: VisTabs) => {
+                                        dispatch(setActiveVisTab(val));
+                                    }}
+                                    // Negative margin to ge the tab indicator on the border
+                                    mb={-2}
+                                >
+                                    <Tabs.List>
+                                        <Tabs.Tab
+                                            value={VisTabs.CHART}
+                                            disabled={isLoading}
+                                        >
+                                            Chart
+                                        </Tabs.Tab>
+                                        <Tabs.Tab
+                                            value={VisTabs.RESULTS}
+                                            disabled={isLoading}
+                                        >
+                                            Results
+                                        </Tabs.Tab>
+                                        {isLoading && (
+                                            <Loader mt="xs" size="xs" />
+                                        )}
+                                    </Tabs.List>
+                                </Tabs>
+
+                                <Group spacing="md" pb="sm" noWrap>
+                                    <Tooltip
+                                        key={String(
+                                            isResultsHeightMoreThanHalf,
+                                        )}
+                                        variant="xs"
+                                        label={
+                                            isResultsHeightMoreThanHalf
+                                                ? 'Collapse'
+                                                : 'Expand'
+                                        }
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={() =>
+                                                setResultsHeight(
+                                                    isResultsHeightMoreThanHalf
+                                                        ? MIN_RESULTS_HEIGHT
+                                                        : maxResultsHeight,
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={
+                                                    isResultsHeightMoreThanHalf
+                                                        ? IconLayoutNavbarExpand
+                                                        : IconLayoutNavbarCollapse
+                                                }
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip
+                                        variant="xs"
+                                        label="Configure"
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={
+                                                isChartConfigOpen
+                                                    ? closeChartConfig
+                                                    : openChartConfig
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconAdjustmentsCog}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </Group>
+                        </Paper>
+
+                        {queryResults && !isLoading && (
+                            <Paper
+                                shadow="none"
+                                radius={0}
+                                px="md"
+                                py="sm"
+                                sx={(theme) => ({
+                                    flex: 1,
+                                    overflow: 'auto',
+                                    borderWidth: '0 0 1px 1px',
+                                    borderStyle: 'solid',
+                                    borderColor: theme.colors.gray[3],
+                                })}
+                                h="100%"
+                            >
+                                {activeVisTab === VisTabs.CHART && (
+                                    <>
+                                        {selectedChartType ===
+                                            ChartKind.TABLE && (
+                                            <Table
+                                                data={queryResults}
+                                                config={tableVisConfig}
+                                            />
+                                        )}
+                                        {selectedChartType ===
+                                            ChartKind.VERTICAL_BAR && (
+                                            <BarChart
+                                                data={queryResults}
+                                                config={barChartConfig}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                                {activeVisTab === VisTabs.RESULTS && (
+                                    <>
                                         <Table
                                             data={queryResults}
-                                            config={tableVisConfig}
+                                            config={resultsTableConfig}
                                         />
-                                    )}
-                                    {selectedChartType ===
-                                        ChartKind.VERTICAL_BAR && (
-                                        <BarChart data={queryResults} />
-                                    )}
-                                </>
-                            )}
-                            {activeVisTab === VisTabs.RESULTS && (
-                                <>
-                                    <Table
-                                        data={queryResults}
-                                        config={resultsTableConfig}
-                                    />
-                                </>
-                            )}
-                        </Paper>
-                    )}
+                                    </>
+                                )}
+                            </Paper>
+                        )}
+                    </Stack>
                 </ResizableBox>
             </Tooltip.Group>
         </Stack>
