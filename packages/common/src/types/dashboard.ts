@@ -58,7 +58,7 @@ export type DashboardSqlChartTileProperties = {
     properties: {
         title?: string;
         savedSqlUuid: string | null;
-        chartName?: string | null;
+        chartName: string;
         hideTitle?: boolean;
     };
 };
