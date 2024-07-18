@@ -312,7 +312,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             </ChartContainer>
 
             {isEditingTileContent &&
-                (tile.type === DashboardTileTypes.SAVED_CHART ? (
+                (tile.type === DashboardTileTypes.SAVED_CHART ||
+                tile.type === DashboardTileTypes.SQL_CHART ? (
                     <ChartUpdateModal
                         opened={isEditingTileContent}
                         tile={tile}

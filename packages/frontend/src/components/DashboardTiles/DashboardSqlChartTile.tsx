@@ -31,6 +31,7 @@ interface Props
 export const DashboardSqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
+    onEdit,
     onDelete,
 }) => {
     const { projectUuid } = useParams<{
@@ -89,9 +90,8 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     title={
                         tile.properties.title || tile.properties.chartName || ''
                     }
-                    // TODO: see if we can remove these
                     onDelete={onDelete}
-                    onEdit={() => {}}
+                    onEdit={onEdit}
                 >
                     {data.chart.config.type === ChartKind.TABLE && (
                         <Table data={data.results} config={data.chart.config} />
