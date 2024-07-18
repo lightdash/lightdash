@@ -252,7 +252,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: uuid,
                     saved_sql_uuid: properties.savedSqlUuid,
                     hide_title: properties.hideTitle,
-                    title: properties.title,
+                    title: properties.title ?? properties.chartName,
                 })),
             );
         }
@@ -873,7 +873,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SQL_CHART,
                                 properties: {
                                     ...commonProperties,
-                                    chartName: name,
+                                    chartName: name ?? title ?? '',
                                     savedSqlUuid: saved_sql_uuid,
                                 },
                             };

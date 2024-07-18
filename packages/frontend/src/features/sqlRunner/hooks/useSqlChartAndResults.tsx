@@ -7,7 +7,7 @@ import {
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
@@ -46,29 +46,31 @@ export const useSqlChartAndResults = ({
         ApiSqlChartWithResults['results'],
         ApiError
     >(
-        ['sqlChartAndResults', projectUuid],
+        ['sqlChartAndResults', projectUuid, savedSqlUuid],
         () =>
             scheduleSavedSqlChartJobAndGetResults({
                 projectUuid,
                 savedSqlUuid: savedSqlUuid!,
             }),
         {
-            onSuccess: (data) => {
-                if (data.chart) {
-                    setChart(data.chart);
-                }
-            },
             enabled: Boolean(savedSqlUuid),
         },
     );
 
     const { data: sqlChartAndResultsJob } = sqlChartAndResultsQuery;
 
+    useEffect(() => {
+        // Set the chart if it exists
+        if (sqlChartAndResultsJob?.chart) {
+            setChart(sqlChartAndResultsJob.chart);
+        }
+    }, [sqlChartAndResultsJob]);
+
     const { data: scheduledDeliveryJobStatus } = useQuery<
         ApiJobStatusResponse['results'] | undefined,
         ApiError
     >(
-        ['jobStatus', sqlChartAndResultsJob?.jobId],
+        ['jobStatus', sqlChartAndResultsJob?.jobId, savedSqlUuid],
         () => {
             if (!sqlChartAndResultsJob?.jobId) return;
             return getSchedulerJobStatus(sqlChartAndResultsJob.jobId);
@@ -99,7 +101,7 @@ export const useSqlChartAndResults = ({
         ResultRow[] | undefined,
         ApiError
     >(
-        ['sqlQueryResults', sqlChartAndResultsJob?.jobId],
+        ['sqlChartQueryResults', savedSqlUuid, sqlChartAndResultsJob?.jobId],
         async () => {
             const url = scheduledDeliveryJobStatus?.details?.fileUrl;
             const response = await fetch(url, {
@@ -161,9 +163,6 @@ export const useSqlChartAndResults = ({
                     SchedulerJobStatus.COMPLETED &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
-            onSuccess: (data) => {
-                console.log('success', data);
-            },
         },
     );
 
@@ -172,7 +171,8 @@ export const useSqlChartAndResults = ({
             sqlChartAndResultsQuery.isLoading ||
             (scheduledDeliveryJobStatus?.status ===
                 SchedulerJobStatus.STARTED &&
-                isResultsLoading),
+                isResultsLoading) ||
+            isResultsLoading,
         [
             sqlChartAndResultsQuery.isLoading,
             scheduledDeliveryJobStatus?.status,
