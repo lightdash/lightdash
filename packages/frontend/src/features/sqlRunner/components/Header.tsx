@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
-import { IconDeviceFloppy, IconLink } from '@tabler/icons-react';
+import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
@@ -8,6 +8,7 @@ import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { DEFAULT_NAME, toggleModal, updateName } from '../store/sqlRunnerSlice';
 import { SaveSqlChartModal } from './SaveSqlChartModal';
+import ShareSqlLinkButton from './ShareSqlLinkButton';
 
 export const Header: FC = () => {
     const dispatch = useAppDispatch();
@@ -80,9 +81,7 @@ export const Header: FC = () => {
                             label="Share URL"
                             position="bottom"
                         >
-                            <ActionIcon size="xs">
-                                <MantineIcon icon={IconLink} />
-                            </ActionIcon>
+                            <ShareSqlLinkButton />
                         </Tooltip>
                     </Group>
                 </Group>
