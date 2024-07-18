@@ -1,9 +1,7 @@
 import {
-    ActionIcon,
     Box,
     Button,
     Card,
-    CopyButton,
     Flex,
     Group,
     Title,
@@ -12,14 +10,8 @@ import {
     type ButtonProps,
     type PopoverProps,
 } from '@mantine/core';
-import {
-    IconCheck,
-    IconChevronDown,
-    IconChevronRight,
-    IconClipboard,
-} from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
-import { useCompiledSql } from '../../hooks/useCompiledSql';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
@@ -76,8 +68,6 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     );
 
     const shouldExpand = isOpen && isVisualizationCard;
-    const { data: sql } = useCompiledSql();
-    const [show, setShow] = useState(false);
 
     return (
         <Card
@@ -90,8 +80,6 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 ...(shouldExpand ? { flex: 1 } : undefined),
             }}
             shadow="xs"
-            onMouseEnter={() => setShow(true)}
-            onMouseLeave={() => setShow(false)}
         >
             <Flex gap="xxs" align="center" mr="xs" h="xxl">
                 <Tooltip
@@ -136,30 +124,6 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     </Title>
                     <Group spacing="xs">{headerElement}</Group>
                 </Group>
-
-                {!isOpen && show && title === 'SQL' && (
-                    <CopyButton value={sql || ''} timeout={2000}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied to clipboard!' : 'Copy'}
-                                withArrow
-                                position="right"
-                                color={copied ? 'green' : 'dark'}
-                            >
-                                <ActionIcon
-                                    color={copied ? 'teal' : 'gray'}
-                                    onClick={copy}
-                                >
-                                    {copied ? (
-                                        <IconCheck size="1rem" />
-                                    ) : (
-                                        <IconClipboard size="1rem" />
-                                    )}
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
-                )}
 
                 {rightHeaderElement && (
                     <>
