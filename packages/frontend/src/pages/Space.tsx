@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    ContentType,
     LightdashMode,
     ResourceViewItemType,
-    wrapResourceView,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
@@ -13,7 +13,7 @@ import {
     IconPlus,
     IconSquarePlus,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
@@ -35,9 +35,8 @@ import AddResourceToSpaceModal, {
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useChartSummaries } from '../hooks/useChartSummaries';
+import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -51,12 +50,33 @@ const Space: FC = () => {
         isInitialLoading,
         error,
     } = useSpace(projectUuid, spaceUuid);
-    const { data: dashboards = [], isInitialLoading: dashboardsLoading } =
-        useDashboards(projectUuid);
-    const { data: savedCharts = [], isInitialLoading: chartsLoading } =
-        useChartSummaries(projectUuid);
+    //const { data: dashboards = [], isInitialLoading: dashboardsLoading } =
+    //    useDashboards(projectUuid);
+    const dashboardsLoading = false;
+    const chartsLoading = false;
+
+    //const { data: savedCharts = [], isInitialLoading: chartsLoading } =
+    //     useChartSummaries(projectUuid);
+
+    const { data: content } = useContent({
+        projectUuid,
+        spaceUuids: [spaceUuid],
+        pageSize: Number.MAX_SAFE_INTEGER,
+    });
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
+
+    const [allItems, dashboards, charts] = useMemo(() => {
+        if (content)
+            return [
+                content.data,
+                content.data.filter(
+                    (c) => c.contentType === ContentType.DASHBOARD,
+                ),
+                content.data.filter((c) => c.contentType === ContentType.CHART),
+            ];
+        else return [[], [], []];
+    }, [content]);
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
@@ -107,12 +127,10 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
-    const dashboardsInSpace = space!.dashboards;
-    const chartsInSpace = space!.queries;
-    const allItems = [
+    /* const allItems = [
         ...wrapResourceView(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
         ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
-    ];
+    ];*/
 
     return (
         <Page title={space?.name} withFixedContent withPaddedContent>
@@ -210,7 +228,7 @@ const Space: FC = () => {
                                                     Add chart
                                                 </Menu.Label>
 
-                                                {savedCharts.length > 0 ? (
+                                                {charts.length > 0 ? (
                                                     <Menu.Item
                                                         icon={
                                                             <MantineIcon
@@ -320,7 +338,10 @@ const Space: FC = () => {
                             ),
                             name: 'Dashboards',
                             filter: (item) =>
-                                item.type === ResourceViewItemType.DASHBOARD,
+                                isResourceContent(item)
+                                    ? item.contentType === ContentType.DASHBOARD
+                                    : item.type ===
+                                      ResourceViewItemType.DASHBOARD,
                         },
                         {
                             id: 'charts',
@@ -331,7 +352,9 @@ const Space: FC = () => {
                             ),
                             name: 'Charts',
                             filter: (item) =>
-                                item.type === ResourceViewItemType.CHART,
+                                isResourceContent(item)
+                                    ? item.contentType === ContentType.CHART
+                                    : item.type === ResourceViewItemType.CHART,
                         },
                         {
                             id: 'all-items',
