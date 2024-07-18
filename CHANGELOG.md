@@ -1,3 +1,10 @@
+# [0.1177.0](https://github.com/lightdash/lightdash/compare/0.1176.0...0.1177.0) (2024-07-18)
+
+
+### Features
+
+* Share sql chart url ([#10753](https://github.com/lightdash/lightdash/issues/10753)) ([1f99001](https://github.com/lightdash/lightdash/commit/1f9900110f9bfccfaef601e708663923523f9f05))
+
 # [0.1176.0](https://github.com/lightdash/lightdash/compare/0.1175.1...0.1176.0) (2024-07-18)
 
 
