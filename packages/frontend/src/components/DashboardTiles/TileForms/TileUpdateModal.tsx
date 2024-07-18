@@ -97,8 +97,9 @@ const TileUpdateModal = <T extends Tile>({
         >
             <form onSubmit={handleConfirm}>
                 <Stack spacing="lg" pt="sm">
-                    {tile.type ===
-                    DashboardTileTypes.SAVED_CHART ? null : tile.type ===
+                    {tile.type === DashboardTileTypes.SAVED_CHART ||
+                    tile.type ===
+                        DashboardTileTypes.SQL_CHART ? null : tile.type ===
                       DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
