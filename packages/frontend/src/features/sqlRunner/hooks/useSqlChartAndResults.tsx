@@ -70,7 +70,7 @@ export const useSqlChartAndResults = ({
         ApiJobStatusResponse['results'] | undefined,
         ApiError
     >(
-        ['jobStatus', sqlChartAndResultsJob?.jobId],
+        ['jobStatus', sqlChartAndResultsJob?.jobId, savedSqlUuid],
         () => {
             if (!sqlChartAndResultsJob?.jobId) return;
             return getSchedulerJobStatus(sqlChartAndResultsJob.jobId);
@@ -101,7 +101,7 @@ export const useSqlChartAndResults = ({
         ResultRow[] | undefined,
         ApiError
     >(
-        ['sqlChartQueryResults', sqlChartAndResultsJob?.jobId],
+        ['sqlChartQueryResults', savedSqlUuid, sqlChartAndResultsJob?.jobId],
         async () => {
             const url = scheduledDeliveryJobStatus?.details?.fileUrl;
             const response = await fetch(url, {
@@ -172,12 +172,11 @@ export const useSqlChartAndResults = ({
             (scheduledDeliveryJobStatus?.status ===
                 SchedulerJobStatus.STARTED &&
                 isResultsLoading) ||
-            chart === undefined,
+            isResultsLoading,
         [
             sqlChartAndResultsQuery.isLoading,
             scheduledDeliveryJobStatus?.status,
             isResultsLoading,
-            chart,
         ],
     );
 
