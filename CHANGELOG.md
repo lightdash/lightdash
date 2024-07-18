@@ -1,3 +1,24 @@
+# [0.1178.0](https://github.com/lightdash/lightdash/compare/0.1177.0...0.1178.0) (2024-07-18)
+
+
+### Features
+
+* allow adding sql charts to dashboard ([#10758](https://github.com/lightdash/lightdash/issues/10758)) ([61398cf](https://github.com/lightdash/lightdash/commit/61398cf9a06da9b8583d5d236691a894caffdc39))
+
+# [0.1177.0](https://github.com/lightdash/lightdash/compare/0.1176.0...0.1177.0) (2024-07-18)
+
+
+### Features
+
+* Share sql chart url ([#10753](https://github.com/lightdash/lightdash/issues/10753)) ([1f99001](https://github.com/lightdash/lightdash/commit/1f9900110f9bfccfaef601e708663923523f9f05))
+
+# [0.1176.0](https://github.com/lightdash/lightdash/compare/0.1175.1...0.1176.0) (2024-07-18)
+
+
+### Features
+
+* v2 content endpoints ([#10741](https://github.com/lightdash/lightdash/issues/10741)) ([85e6891](https://github.com/lightdash/lightdash/commit/85e68915a3dd15a4c1cc58ac4b89ba13cd25cfb4))
+
 ## [0.1175.1](https://github.com/lightdash/lightdash/compare/0.1175.0...0.1175.1) (2024-07-17)
 
 

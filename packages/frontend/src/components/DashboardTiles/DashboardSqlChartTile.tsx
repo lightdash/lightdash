@@ -28,7 +28,11 @@ interface Props
  * Add support for description and title
  */
 
-export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
+export const DashboardSqlChartTile: FC<Props> = ({
+    tile,
+    isEditMode,
+    onDelete,
+}) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -86,7 +90,7 @@ export const DashboardSqlChartTile: FC<Props> = ({ tile, isEditMode }) => {
                         tile.properties.title || tile.properties.chartName || ''
                     }
                     // TODO: see if we can remove these
-                    onDelete={() => {}}
+                    onDelete={onDelete}
                     onEdit={() => {}}
                 >
                     {data.chart.config.type === ChartKind.TABLE && (
