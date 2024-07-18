@@ -115,6 +115,7 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import { type ApiChartContentResponse } from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiCreateSqlChart,
@@ -657,7 +658,8 @@ type ApiResults =
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
     | ApiCreateSqlChart['results']
-    | ApiUpdateSqlChart['results'];
+    | ApiUpdateSqlChart['results']
+    | ApiChartContentResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
