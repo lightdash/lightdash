@@ -789,8 +789,6 @@ export class DashboardModel {
         const tableCalculationFilters = view?.filters?.tableCalculations;
         view.filters.tableCalculations = tableCalculationFilters || [];
 
-        console.log(JSON.stringify(tiles, null, 2));
-
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
