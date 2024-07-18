@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    ContentType,
+    contentToResourceViewItems,
     LightdashMode,
     ResourceViewItemType,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
@@ -50,33 +51,35 @@ const Space: FC = () => {
         isInitialLoading,
         error,
     } = useSpace(projectUuid, spaceUuid);
-    //const { data: dashboards = [], isInitialLoading: dashboardsLoading } =
-    //    useDashboards(projectUuid);
-    const dashboardsLoading = false;
-    const chartsLoading = false;
 
-    //const { data: savedCharts = [], isInitialLoading: chartsLoading } =
-    //     useChartSummaries(projectUuid);
+    const { data: allItems, isLoading: isContentLoading } = useContent(
+        {
+            projectUuid,
+            spaceUuids: [spaceUuid],
+            pageSize: Number.MAX_SAFE_INTEGER,
+        },
+        {
+            select: (d): ResourceViewItem[] =>
+                contentToResourceViewItems(d.data),
+        },
+    );
 
-    const { data: content } = useContent({
-        projectUuid,
-        spaceUuids: [spaceUuid],
-        pageSize: Number.MAX_SAFE_INTEGER,
-    });
+    const [dashboards, charts] = useMemo(() => {
+        if (allItems) {
+            return [
+                allItems.filter(
+                    (item) => item.type === ResourceViewItemType.DASHBOARD,
+                ),
+                allItems.filter(
+                    (item) => item.type === ResourceViewItemType.CHART,
+                ),
+            ];
+        }
+
+        return [[], []];
+    }, [allItems]);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
-
-    const [allItems, dashboards, charts] = useMemo(() => {
-        if (content)
-            return [
-                content.data,
-                content.data.filter(
-                    (c) => c.contentType === ContentType.DASHBOARD,
-                ),
-                content.data.filter((c) => c.contentType === ContentType.CHART),
-            ];
-        else return [[], [], []];
-    }, [content]);
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const history = useHistory();
@@ -94,7 +97,7 @@ const Space: FC = () => {
         [pinSpace],
     );
 
-    if (isInitialLoading || chartsLoading || dashboardsLoading) {
+    if (isInitialLoading || isContentLoading) {
         return <LoadingState title="Loading space" />;
     }
 
@@ -126,11 +129,6 @@ const Space: FC = () => {
         'create',
         subject('SavedChart', { ...space }),
     );
-
-    /* const allItems = [
-        ...wrapResourceView(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
-        ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
-    ];*/
 
     return (
         <Page title={space?.name} withFixedContent withPaddedContent>
@@ -324,7 +322,7 @@ const Space: FC = () => {
                     </Group>
                 </Group>
                 <ResourceView
-                    items={allItems}
+                    items={allItems || []}
                     listProps={{
                         defaultColumnVisibility: { space: false },
                     }}
@@ -338,10 +336,7 @@ const Space: FC = () => {
                             ),
                             name: 'Dashboards',
                             filter: (item) =>
-                                isResourceContent(item)
-                                    ? item.contentType === ContentType.DASHBOARD
-                                    : item.type ===
-                                      ResourceViewItemType.DASHBOARD,
+                                item.type === ResourceViewItemType.DASHBOARD,
                         },
                         {
                             id: 'charts',
@@ -352,9 +347,7 @@ const Space: FC = () => {
                             ),
                             name: 'Charts',
                             filter: (item) =>
-                                isResourceContent(item)
-                                    ? item.contentType === ContentType.CHART
-                                    : item.type === ResourceViewItemType.CHART,
+                                item.type === ResourceViewItemType.CHART,
                         },
                         {
                             id: 'all-items',

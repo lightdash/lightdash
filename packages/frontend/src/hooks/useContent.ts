@@ -2,8 +2,9 @@ import {
     type ApiContentResponse,
     type ApiError,
     type ContentType,
+    type ResourceViewItem,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 type ContentArgs = {
@@ -36,9 +37,21 @@ const getContent = async (args: ContentArgs) => {
     });
 };
 
-export const useContent = (args: ContentArgs) => {
-    return useQuery<ApiContentResponse['results'], ApiError>({
+export const useContent = (
+    args: ContentArgs,
+    useQueryOptions?: UseQueryOptions<
+        ApiContentResponse['results'],
+        ApiError,
+        ResourceViewItem[]
+    >,
+) => {
+    return useQuery<
+        ApiContentResponse['results'],
+        ApiError,
+        ResourceViewItem[]
+    >({
         queryKey: ['content', JSON.stringify(args)],
         queryFn: () => getContent(args),
+        ...useQueryOptions,
     });
 };
