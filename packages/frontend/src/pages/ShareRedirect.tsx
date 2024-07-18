@@ -12,11 +12,12 @@ const ShareRedirect: FC = () => {
 
     useEffect(() => {
         if (data?.path.endsWith('/sql-runner-new')) {
-            history.push(data.path, JSON.parse(data.params));
+            //We will fetch the data directly from the shared nanoid to get the state in the sqlrunner page
+            history.push(`${data.path}?state=${shareNanoid}`);
         } else if (data && data.url) {
             history.push(data.url);
         }
-    }, [data, history]);
+    }, [data, history, shareNanoid]);
 
     if (error) {
         return (

@@ -1,7 +1,7 @@
 import { ActionIcon } from '@mantine/core';
 import { IconCheck, IconLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAsyncClipboard } from '../../../hooks/useAsyncClipboard';
 import { useCreateShareMutation } from '../../../hooks/useShare';
@@ -9,7 +9,7 @@ import { useAppSelector } from '../store/hooks';
 
 const ShareSqlLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
     const location = useLocation();
-
+    const history = useHistory();
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
     const isDisabled = disabled || isLoading;
 
@@ -21,6 +21,7 @@ const ShareSqlLinkButton: FC<{ disabled?: boolean }> = ({ disabled }) => {
                 ...sqlRunnerState,
             }),
         });
+        history.push(`?state=${response.nanoid}`);
         return response.shareUrl;
     };
     const { handleCopy, copied } = useAsyncClipboard(getSharedUrl);

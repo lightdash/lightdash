@@ -2,7 +2,7 @@ import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
@@ -19,24 +19,26 @@ import {
     loadState,
     setProjectUuid,
     setSaveChartData,
-    type SqlRunnerState,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import useSearchParams from '../hooks/useSearchParams';
+import { useGetShare } from '../hooks/useShare';
 
 const SqlRunnerNew = () => {
-    const location = useLocation<SqlRunnerState>();
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
+    const state = useSearchParams('state');
 
+    const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
 
     useEffect(() => {
-        if (location.state) {
-            dispatch(loadState(location.state));
+        if (sqlRunnerState) {
+            dispatch(loadState(JSON.parse(sqlRunnerState.params)));
         }
-    }, [dispatch, location.state]);
+    }, [dispatch, sqlRunnerState]);
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {
