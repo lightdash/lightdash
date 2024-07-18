@@ -16,7 +16,8 @@ export default class PrometheusMetrics {
     }
 
     public start() {
-        const { enabled, port, path, ...rest } = this.config;
+        const { enabled, port, path, labels, ...rest } = this.config;
+
         if (enabled) {
             try {
                 prometheus.collectDefaultMetrics({
@@ -37,6 +38,11 @@ export default class PrometheusMetrics {
                 this.server = http.createServer(app);
                 app.get(path, async (req, res) => {
                     res.set('Content-Type', prometheus.register.contentType);
+
+                    if (labels) {
+                        await prometheus.register.setDefaultLabels(labels);
+                    }
+
                     res.end(await prometheus.register.metrics());
                 });
                 this.server.listen(port, () => {
