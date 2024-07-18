@@ -8327,6 +8327,53 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "KnexQueryBuilderResult_SummaryContent-Array_": {
+                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            },
+            "KnexPaginatedData_SummaryContent-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/KnexQueryBuilderResult_SummaryContent-Array_"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiContentResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_SummaryContent-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard"],
+                "type": "string"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"
@@ -8568,7 +8615,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1172.0",
+        "version": "0.1174.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
