@@ -1,14 +1,65 @@
-import { ProjectType } from '@lightdash/common';
-import { Badge, Button, Group, Menu, Text } from '@mantine/core';
+import { ProjectType, type OrganizationProject } from '@lightdash/common';
+import { Badge, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useActiveProjectUuid,
     useUpdateActiveProjectMutation,
 } from '../../hooks/useActiveProject';
+import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProjects } from '../../hooks/useProjects';
+
+const InactiveProjectItem: FC<{
+    item: OrganizationProject;
+    handleProjectChange: (newUuid: string) => void;
+}> = ({ item, handleProjectChange }) => {
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+    return (
+        <Menu.Item
+            key={item.projectUuid}
+            onClick={() => handleProjectChange(item.projectUuid)}
+        >
+            <Group spacing="sm" position="apart" noWrap>
+                <Tooltip
+                    withinPortal
+                    variant="xs"
+                    label={item.name}
+                    maw={300}
+                    disabled={!isTruncated}
+                    color="dark"
+                    multiline
+                >
+                    <Text
+                        ref={truncatedRef}
+                        c="gray.2"
+                        fz="xs"
+                        fw={500}
+                        truncate
+                        maw={350}
+                    >
+                        {item.name}
+                    </Text>
+                </Tooltip>
+                {item.type === ProjectType.PREVIEW && (
+                    <Badge
+                        color="yellow.1"
+                        variant="light"
+                        size="xs"
+                        radius="sm"
+                        fw={400}
+                        sx={{
+                            textTransform: 'none',
+                        }}
+                    >
+                        Preview
+                    </Badge>
+                )}
+            </Group>
+        </Menu.Item>
+    );
+};
 
 const swappableProjectRoutes = (activeProjectUuid: string) => [
     `/projects/${activeProjectUuid}/home`,
@@ -168,22 +219,13 @@ const ProjectSwitcher = () => {
                 </Button>
             </Menu.Target>
 
-            <Menu.Dropdown>
+            <Menu.Dropdown maw={400}>
                 {inactiveProjects.map((item) => (
-                    <Menu.Item
+                    <InactiveProjectItem
                         key={item.projectUuid}
-                        onClick={() => handleProjectChange(item.projectUuid)}
-                    >
-                        <Group spacing="sm">
-                            {item.type === ProjectType.PREVIEW && (
-                                <Badge color="blue" variant="filled" size="xs">
-                                    Preview
-                                </Badge>
-                            )}
-
-                            <Text>{item.name}</Text>
-                        </Group>
-                    </Menu.Item>
+                        item={item}
+                        handleProjectChange={handleProjectChange}
+                    />
                 ))}
             </Menu.Dropdown>
         </Menu>
