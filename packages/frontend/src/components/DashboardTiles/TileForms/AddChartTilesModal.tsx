@@ -1,8 +1,8 @@
 import {
+    ChartKind,
     ChartSourceType,
     DashboardTileTypes,
     defaultTileSize,
-    type ChartKind,
     type Dashboard,
 } from '@lightdash/common';
 import {
@@ -48,7 +48,9 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                     position="top-start"
                 >
                     <Group spacing="xs">
-                        <ChartIcon chartKind={chartKind} />
+                        <ChartIcon
+                            chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
+                        />
                         <Text c="gray.8" fw={500} fz="xs">
                             {label}
                         </Text>
