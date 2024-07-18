@@ -16,18 +16,29 @@ import {
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
 import {
+    loadState,
     setProjectUuid,
     setSaveChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import useSearchParams from '../hooks/useSearchParams';
+import { useGetShare } from '../hooks/useShare';
 
 const SqlRunnerNew = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
+    const state = useSearchParams('state');
 
+    const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
+
+    useEffect(() => {
+        if (sqlRunnerState) {
+            dispatch(loadState(JSON.parse(sqlRunnerState.params)));
+        }
+    }, [dispatch, sqlRunnerState]);
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {

@@ -13,10 +13,11 @@ const getShare = async (shareNanoid: string) =>
         body: undefined,
     });
 
-export const useGetShare = (shareNanoid: string) =>
+export const useGetShare = (shareNanoid?: string) =>
     useQuery<ShareUrl, ApiError>({
         queryKey: ['share', shareNanoid],
-        queryFn: () => getShare(shareNanoid),
+        queryFn: () => getShare(shareNanoid!),
+        enabled: shareNanoid !== undefined,
         retry: false,
     });
 
