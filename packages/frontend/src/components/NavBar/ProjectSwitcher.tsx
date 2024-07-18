@@ -182,7 +182,7 @@ const ProjectSwitcher = () => {
                             {item.type === ProjectType.PREVIEW && (
                                 <Badge
                                     color="orange"
-                                    variant="outline"
+                                    variant="light"
                                     size="xs"
                                 >
                                     Preview
