@@ -1,3 +1,10 @@
+# [0.1178.0](https://github.com/lightdash/lightdash/compare/0.1177.0...0.1178.0) (2024-07-18)
+
+
+### Features
+
+* allow adding sql charts to dashboard ([#10758](https://github.com/lightdash/lightdash/issues/10758)) ([61398cf](https://github.com/lightdash/lightdash/commit/61398cf9a06da9b8583d5d236691a894caffdc39))
+
 # [0.1177.0](https://github.com/lightdash/lightdash/compare/0.1176.0...0.1177.0) (2024-07-18)
 
 
