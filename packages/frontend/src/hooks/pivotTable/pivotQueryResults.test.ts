@@ -114,36 +114,30 @@ describe('Should pivot data', () => {
                         },
                     },
                 ],
-                firstRowOnly: [
+                pivotColumnInfo: [
                     {
                         baseId: 'views',
                         fieldId: 'undefinedpage__views__0',
-                        value: { raw: 6, formatted: '6.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefinedpage__devices__1',
-                        value: { raw: 7, formatted: '7.0' },
                     },
                     {
                         baseId: 'views',
                         fieldId: 'undefinedpage__views__2',
-                        value: { raw: 12, formatted: '12.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefinedpage__devices__3',
-                        value: { raw: 0, formatted: '0.0' },
                     },
                     {
                         baseId: 'views',
                         fieldId: 'undefinedpage__views__4',
-                        value: { raw: 11, formatted: '11.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefinedpage__devices__5',
-                        value: { raw: 1, formatted: '1.0' },
                     },
                 ],
             },
@@ -259,23 +253,18 @@ describe('Should pivot data', () => {
                         },
                     },
                 ],
-                firstRowOnly: [
+                pivotColumnInfo: [
                     {
-                        type: 'value',
                         fieldId: 'page',
-                        value: { raw: '/home', formatted: '/home' },
-                        colSpan: 1,
-                        meta: { type: 'indexValue' },
+                        columnType: 'indexValue',
                     },
                     {
                         baseId: 'views',
                         fieldId: 'undefinedviews__0',
-                        value: { raw: 6, formatted: '6.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefineddevices__1',
-                        value: { raw: 7, formatted: '7.0' },
                     },
                 ],
             },
@@ -376,27 +365,22 @@ describe('Should pivot data', () => {
                         },
                     },
                 ],
-                firstRowOnly: [
+                pivotColumnInfo: [
                     {
-                        type: 'label',
                         fieldId: 'label-0',
-                        value: { raw: 'views', formatted: 'views' },
-                        meta: { type: 'label' },
+                        columnType: 'label',
                     },
                     {
                         baseId: 'page',
                         fieldId: 'undefinedpage__0',
-                        value: { raw: 6, formatted: '6.0' },
                     },
                     {
                         baseId: 'page',
                         fieldId: 'undefinedpage__1',
-                        value: { raw: 12, formatted: '12.0' },
                     },
                     {
                         baseId: 'page',
                         fieldId: 'undefinedpage__2',
-                        value: { raw: 11, formatted: '11.0' },
                     },
                 ],
             },
@@ -560,33 +544,26 @@ describe('Should pivot data', () => {
                         },
                     },
                 ],
-                firstRowOnly: [
+                pivotColumnInfo: [
                     {
-                        type: 'value',
                         fieldId: 'page',
-                        value: { raw: '/home', formatted: '/home' },
-                        colSpan: 1,
-                        meta: { type: 'indexValue' },
+                        columnType: 'indexValue',
                     },
                     {
                         baseId: 'views',
                         fieldId: 'undefinedsite__views__0',
-                        value: { raw: 6, formatted: '6.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefinedsite__devices__1',
-                        value: { raw: 7, formatted: '7.0' },
                     },
                     {
                         baseId: 'views',
                         fieldId: 'undefinedsite__views__2',
-                        value: { raw: 2, formatted: '2.0' },
                     },
                     {
                         baseId: 'devices',
                         fieldId: 'undefinedsite__devices__3',
-                        value: { raw: 10, formatted: '10.0' },
                     },
                 ],
             },
@@ -801,36 +778,36 @@ describe('Should pivot data', () => {
                         },
                     },
                 ],
-                firstRowOnly: [
+                pivotColumnInfo: [
                     {
-                        type: 'value',
+                        baseId: undefined,
                         fieldId: 'page',
-                        value: { raw: '/home', formatted: '/home' },
-                        colSpan: 1,
-                        meta: { type: 'indexValue' },
+                        columnType: 'indexValue',
+                        underlyingId: undefined,
                     },
                     {
-                        type: 'label',
+                        baseId: undefined,
                         fieldId: 'label-1',
-                        value: { raw: 'views', formatted: 'views' },
-                        meta: { type: 'label' },
+                        columnType: 'label',
+                        underlyingId: undefined,
                     },
                     {
                         baseId: 'site',
+                        columnType: undefined,
                         fieldId: 'undefinedsite__0',
-                        value: { raw: 6, formatted: '6.0' },
+                        underlyingId: undefined,
                     },
                     {
                         baseId: 'site',
+                        columnType: undefined,
                         fieldId: 'undefinedsite__1',
-                        value: { raw: 2, formatted: '2.0' },
+                        underlyingId: undefined,
                     },
                     {
                         baseId: 'row-total-0',
                         fieldId: 'row-total-0',
                         underlyingId: undefined,
-                        value: null,
-                        meta: { type: 'rowTotal' },
+                        columnType: 'rowTotal',
                     },
                 ],
             },
