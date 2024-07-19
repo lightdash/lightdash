@@ -32,6 +32,13 @@ type TotalValue = null | number;
 
 type DataValue = null | ResultValue;
 
+export type PivotColumn = {
+    fieldId: string;
+    baseId: string | undefined;
+    underlyingId: string | undefined;
+    columnType: string | undefined;
+};
+
 export type PivotData = {
     headerValueTypes: Field[];
     headerValues: FieldValue[][];
@@ -55,6 +62,6 @@ export type PivotData = {
 
     retrofitData: {
         allCombinedData: ResultRow[];
-        firstRowOnly: any[];
+        pivotColumnInfo: PivotColumn[];
     };
 };

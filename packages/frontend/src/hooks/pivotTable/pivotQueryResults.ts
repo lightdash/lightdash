@@ -3,6 +3,7 @@ import {
     formatItemValue,
     type ItemsMap,
     type MetricQuery,
+    type PivotColumn,
     type PivotConfig,
     type PivotData,
     type ResultRow,
@@ -257,7 +258,7 @@ const combinedRetrofit = (
         };
     };
 
-    let firstRowOnly = [] as any[];
+    let pivotColumnInfo = [] as PivotColumn[];
     const allCombinedData = indexValues.map((row, rowIndex) => {
         const newRow = row.map((cell, colIndex) => {
             if (cell.type === 'label') {
@@ -269,16 +270,12 @@ const combinedRetrofit = (
                         raw: cellValue,
                         formatted: cellValue,
                     },
-                    meta: {
-                        type: 'label',
-                    },
+                    columnType: 'label',
                 };
             }
             return {
                 ...cell,
-                meta: {
-                    type: 'indexValue',
-                },
+                columnType: 'indexValue',
             };
         });
 
@@ -314,9 +311,7 @@ const combinedRetrofit = (
                     fieldId: id,
                     underlyingId: underlyingId,
                     value: value,
-                    meta: {
-                        type: 'rowTotal',
-                    },
+                    columnType: 'rowTotal',
                 };
             },
         );
@@ -328,7 +323,13 @@ const combinedRetrofit = (
         ];
 
         if (rowIndex === 0) {
-            firstRowOnly = entireRow;
+            pivotColumnInfo = entireRow.map((cell) => ({
+                fieldId: cell.fieldId,
+                baseId: 'baseId' in cell ? cell.baseId : undefined,
+                underlyingId:
+                    'underlyingId' in cell ? cell.underlyingId : undefined,
+                columnType: 'columnType' in cell ? cell.columnType : undefined,
+            }));
         }
 
         const altRow: ResultRow = {};
@@ -347,7 +348,7 @@ const combinedRetrofit = (
         return altRow;
     });
 
-    data.retrofitData = { allCombinedData, firstRowOnly };
+    data.retrofitData = { allCombinedData, pivotColumnInfo };
     return data;
 };
 
@@ -763,7 +764,7 @@ export const pivotQueryResults = ({
 
         retrofitData: {
             allCombinedData: [],
-            firstRowOnly: [],
+            pivotColumnInfo: [],
         },
     };
 
