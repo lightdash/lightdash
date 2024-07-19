@@ -1,3 +1,10 @@
+# [0.1181.0](https://github.com/lightdash/lightdash/compare/0.1180.0...0.1181.0) (2024-07-19)
+
+
+### Features
+
+* added a copy sql button when card is closed ([#10723](https://github.com/lightdash/lightdash/issues/10723)) ([1f1af01](https://github.com/lightdash/lightdash/commit/1f1af01d91d9ef47fe89c745ab03181e6544e3a6))
+
 # [0.1180.0](https://github.com/lightdash/lightdash/compare/0.1179.0...0.1180.0) (2024-07-19)
 
 
