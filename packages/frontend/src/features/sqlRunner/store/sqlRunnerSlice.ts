@@ -20,7 +20,13 @@ export const DEFAULT_NAME = 'Untitled SQL Query';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    savedChartUuid: string | undefined;
+    savedSqlUuid: string | undefined;
+    space:
+        | {
+              uuid: string;
+              name: string;
+          }
+        | undefined;
     name: string;
     description: string;
 
@@ -45,7 +51,8 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
-    savedChartUuid: undefined,
+    savedSqlUuid: undefined,
+    space: undefined,
     name: '',
     description: '',
     sql: '',
@@ -155,9 +162,10 @@ export const sqlRunnerSlice = createSlice({
             state.activeVisTab = action.payload;
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedChartUuid = action.payload.savedSqlUuid;
+            state.savedSqlUuid = action.payload.savedSqlUuid;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
+            state.space = action.payload.space;
 
             state.sql = action.payload.sql;
             state.selectedChartType =
