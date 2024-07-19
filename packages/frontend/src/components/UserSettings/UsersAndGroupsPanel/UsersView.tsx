@@ -49,6 +49,7 @@ import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { DEFAULT_PAGE_SIZE } from '../../common/Table/types';
 import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
@@ -320,8 +321,6 @@ const UserListItem: FC<{
         </>
     );
 };
-
-const DEFAULT_PAGE_SIZE = 10;
 
 const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
