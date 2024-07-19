@@ -103,87 +103,92 @@ const PivotTable: FC<PivotTableProps> = ({
         const newColumnOrder: string[] = [];
         if (!hideRowNumbers) newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
 
-        let newColumns = data.retrofitData.firstRowOnly.map((col, colIndex) => {
-            newColumnOrder.push(col.fieldId);
+        let newColumns = data.retrofitData.pivotColumnInfo.map(
+            (col, colIndex) => {
+                newColumnOrder.push(col.fieldId);
 
-            const item = getField(col.underlyingId || col.baseId);
+                const item = getField(col.underlyingId || col.baseId);
 
-            const shouldAggregate =
-                col.meta?.type === 'rowTotal' ||
-                (item &&
-                    isField(item) &&
-                    isMetric(item) &&
-                    [MetricType.SUM, MetricType.COUNT].includes(item.type));
+                const shouldAggregate =
+                    col.meta?.type === 'rowTotal' ||
+                    (item &&
+                        isField(item) &&
+                        isMetric(item) &&
+                        [MetricType.SUM, MetricType.COUNT].includes(item.type));
 
-            // TODO: Remove code duplicated from non-pivot table version.
-            const aggregationFunction = shouldAggregate
-                ? (
-                      columnId: string,
-                      _leafRows: Row<ResultRow>[],
-                      childRows: Row<ResultRow>[],
-                  ) => {
-                      const aggregatedValue = childRows.reduce<number>(
-                          (agg, childRow) => {
-                              const cellValue = childRow.getValue(columnId) as
-                                  | ResultRow[number]
-                                  | undefined;
-                              const rawValue = cellValue?.value?.raw;
+                // TODO: Remove code duplicated from non-pivot table version.
+                const aggregationFunction = shouldAggregate
+                    ? (
+                          columnId: string,
+                          _leafRows: Row<ResultRow>[],
+                          childRows: Row<ResultRow>[],
+                      ) => {
+                          const aggregatedValue = childRows.reduce<number>(
+                              (agg, childRow) => {
+                                  const cellValue = childRow.getValue(
+                                      columnId,
+                                  ) as ResultRow[number] | undefined;
+                                  const rawValue = cellValue?.value?.raw;
 
-                              if (rawValue === null) return agg;
-                              const adder = Number(rawValue);
-                              if (isNaN(adder)) return agg;
+                                  if (rawValue === null) return agg;
+                                  const adder = Number(rawValue);
+                                  if (isNaN(adder)) return agg;
 
-                              const precision = getDecimalPrecision(adder, agg);
-                              return (
-                                  (agg * precision + adder * precision) /
-                                  precision
-                              );
-                          },
-                          0,
-                      );
+                                  const precision = getDecimalPrecision(
+                                      adder,
+                                      agg,
+                                  );
+                                  return (
+                                      (agg * precision + adder * precision) /
+                                      precision
+                                  );
+                              },
+                              0,
+                          );
 
-                      return (
-                          <Text span fw={600}>
-                              {formatItemValue(item, aggregatedValue)}
-                          </Text>
-                      );
-                  }
-                : undefined;
+                          return (
+                              <Text span fw={600}>
+                                  {formatItemValue(item, aggregatedValue)}
+                              </Text>
+                          );
+                      }
+                    : undefined;
 
-            const column: TableColumn = columnHelper.accessor(
-                (row: ResultRow) => {
-                    return row[col.fieldId];
-                },
-                {
-                    id: col.fieldId,
-                    cell: (info: any) => {
-                        return info.getValue()?.value?.formatted || '-';
+                const column: TableColumn = columnHelper.accessor(
+                    (row: ResultRow) => {
+                        return row[col.fieldId];
                     },
-                    meta: {
-                        item: item,
-                        type: col.meta?.type,
-                        headerInfo:
-                            colIndex < headerInfoForColumns.length
-                                ? headerInfoForColumns[colIndex]
-                                : undefined,
+                    {
+                        id: col.fieldId,
+                        cell: (info: any) => {
+                            return info.getValue()?.value?.formatted || '-';
+                        },
+                        meta: {
+                            item: item,
+                            type: col.meta?.type,
+                            headerInfo:
+                                colIndex < headerInfoForColumns.length
+                                    ? headerInfoForColumns[colIndex]
+                                    : undefined,
+                        },
+                        aggregationFn: aggregationFunction,
+                        aggregatedCell: (info) => {
+                            const value = info.getValue();
+                            const ret = value ?? info.cell.getValue();
+                            const numVal = Number(ret);
+                            return isNaN(numVal) ? ret : numVal;
+                        },
                     },
-                    aggregationFn: aggregationFunction,
-                    aggregatedCell: (info) => {
-                        const value = info.getValue();
-                        const ret = value ?? info.cell.getValue();
-                        const numVal = Number(ret);
-                        return isNaN(numVal) ? ret : numVal;
-                    },
-                },
-            );
-            return column;
-        });
+                );
+                return column;
+            },
+        );
 
         if (!hideRowNumbers) newColumns = [rowColumn, ...newColumns];
 
         return { columns: newColumns, columnOrder: newColumnOrder };
     }, [
-        data.retrofitData.firstRowOnly,
+        data.retrofitData.pivotColumnInfo,
         data.indexValueTypes.length,
         data.headerValues,
         getField,
