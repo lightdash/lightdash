@@ -6533,23 +6533,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {},
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SqlTableConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 columns: {
-                    ref: 'Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            order: { dataType: 'double' },
+                            frozen: { dataType: 'boolean', required: true },
+                            label: { dataType: 'string', required: true },
+                            reference: { dataType: 'string', required: true },
+                            visible: { dataType: 'boolean', required: true },
+                        },
+                    },
                     required: true,
                 },
             },

@@ -5,18 +5,11 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
-export type KnexQueryBuilderResult<T> = T extends Knex.QueryBuilder<
-    infer _,
-    infer TResult
->
-    ? TResult
-    : never;
-
 export default class KnexPaginate {
-    static async paginate<T extends Knex.QueryBuilder>(
-        query: T,
+    static async paginate<TRecord extends {}, TResult>(
+        query: Knex.QueryBuilder<TRecord, TResult>,
         paginateArgs?: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<KnexQueryBuilderResult<T>>> {
+    ): Promise<KnexPaginatedData<TResult>> {
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
             if (page < 1) {
@@ -33,7 +26,7 @@ export default class KnexPaginate {
             const totalRecordsCountPromise = query
                 .clone()
                 .clear('select')
-                .count();
+                .count<{ count: string }[]>();
             const dataPromise = query.clone().offset(offset).limit(pageSize);
             const [count, data] = await Promise.all([
                 totalRecordsCountPromise,
@@ -41,7 +34,7 @@ export default class KnexPaginate {
             ]);
 
             return {
-                data,
+                data: data as TResult,
                 pagination: {
                     page,
                     pageSize,
@@ -50,10 +43,8 @@ export default class KnexPaginate {
             };
         }
 
-        const data = (await query) as KnexQueryBuilderResult<T>;
-
         return {
-            data,
+            data: (await query) as TResult,
         };
     }
 }

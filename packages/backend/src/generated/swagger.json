@@ -7271,15 +7271,38 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "SqlTableConfig": {
                 "properties": {
                     "columns": {
-                        "$ref": "#/components/schemas/Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__"
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "order": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "frozen": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                },
+                                "visible": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "frozen",
+                                "label",
+                                "reference",
+                                "visible"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "object"
                     }
                 },
                 "required": ["columns"],
