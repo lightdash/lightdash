@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartKind,
+    ChartSourceType,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -54,6 +55,9 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
         case ResourceViewItemType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
         case ResourceViewItemType.CHART:
+            if (item.data.source === ChartSourceType.SQL) {
+                return `/projects/${projectUuid}/sql-runner-new/saved/${item.data.uuid}`;
+            }
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
         case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;

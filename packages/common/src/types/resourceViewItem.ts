@@ -1,4 +1,9 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import {
+    ContentType,
+    type ChartSourceType,
+    type SummaryContent,
+} from './content';
 import { type DashboardBasicDetails } from './dashboard';
 import { type SpaceQuery } from './savedCharts';
 import { type Space, type SpaceSummary } from './space';
@@ -32,7 +37,7 @@ export type ResourceViewChartItem = {
         | 'updatedAt'
         | 'updatedByUser'
         | 'validationErrors'
-    >;
+    > & { source?: ChartSourceType };
     category?: ResourceItemCategory;
 };
 
@@ -139,3 +144,54 @@ export type MostPopularAndRecentlyUpdated = {
     mostPopular: (DashboardBasicDetails | SpaceQuery)[];
     recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
 };
+
+export const contentToResourceViewItems = (content: SummaryContent[]) =>
+    content.map((c) => {
+        const updatedByUser = c.lastUpdatedBy || c.createdBy || undefined;
+
+        switch (c.contentType) {
+            case ContentType.CHART:
+                const chartViewItem: ResourceViewChartItem['data'] & {
+                    projectUuid: string;
+                    organizationUuid: string;
+                } = {
+                    ...c,
+                    description: c.description || undefined,
+                    spaceUuid: c.space.uuid,
+                    pinnedListUuid: null,
+                    pinnedListOrder: null,
+                    updatedAt: c.lastUpdatedAt || c.createdAt,
+                    updatedByUser: updatedByUser && {
+                        ...updatedByUser,
+                        userUuid: updatedByUser.uuid,
+                    },
+                    projectUuid: c.project.uuid, // Required for permission checks in ResourceActionMenu
+                    organizationUuid: c.organization.uuid,
+                };
+                return wrapResource(chartViewItem, ResourceViewItemType.CHART);
+            case ContentType.DASHBOARD:
+                const dashboardViewItem: ResourceViewDashboardItem['data'] & {
+                    projectUuid: string;
+                    organizationUuid: string;
+                } = {
+                    ...c,
+                    description: c.description || undefined,
+                    spaceUuid: c.space.uuid,
+                    pinnedListUuid: null,
+                    pinnedListOrder: null,
+                    updatedAt: c.lastUpdatedAt || c.createdAt,
+                    updatedByUser: updatedByUser && {
+                        ...updatedByUser,
+                        userUuid: updatedByUser.uuid,
+                    },
+                    projectUuid: c.project.uuid,
+                    organizationUuid: c.organization.uuid,
+                };
+                return wrapResource(
+                    dashboardViewItem,
+                    ResourceViewItemType.DASHBOARD,
+                );
+            default:
+                return assertUnreachable(c, `Unsupported content type`);
+        }
+    });
