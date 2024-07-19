@@ -1,3 +1,10 @@
+# [0.1180.0](https://github.com/lightdash/lightdash/compare/0.1179.0...0.1180.0) (2024-07-19)
+
+
+### Features
+
+* Space page v2 ([#10767](https://github.com/lightdash/lightdash/issues/10767)) ([283359e](https://github.com/lightdash/lightdash/commit/283359e6b7a34f5b23a2bef50823e44ef2006eb9))
+
 # [0.1179.0](https://github.com/lightdash/lightdash/compare/0.1178.0...0.1179.0) (2024-07-19)
 
 
