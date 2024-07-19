@@ -1,3 +1,10 @@
+# [0.1179.0](https://github.com/lightdash/lightdash/compare/0.1178.0...0.1179.0) (2024-07-19)
+
+
+### Features
+
+* allow for title editing of sql chart tiles ([#10770](https://github.com/lightdash/lightdash/issues/10770)) ([85543e5](https://github.com/lightdash/lightdash/commit/85543e53c6715047b38611650c8ae5aa0197e9ca))
+
 # [0.1178.0](https://github.com/lightdash/lightdash/compare/0.1177.0...0.1178.0) (2024-07-18)
 
 
