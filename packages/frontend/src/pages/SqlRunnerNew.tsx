@@ -1,3 +1,4 @@
+import { getFieldQuoteChar } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconDatabase } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
@@ -18,8 +19,10 @@ import {
 import {
     loadState,
     setProjectUuid,
+    setQuoteChar,
     setSaveChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useProject } from '../hooks/useProject';
 import useSearchParams from '../hooks/useSearchParams';
 import { useGetShare } from '../hooks/useShare';
 
@@ -33,6 +36,7 @@ const SqlRunnerNew = () => {
     const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
+    const { data: project } = useProject(projectUuid);
 
     useEffect(() => {
         if (sqlRunnerState) {
@@ -53,6 +57,15 @@ const SqlRunnerNew = () => {
             dispatch(setSaveChartData(data));
         },
     });
+    useEffect(() => {
+        if (project?.warehouseConnection?.type) {
+            dispatch(
+                setQuoteChar(
+                    getFieldQuoteChar(project?.warehouseConnection?.type),
+                ),
+            );
+        }
+    }, [dispatch, project?.warehouseConnection?.type]);
 
     if (!projectUuid) {
         return null;
