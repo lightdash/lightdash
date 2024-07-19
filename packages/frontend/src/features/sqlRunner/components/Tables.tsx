@@ -19,7 +19,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleActiveTable } from '../store/sqlRunnerSlice';
+import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
 
 const TableItem: FC<{
     table: string;
@@ -31,11 +31,20 @@ const TableItem: FC<{
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     const dispatch = useAppDispatch();
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
 
+    const quotedTable = `${quoteChar}${database}${quoteChar}.${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`;
     return (
         <Box ref={hoverRef} pos="relative">
             <UnstyledButton
                 onClick={() => {
+                    if (!sql) {
+                        dispatch(
+                            setSql(`SELECT * FROM ${quotedTable} LIMIT 10`),
+                        );
+                    }
+
                     dispatch(toggleActiveTable(table));
                 }}
                 w="100%"
@@ -85,7 +94,7 @@ const TableItem: FC<{
                 right={8}
                 display={hovered ? 'block' : 'none'}
             >
-                <CopyButton value={`${database}.${schema}.${table}`}>
+                <CopyButton value={`${quotedTable}`}>
                     {({ copied, copy }) => (
                         <ActionIcon size={16} onClick={copy} bg="gray.1">
                             <MantineIcon
