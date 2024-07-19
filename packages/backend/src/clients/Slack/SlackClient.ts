@@ -4,7 +4,7 @@ import {
     SlackSettings,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { App, Block, LogLevel } from '@slack/bolt';
+import { Block } from '@slack/bolt';
 import {
     ChatPostMessageArguments,
     ChatUpdateArguments,
@@ -15,7 +15,6 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
-import { slackOptions } from './SlackOptions';
 
 type SlackClientArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -35,8 +34,6 @@ export class SlackClient {
 
     public isEnabled: boolean = false;
 
-    private slackApp: App | undefined;
-
     constructor({
         slackAuthenticationModel,
         lightdashConfig,
@@ -45,27 +42,6 @@ export class SlackClient {
         this.slackAuthenticationModel = slackAuthenticationModel;
         if (this.lightdashConfig.slack?.clientId) {
             this.isEnabled = true;
-        }
-        if (this.lightdashConfig.slack?.appToken) {
-            Logger.info('Starting Slack client in socket mode');
-            this.isEnabled = true;
-            try {
-                this.slackApp = new App({
-                    ...slackOptions,
-                    installationStore: {
-                        storeInstallation: (i) =>
-                            this.slackAuthenticationModel.createInstallation(i),
-                        fetchInstallation: (i) =>
-                            this.slackAuthenticationModel.getInstallation(i),
-                    },
-                    logLevel: LogLevel.INFO,
-                    port: this.lightdashConfig.slack.port,
-                    socketMode: true,
-                    appToken: this.lightdashConfig.slack.appToken,
-                });
-            } catch (e: unknown) {
-                Logger.error(`Unable to start Slack client ${e}`);
-            }
         }
     }
 
@@ -77,15 +53,6 @@ export class SlackClient {
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             );
-
-        if (this.lightdashConfig.slack?.appToken) {
-            if (!this.slackApp?.client) {
-                throw new Error(
-                    'Slack app not initialized correctly for socket mode',
-                );
-            }
-            return this.slackApp.client;
-        }
 
         return new WebClient(installation?.token);
     }
