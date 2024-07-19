@@ -26,7 +26,9 @@ export default class KnexPaginate {
             const totalRecordsCountPromise = query
                 .clone()
                 .clear('select')
-                .count<{ count: string }[]>();
+                .clear('group')
+                .count<{ count: string }[]>()
+                .first();
             const dataPromise = query.clone().offset(offset).limit(pageSize);
             const [count, data] = await Promise.all([
                 totalRecordsCountPromise,
@@ -38,7 +40,9 @@ export default class KnexPaginate {
                 pagination: {
                     page,
                     pageSize,
-                    totalPageCount: Math.ceil(count.length / pageSize),
+                    totalPageCount: Math.ceil(
+                        (Number(count?.count) || 0) / pageSize,
+                    ),
                 },
             };
         }
