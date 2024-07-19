@@ -6,10 +6,10 @@ import {
 import { Knex } from 'knex';
 
 export default class KnexPaginate {
-    static async paginate<T extends Knex.QueryBuilder>(
-        query: T,
+    static async paginate<TRecord extends {}, TResult>(
+        query: Knex.QueryBuilder<TRecord, TResult>,
         paginateArgs?: KnexPaginateArgs,
-    ): Promise<KnexPaginatedData<typeof query>> {
+    ): Promise<KnexPaginatedData<TResult>> {
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
             if (page < 1) {
@@ -26,7 +26,9 @@ export default class KnexPaginate {
             const totalRecordsCountPromise = query
                 .clone()
                 .clear('select')
-                .count();
+                .clear('group')
+                .count<{ count: string }[]>()
+                .first();
             const dataPromise = query.clone().offset(offset).limit(pageSize);
             const [count, data] = await Promise.all([
                 totalRecordsCountPromise,
@@ -34,19 +36,19 @@ export default class KnexPaginate {
             ]);
 
             return {
-                data,
+                data: data as TResult,
                 pagination: {
                     page,
                     pageSize,
-                    totalPageCount: Math.ceil(count.length / pageSize),
+                    totalPageCount: Math.ceil(
+                        (Number(count?.count) || 0) / pageSize,
+                    ),
                 },
             };
         }
 
-        const data = await query;
-
         return {
-            data,
+            data: (await query) as TResult,
         };
     }
 }
