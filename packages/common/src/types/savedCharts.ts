@@ -594,6 +594,7 @@ export type ChartSummary = Pick<
     | 'pinnedListUuid'
     | 'dashboardUuid'
     | 'dashboardName'
+    | 'slug'
 > & { chartType?: ChartType | undefined; chartKind?: ChartKind | undefined };
 
 export type SpaceQuery = ChartSummary &
