@@ -115,7 +115,10 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
-import { type ApiChartContentResponse } from './types/content';
+import {
+    type ApiChartContentResponse,
+    type ApiContentResponse,
+} from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiCreateSqlChart,
@@ -659,6 +662,7 @@ type ApiResults =
     | ApiSqlChart['results']
     | ApiCreateSqlChart['results']
     | ApiUpdateSqlChart['results']
+    | ApiContentResponse['results']
     | ApiChartContentResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

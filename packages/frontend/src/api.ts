@@ -12,9 +12,6 @@ export const BASE_API_URL =
         ? `http://test.lightdash/`
         : import.meta.env.BASE_URL;
 
-const API_PREFIX = `${BASE_API_URL}api/v1`;
-export const API_PREFIX_V2 = `${BASE_API_URL}api/v2`;
-
 const defaultHeaders = {
     'Content-Type': 'application/json',
     [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
@@ -39,15 +36,17 @@ type LightdashApiProps = {
     url: string;
     body: BodyInit | null | undefined;
     headers?: Record<string, string> | undefined;
-    apiPrefix?: string;
+    version?: 'v1' | 'v2';
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
     headers,
-    apiPrefix = API_PREFIX,
+    version = 'v1',
 }: LightdashApiProps): Promise<T> => {
+    const apiPrefix = `${BASE_API_URL}api/${version}`;
+
     let sentryTrace: string | undefined;
     // Manually create a span for the fetch request to be able to trace it in Sentry. This also enables Distributed Tracing.
     Sentry.startSpan(
