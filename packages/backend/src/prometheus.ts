@@ -20,9 +20,14 @@ export default class PrometheusMetrics {
 
         if (enabled) {
             try {
+                if (labels) {
+                    prometheus.register.setDefaultLabels(labels);
+                }
+
                 prometheus.collectDefaultMetrics({
                     ...rest,
                 });
+
                 const eventLoopUtilization = new prometheus.Gauge({
                     name: 'nodejs_eventloop_utilization',
                     help: 'The utilization value(%) is the calculated Event Loop Utilization (ELU).',
@@ -38,11 +43,6 @@ export default class PrometheusMetrics {
                 this.server = http.createServer(app);
                 app.get(path, async (req, res) => {
                     res.set('Content-Type', prometheus.register.contentType);
-
-                    if (labels) {
-                        await prometheus.register.setDefaultLabels(labels);
-                    }
-
                     res.end(await prometheus.register.metrics());
                 });
                 this.server.listen(port, () => {
