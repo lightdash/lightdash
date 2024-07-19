@@ -80,6 +80,30 @@ const registerMonacoLanguage = (monaco: Monaco, language: string) => {
     }
 };
 
+const LIGHTDASH_THEME = {
+    rules: [
+        { token: '', foreground: '333333' },
+        { token: 'keyword', foreground: '7262FF', fontStyle: 'bold' },
+        { token: 'operator.sql', foreground: '#24cf62', fontStyle: 'bold' },
+        { token: 'number', foreground: '098658' },
+        { token: 'string', foreground: 'A31515' },
+        { token: 'delimiter', foreground: 'A31515' },
+        { token: 'identifier', foreground: '001080' },
+        { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+    ],
+    colors: {
+        'editor.background': '#FFFFFF',
+        'editor.foreground': '#333333',
+        'editor.lineHighlightBackground': '#ffffff',
+        'editorCursor.foreground': '#7262FF',
+        'editorWhitespace.foreground': '#efefef',
+        'editor.selectionBackground': '#E6E3FF',
+        'editor.selectionForeground': '#333333',
+        'editor.wordHighlightBackground': '#bcfeff',
+        'editor.selectionHighlightBorder': '#7262FF',
+    },
+};
+
 export const SqlEditor: FC<{
     sql: string;
     onSqlChange: (value: string) => void;
@@ -104,6 +128,11 @@ export const SqlEditor: FC<{
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
             registerMonacoLanguage(monaco, language);
+            monaco.editor.defineTheme('lightdash', {
+                base: 'vs',
+                inherit: true,
+                ...LIGHTDASH_THEME,
+            });
         },
         [language],
     );
@@ -138,6 +167,7 @@ export const SqlEditor: FC<{
             value={sql}
             onChange={(value) => onSqlChange(value ?? '')}
             options={MONACO_DEFAULT_OPTIONS}
+            theme="lightdash"
         />
     );
 };
