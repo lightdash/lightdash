@@ -4340,13 +4340,29 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ChartSourceType": {
+                "enum": ["dbt_explore", "sql"],
+                "type": "string"
+            },
             "ResourceViewChartItem": {
                 "properties": {
                     "category": {
                         "$ref": "#/components/schemas/ResourceItemCategory"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_"
+                            },
+                            {
+                                "properties": {
+                                    "source": {
+                                        "$ref": "#/components/schemas/ChartSourceType"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType.CHART"
@@ -8615,7 +8631,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1174.0",
+        "version": "0.1181.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
