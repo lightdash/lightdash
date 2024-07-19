@@ -18,7 +18,10 @@ import {
     SaveToSpace,
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import {
+    useCreateMutation as useSpaceCreateMutation,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateName } from '../store/sqlRunnerSlice';
@@ -34,6 +37,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
+    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -71,6 +75,15 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         if (spaces.length === 0) {
             return;
         }
+        let newSpace = form.values.newSpaceName
+            ? await createSpace({
+                  name: form.values.newSpaceName,
+                  access: [],
+                  isPrivate: true,
+              })
+            : undefined;
+        const spaceUuid =
+            newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
         await createSavedSqlChart({
             name: form.values.name,
             description: form.values.description || '',
@@ -80,7 +93,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 metadata: { version: 1 },
                 type: ChartKind.VERTICAL_BAR,
             },
-            spaceUuid: form.values.spaceUuid || spaces[0].uuid,
+            spaceUuid: spaceUuid,
         });
         dispatch(updateName(form.values.name));
         onClose();
@@ -91,9 +104,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         form.values.description,
         form.values.name,
         form.values.spaceUuid,
+        form.values.newSpaceName,
         onClose,
         spaces,
         sql,
+        createSpace,
     ]);
 
     return (
