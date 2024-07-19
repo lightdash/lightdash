@@ -38,6 +38,8 @@ export interface SqlRunnerState {
             isOpen: boolean;
         };
     };
+
+    quoteChar: string;
 }
 
 const initialState: SqlRunnerState = {
@@ -57,6 +59,7 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
     },
+    quoteChar: '"',
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -228,6 +231,9 @@ export const sqlRunnerSlice = createSlice({
             state.modals[action.payload].isOpen =
                 !state.modals[action.payload].isOpen;
         },
+        setQuoteChar: (state, action: PayloadAction<string>) => {
+            state.quoteChar = action.payload;
+        },
     },
 });
 
@@ -245,4 +251,5 @@ export const {
     setSelectedChartType,
     toggleModal,
     loadState,
+    setQuoteChar,
 } = sqlRunnerSlice.actions;
