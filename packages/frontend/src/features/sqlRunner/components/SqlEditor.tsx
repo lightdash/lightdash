@@ -109,6 +109,7 @@ const LIGHTDASH_THEME = {
 const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
+    quoteChar: string,
     tables: string[],
 ) => {
     monaco.languages.registerCompletionItemProvider(language, {
@@ -121,13 +122,37 @@ const registerCustomCompletionProvider = (
                 endColumn: wordUntilPosition.endColumn,
             };
 
+            const textUntilPosition = model.getValueInRange({
+                startLineNumber: position.lineNumber,
+                startColumn: 1,
+                endLineNumber: position.lineNumber,
+                endColumn: position.column,
+            });
+
             const suggestions: languages.CompletionItem[] = tables.map(
-                (table) => ({
-                    label: table,
-                    kind: monaco.languages.CompletionItemKind.Class,
-                    insertText: `${table}`,
-                    range,
-                }),
+                (table) => {
+                    const parts = table.split('.');
+                    const typedParts = textUntilPosition.split('.');
+                    const insertParts = parts.slice(typedParts.length - 1);
+
+                    // Check if the last typed part is already quoted
+                    const lastTypedPart = typedParts[typedParts.length - 1];
+                    const isLastPartQuoted =
+                        lastTypedPart.startsWith(`${quoteChar}`) &&
+                        !lastTypedPart.endsWith(`${quoteChar}`);
+
+                    let insertText = insertParts.join('.');
+                    if (isLastPartQuoted) {
+                        // Remove the opening quote from the first part to insert
+                        insertText = insertText.replace(/^${quoteChar}/, '');
+                    }
+                    return {
+                        label: table,
+                        kind: monaco.languages.CompletionItemKind.Class,
+                        insertText: insertText,
+                        range,
+                    };
+                },
             );
 
             return { suggestions };
@@ -198,6 +223,7 @@ export const SqlEditor: FC<{
                     registerCustomCompletionProvider(
                         monaco,
                         language,
+                        quoteChar,
                         tablesList,
                     );
                 }
