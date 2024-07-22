@@ -11,10 +11,12 @@ import {
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
+import { useTables } from '../hooks/useTables';
 import { useAppSelector } from '../store/hooks';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
@@ -104,13 +106,66 @@ const LIGHTDASH_THEME = {
     },
 };
 
+const registerCustomCompletionProvider = (
+    monaco: Monaco,
+    language: string,
+    tables: string[],
+) => {
+    monaco.languages.registerCompletionItemProvider(language, {
+        provideCompletionItems: (model, position) => {
+            const wordUntilPosition = model.getWordUntilPosition(position);
+            const range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: wordUntilPosition.startColumn,
+                endColumn: wordUntilPosition.endColumn,
+            };
+
+            const suggestions: languages.CompletionItem[] = tables.map(
+                (table) => ({
+                    label: table,
+                    kind: monaco.languages.CompletionItemKind.Class,
+                    insertText: `${table}`,
+                    range,
+                }),
+            );
+
+            return { suggestions };
+        },
+    });
+};
+
+const generateTableCompletions = (
+    quoteChar: string,
+    data: ReturnType<typeof useTables>['data'],
+) => {
+    if (!data) return;
+
+    const database = data.database;
+    const tablesList = data.tablesBySchema
+        ?.map((s) =>
+            Object.keys(s.tables).map(
+                (t) =>
+                    `${quoteChar}${database}${quoteChar}.${quoteChar}${s.schema}${quoteChar}.${quoteChar}${t}${quoteChar}`,
+            ),
+        )
+        .flat();
+
+    return tablesList;
+};
+
 export const SqlEditor: FC<{
     sql: string;
     onSqlChange: (value: string) => void;
     onSubmit?: () => void;
 }> = ({ sql, onSqlChange, onSubmit }) => {
+    const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data, isLoading } = useProject(projectUuid);
+    const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
+        projectUuid,
+        search: undefined,
+    });
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
     const sqlRef = useRef(sql);
     const onSubmitRef = useRef(onSubmit);
@@ -133,8 +188,22 @@ export const SqlEditor: FC<{
                 inherit: true,
                 ...LIGHTDASH_THEME,
             });
+
+            if (tablesData && quoteChar) {
+                const tablesList = generateTableCompletions(
+                    quoteChar,
+                    tablesData,
+                );
+                if (tablesList && tablesList.length > 0) {
+                    registerCustomCompletionProvider(
+                        monaco,
+                        language,
+                        tablesList,
+                    );
+                }
+            }
         },
-        [language],
+        [language, quoteChar, tablesData],
     );
 
     const onMount: OnMount = useCallback((editor, monaco) => {
@@ -145,7 +214,7 @@ export const SqlEditor: FC<{
         });
     }, []);
 
-    if (isLoading) {
+    if (isLoading || isTablesDataLoading) {
         return <Loader color="gray" size="xs" />;
     }
 
