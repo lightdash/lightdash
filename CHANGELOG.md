@@ -1,3 +1,10 @@
+# [0.1182.0](https://github.com/lightdash/lightdash/compare/0.1181.0...0.1182.0) (2024-07-22)
+
+
+### Features
+
+* add lightdash SQL theme ([#10782](https://github.com/lightdash/lightdash/issues/10782)) ([d8074d0](https://github.com/lightdash/lightdash/commit/d8074d06f79c1e435bfa0daac6e8a8e09a349335))
+
 # [0.1181.0](https://github.com/lightdash/lightdash/compare/0.1180.0...0.1181.0) (2024-07-19)
 
 
