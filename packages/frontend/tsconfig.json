@@ -23,7 +23,8 @@
         "types": ["node", "vite/client", "vite-plugin-svgr/client"],
         "paths": {
             "@lightdash/common": ["./../common/src"]
-        }
+        },
+        "noUncheckedIndexedAccess": true
     },
     "include": ["src", "src/testing/vitest.setup.ts"]
 }
