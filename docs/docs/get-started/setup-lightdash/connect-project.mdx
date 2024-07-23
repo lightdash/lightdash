@@ -467,6 +467,9 @@ access to use this warehouse. You can see al list of warehouses available in the
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+If `Always use this warehouse` is set to yes, then we'll be using this `warehouse` to all queries, even if this is overrwritten
+by the dbt config using `snowflake­_warehouse`
+
 #### Schema
 
 This is the default schema used by dbt to compile and run your dbt project. You can find this in the dbt cloud IDE
