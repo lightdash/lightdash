@@ -37,6 +37,7 @@ export type ResourceViewChartItem = {
         | 'updatedAt'
         | 'updatedByUser'
         | 'validationErrors'
+        | 'slug'
     > & { source?: ChartSourceType };
     category?: ResourceItemCategory;
 };

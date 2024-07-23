@@ -56,7 +56,7 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
             return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
         case ResourceViewItemType.CHART:
             if (item.data.source === ChartSourceType.SQL) {
-                return `/projects/${projectUuid}/sql-runner-new/saved/${item.data.uuid}`;
+                return `/projects/${projectUuid}/sql-runner-new/saved/${item.data.slug}`;
             }
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
         case ResourceViewItemType.SPACE:

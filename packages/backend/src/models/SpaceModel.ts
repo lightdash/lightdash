@@ -221,6 +221,7 @@ export class SpaceModel {
                     organization_uuid: string;
                     dashboard_uuid: string;
                     dashboard_name: string;
+                    slug: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -242,6 +243,7 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                `saved_queries.slug`,
             ])
             .orderBy('saved_queries.last_version_updated_at', 'desc')
             .where('saved_queries.space_id', space.space_id);
@@ -275,6 +277,7 @@ export class SpaceModel {
                 chartKind: savedQuery.chart_kind,
                 views: savedQuery.views_count,
                 firstViewedAt: savedQuery.first_viewed_at,
+                slug: savedQuery.slug,
             })),
             projectUuid,
             dashboards: [],
@@ -977,6 +980,7 @@ export class SpaceModel {
                     organization_uuid: string;
                     dashboard_uuid: string | null;
                     dashboard_name: string | null;
+                    slug: string;
                 }[]
             >([
                 `saved_queries.saved_query_uuid`,
@@ -1009,6 +1013,7 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                `saved_queries.slug`,
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
@@ -1069,6 +1074,7 @@ export class SpaceModel {
                     validationId: validation_id,
                 }),
             ),
+            slug: savedQuery.slug,
         }));
     }
 

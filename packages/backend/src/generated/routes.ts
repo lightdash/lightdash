@@ -950,6 +950,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                slug: { dataType: 'string', required: true },
                 dashboardVersionId: { dataType: 'double', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 tiles: {
@@ -982,7 +983,6 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },
                     required: true,
                 },
-                slug: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -1035,6 +1035,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                slug: { dataType: 'string', required: true },
                 isPrivate: { dataType: 'boolean', required: true },
                 access: {
                     dataType: 'array',
@@ -1049,7 +1050,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                slug: { dataType: 'string', required: true },
                 chartCount: { dataType: 'double', required: true },
                 dashboardCount: { dataType: 'double', required: true },
             },
@@ -2350,6 +2350,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                slug: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 updatedByUser: { ref: 'UpdatedByUser' },
                 pinnedListOrder: {
@@ -2360,7 +2361,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                slug: { dataType: 'string', required: true },
                 tableName: { dataType: 'string', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 pivotConfig: {
@@ -3920,7 +3920,7 @@ const models: TsoaRoute.Models = {
         enums: ['cartesian', 'table', 'big_number', 'pie', 'funnel', 'custom'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_':
+    'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -3938,6 +3938,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    slug: { dataType: 'string', required: true },
                     chartKind: {
                         dataType: 'union',
                         subSchemas: [
@@ -3999,7 +4000,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors_',
+                            ref: 'Pick_SpaceQuery.uuid-or-name-or-chartType-or-chartKind-or-firstViewedAt-or-views-or-pinnedListUuid-or-pinnedListOrder-or-spaceUuid-or-description-or-updatedAt-or-updatedByUser-or-validationErrors-or-slug_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',
@@ -4763,7 +4764,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_':
+    'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -4800,6 +4801,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    slug: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
@@ -4811,7 +4813,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName_',
+                    ref: 'Pick_SavedChart.uuid-or-name-or-description-or-spaceName-or-spaceUuid-or-projectUuid-or-organizationUuid-or-pinnedListUuid-or-dashboardUuid-or-dashboardName-or-slug_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -4954,6 +4956,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    slug: { dataType: 'string', required: true },
                     isPrivate: { dataType: 'boolean', required: true },
                     pinnedListOrder: {
                         dataType: 'union',
@@ -4963,7 +4966,6 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    slug: { dataType: 'string', required: true },
                 },
                 validators: {},
             },
