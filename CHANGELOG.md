@@ -1,3 +1,10 @@
+## [0.1183.1](https://github.com/lightdash/lightdash/compare/0.1183.0...0.1183.1) (2024-07-23)
+
+
+### Bug Fixes
+
+* dashboard tile resize handler appearance ([#10791](https://github.com/lightdash/lightdash/issues/10791)) ([4ab7eb7](https://github.com/lightdash/lightdash/commit/4ab7eb7210e5f86b1187b10040b006592b6a8127))
+
 # [0.1183.0](https://github.com/lightdash/lightdash/compare/0.1182.0...0.1183.0) (2024-07-23)
 
 
