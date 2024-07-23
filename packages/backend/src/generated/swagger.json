@@ -3795,66 +3795,6 @@
                 "type": "object",
                 "description": "List of projects in the current organization"
             },
-            "KnexQueryBuilderResult_T_": {
-                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
-            },
-            "KnexQueryBuilderResult_OrganizationMemberProfile-Array_": {
-                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
-            },
-            "KnexPaginatedData_OrganizationMemberProfile-Array_": {
-                "properties": {
-                    "pagination": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/KnexPaginateArgs"
-                            },
-                            {
-                                "properties": {
-                                    "totalPageCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["totalPageCount"],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "data": {
-                        "$ref": "#/components/schemas/KnexQueryBuilderResult_OrganizationMemberProfile-Array_"
-                    }
-                },
-                "required": ["data"],
-                "type": "object"
-            },
-            "ApiOrganizationMemberProfiles": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/KnexPaginatedData_OrganizationMemberProfile-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "OrganizationMemberRole": {
                 "enum": [
                     "member",
@@ -3910,6 +3850,63 @@
                 ],
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_OrganizationMemberProfile-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationMemberProfile"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiOrganizationMemberProfiles": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_OrganizationMemberProfile-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ApiOrganizationMemberProfile": {
                 "properties": {
@@ -7282,15 +7279,38 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "SqlTableConfig": {
                 "properties": {
                     "columns": {
-                        "$ref": "#/components/schemas/Record_string._visible-boolean--reference-string--label-string--frozen-boolean--order%3F%3Anumber--__"
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "order": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "frozen": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                },
+                                "visible": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "frozen",
+                                "label",
+                                "reference",
+                                "visible"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "object"
                     }
                 },
                 "required": ["columns"],
@@ -8351,8 +8371,319 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "KnexQueryBuilderResult_SummaryContent-Array_": {
-                "$ref": "#/components/schemas/KnexQueryBuilderResult_T_"
+            "ContentType.CHART": {
+                "enum": ["chart"],
+                "type": "string"
+            },
+            "ContentType": {
+                "enum": ["chart", "dashboard"],
+                "type": "string"
+            },
+            "ChartContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.CHART"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ChartSourceType"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "dashboard": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "source",
+                    "chartKind",
+                    "dashboard"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ContentType.DASHBOARD": {
+                "enum": ["dashboard"],
+                "type": "string"
+            },
+            "DashboardContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "SummaryContent": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardContent"
+                    }
+                ]
             },
             "KnexPaginatedData_SummaryContent-Array_": {
                 "properties": {
@@ -8374,7 +8705,10 @@
                         ]
                     },
                     "data": {
-                        "$ref": "#/components/schemas/KnexQueryBuilderResult_SummaryContent-Array_"
+                        "items": {
+                            "$ref": "#/components/schemas/SummaryContent"
+                        },
+                        "type": "array"
                     }
                 },
                 "required": ["data"],
@@ -8393,10 +8727,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "ContentType": {
-                "enum": ["chart", "dashboard"],
-                "type": "string"
             },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
@@ -8639,7 +8969,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1181.0",
+        "version": "0.1182.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

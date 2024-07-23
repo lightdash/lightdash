@@ -188,6 +188,7 @@ export default class SchedulerApp {
             onShutdown: async () => {
                 Logger.info('Shutdown complete');
             },
+            useExit0: true,
             logger: Logger.error,
             sendFailuresDuringShutdown: true,
             onSendFailureDuringShutdown: async () => {

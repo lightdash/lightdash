@@ -33,7 +33,9 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { user } = useApp();
 
     const sqlIsOpen = expandedSections.includes(ExplorerSection.SQL);
-    const { data, isSuccess } = useCompiledSql();
+    const { data, isSuccess } = useCompiledSql({
+        enabled: !!unsavedChartVersionTableName,
+    });
     return (
         <CollapsableCard
             headingRef={headingRef}

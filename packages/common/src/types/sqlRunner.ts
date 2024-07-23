@@ -23,16 +23,15 @@ export type SqlRunnerResults = ResultRow[];
 export const sqlRunnerJob = 'sqlRunner';
 
 export type SqlTableConfig = {
-    columns: Record<
-        string,
-        {
+    columns: {
+        [key: string]: {
             visible: boolean;
             reference: string;
             label: string;
             frozen: boolean;
             order?: number;
-        }
-    >;
+        };
+    };
 };
 
 export type TableChartSqlConfig = SqlTableConfig & {
