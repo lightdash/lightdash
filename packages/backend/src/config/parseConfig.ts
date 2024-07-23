@@ -4,10 +4,7 @@ import {
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import { type ClientAuthMethod } from 'openid-client';
-import lightdashV1JsonSchema from '../jsonSchemas/lightdashConfig/v1.json';
 import { VERSION } from '../version';
 
 export const getIntegerFromEnvironmentVariable = (
@@ -141,11 +138,6 @@ export const getPemFileContent = (certValue: string | undefined) =>
         decodeUnlessStartsWith: '-----BEGIN ', // -----BEGIN CERTIFICATE | -----BEGIN PRIVATE KEY
     });
 
-export type LightdashConfigIn = {
-    version: '1.0';
-    mode: LightdashMode;
-};
-
 type LoggingLevel = 'error' | 'warn' | 'info' | 'http' | 'debug';
 const assertIsLoggingLevel = (x: string): x is LoggingLevel =>
     ['error', 'warn', 'info', 'http', 'debug'].includes(x);
@@ -191,7 +183,6 @@ export type LoggingConfig = {
 };
 
 export type LightdashConfig = {
-    version: '1.0';
     lightdashSecret: string;
     secureCookies: boolean;
     security: {
@@ -419,7 +410,7 @@ export type SmtpConfig = {
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
-const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
+export const parseConfig = (): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(
@@ -437,7 +428,8 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
         );
     }
 
-    const mode = lightdashMode || config.mode;
+    const mode = lightdashMode || LightdashMode.DEFAULT;
+
     const siteUrl = process.env.SITE_URL || 'http://localhost:8080';
     if (
         process.env.NODE_ENV !== 'development' &&
@@ -449,7 +441,6 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
     }
 
     return {
-        ...config,
         mode,
         security: {
             contentSecurityPolicy: {
@@ -764,26 +755,4 @@ const mergeWithEnvironment = (config: LightdashConfigIn): LightdashConfig => {
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
     };
-};
-
-export const parseConfig = (raw: any): LightdashConfig => {
-    const ajv = new Ajv({
-        schemaId: 'id',
-        useDefaults: true,
-        discriminator: true,
-        allowUnionTypes: true,
-    });
-    addFormats(ajv);
-    const validate = ajv.compile<LightdashConfigIn>(lightdashV1JsonSchema);
-    const validated = validate(raw);
-    if (!validated) {
-        const lineErrorMessages = (validate.errors || [])
-            .map((err) => `Field at ${err.instancePath} ${err.message}`)
-            .join('\n');
-        throw new ParseError(
-            `Lightdash config file successfully loaded but invalid: ${lineErrorMessages}`,
-            {},
-        );
-    }
-    return mergeWithEnvironment(raw);
 };

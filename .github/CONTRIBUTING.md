@@ -332,7 +332,6 @@ PGUSER=pg_user *OR* machine username if no prior postgres set up
 PGPASSWORD=pg_password *OR* blank if no prior postgres set up
 PGDATABASE=postgres
 DBT_DEMO_DIR=$PWD/examples/full-jaffle-shop-demo
-LIGHTDASH_CONFIG_FILE=$PWD/lightdash.yml
 
 # 9 Install packages
 yarn
