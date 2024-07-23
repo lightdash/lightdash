@@ -1,3 +1,10 @@
+# [0.1183.0](https://github.com/lightdash/lightdash/compare/0.1182.0...0.1183.0) (2024-07-23)
+
+
+### Features
+
+* add space breadcrumb before saved chart ([#10787](https://github.com/lightdash/lightdash/issues/10787)) ([93aed14](https://github.com/lightdash/lightdash/commit/93aed145c790e0895a861f9c2a23630c47ecee6a))
+
 # [0.1182.0](https://github.com/lightdash/lightdash/compare/0.1181.0...0.1182.0) (2024-07-22)
 
 
