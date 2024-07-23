@@ -1,7 +1,7 @@
 import { DimensionType, friendlyName, type ResultRow } from '@lightdash/common';
-import { getPivotedResults } from './usePivotedResults';
+import { getPivotedResults } from './getPivotedResults';
 
-type SqlColumn = {
+export type SqlColumn = {
     id: string;
     type: DimensionType;
 };
@@ -21,13 +21,15 @@ type SqlColumn = {
 // export const SqlBarChartFieldSelector: FC<
 
 // available x values
-type xLayoutOptions = {
+export type XLayoutOptions = {
     type: 'time' | 'category';
     columnId: string;
-    timeGrainOptions: string[];
+    timeGrainOptions:
+        | ('day' | 'week' | 'month' | 'quarter' | 'year')[]
+        | ('minute' | 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year')[];
 };
-const xLayoutOptions = (columns: SqlColumn[]): xLayoutOptions[] => {
-    let options: xLayoutOptions[] = [];
+export const xLayoutOptions = (columns: SqlColumn[]): XLayoutOptions[] => {
+    let options: XLayoutOptions[] = [];
     for (const column of columns) {
         switch (column.type) {
             case DimensionType.DATE:
@@ -73,12 +75,12 @@ const xLayoutOptions = (columns: SqlColumn[]): xLayoutOptions[] => {
 };
 
 // available yValues
-type yLayoutOptions = {
+export type YLayoutOptions = {
     columnId: string;
     aggregationOptions: string[];
 };
-const yLayoutOptions = (columns: SqlColumn[]): yLayoutOptions[] => {
-    let options: yLayoutOptions[] = [];
+export const yLayoutOptions = (columns: SqlColumn[]): YLayoutOptions[] => {
+    let options: YLayoutOptions[] = [];
     for (const column of columns) {
         switch (column.type) {
             case DimensionType.NUMBER:
@@ -108,11 +110,13 @@ const yLayoutOptions = (columns: SqlColumn[]): yLayoutOptions[] => {
 };
 
 // available series
-type seriesLayoutOptions = {
+type SeriesLayoutOptions = {
     columnId: string;
 };
-const seriesLayoutOptions = (columns: SqlColumn[]): seriesLayoutOptions[] => {
-    let options: seriesLayoutOptions[] = [];
+export const seriesLayoutOptions = (
+    columns: SqlColumn[],
+): SeriesLayoutOptions[] => {
+    let options: SeriesLayoutOptions[] = [];
     for (const column of columns) {
         switch (column.type) {
             case DimensionType.STRING:

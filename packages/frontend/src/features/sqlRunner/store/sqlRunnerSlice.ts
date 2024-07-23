@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    DimensionType,
     type BarChartConfig,
     type ResultRow,
     type SqlChart,
@@ -9,6 +10,13 @@ import {
 
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import {
+    xLayoutOptions,
+    yLayoutOptions,
+    type SqlColumn,
+    type XLayoutOptions,
+    type YLayoutOptions,
+} from '../components/visualizations/barChartBizLogic';
 
 export enum VisTabs {
     CHART = 'chart',
@@ -46,6 +54,14 @@ export interface SqlRunnerState {
     };
 
     quoteChar: string;
+
+    // TESTING
+    barChartConfigOptions:
+        | {
+              xAxisOptions: XLayoutOptions[];
+              yAxisOptions: YLayoutOptions[];
+          }
+        | undefined;
 }
 
 const initialState: SqlRunnerState = {
@@ -67,6 +83,9 @@ const initialState: SqlRunnerState = {
         },
     },
     quoteChar: '"',
+
+    // TESTING
+    barChartConfigOptions: undefined,
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -103,6 +122,33 @@ export const sqlRunnerSlice = createSlice({
             state.resultsTableConfig = {
                 columns,
             };
+
+            // TESTING XLayoutOptions and YLayoutOptions
+            const mockXLayoutData: SqlColumn[] = [
+                {
+                    id: 'order_id',
+                    type: DimensionType.NUMBER,
+                },
+                {
+                    id: 'customer_id',
+                    type: DimensionType.NUMBER,
+                },
+                {
+                    id: 'status',
+                    type: DimensionType.STRING,
+                },
+                {
+                    id: 'is_completed',
+                    type: DimensionType.BOOLEAN,
+                },
+            ];
+
+            state.barChartConfigOptions = {
+                xAxisOptions: xLayoutOptions(mockXLayoutData),
+                yAxisOptions: yLayoutOptions(mockXLayoutData),
+            };
+
+            // END - TESTING XLayoutOptions and YLayoutOptions
 
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend

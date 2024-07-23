@@ -41,11 +41,25 @@ export type TableChartSqlConfig = SqlTableConfig & {
     type: ChartKind.TABLE;
 };
 
+export type Axes = {
+    x: {
+        reference: string;
+        label?: string;
+    };
+    y: {
+        reference: string;
+        position?: 'left' | 'right';
+        label: string;
+        aggregation?: string;
+    }[];
+};
+
 export type BarChartConfig = {
     metadata: {
         version: number;
     };
     type: ChartKind.VERTICAL_BAR;
+    // TODO: should style be optional? or should we always have axes? If so, should we have a default handled in the barChartBizLogic?
     style?: {
         legend:
             | {
@@ -54,17 +68,9 @@ export type BarChartConfig = {
               }
             | undefined;
     };
-    axes?: {
-        x: {
-            reference: string;
-            label?: string;
-        };
-        y: {
-            reference: string;
-            position?: 'left' | 'right';
-            label: string;
-        }[];
-    };
+
+    // TODO: should axes be optional? or should we always have axes? If so, should we have a default handled in the barChartBizLogic?
+    axes?: Axes;
     series?: {
         reference: string;
         yIndex: number;
