@@ -163,31 +163,6 @@ export const sqlRunnerSlice = createSlice({
                 state.tableChartConfig.columns[reference].label = label;
             }
         },
-        updateChartAxisLabel: (
-            state,
-            action: PayloadAction<{ reference: string; label: string }>,
-        ) => {
-            if (!state.barChartConfig) {
-                return;
-            }
-            const { reference, label } = action.payload;
-            if (state.barChartConfig.axes.x.reference === reference) {
-                state.barChartConfig.axes.x.label = label;
-            } else {
-                const index = state.barChartConfig.axes.y.findIndex(
-                    (axis) => axis.reference === reference,
-                );
-                state.barChartConfig.axes.y[index].label = label;
-            }
-        },
-        updateChartSeriesLabel: (
-            state,
-            action: PayloadAction<{ index: number; name: string }>,
-        ) => {
-            if (!state.barChartConfig) return;
-            const { index, name } = action.payload;
-            state.barChartConfig.series[index].name = name;
-        },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
         },
@@ -204,6 +179,9 @@ export const sqlRunnerSlice = createSlice({
             state.modals[action.payload].isOpen =
                 !state.modals[action.payload].isOpen;
         },
+        setBarChartConfig: (state, action: PayloadAction<BarChartConfig>) => {
+            state.barChartConfig = action.payload;
+        },
     },
 });
 
@@ -215,8 +193,7 @@ export const {
     setActiveVisTab,
     setSaveChartData,
     updateTableChartFieldConfigLabel,
-    updateChartAxisLabel,
-    updateChartSeriesLabel,
     setSelectedChartType,
     toggleModal,
+    setBarChartConfig,
 } = sqlRunnerSlice.actions;
