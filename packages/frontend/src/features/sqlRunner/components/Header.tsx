@@ -3,6 +3,7 @@ import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -13,9 +14,10 @@ import ShareSqlLinkButton from './ShareSqlLinkButton';
 export const Header: FC = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const savedChartUuid = useAppSelector(
-        (state) => state.sqlRunner.savedChartUuid,
+    const savedSqlUuid = useAppSelector(
+        (state) => state.sqlRunner.savedSqlUuid,
     );
+    const space = useAppSelector((state) => state.sqlRunner.space);
     const name = useAppSelector((state) => state.sqlRunner.name);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
@@ -25,7 +27,7 @@ export const Header: FC = () => {
     );
     const { mutate } = useUpdateSqlChartMutation(
         projectUuid,
-        savedChartUuid || '',
+        savedSqlUuid || '',
     );
 
     const isSaveModalOpen = useAppSelector(
@@ -39,15 +41,24 @@ export const Header: FC = () => {
         <>
             <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
                 <Group position="apart">
-                    <EditableText
-                        size="lg"
-                        placeholder={DEFAULT_NAME}
-                        value={name}
-                        w={400}
-                        onChange={(e) =>
-                            dispatch(updateName(e.currentTarget.value))
-                        }
-                    />
+                    <Group spacing="two">
+                        {space && (
+                            <TitleBreadCrumbs
+                                projectUuid={projectUuid}
+                                spaceUuid={space.uuid}
+                                spaceName={space.name}
+                            />
+                        )}
+                        <EditableText
+                            size="md"
+                            w={400}
+                            placeholder={DEFAULT_NAME}
+                            value={name}
+                            onChange={(e) =>
+                                dispatch(updateName(e.currentTarget.value))
+                            }
+                        />
+                    </Group>
                     <Group spacing="md">
                         <Tooltip
                             variant="xs"
@@ -58,7 +69,7 @@ export const Header: FC = () => {
                                 <MantineIcon
                                     icon={IconDeviceFloppy}
                                     onClick={() => {
-                                        if (savedChartUuid) {
+                                        if (savedSqlUuid) {
                                             if (config && sql) {
                                                 mutate({
                                                     versionedData: {
