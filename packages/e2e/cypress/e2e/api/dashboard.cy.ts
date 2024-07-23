@@ -1,7 +1,6 @@
 import {
     CreateChartInDashboard,
     CreateDashboard,
-    CreateSavedChart,
     Dashboard,
     DashboardChartTile,
     DashboardTileTypes,
@@ -10,38 +9,10 @@ import {
     UpdateDashboard,
 } from '@lightdash/common';
 import { isDashboardVersionedFields } from '@lightdash/common/src/types/dashboard';
-import {
-    ApiChartSummaryListResponse,
-    ChartType,
-} from '@lightdash/common/src/types/savedCharts';
+import { ApiChartSummaryListResponse } from '@lightdash/common/src/types/savedCharts';
+import { chartMock, dashboardMock } from '../../support/mocks';
 
 const apiUrl = '/api/v1';
-
-export const chartMock: CreateSavedChart = {
-    name: 'chart in dashboard',
-    tableName: 'orders',
-    metricQuery: {
-        exploreName: 'orders',
-        dimensions: ['orders_customer_id'],
-        metrics: [],
-        filters: {},
-        sorts: [],
-        limit: 1,
-        tableCalculations: [],
-    },
-    chartConfig: {
-        type: ChartType.TABLE,
-    },
-    tableConfig: {
-        columnOrder: [],
-    },
-};
-
-const dashboardMock: CreateDashboard = {
-    name: 'Create dashboard via API',
-    tiles: [],
-    tabs: [],
-};
 
 export const createDashboard = (
     projectUuid: string,

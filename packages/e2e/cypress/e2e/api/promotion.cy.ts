@@ -1,33 +1,9 @@
-import {
-    ChartType,
-    CreateSavedChart,
-    DashboardTileTypes,
-    SEED_PROJECT,
-} from '@lightdash/common';
+import { DashboardTileTypes, SEED_PROJECT } from '@lightdash/common';
+import { chartMock } from '../../support/mocks';
 import warehouseConnections from '../../support/warehouses';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
-
-const chartMock: CreateSavedChart = {
-    name: 'chart in dashboard',
-    tableName: 'orders',
-    metricQuery: {
-        exploreName: 'orders',
-        dimensions: ['orders_status'],
-        metrics: ['orders_average_order_size'],
-        filters: {},
-        sorts: [],
-        limit: 1,
-        tableCalculations: [],
-    },
-    chartConfig: {
-        type: ChartType.TABLE,
-    },
-    tableConfig: {
-        columnOrder: [],
-    },
-};
 
 const checkPromotedChart = (promotedChart, upstreamChart) => {
     // Slug, metricQuery and chartConfig are not returend on /charts so we can't compare
