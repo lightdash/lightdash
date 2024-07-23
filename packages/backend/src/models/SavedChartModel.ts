@@ -1168,6 +1168,7 @@ export class SavedChartModel {
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
                 updatedAt: `saved_queries.last_version_updated_at`,
+                slug: `saved_queries.slug`,
             })
             .leftJoin(
                 DashboardsTableName,
