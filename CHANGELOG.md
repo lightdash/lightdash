@@ -1,3 +1,11 @@
+# [0.1184.0](https://github.com/lightdash/lightdash/compare/0.1183.1...0.1184.0) (2024-07-23)
+
+
+### Features
+
+* add SQL editor autocompletion ([#10792](https://github.com/lightdash/lightdash/issues/10792)) ([5bbe851](https://github.com/lightdash/lightdash/commit/5bbe851a7095993010e8918905703e910698bd0b))
+* Save sql chart in space and fix slug for sql charts ([#10780](https://github.com/lightdash/lightdash/issues/10780)) ([382439e](https://github.com/lightdash/lightdash/commit/382439eb3f7ce71e52f002f60ae5d2c3b4b016d2))
+
 ## [0.1183.1](https://github.com/lightdash/lightdash/compare/0.1183.0...0.1183.1) (2024-07-23)
 
 
