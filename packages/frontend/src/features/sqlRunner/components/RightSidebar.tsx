@@ -1,4 +1,4 @@
-import { ChartKind, type BarChartConfig } from '@lightdash/common';
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -13,7 +13,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-    setBarChartConfig,
     setSelectedChartType,
     updateTableChartFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
@@ -28,15 +27,9 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const tableChartConfig = useAppSelector(
         (state) => state.sqlRunner.tableChartConfig,
     );
-    const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
-    );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
-    const onBarChartConfigChange = (config: BarChartConfig) => {
-        dispatch(setBarChartConfig(config));
-    };
 
     return (
         <Stack h="100vh" spacing="xs">
@@ -84,11 +77,8 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     ))}
                 </Stack>
             )}
-            {barChartConfig && selectedChartType === ChartKind.VERTICAL_BAR && (
-                <BarChartConfiguration
-                    value={barChartConfig}
-                    onChange={onBarChartConfigChange}
-                />
+            {selectedChartType === ChartKind.VERTICAL_BAR && (
+                <BarChartConfiguration />
             )}
         </Stack>
     );

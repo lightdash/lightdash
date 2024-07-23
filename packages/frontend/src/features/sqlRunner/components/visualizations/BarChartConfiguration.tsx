@@ -1,74 +1,57 @@
-import { type BarChartConfig } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { type FC } from 'react';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
-
-type BarChartConfigurationProps = {
-    value: BarChartConfig;
-    onChange: (config: BarChartConfig) => void;
-};
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import {
+    setSeriesLabel,
+    setXAxisLabel,
+    setYAxisLabel,
+} from '../../store/sqlRunnerSlice';
 
 const DEBOUNCE_TIME = 500;
 
-const BarChartConfiguration: FC<BarChartConfigurationProps> = ({
-    value,
-    onChange,
-}) => {
+const BarChartConfiguration: FC = ({}) => {
+    const dispatch = useAppDispatch();
+
+    const barChartConfig = useAppSelector(
+        (state) => state.sqlRunner.barChartConfig,
+    );
+
     const onXAxisLabelChange = debounce((label: string) => {
-        onChange({
-            ...value,
-            axes: {
-                ...value.axes,
-                x: {
-                    ...value.axes.x,
-                    label,
-                },
-            },
-        });
+        dispatch(setXAxisLabel(label));
     }, DEBOUNCE_TIME);
     const onYAxisLabelChange = debounce((label: string) => {
-        onChange({
-            ...value,
-            axes: {
-                ...value.axes,
-                y: [
-                    {
-                        ...value.axes.y[0],
-                        label,
-                    },
-                ],
-            },
-        });
+        dispatch(setYAxisLabel(label));
     }, DEBOUNCE_TIME);
     const onSeriesLabelChange = debounce((index: number, label: string) => {
-        onChange({
-            ...value,
-            series: value.series.map((series, i) =>
-                i === index ? { ...series, name: label } : series,
-            ),
-        });
+        dispatch(setSeriesLabel({ index, label }));
     }, DEBOUNCE_TIME);
+
+    if (!barChartConfig) {
+        return null;
+    }
+
     return (
         <Stack spacing="xs">
             <Title order={6} fz="sm" c="gray.6">
                 X axis
             </Title>
             <EditableText
-                defaultValue={value.axes.x.label}
+                defaultValue={barChartConfig.axes.x.label}
                 onChange={(e) => onXAxisLabelChange(e.target.value)}
             />
             <Title order={6} fz="sm" c="gray.6">
                 Y axis
             </Title>
             <EditableText
-                defaultValue={value.axes.y[0]?.label}
+                defaultValue={barChartConfig.axes.y[0]?.label}
                 onChange={(e) => onYAxisLabelChange(e.target.value)}
             />
             <Title order={6} fz="sm" c="gray.6">
                 Series
             </Title>
-            {value.series.map(({ name, reference }, index) => (
+            {barChartConfig.series.map(({ name, reference }, index) => (
                 <EditableText
                     key={reference}
                     defaultValue={name ?? reference}
