@@ -1,14 +1,17 @@
 // FIXES ts2742 issue with configureStore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
 
-import { configureStore } from '@reduxjs/toolkit';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { barChartSlice } from './barChartSlice';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
 
+const rootReducer = combineReducers({
+    sqlRunner: sqlRunnerSlice.reducer,
+    barChartSlice: barChartSlice.reducer,
+});
+
 export const store = configureStore({
-    reducer: {
-        sqlRunner: sqlRunnerSlice.reducer,
-    },
+    reducer: rootReducer,
     devTools: process.env.NODE_ENV === 'development',
 });
 

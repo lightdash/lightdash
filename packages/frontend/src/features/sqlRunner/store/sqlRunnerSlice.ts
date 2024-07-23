@@ -179,25 +179,6 @@ export const sqlRunnerSlice = createSlice({
             state.modals[action.payload].isOpen =
                 !state.modals[action.payload].isOpen;
         },
-        setXAxisLabel: (state, action: PayloadAction<string>) => {
-            if (state.barChartConfig) {
-                state.barChartConfig.axes.x.label = action.payload;
-            }
-        },
-        setYAxisLabel: (state, action: PayloadAction<string>) => {
-            if (state.barChartConfig) {
-                state.barChartConfig.axes.y[0].label = action.payload;
-            }
-        },
-        setSeriesLabel: (
-            state,
-            action: PayloadAction<{ index: number; label: string }>,
-        ) => {
-            if (state.barChartConfig) {
-                state.barChartConfig.series[action.payload.index].name =
-                    action.payload.label;
-            }
-        },
     },
 });
 
@@ -211,7 +192,4 @@ export const {
     updateTableChartFieldConfigLabel,
     setSelectedChartType,
     toggleModal,
-    setXAxisLabel,
-    setYAxisLabel,
-    setSeriesLabel,
 } = sqlRunnerSlice.actions;
