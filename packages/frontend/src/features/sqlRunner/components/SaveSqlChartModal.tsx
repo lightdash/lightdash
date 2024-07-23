@@ -50,7 +50,10 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         if (!form.values.description && description) {
             form.setFieldValue('description', description);
         }
-    }, [name, form, description]);
+        if (!form.values.spaceUuid && spaces.length > 0) {
+            form.setFieldValue('spaceUuid', spaces[0].uuid);
+        }
+    }, [name, form, description, spaces]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
