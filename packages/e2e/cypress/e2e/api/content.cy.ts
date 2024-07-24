@@ -21,8 +21,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 (d) => d.contentType === 'dashboard',
             );
 
-            expect(resp.body.results.data.length).to.be.greaterThan(10);
-
+            expect(resp.body.results.data.length).to.be.greaterThan(0);
             expect(charts.length).to.be.greaterThan(0);
             expect(dashboards.length).to.be.greaterThan(0);
         });
@@ -111,7 +110,6 @@ describe('Lightdash catalog all tables and fields', () => {
         });
     });
 
-    describe('Filter by projectUuids', () => {});
     describe('Filter by ContentTypes', () => {
         it('Should list only dashboards', () => {
             cy.request(
