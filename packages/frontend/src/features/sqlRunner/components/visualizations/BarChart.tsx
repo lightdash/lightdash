@@ -6,7 +6,7 @@ import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTr
 
 type BarChartProps = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
-    config: BarChartConfig | undefined;
+    config?: BarChartConfig;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const BarChart: FC<BarChartProps> = ({ data, config, style }) => {

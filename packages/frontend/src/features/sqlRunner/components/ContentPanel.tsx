@@ -78,13 +78,14 @@ export const ContentPanel: FC<Props> = ({
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
-    const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
-    );
 
     // configurable table
     const tableVisConfig = useAppSelector(
         (state) => state.sqlRunner.tableChartConfig,
+    );
+
+    const barChartConfig = useAppSelector(
+        (state) => state.barChartConfig.config,
     );
 
     const {
