@@ -1,9 +1,13 @@
 import { type Dashboard } from './dashboard';
+import { type DimensionType } from './field';
 import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
 import { ChartKind } from './savedCharts';
-import { type ApiJobScheduledResponse } from './scheduler';
+import {
+    type ApiJobScheduledResponse,
+    type SchedulerJobStatus,
+} from './scheduler';
 import { type Space } from './space';
 import { type LightdashUser } from './user';
 
@@ -21,6 +25,17 @@ export type SqlRunnerBody = {
 export type SqlRunnerResults = ResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
+
+export type ApiSqlRunnerJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: SchedulerJobStatus;
+        details: {
+            fileUrl: string;
+            columns: SQLColumn[];
+        };
+    };
+};
 
 export type SqlTableConfig = {
     columns: {
@@ -157,4 +172,9 @@ export type ApiSqlChartWithResults = {
         jobId: ApiJobScheduledResponse['results']['jobId'];
         chart: SqlChart;
     };
+};
+
+export type SQLColumn = {
+    reference: string;
+    type: DimensionType;
 };
