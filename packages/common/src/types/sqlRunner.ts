@@ -3,6 +3,7 @@ import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
 import { ChartKind } from './savedCharts';
+import { type ApiJobScheduledResponse } from './scheduler';
 import { type Space } from './space';
 import { type LightdashUser } from './user';
 
@@ -22,16 +23,15 @@ export type SqlRunnerResults = ResultRow[];
 export const sqlRunnerJob = 'sqlRunner';
 
 export type SqlTableConfig = {
-    columns: Record<
-        string,
-        {
+    columns: {
+        [key: string]: {
             visible: boolean;
             reference: string;
             label: string;
             frozen: boolean;
             order?: number;
-        }
-    >;
+        };
+    };
 };
 
 export type TableChartSqlConfig = SqlTableConfig & {
@@ -46,7 +46,7 @@ export type BarChartConfig = {
         version: number;
     };
     type: ChartKind.VERTICAL_BAR;
-    style: {
+    style?: {
         legend:
             | {
                   position: 'top' | 'bottom' | 'left' | 'right';
@@ -54,7 +54,7 @@ export type BarChartConfig = {
               }
             | undefined;
     };
-    axes: {
+    axes?: {
         x: {
             reference: string;
             label?: string;
@@ -65,7 +65,7 @@ export type BarChartConfig = {
             label: string;
         }[];
     };
-    series: {
+    series?: {
         reference: string;
         yIndex: number;
         name: string;
@@ -148,5 +148,13 @@ export type ApiUpdateSqlChart = {
     results: {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
+    };
+};
+
+export type ApiSqlChartWithResults = {
+    status: 'ok';
+    results: {
+        jobId: ApiJobScheduledResponse['results']['jobId'];
+        chart: SqlChart;
     };
 };

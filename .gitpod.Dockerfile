@@ -40,7 +40,6 @@ ENV PGUSER="gitpod"
 ENV PGDATABASE="postgres"
 ENV PGPASSWORD=""
 ENV PGPORT=5432
-ENV LIGHTDASH_CONFIG_FILE=/workspace/lightdash/lightdash.yml
 ENV SCHEDULER_ENABLED=true
 ENV SITE_URL=http://localhost:3000
 ENV LIGHTDASH_SECRET="not very secret"

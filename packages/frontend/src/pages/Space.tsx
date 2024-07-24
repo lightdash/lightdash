@@ -1,8 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    contentToResourceViewItems,
     LightdashMode,
     ResourceViewItemType,
-    wrapResourceView,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Stack } from '@mantine/core';
 import {
@@ -13,7 +14,7 @@ import {
     IconPlus,
     IconSquarePlus,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
@@ -35,9 +36,8 @@ import AddResourceToSpaceModal, {
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import ForbiddenPanel from '../components/ForbiddenPanel';
-import { useDashboards } from '../hooks/dashboard/useDashboards';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
-import { useChartSummaries } from '../hooks/useChartSummaries';
+import { useContent } from '../hooks/useContent';
 import { useSpace } from '../hooks/useSpaces';
 import { useApp } from '../providers/AppProvider';
 
@@ -51,10 +51,33 @@ const Space: FC = () => {
         isInitialLoading,
         error,
     } = useSpace(projectUuid, spaceUuid);
-    const { data: dashboards = [], isInitialLoading: dashboardsLoading } =
-        useDashboards(projectUuid);
-    const { data: savedCharts = [], isInitialLoading: chartsLoading } =
-        useChartSummaries(projectUuid);
+
+    const { data: allItems, isLoading: isContentLoading } = useContent(
+        {
+            projectUuid,
+            spaceUuids: [spaceUuid],
+            pageSize: Number.MAX_SAFE_INTEGER,
+        },
+        {
+            select: (d): ResourceViewItem[] =>
+                contentToResourceViewItems(d.data),
+        },
+    );
+
+    const [dashboards, charts] = useMemo(() => {
+        if (allItems) {
+            return [
+                allItems.filter(
+                    (item) => item.type === ResourceViewItemType.DASHBOARD,
+                ),
+                allItems.filter(
+                    (item) => item.type === ResourceViewItemType.CHART,
+                ),
+            ];
+        }
+
+        return [[], []];
+    }, [allItems]);
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { user, health } = useApp();
 
@@ -74,7 +97,7 @@ const Space: FC = () => {
         [pinSpace],
     );
 
-    if (isInitialLoading || chartsLoading || dashboardsLoading) {
+    if (isInitialLoading || isContentLoading) {
         return <LoadingState title="Loading space" />;
     }
 
@@ -106,13 +129,6 @@ const Space: FC = () => {
         'create',
         subject('SavedChart', { ...space }),
     );
-
-    const dashboardsInSpace = space!.dashboards;
-    const chartsInSpace = space!.queries;
-    const allItems = [
-        ...wrapResourceView(dashboardsInSpace, ResourceViewItemType.DASHBOARD),
-        ...wrapResourceView(chartsInSpace, ResourceViewItemType.CHART),
-    ];
 
     return (
         <Page title={space?.name} withFixedContent withPaddedContent>
@@ -210,7 +226,7 @@ const Space: FC = () => {
                                                     Add chart
                                                 </Menu.Label>
 
-                                                {savedCharts.length > 0 ? (
+                                                {charts.length > 0 ? (
                                                     <Menu.Item
                                                         icon={
                                                             <MantineIcon
@@ -306,7 +322,7 @@ const Space: FC = () => {
                     </Group>
                 </Group>
                 <ResourceView
-                    items={allItems}
+                    items={allItems || []}
                     listProps={{
                         defaultColumnVisibility: { space: false },
                     }}

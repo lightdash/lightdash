@@ -115,6 +115,10 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import {
+    type ApiChartContentResponse,
+    type ApiContentResponse,
+} from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiCreateSqlChart,
@@ -152,6 +156,7 @@ export * from './types/catalog';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
+export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
@@ -656,7 +661,9 @@ type ApiResults =
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
     | ApiCreateSqlChart['results']
-    | ApiUpdateSqlChart['results'];
+    | ApiUpdateSqlChart['results']
+    | ApiContentResponse['results']
+    | ApiChartContentResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

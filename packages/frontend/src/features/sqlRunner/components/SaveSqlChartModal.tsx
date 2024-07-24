@@ -1,40 +1,59 @@
 import { ChartKind } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Modal,
+    Stack,
+    Text,
+    Textarea,
+    TextInput,
+    type ModalProps,
+} from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect } from 'react';
-import { z } from 'zod';
+import { useCallback, useEffect, type FC } from 'react';
+import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import {
+    SaveToSpace,
+    validationSchema,
+} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import {
+    useCreateMutation as useSpaceCreateMutation,
+    useSpaceSummaries,
+} from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleModal } from '../store/sqlRunnerSlice';
-
-const validationSchema = z.object({
-    name: z.string().min(1),
-});
+import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
 
-export const SaveSqlChartModal = () => {
+type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+
+export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
+    const name = useAppSelector((state) => state.sqlRunner.name);
+    const description = useAppSelector((state) => state.sqlRunner.description);
+    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+
     const form = useForm<FormValues>({
-        initialValues: {
-            name: '',
-        },
         validate: zodResolver(validationSchema),
     });
 
-    const isOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.saveChartModal.isOpen,
-    );
-    const onClose = useCallback(
-        () => dispatch(toggleModal('saveChartModal')),
-        [dispatch],
-    );
+    useEffect(() => {
+        if (!form.values.name && name) {
+            form.setFieldValue('name', name);
+        }
+        if (!form.values.description && description) {
+            form.setFieldValue('description', description);
+        }
+        if (!form.values.spaceUuid && spaces.length > 0) {
+            form.setFieldValue('spaceUuid', spaces[0].uuid);
+        }
+    }, [name, form, description, spaces]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
@@ -56,22 +75,48 @@ export const SaveSqlChartModal = () => {
     }, [isSavedSqlChartCreated, onClose]);
 
     const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0 || !config || !sql) {
+        if (spaces.length === 0) {
             return;
         }
+        let newSpace = form.values.newSpaceName
+            ? await createSpace({
+                  name: form.values.newSpaceName,
+                  access: [],
+                  isPrivate: true,
+              })
+            : undefined;
+        const spaceUuid =
+            newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
         await createSavedSqlChart({
             name: form.values.name,
-            description: 'A test saved chart',
+            description: form.values.description || '',
             sql: sql,
-            config: config,
-            // TODO: add space selection
-            spaceUuid: spaces[0].uuid,
+            // TODO: should initial version get generated on the BE?
+            config: config || {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+            },
+            spaceUuid: spaceUuid,
         });
-    }, [config, createSavedSqlChart, form.values.name, spaces, sql]);
+        dispatch(updateName(form.values.name));
+        onClose();
+    }, [
+        config,
+        createSavedSqlChart,
+        dispatch,
+        form.values.description,
+        form.values.name,
+        form.values.spaceUuid,
+        form.values.newSpaceName,
+        onClose,
+        spaces,
+        sql,
+        createSpace,
+    ]);
 
     return (
         <Modal
-            opened={isOpen}
+            opened={opened}
             onClose={onClose}
             keepMounted={false}
             title={
@@ -94,7 +139,16 @@ export const SaveSqlChartModal = () => {
                             required
                             {...form.getInputProps('name')}
                         />
+                        <Textarea
+                            label="Description"
+                            {...form.getInputProps('description')}
+                        />
                     </Stack>
+                    <SaveToSpace
+                        form={form}
+                        spaces={spaces}
+                        projectUuid={projectUuid}
+                    />
                 </Stack>
 
                 <Group

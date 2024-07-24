@@ -2,7 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
-describe('Custom dimensions', () => {
+describe('Space', () => {
     beforeEach(() => {
         cy.login();
     });
