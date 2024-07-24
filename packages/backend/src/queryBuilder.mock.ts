@@ -1403,18 +1403,18 @@ export const COMPILED_MONTH_NAME_DIMENSION: CompiledDimension = {
 
 export const MONTH_NAME_SORT_SQL = `(
     CASE
-        WHEN "table1".dim1 = 'January' THEN 1
-        WHEN "table1".dim1 = 'February' THEN 2
-        WHEN "table1".dim1 = 'March' THEN 3
-        WHEN "table1".dim1 = 'April' THEN 4
-        WHEN "table1".dim1 = 'May' THEN 5
-        WHEN "table1".dim1 = 'June' THEN 6
-        WHEN "table1".dim1 = 'July' THEN 7
-        WHEN "table1".dim1 = 'August' THEN 8
-        WHEN "table1".dim1 = 'September' THEN 9
-        WHEN "table1".dim1 = 'October' THEN 10
-        WHEN "table1".dim1 = 'November' THEN 11
-        WHEN "table1".dim1 = 'December' THEN 12
+        WHEN "table1_dim1" = 'January' THEN 1
+        WHEN "table1_dim1" = 'February' THEN 2
+        WHEN "table1_dim1" = 'March' THEN 3
+        WHEN "table1_dim1" = 'April' THEN 4
+        WHEN "table1_dim1" = 'May' THEN 5
+        WHEN "table1_dim1" = 'June' THEN 6
+        WHEN "table1_dim1" = 'July' THEN 7
+        WHEN "table1_dim1" = 'August' THEN 8
+        WHEN "table1_dim1" = 'September' THEN 9
+        WHEN "table1_dim1" = 'October' THEN 10
+        WHEN "table1_dim1" = 'November' THEN 11
+        WHEN "table1_dim1" = 'December' THEN 12
         ELSE 0
     END
     )`;
