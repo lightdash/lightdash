@@ -1095,6 +1095,7 @@ export class ProjectService extends BaseService {
             csvLimit,
             context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
             queryTags,
+            chartUuid: undefined,
         });
     }
 
@@ -1175,6 +1176,7 @@ export class ProjectService extends BaseService {
                 queryTags,
                 invalidateCache,
                 explore,
+                chartUuid,
             });
 
         return {
@@ -1303,6 +1305,7 @@ export class ProjectService extends BaseService {
                 invalidateCache,
                 explore,
                 granularity,
+                chartUuid,
             });
 
         const metricQueryDimensions = [
@@ -1392,6 +1395,7 @@ export class ProjectService extends BaseService {
             context: QueryExecutionContext.EXPLORE,
             queryTags,
             granularity: dateZoomGranularity,
+            chartUuid: undefined,
         });
     }
 
@@ -1406,6 +1410,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: validExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1417,6 +1422,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1438,6 +1444,7 @@ export class ProjectService extends BaseService {
                         invalidateCache,
                         explore,
                         granularity,
+                        chartUuid,
                     });
                 span.setAttribute('rows', rows.length);
 
@@ -1507,6 +1514,7 @@ export class ProjectService extends BaseService {
                     exploreName: exploreId,
                     csvLimit: undefined,
                     context,
+                    chartUuid,
                 });
             },
         );
@@ -1645,6 +1653,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: loadedExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1656,6 +1665,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined; // for analytics
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1834,6 +1844,7 @@ export class ProjectService extends BaseService {
                             ...(queryTags?.dashboard_uuid
                                 ? { dashboardId: queryTags.dashboard_uuid }
                                 : {}),
+                            chartId: chartUuid,
                         },
                     });
                     this.logger.debug(

@@ -192,6 +192,7 @@ type QueryExecutionEvent = BaseTrack & {
         numCustomSqlDimensions: number;
         dateZoomGranularity: string | null;
         timezone?: string;
+        chartId?: string;
     };
 };
 

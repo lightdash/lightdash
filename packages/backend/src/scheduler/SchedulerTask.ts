@@ -953,6 +953,7 @@ export default class SchedulerTask {
                 exploreName: payload.exploreId,
                 csvLimit: undefined,
                 context: QueryExecutionContext.GSHEETS,
+                chartUuid: undefined,
             });
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
