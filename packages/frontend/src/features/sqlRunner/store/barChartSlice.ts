@@ -7,7 +7,7 @@ const initialState: { config: BarChartConfig | undefined } = {
     config: undefined,
 };
 
-export const barChartSlice = createSlice({
+export const barChartConfigSlice = createSlice({
     name: 'barChartConfig',
     initialState,
     reducers: {
@@ -74,4 +74,4 @@ export const barChartSlice = createSlice({
 });
 
 export const { setXAxisLabel, setYAxisLabel, setSeriesLabel } =
-    barChartSlice.actions;
+    barChartConfigSlice.actions;
