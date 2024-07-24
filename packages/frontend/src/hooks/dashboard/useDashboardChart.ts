@@ -9,7 +9,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const chartSort = useDashboardContext((c) => c.chartSort);
     const tileSort = chartSort[tileUuid] || [];
     const granularity = useDashboardContext((c) => c.dateZoomGranularity);
-
+    const isAutoRefresh = useDashboardContext((c) => c.isAutoRefresh);
     return useChartAndResults(
         savedChartUuid,
         dashboardUuid ?? null,
@@ -17,6 +17,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
         tileSort,
         invalidateCache,
         granularity,
+        isAutoRefresh,
     );
 };
 

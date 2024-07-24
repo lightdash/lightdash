@@ -52,6 +52,7 @@ const getChartAndResults = async ({
     invalidateCache,
     dashboardSorts,
     granularity,
+    autoRefresh,
 }: {
     chartUuid?: string;
     dashboardUuid: string;
@@ -59,8 +60,9 @@ const getChartAndResults = async ({
     invalidateCache?: boolean;
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
-}) =>
-    lightdashApi<ApiChartAndResults>({
+    autoRefresh?: boolean;
+}) => {
+    return lightdashApi<ApiChartAndResults>({
         url: `/saved/${chartUuid}/chart-and-results`,
         method: 'POST',
         body: JSON.stringify({
@@ -69,9 +71,10 @@ const getChartAndResults = async ({
             dashboardSorts,
             granularity,
             ...(invalidateCache && { invalidateCache: true }),
+            autoRefresh,
         }),
     });
-
+};
 const getQueryResults = async ({
     projectUuid,
     tableId,
@@ -211,6 +214,7 @@ export const useChartAndResults = (
     dashboardSorts: SortField[],
     invalidateCache?: boolean,
     granularity?: DateGranularity,
+    autoRefresh?: boolean,
 ) => {
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
@@ -229,8 +233,16 @@ export const useChartAndResults = (
             dashboardFilters,
             invalidateCache,
             sortKey,
+            autoRefresh,
         ],
-        [chartUuid, dashboardUuid, dashboardFilters, invalidateCache, sortKey],
+        [
+            chartUuid,
+            dashboardUuid,
+            dashboardFilters,
+            invalidateCache,
+            sortKey,
+            autoRefresh,
+        ],
     );
     const apiChartAndResults =
         queryClient.getQueryData<ApiChartAndResults>(queryKey);
@@ -249,6 +261,7 @@ export const useChartAndResults = (
                 invalidateCache,
                 dashboardSorts,
                 granularity,
+                autoRefresh,
             }),
         [
             chartUuid,
@@ -257,6 +270,7 @@ export const useChartAndResults = (
             invalidateCache,
             dashboardSorts,
             granularity,
+            autoRefresh,
         ],
     );
 

@@ -154,11 +154,16 @@ type UserJoinOrganizationEvent = BaseTrack & {
 
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
+    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
     EXPLORE = 'exploreView',
     CHART = 'chartView',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
+    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
+    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
+    SCHEDULED_CHART = 'scheduledChart',
+    SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',
 }
 

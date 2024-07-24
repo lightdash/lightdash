@@ -1193,6 +1193,7 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         granularity,
         dashboardUuid,
+        autoRefresh,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -1201,6 +1202,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
         granularity?: DateGranularity;
+        autoRefresh?: boolean;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1294,7 +1296,9 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
-                context: QueryExecutionContext.DASHBOARD,
+                context: autoRefresh
+                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                    : QueryExecutionContext.DASHBOARD,
                 queryTags,
                 invalidateCache,
                 explore,
@@ -1483,6 +1487,7 @@ export class ProjectService extends BaseService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
+        context: QueryExecutionContext,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1501,7 +1506,7 @@ export class ProjectService extends BaseService {
                     projectUuid: chart.projectUuid,
                     exploreName: exploreId,
                     csvLimit: undefined,
-                    context: QueryExecutionContext.GSHEETS,
+                    context,
                 });
             },
         );

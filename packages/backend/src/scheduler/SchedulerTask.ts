@@ -1348,6 +1348,7 @@ export default class SchedulerTask {
                 const { rows } = await this.projectService.getResultsForChart(
                     user,
                     savedChartUuid,
+                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -1465,6 +1466,7 @@ export default class SchedulerTask {
                             await this.projectService.getResultsForChart(
                                 user,
                                 chartUuid,
+                                QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                             );
                         const explore = await this.projectService.getExplore(
                             user,
@@ -1690,6 +1692,7 @@ export default class SchedulerTask {
                         await this.projectService.getResultsForChart(
                             user,
                             savedChartUuid,
+                            QueryExecutionContext.SCHEDULED_CHART,
                         );
 
                     if (
