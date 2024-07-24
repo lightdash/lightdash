@@ -93,8 +93,8 @@ export const ContentPanel: FC<Props> = ({
         isLoading,
     } = useSqlQueryRun({
         onSuccess: (data) => {
-            if (data?.results) {
-                dispatch(setInitialResultsAndSeries(data.results));
+            if (data) {
+                dispatch(setInitialResultsAndSeries(data));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }

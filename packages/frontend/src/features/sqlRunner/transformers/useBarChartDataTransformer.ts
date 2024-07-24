@@ -1,9 +1,6 @@
-import {
-    BarChartDataTransformer,
-    type BarChartConfig,
-    type ResultRow,
-} from '@lightdash/common';
+import { type BarChartConfig, type ResultRow } from '@lightdash/common';
 import { useMemo } from 'react';
+import { BarChartDataTransformer } from './BarChartDataTransformer';
 
 export const useBarChartDataTransformer = (
     data: ResultRow[],

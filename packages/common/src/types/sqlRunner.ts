@@ -24,6 +24,18 @@ export type SqlRunnerBody = {
 
 export type SqlRunnerResults = ResultRow[];
 
+export enum AggregationOptions {
+    PERCENTILE = 'percentile',
+    AVERAGE = 'average',
+    COUNT = 'count',
+    COUNT_DISTINCT = 'count_distinct',
+    SUM = 'sum',
+    MIN = 'min',
+    MAX = 'max',
+    NUMBER = 'number',
+    MEDIAN = 'median',
+}
+
 export const sqlRunnerJob = 'sqlRunner';
 
 export type ApiSqlRunnerJobStatusResponse = {
@@ -65,7 +77,7 @@ export type Axes = {
         reference: string;
         position?: 'left' | 'right';
         label: string;
-        aggregation?: string;
+        aggregation?: AggregationOptions;
     }[];
 };
 

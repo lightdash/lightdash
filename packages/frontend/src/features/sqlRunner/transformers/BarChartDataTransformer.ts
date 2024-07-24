@@ -1,6 +1,8 @@
-import { type ResultRow } from '../types/results';
-import { type BarChartConfig } from '../types/sqlRunner';
-import { SqlRunnerResultsTransformer } from './ResultTransformers';
+import {
+    SqlRunnerResultsTransformer,
+    type BarChartConfig,
+    type ResultRow,
+} from '@lightdash/common';
 
 // TODO: Should this just be ChartDataTransformer?
 export class BarChartDataTransformer {

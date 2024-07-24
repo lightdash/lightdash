@@ -1,14 +1,21 @@
 import {
     ChartKind,
+    friendlyName,
     type BarChartConfig,
-    type ResultRow,
     type SqlChart,
+    type SqlColumn,
     type SqlTableConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
-
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import {
+    getXLayoutOptions,
+    getYLayoutOptions,
+    type XLayoutOptions,
+    type YLayoutOptions,
+} from '../config';
+import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
 export enum VisTabs {
     CHART = 'chart',
@@ -46,6 +53,16 @@ export interface SqlRunnerState {
     };
 
     quoteChar: string;
+
+    // TESTING
+    barChartConfigOptions:
+        | {
+              xAxisOptions: XLayoutOptions[];
+              yAxisOptions: YLayoutOptions[];
+          }
+        | undefined;
+
+    sqlColumns: SqlColumn[] | undefined;
 }
 
 const initialState: SqlRunnerState = {
@@ -67,6 +84,10 @@ const initialState: SqlRunnerState = {
         },
     },
     quoteChar: '"',
+
+    // TESTING
+    barChartConfigOptions: undefined,
+    sqlColumns: undefined,
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -81,10 +102,11 @@ export const sqlRunnerSlice = createSlice({
         },
         setInitialResultsAndSeries: (
             state,
-            action: PayloadAction<ResultRow[]>,
+            action: PayloadAction<ResultsAndColumns>,
         ) => {
+            if (!action.payload.results) return;
             // Set the initial results table config
-            const columns = Object.keys(action.payload[0]).reduce<
+            const columns = Object.keys(action.payload.results[0]).reduce<
                 TableChartSqlConfig['columns']
             >(
                 (acc, key) => ({
@@ -104,6 +126,14 @@ export const sqlRunnerSlice = createSlice({
                 columns,
             };
 
+            if (action.payload.columns) {
+                state.barChartConfigOptions = {
+                    xAxisOptions: getXLayoutOptions(action.payload.columns),
+                    yAxisOptions: getYLayoutOptions(action.payload.columns),
+                };
+                state.sqlColumns = action.payload.columns;
+            }
+
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
             if (state.tableChartConfig === undefined) {
@@ -120,13 +150,15 @@ export const sqlRunnerSlice = createSlice({
             // TODO: this initialization should be put somewhere it
             // can be shared between the frontend and backend
             if (state.barChartConfig === undefined) {
-                const fieldIds = Object.keys(action.payload[0]);
+                const fieldIds = Object.keys(action.payload.results[0]);
+                // TODO: move this to the barChartBizLogic / config
                 state.barChartConfig = {
                     metadata: {
                         version: 1,
                     },
                     type: ChartKind.VERTICAL_BAR,
                     style: {
+                        // TODO: move this to the barChartBizLogic / config
                         legend: {
                             position: 'top',
                             align: 'center',
@@ -134,13 +166,18 @@ export const sqlRunnerSlice = createSlice({
                     },
                     axes: {
                         x: {
+                            // TODO: move this to the barChartBizLogic / config
                             reference: fieldIds[0],
-                            label: fieldIds[0],
+                            // TODO: should we apply a default label?
+                            label: friendlyName(fieldIds[0]),
                         },
                         y: [
+                            // TODO: move this to the barChartBizLogic / config
                             {
                                 reference: fieldIds[1],
-                                label: fieldIds[1],
+                                // TODO: should we apply a default label?
+                                label: friendlyName(fieldIds[1]),
+                                aggregation: undefined,
                             },
                         ],
                     },
