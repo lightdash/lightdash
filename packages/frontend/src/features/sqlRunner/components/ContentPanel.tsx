@@ -102,8 +102,6 @@ export const ContentPanel: FC<Props> = ({
         },
     });
 
-    console.log(queryResults);
-
     // Run query on cmd + enter
     useHotkeys([
         [
