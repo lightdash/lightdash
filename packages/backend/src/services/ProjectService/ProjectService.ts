@@ -84,7 +84,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
-    SQLColumn,
+    SqlColumn,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -1999,7 +1999,7 @@ export class ProjectService extends BaseService {
         sql: string,
     ): Promise<{
         fileUrl: string;
-        columns: SQLColumn[];
+        columns: SqlColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2027,7 +2027,7 @@ export class ProjectService extends BaseService {
             ? this.streamResultsToCloudStorage.bind(this)
             : this.streamResultsToLocalFile.bind(this);
 
-        const columns: SQLColumn[] = [];
+        const columns: SqlColumn[] = [];
 
         const fileUrl = await streamFunction(projectUuid, async (writer) => {
             await warehouseClient.streamQuery(

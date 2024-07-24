@@ -38,7 +38,7 @@ import {
     SchedulerLog,
     SessionUser,
     SlackNotificationPayload,
-    SQLColumn,
+    SqlColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
     ThresholdOperator,
@@ -887,7 +887,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | SQLColumn[]>(
+        await this.logWrapper<string | SqlColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,
