@@ -25,6 +25,7 @@ import {
     getItemId,
     getMetrics,
     getSqlForTruncatedDate,
+    IntrinsicProjectAttributes,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -173,6 +174,7 @@ const replaceAttributes = (
 
 export const replaceUserAttributes = (
     sqlFilter: string,
+    intrinsicProjectAttributes: IntrinsicProjectAttributes,
     intrinsicUserAttributes: IntrinsicUserAttributes,
     userAttributes: UserAttributeValueMap,
     stringQuoteChar: string = "'",
@@ -182,9 +184,13 @@ export const replaceUserAttributes = (
         /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
     const intrinsicUserAttributeRegex =
         /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
+    const intrinsicProjectAttributeRegex =
+        /\$\{(?:lightdash|ld)\.(?:project)\.(\w+)\}/g;
 
     // Replace user attributes in the SQL filter
-    const replacedSqlFilter = replaceAttributes(
+    let replacedSqlFilter = sqlFilter;
+
+    replacedSqlFilter = replaceAttributes(
         userAttributeRegex,
         sqlFilter,
         userAttributes,
@@ -193,13 +199,24 @@ export const replaceUserAttributes = (
     );
 
     // Replace intrinsic user attributes in the SQL filter
-    return replaceAttributes(
+    replacedSqlFilter = replaceAttributes(
         intrinsicUserAttributeRegex,
         replacedSqlFilter,
         intrinsicUserAttributes,
         stringQuoteChar,
         filter,
     );
+
+    // Replace intrinsic project attributes in the SQL filter
+    replacedSqlFilter = replaceAttributes(
+        intrinsicProjectAttributeRegex,
+        replacedSqlFilter,
+        intrinsicProjectAttributes,
+        stringQuoteChar,
+        filter,
+    );
+
+    return replacedSqlFilter;
 };
 
 export const assertValidDimensionRequiredAttribute = (
@@ -651,6 +668,7 @@ export type BuildQueryProps = {
     explore: Explore;
     compiledMetricQuery: CompiledMetricQuery;
     warehouseClient: WarehouseClient;
+    intrinsicProjectAttributes: IntrinsicProjectAttributes;
     userAttributes?: UserAttributeValueMap;
     intrinsicUserAttributes: IntrinsicUserAttributes;
     timezone: string;
@@ -660,6 +678,7 @@ export const buildQuery = ({
     explore,
     compiledMetricQuery,
     warehouseClient,
+    intrinsicProjectAttributes,
     intrinsicUserAttributes,
     userAttributes = {},
     timezone,
@@ -842,6 +861,7 @@ export const buildQuery = ({
             const alias = join.table;
             const parsedSqlOn = replaceUserAttributes(
                 join.compiledSqlOn,
+                intrinsicProjectAttributes,
                 intrinsicUserAttributes,
                 userAttributes,
                 stringQuoteChar,
@@ -1064,6 +1084,7 @@ export const buildQuery = ({
         ? [
               replaceUserAttributes(
                   baseTableSqlWhere,
+                  intrinsicProjectAttributes,
                   intrinsicUserAttributes,
                   userAttributes,
                   stringQuoteChar,

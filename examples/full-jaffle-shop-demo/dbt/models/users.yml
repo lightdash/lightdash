@@ -1,14 +1,15 @@
 version: 2
 models:
-  - name: users
-    meta: 
-      sql_filter: 'customer_id = ${ld.attr.customer_id}'
-    columns:
-      - name: customer_id
-        description: This is a unique identifier for a customer
-      - name: first_name
-        description: Customer's first name. PII.
-      - name: last_name
-        description: Customer's last name. PII.
-      - name: created
-        description: Timestamp (UTC) when customer was created
+    - name: users
+      meta:
+          sql_filter: ${lightdash.project.name} = 'Jaffle shop'
+
+      columns:
+          - name: customer_id
+            description: This is a unique identifier for a customer
+          - name: first_name
+            description: Customer's first name. PII.
+          - name: last_name
+            description: Customer's last name. PII.
+          - name: created
+            description: Timestamp (UTC) when customer was created

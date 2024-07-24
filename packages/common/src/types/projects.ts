@@ -326,3 +326,13 @@ export type PreviewContentMapping = {
     dashboards: IdContentMapping[];
     dashboardVersions: IdContentMapping[];
 };
+
+export type IntrinsicProjectAttributes = {
+    name: string;
+};
+
+export const getIntrinsicProjectAttributes = (
+    project: Pick<Project, 'name'>,
+): IntrinsicProjectAttributes => ({
+    name: project.name,
+});

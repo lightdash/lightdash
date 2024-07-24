@@ -10,6 +10,7 @@ import {
     Explore,
     FieldType,
     FilterOperator,
+    IntrinsicProjectAttributes,
     IntrinsicUserAttributes,
     MetricType,
     SupportedDbtAdapter,
@@ -1382,6 +1383,10 @@ SELECT * FROM table_calculations WHERE ((
 ))
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
+
+export const INTRINSIC_PROJECT_ATTRIBUTES: IntrinsicProjectAttributes = {
+    name: 'mock_project',
+};
 
 export const INTRINSIC_USER_ATTRIBUTES: IntrinsicUserAttributes = {
     email: 'mock@lightdash.com',

@@ -51,6 +51,7 @@ import {
     getItemId,
     getMetrics,
     hasIntersection,
+    IntrinsicProjectAttributes,
     IntrinsicUserAttributes,
     isCustomSqlDimension,
     isDateItem,
@@ -923,6 +924,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         explore: Explore,
         warehouseClient: WarehouseClient,
+        intrinsicProjectAttributes: IntrinsicProjectAttributes,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         userAttributes: UserAttributeValueMap,
         timezone: string,
@@ -945,6 +947,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             compiledMetricQuery,
             warehouseClient,
+            intrinsicProjectAttributes,
             intrinsicUserAttributes,
             userAttributes,
             timezone,
@@ -1002,10 +1005,17 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
+        const project = await this.projectModel.get(projectUuid);
+
+        const intrinsicProjectAttributes = {
+            name: project.name,
+        };
+
         const compiledQuery = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicProjectAttributes,
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
@@ -1717,10 +1727,17 @@ export class ProjectService extends BaseService {
                         ? getIntrinsicUserAttributes(user)
                         : {};
 
+                    const project = await this.projectModel.get(projectUuid);
+
+                    const intrinsicProjectAttributes = {
+                        name: project.name,
+                    };
+
                     const fullQuery = await ProjectService._compileQuery(
                         metricQueryWithLimit,
                         explore,
                         warehouseClient,
+                        intrinsicProjectAttributes,
                         intrinsicUserAttributes,
                         userAttributes,
                         this.lightdashConfig.query.timezone || 'UTC',
@@ -2175,10 +2192,17 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
+        const project = await this.projectModel.get(projectUuid);
+
+        const intrinsicProjectAttributes = {
+            name: project.name,
+        };
+
         const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
+            intrinsicProjectAttributes,
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
@@ -3653,6 +3677,7 @@ export class ProjectService extends BaseService {
         explore: Explore,
         metricQuery: MetricQuery,
         organizationUuid: string,
+        projectUuid: string,
         warehouseClient: WarehouseClient,
     ) {
         const userAttributes =
@@ -3667,6 +3692,12 @@ export class ProjectService extends BaseService {
         const intrinsicUserAttributes = emailStatus.isVerified
             ? getIntrinsicUserAttributes(user)
             : {};
+
+        const project = await this.projectModel.get(projectUuid);
+
+        const intrinsicProjectAttributes = {
+            name: project.name,
+        };
 
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -3683,6 +3714,7 @@ export class ProjectService extends BaseService {
             totalQuery,
             explore,
             warehouseClient,
+            intrinsicProjectAttributes,
             intrinsicUserAttributes,
             userAttributes,
             this.lightdashConfig.query.timezone || 'UTC',
@@ -3716,6 +3748,7 @@ export class ProjectService extends BaseService {
             explore,
             metricQuery,
             organizationUuid,
+            projectUuid,
             warehouseClient,
         );
 
@@ -3749,6 +3782,7 @@ export class ProjectService extends BaseService {
             explore,
             metricQuery,
             organizationUuid,
+            projectUuid,
             warehouseClient,
         );
 
