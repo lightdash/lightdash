@@ -782,6 +782,7 @@ export class CsvService extends BaseService {
                 exploreName: exploreId,
                 csvLimit,
                 context: QueryExecutionContext.CSV,
+                chartUuid: undefined,
             });
             const numberRows = rows.length;
 
