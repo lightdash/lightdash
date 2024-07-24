@@ -58,7 +58,8 @@ export const ItemDetailPreview: FC<{
      * It's better to err on the side of caution, and show the 'Read more' option even
      * if unnecessarily so.
      */
-    const isTruncated = description.length > 180;
+    const isTruncated =
+        description.length > 180 || description.split('\n').length > 2;
 
     return (
         <Box>
