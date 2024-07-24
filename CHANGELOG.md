@@ -1,3 +1,10 @@
+## [0.1184.1](https://github.com/lightdash/lightdash/compare/0.1184.0...0.1184.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* bigquery month name sort ([#10806](https://github.com/lightdash/lightdash/issues/10806)) ([0f5761b](https://github.com/lightdash/lightdash/commit/0f5761b177fff8ddbb8b2d232e7654c9228e7f6d))
+
 # [0.1184.0](https://github.com/lightdash/lightdash/compare/0.1183.1...0.1184.0) (2024-07-23)
 
 
