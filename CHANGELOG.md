@@ -1,3 +1,16 @@
+# [0.1185.0](https://github.com/lightdash/lightdash/compare/0.1184.3...0.1185.0) (2024-07-24)
+
+
+### Bug Fixes
+
+* create unique slug for charts within dashboards ([#10821](https://github.com/lightdash/lightdash/issues/10821)) ([445bd8f](https://github.com/lightdash/lightdash/commit/445bd8fb10b5b0d9f482c303701b20a39edd41fb))
+* duplicate chart on dashboard with different name ([#10822](https://github.com/lightdash/lightdash/issues/10822)) ([68df1d4](https://github.com/lightdash/lightdash/commit/68df1d4403461d8ec8047e5edab5b53e0dcc93e3))
+
+
+### Features
+
+* allow toggle slack app to use socket mode ([#10751](https://github.com/lightdash/lightdash/issues/10751)) ([87d087f](https://github.com/lightdash/lightdash/commit/87d087f13a2e97df4d40345cf73e0b0db520106a))
+
 ## [0.1184.3](https://github.com/lightdash/lightdash/compare/0.1184.2...0.1184.3) (2024-07-24)
 
 
