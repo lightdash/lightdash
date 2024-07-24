@@ -1,3 +1,10 @@
+## [0.1184.2](https://github.com/lightdash/lightdash/compare/0.1184.1...0.1184.2) (2024-07-24)
+
+
+### Bug Fixes
+
+* warning icon should be displayed when user cann not use custom dimensions ([#10808](https://github.com/lightdash/lightdash/issues/10808)) ([2e7c884](https://github.com/lightdash/lightdash/commit/2e7c884e1694a63843de36f4a1d440efc80811f6))
+
 ## [0.1184.1](https://github.com/lightdash/lightdash/compare/0.1184.0...0.1184.1) (2024-07-24)
 
 
