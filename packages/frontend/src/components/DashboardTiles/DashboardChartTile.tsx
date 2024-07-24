@@ -825,7 +825,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             >
                                                 <Group>
                                                     Explore from here
-                                                    {!cannotUseCustomDimensions && (
+                                                    {cannotUseCustomDimensions && (
                                                         <MantineIcon
                                                             icon={
                                                                 IconAlertTriangle
