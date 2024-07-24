@@ -1,4 +1,4 @@
-import { ParseError, SentryConfig } from '@lightdash/common';
+import { LightdashMode, ParseError, SentryConfig } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
     getFloatArrayFromEnvironmentVariable,
@@ -8,12 +8,6 @@ import {
     getObjectFromEnvironmentVariable,
     parseConfig,
 } from './parseConfig';
-import {
-    BASIC_CONFIG,
-    EMPTY_CONFIG,
-    UNDEFINED_CONFIG,
-    WRONG_VERSION,
-} from './parseConfig.mock';
 
 jest.mock('fs/promises', () => ({
     readFile: jest.fn(),
@@ -26,18 +20,6 @@ beforeEach(() => {
     };
 });
 
-test('Should throw ParseError for undefined config', () => {
-    expect(() => parseConfig(UNDEFINED_CONFIG)).toThrowError(ParseError);
-});
-
-test('Should throw ParseError for empty config', () => {
-    expect(() => parseConfig(EMPTY_CONFIG)).toThrowError(ParseError);
-});
-
-test('Should throw ParseError for wrong version', () => {
-    expect(() => parseConfig(WRONG_VERSION)).toThrowError(ParseError);
-});
-
 test('Should parse rudder config from env', () => {
     const expected = {
         dataPlaneUrl: 'customurl',
@@ -45,7 +27,7 @@ test('Should parse rudder config from env', () => {
     };
     process.env.RUDDERSTACK_DATA_PLANE_URL = 'customurl';
     process.env.RUDDERSTACK_WRITE_KEY = 'customkey';
-    expect(parseConfig(BASIC_CONFIG).rudder).toEqual(expected);
+    expect(parseConfig().rudder).toEqual(expected);
 });
 
 test('Should use default sentry configuration if no environment vars', () => {
@@ -58,7 +40,7 @@ test('Should use default sentry configuration if no environment vars', () => {
             dsn: '',
         },
         release: VERSION,
-        environment: BASIC_CONFIG.mode,
+        environment: LightdashMode.DEFAULT,
         tracesSampleRate: 0.1,
         profilesSampleRate: 0.2,
         anr: {
@@ -67,7 +49,7 @@ test('Should use default sentry configuration if no environment vars', () => {
             timeout: undefined,
         },
     };
-    expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
+    expect(parseConfig().sentry).toStrictEqual(expected);
 });
 
 test('Should parse sentry config from env', () => {
@@ -97,17 +79,17 @@ test('Should parse sentry config from env', () => {
     process.env.SENTRY_ANR_ENABLED = 'true';
     process.env.SENTRY_ANR_CAPTURE_STACKTRACE = 'true';
     process.env.SENTRY_ANR_TIMEOUT = '1000';
-    expect(parseConfig(BASIC_CONFIG).sentry).toStrictEqual(expected);
+    expect(parseConfig().sentry).toStrictEqual(expected);
 });
 
 test('Should throw error when secret missing', () => {
     delete process.env.LIGHTDASH_SECRET;
-    expect(() => parseConfig(BASIC_CONFIG)).toThrowError(ParseError);
+    expect(() => parseConfig()).toThrowError(ParseError);
 });
 
 test('Should include secret in output', () => {
     process.env.LIGHTDASH_SECRET = 'so very secret';
-    expect(parseConfig(BASIC_CONFIG).lightdashSecret).toEqual('so very secret');
+    expect(parseConfig().lightdashSecret).toEqual('so very secret');
 });
 
 test('Should parse valid integer', () => {

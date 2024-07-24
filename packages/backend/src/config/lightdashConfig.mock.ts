@@ -128,7 +128,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     staticIp: '',
     trustProxy: false,
-    version: '1.0',
     mode: LightdashMode.DEFAULT,
     groups: {
         enabled: false,
