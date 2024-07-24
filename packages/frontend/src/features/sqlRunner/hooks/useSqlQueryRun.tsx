@@ -66,7 +66,9 @@ export const useSqlQueryRun = ({
         ['jobStatus', sqlQueryJob?.jobId],
         () => {
             if (!sqlQueryJob?.jobId) return;
-            return getSchedulerJobStatus(sqlQueryJob.jobId);
+            return getSchedulerJobStatus<ApiSqlRunnerJobStatusResponse>(
+                sqlQueryJob.jobId,
+            );
         },
         {
             refetchInterval: (data, query) => {
