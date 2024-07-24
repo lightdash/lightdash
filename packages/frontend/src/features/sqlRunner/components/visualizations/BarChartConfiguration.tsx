@@ -15,7 +15,7 @@ const BarChartConfiguration: FC = ({}) => {
     const dispatch = useAppDispatch();
 
     const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
+        (state) => state.barChartConfig.config,
     );
 
     const onXAxisLabelChange = debounce((label: string) => {

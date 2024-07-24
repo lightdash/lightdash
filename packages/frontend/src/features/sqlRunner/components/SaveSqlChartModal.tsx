@@ -40,7 +40,7 @@ export const SaveSqlChartModal = () => {
     const config = useAppSelector((state) =>
         state.sqlRunner.selectedChartType === ChartKind.TABLE
             ? state.sqlRunner.tableChartConfig
-            : state.sqlRunner.barChartConfig,
+            : state.barChartConfig.config,
     );
 
     const {
