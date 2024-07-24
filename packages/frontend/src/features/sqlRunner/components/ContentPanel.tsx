@@ -84,6 +84,10 @@ export const ContentPanel: FC<Props> = ({
         (state) => state.sqlRunner.tableChartConfig,
     );
 
+    const barChartConfig = useAppSelector(
+        (state) => state.barChartConfig.config,
+    );
+
     const {
         mutate: runSqlQuery,
         data: queryResults,
@@ -347,7 +351,10 @@ export const ContentPanel: FC<Props> = ({
                                         )}
                                         {selectedChartType ===
                                             ChartKind.VERTICAL_BAR && (
-                                            <BarChart data={queryResults} />
+                                            <BarChart
+                                                data={queryResults}
+                                                config={barChartConfig}
+                                            />
                                         )}
                                     </>
                                 )}

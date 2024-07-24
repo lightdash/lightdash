@@ -38,20 +38,20 @@ const BarChartConfiguration: FC = ({}) => {
                 X axis
             </Title>
             <EditableText
-                defaultValue={barChartConfig.axes.x.label}
+                defaultValue={barChartConfig?.axes?.x.label}
                 onChange={(e) => onXAxisLabelChange(e.target.value)}
             />
             <Title order={6} fz="sm" c="gray.6">
                 Y axis
             </Title>
             <EditableText
-                defaultValue={barChartConfig.axes.y[0]?.label}
+                defaultValue={barChartConfig?.axes?.y[0]?.label}
                 onChange={(e) => onYAxisLabelChange(e.target.value)}
             />
             <Title order={6} fz="sm" c="gray.6">
                 Series
             </Title>
-            {barChartConfig.series.map(({ name, reference }, index) => (
+            {barChartConfig?.series?.map(({ name, reference }, index) => (
                 <EditableText
                     key={reference}
                     defaultValue={name ?? reference}

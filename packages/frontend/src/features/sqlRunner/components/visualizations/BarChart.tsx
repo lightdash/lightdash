@@ -1,15 +1,15 @@
+import { type BarChartConfig } from '@lightdash/common';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { type FC } from 'react';
 import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
-import { useAppSelector } from '../../store/hooks';
 import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTransformer';
 
 type BarChartProps = {
     data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
+    config?: BarChartConfig;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const BarChart: FC<BarChartProps> = ({ data, style }) => {
-    const config = useAppSelector((state) => state.barChartConfig.config);
+const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
     const { spec } = useBarChartDataTransformer(data, config);
     return (
         <EChartsReact
