@@ -74,7 +74,7 @@ export class SlackBot {
         }
 
         try {
-            if (this.lightdashConfig.slack?.appToken) {
+            if (this.lightdashConfig.slack?.socketMode) {
                 const app = new App({
                     ...slackOptions,
                     installationStore: {
@@ -82,10 +82,12 @@ export class SlackBot {
                             this.slackAuthenticationModel.createInstallation(i),
                         fetchInstallation: (i) =>
                             this.slackAuthenticationModel.getInstallation(i),
+                        deleteInstallation: (i) =>
+                            this.slackAuthenticationModel.deleteInstallation(i),
                     },
                     logLevel: LogLevel.INFO,
                     port: this.lightdashConfig.slack.port,
-                    socketMode: true,
+                    socketMode: this.lightdashConfig.slack.socketMode,
                     appToken: this.lightdashConfig.slack.appToken,
                 });
                 this.addEventListeners(app);
