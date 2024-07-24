@@ -69,6 +69,15 @@ models:
           dimension:
             type: number
             groups: ['events']
+          additional_dimensions: 
+            event_tier: 
+              type: string
+              description: Ratio of event_id to event
+              sql: |
+                case 
+                  when ${event_id} < 100 then 'Low' 
+                  when ${event_id} < 1000 then 'High'
+                  else 'Very high' end
           metrics:
             in_gbp:
               type: sum
