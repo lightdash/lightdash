@@ -2,8 +2,9 @@ import {
     SchedulerJobStatus,
     type ApiError,
     type ApiJobScheduledResponse,
-    type ApiJobStatusResponse,
+    type ApiSqlRunnerJobStatusResponse,
     type ResultRow,
+    type SQLColumn,
     type SqlRunnerBody,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -26,6 +27,11 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
+type ResultsAndColumns = {
+    results: ResultRow[] | undefined;
+    columns: SQLColumn[] | undefined;
+};
+
 /**
  * Gets the SQL query results from the server
  *
@@ -37,7 +43,7 @@ const scheduleSqlJob = async ({
 export const useSqlQueryRun = ({
     onSuccess,
 }: {
-    onSuccess: (data: ResultRow[] | undefined) => void;
+    onSuccess: (data: ResultsAndColumns | undefined) => void;
 }) => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -54,7 +60,7 @@ export const useSqlQueryRun = ({
     const { data: sqlQueryJob } = sqlQueryRunMutation;
 
     const { data: scheduledDeliveryJobStatus } = useQuery<
-        ApiJobStatusResponse['results'] | undefined,
+        ApiSqlRunnerJobStatusResponse['results'] | undefined,
         ApiError
     >(
         ['jobStatus', sqlQueryJob?.jobId],
@@ -76,7 +82,6 @@ export const useSqlQueryRun = ({
                 if (data?.status === SchedulerJobStatus.ERROR) {
                     showToastError({
                         title: 'Could not run SQL query',
-                        subtitle: data.details?.error,
                     });
                 }
             },
@@ -86,11 +91,15 @@ export const useSqlQueryRun = ({
 
     const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
-        ApiError
+        ApiError,
+        ResultsAndColumns
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
         async () => {
             const url = scheduledDeliveryJobStatus?.details?.fileUrl;
+            if (!url) {
+                throw new Error('Missing file URL');
+            }
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -150,6 +159,12 @@ export const useSqlQueryRun = ({
                     SchedulerJobStatus.COMPLETED &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
+            select: (data) => {
+                return {
+                    results: data,
+                    columns: scheduledDeliveryJobStatus?.details?.columns,
+                };
+            },
             onSuccess: (data) => {
                 onSuccess(data);
             },

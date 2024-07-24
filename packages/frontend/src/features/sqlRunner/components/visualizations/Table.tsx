@@ -15,11 +15,10 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../../../components/common/Table/Table.styles';
-import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
 type Props = {
-    data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
+    data: ResultRow[];
     config?: TableChartSqlConfig | SqlTableConfig;
 };
 
