@@ -84,6 +84,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
+    SQLColumn,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -1095,6 +1096,7 @@ export class ProjectService extends BaseService {
             csvLimit,
             context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
             queryTags,
+            chartUuid: undefined,
         });
     }
 
@@ -1175,6 +1177,7 @@ export class ProjectService extends BaseService {
                 queryTags,
                 invalidateCache,
                 explore,
+                chartUuid,
             });
 
         return {
@@ -1193,6 +1196,7 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         granularity,
         dashboardUuid,
+        autoRefresh,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -1201,6 +1205,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
         granularity?: DateGranularity;
+        autoRefresh?: boolean;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1294,11 +1299,14 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
-                context: QueryExecutionContext.DASHBOARD,
+                context: autoRefresh
+                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                    : QueryExecutionContext.DASHBOARD,
                 queryTags,
                 invalidateCache,
                 explore,
                 granularity,
+                chartUuid,
             });
 
         const metricQueryDimensions = [
@@ -1388,6 +1396,7 @@ export class ProjectService extends BaseService {
             context: QueryExecutionContext.EXPLORE,
             queryTags,
             granularity: dateZoomGranularity,
+            chartUuid: undefined,
         });
     }
 
@@ -1402,6 +1411,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: validExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1413,6 +1423,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1434,6 +1445,7 @@ export class ProjectService extends BaseService {
                         invalidateCache,
                         explore,
                         granularity,
+                        chartUuid,
                     });
                 span.setAttribute('rows', rows.length);
 
@@ -1483,6 +1495,7 @@ export class ProjectService extends BaseService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
+        context: QueryExecutionContext,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1501,7 +1514,8 @@ export class ProjectService extends BaseService {
                     projectUuid: chart.projectUuid,
                     exploreName: exploreId,
                     csvLimit: undefined,
-                    context: QueryExecutionContext.GSHEETS,
+                    context,
+                    chartUuid,
                 });
             },
         );
@@ -1640,6 +1654,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: loadedExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1651,6 +1666,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined; // for analytics
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1829,6 +1845,7 @@ export class ProjectService extends BaseService {
                             ...(queryTags?.dashboard_uuid
                                 ? { dashboardId: queryTags.dashboard_uuid }
                                 : {}),
+                            chartId: chartUuid,
                         },
                     });
                     this.logger.debug(
@@ -1996,7 +2013,10 @@ export class ProjectService extends BaseService {
         userUuid: string,
         projectUuid: string,
         sql: string,
-    ): Promise<string> {
+    ): Promise<{
+        fileUrl: string;
+        columns: SQLColumn[];
+    }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2023,12 +2043,24 @@ export class ProjectService extends BaseService {
             ? this.streamResultsToCloudStorage.bind(this)
             : this.streamResultsToLocalFile.bind(this);
 
-        const fileUrl = await streamFunction(projectUuid, async (writter) => {
+        const columns: SQLColumn[] = [];
+
+        const fileUrl = await streamFunction(projectUuid, async (writer) => {
             await warehouseClient.streamQuery(
                 sql,
                 async ({ rows, fields }) => {
+                    if (!columns.length) {
+                        // Get column types from first row of results
+                        columns.push(
+                            ...Object.keys(fields).map((fieldName) => ({
+                                reference: fieldName,
+                                type: fields[fieldName].type,
+                            })),
+                        );
+                    }
+
                     const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
-                    formattedRows.forEach(writter);
+                    formattedRows.forEach(writer);
                 },
                 {
                     tags: queryTags,
@@ -2038,7 +2070,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return fileUrl;
+        return { fileUrl, columns };
     }
 
     async getFileStream(
@@ -2051,8 +2083,8 @@ export class ProjectService extends BaseService {
         );
         if (
             user.ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -2416,7 +2448,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -2464,7 +2496,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),

@@ -1,4 +1,4 @@
-import { SqlRunnerChartType } from '@lightdash/common/src/types/visualizations';
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -14,10 +14,9 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     setSelectedChartType,
-    updateChartAxisLabel,
-    updateChartSeriesLabel,
-    updateResultsTableFieldConfigLabel,
+    updateTableChartFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
+import { default as BarChartConfiguration } from './visualizations/BarChartConfiguration';
 
 type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
@@ -25,10 +24,9 @@ type Props = {
 
 export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const dispatch = useAppDispatch();
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+    const tableChartConfig = useAppSelector(
+        (state) => state.sqlRunner.tableChartConfig,
     );
-    const chartConfig = useAppSelector((state) => state.sqlRunner.chartConfig);
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -52,87 +50,35 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
             <SegmentedControl
                 size="xs"
                 value={selectedChartType}
-                onChange={(value: SqlRunnerChartType) =>
+                onChange={(value: ChartKind) =>
                     dispatch(setSelectedChartType(value))
                 }
                 data={[
-                    { value: SqlRunnerChartType.TABLE, label: 'Table' },
-                    { value: SqlRunnerChartType.BAR, label: 'Bar chart' },
+                    { value: ChartKind.TABLE, label: 'Table' },
+                    { value: ChartKind.VERTICAL_BAR, label: 'Bar chart' },
                 ]}
             />
 
-            {resultsTableConfig &&
-                selectedChartType === SqlRunnerChartType.TABLE && (
-                    <Stack spacing="xs">
-                        {Object.keys(resultsTableConfig.columns).map(
-                            (reference) => (
-                                <EditableText
-                                    key={reference}
-                                    value={
-                                        resultsTableConfig.columns[reference]
-                                            .label
-                                    }
-                                    onChange={(e) => {
-                                        dispatch(
-                                            updateResultsTableFieldConfigLabel({
-                                                reference: reference,
-                                                label: e.target.value,
-                                            }),
-                                        );
-                                    }}
-                                />
-                            ),
-                        )}
-                    </Stack>
-                )}
-            {chartConfig && selectedChartType === SqlRunnerChartType.BAR && (
+            {tableChartConfig && selectedChartType === ChartKind.TABLE && (
                 <Stack spacing="xs">
-                    <Title order={6} fz="sm" c="gray.6">
-                        X axis
-                    </Title>
-                    <EditableText
-                        value={chartConfig?.axes?.x.label}
-                        onChange={(e) => {
-                            dispatch(
-                                updateChartAxisLabel({
-                                    reference: chartConfig.axes.x.reference,
-                                    label: e.target.value,
-                                }),
-                            );
-                        }}
-                    />
-                    <Title order={6} fz="sm" c="gray.6">
-                        Y axis
-                    </Title>
-                    <EditableText
-                        value={chartConfig?.axes?.y[0]?.label}
-                        onChange={(e) => {
-                            dispatch(
-                                updateChartAxisLabel({
-                                    reference: chartConfig.axes.y[0].reference,
-                                    label: e.target.value,
-                                }),
-                            );
-                        }}
-                    />
-                    <Title order={6} fz="sm" c="gray.6">
-                        Series
-                    </Title>
-                    {chartConfig.series.map(({ name, reference }, index) => (
+                    {Object.keys(tableChartConfig.columns).map((reference) => (
                         <EditableText
                             key={reference}
-                            value={name ?? reference}
+                            value={tableChartConfig.columns[reference].label}
                             onChange={(e) => {
                                 dispatch(
-                                    updateChartSeriesLabel({
-                                        index: index,
-                                        name: e.target.value,
+                                    updateTableChartFieldConfigLabel({
+                                        reference: reference,
+                                        label: e.target.value,
                                     }),
                                 );
                             }}
                         />
                     ))}
                 </Stack>
+            )}
+            {selectedChartType === ChartKind.VERTICAL_BAR && (
+                <BarChartConfiguration />
             )}
         </Stack>
     );

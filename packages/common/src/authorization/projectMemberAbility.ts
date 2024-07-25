@@ -168,6 +168,9 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'CompileProject', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });

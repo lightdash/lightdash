@@ -80,6 +80,7 @@ export class SavedChartController extends BaseController {
             dashboardSorts: SortField[];
             dashboardUuid: string;
             granularity?: DateGranularity;
+            autoRefresh?: boolean;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -97,6 +98,7 @@ export class SavedChartController extends BaseController {
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
                     dashboardUuid: body.dashboardUuid,
+                    autoRefresh: body.autoRefresh,
                 }),
         };
     }

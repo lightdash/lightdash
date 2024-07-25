@@ -3,7 +3,7 @@ import {
     type ApiError,
     type MetricQuery,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { lightdashApi } from '../api';
 import { useExplorerContext } from '../providers/ExplorerProvider';
@@ -27,7 +27,9 @@ const getCompiledQuery = async (
     });
 };
 
-export const useCompiledSql = () => {
+export const useCompiledSql = (
+    queryOptions?: UseQueryOptions<ApiCompiledQueryResults, ApiError>,
+) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const tableId = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
@@ -72,5 +74,6 @@ export const useCompiledSql = () => {
         queryFn: () =>
             getCompiledQuery(projectUuid, tableId || '', metricQuery),
         onError: (result) => setErrorResponse(result),
+        ...queryOptions,
     });
 };

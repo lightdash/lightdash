@@ -1,3 +1,192 @@
+## [0.1186.1](https://github.com/lightdash/lightdash/compare/0.1186.0...0.1186.1) (2024-07-25)
+
+
+### Bug Fixes
+
+* viewers can see saved SQL chart  ([#10836](https://github.com/lightdash/lightdash/issues/10836)) ([1f0e661](https://github.com/lightdash/lightdash/commit/1f0e661950aed65a906ad6efad7ac09f0a6ae04d))
+
+# [0.1186.0](https://github.com/lightdash/lightdash/compare/0.1185.2...0.1186.0) (2024-07-25)
+
+
+### Features
+
+* new compile project ability ([#10833](https://github.com/lightdash/lightdash/issues/10833)) ([27d42ec](https://github.com/lightdash/lightdash/commit/27d42ec17e9451eb0ed4b2e9e82b47289872fa8e))
+
+## [0.1185.2](https://github.com/lightdash/lightdash/compare/0.1185.1...0.1185.2) (2024-07-25)
+
+
+### Bug Fixes
+
+* prevent user form creating table calculation without formula ([#10830](https://github.com/lightdash/lightdash/issues/10830)) ([480ca22](https://github.com/lightdash/lightdash/commit/480ca2232219068f061268494d040135b1801afd))
+
+## [0.1185.1](https://github.com/lightdash/lightdash/compare/0.1185.0...0.1185.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* extract bar chart config component ([#10794](https://github.com/lightdash/lightdash/issues/10794)) ([e1e06e5](https://github.com/lightdash/lightdash/commit/e1e06e58325a7ba13af8cd87eb75fadd3d90533a))
+
+# [0.1185.0](https://github.com/lightdash/lightdash/compare/0.1184.3...0.1185.0) (2024-07-24)
+
+
+### Bug Fixes
+
+* create unique slug for charts within dashboards ([#10821](https://github.com/lightdash/lightdash/issues/10821)) ([445bd8f](https://github.com/lightdash/lightdash/commit/445bd8fb10b5b0d9f482c303701b20a39edd41fb))
+* duplicate chart on dashboard with different name ([#10822](https://github.com/lightdash/lightdash/issues/10822)) ([68df1d4](https://github.com/lightdash/lightdash/commit/68df1d4403461d8ec8047e5edab5b53e0dcc93e3))
+
+
+### Features
+
+* allow toggle slack app to use socket mode ([#10751](https://github.com/lightdash/lightdash/issues/10751)) ([87d087f](https://github.com/lightdash/lightdash/commit/87d087f13a2e97df4d40345cf73e0b0db520106a))
+
+## [0.1184.3](https://github.com/lightdash/lightdash/compare/0.1184.2...0.1184.3) (2024-07-24)
+
+
+### Bug Fixes
+
+* Override snowflake warehouse ([#10803](https://github.com/lightdash/lightdash/issues/10803)) ([c483fe4](https://github.com/lightdash/lightdash/commit/c483fe42cafd39415616fd9af475063a3e74ca3f))
+
+## [0.1184.2](https://github.com/lightdash/lightdash/compare/0.1184.1...0.1184.2) (2024-07-24)
+
+
+### Bug Fixes
+
+* warning icon should be displayed when user cann not use custom dimensions ([#10808](https://github.com/lightdash/lightdash/issues/10808)) ([2e7c884](https://github.com/lightdash/lightdash/commit/2e7c884e1694a63843de36f4a1d440efc80811f6))
+
+## [0.1184.1](https://github.com/lightdash/lightdash/compare/0.1184.0...0.1184.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* bigquery month name sort ([#10806](https://github.com/lightdash/lightdash/issues/10806)) ([0f5761b](https://github.com/lightdash/lightdash/commit/0f5761b177fff8ddbb8b2d232e7654c9228e7f6d))
+
+# [0.1184.0](https://github.com/lightdash/lightdash/compare/0.1183.1...0.1184.0) (2024-07-23)
+
+
+### Features
+
+* add SQL editor autocompletion ([#10792](https://github.com/lightdash/lightdash/issues/10792)) ([5bbe851](https://github.com/lightdash/lightdash/commit/5bbe851a7095993010e8918905703e910698bd0b))
+* Save sql chart in space and fix slug for sql charts ([#10780](https://github.com/lightdash/lightdash/issues/10780)) ([382439e](https://github.com/lightdash/lightdash/commit/382439eb3f7ce71e52f002f60ae5d2c3b4b016d2))
+
+## [0.1183.1](https://github.com/lightdash/lightdash/compare/0.1183.0...0.1183.1) (2024-07-23)
+
+
+### Bug Fixes
+
+* dashboard tile resize handler appearance ([#10791](https://github.com/lightdash/lightdash/issues/10791)) ([4ab7eb7](https://github.com/lightdash/lightdash/commit/4ab7eb7210e5f86b1187b10040b006592b6a8127))
+
+# [0.1183.0](https://github.com/lightdash/lightdash/compare/0.1182.0...0.1183.0) (2024-07-23)
+
+
+### Features
+
+* add space breadcrumb before saved chart ([#10787](https://github.com/lightdash/lightdash/issues/10787)) ([93aed14](https://github.com/lightdash/lightdash/commit/93aed145c790e0895a861f9c2a23630c47ecee6a))
+
+# [0.1182.0](https://github.com/lightdash/lightdash/compare/0.1181.0...0.1182.0) (2024-07-22)
+
+
+### Features
+
+* add lightdash SQL theme ([#10782](https://github.com/lightdash/lightdash/issues/10782)) ([d8074d0](https://github.com/lightdash/lightdash/commit/d8074d06f79c1e435bfa0daac6e8a8e09a349335))
+
+# [0.1181.0](https://github.com/lightdash/lightdash/compare/0.1180.0...0.1181.0) (2024-07-19)
+
+
+### Features
+
+* added a copy sql button when card is closed ([#10723](https://github.com/lightdash/lightdash/issues/10723)) ([1f1af01](https://github.com/lightdash/lightdash/commit/1f1af01d91d9ef47fe89c745ab03181e6544e3a6))
+
+# [0.1180.0](https://github.com/lightdash/lightdash/compare/0.1179.0...0.1180.0) (2024-07-19)
+
+
+### Features
+
+* Space page v2 ([#10767](https://github.com/lightdash/lightdash/issues/10767)) ([283359e](https://github.com/lightdash/lightdash/commit/283359e6b7a34f5b23a2bef50823e44ef2006eb9))
+
+# [0.1179.0](https://github.com/lightdash/lightdash/compare/0.1178.0...0.1179.0) (2024-07-19)
+
+
+### Features
+
+* allow for title editing of sql chart tiles ([#10770](https://github.com/lightdash/lightdash/issues/10770)) ([85543e5](https://github.com/lightdash/lightdash/commit/85543e53c6715047b38611650c8ae5aa0197e9ca))
+
+# [0.1178.0](https://github.com/lightdash/lightdash/compare/0.1177.0...0.1178.0) (2024-07-18)
+
+
+### Features
+
+* allow adding sql charts to dashboard ([#10758](https://github.com/lightdash/lightdash/issues/10758)) ([61398cf](https://github.com/lightdash/lightdash/commit/61398cf9a06da9b8583d5d236691a894caffdc39))
+
+# [0.1177.0](https://github.com/lightdash/lightdash/compare/0.1176.0...0.1177.0) (2024-07-18)
+
+
+### Features
+
+* Share sql chart url ([#10753](https://github.com/lightdash/lightdash/issues/10753)) ([1f99001](https://github.com/lightdash/lightdash/commit/1f9900110f9bfccfaef601e708663923523f9f05))
+
+# [0.1176.0](https://github.com/lightdash/lightdash/compare/0.1175.1...0.1176.0) (2024-07-18)
+
+
+### Features
+
+* v2 content endpoints ([#10741](https://github.com/lightdash/lightdash/issues/10741)) ([85e6891](https://github.com/lightdash/lightdash/commit/85e68915a3dd15a4c1cc58ac4b89ba13cd25cfb4))
+
+## [0.1175.1](https://github.com/lightdash/lightdash/compare/0.1175.0...0.1175.1) (2024-07-17)
+
+
+### Bug Fixes
+
+* filter out dbt model nodes with null meta field ([#10755](https://github.com/lightdash/lightdash/issues/10755)) ([3ee9bc4](https://github.com/lightdash/lightdash/commit/3ee9bc4e8847b0af6f492cded9615168e41ae782))
+
+# [0.1175.0](https://github.com/lightdash/lightdash/compare/0.1174.0...0.1175.0) (2024-07-17)
+
+
+### Features
+
+* display sql chart with new endpoint to get results in dashboard ([#10735](https://github.com/lightdash/lightdash/issues/10735)) ([59aae8d](https://github.com/lightdash/lightdash/commit/59aae8d9ec84c67420fa5eff3d56b335e0e61fee))
+
+# [0.1174.0](https://github.com/lightdash/lightdash/compare/0.1173.0...0.1174.0) (2024-07-17)
+
+
+### Features
+
+* save sql chart tile ([#10737](https://github.com/lightdash/lightdash/issues/10737)) ([97a07d9](https://github.com/lightdash/lightdash/commit/97a07d9fdf6875a9662df9f2784114ce7736049c))
+
+# [0.1173.0](https://github.com/lightdash/lightdash/compare/0.1172.0...0.1173.0) (2024-07-17)
+
+
+### Features
+
+* run query on cmd+enter ([#10740](https://github.com/lightdash/lightdash/issues/10740)) ([9d530c9](https://github.com/lightdash/lightdash/commit/9d530c9697e04a38aa52748f6b8b1cbd4eaada47))
+
+# [0.1172.0](https://github.com/lightdash/lightdash/compare/0.1171.2...0.1172.0) (2024-07-16)
+
+
+### Features
+
+* allow dashboards to render SQL runner charts  ([#10727](https://github.com/lightdash/lightdash/issues/10727)) ([5de82c0](https://github.com/lightdash/lightdash/commit/5de82c09bbe8b3384129bc533cedef8150dafd48))
+
+## [0.1171.2](https://github.com/lightdash/lightdash/compare/0.1171.1...0.1171.2) (2024-07-16)
+
+
+### Bug Fixes
+
+* auto join org to apply okta group ([#10729](https://github.com/lightdash/lightdash/issues/10729)) ([49b6687](https://github.com/lightdash/lightdash/commit/49b6687ef05754e77a688c7c20d8226c275b4f5c))
+
+## [0.1171.1](https://github.com/lightdash/lightdash/compare/0.1171.0...0.1171.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* show warning custom dimension viewers ([#10699](https://github.com/lightdash/lightdash/issues/10699)) ([a949017](https://github.com/lightdash/lightdash/commit/a949017ebe67e9b33ea539495bdaff759c9021e2))
+
+# [0.1171.0](https://github.com/lightdash/lightdash/compare/0.1170.0...0.1171.0) (2024-07-15)
+
+
+### Features
+
+* sql runner slug ([#10718](https://github.com/lightdash/lightdash/issues/10718)) ([decd76e](https://github.com/lightdash/lightdash/commit/decd76e8e0ce1f20de59f8043992065dde8f3106))
+
 # [0.1170.0](https://github.com/lightdash/lightdash/compare/0.1169.2...0.1170.0) (2024-07-13)
 
 

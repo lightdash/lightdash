@@ -1,10 +1,12 @@
-import { BarChartDataTransformer } from '@lightdash/common';
-import { type BarChartConfig } from '@lightdash/common/src/types/visualizations';
+import {
+    BarChartDataTransformer,
+    type BarChartConfig,
+    type ResultRow,
+} from '@lightdash/common';
 import { useMemo } from 'react';
-import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 
 export const useBarChartDataTransformer = (
-    data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
+    data: ResultRow[],
     config?: BarChartConfig,
 ) => {
     const transformer = useMemo(

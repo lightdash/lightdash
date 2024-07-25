@@ -1,4 +1,8 @@
-import { type ResultRow, type TableChartSqlConfig } from '@lightdash/common';
+import {
+    type ResultRow,
+    type SqlTableConfig,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
@@ -11,26 +15,21 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../../../components/common/Table/Table.styles';
-import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
-import { useAppSelector } from '../../store/hooks';
 import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
 type Props = {
-    data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
-    config?: TableChartSqlConfig;
+    data: ResultRow[];
+    config?: TableChartSqlConfig | SqlTableConfig;
 };
 
-export const Table: FC<Props> = ({ data }) => {
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
-    );
+export const Table: FC<Props> = ({ data, config }) => {
     const {
         tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataTransformer(data, resultsTableConfig);
+    } = useTableDataTransformer(data, config);
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();

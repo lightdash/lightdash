@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSqlChart,
+    ApiSqlChartWithResults,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
     ApiWarehouseCatalog,
@@ -110,6 +111,7 @@ export class SqlRunnerController extends BaseController {
     /**
      * Get results from a file stored locally
      * @param fileId the fileId for the file
+     * @param projectUuid the uuid for the project
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -165,6 +167,55 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Get saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param slug the slug for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/slug/{slug}')
+    @OperationId('getSavedSqlChartBySlug')
+    async getSavedSqlChartBySlug(
+        @Path() slug: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChart(req.user!, projectUuid, undefined, slug),
+        };
+    }
+
+    /**
+     * Gets chart and schedules a job to get its results
+     * @param projectUuid - the uuid of the project
+     * @param uuid - the uuid of the saved chart
+     * @param req - express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}/chart-and-results')
+    @OperationId('getSavedSqlChartWithResults')
+    async getSavedSqlChartWithResults(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSqlChartWithResults> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getChartWithResultJob(req.user!, projectUuid, uuid),
+        };
+    }
+
+    /**
      * Create sql chart
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -186,11 +237,9 @@ export class SqlRunnerController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: {
-                savedSqlUuid: await this.services
-                    .getSavedSqlService()
-                    .createSqlChart(req.user!, projectUuid, body),
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .createSqlChart(req.user!, projectUuid, body),
         };
     }
 

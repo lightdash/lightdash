@@ -166,10 +166,6 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8
 
 
-# Production config
-COPY lightdash.yml /usr/app/lightdash.yml
-ENV LIGHTDASH_CONFIG_FILE /usr/app/lightdash.yml
-
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 

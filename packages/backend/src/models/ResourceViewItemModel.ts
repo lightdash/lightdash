@@ -36,6 +36,7 @@ const getCharts = async (
             updated_at: 'saved_queries.last_version_updated_at',
             views: 'saved_queries.views_count',
             first_viewed_at: 'saved_queries.first_viewed_at',
+            slug: 'saved_queries.slug',
         })
         .innerJoin(
             'pinned_chart',
@@ -76,6 +77,7 @@ const getCharts = async (
                 firstName: row.updated_by_user_first_name,
                 lastName: row.updated_by_user_last_name,
             },
+            slug: row.slug,
         },
     }));
     return items;

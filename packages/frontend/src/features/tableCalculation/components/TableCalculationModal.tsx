@@ -110,6 +110,9 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
+        if (sql.length === 0)
+            return showToastError({ title: 'SQL cannot be empty' });
+
         try {
             onSave({
                 name: getUniqueTableCalculationName(name, tableCalculations),

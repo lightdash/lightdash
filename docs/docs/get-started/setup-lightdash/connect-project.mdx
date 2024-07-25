@@ -72,7 +72,7 @@ We always recommend giving read-only permissions to Lightdash, that way you ensu
 
 :::info
 
-If you need to add our IP address to your database's allow-list, check what IP addresses we use [here](../../references/ip_addresses)
+If you need to add our IP address to your database's allow-list, check what IP addresses we use [here](/references/ip_addresses/)
 
 :::
 
@@ -466,6 +466,12 @@ access to use this warehouse. You can see al list of warehouses available in the
   height="203"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+
+:::info
+
+If “Always use this warehouse” is set to yes, this warehouse will be used for all queries, even if the dbt configuration specifies a different warehouse using snowflake_warehouse.
+
+:::
 
 #### Schema
 

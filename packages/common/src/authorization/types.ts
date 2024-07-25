@@ -37,6 +37,7 @@ type Subject =
     | 'ScheduledDeliveries'
     | 'DashboardComments'
     | 'CustomSql'
+    | 'CompileProject'
     | 'all';
 
 type PossibleAbilities = [

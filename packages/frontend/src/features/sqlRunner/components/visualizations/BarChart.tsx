@@ -1,20 +1,15 @@
-import EChartsReact from 'echarts-for-react';
-import { type EChartsReactProps } from 'echarts-for-react/lib/types';
-import { memo, type FC } from 'react';
-import { type useSqlQueryRun } from '../../hooks/useSqlQueryRun';
-import { useAppSelector } from '../../store/hooks';
+import { type BarChartConfig, type ResultRow } from '@lightdash/common';
+import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
+import { type FC } from 'react';
 import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTransformer';
 
-type BarChartProps = Omit<EChartsReactProps, 'option'> & {
-    data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>;
-};
+type BarChartProps = {
+    data: ResultRow[];
+    config: BarChartConfig | undefined;
+} & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const BarChart: FC<BarChartProps> = memo(({ data, ...rest }) => {
-    const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.chartConfig,
-    );
-    const { spec } = useBarChartDataTransformer(data, barChartConfig);
-
+const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
+    const { spec } = useBarChartDataTransformer(data, config);
     return (
         <EChartsReact
             option={spec}
@@ -24,9 +19,9 @@ const BarChart: FC<BarChartProps> = memo(({ data, ...rest }) => {
                 width: 'auto',
                 height: 'auto',
             }}
-            {...rest}
+            style={style}
         />
     );
-});
+};
 
 export default BarChart;

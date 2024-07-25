@@ -1,5 +1,5 @@
 import { type ResultRow } from '../types/results';
-import { type BarChartConfig } from '../types/visualizations';
+import { type BarChartConfig } from '../types/sqlRunner';
 import { SqlRunnerResultsTransformer } from './ResultTransformers';
 
 // TODO: Should this just be ChartDataTransformer?
@@ -18,9 +18,6 @@ export class BarChartDataTransformer {
         const xField = axes?.x?.reference ?? columns[0];
 
         return {
-            title: {
-                text: 'Bar chart',
-            },
             tooltip: {},
             legend: {
                 show: true,

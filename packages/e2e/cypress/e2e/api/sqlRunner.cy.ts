@@ -1,5 +1,6 @@
 import {
     ApiWarehouseTableFields,
+    ChartKind,
     CreateSqlChart,
     SEED_PROJECT,
     UpdateSqlChart,
@@ -263,7 +264,7 @@ describe.skip(`Load testing`, () => {
     });
 });
 
-describe.only(`Saved SQL chart`, () => {
+describe(`Saved SQL chart`, () => {
     beforeEach(() => {
         cy.login();
     });
@@ -279,7 +280,13 @@ describe.only(`Saved SQL chart`, () => {
                 name: 'test',
                 description: null,
                 sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 21',
-                config: {},
+                config: {
+                    metadata: {
+                        version: 1,
+                    },
+                    type: ChartKind.TABLE,
+                    columns: {},
+                },
                 spaceUuid: space.uuid,
             };
 
@@ -301,7 +308,13 @@ describe.only(`Saved SQL chart`, () => {
                     },
                     versionedData: {
                         sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 22',
-                        config: {},
+                        config: {
+                            metadata: {
+                                version: 1,
+                            },
+                            type: ChartKind.TABLE,
+                            columns: {},
+                        },
                     },
                 };
 

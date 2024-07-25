@@ -115,10 +115,15 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import {
+    type ApiChartContentResponse,
+    type ApiContentResponse,
+} from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiCreateSqlChart,
     type ApiSqlChart,
+    type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
 } from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
@@ -152,6 +157,7 @@ export * from './types/catalog';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
+export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
@@ -200,7 +206,6 @@ export * from './types/user';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
-export * from './types/visualizations';
 export * from './types/warehouse';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
@@ -657,7 +662,10 @@ type ApiResults =
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
     | ApiCreateSqlChart['results']
-    | ApiUpdateSqlChart['results'];
+    | ApiUpdateSqlChart['results']
+    | ApiContentResponse['results']
+    | ApiChartContentResponse['results']
+    | ApiSqlRunnerJobStatusResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

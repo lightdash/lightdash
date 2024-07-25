@@ -1,14 +1,13 @@
-import { type TableChartSqlConfig } from '@lightdash/common';
+import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { ROW_HEIGHT_PX } from '../../../components/common/Table/Table.styles';
-import { type useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { TableDataTransformer } from './TableDataTransformer';
 
 export const useTableDataTransformer = (
-    data: NonNullable<ReturnType<typeof useSqlQueryRun>['data']>,
-    config: TableChartSqlConfig | undefined,
+    data: ResultRow[],
+    config: SqlTableConfig | undefined,
 ) => {
     const transformer = useMemo(
         () => new TableDataTransformer(data, config),
