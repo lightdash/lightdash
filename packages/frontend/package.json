@@ -27,6 +27,7 @@
     "dependencies": {
         "@casl/ability": "^5.4.4",
         "@casl/react": "^3.0.0",
+        "@duckdb/duckdb-wasm": "^1.28.1-dev106.0",
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
@@ -63,7 +64,6 @@
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.22.0",
         "dayjs": "^1.11.10",
-        "duckdb-async": "^1.0.0",
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
         "fuse.js": "^6.5.3",
