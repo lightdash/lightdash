@@ -654,10 +654,7 @@ export class ExploreCompiler {
         const { refTable, refName } = getParsedReference(ref, currentTable);
 
         const referencedMetric = tables[refTable]?.metrics[refName];
-        // This refName can reference a dimension when using custom SQL in DBT and searching for distinct values on searchFieldUniqueValues
-        const referencedDimension = tables[refTable]?.dimensions[refName];
-        const referencedField = referencedMetric || referencedDimension;
-        if (referencedField === undefined) {
+        if (referencedMetric === undefined) {
             throw new CompileError(
                 `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
                 {},
@@ -666,7 +663,7 @@ export class ExploreCompiler {
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         const compiledMetric = this.compileMetricSql(
-            referencedField,
+            referencedMetric,
             tables,
             joinAliases,
         );

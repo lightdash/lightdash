@@ -12,6 +12,7 @@ import {
     CacheMetadata,
     CalculateTotalFromQuery,
     ChartSummary,
+    CompiledCustomSqlDimension,
     CompiledDimension,
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
@@ -22,7 +23,9 @@ import {
     CreateProject,
     CreateProjectMember,
     CreateWarehouseCredentials,
+    CustomDimensionType,
     CustomFormatType,
+    CustomSqlDimension,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -52,8 +55,10 @@ import {
     getMetrics,
     hasIntersection,
     IntrinsicUserAttributes,
+    isCompiledCustomSqlDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -2115,12 +2120,15 @@ export class ProjectService extends BaseService {
             throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
         }
 
-        const distinctMetric: AdditionalMetric = {
+        const distinctField: CustomSqlDimension = {
+            id: `${field.name}_distinct`,
+            type: CustomDimensionType.SQL,
+            dimensionType: isDimension(field)
+                ? field.type
+                : DimensionType.STRING,
             name: `${field.name}_distinct`,
-            label: `Distinct of ${field.label}`,
             table: field.table,
             sql: `DISTINCT ${field.sql}`,
-            type: MetricType.STRING,
         };
 
         const autocompleteDimensionFilters: FilterGroupItem[] = [
@@ -2138,19 +2146,20 @@ export class ProjectService extends BaseService {
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [],
-            metrics: [getItemId(distinctMetric)],
+            dimensions: [getItemId(distinctField)],
+            metrics: [],
             filters: {
                 dimensions: {
                     id: uuidv4(),
                     and: autocompleteDimensionFilters,
                 },
             },
-            additionalMetrics: [distinctMetric],
+            // additionalMetrics: [distinctMetric],
             tableCalculations: [],
+            customDimensions: [distinctField],
             sorts: [
                 {
-                    fieldId: getItemId(distinctMetric),
+                    fieldId: getItemId(distinctField),
                     descending: false,
                 },
             ],
@@ -2162,6 +2171,11 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
+        const compiledMetricQuery = compileMetricQuery({
+            explore,
+            metricQuery,
+            warehouseClient,
+        });
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -2175,7 +2189,7 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        const { query } = await ProjectService._compileQuery(
+        let { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
@@ -2190,6 +2204,21 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
+        const compiledCustomDimension = isCompiledCustomSqlDimension(
+            compiledMetricQuery.compiledCustomDimensions[0],
+        )
+            ? compiledMetricQuery.compiledCustomDimensions[0]
+            : undefined;
+        if (compiledCustomDimension) {
+            const baseTable =
+                explore.tables[compiledCustomDimension.table].sqlTable;
+            query = `SELECT ${compiledCustomDimension.compiledSql} 
+                as ${getItemId(distinctField)} 
+                FROM ${baseTable} 
+                as ${compiledCustomDimension.table} 
+                LIMIT 50
+            `;
+        }
         const { rows } = await warehouseClient.runQuery(query, queryTags);
         await sshTunnel.disconnect();
 
@@ -2205,7 +2234,7 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(distinctMetric)]);
+        return rows.map((row) => row[getItemId(distinctField)]);
     }
 
     async refreshAllTables(
