@@ -249,22 +249,26 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const sortMonthName = (dimension: CompiledDimension) => {
-    const fieldSql = `${dimension.compiledSql}`;
+export const sortMonthName = (
+    dimension: CompiledDimension,
+    fieldQuoteChar: string,
+) => {
+    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
+
     return `(
         CASE
-            WHEN ${fieldSql} = 'January' THEN 1
-            WHEN ${fieldSql} = 'February' THEN 2
-            WHEN ${fieldSql} = 'March' THEN 3
-            WHEN ${fieldSql} = 'April' THEN 4
-            WHEN ${fieldSql} = 'May' THEN 5
-            WHEN ${fieldSql} = 'June' THEN 6
-            WHEN ${fieldSql} = 'July' THEN 7
-            WHEN ${fieldSql} = 'August' THEN 8
-            WHEN ${fieldSql} = 'September' THEN 9
-            WHEN ${fieldSql} = 'October' THEN 10
-            WHEN ${fieldSql} = 'November' THEN 11
-            WHEN ${fieldSql} = 'December' THEN 12
+            WHEN ${fieldId} = 'January' THEN 1
+            WHEN ${fieldId} = 'February' THEN 2
+            WHEN ${fieldId} = 'March' THEN 3
+            WHEN ${fieldId} = 'April' THEN 4
+            WHEN ${fieldId} = 'May' THEN 5
+            WHEN ${fieldId} = 'June' THEN 6
+            WHEN ${fieldId} = 'July' THEN 7
+            WHEN ${fieldId} = 'August' THEN 8
+            WHEN ${fieldId} = 'September' THEN 9
+            WHEN ${fieldId} = 'October' THEN 10
+            WHEN ${fieldId} = 'November' THEN 11
+            WHEN ${fieldId} = 'December' THEN 12
             ELSE 0
         END
         )`;
@@ -274,20 +278,20 @@ export const sortDayOfWeekName = (
     startOfWeek: WeekDay | null | undefined,
     fieldQuoteChar: string,
 ) => {
-    const filedId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
+    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
     };
     return `(
         CASE
-            WHEN ${filedId} = 'Sunday' THEN ${calculateDayIndex(1)}
-            WHEN ${filedId} = 'Monday' THEN ${calculateDayIndex(2)}
-            WHEN ${filedId} = 'Tuesday' THEN ${calculateDayIndex(3)}
-            WHEN ${filedId} = 'Wednesday' THEN ${calculateDayIndex(4)}
-            WHEN ${filedId} = 'Thursday' THEN ${calculateDayIndex(5)}
-            WHEN ${filedId} = 'Friday' THEN ${calculateDayIndex(6)}
-            WHEN ${filedId} = 'Saturday' THEN ${calculateDayIndex(7)}
+            WHEN ${fieldId} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldId} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldId} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldId} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldId} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldId} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
     )`;
@@ -915,7 +919,12 @@ export const buildQuery = ({
             sortedDimension &&
             sortedDimension.timeInterval === TimeFrames.MONTH_NAME
         ) {
-            return sortMonthName(sortedDimension);
+            shouldWrapQueryCTE = true;
+
+            return sortMonthName(
+                sortedDimension,
+                getFieldQuoteChar(warehouseClient.credentials.type),
+            );
         }
         if (
             sortedDimension &&

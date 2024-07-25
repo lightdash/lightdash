@@ -4406,6 +4406,7 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
+                    override: { dataType: 'string' },
                 },
                 validators: {},
             },

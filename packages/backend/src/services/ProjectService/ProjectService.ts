@@ -84,6 +84,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
+    SQLColumn,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -2018,7 +2019,10 @@ export class ProjectService extends BaseService {
         userUuid: string,
         projectUuid: string,
         sql: string,
-    ): Promise<string> {
+    ): Promise<{
+        fileUrl: string;
+        columns: SQLColumn[];
+    }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2045,12 +2049,24 @@ export class ProjectService extends BaseService {
             ? this.streamResultsToCloudStorage.bind(this)
             : this.streamResultsToLocalFile.bind(this);
 
-        const fileUrl = await streamFunction(projectUuid, async (writter) => {
+        const columns: SQLColumn[] = [];
+
+        const fileUrl = await streamFunction(projectUuid, async (writer) => {
             await warehouseClient.streamQuery(
                 sql,
                 async ({ rows, fields }) => {
+                    if (!columns.length) {
+                        // Get column types from first row of results
+                        columns.push(
+                            ...Object.keys(fields).map((fieldName) => ({
+                                reference: fieldName,
+                                type: fields[fieldName].type,
+                            })),
+                        );
+                    }
+
                     const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
-                    formattedRows.forEach(writter);
+                    formattedRows.forEach(writer);
                 },
                 {
                     tags: queryTags,
@@ -2060,7 +2076,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        return fileUrl;
+        return { fileUrl, columns };
     }
 
     async getFileStream(
@@ -2438,7 +2454,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -2486,7 +2502,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),

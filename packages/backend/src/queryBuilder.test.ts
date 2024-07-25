@@ -925,7 +925,9 @@ const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
 describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
-            ignoreIndentation(sortMonthName(COMPILED_MONTH_NAME_DIMENSION)),
+            ignoreIndentation(
+                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"'),
+            ),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
     it('sortDayOfWeekName SQL for undefined startOfWeek', () => {

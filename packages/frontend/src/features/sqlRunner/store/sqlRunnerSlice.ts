@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    type BarChartConfig,
     type ResultRow,
     type SqlChart,
     type SqlTableConfig,
@@ -36,7 +35,6 @@ export interface SqlRunnerState {
     selectedChartType: ChartKind;
 
     resultsTableConfig: SqlTableConfig | undefined;
-    barChartConfig: BarChartConfig | undefined;
     tableChartConfig: TableChartSqlConfig | undefined;
 
     modals: {
@@ -59,7 +57,6 @@ const initialState: SqlRunnerState = {
     activeVisTab: VisTabs.CHART,
     selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
-    barChartConfig: undefined,
     tableChartConfig: undefined,
     modals: {
         saveChartModal: {
@@ -116,41 +113,6 @@ export const sqlRunnerSlice = createSlice({
                     columns,
                 };
             }
-
-            // TODO: this initialization should be put somewhere it
-            // can be shared between the frontend and backend
-            if (state.barChartConfig === undefined) {
-                const fieldIds = Object.keys(action.payload[0]);
-                state.barChartConfig = {
-                    metadata: {
-                        version: 1,
-                    },
-                    type: ChartKind.VERTICAL_BAR,
-                    style: {
-                        legend: {
-                            position: 'top',
-                            align: 'center',
-                        },
-                    },
-                    axes: {
-                        x: {
-                            reference: fieldIds[0],
-                            label: fieldIds[0],
-                        },
-                        y: [
-                            {
-                                reference: fieldIds[1],
-                                label: fieldIds[1],
-                            },
-                        ],
-                    },
-                    series: fieldIds.slice(1).map((reference, index) => ({
-                        reference,
-                        name: reference,
-                        yIndex: index,
-                    })),
-                };
-            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -174,8 +136,6 @@ export const sqlRunnerSlice = createSlice({
                     : ChartKind.VERTICAL_BAR;
             if (action.payload.config.type === ChartKind.TABLE) {
                 state.tableChartConfig = action.payload.config;
-            } else if (action.payload.config.type === ChartKind.VERTICAL_BAR) {
-                state.barChartConfig = action.payload.config;
             }
         },
         updateTableChartFieldConfigLabel: (
@@ -185,42 +145,6 @@ export const sqlRunnerSlice = createSlice({
             const { reference, label } = action.payload;
             if (state.tableChartConfig) {
                 state.tableChartConfig.columns[reference].label = label;
-            }
-        },
-        updateChartAxisLabel: (
-            state,
-            action: PayloadAction<{ reference?: string; label: string }>,
-        ) => {
-            if (!state.barChartConfig || !action.payload.reference) {
-                return;
-            }
-            const { reference, label } = action.payload;
-            if (state.barChartConfig?.axes?.x.reference === reference) {
-                state.barChartConfig.axes.x.label = label;
-            } else {
-                const index = state.barChartConfig?.axes?.y.findIndex(
-                    (axis) => axis.reference === reference,
-                );
-
-                if (
-                    index !== undefined &&
-                    state.barChartConfig?.axes?.y[index]
-                ) {
-                    state.barChartConfig.axes.y[index].label = label;
-                }
-            }
-        },
-        updateChartSeriesLabel: (
-            state,
-            action: PayloadAction<{ index: number; name: string }>,
-        ) => {
-            if (!state.barChartConfig) return;
-            const { index, name } = action.payload;
-            if (
-                state.barChartConfig.series &&
-                state.barChartConfig.series[index]
-            ) {
-                state.barChartConfig.series[index].name = name;
             }
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
@@ -254,8 +178,6 @@ export const {
     setActiveVisTab,
     setSaveChartData,
     updateTableChartFieldConfigLabel,
-    updateChartAxisLabel,
-    updateChartSeriesLabel,
     setSelectedChartType,
     toggleModal,
     loadState,

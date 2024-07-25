@@ -1,3 +1,58 @@
+# [0.1186.0](https://github.com/lightdash/lightdash/compare/0.1185.2...0.1186.0) (2024-07-25)
+
+
+### Features
+
+* new compile project ability ([#10833](https://github.com/lightdash/lightdash/issues/10833)) ([27d42ec](https://github.com/lightdash/lightdash/commit/27d42ec17e9451eb0ed4b2e9e82b47289872fa8e))
+
+## [0.1185.2](https://github.com/lightdash/lightdash/compare/0.1185.1...0.1185.2) (2024-07-25)
+
+
+### Bug Fixes
+
+* prevent user form creating table calculation without formula ([#10830](https://github.com/lightdash/lightdash/issues/10830)) ([480ca22](https://github.com/lightdash/lightdash/commit/480ca2232219068f061268494d040135b1801afd))
+
+## [0.1185.1](https://github.com/lightdash/lightdash/compare/0.1185.0...0.1185.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* extract bar chart config component ([#10794](https://github.com/lightdash/lightdash/issues/10794)) ([e1e06e5](https://github.com/lightdash/lightdash/commit/e1e06e58325a7ba13af8cd87eb75fadd3d90533a))
+
+# [0.1185.0](https://github.com/lightdash/lightdash/compare/0.1184.3...0.1185.0) (2024-07-24)
+
+
+### Bug Fixes
+
+* create unique slug for charts within dashboards ([#10821](https://github.com/lightdash/lightdash/issues/10821)) ([445bd8f](https://github.com/lightdash/lightdash/commit/445bd8fb10b5b0d9f482c303701b20a39edd41fb))
+* duplicate chart on dashboard with different name ([#10822](https://github.com/lightdash/lightdash/issues/10822)) ([68df1d4](https://github.com/lightdash/lightdash/commit/68df1d4403461d8ec8047e5edab5b53e0dcc93e3))
+
+
+### Features
+
+* allow toggle slack app to use socket mode ([#10751](https://github.com/lightdash/lightdash/issues/10751)) ([87d087f](https://github.com/lightdash/lightdash/commit/87d087f13a2e97df4d40345cf73e0b0db520106a))
+
+## [0.1184.3](https://github.com/lightdash/lightdash/compare/0.1184.2...0.1184.3) (2024-07-24)
+
+
+### Bug Fixes
+
+* Override snowflake warehouse ([#10803](https://github.com/lightdash/lightdash/issues/10803)) ([c483fe4](https://github.com/lightdash/lightdash/commit/c483fe42cafd39415616fd9af475063a3e74ca3f))
+
+## [0.1184.2](https://github.com/lightdash/lightdash/compare/0.1184.1...0.1184.2) (2024-07-24)
+
+
+### Bug Fixes
+
+* warning icon should be displayed when user cann not use custom dimensions ([#10808](https://github.com/lightdash/lightdash/issues/10808)) ([2e7c884](https://github.com/lightdash/lightdash/commit/2e7c884e1694a63843de36f4a1d440efc80811f6))
+
+## [0.1184.1](https://github.com/lightdash/lightdash/compare/0.1184.0...0.1184.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* bigquery month name sort ([#10806](https://github.com/lightdash/lightdash/issues/10806)) ([0f5761b](https://github.com/lightdash/lightdash/commit/0f5761b177fff8ddbb8b2d232e7654c9228e7f6d))
+
 # [0.1184.0](https://github.com/lightdash/lightdash/compare/0.1183.1...0.1184.0) (2024-07-23)
 
 

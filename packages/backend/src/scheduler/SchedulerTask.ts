@@ -38,6 +38,7 @@ import {
     SchedulerLog,
     SessionUser,
     SlackNotificationPayload,
+    SQLColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
     ThresholdOperator,
@@ -850,12 +851,12 @@ export default class SchedulerTask {
         }
     }
 
-    private async logWrapper(
+    private async logWrapper<TRecordValues = string>(
         baseLog: Pick<
             SchedulerLog,
             'task' | 'jobId' | 'scheduledTime' | 'details'
         >,
-        func: () => Promise<Record<string, string> | undefined>, // Returns extra details for the log
+        func: () => Promise<Record<string, TRecordValues> | undefined>, // Returns extra details for the log
     ) {
         try {
             await this.schedulerService.logSchedulerJob({
@@ -886,7 +887,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper(
+        await this.logWrapper<string | SQLColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,
@@ -894,13 +895,13 @@ export default class SchedulerTask {
                 details: { createdByUserUuid: payload.userUuid },
             },
             async () => {
-                const fileUrl =
+                const { fileUrl, columns } =
                     await this.projectService.streamSqlQueryIntoFile(
                         payload.userUuid,
                         payload.projectUuid,
                         payload.sql,
                     );
-                return { fileUrl };
+                return { fileUrl, columns };
             },
         );
     }

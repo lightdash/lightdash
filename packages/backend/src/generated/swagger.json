@@ -4884,6 +4884,9 @@
                     },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
+                    },
+                    "override": {
+                        "type": "string"
                     }
                 },
                 "required": [
