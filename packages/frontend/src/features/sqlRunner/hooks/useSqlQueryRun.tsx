@@ -5,7 +5,7 @@ import {
     type ApiJobScheduledResponse,
     type ApiSqlRunnerJobStatusResponse,
     type ResultRow,
-    type SQLColumn,
+    type SqlColumn,
     type SqlRunnerBody,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -28,9 +28,9 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
-type ResultsAndColumns = {
+export type ResultsAndColumns = {
     results: ResultRow[] | undefined;
-    columns: SQLColumn[] | undefined;
+    columns: SqlColumn[] | undefined;
 };
 
 /**

@@ -12,6 +12,7 @@ module.exports = {
         'plugin:json/recommended',
     ],
     rules: {
+        'no-restricted-syntax': 'off',
         'no-case-declarations': 'off',
         'no-template-curly-in-string': 'off',
         'import/prefer-default-export': 'off',
