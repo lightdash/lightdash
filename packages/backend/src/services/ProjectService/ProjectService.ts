@@ -2154,7 +2154,6 @@ export class ProjectService extends BaseService {
                     and: autocompleteDimensionFilters,
                 },
             },
-            // additionalMetrics: [distinctMetric],
             tableCalculations: [],
             customDimensions: [distinctField],
             sorts: [
