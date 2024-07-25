@@ -35,8 +35,6 @@ export interface SqlRunnerState {
     selectedChartType: ChartKind;
 
     resultsTableConfig: SqlTableConfig | undefined;
-    tableChartConfig: TableChartSqlConfig | undefined;
-
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -57,7 +55,6 @@ const initialState: SqlRunnerState = {
     activeVisTab: VisTabs.CHART,
     selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
-    tableChartConfig: undefined,
     modals: {
         saveChartModal: {
             isOpen: false,
@@ -80,6 +77,7 @@ export const sqlRunnerSlice = createSlice({
             state,
             action: PayloadAction<ResultRow[]>,
         ) => {
+            // TODO: this should come from the transformer
             // Set the initial results table config
             const columns = Object.keys(action.payload[0]).reduce<
                 TableChartSqlConfig['columns']
@@ -97,22 +95,10 @@ export const sqlRunnerSlice = createSlice({
                 {},
             );
             // Set static results table
+            // TODO: should this be in a separate slice?
             state.resultsTableConfig = {
                 columns,
             };
-
-            // TODO: this initialization should be put somewhere it
-            // can be shared between the frontend and backend
-            if (state.tableChartConfig === undefined) {
-                // Editable table chart
-                state.tableChartConfig = {
-                    type: ChartKind.TABLE,
-                    metadata: {
-                        version: 1,
-                    },
-                    columns,
-                };
-            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -134,18 +120,6 @@ export const sqlRunnerSlice = createSlice({
                 action.payload.config.type === ChartKind.TABLE
                     ? ChartKind.TABLE
                     : ChartKind.VERTICAL_BAR;
-            if (action.payload.config.type === ChartKind.TABLE) {
-                state.tableChartConfig = action.payload.config;
-            }
-        },
-        updateTableChartFieldConfigLabel: (
-            state,
-            action: PayloadAction<Record<'reference' | 'label', string>>,
-        ) => {
-            const { reference, label } = action.payload;
-            if (state.tableChartConfig) {
-                state.tableChartConfig.columns[reference].label = label;
-            }
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
@@ -177,7 +151,6 @@ export const {
     setSql,
     setActiveVisTab,
     setSaveChartData,
-    updateTableChartFieldConfigLabel,
     setSelectedChartType,
     toggleModal,
     loadState,

@@ -10,13 +10,10 @@ import {
 import { IconLayoutSidebarRightCollapse } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import {
-    setSelectedChartType,
-    updateTableChartFieldConfigLabel,
-} from '../store/sqlRunnerSlice';
-import { default as BarChartConfiguration } from './visualizations/BarChartConfiguration';
+import { setSelectedChartType } from '../store/sqlRunnerSlice';
+import { default as BarChartConfiguration } from './BarChartConfiguration';
+import TableVisConfiguration from './TableVisConfiguration';
 
 type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
@@ -24,9 +21,7 @@ type Props = {
 
 export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const dispatch = useAppDispatch();
-    const tableChartConfig = useAppSelector(
-        (state) => state.sqlRunner.tableChartConfig,
-    );
+
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -59,24 +54,7 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                 ]}
             />
 
-            {tableChartConfig && selectedChartType === ChartKind.TABLE && (
-                <Stack spacing="xs">
-                    {Object.keys(tableChartConfig.columns).map((reference) => (
-                        <EditableText
-                            key={reference}
-                            value={tableChartConfig.columns[reference].label}
-                            onChange={(e) => {
-                                dispatch(
-                                    updateTableChartFieldConfigLabel({
-                                        reference: reference,
-                                        label: e.target.value,
-                                    }),
-                                );
-                            }}
-                        />
-                    ))}
-                </Stack>
-            )}
+            {selectedChartType === ChartKind.TABLE && <TableVisConfiguration />}
             {selectedChartType === ChartKind.VERTICAL_BAR && (
                 <BarChartConfiguration />
             )}

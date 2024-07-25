@@ -1,13 +1,13 @@
 import { Stack, Title } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { type FC } from 'react';
-import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import {
     setSeriesLabel,
     setXAxisLabel,
     setYAxisLabel,
-} from '../../store/barChartSlice';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
+} from '../store/barChartSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 const DEBOUNCE_TIME = 500;
 
