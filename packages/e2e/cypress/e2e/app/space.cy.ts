@@ -29,6 +29,9 @@ describe('Space', () => {
         cy.get('.mantine-Modal-body').find('button').should('be.disabled');
 
         cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .wait(0)
+            .focus()
+            .clear()
             .type(`Private chart ${timestamp}`)
             .should('have.value', `Private chart ${timestamp}`);
 
