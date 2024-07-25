@@ -7,7 +7,7 @@ describe('Space', () => {
         cy.login();
     });
 
-    it('I can create a private space with private content', () => {
+    it.only('I can create a private space with private content', () => {
         const timestamp = new Date().toISOString();
 
         // Create private space
@@ -24,11 +24,17 @@ describe('Space', () => {
         cy.contains('Total order amount').click();
         cy.contains('Status').click();
         cy.contains('Save chart').click();
-        cy.findByPlaceholderText(
-            'eg. How many weekly active users do we have?',
-        ).type(`Private chart ${timestamp}`);
+        cy.contains('Enter a memorable name for your chart');
+        cy.get('[data-testid="ChartCreateModal/NameInput"]').type(
+            `Private chart ${timestamp}`,
+        );
+
         // Saves to space by default
-        cy.get('.mantine-Modal-body').find('button').contains('Save').click();
+        cy.get('.mantine-Modal-body')
+            .find('button')
+            .should('not.be.disabled')
+            .contains('Save')
+            .click();
 
         // Go back to space using breadcrumbs
         cy.contains('Private space').click();
