@@ -7,7 +7,7 @@ describe('Space', () => {
         cy.login();
     });
 
-    it.only('I can create a private space with private content', () => {
+    it('I can create a private space with private content', () => {
         const timestamp = new Date().toISOString();
 
         // Create private space
