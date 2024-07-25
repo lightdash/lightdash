@@ -2120,17 +2120,6 @@ export class ProjectService extends BaseService {
             throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
         }
 
-        const distinctField: CustomSqlDimension = {
-            id: `${field.name}_distinct`,
-            type: CustomDimensionType.SQL,
-            dimensionType: isDimension(field)
-                ? field.type
-                : DimensionType.STRING,
-            name: `${field.name}_distinct`,
-            table: field.table,
-            sql: `DISTINCT ${field.sql}`,
-        };
-
         const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
@@ -2146,7 +2135,7 @@ export class ProjectService extends BaseService {
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [getItemId(distinctField)],
+            dimensions: [getItemId(field)],
             metrics: [],
             filters: {
                 dimensions: {
@@ -2155,10 +2144,9 @@ export class ProjectService extends BaseService {
                 },
             },
             tableCalculations: [],
-            customDimensions: [distinctField],
             sorts: [
                 {
-                    fieldId: getItemId(distinctField),
+                    fieldId: getItemId(field),
                     descending: false,
                 },
             ],
@@ -2170,11 +2158,7 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
             explore.warehouse,
         );
-        const compiledMetricQuery = compileMetricQuery({
-            explore,
-            metricQuery,
-            warehouseClient,
-        });
+
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -2188,7 +2172,7 @@ export class ProjectService extends BaseService {
             ? getIntrinsicUserAttributes(user)
             : {};
 
-        let { query } = await ProjectService._compileQuery(
+        const { query } = await ProjectService._compileQuery(
             metricQuery,
             explore,
             warehouseClient,
@@ -2197,28 +2181,16 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
         );
 
-        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
         };
-        const compiledCustomDimension = isCompiledCustomSqlDimension(
-            compiledMetricQuery.compiledCustomDimensions[0],
-        )
-            ? compiledMetricQuery.compiledCustomDimensions[0]
-            : undefined;
-        if (compiledCustomDimension) {
-            const baseTable =
-                explore.tables[compiledCustomDimension.table].sqlTable;
-            query = `SELECT ${compiledCustomDimension.compiledSql} 
-                as ${getItemId(distinctField)} 
-                FROM ${baseTable} 
-                as ${compiledCustomDimension.table} 
-                LIMIT 50
+        const distinctSql = `WITH cte AS  (${query}) 
+                SELECT DISTINCT ${getItemId(field)} from cte
             `;
-        }
-        const { rows } = await warehouseClient.runQuery(query, queryTags);
+
+        const { rows } = await warehouseClient.runQuery(distinctSql, queryTags);
         await sshTunnel.disconnect();
 
         this.analytics.track({
@@ -2233,7 +2205,7 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(distinctField)]);
+        return rows.map((row) => row[getItemId(field)]);
     }
 
     async refreshAllTables(
