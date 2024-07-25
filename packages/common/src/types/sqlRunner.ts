@@ -1,5 +1,9 @@
+import {
+    type BarChartDisplay,
+    type SqlColumn,
+    type SqlTransformBarChartConfig,
+} from '../visualizations/SqlRunnerResultsTransformer';
 import { type Dashboard } from './dashboard';
-import { type DimensionType } from './field';
 import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
@@ -28,7 +32,7 @@ export const sqlRunnerJob = 'sqlRunner';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: SQLColumn[];
+    columns: SqlColumn[];
 };
 
 type SqlRunnerJobStatusErrorDetails = {
@@ -76,30 +80,8 @@ export type BarChartConfig = {
         version: number;
     };
     type: ChartKind.VERTICAL_BAR;
-    style?: {
-        legend:
-            | {
-                  position: 'top' | 'bottom' | 'left' | 'right';
-                  align: 'start' | 'center' | 'end';
-              }
-            | undefined;
-    };
-    axes?: {
-        x: {
-            reference: string;
-            label?: string;
-        };
-        y: {
-            reference: string;
-            position?: 'left' | 'right';
-            label: string;
-        }[];
-    };
-    series?: {
-        reference: string;
-        yIndex: number;
-        name: string;
-    }[];
+    fieldConfig: SqlTransformBarChartConfig | undefined;
+    display: BarChartDisplay | undefined;
 };
 
 export type SqlRunnerChartConfig = TableChartSqlConfig | BarChartConfig;
@@ -187,9 +169,4 @@ export type ApiSqlChartWithResults = {
         jobId: ApiJobScheduledResponse['results']['jobId'];
         chart: SqlChart;
     };
-};
-
-export type SQLColumn = {
-    reference: string;
-    type: DimensionType;
 };

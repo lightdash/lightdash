@@ -350,12 +350,13 @@ export const ContentPanel: FC<Props> = ({
                                             />
                                         )}
                                         {selectedChartType ===
-                                            ChartKind.VERTICAL_BAR && (
-                                            <BarChart
-                                                data={queryResults.results}
-                                                config={barChartConfig}
-                                            />
-                                        )}
+                                            ChartKind.VERTICAL_BAR &&
+                                            barChartConfig && (
+                                                <BarChart
+                                                    data={queryResults}
+                                                    config={barChartConfig}
+                                                />
+                                            )}
                                     </>
                                 )}
                                 {activeVisTab === VisTabs.RESULTS && (

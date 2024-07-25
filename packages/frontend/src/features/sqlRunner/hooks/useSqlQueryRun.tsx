@@ -29,8 +29,8 @@ const scheduleSqlJob = async ({
     });
 
 export type ResultsAndColumns = {
-    results: ResultRow[] | undefined;
-    columns: SqlColumn[] | undefined;
+    results: ResultRow[];
+    columns: SqlColumn[];
 };
 
 /**
@@ -98,7 +98,7 @@ export const useSqlQueryRun = ({
     const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
         ApiError,
-        ResultsAndColumns
+        ResultsAndColumns | undefined
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
         async () => {
@@ -170,6 +170,9 @@ export const useSqlQueryRun = ({
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
             select: (data) => {
+                if (!data || !scheduledDeliveryJobStatus?.details?.columns) {
+                    return undefined;
+                }
                 return {
                     results: data,
                     columns: isErrorDetails(scheduledDeliveryJobStatus?.details)

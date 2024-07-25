@@ -98,7 +98,10 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     )}
                     {data.chart.config.type === ChartKind.VERTICAL_BAR && (
                         <BarChart
-                            data={data.results}
+                            data={{
+                                results: data.results,
+                                columns: [],
+                            }}
                             config={data.chart.config}
                             style={{
                                 minHeight: 'inherit',

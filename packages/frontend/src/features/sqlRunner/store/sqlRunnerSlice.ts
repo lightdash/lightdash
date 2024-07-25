@@ -1,13 +1,13 @@
 import {
     ChartKind,
-    type ResultRow,
     type SqlChart,
+    type SqlColumn,
     type SqlTableConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
-
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
 export enum VisTabs {
     CHART = 'chart',
@@ -44,6 +44,8 @@ export interface SqlRunnerState {
     };
 
     quoteChar: string;
+
+    sqlColumns: SqlColumn[] | undefined;
 }
 
 const initialState: SqlRunnerState = {
@@ -64,6 +66,7 @@ const initialState: SqlRunnerState = {
         },
     },
     quoteChar: '"',
+    sqlColumns: undefined,
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -78,10 +81,14 @@ export const sqlRunnerSlice = createSlice({
         },
         setInitialResultsAndSeries: (
             state,
-            action: PayloadAction<ResultRow[]>,
+            action: PayloadAction<ResultsAndColumns>,
         ) => {
+            if (!action.payload.results || !action.payload.columns) {
+                return;
+            }
+
             // Set the initial results table config
-            const columns = Object.keys(action.payload[0]).reduce<
+            const columns = Object.keys(action.payload.results[0]).reduce<
                 TableChartSqlConfig['columns']
             >(
                 (acc, key) => ({
@@ -113,6 +120,8 @@ export const sqlRunnerSlice = createSlice({
                     columns,
                 };
             }
+
+            state.sqlColumns = action.payload.columns;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;

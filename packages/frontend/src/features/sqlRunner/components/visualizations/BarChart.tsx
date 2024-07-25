@@ -1,15 +1,16 @@
-import { type BarChartConfig, type ResultRow } from '@lightdash/common';
+import { type BarChartConfig } from '@lightdash/common';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { type FC } from 'react';
-import { useBarChartDataTransformer } from '../../transformers/useBarChartDataTransformer';
+import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
+import { useBarChart } from '../../transformers/useBarChart';
 
 type BarChartProps = {
-    data: ResultRow[];
-    config: BarChartConfig | undefined;
+    data: ResultsAndColumns;
+    config: BarChartConfig;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
-    const { spec } = useBarChartDataTransformer(data, config);
+    const spec = useBarChart(data.results, data.columns, config);
     return (
         <EChartsReact
             option={spec}

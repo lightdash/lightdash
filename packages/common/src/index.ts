@@ -225,9 +225,10 @@ export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
-export * from './viz/barChart';
-export * from './viz/base';
-export * from './viz/sqlRunner';
+export * from './visualizations/BarChartDataTransformer';
+export * from './visualizations/ResultsTransformerBase';
+export * from './visualizations/SqlRunnerResultsTableTransformer';
+export * from './visualizations/SqlRunnerResultsTransformer';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {
