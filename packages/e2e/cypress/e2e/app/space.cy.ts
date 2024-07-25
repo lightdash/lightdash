@@ -25,9 +25,12 @@ describe('Space', () => {
         cy.contains('Status').click();
         cy.contains('Save chart').click();
         cy.contains('Enter a memorable name for your chart');
-        cy.get('[data-testid="ChartCreateModal/NameInput"]').type(
-            `Private chart ${timestamp}`,
-        );
+
+        cy.get('.mantine-Modal-body').find('button').should('be.disabled');
+
+        cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .type(`Private chart ${timestamp}`)
+            .should('have.value', `Private chart ${timestamp}`);
 
         // Saves to space by default
         cy.get('.mantine-Modal-body')
