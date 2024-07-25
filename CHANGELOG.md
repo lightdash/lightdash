@@ -1,3 +1,10 @@
+## [0.1185.2](https://github.com/lightdash/lightdash/compare/0.1185.1...0.1185.2) (2024-07-25)
+
+
+### Bug Fixes
+
+* prevent user form creating table calculation without formula ([#10830](https://github.com/lightdash/lightdash/issues/10830)) ([480ca22](https://github.com/lightdash/lightdash/commit/480ca2232219068f061268494d040135b1801afd))
+
 ## [0.1185.1](https://github.com/lightdash/lightdash/compare/0.1185.0...0.1185.1) (2024-07-24)
 
 
