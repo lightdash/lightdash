@@ -51,7 +51,7 @@ const RefreshDbtButton = () => {
 
     if (
         user.data?.ability?.cannot('manage', 'Job') ||
-        user.data?.ability?.cannot('manage', 'Project')
+        user.data?.ability?.cannot('manage', 'CompileProject')
     )
         return null;
 

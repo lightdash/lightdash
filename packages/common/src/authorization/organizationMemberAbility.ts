@@ -189,6 +189,9 @@ export const organizationMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'CompileProject', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
