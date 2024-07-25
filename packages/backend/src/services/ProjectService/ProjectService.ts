@@ -2432,7 +2432,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),
@@ -2480,7 +2480,7 @@ export class ProjectService extends BaseService {
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
-                subject('Project', {
+                subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                 }),
