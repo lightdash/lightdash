@@ -111,6 +111,7 @@ export class SqlRunnerController extends BaseController {
     /**
      * Get results from a file stored locally
      * @param fileId the fileId for the file
+     * @param projectUuid the uuid for the project
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -206,20 +207,11 @@ export class SqlRunnerController extends BaseController {
     ): Promise<ApiSqlChartWithResults> {
         this.setStatus(200);
 
-        const chart = await this.services
-            .getSavedSqlService()
-            .getSqlChart(req.user!, projectUuid, uuid);
-
         return {
             status: 'ok',
-            results: {
-                jobId: (
-                    await this.services
-                        .getProjectService()
-                        .scheduleSqlJob(req.user!, projectUuid, chart.sql)
-                ).jobId,
-                chart,
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .getChartWithResultJob(req.user!, projectUuid, uuid),
         };
     }
 

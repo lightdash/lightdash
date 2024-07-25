@@ -2067,8 +2067,8 @@ export class ProjectService extends BaseService {
         );
         if (
             user.ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
