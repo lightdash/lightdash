@@ -1,3 +1,10 @@
+## [0.1186.1](https://github.com/lightdash/lightdash/compare/0.1186.0...0.1186.1) (2024-07-25)
+
+
+### Bug Fixes
+
+* viewers can see saved SQL chart  ([#10836](https://github.com/lightdash/lightdash/issues/10836)) ([1f0e661](https://github.com/lightdash/lightdash/commit/1f0e661950aed65a906ad6efad7ac09f0a6ae04d))
+
 # [0.1186.0](https://github.com/lightdash/lightdash/compare/0.1185.2...0.1186.0) (2024-07-25)
 
 
