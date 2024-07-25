@@ -34,10 +34,11 @@ export const duckDBFE: DuckDBSqlFunction = async (sql, rowData) => {
         name: 'results_data',
     });
 
-    const results = await conn.query<any>(sql);
+    const arrowResult = await conn.query<any>(sql);
+    const result = arrowResult.toArray().map((row) => row.toJSON());
 
     await conn.close();
     await db.terminate();
     worker.terminate();
-    return results.toArray();
+    return result;
 };
