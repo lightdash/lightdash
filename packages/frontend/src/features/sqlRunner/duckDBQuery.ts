@@ -29,9 +29,13 @@ export const duckDBFE: DuckDBSqlFunction = async (sql, rowData) => {
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     const conn = await db.connect();
-    await conn.query('INSTALL arrow; LOAD arrow;');
-    await db.registerFileBuffer('results_data', tableToIPC(arrowTable));
+
+    await conn.insertArrowFromIPCStream(tableToIPC(arrowTable), {
+        name: 'results_data',
+    });
+
     const results = await conn.query<any>(sql);
+
     await conn.close();
     await db.terminate();
     worker.terminate();

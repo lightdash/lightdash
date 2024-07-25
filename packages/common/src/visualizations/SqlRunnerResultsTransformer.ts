@@ -9,7 +9,6 @@ import {
 
 export const aggregationOptions = [
     // TODO: Change these to strings
-    MetricType.AVERAGE,
     MetricType.COUNT,
     MetricType.COUNT_DISTINCT,
     MetricType.SUM,
