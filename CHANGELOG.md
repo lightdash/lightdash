@@ -1,3 +1,15 @@
+# [0.1187.0](https://github.com/lightdash/lightdash/compare/0.1186.3...0.1187.0) (2024-07-26)
+
+
+### Bug Fixes
+
+* fix distinct value search on dimensions with custom sql ([#10823](https://github.com/lightdash/lightdash/issues/10823)) ([25a2b92](https://github.com/lightdash/lightdash/commit/25a2b9243d754b235eedaff07fb2a33508e9c99a))
+
+
+### Features
+
+* save sql chart feature flag ([#10850](https://github.com/lightdash/lightdash/issues/10850)) ([997562f](https://github.com/lightdash/lightdash/commit/997562f689c17f598dfd2908e14b2b23fe47a78e))
+
 ## [0.1186.3](https://github.com/lightdash/lightdash/compare/0.1186.2...0.1186.3) (2024-07-26)
 
 
