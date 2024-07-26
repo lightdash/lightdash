@@ -26,14 +26,29 @@ export type SqlRunnerResults = ResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
 
+type SqlRunnerJobStatusSuccessDetails = {
+    fileUrl: string;
+    columns: SQLColumn[];
+};
+
+type SqlRunnerJobStatusErrorDetails = {
+    error: string;
+    createdByUserUuid: string;
+};
+
+export function isErrorDetails(
+    results?: ApiSqlRunnerJobStatusResponse['results']['details'],
+): results is SqlRunnerJobStatusErrorDetails {
+    return (results as SqlRunnerJobStatusErrorDetails).error !== undefined;
+}
+
 export type ApiSqlRunnerJobStatusResponse = {
     status: 'ok';
     results: {
         status: SchedulerJobStatus;
-        details: {
-            fileUrl: string;
-            columns: SQLColumn[];
-        };
+        details:
+            | SqlRunnerJobStatusSuccessDetails
+            | SqlRunnerJobStatusErrorDetails;
     };
 };
 
