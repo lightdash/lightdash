@@ -5,25 +5,15 @@ import {
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Button,
-    Group,
-    Select,
-    Stack,
-    TextInput,
-} from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Badge, Box, Button, Group, Select, Stack } from '@mantine/core';
 import debounce from 'lodash/debounce';
-import React, { useState, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import { useState, type FC } from 'react';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import {
     setSeriesLabel,
     setXAxisLabel,
+    setXAxisReference,
     setYAxisAggregation,
     setYAxisLabel,
     setYAxisReference,
@@ -36,103 +26,104 @@ const DEBOUNCE_TIME = 500;
 
 type Axes = SqlTransformBarChartConfig;
 
-const YFieldAxisConfigForm: FC<{
-    fieldId: string;
-    yAxisFields: Axes['y'];
-    yLayoutOptions: YLayoutOptions[];
-    setIsCreating: React.Dispatch<React.SetStateAction<boolean>>;
-}> = ({ fieldId, yLayoutOptions, setIsCreating }) => {
-    const [label, setLabel] = useState(fieldId);
+// TODO: add y field feature
+// const YFieldAxisConfigForm: FC<{
+//     fieldId: string;
+//     yAxisFields: Axes['y'];
+//     yLayoutOptions: YLayoutOptions[];
+//     setIsCreating: React.Dispatch<React.SetStateAction<boolean>>;
+// }> = ({ fieldId, yLayoutOptions, setIsCreating }) => {
+//     const [label, setLabel] = useState(fieldId);
 
-    return (
-        <Stack
-            spacing="xs"
-            sx={(theme) => ({
-                border: `1px solid ${theme.colors.gray[0]}`,
-                borderRadius: theme.radius.md,
-                padding: theme.spacing.xs,
-                marginTop: theme.spacing.xs,
-                backgroundColor: theme.colors.gray[0],
-            })}
-        >
-            <Config.Group>
-                <Config.Heading>Add Y field</Config.Heading>
-                <ActionIcon
-                    size="sm"
-                    onClick={() => setIsCreating((prev) => !prev)}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Config.Group>
-            <Group noWrap spacing="xs">
-                <Config>
-                    <Config.Label>Label</Config.Label>
-                    <TextInput
-                        value={label}
-                        onChange={(e) => setLabel(e.currentTarget.value)}
-                        placeholder="Enter label"
-                    />
-                </Config>
-                <Config>
-                    <Config.Label>Field</Config.Label>
-                    <Select
-                        sx={{
-                            flexGrow: 1,
-                        }}
-                        disabled={!yLayoutOptions.length}
-                        data={yLayoutOptions.map(({ reference }) => ({
-                            value: reference,
-                            label: reference,
-                        }))}
-                        value={fieldId}
-                    />
-                </Config>
-            </Group>
-            <BarChartAggregationConfig
-                options={
-                    yLayoutOptions.find(
-                        ({ reference }) => reference === fieldId,
-                    )?.aggregationOptions
-                }
-                aggregation={
-                    yLayoutOptions.find(
-                        ({ reference }) => reference === fieldId,
-                    )?.aggregationOptions[0]
-                }
-                onChangeAggregation={() => {
-                    // setYAxisFields([
-                    //     ...yAxisFields,
-                    //     {
-                    //         reference: fieldId,
-                    //         label: label,
-                    //         position: 'left',
-                    //         aggregation: value,
-                    //     },
-                    // ]);
-                }}
-            />
-            <Button
-                sx={{
-                    alignSelf: 'flex-end',
-                }}
-                color="dark"
-                size="xs"
-                onClick={() => {
-                    // setYAxisFields([
-                    //     ...yAxisFields,
-                    //     {
-                    //         reference: fieldId,
-                    //         label: label,
-                    //         position: 'left',
-                    //     },
-                    // ]);
-                }}
-            >
-                Save
-            </Button>
-        </Stack>
-    );
-};
+//     return (
+//         <Stack
+//             spacing="xs"
+//             sx={(theme) => ({
+//                 border: `1px solid ${theme.colors.gray[0]}`,
+//                 borderRadius: theme.radius.md,
+//                 padding: theme.spacing.xs,
+//                 marginTop: theme.spacing.xs,
+//                 backgroundColor: theme.colors.gray[0],
+//             })}
+//         >
+//             <Config.Group>
+//                 <Config.Heading>Add Y field</Config.Heading>
+//                 <ActionIcon
+//                     size="sm"
+//                     onClick={() => setIsCreating((prev) => !prev)}
+//                 >
+//                     <MantineIcon icon={IconTrash} />
+//                 </ActionIcon>
+//             </Config.Group>
+//             <Group noWrap spacing="xs">
+//                 <Config>
+//                     <Config.Label>Label</Config.Label>
+//                     <TextInput
+//                         value={label}
+//                         onChange={(e) => setLabel(e.currentTarget.value)}
+//                         placeholder="Enter label"
+//                     />
+//                 </Config>
+//                 <Config>
+//                     <Config.Label>Field</Config.Label>
+//                     <Select
+//                         sx={{
+//                             flexGrow: 1,
+//                         }}
+//                         disabled={!yLayoutOptions.length}
+//                         data={yLayoutOptions.map(({ reference }) => ({
+//                             value: reference,
+//                             label: reference,
+//                         }))}
+//                         value={fieldId}
+//                     />
+//                 </Config>
+//             </Group>
+//             <BarChartAggregationConfig
+//                 options={
+//                     yLayoutOptions.find(
+//                         ({ reference }) => reference === fieldId,
+//                     )?.aggregationOptions
+//                 }
+//                 aggregation={
+//                     yLayoutOptions.find(
+//                         ({ reference }) => reference === fieldId,
+//                     )?.aggregationOptions[0]
+//                 }
+//                 onChangeAggregation={() => {
+//                     // setYAxisFields([
+//                     //     ...yAxisFields,
+//                     //     {
+//                     //         reference: fieldId,
+//                     //         label: label,
+//                     //         position: 'left',
+//                     //         aggregation: value,
+//                     //     },
+//                     // ]);
+//                 }}
+//             />
+//             <Button
+//                 sx={{
+//                     alignSelf: 'flex-end',
+//                 }}
+//                 color="dark"
+//                 size="xs"
+//                 onClick={() => {
+//                     addYField([
+//                         ...yAxisFields,
+//                         {
+//                             reference: fieldId,
+//                             label: label,
+//                             position: 'left',
+//                         },
+//                     ]);
+//                 }}
+//             >
+//                 Save
+//             </Button>
+//         </Stack>
+//     );
+// };
 
 const YFieldsAxisConfig: FC<{
     field: Axes['y'][number];
@@ -159,7 +150,7 @@ const YFieldsAxisConfig: FC<{
         >
             <Box pos={'relative'}>
                 <EditableText
-                    defaultValue={fieldLabel}
+                    defaultValue={fieldLabel || field.reference}
                     readOnly={!isSettingsOpen}
                     onChange={(e) => onYAxisLabelChange(e.target.value)}
                     onClick={() =>
@@ -198,7 +189,6 @@ const YFieldsAxisConfig: FC<{
                                 label: y.reference,
                             }))}
                             value={field.reference}
-                            clearable
                             placeholder="Select Y axis"
                             onChange={(value) => {
                                 if (!value) return;
@@ -248,15 +238,12 @@ const YFieldsAxisConfig: FC<{
 
                     <Group mt="xs" spacing="xs" position="right">
                         <Button
+                            color="dark"
                             size="xs"
-                            variant="default"
                             compact
                             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                         >
-                            Cancel
-                        </Button>
-                        <Button color="dark" size="xs" compact>
-                            Save
+                            Confirm
                         </Button>
                     </Group>
                 </Stack>
@@ -296,7 +283,7 @@ const XFieldAxisConfig = ({
             })}
         >
             <EditableText
-                defaultValue={fieldLabel}
+                defaultValue={fieldLabel || field.reference}
                 readOnly={!isSettingsOpen}
                 onChange={(e) => onXAxisLabelChange(e.target.value)}
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -321,8 +308,11 @@ const XFieldAxisConfig = ({
                                 label: x.reference,
                             }))}
                             value={field.reference}
-                            clearable
                             placeholder="Select X axis"
+                            onChange={(value) => {
+                                if (!value) return;
+                                dispatch(setXAxisReference(value));
+                            }}
                             icon={
                                 <TableFieldIcon
                                     fieldType={
@@ -338,15 +328,12 @@ const XFieldAxisConfig = ({
 
                     <Group mt="xs" spacing="xs" position="right">
                         <Button
+                            color="dark"
                             size="xs"
-                            variant="default"
                             compact
                             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                         >
-                            Cancel
-                        </Button>
-                        <Button color="dark" size="xs" compact>
-                            Save
+                            Confirm
                         </Button>
                     </Group>
                 </Stack>
@@ -374,8 +361,6 @@ export const BarChartConfig = () => {
     const series = useAppSelector(
         (state) => state.barChartConfig.config?.display?.series,
     );
-
-    const [isCreating, setIsCreating] = useState(false);
 
     const onSeriesLabelChange = debounce((reference: string, label: string) => {
         dispatch(setSeriesLabel({ reference, label }));
@@ -408,28 +393,6 @@ export const BarChartConfig = () => {
                                 yLayoutOptions={yLayoutOptions}
                             />
                         ))}
-
-                    {yLayoutOptions && yAxisFields && isCreating ? (
-                        <YFieldAxisConfigForm
-                            fieldId={yLayoutOptions[0].reference}
-                            yAxisFields={yAxisFields}
-                            yLayoutOptions={yLayoutOptions}
-                            setIsCreating={setIsCreating}
-                        />
-                    ) : (
-                        <Button
-                            size="xs"
-                            sx={{
-                                alignSelf: 'flex-end',
-                            }}
-                            color="gray.6"
-                            variant="outline"
-                            compact
-                            onClick={() => setIsCreating(!isCreating)}
-                        >
-                            + Add
-                        </Button>
-                    )}
                 </Config.Section>
             </Config>
             <Config>

@@ -31,6 +31,19 @@ export const barChartConfigSlice = createSlice({
     name: 'barChartConfig',
     initialState,
     reducers: {
+        // TODO: add y field feature
+        // addYField: (
+        //     state,
+        //     action: PayloadAction<SqlTransformBarChartConfig['y'][number]>,
+        // ) => {
+        //     if (!state.config) return;
+        //     if (!state.config.fieldConfig) return;
+
+        //     const yAxisFields = state.config.fieldConfig.y;
+        //     if (yAxisFields) {
+        //         state.config.fieldConfig.y = [...yAxisFields, action.payload];
+        //     }
+        // },
         setXAxisReference: ({ config }, action: PayloadAction<string>) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x.reference = action.payload;
@@ -153,6 +166,7 @@ export const barChartConfigSlice = createSlice({
 export const {
     setYAxisLabel,
     setXAxisLabel,
+    setXAxisReference,
     setYAxisReference,
     setYAxisAggregation,
     setSeriesLabel,
