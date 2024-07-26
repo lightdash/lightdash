@@ -1,3 +1,10 @@
+# [0.1189.0](https://github.com/lightdash/lightdash/compare/0.1188.0...0.1189.0) (2024-07-26)
+
+
+### Features
+
+* use duckdb to query sql runner and improve bar chart config ([#10837](https://github.com/lightdash/lightdash/issues/10837)) ([ee3a947](https://github.com/lightdash/lightdash/commit/ee3a947d17ad52d4fcfc98aac4021cadfde4e323))
+
 # [0.1188.0](https://github.com/lightdash/lightdash/compare/0.1187.0...0.1188.0) (2024-07-26)
 
 
