@@ -640,6 +640,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

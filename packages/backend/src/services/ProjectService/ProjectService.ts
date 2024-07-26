@@ -54,6 +54,7 @@ import {
     IntrinsicUserAttributes,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -84,7 +85,7 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
-    SQLColumn,
+    SqlColumn,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -1054,6 +1055,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        context: QueryExecutionContext = QueryExecutionContext.VIEW_UNDERLYING_DATA,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1094,8 +1096,9 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploreName,
             csvLimit,
-            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+            context,
             queryTags,
+            chartUuid: undefined,
         });
     }
 
@@ -1104,11 +1107,13 @@ export class ProjectService extends BaseService {
         chartUuid,
         versionUuid,
         invalidateCache,
+        context = QueryExecutionContext.CHART,
     }: {
         user: SessionUser;
         chartUuid: string;
         versionUuid?: string;
         invalidateCache?: boolean;
+        context?: QueryExecutionContext;
     }): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1172,10 +1177,11 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
-                context: QueryExecutionContext.CHART,
+                context,
                 queryTags,
                 invalidateCache,
                 explore,
+                chartUuid,
             });
 
         return {
@@ -1194,6 +1200,8 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         granularity,
         dashboardUuid,
+        autoRefresh,
+        context = QueryExecutionContext.DASHBOARD,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -1202,6 +1210,8 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
         granularity?: DateGranularity;
+        autoRefresh?: boolean;
+        context?: QueryExecutionContext;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1295,11 +1305,14 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
-                context: QueryExecutionContext.DASHBOARD,
+                context: autoRefresh
+                    ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
+                    : context,
                 queryTags,
                 invalidateCache,
                 explore,
                 granularity,
+                chartUuid,
             });
 
         const metricQueryDimensions = [
@@ -1338,6 +1351,7 @@ export class ProjectService extends BaseService {
         exploreName: string,
         csvLimit: number | null | undefined,
         dateZoomGranularity?: DateGranularity,
+        context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1389,6 +1403,7 @@ export class ProjectService extends BaseService {
             context: QueryExecutionContext.EXPLORE,
             queryTags,
             granularity: dateZoomGranularity,
+            chartUuid: undefined,
         });
     }
 
@@ -1403,6 +1418,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: validExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1414,6 +1430,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined;
     }): Promise<ApiQueryResults> {
         return wrapSentryTransaction(
             'ProjectService.runQueryAndFormatRows',
@@ -1435,6 +1452,7 @@ export class ProjectService extends BaseService {
                         invalidateCache,
                         explore,
                         granularity,
+                        chartUuid,
                     });
                 span.setAttribute('rows', rows.length);
 
@@ -1484,6 +1502,7 @@ export class ProjectService extends BaseService {
     async getResultsForChart(
         user: SessionUser,
         chartUuid: string,
+        context: QueryExecutionContext,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1502,7 +1521,8 @@ export class ProjectService extends BaseService {
                     projectUuid: chart.projectUuid,
                     exploreName: exploreId,
                     csvLimit: undefined,
-                    context: QueryExecutionContext.GSHEETS,
+                    context,
+                    chartUuid,
                 });
             },
         );
@@ -1641,6 +1661,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
         explore: loadedExplore,
         granularity,
+        chartUuid,
     }: {
         user: SessionUser;
         metricQuery: MetricQuery;
@@ -1652,6 +1673,7 @@ export class ProjectService extends BaseService {
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
+        chartUuid: string | undefined; // for analytics
     }): Promise<{
         rows: Record<string, any>[];
         cacheMetadata: CacheMetadata;
@@ -1830,6 +1852,7 @@ export class ProjectService extends BaseService {
                             ...(queryTags?.dashboard_uuid
                                 ? { dashboardId: queryTags.dashboard_uuid }
                                 : {}),
+                            chartId: chartUuid,
                         },
                     });
                     this.logger.debug(
@@ -1999,7 +2022,7 @@ export class ProjectService extends BaseService {
         sql: string,
     ): Promise<{
         fileUrl: string;
-        columns: SQLColumn[];
+        columns: SqlColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2027,7 +2050,7 @@ export class ProjectService extends BaseService {
             ? this.streamResultsToCloudStorage.bind(this)
             : this.streamResultsToLocalFile.bind(this);
 
-        const columns: SQLColumn[] = [];
+        const columns: SqlColumn[] = [];
 
         const fileUrl = await streamFunction(projectUuid, async (writer) => {
             await warehouseClient.streamQuery(
@@ -2067,8 +2090,8 @@ export class ProjectService extends BaseService {
         );
         if (
             user.ability.cannot(
-                'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -2131,14 +2154,11 @@ export class ProjectService extends BaseService {
             throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
         }
 
-        const distinctMetric: AdditionalMetric = {
-            name: `${field.name}_distinct`,
-            label: `Distinct of ${field.label}`,
-            table: field.table,
-            sql: `DISTINCT ${field.sql}`,
-            type: MetricType.STRING,
-        };
-
+        if (!isDimension(field)) {
+            throw new ParameterError(
+                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
+            );
+        }
         const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
@@ -2154,19 +2174,18 @@ export class ProjectService extends BaseService {
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [],
-            metrics: [getItemId(distinctMetric)],
+            dimensions: [getItemId(field)],
+            metrics: [],
             filters: {
                 dimensions: {
                     id: uuidv4(),
                     and: autocompleteDimensionFilters,
                 },
             },
-            additionalMetrics: [distinctMetric],
             tableCalculations: [],
             sorts: [
                 {
-                    fieldId: getItemId(distinctMetric),
+                    fieldId: getItemId(field),
                     descending: false,
                 },
             ],
@@ -2200,7 +2219,6 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
         );
 
-        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2221,7 +2239,7 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(distinctMetric)]);
+        return rows.map((row) => row[getItemId(field)]);
     }
 
     async refreshAllTables(

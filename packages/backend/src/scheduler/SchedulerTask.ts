@@ -38,7 +38,7 @@ import {
     SchedulerLog,
     SessionUser,
     SlackNotificationPayload,
-    SQLColumn,
+    SqlColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
     ThresholdOperator,
@@ -887,7 +887,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | SQLColumn[]>(
+        await this.logWrapper<string | SqlColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,
@@ -954,6 +954,7 @@ export default class SchedulerTask {
                 exploreName: payload.exploreId,
                 csvLimit: undefined,
                 context: QueryExecutionContext.GSHEETS,
+                chartUuid: undefined,
             });
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
@@ -1349,6 +1350,7 @@ export default class SchedulerTask {
                 const { rows } = await this.projectService.getResultsForChart(
                     user,
                     savedChartUuid,
+                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -1466,6 +1468,7 @@ export default class SchedulerTask {
                             await this.projectService.getResultsForChart(
                                 user,
                                 chartUuid,
+                                QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                             );
                         const explore = await this.projectService.getExplore(
                             user,
@@ -1691,6 +1694,7 @@ export default class SchedulerTask {
                         await this.projectService.getResultsForChart(
                             user,
                             savedChartUuid,
+                            QueryExecutionContext.SCHEDULED_CHART,
                         );
 
                     if (

@@ -264,7 +264,7 @@ describe.skip(`Load testing`, () => {
     });
 });
 
-describe.only(`Saved SQL chart`, () => {
+describe(`Saved SQL chart`, () => {
     beforeEach(() => {
         cy.login();
     });

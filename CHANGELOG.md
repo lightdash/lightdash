@@ -1,3 +1,51 @@
+# [0.1189.0](https://github.com/lightdash/lightdash/compare/0.1188.0...0.1189.0) (2024-07-26)
+
+
+### Features
+
+* use duckdb to query sql runner and improve bar chart config ([#10837](https://github.com/lightdash/lightdash/issues/10837)) ([ee3a947](https://github.com/lightdash/lightdash/commit/ee3a947d17ad52d4fcfc98aac4021cadfde4e323))
+
+# [0.1188.0](https://github.com/lightdash/lightdash/compare/0.1187.0...0.1188.0) (2024-07-26)
+
+
+### Features
+
+* parse postgres numerics & int8s to JS numbers ([#10849](https://github.com/lightdash/lightdash/issues/10849)) ([e8a4ea1](https://github.com/lightdash/lightdash/commit/e8a4ea1eb7dcdd488d9786b6e0e157fa6d530495))
+
+# [0.1187.0](https://github.com/lightdash/lightdash/compare/0.1186.3...0.1187.0) (2024-07-26)
+
+
+### Bug Fixes
+
+* fix distinct value search on dimensions with custom sql ([#10823](https://github.com/lightdash/lightdash/issues/10823)) ([25a2b92](https://github.com/lightdash/lightdash/commit/25a2b9243d754b235eedaff07fb2a33508e9c99a))
+
+
+### Features
+
+* save sql chart feature flag ([#10850](https://github.com/lightdash/lightdash/issues/10850)) ([997562f](https://github.com/lightdash/lightdash/commit/997562f689c17f598dfd2908e14b2b23fe47a78e))
+
+## [0.1186.3](https://github.com/lightdash/lightdash/compare/0.1186.2...0.1186.3) (2024-07-26)
+
+
+### Bug Fixes
+
+* fix markdown tooltip with descriptions ([#10825](https://github.com/lightdash/lightdash/issues/10825)) ([941e058](https://github.com/lightdash/lightdash/commit/941e0585a8457b0b6502698be56c6f28f0822874))
+
+## [0.1186.2](https://github.com/lightdash/lightdash/compare/0.1186.1...0.1186.2) (2024-07-26)
+
+
+### Bug Fixes
+
+* sort v2 content by last_updated_at ([#10842](https://github.com/lightdash/lightdash/issues/10842)) ([e466036](https://github.com/lightdash/lightdash/commit/e466036cf67df75c18302a6c1fe477102169d2b1))
+* space e2e test ([#10835](https://github.com/lightdash/lightdash/issues/10835)) ([00da7b5](https://github.com/lightdash/lightdash/commit/00da7b59aafc3580ad849f41d7fc95c09c3c2019))
+
+## [0.1186.1](https://github.com/lightdash/lightdash/compare/0.1186.0...0.1186.1) (2024-07-25)
+
+
+### Bug Fixes
+
+* viewers can see saved SQL chart  ([#10836](https://github.com/lightdash/lightdash/issues/10836)) ([1f0e661](https://github.com/lightdash/lightdash/commit/1f0e661950aed65a906ad6efad7ac09f0a6ae04d))
+
 # [0.1186.0](https://github.com/lightdash/lightdash/compare/0.1185.2...0.1186.0) (2024-07-25)
 
 

@@ -87,18 +87,16 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             : undefined;
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
-        await createSavedSqlChart({
-            name: form.values.name,
-            description: form.values.description || '',
-            sql: sql,
-            // TODO: should initial version get generated on the BE?
-            config: config || {
-                metadata: { version: 1 },
-                type: ChartKind.VERTICAL_BAR,
-            },
-            spaceUuid: spaceUuid,
-        });
-        dispatch(updateName(form.values.name));
+        if (config) {
+            await createSavedSqlChart({
+                name: form.values.name,
+                description: form.values.description || '',
+                sql,
+                config,
+                spaceUuid: spaceUuid,
+            });
+            dispatch(updateName(form.values.name));
+        }
         onClose();
     }, [
         config,
@@ -170,7 +168,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name}
+                        disabled={!form.values.name || config === undefined}
                         loading={isCreatingSavedSqlChart}
                     >
                         Save

@@ -1,10 +1,11 @@
 import {
+    isErrorDetails,
     SchedulerJobStatus,
     type ApiError,
     type ApiJobScheduledResponse,
     type ApiSqlRunnerJobStatusResponse,
     type ResultRow,
-    type SQLColumn,
+    type SqlColumn,
     type SqlRunnerBody,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -27,9 +28,9 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
-type ResultsAndColumns = {
-    results: ResultRow[] | undefined;
-    columns: SQLColumn[] | undefined;
+export type ResultsAndColumns = {
+    results: ResultRow[];
+    columns: SqlColumn[];
 };
 
 /**
@@ -82,9 +83,12 @@ export const useSqlQueryRun = ({
             },
             onSuccess: (data) => {
                 if (data?.status === SchedulerJobStatus.ERROR) {
-                    showToastError({
-                        title: 'Could not run SQL query',
-                    });
+                    if (isErrorDetails(data?.details)) {
+                        showToastError({
+                            title: 'Could not run SQL query',
+                            subtitle: data?.details?.error,
+                        });
+                    }
                 }
             },
             enabled: Boolean(sqlQueryJob && sqlQueryJob?.jobId !== undefined),
@@ -94,11 +98,13 @@ export const useSqlQueryRun = ({
     const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
         ApiError,
-        ResultsAndColumns
+        ResultsAndColumns | undefined
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
         async () => {
-            const url = scheduledDeliveryJobStatus?.details?.fileUrl;
+            const url =
+                !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
+                scheduledDeliveryJobStatus?.details?.fileUrl;
             if (!url) {
                 throw new Error('Missing file URL');
             }
@@ -151,20 +157,29 @@ export const useSqlQueryRun = ({
             return jsonObjects;
         },
         {
-            onError: () => {
+            onError: (data) => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
+                    subtitle: data.error.message,
                 });
             },
             enabled: Boolean(
                 scheduledDeliveryJobStatus?.status ===
                     SchedulerJobStatus.COMPLETED &&
+                    !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
             select: (data) => {
+                if (
+                    !data ||
+                    isErrorDetails(scheduledDeliveryJobStatus?.details) ||
+                    !scheduledDeliveryJobStatus?.details?.columns
+                ) {
+                    return undefined;
+                }
                 return {
                     results: data,
-                    columns: scheduledDeliveryJobStatus?.details?.columns,
+                    columns: scheduledDeliveryJobStatus.details.columns,
                 };
             },
             onSuccess: (data) => {

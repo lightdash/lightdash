@@ -25,7 +25,7 @@ export const tableVisSlice = createSlice({
         builder.addCase(setInitialResultsAndSeries, (state, action) => {
             if (state.config === undefined) {
                 // TODO: this should come from the transformer
-                const columns = Object.keys(action.payload[0]).reduce<
+                const columns = Object.keys(action.payload.results[0]).reduce<
                     TableChartSqlConfig['columns']
                 >(
                     (acc, key) => ({

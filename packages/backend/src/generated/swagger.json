@@ -7353,87 +7353,113 @@
                 "enum": ["vertical_bar"],
                 "type": "string"
             },
-            "BarChartConfig": {
+            "AggregationOptions": {
+                "type": "string"
+            },
+            "SqlTransformBarChartConfig": {
                 "properties": {
-                    "series": {
+                    "groupBy": {
+                        "properties": {
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["reference"],
+                        "type": "object"
+                    },
+                    "y": {
                         "items": {
                             "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "yIndex": {
-                                    "type": "number",
-                                    "format": "double"
+                                "aggregation": {
+                                    "$ref": "#/components/schemas/AggregationOptions"
                                 },
                                 "reference": {
                                     "type": "string"
                                 }
                             },
-                            "required": ["name", "yIndex", "reference"],
+                            "required": ["aggregation", "reference"],
                             "type": "object"
                         },
                         "type": "array"
                     },
-                    "axes": {
+                    "x": {
                         "properties": {
-                            "y": {
-                                "items": {
-                                    "properties": {
-                                        "label": {
-                                            "type": "string"
-                                        },
-                                        "position": {
-                                            "type": "string",
-                                            "enum": ["left", "right"]
-                                        },
-                                        "reference": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": ["label", "reference"],
-                                    "type": "object"
-                                },
-                                "type": "array"
-                            },
-                            "x": {
-                                "properties": {
-                                    "label": {
-                                        "type": "string"
-                                    },
-                                    "reference": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["reference"],
-                                "type": "object"
+                            "reference": {
+                                "type": "string"
                             }
                         },
-                        "required": ["y", "x"],
+                        "required": ["reference"],
+                        "type": "object"
+                    }
+                },
+                "required": ["y", "x"],
+                "type": "object"
+            },
+            "XLayoutType": {
+                "enum": ["time", "category"],
+                "type": "string"
+            },
+            "Record_string._label%3F%3Astring--yAxisIndex%3F%3Anumber--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "BarChartDisplay": {
+                "properties": {
+                    "legend": {
+                        "properties": {
+                            "align": {
+                                "type": "string",
+                                "enum": ["start", "center", "end"]
+                            },
+                            "position": {
+                                "type": "string",
+                                "enum": ["top", "bottom", "left", "right"]
+                            }
+                        },
+                        "required": ["align", "position"],
                         "type": "object"
                     },
-                    "style": {
-                        "properties": {
-                            "legend": {
-                                "properties": {
-                                    "align": {
-                                        "type": "string",
-                                        "enum": ["start", "center", "end"]
-                                    },
-                                    "position": {
-                                        "type": "string",
-                                        "enum": [
-                                            "top",
-                                            "bottom",
-                                            "left",
-                                            "right"
-                                        ]
-                                    }
+                    "series": {
+                        "$ref": "#/components/schemas/Record_string._label%3F%3Astring--yAxisIndex%3F%3Anumber--__"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "properties": {
+                                "position": {
+                                    "type": "string",
+                                    "enum": ["left", "right"]
                                 },
-                                "required": ["align", "position"],
-                                "type": "object"
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/XLayoutType"
+                            },
+                            "label": {
+                                "type": "string"
                             }
                         },
+                        "required": ["type"],
                         "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "BarChartConfig": {
+                "properties": {
+                    "display": {
+                        "$ref": "#/components/schemas/BarChartDisplay"
+                    },
+                    "fieldConfig": {
+                        "$ref": "#/components/schemas/SqlTransformBarChartConfig"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
@@ -8972,7 +8998,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1184.0",
+        "version": "0.1185.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12727,6 +12753,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "autoRefresh": {
+                                        "type": "boolean"
+                                    },
                                     "granularity": {
                                         "$ref": "#/components/schemas/DateGranularity"
                                     },

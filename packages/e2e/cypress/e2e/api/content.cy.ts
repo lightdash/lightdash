@@ -69,6 +69,39 @@ describe('Lightdash catalog all tables and fields', () => {
             });
         });
     });
+
+    describe('Test order', () => {
+        it('Should return charts and dashboards sorted by last_updated_at', () => {
+            cy.request(`${apiUrl}/content?pageSize=999`).then((resp) => {
+                expect(resp.status).to.eq(200);
+                content = resp.body.results.data;
+                const sortedByLastUpdated = [...content].sort(
+                    (a, b) => a.lastUpdatedAt - b.lastUpdatedAt,
+                );
+                expect(sortedByLastUpdated.map((d) => d.uuid)).to.deep.eq(
+                    content.map((d) => d.uuid),
+                );
+
+                const sortedByViews = [...content].sort(
+                    (a, b) => a.views - b.views,
+                );
+                expect(sortedByViews.map((d) => d.uuid)).to.not.deep.eq(
+                    content.map((d) => d.uuid),
+                );
+
+                // Check the list of content returns charts and dashboards mixed together
+                const nextContentIsDifferent = (type: string) =>
+                    content.some((d, i) => {
+                        if (d.contentType === type) {
+                            return content[i + 1]?.contentType !== type;
+                        }
+                        return false;
+                    });
+                expect(nextContentIsDifferent('dashboard')).to.be.eq(true);
+                expect(nextContentIsDifferent('chart')).to.be.eq(true);
+            });
+        });
+    });
     describe('Filter by spaceUuids', () => {
         it('Filter by existing spaceUuid', () => {
             cy.request(

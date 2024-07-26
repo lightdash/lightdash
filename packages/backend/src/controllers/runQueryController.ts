@@ -3,10 +3,13 @@ import {
     ApiErrorPayload,
     ApiQueryResults,
     CacheMetadata,
+    getRequestMethod,
     Item,
+    LightdashRequestMethodHeader,
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
+    RequestMethod,
 } from '@lightdash/common';
 import {
     Body,
@@ -21,6 +24,10 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import {
+    getContextFromHeader,
+    QueryExecutionContext,
+} from '../analytics/LightdashAnalytics';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -66,6 +73,7 @@ export class RunViewChartQueryController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
         };
+
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runUnderlyingDataQuery(
@@ -74,6 +82,7 @@ export class RunViewChartQueryController extends BaseController {
                 projectUuid,
                 exploreId,
                 body.csvLimit,
+                getContextFromHeader(req),
             );
         this.setStatus(200);
         return {
@@ -121,6 +130,7 @@ export class RunViewChartQueryController extends BaseController {
                 exploreId,
                 body.csvLimit,
                 body.granularity,
+                getContextFromHeader(req),
             );
         this.setStatus(200);
         return {

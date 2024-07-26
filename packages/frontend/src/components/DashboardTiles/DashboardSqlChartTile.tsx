@@ -48,7 +48,6 @@ export const DashboardSqlChartTile: FC<Props> = ({
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
-                titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}/`}
                 // TODO: complete this
                 belongsToDashboard={false}
                 tile={tile}
@@ -84,8 +83,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                 <TileBase
                     isEditMode={isEditMode}
                     chartName={tile.properties.chartName ?? ''}
-                    // TODO: Fix this link - should we use uuid or slug?
-                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}`}
+                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${data.chart.slug}`}
                     tile={tile}
                     title={
                         tile.properties.title || tile.properties.chartName || ''
@@ -98,7 +96,10 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     )}
                     {data.chart.config.type === ChartKind.VERTICAL_BAR && (
                         <BarChart
-                            data={data.results}
+                            data={{
+                                results: data.results,
+                                columns: [],
+                            }}
                             config={data.chart.config}
                             style={{
                                 minHeight: 'inherit',
