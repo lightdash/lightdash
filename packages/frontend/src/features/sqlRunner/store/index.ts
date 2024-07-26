@@ -4,11 +4,13 @@ import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { barChartConfigSlice } from './barChartSlice';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
+import { tableVisSlice } from './tableVisSlice';
 
 export const store = configureStore({
     reducer: {
         sqlRunner: sqlRunnerSlice.reducer,
         barChartConfig: barChartConfigSlice.reducer,
+        tableVisConfig: tableVisSlice.reducer,
     },
     devTools: process.env.NODE_ENV === 'development',
 });

@@ -8,8 +8,8 @@ import {
 import { Badge, Box, Button, Group, Select, Stack } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { useState, type FC } from 'react';
-import { Config } from '../../../../components/VisualizationConfigs/common/Config';
-import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import {
     setSeriesLabel,
     setXAxisLabel,
@@ -17,10 +17,10 @@ import {
     setYAxisAggregation,
     setYAxisLabel,
     setYAxisReference,
-} from '../../store/barChartSlice';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { TableFieldIcon } from '../TableFields';
-import { BarChartAggregationConfig } from './BarChartAggregationConfig';
+} from '../store/barChartSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { TableFieldIcon } from './TableFields';
+import { BarChartAggregationConfig } from './visualizations/BarChartAggregationConfig';
 
 const DEBOUNCE_TIME = 500;
 
