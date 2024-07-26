@@ -1,11 +1,18 @@
-import { Stack } from '@mantine/core';
+import { ActionIcon, TextInput } from '@mantine/core';
+import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { updateFieldLabel } from '../store/tableVisSlice';
+import {
+    updateColumnVisibility,
+    updateFieldLabel,
+} from '../store/tableVisSlice';
+import { TableFieldIcon } from './TableFields';
 
 const TableVisConfiguration: FC = ({}) => {
     const dispatch = useAppDispatch();
+    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     const tableVisConfig = useAppSelector(
         (state) => state.tableVisConfig.config,
@@ -16,22 +23,61 @@ const TableVisConfiguration: FC = ({}) => {
     }
 
     return (
-        <Stack spacing="xs">
-            {Object.keys(tableVisConfig.columns).map((reference) => (
-                <EditableText
-                    key={reference}
-                    value={tableVisConfig.columns[reference].label}
-                    onChange={(e) => {
-                        dispatch(
-                            updateFieldLabel({
-                                reference,
-                                label: e.target.value,
-                            }),
-                        );
-                    }}
-                />
-            ))}
-        </Stack>
+        <Config>
+            <Config.Section>
+                <Config.Heading>Column labels</Config.Heading>
+                {Object.keys(tableVisConfig.columns).map((reference) => {
+                    const fieldType = sqlColumns?.find(
+                        (c) => c.reference === reference,
+                    )?.type;
+
+                    return (
+                        <TextInput
+                            key={reference}
+                            radius="md"
+                            value={tableVisConfig.columns[reference].label}
+                            icon={
+                                fieldType && (
+                                    <TableFieldIcon fieldType={fieldType} />
+                                )
+                            }
+                            rightSection={
+                                <ActionIcon
+                                    onClick={() =>
+                                        dispatch(
+                                            updateColumnVisibility({
+                                                reference,
+                                                visible:
+                                                    !tableVisConfig.columns[
+                                                        reference
+                                                    ].visible,
+                                            }),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            tableVisConfig.columns[reference]
+                                                .visible
+                                                ? IconEye
+                                                : IconEyeOff
+                                        }
+                                    />
+                                </ActionIcon>
+                            }
+                            onChange={(e) => {
+                                dispatch(
+                                    updateFieldLabel({
+                                        reference,
+                                        label: e.target.value,
+                                    }),
+                                );
+                            }}
+                        />
+                    );
+                })}
+            </Config.Section>
+        </Config>
     );
 };
 
