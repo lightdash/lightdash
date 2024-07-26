@@ -1,3 +1,11 @@
+## [0.1186.2](https://github.com/lightdash/lightdash/compare/0.1186.1...0.1186.2) (2024-07-26)
+
+
+### Bug Fixes
+
+* sort v2 content by last_updated_at ([#10842](https://github.com/lightdash/lightdash/issues/10842)) ([e466036](https://github.com/lightdash/lightdash/commit/e466036cf67df75c18302a6c1fe477102169d2b1))
+* space e2e test ([#10835](https://github.com/lightdash/lightdash/issues/10835)) ([00da7b5](https://github.com/lightdash/lightdash/commit/00da7b59aafc3580ad849f41d7fc95c09c3c2019))
+
 ## [0.1186.1](https://github.com/lightdash/lightdash/compare/0.1186.0...0.1186.1) (2024-07-25)
 
 
