@@ -94,7 +94,18 @@ const PivotTable: FC<PivotTableProps> = ({
     const hasRowTotals = data.pivotConfig.rowTotals;
 
     const { columns, columnOrder } = useMemo(() => {
-        let headerInfoForColumns = data.headerValues[0].map(() => ({}));
+        let headerInfoForColumns = data.headerValues[0].map(
+            () => ({} as Record<string, ResultValue>),
+        );
+        data.headerValues.forEach((headerRow) => {
+            headerRow.forEach((headerColValue, headerColIndex) => {
+                if ('value' in headerColValue) {
+                    headerInfoForColumns[headerColIndex][
+                        headerColValue.fieldId
+                    ] = headerColValue.value;
+                }
+            });
+        });
         headerInfoForColumns = [
             ...Array(data.indexValueTypes.length),
             ...headerInfoForColumns,
@@ -107,10 +118,11 @@ const PivotTable: FC<PivotTableProps> = ({
             (col, colIndex) => {
                 newColumnOrder.push(col.fieldId);
 
-                const item = getField(col.underlyingId || col.baseId);
+                const itemId = col.underlyingId || col.baseId;
+                const item = itemId ? getField(itemId) : undefined;
 
                 const shouldAggregate =
-                    col.meta?.type === 'rowTotal' ||
+                    col.columnType === 'rowTotal' ||
                     (item &&
                         isField(item) &&
                         isMetric(item) &&
@@ -165,7 +177,7 @@ const PivotTable: FC<PivotTableProps> = ({
                         },
                         meta: {
                             item: item,
-                            type: col.meta?.type,
+                            type: col.columnType,
                             headerInfo:
                                 colIndex < headerInfoForColumns.length
                                     ? headerInfoForColumns[colIndex]
