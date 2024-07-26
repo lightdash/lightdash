@@ -15,6 +15,7 @@ import { useCallback, useEffect, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
+    SaveDestination,
     SaveToSpace,
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -40,6 +41,13 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
+        initialValues: {
+            name: '',
+            description: '',
+            spaceUuid: '',
+            newSpaceName: '',
+            saveDestination: SaveDestination.Space,
+        },
         validate: zodResolver(validationSchema),
     });
 
