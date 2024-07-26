@@ -460,6 +460,8 @@ describe('Date tests', () => {
         cy.findByTestId('page-spinner').should('not.exist');
         cy.get('[data-testid=Chart-card-expand]').click(); // Close chart
 
+        cy.contains('Search Jaffle shop'); // Wait until it finishes loading the nav bar
+        cy.contains('Save chart').should('be.disabled'); // Wait until it finishes loading the button
         cy.contains('Filters').should('be.visible');
 
         // Open Date dimension
