@@ -2,7 +2,8 @@ import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { BarChartStyling } from './visualizations/BarChartStyling';
+import { BarChartFieldConfiguration } from './BarChartFieldConfiguration';
+import { BarChartStyling } from './BarChartStyling';
 
 export const BarChartConfig = () => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =

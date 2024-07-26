@@ -1,9 +1,9 @@
 import { XLayoutType } from '@lightdash/common';
 import { Stack, TextInput } from '@mantine/core';
 import debounce from 'lodash/debounce';
-import { Config } from '../../../../components/VisualizationConfigs/common/Config';
-import { setXAxisLabel, setYAxisLabel } from '../../store/barChartSlice';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import { setXAxisLabel, setYAxisLabel } from '../store/barChartSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 const DEBOUNCE_TIME = 500;
 

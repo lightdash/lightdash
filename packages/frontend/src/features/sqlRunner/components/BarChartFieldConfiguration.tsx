@@ -8,17 +8,17 @@ import {
 import { Group, Select } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { type FC } from 'react';
-import { Config } from '../../../../components/VisualizationConfigs/common/Config';
-import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import {
     setSeriesLabel,
     setXAxisReference,
     setYAxisAggregation,
     setYAxisReference,
-} from '../../store/barChartSlice';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { TableFieldIcon } from '../TableFields';
+} from '../store/barChartSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { BarChartAggregationConfig } from './BarChartAggregationConfig';
+import { TableFieldIcon } from './TableFields';
 
 const DEBOUNCE_TIME = 500;
 
