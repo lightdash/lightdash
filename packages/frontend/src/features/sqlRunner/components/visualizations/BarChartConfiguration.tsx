@@ -1,4 +1,5 @@
 import {
+    DEFAULT_AGGREGATION,
     DimensionType,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
@@ -23,6 +24,7 @@ import { EditableText } from '../../../../components/VisualizationConfigs/common
 import {
     setSeriesLabel,
     setXAxisLabel,
+    setYAxisAggregation,
     setYAxisLabel,
     setYAxisReference,
 } from '../../store/barChartSlice';
@@ -92,6 +94,22 @@ const YFieldAxisConfigForm: FC<{
                         ({ reference }) => reference === fieldId,
                     )?.aggregationOptions
                 }
+                aggregation={
+                    yLayoutOptions.find(
+                        ({ reference }) => reference === fieldId,
+                    )?.aggregationOptions[0]
+                }
+                onChangeAggregation={() => {
+                    // setYAxisFields([
+                    //     ...yAxisFields,
+                    //     {
+                    //         reference: fieldId,
+                    //         label: label,
+                    //         position: 'left',
+                    //         aggregation: value,
+                    //     },
+                    // ]);
+                }}
             />
             <Button
                 sx={{
@@ -188,6 +206,12 @@ const YFieldsAxisConfig: FC<{
                                     setYAxisReference({
                                         previousReference: field.reference,
                                         reference: value,
+                                        aggregation:
+                                            yLayoutOptions.find(
+                                                (option) =>
+                                                    option.reference === value,
+                                            )?.aggregationOptions[0] ??
+                                            DEFAULT_AGGREGATION,
                                     }),
                                 );
                             }}
@@ -210,6 +234,15 @@ const YFieldsAxisConfig: FC<{
                                 (layout) =>
                                     layout.reference === field.reference,
                             )?.aggregationOptions
+                        }
+                        aggregation={field.aggregation}
+                        onChangeAggregation={(value) =>
+                            dispatch(
+                                setYAxisAggregation({
+                                    reference: field.reference,
+                                    aggregation: value,
+                                }),
+                            )
                         }
                     />
 

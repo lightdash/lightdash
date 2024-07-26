@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    type AggregationOptions,
     type BarChartConfig,
     type BarChartDisplay,
     type XLayoutOptions,
@@ -40,6 +41,7 @@ export const barChartConfigSlice = createSlice({
             action: PayloadAction<{
                 previousReference: string;
                 reference: string;
+                aggregation: AggregationOptions;
             }>,
         ) => {
             if (config?.fieldConfig?.y) {
@@ -49,7 +51,25 @@ export const barChartConfigSlice = createSlice({
                 );
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
+                    yAxis.aggregation = action.payload.aggregation;
                 }
+            }
+        },
+        setYAxisAggregation: (
+            { config },
+            action: PayloadAction<{
+                reference: string;
+                aggregation: AggregationOptions;
+            }>,
+        ) => {
+            if (!config) return;
+            if (!config?.fieldConfig?.y) return;
+
+            const yAxis = config.fieldConfig.y.find(
+                (axis) => axis.reference === action.payload.reference,
+            );
+            if (yAxis) {
+                yAxis.aggregation = action.payload.aggregation;
             }
         },
         setXAxisLabel: (
@@ -134,5 +154,6 @@ export const {
     setYAxisLabel,
     setXAxisLabel,
     setYAxisReference,
+    setYAxisAggregation,
     setSeriesLabel,
 } = barChartConfigSlice.actions;
