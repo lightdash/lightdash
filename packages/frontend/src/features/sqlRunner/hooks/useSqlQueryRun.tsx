@@ -170,14 +170,16 @@ export const useSqlQueryRun = ({
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
             select: (data) => {
-                if (!data || !scheduledDeliveryJobStatus?.details?.columns) {
+                if (
+                    !data ||
+                    isErrorDetails(scheduledDeliveryJobStatus?.details) ||
+                    !scheduledDeliveryJobStatus?.details?.columns
+                ) {
                     return undefined;
                 }
                 return {
                     results: data,
-                    columns: isErrorDetails(scheduledDeliveryJobStatus?.details)
-                        ? []
-                        : scheduledDeliveryJobStatus?.details?.columns,
+                    columns: scheduledDeliveryJobStatus.details.columns,
                 };
             },
             onSuccess: (data) => {
