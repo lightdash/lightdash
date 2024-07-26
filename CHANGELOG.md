@@ -1,3 +1,10 @@
+## [0.1186.3](https://github.com/lightdash/lightdash/compare/0.1186.2...0.1186.3) (2024-07-26)
+
+
+### Bug Fixes
+
+* fix markdown tooltip with descriptions ([#10825](https://github.com/lightdash/lightdash/issues/10825)) ([941e058](https://github.com/lightdash/lightdash/commit/941e0585a8457b0b6502698be56c6f28f0822874))
+
 ## [0.1186.2](https://github.com/lightdash/lightdash/compare/0.1186.1...0.1186.2) (2024-07-26)
 
 
