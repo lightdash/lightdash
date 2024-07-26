@@ -54,6 +54,7 @@ import {
     IntrinsicUserAttributes,
     isCustomSqlDimension,
     isDateItem,
+    isDimension,
     isExploreError,
     isFilterableDimension,
     isUserWithOrg,
@@ -2153,14 +2154,11 @@ export class ProjectService extends BaseService {
             throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
         }
 
-        const distinctMetric: AdditionalMetric = {
-            name: `${field.name}_distinct`,
-            label: `Distinct of ${field.label}`,
-            table: field.table,
-            sql: `DISTINCT ${field.sql}`,
-            type: MetricType.STRING,
-        };
-
+        if (!isDimension(field)) {
+            throw new ParameterError(
+                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
+            );
+        }
         const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
@@ -2176,19 +2174,18 @@ export class ProjectService extends BaseService {
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
-            dimensions: [],
-            metrics: [getItemId(distinctMetric)],
+            dimensions: [getItemId(field)],
+            metrics: [],
             filters: {
                 dimensions: {
                     id: uuidv4(),
                     and: autocompleteDimensionFilters,
                 },
             },
-            additionalMetrics: [distinctMetric],
             tableCalculations: [],
             sorts: [
                 {
-                    fieldId: getItemId(distinctMetric),
+                    fieldId: getItemId(field),
                     descending: false,
                 },
             ],
@@ -2222,7 +2219,6 @@ export class ProjectService extends BaseService {
             this.lightdashConfig.query.timezone || 'UTC',
         );
 
-        this.logger.debug(`Run query against warehouse`);
         const queryTags: RunQueryTags = {
             organization_uuid: organizationUuid,
             user_uuid: user.userUuid,
@@ -2243,7 +2239,7 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(distinctMetric)]);
+        return rows.map((row) => row[getItemId(field)]);
     }
 
     async refreshAllTables(
