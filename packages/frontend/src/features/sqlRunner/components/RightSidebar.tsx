@@ -11,7 +11,6 @@ import {
 import { IconLayoutSidebarRightCollapse } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-
 import { themeOverride } from '../../../components/VisualizationConfigs/mantineTheme';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSelectedChartType } from '../store/sqlRunnerSlice';

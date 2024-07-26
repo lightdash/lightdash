@@ -3,9 +3,8 @@
 import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { barChartConfigSlice } from './barChartSlice';
-import { tableVisSlice } from './tableVisSlice';
-
 import { sqlRunnerSlice } from './sqlRunnerSlice';
+import { tableVisSlice } from './tableVisSlice';
 
 export const store = configureStore({
     reducer: {
