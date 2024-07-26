@@ -1,5 +1,5 @@
 import { MetricType, type YLayoutOptions } from '@lightdash/common';
-import { Group, Select, Text, type SelectItemProps } from '@mantine/core';
+import { Group, SegmentedControl, Text } from '@mantine/core';
 import {
     IconMathFunction,
     IconMathMax,
@@ -9,9 +9,8 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
-import { forwardRef, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
     aggregation,
@@ -46,7 +45,6 @@ type Props = {
     ) => void;
 };
 
-// TODO: Oliver add onChange of aggregation - what should happen with duck db?
 export const BarChartAggregationConfig: FC<Props> = ({
     options,
     onChangeAggregation,
@@ -55,28 +53,18 @@ export const BarChartAggregationConfig: FC<Props> = ({
     const aggregationOptionsWithNone = options ?? [];
 
     return (
-        <Config>
-            <Config.Label>Aggregation</Config.Label>
-            <Select
-                data={aggregationOptionsWithNone.map((option) => ({
-                    value: option,
-                    label: capitalize(option),
-                }))}
-                itemComponent={forwardRef<HTMLDivElement, SelectItemProps>(
-                    ({ label, value, ...others }, ref) => (
-                        <div ref={ref} {...others}>
-                            <Group noWrap>
-                                <AggregationIcon aggregation={value} />
-
-                                <Text size="sm">{label}</Text>
-                            </Group>
-                        </div>
-                    ),
-                )}
-                value={aggregation ?? aggregationOptionsWithNone?.[0]}
-                onChange={(value) => value && onChangeAggregation(value)}
-                icon={<AggregationIcon aggregation={'none'} />}
-            />
-        </Config>
+        <SegmentedControl
+            data={aggregationOptionsWithNone.map((option) => ({
+                value: option,
+                label: (
+                    <Group noWrap spacing={0}>
+                        <AggregationIcon aggregation={option} />
+                        <Text>{capitalize(option)}</Text>
+                    </Group>
+                ),
+            }))}
+            value={aggregation ?? aggregationOptionsWithNone?.[0]}
+            onChange={(value) => value && onChangeAggregation(value)}
+        />
     );
 };
