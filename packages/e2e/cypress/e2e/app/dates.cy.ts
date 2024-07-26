@@ -390,7 +390,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
-    it.only('Should keep value when changing date operator', () => {
+    it('Should keep value when changing date operator', () => {
         const todayDate = new Date();
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
