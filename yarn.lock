@@ -2657,6 +2657,13 @@
     gonzales-pe "^4.3.0"
     node-source-walk "^6.0.1"
 
+"@duckdb/duckdb-wasm@^1.28.1-dev106.0":
+  version "1.28.1-dev106.0"
+  resolved "https://registry.yarnpkg.com/@duckdb/duckdb-wasm/-/duckdb-wasm-1.28.1-dev106.0.tgz#43e71fd705fd47cac02ef8af9b58356669537748"
+  integrity sha512-HcA9q/Yq1t8nAIg2rl8DmOTjKy1tAHSdBGHlCcWAm5StsfAjcm+f0STBEH3hmWPk0qEtOJF30OR+GfeyUOP+hA==
+  dependencies:
+    apache-arrow "^14.0.1"
+
 "@emotion/babel-plugin@^11.10.6":
   version "11.10.6"
   resolved "https://registry.npmjs.org/@emotion/babel-plugin/-/babel-plugin-11.10.6.tgz"
@@ -7437,6 +7444,22 @@ apache-arrow@^13.0.0:
   version "13.0.0"
   resolved "https://registry.yarnpkg.com/apache-arrow/-/apache-arrow-13.0.0.tgz#8c8c69ca8ec53b804b4e10fe6b57483bda46dfbd"
   integrity sha512-3gvCX0GDawWz6KFNC28p65U+zGh/LZ6ZNKWNu74N6CQlKzxeoWHpi4CgEQsgRSEMuyrIIXi1Ea2syja7dwcHvw==
+  dependencies:
+    "@types/command-line-args" "5.2.0"
+    "@types/command-line-usage" "5.0.2"
+    "@types/node" "20.3.0"
+    "@types/pad-left" "2.1.1"
+    command-line-args "5.2.1"
+    command-line-usage "7.0.1"
+    flatbuffers "23.5.26"
+    json-bignum "^0.0.3"
+    pad-left "^2.1.0"
+    tslib "^2.5.3"
+
+apache-arrow@^14.0.1:
+  version "14.0.2"
+  resolved "https://registry.yarnpkg.com/apache-arrow/-/apache-arrow-14.0.2.tgz#737f7b8211ef99a2c137dcc9d2001b469efb0344"
+  integrity sha512-EBO2xJN36/XoY81nhLcwCJgFwkboDZeyNQ+OPsG7bCoQjc2BT0aTyH/MR6SrL+LirSNz+cYqjGRlupMMlP1aEg==
   dependencies:
     "@types/command-line-args" "5.2.0"
     "@types/command-line-usage" "5.0.2"

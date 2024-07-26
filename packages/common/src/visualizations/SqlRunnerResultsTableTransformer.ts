@@ -1,6 +1,6 @@
-import { type SqlRunnerResults } from '../../types/sqlRunner';
+import { type SqlRunnerResults } from '../types/sqlRunner';
 
-export class SqlRunnerResultsTransformer {
+export class SqlRunnerResultsTableTransformer {
     private readonly data: SqlRunnerResults;
 
     constructor(args: { data: SqlRunnerResults }) {

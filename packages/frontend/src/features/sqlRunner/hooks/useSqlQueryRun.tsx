@@ -5,7 +5,7 @@ import {
     type ApiJobScheduledResponse,
     type ApiSqlRunnerJobStatusResponse,
     type ResultRow,
-    type SQLColumn,
+    type SqlColumn,
     type SqlRunnerBody,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -28,9 +28,9 @@ const scheduleSqlJob = async ({
         body: JSON.stringify({ sql }),
     });
 
-type ResultsAndColumns = {
-    results: ResultRow[] | undefined;
-    columns: SQLColumn[] | undefined;
+export type ResultsAndColumns = {
+    results: ResultRow[];
+    columns: SqlColumn[];
 };
 
 /**
@@ -98,7 +98,7 @@ export const useSqlQueryRun = ({
     const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
         ApiError,
-        ResultsAndColumns
+        ResultsAndColumns | undefined
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
         async () => {
@@ -170,11 +170,16 @@ export const useSqlQueryRun = ({
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
             select: (data) => {
+                if (
+                    !data ||
+                    isErrorDetails(scheduledDeliveryJobStatus?.details) ||
+                    !scheduledDeliveryJobStatus?.details?.columns
+                ) {
+                    return undefined;
+                }
                 return {
                     results: data,
-                    columns: isErrorDetails(scheduledDeliveryJobStatus?.details)
-                        ? []
-                        : scheduledDeliveryJobStatus?.details?.columns,
+                    columns: scheduledDeliveryJobStatus.details.columns,
                 };
             },
             onSuccess: (data) => {
