@@ -47,7 +47,9 @@ const Schedulers: FC<SchedulersProps> = ({
 }) => {
     const { classes, theme } = useTableStyles();
     const { data } = useGetSlack();
-    const { data: allSlackChannels } = data?.slackEnabled ? useSlackChannels() : { data: [] };
+    const { data: allSlackChannels } = useSlackChannels({
+        enabled: !!data?.isSlackInstalled,
+    });
 
     const getSlackChannelName = useCallback(
         (channelId: string) => {

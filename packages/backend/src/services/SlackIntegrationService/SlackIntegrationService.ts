@@ -37,11 +37,8 @@ export class SlackIntegrationService<
             );
         if (slackAuth === undefined) {
             return {
-                slackEnabled: false
+                isSlackInstalled: false
             };
-            // throw new NotFoundError(
-            //     `Could not find an installation for organizationUuid ${organizationUuid}`,
-            // );
         }
         const response: SlackSettings = {
             organizationUuid,
@@ -50,7 +47,7 @@ export class SlackIntegrationService<
             scopes: slackAuth.scopes,
             notificationChannel: slackAuth.notificationChannel,
             appProfilePhotoUrl: slackAuth.appProfilePhotoUrl,
-            slackEnabled: true
+            isSlackInstalled: true
         };
         return response;
     }
