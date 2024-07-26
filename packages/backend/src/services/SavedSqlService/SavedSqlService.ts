@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiCreateSqlChart,
     CreateSqlChart,
+    FeatureFlags,
     ForbiddenError,
     SessionUser,
     SqlChart,
@@ -11,6 +12,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
@@ -57,7 +59,12 @@ export class SavedSqlService extends BaseService {
             spaceUuid,
         );
 
-        return user.ability.can(
+        const hasFeatureFlag = await isFeatureFlagEnabled(
+            FeatureFlags.SaveSqlChart,
+            user,
+        );
+
+        const hasPermission = user.ability.can(
             action,
             subject('SavedChart', {
                 organizationUuid,
@@ -66,6 +73,8 @@ export class SavedSqlService extends BaseService {
                 access,
             }),
         );
+
+        return hasFeatureFlag && hasPermission;
     }
 
     private async hasSavedChartAccess(
