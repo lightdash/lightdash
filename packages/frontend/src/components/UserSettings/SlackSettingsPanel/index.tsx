@@ -53,14 +53,9 @@ const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 const SlackSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGetSlack();
     const isValidSlack = data?.slackTeamName !== undefined && !isError;
-    const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
-        data?.slackEnabled ?
-        useSlackChannels({
-            enabled: isValidSlack,
-        }) : {
-            data: [],
-            isInitialLoading: false,
-        };
+    const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } = useSlackChannels({
+        enabled: isValidSlack && !!data.isSlackInstalled,
+    });
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();

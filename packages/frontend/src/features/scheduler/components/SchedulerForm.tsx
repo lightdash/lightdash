@@ -339,7 +339,7 @@ const SchedulerForm: FC<Props> = ({
     });
 
     const slackQuery = useGetSlack();
-    const isSlackEnabled = slackQuery.data?.slackEnabled ? true : false
+    const isSlackInstalled = slackQuery.data?.isSlackInstalled ? true : false
     const slackState = useMemo(() => {
         if (slackQuery.isInitialLoading) {
             return SlackStates.LOADING;
@@ -356,7 +356,9 @@ const SchedulerForm: FC<Props> = ({
         }
     }, [slackQuery]);
 
-    const slackChannelsQuery = isSlackEnabled ? useSlackChannels() : undefined;
+    const slackChannelsQuery = useSlackChannels({
+        enabled: isSlackInstalled,
+    });
 
     const slackChannels = useMemo(() => {
         return (slackChannelsQuery?.data || [])
