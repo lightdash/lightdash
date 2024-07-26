@@ -13,11 +13,14 @@ export class BarChartDataTransformer<TBarChartLayout> {
 
     async getEchartsSpec(
         fieldConfig: TBarChartLayout | undefined,
+        // TODO: display should always be defined and defaults should be applied in the transformer
         display: BarChartDisplay | undefined,
     ) {
         const transformedData = fieldConfig
             ? await this.transformer.transformBarChartData(fieldConfig)
             : undefined;
+
+        const DEFAULT_X_AXIS_TYPE = 'category';
 
         return {
             tooltip: {},
@@ -26,7 +29,12 @@ export class BarChartDataTransformer<TBarChartLayout> {
                 type: 'scroll',
             },
             xAxis: {
-                name: display?.xAxis?.label || '',
+                // TODO: display should always be defined and defaults should be applied in the transformer
+                type: display?.xAxis?.type ?? DEFAULT_X_AXIS_TYPE,
+                name:
+                    // TODO: display should always be defined and defaults should be applied in the transformer
+                    display?.xAxis?.label ||
+                    friendlyName(transformedData?.xAxisColumn || 'xAxisColumn'),
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -35,9 +43,10 @@ export class BarChartDataTransformer<TBarChartLayout> {
             },
             yAxis: [
                 {
+                    // TODO: display should always be defined and defaults should be applied in the transformer
                     type: 'value',
-                    // TODO: Add this to transformer
                     name:
+                        // TODO: display should always be defined and defaults should be applied in the transformer
                         (display?.yAxis && display.yAxis[0].label) ||
                         friendlyName(
                             transformedData?.seriesColumns.length === 1

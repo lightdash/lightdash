@@ -9,13 +9,14 @@ import {
 
 export const aggregationOptions = [
     // TODO: Change these to strings
-    MetricType.COUNT,
-    MetricType.COUNT_DISTINCT,
     MetricType.SUM,
+    MetricType.COUNT,
     MetricType.MIN,
     MetricType.MAX,
     'first',
 ];
+
+export const DEFAULT_AGGREGATION = MetricType.COUNT;
 
 export type AggregationOptions = typeof aggregationOptions[number];
 

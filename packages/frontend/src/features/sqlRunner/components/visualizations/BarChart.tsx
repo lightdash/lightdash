@@ -1,4 +1,5 @@
 import { type BarChartConfig } from '@lightdash/common';
+import { Center, LoadingOverlay } from '@mantine/core';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { type FC } from 'react';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
@@ -10,18 +11,41 @@ type BarChartProps = {
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
-    const spec = useBarChart(data.results, data.columns, config);
+    const {
+        loading,
+        error,
+        value: spec,
+    } = useBarChart(data.results, data.columns, config);
+
+    if (error) {
+        return <Center>Error: {error.message}</Center>;
+    }
+
     return (
-        <EChartsReact
-            option={spec}
-            notMerge
-            opts={{
-                renderer: 'svg',
-                width: 'auto',
-                height: 'auto',
-            }}
-            style={style}
-        />
+        <>
+            <LoadingOverlay
+                loaderProps={{
+                    size: 'sm',
+                    color: 'gray.7',
+                    pos: 'absolute',
+                    variant: 'dots',
+                }}
+                visible={loading}
+                transitionDuration={1000}
+            />
+            {spec && (
+                <EChartsReact
+                    option={spec}
+                    notMerge
+                    opts={{
+                        renderer: 'svg',
+                        width: 'auto',
+                        height: 'auto',
+                    }}
+                    style={style}
+                />
+            )}
+        </>
     );
 };
 

@@ -40,11 +40,19 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
 
 type Props = {
     options: YLayoutOptions['aggregationOptions'] | undefined;
+    aggregation: YLayoutOptions['aggregationOptions'][number] | undefined;
+    onChangeAggregation: (
+        value: YLayoutOptions['aggregationOptions'][number],
+    ) => void;
 };
 
 // TODO: Oliver add onChange of aggregation - what should happen with duck db?
-export const BarChartAggregationConfig: FC<Props> = ({ options }) => {
-    const aggregationOptionsWithNone = ['None', ...(options ?? [])];
+export const BarChartAggregationConfig: FC<Props> = ({
+    options,
+    onChangeAggregation,
+    aggregation,
+}) => {
+    const aggregationOptionsWithNone = options ?? [];
 
     return (
         <Config>
@@ -65,8 +73,8 @@ export const BarChartAggregationConfig: FC<Props> = ({ options }) => {
                         </div>
                     ),
                 )}
-                value={aggregationOptionsWithNone?.[0]}
-                onChange={(value) => console.log(value)}
+                value={aggregation ?? aggregationOptionsWithNone?.[0]}
+                onChange={(value) => value && onChangeAggregation(value)}
                 icon={<AggregationIcon aggregation={'none'} />}
             />
         </Config>

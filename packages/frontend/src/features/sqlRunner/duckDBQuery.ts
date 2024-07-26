@@ -7,7 +7,7 @@ import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?ur
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import { type DuckDBSqlFunction } from '@lightdash/common';
-import { tableFromJSON, tableToIPC } from 'apache-arrow';
+import { tableFromJSON, tableToIPC, Type } from 'apache-arrow';
 
 const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
     mvp: {
@@ -35,7 +35,24 @@ export const duckDBFE: DuckDBSqlFunction = async (sql, rowData) => {
     });
 
     const arrowResult = await conn.query<any>(sql);
-    const result = arrowResult.toArray().map((row) => row.toJSON());
+    const schema = arrowResult.schema;
+
+    const bigIntFieldNames = schema.fields.reduce<string[]>((acc, field) => {
+        if (field.type.typeId === Type.Int) {
+            return [...acc, field.name];
+        }
+        return acc;
+    }, []);
+
+    const result = arrowResult.toArray().map((row) => {
+        const convertedRow = row.toJSON();
+
+        bigIntFieldNames.forEach((fieldName) => {
+            convertedRow[fieldName] = Number(convertedRow[fieldName]);
+        });
+
+        return convertedRow;
+    });
 
     await conn.close();
     await db.terminate();

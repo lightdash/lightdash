@@ -6,11 +6,20 @@ import {
     type RowData,
     type SqlColumn,
 } from '@lightdash/common';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useAsync } from 'react-use';
 import { duckDBFE } from '../duckDBQuery';
 
 const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
-    return Array.isArray(rows) && rows.length > 0 && 'value' in rows[0];
+    if (rows.length === 0) return false;
+
+    const firstRow = rows[0];
+    if (typeof firstRow !== 'object' || firstRow === null) return false;
+
+    const firstValue = Object.values(firstRow)[0];
+    if (typeof firstValue !== 'object' || firstValue === null) return false;
+
+    return 'value' in firstValue;
 };
 
 const convertToRowData = (data: ResultRow[]): RowData[] => {
@@ -35,13 +44,11 @@ export class SqlRunnerResultsTransformerFE extends SqlRunnerResultsTransformer {
     }
 }
 
-export const useBarChart = async (
+export const useBarChart = (
     rows: ResultRow[],
     columns: SqlColumn[],
     config: BarChartConfig,
 ) => {
-    // TODO: Define an accurate type for this chartSpec
-    const [chartSpec, setChartSpec] = useState<unknown | null>(null);
     const transformer = useMemo(
         () =>
             new SqlRunnerResultsTransformerFE({
@@ -58,13 +65,9 @@ export const useBarChart = async (
         [transformer],
     );
 
-    useEffect(() => {
-        void barChart
-            .getEchartsSpec(config.fieldConfig, config.display)
-            .then((spec) => setChartSpec(spec));
+    const state = useAsync(async () => {
+        return barChart.getEchartsSpec(config.fieldConfig, config.display);
     }, [config, barChart]);
 
-    return {
-        chartSpec,
-    };
+    return state;
 };
