@@ -1,4 +1,5 @@
 import {
+    isErrorDetails,
     SchedulerJobStatus,
     type ApiError,
     type ApiJobScheduledResponse,
@@ -82,9 +83,12 @@ export const useSqlQueryRun = ({
             },
             onSuccess: (data) => {
                 if (data?.status === SchedulerJobStatus.ERROR) {
-                    showToastError({
-                        title: 'Could not run SQL query',
-                    });
+                    if (isErrorDetails(data?.details)) {
+                        showToastError({
+                            title: 'Could not run SQL query',
+                            subtitle: data?.details?.error,
+                        });
+                    }
                 }
             },
             enabled: Boolean(sqlQueryJob && sqlQueryJob?.jobId !== undefined),
@@ -98,7 +102,9 @@ export const useSqlQueryRun = ({
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
         async () => {
-            const url = scheduledDeliveryJobStatus?.details?.fileUrl;
+            const url =
+                !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
+                scheduledDeliveryJobStatus?.details?.fileUrl;
             if (!url) {
                 throw new Error('Missing file URL');
             }
@@ -151,20 +157,24 @@ export const useSqlQueryRun = ({
             return jsonObjects;
         },
         {
-            onError: () => {
+            onError: (data) => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
+                    subtitle: data.error.message,
                 });
             },
             enabled: Boolean(
                 scheduledDeliveryJobStatus?.status ===
                     SchedulerJobStatus.COMPLETED &&
+                    !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
             select: (data) => {
                 return {
                     results: data,
-                    columns: scheduledDeliveryJobStatus?.details?.columns,
+                    columns: isErrorDetails(scheduledDeliveryJobStatus?.details)
+                        ? []
+                        : scheduledDeliveryJobStatus?.details?.columns,
                 };
             },
             onSuccess: (data) => {
