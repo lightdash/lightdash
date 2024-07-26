@@ -1,10 +1,14 @@
 import { ContentType, DashboardContent } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DashboardsTableName } from '../../../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedDashboardTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SpaceTableName } from '../../../database/entities/spaces';
+import { UserTableName } from '../../../database/entities/users';
 import {
     ContentConfiguration,
     ContentFilters,
@@ -42,6 +46,26 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     `${PinnedDashboardTableName}.dashboard_uuid`,
                     `${DashboardsTableName}.dashboard_uuid`,
                 )
+                .leftJoin(
+                    `${DashboardVersionsTableName} as first_version`,
+                    `first_version.dashboard_id`,
+                    `${DashboardsTableName}.dashboard_id`,
+                )
+                .leftJoin(
+                    `${DashboardVersionsTableName} as last_version`,
+                    `last_version.dashboard_id`,
+                    `${DashboardsTableName}.dashboard_id`,
+                )
+                .leftJoin(
+                    `${UserTableName} as created_by_user`,
+                    `created_by_user.user_uuid`,
+                    `first_version.updated_by_user_uuid`,
+                )
+                .leftJoin(
+                    `${UserTableName} as updated_by_user`,
+                    `updated_by_user.user_uuid`,
+                    `last_version.updated_by_user_uuid`,
+                )
                 .select<SummaryContentRow[]>([
                     knex.raw(`'dashboard' as content_type`),
                     knex.raw(
@@ -60,13 +84,14 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     knex.raw(
                         `${DashboardsTableName}.created_at::timestamp as created_at`,
                     ),
-                    knex.raw(`NULL as created_by_user_uuid`),
-                    knex.raw(`NULL as created_by_user_first_name`),
-                    knex.raw(`NULL as created_by_user_last_name`),
-                    knex.raw(`NULL as last_updated_at`),
-                    knex.raw(`NULL as last_updated_by_user_uuid`),
-                    knex.raw(`NULL as last_updated_by_user_first_name`),
-                    knex.raw(`NULL as last_updated_by_user_last_name`),
+                    `created_by_user.user_uuid             as created_by_user_uuid`,
+                    `created_by_user.first_name            as created_by_user_first_name`,
+                    `created_by_user.last_name             as created_by_user_last_name`,
+                    `last_version.created_at               as last_updated_at`,
+                    `updated_by_user.user_uuid             as last_updated_by_user_uuid`,
+                    `updated_by_user.first_name            as last_updated_by_user_first_name`,
+                    `updated_by_user.last_name             as last_updated_by_user_last_name`,
+
                     `${DashboardsTableName}.views_count as views`,
                     knex.raw(
                         `${DashboardsTableName}.first_viewed_at::timestamp as first_viewed_at`,
@@ -87,6 +112,22 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                             filters.spaceUuids,
                         );
                     }
+                    void builder.where(
+                        `last_version.dashboard_version_id`,
+                        knex.raw(`(select dashboard_version_id
+                                           from dashboard_versions
+                                           where dashboard_id = dashboards.dashboard_id
+                                           order by dashboard_versions.created_at desc
+                                           limit 1)`),
+                    );
+                    void builder.where(
+                        `first_version.dashboard_version_id`,
+                        knex.raw(`(select dashboard_version_id
+                                            from dashboard_versions
+                                            where dashboard_id = dashboards.dashboard_id
+                                            order by dashboard_versions.created_at asc
+                                            limit 1)`),
+                    );
                 }),
         shouldRowBeConverted: (value): value is SummaryContentRow =>
             value.content_type === ContentType.DASHBOARD,

@@ -27,6 +27,7 @@ export default class KnexPaginate {
                 .clone()
                 .clear('select')
                 .clear('group')
+                .clear('order')
                 .count<{ count: string }[]>()
                 .first();
             const dataPromise = query.clone().offset(offset).limit(pageSize);
