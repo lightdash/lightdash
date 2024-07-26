@@ -3,8 +3,10 @@ import {
     CartesianSeriesType,
     ChartType,
     DbtProjectType,
+    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
+    LightdashRequestMethodHeader,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
@@ -18,6 +20,7 @@ import {
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
+import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { VERSION } from '../version';
@@ -165,7 +168,22 @@ export enum QueryExecutionContext {
     SCHEDULED_CHART = 'scheduledChart',
     SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',
+    API = 'api',
+    CLI = 'cli',
 }
+
+export const getContextFromHeader = (req: Request) => {
+    const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
+    switch (method) {
+        case RequestMethod.CLI:
+        case RequestMethod.CLI_CI:
+            return QueryExecutionContext.CLI;
+        case RequestMethod.UNKNOWN:
+            return QueryExecutionContext.API;
+        default:
+            return undefined;
+    }
+};
 
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';

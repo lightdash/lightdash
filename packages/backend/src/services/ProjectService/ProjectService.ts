@@ -1054,6 +1054,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         csvLimit: number | null | undefined,
+        context: QueryExecutionContext = QueryExecutionContext.VIEW_UNDERLYING_DATA,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1094,7 +1095,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploreName,
             csvLimit,
-            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+            context,
             queryTags,
             chartUuid: undefined,
         });
@@ -1105,11 +1106,13 @@ export class ProjectService extends BaseService {
         chartUuid,
         versionUuid,
         invalidateCache,
+        context = QueryExecutionContext.CHART,
     }: {
         user: SessionUser;
         chartUuid: string;
         versionUuid?: string;
         invalidateCache?: boolean;
+        context?: QueryExecutionContext;
     }): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1173,7 +1176,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 exploreName: savedChart.tableName,
                 csvLimit: undefined,
-                context: QueryExecutionContext.CHART,
+                context,
                 queryTags,
                 invalidateCache,
                 explore,
@@ -1197,6 +1200,7 @@ export class ProjectService extends BaseService {
         granularity,
         dashboardUuid,
         autoRefresh,
+        context = QueryExecutionContext.DASHBOARD,
     }: {
         user: SessionUser;
         chartUuid: string;
@@ -1206,6 +1210,7 @@ export class ProjectService extends BaseService {
         dashboardSorts: SortField[];
         granularity?: DateGranularity;
         autoRefresh?: boolean;
+        context?: QueryExecutionContext;
     }): Promise<ApiChartAndResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1301,7 +1306,7 @@ export class ProjectService extends BaseService {
                 csvLimit: undefined,
                 context: autoRefresh
                     ? QueryExecutionContext.AUTOREFRESHED_DASHBOARD
-                    : QueryExecutionContext.DASHBOARD,
+                    : context,
                 queryTags,
                 invalidateCache,
                 explore,
@@ -1345,6 +1350,7 @@ export class ProjectService extends BaseService {
         exploreName: string,
         csvLimit: number | null | undefined,
         dateZoomGranularity?: DateGranularity,
+        context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
     ): Promise<ApiQueryResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
