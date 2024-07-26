@@ -20,9 +20,14 @@ const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
     },
 };
 
-const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
+let bundlePromise: Promise<duckdb.DuckDBBundle>;
+function initializeBundle() {
+    bundlePromise = duckdb.selectBundle(MANUAL_BUNDLES);
+}
+initializeBundle();
 
 export const duckDBFE: DuckDBSqlFunction = async (sql, rowData) => {
+    const bundle = await bundlePromise;
     const arrowTable = tableFromJSON(rowData);
     const worker = new Worker(bundle.mainWorker!);
     const logger = new duckdb.ConsoleLogger();

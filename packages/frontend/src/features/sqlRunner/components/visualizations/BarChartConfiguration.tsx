@@ -395,11 +395,10 @@ export const BarChartConfig = () => {
                         ))}
                 </Config.Section>
             </Config>
-            <Config>
-                <Config.Heading>Series</Config.Heading>
-
-                {series &&
-                    Object.entries(series).map(([reference, { label }]) => (
+            {series && (
+                <Config>
+                    <Config.Heading>Series</Config.Heading>
+                    {Object.entries(series).map(([reference, { label }]) => (
                         <EditableText
                             key={reference}
                             defaultValue={label ?? reference}
@@ -408,7 +407,8 @@ export const BarChartConfig = () => {
                             }
                         />
                     ))}
-            </Config>
+                </Config>
+            )}
         </Stack>
     );
 };
