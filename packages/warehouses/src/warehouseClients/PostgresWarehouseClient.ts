@@ -12,7 +12,7 @@ import {
 import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
-import { PoolConfig, QueryResult } from 'pg';
+import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
@@ -22,6 +22,9 @@ const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
     readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
 ];
+
+types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
+types.setTypeParser(types.builtins.INT8, (value) => parseInt(value, 10));
 
 export enum PostgresTypes {
     INTEGER = 'integer',
