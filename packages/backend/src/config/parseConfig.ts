@@ -276,6 +276,9 @@ export type SlackConfig = {
     clientId?: string;
     clientSecret?: string;
     stateSecret: string;
+    appToken?: string;
+    port: number;
+    socketMode?: boolean;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -701,6 +704,9 @@ export const parseConfig = (): LightdashConfig => {
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,
             stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
+            appToken: process.env.SLACK_APP_TOKEN,
+            port: parseInt(process.env.SLACK_PORT || '4351', 10),
+            socketMode: process.env.SLACK_SOCKET_MODE === 'true',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',

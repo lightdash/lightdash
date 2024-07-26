@@ -78,13 +78,14 @@ export const ContentPanel: FC<Props> = ({
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
-    const barChartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
-    );
 
     // configurable table
     const tableVisConfig = useAppSelector(
         (state) => state.sqlRunner.tableChartConfig,
+    );
+
+    const barChartConfig = useAppSelector(
+        (state) => state.barChartConfig.config,
     );
 
     const {
@@ -93,8 +94,8 @@ export const ContentPanel: FC<Props> = ({
         isLoading,
     } = useSqlQueryRun({
         onSuccess: (data) => {
-            if (data) {
-                dispatch(setInitialResultsAndSeries(data));
+            if (data?.results) {
+                dispatch(setInitialResultsAndSeries(data.results));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -324,7 +325,7 @@ export const ContentPanel: FC<Props> = ({
                             </Group>
                         </Paper>
 
-                        {queryResults && !isLoading && (
+                        {queryResults?.results && !isLoading && (
                             <Paper
                                 shadow="none"
                                 radius={0}
@@ -344,14 +345,14 @@ export const ContentPanel: FC<Props> = ({
                                         {selectedChartType ===
                                             ChartKind.TABLE && (
                                             <Table
-                                                data={queryResults}
+                                                data={queryResults.results}
                                                 config={tableVisConfig}
                                             />
                                         )}
                                         {selectedChartType ===
                                             ChartKind.VERTICAL_BAR && (
                                             <BarChart
-                                                data={queryResults}
+                                                data={queryResults.results}
                                                 config={barChartConfig}
                                             />
                                         )}
@@ -360,7 +361,7 @@ export const ContentPanel: FC<Props> = ({
                                 {activeVisTab === VisTabs.RESULTS && (
                                     <>
                                         <Table
-                                            data={queryResults}
+                                            data={queryResults.results}
                                             config={resultsTableConfig}
                                         />
                                     </>

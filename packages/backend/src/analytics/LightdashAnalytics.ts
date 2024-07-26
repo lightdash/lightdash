@@ -3,8 +3,10 @@ import {
     CartesianSeriesType,
     ChartType,
     DbtProjectType,
+    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
+    LightdashRequestMethodHeader,
     LightdashUser,
     OrganizationMemberRole,
     PinnedItem,
@@ -18,6 +20,7 @@ import {
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
+import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { VERSION } from '../version';
@@ -154,13 +157,33 @@ type UserJoinOrganizationEvent = BaseTrack & {
 
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
+    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
     EXPLORE = 'exploreView',
     CHART = 'chartView',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
+    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
+    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
+    SCHEDULED_CHART = 'scheduledChart',
+    SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',
+    API = 'api',
+    CLI = 'cli',
 }
+
+export const getContextFromHeader = (req: Request) => {
+    const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
+    switch (method) {
+        case RequestMethod.CLI:
+        case RequestMethod.CLI_CI:
+            return QueryExecutionContext.CLI;
+        case RequestMethod.UNKNOWN:
+            return QueryExecutionContext.API;
+        default:
+            return undefined;
+    }
+};
 
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
@@ -187,6 +210,7 @@ type QueryExecutionEvent = BaseTrack & {
         numCustomSqlDimensions: number;
         dateZoomGranularity: string | null;
         timezone?: string;
+        chartId?: string;
     };
 };
 

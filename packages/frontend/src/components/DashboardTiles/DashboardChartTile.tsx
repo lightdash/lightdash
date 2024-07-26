@@ -887,7 +887,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     onClick={() =>
                                         duplicateChart({
                                             uuid: savedChartUuid,
-                                            name: chart.name,
+                                            name: `Copy of ${chart.name}`,
                                             description: chart.description,
                                         })
                                     }

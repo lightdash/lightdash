@@ -12727,6 +12727,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "autoRefresh": {
+                                        "type": "boolean"
+                                    },
                                     "granularity": {
                                         "$ref": "#/components/schemas/DateGranularity"
                                     },

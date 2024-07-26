@@ -1,4 +1,5 @@
 import { SessionUser } from '@lightdash/common';
+import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import winston from 'winston';
@@ -21,26 +22,42 @@ const colors = {
 };
 winston.addColors(colors);
 
+const addSentryTraceId = winston.format((info) => ({
+    ...info,
+    sentryTraceId: getActiveSpan()?.spanContext().traceId,
+}));
+
 const formatters = {
     plain: winston.format.combine(
+        addSentryTraceId(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.uncolorize(),
-        winston.format.printf(
-            (info) =>
-                `${info.timestamp} [Lightdash] ${info.level}: ${info.message}`,
-        ),
+        winston.format.printf((info) => {
+            const sentryTraceId = info.sentryTraceId
+                ? ` ${info.sentryTraceId}`
+                : '';
+
+            return `${info.timestamp}${sentryTraceId} [Lightdash] ${info.level}: ${info.message}`;
+        }),
     ),
     pretty: winston.format.combine(
+        addSentryTraceId(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize({ all: true }),
-        winston.format.printf(
-            (info) =>
-                `${info.timestamp} [Lightdash] ${info.level}: ${
-                    info.serviceName ? `[${info.serviceName}] ` : ''
-                }${info.message}`,
-        ),
+        winston.format.printf((info) => {
+            const sentryTraceId = info.sentryTraceId
+                ? ` ${info.sentryTraceId}`
+                : '';
+
+            return `${info.timestamp}${sentryTraceId} [Lightdash] ${
+                info.level
+            }: ${info.serviceName ? `[${info.serviceName}] ` : ''}${
+                info.message
+            }`;
+        }),
     ),
     json: winston.format.combine(
+        addSentryTraceId(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.json(),
     ),

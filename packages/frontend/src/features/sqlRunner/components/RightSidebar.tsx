@@ -14,10 +14,9 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     setSelectedChartType,
-    updateChartAxisLabel,
-    updateChartSeriesLabel,
     updateTableChartFieldConfigLabel,
 } from '../store/sqlRunnerSlice';
+import { default as BarChartConfiguration } from './visualizations/BarChartConfiguration';
 
 type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
@@ -27,9 +26,6 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
     const dispatch = useAppDispatch();
     const tableChartConfig = useAppSelector(
         (state) => state.sqlRunner.tableChartConfig,
-    );
-    const chartConfig = useAppSelector(
-        (state) => state.sqlRunner.barChartConfig,
     );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
@@ -81,55 +77,8 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     ))}
                 </Stack>
             )}
-            {chartConfig && selectedChartType === ChartKind.VERTICAL_BAR && (
-                <Stack spacing="xs">
-                    <Title order={6} fz="sm" c="gray.6">
-                        X axis
-                    </Title>
-                    <EditableText
-                        value={chartConfig?.axes?.x.label}
-                        onChange={(e) => {
-                            dispatch(
-                                updateChartAxisLabel({
-                                    reference: chartConfig.axes?.x.reference,
-                                    label: e.target.value,
-                                }),
-                            );
-                        }}
-                    />
-                    <Title order={6} fz="sm" c="gray.6">
-                        Y axis
-                    </Title>
-                    <EditableText
-                        value={chartConfig?.axes?.y[0]?.label}
-                        onChange={(e) => {
-                            dispatch(
-                                updateChartAxisLabel({
-                                    reference: chartConfig.axes?.y[0].reference,
-                                    label: e.target.value,
-                                }),
-                            );
-                        }}
-                    />
-                    <Title order={6} fz="sm" c="gray.6">
-                        Series
-                    </Title>
-                    {chartConfig.series &&
-                        chartConfig.series.map(({ name, reference }, index) => (
-                            <EditableText
-                                key={reference}
-                                value={name ?? reference}
-                                onChange={(e) => {
-                                    dispatch(
-                                        updateChartSeriesLabel({
-                                            index: index,
-                                            name: e.target.value,
-                                        }),
-                                    );
-                                }}
-                            />
-                        ))}
-                </Stack>
+            {selectedChartType === ChartKind.VERTICAL_BAR && (
+                <BarChartConfiguration />
             )}
         </Stack>
     );

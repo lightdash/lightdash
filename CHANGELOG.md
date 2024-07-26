@@ -1,3 +1,66 @@
+## [0.1186.3](https://github.com/lightdash/lightdash/compare/0.1186.2...0.1186.3) (2024-07-26)
+
+
+### Bug Fixes
+
+* fix markdown tooltip with descriptions ([#10825](https://github.com/lightdash/lightdash/issues/10825)) ([941e058](https://github.com/lightdash/lightdash/commit/941e0585a8457b0b6502698be56c6f28f0822874))
+
+## [0.1186.2](https://github.com/lightdash/lightdash/compare/0.1186.1...0.1186.2) (2024-07-26)
+
+
+### Bug Fixes
+
+* sort v2 content by last_updated_at ([#10842](https://github.com/lightdash/lightdash/issues/10842)) ([e466036](https://github.com/lightdash/lightdash/commit/e466036cf67df75c18302a6c1fe477102169d2b1))
+* space e2e test ([#10835](https://github.com/lightdash/lightdash/issues/10835)) ([00da7b5](https://github.com/lightdash/lightdash/commit/00da7b59aafc3580ad849f41d7fc95c09c3c2019))
+
+## [0.1186.1](https://github.com/lightdash/lightdash/compare/0.1186.0...0.1186.1) (2024-07-25)
+
+
+### Bug Fixes
+
+* viewers can see saved SQL chart  ([#10836](https://github.com/lightdash/lightdash/issues/10836)) ([1f0e661](https://github.com/lightdash/lightdash/commit/1f0e661950aed65a906ad6efad7ac09f0a6ae04d))
+
+# [0.1186.0](https://github.com/lightdash/lightdash/compare/0.1185.2...0.1186.0) (2024-07-25)
+
+
+### Features
+
+* new compile project ability ([#10833](https://github.com/lightdash/lightdash/issues/10833)) ([27d42ec](https://github.com/lightdash/lightdash/commit/27d42ec17e9451eb0ed4b2e9e82b47289872fa8e))
+
+## [0.1185.2](https://github.com/lightdash/lightdash/compare/0.1185.1...0.1185.2) (2024-07-25)
+
+
+### Bug Fixes
+
+* prevent user form creating table calculation without formula ([#10830](https://github.com/lightdash/lightdash/issues/10830)) ([480ca22](https://github.com/lightdash/lightdash/commit/480ca2232219068f061268494d040135b1801afd))
+
+## [0.1185.1](https://github.com/lightdash/lightdash/compare/0.1185.0...0.1185.1) (2024-07-24)
+
+
+### Bug Fixes
+
+* extract bar chart config component ([#10794](https://github.com/lightdash/lightdash/issues/10794)) ([e1e06e5](https://github.com/lightdash/lightdash/commit/e1e06e58325a7ba13af8cd87eb75fadd3d90533a))
+
+# [0.1185.0](https://github.com/lightdash/lightdash/compare/0.1184.3...0.1185.0) (2024-07-24)
+
+
+### Bug Fixes
+
+* create unique slug for charts within dashboards ([#10821](https://github.com/lightdash/lightdash/issues/10821)) ([445bd8f](https://github.com/lightdash/lightdash/commit/445bd8fb10b5b0d9f482c303701b20a39edd41fb))
+* duplicate chart on dashboard with different name ([#10822](https://github.com/lightdash/lightdash/issues/10822)) ([68df1d4](https://github.com/lightdash/lightdash/commit/68df1d4403461d8ec8047e5edab5b53e0dcc93e3))
+
+
+### Features
+
+* allow toggle slack app to use socket mode ([#10751](https://github.com/lightdash/lightdash/issues/10751)) ([87d087f](https://github.com/lightdash/lightdash/commit/87d087f13a2e97df4d40345cf73e0b0db520106a))
+
+## [0.1184.3](https://github.com/lightdash/lightdash/compare/0.1184.2...0.1184.3) (2024-07-24)
+
+
+### Bug Fixes
+
+* Override snowflake warehouse ([#10803](https://github.com/lightdash/lightdash/issues/10803)) ([c483fe4](https://github.com/lightdash/lightdash/commit/c483fe42cafd39415616fd9af475063a3e74ca3f))
+
 ## [0.1184.2](https://github.com/lightdash/lightdash/compare/0.1184.1...0.1184.2) (2024-07-24)
 
 

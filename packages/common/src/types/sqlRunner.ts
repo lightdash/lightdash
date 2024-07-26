@@ -1,9 +1,13 @@
 import { type Dashboard } from './dashboard';
+import { type DimensionType } from './field';
 import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
 import { ChartKind } from './savedCharts';
-import { type ApiJobScheduledResponse } from './scheduler';
+import {
+    type ApiJobScheduledResponse,
+    type SchedulerJobStatus,
+} from './scheduler';
 import { type Space } from './space';
 import { type LightdashUser } from './user';
 
@@ -21,6 +25,32 @@ export type SqlRunnerBody = {
 export type SqlRunnerResults = ResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
+
+type SqlRunnerJobStatusSuccessDetails = {
+    fileUrl: string;
+    columns: SQLColumn[];
+};
+
+type SqlRunnerJobStatusErrorDetails = {
+    error: string;
+    createdByUserUuid: string;
+};
+
+export function isErrorDetails(
+    results?: ApiSqlRunnerJobStatusResponse['results']['details'],
+): results is SqlRunnerJobStatusErrorDetails {
+    return (results as SqlRunnerJobStatusErrorDetails).error !== undefined;
+}
+
+export type ApiSqlRunnerJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: SchedulerJobStatus;
+        details:
+            | SqlRunnerJobStatusSuccessDetails
+            | SqlRunnerJobStatusErrorDetails;
+    };
+};
 
 export type SqlTableConfig = {
     columns: {
@@ -157,4 +187,9 @@ export type ApiSqlChartWithResults = {
         jobId: ApiJobScheduledResponse['results']['jobId'];
         chart: SqlChart;
     };
+};
+
+export type SQLColumn = {
+    reference: string;
+    type: DimensionType;
 };

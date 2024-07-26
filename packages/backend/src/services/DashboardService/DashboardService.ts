@@ -398,7 +398,11 @@ export class DashboardService extends BaseService {
                                         firstName: user.firstName,
                                         lastName: user.lastName,
                                     },
-                                    slug: generateSlug(chartInDashboard.name),
+                                    slug: generateSlug(
+                                        `${
+                                            chartInDashboard.name
+                                        } ${Date.now()}`,
+                                    ),
                                 },
                             );
                         this.analytics.track({

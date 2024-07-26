@@ -24,6 +24,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -64,6 +65,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
+                context: getContextFromHeader(req),
             }),
         };
     }
@@ -80,6 +82,7 @@ export class SavedChartController extends BaseController {
             dashboardSorts: SortField[];
             dashboardUuid: string;
             granularity?: DateGranularity;
+            autoRefresh?: boolean;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -97,6 +100,8 @@ export class SavedChartController extends BaseController {
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
                     dashboardUuid: body.dashboardUuid,
+                    autoRefresh: body.autoRefresh,
+                    context: getContextFromHeader(req),
                 }),
         };
     }
@@ -163,12 +168,14 @@ export class SavedChartController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
                 user: req.user!,
                 chartUuid,
                 versionUuid,
+                context: getContextFromHeader(req),
             }),
         };
     }

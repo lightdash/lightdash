@@ -12632,6 +12632,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        autoRefresh: { dataType: 'boolean' },
                         granularity: { ref: 'DateGranularity' },
                         dashboardUuid: { dataType: 'string', required: true },
                         dashboardSorts: {
