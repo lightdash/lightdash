@@ -5,6 +5,7 @@ import {
     IconMathMax,
     IconMathMin,
     IconMathOff,
+    IconNumber1,
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
@@ -15,26 +16,30 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
     aggregation,
 }) => {
-    return (
-        <MantineIcon
-            color="indigo.4"
-            icon={
-                aggregation === MetricType.COUNT
-                    ? IconMathFunction
-                    : aggregation === MetricType.SUM
-                    ? IconSum
-                    : aggregation === MetricType.AVERAGE
-                    ? IconTrendingUp
-                    : aggregation === MetricType.MIN
-                    ? IconMathMin
-                    : aggregation === MetricType.MAX
-                    ? IconMathMax
-                    : aggregation === 'none'
-                    ? IconMathOff
-                    : IconMathOff
-            }
-        />
-    );
+    let icon;
+    switch (aggregation) {
+        case MetricType.COUNT:
+            icon = IconMathFunction;
+            break;
+        case MetricType.SUM:
+            icon = IconSum;
+            break;
+        case MetricType.AVERAGE:
+            icon = IconTrendingUp;
+            break;
+        case MetricType.MIN:
+            icon = IconMathMin;
+            break;
+        case MetricType.MAX:
+            icon = IconMathMax;
+            break;
+        case 'first':
+            icon = IconNumber1;
+            break;
+        default:
+            icon = IconMathOff;
+    }
+    return <MantineIcon color="indigo.4" icon={icon} />;
 };
 
 type Props = {
