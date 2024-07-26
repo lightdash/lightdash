@@ -54,6 +54,7 @@ export const useSavedSqlChart = ({
         queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, slug],
         queryFn: () => fetchSavedSqlChart({ projectUuid, slug }),
         retry: false,
+        enabled: !!slug,
         onSuccess: (data) => {
             if (onSuccess) onSuccess(data);
         },
