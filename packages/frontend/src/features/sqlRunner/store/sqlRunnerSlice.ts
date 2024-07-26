@@ -83,6 +83,8 @@ export const sqlRunnerSlice = createSlice({
             if (!action.payload.results || !action.payload.columns) {
                 return;
             }
+
+            state.sqlColumns = action.payload.columns;
             // Set the initial results table config
             const columns = Object.keys(action.payload.results[0]).reduce<
                 TableChartSqlConfig['columns']
