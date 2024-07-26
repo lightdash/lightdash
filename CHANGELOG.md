@@ -1,3 +1,10 @@
+# [0.1188.0](https://github.com/lightdash/lightdash/compare/0.1187.0...0.1188.0) (2024-07-26)
+
+
+### Features
+
+* parse postgres numerics & int8s to JS numbers ([#10849](https://github.com/lightdash/lightdash/issues/10849)) ([e8a4ea1](https://github.com/lightdash/lightdash/commit/e8a4ea1eb7dcdd488d9786b6e0e157fa6d530495))
+
 # [0.1187.0](https://github.com/lightdash/lightdash/compare/0.1186.3...0.1187.0) (2024-07-26)
 
 
