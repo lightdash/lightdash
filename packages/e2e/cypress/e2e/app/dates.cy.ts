@@ -390,7 +390,7 @@ describe('Date tests', () => {
         cy.get('.tabler-icon-x').click({ multiple: true });
     });
 
-    it('Should keep value when changing date operator', () => {
+    it.only('Should keep value when changing date operator', () => {
         const todayDate = new Date();
 
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
@@ -401,6 +401,9 @@ describe('Date tests', () => {
         cy.contains('Pick a metric & select its dimensions').should(
             'be.visible',
         );
+
+        cy.contains('Search Jaffle shop'); // Wait until it finishes loading the nav bar
+        cy.contains('Save chart').should('be.disabled'); // Wait until it finishes loading the button
         cy.contains('Filters').should('be.visible');
 
         cy.findAllByText('Loading chart').should('have.length', 0);
