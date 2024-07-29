@@ -65,9 +65,8 @@ export const useBarChart = (
         [transformer],
     );
 
-    const state = useAsync(async () => {
-        return barChart.getEchartsSpec(config.fieldConfig, config.display);
-    }, [config, barChart]);
-
-    return state;
+    return useAsync(
+        async () => barChart.getEchartsSpec(config.fieldConfig, config.display),
+        [config, barChart],
+    );
 };

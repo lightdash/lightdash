@@ -106,6 +106,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                                 height: '100%',
                                 width: '100%',
                             }}
+                            isLoading={isLoading}
                         />
                     )}
                 </TileBase>
