@@ -1,3 +1,10 @@
+## [0.1189.1](https://github.com/lightdash/lightdash/compare/0.1189.0...0.1189.1) (2024-07-29)
+
+
+### Bug Fixes
+
+* revert customer yml description ([#10858](https://github.com/lightdash/lightdash/issues/10858)) ([fda9f9a](https://github.com/lightdash/lightdash/commit/fda9f9addc102e1a970167eb4cff5b3eadf7a19d))
+
 # [0.1189.0](https://github.com/lightdash/lightdash/compare/0.1188.0...0.1189.0) (2024-07-26)
 
 
