@@ -11,11 +11,11 @@ type BarChartProps = {
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
-    const { error, value: spec } = useBarChart(
-        data.results,
-        data.columns,
-        config,
-    );
+    const {
+        loading,
+        error,
+        value: spec,
+    } = useBarChart(data.results, data.columns, config);
 
     if (error) {
         return <Center>Error: {error.message}</Center>;
@@ -26,7 +26,7 @@ const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
             {spec && (
                 <EChartsReact
                     option={spec}
-                    notMerge
+                    showLoading={loading}
                     opts={{
                         renderer: 'svg',
                         width: 'auto',
