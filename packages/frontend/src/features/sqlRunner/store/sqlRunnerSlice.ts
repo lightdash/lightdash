@@ -9,9 +9,9 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
-export enum VisTabs {
+export enum EditorTabs {
+    SQL = 'sql',
     CHART = 'chart',
-    RESULTS = 'results',
 }
 
 export const DEFAULT_NAME = 'Untitled SQL Query';
@@ -32,7 +32,7 @@ export interface SqlRunnerState {
 
     sql: string;
 
-    activeVisTab: VisTabs;
+    activeEditorTab: EditorTabs;
     selectedChartType: ChartKind;
 
     resultsTableConfig: SqlTableConfig | undefined;
@@ -56,7 +56,7 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
-    activeVisTab: VisTabs.CHART,
+    activeEditorTab: EditorTabs.SQL,
     selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
     modals: {
@@ -115,8 +115,8 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
-        setActiveVisTab: (state, action: PayloadAction<VisTabs>) => {
-            state.activeVisTab = action.payload;
+        setActiveVisTab: (state, action: PayloadAction<EditorTabs>) => {
+            state.activeEditorTab = action.payload;
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
             state.savedSqlUuid = action.payload.savedSqlUuid;
