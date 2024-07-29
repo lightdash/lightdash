@@ -10,7 +10,16 @@ type ConditionalDisplayProps = {
  * Component that conditionally displays its children based on the value of `isVisible`.
  * This is useful for hiding/showing elements based on the state of a parent component without having to unmount/remount the component.
  */
-export const ConditionalDisplay: FC<ConditionalDisplayProps> = ({
+export const ConditionalVisibility: FC<ConditionalDisplayProps> = ({
     isVisible,
     children,
-}) => <Box display={isVisible ? 'block' : 'none'}>{children}</Box>;
+}) => (
+    <Box
+        h="100%"
+        sx={{
+            visibility: isVisible ? 'visible' : 'hidden',
+        }}
+    >
+        {children}
+    </Box>
+);
