@@ -11,7 +11,7 @@ import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
 export enum EditorTabs {
     SQL = 'sql',
-    CHART = 'chart',
+    VISUALIZATION = 'visualization',
 }
 
 export const DEFAULT_NAME = 'Untitled SQL Query';
@@ -115,7 +115,7 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
-        setActiveVisTab: (state, action: PayloadAction<EditorTabs>) => {
+        setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
@@ -159,7 +159,7 @@ export const {
     setInitialResultsAndSeries,
     updateName,
     setSql,
-    setActiveVisTab,
+    setActiveEditorTab,
     setSaveChartData,
     setSelectedChartType,
     toggleModal,

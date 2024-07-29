@@ -26,7 +26,7 @@ import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
-    setActiveVisTab,
+    setActiveEditorTab,
     setInitialResultsAndSeries,
     setSql,
 } from '../store/sqlRunnerSlice';
@@ -103,7 +103,7 @@ export const ContentPanel: FC<Props> = ({
             if (data) {
                 dispatch(setInitialResultsAndSeries(data));
                 if (activeEditorTab === EditorTabs.SQL) {
-                    dispatch(setActiveVisTab(EditorTabs.CHART));
+                    dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
                 }
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
@@ -158,7 +158,7 @@ export const ContentPanel: FC<Props> = ({
                                     onClick={() =>
                                         !isLoading &&
                                         dispatch(
-                                            setActiveVisTab(EditorTabs.SQL),
+                                            setActiveEditorTab(EditorTabs.SQL),
                                         )
                                     }
                                     leftIcon={
@@ -167,34 +167,72 @@ export const ContentPanel: FC<Props> = ({
                                 >
                                     SQL
                                 </Button>
-                                <Button
-                                    size="xs"
-                                    color="dark"
-                                    variant={
-                                        activeEditorTab === EditorTabs.CHART
-                                            ? 'filled'
-                                            : 'subtle'
-                                    }
-                                    // TODO: remove once we add an empty state
-                                    disabled={!queryResults?.results}
-                                    onClick={() =>
-                                        !isLoading &&
-                                        dispatch(
-                                            setActiveVisTab(EditorTabs.CHART),
-                                        )
-                                    }
-                                    leftIcon={
-                                        <MantineIcon
-                                            icon={IconChartHistogram}
-                                        />
-                                    }
-                                >
-                                    Chart
-                                </Button>
+                                <Button.Group>
+                                    <Button
+                                        size="xs"
+                                        color="dark"
+                                        variant={
+                                            activeEditorTab ===
+                                            EditorTabs.VISUALIZATION
+                                                ? 'filled'
+                                                : 'subtle'
+                                        }
+                                        // TODO: remove once we add an empty state
+                                        disabled={!queryResults?.results}
+                                        onClick={() =>
+                                            !isLoading &&
+                                            dispatch(
+                                                setActiveEditorTab(
+                                                    EditorTabs.VISUALIZATION,
+                                                ),
+                                            )
+                                        }
+                                        leftIcon={
+                                            <MantineIcon
+                                                icon={IconChartHistogram}
+                                            />
+                                        }
+                                    >
+                                        Chart
+                                    </Button>
+                                    {activeEditorTab ===
+                                        EditorTabs.VISUALIZATION && (
+                                        <Button
+                                            variant={
+                                                isChartConfigOpen
+                                                    ? 'filled'
+                                                    : 'outline'
+                                            }
+                                            color="dark"
+                                            size="xs"
+                                            onClick={
+                                                isChartConfigOpen
+                                                    ? closeChartConfig
+                                                    : openChartConfig
+                                            }
+                                            leftIcon={
+                                                <MantineIcon
+                                                    icon={IconAdjustmentsCog}
+                                                />
+                                            }
+                                        >
+                                            Configure
+                                        </Button>
+                                    )}
+                                </Button.Group>
                             </Group>
                         </Group>
 
                         <Group spacing="md">
+                            <RunSqlQueryButton
+                                isLoading={isLoading}
+                                onSubmit={() => {
+                                    if (!sql) return;
+                                    runSqlQuery({
+                                        sql,
+                                    });
+                                }}
+                            />
                             <Tooltip
                                 key={String(isResultsHeightMoreThanHalf)}
                                 variant="xs"
@@ -224,15 +262,6 @@ export const ContentPanel: FC<Props> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
-                            <RunSqlQueryButton
-                                isLoading={isLoading}
-                                onSubmit={() => {
-                                    if (!sql) return;
-                                    runSqlQuery({
-                                        sql,
-                                    });
-                                }}
-                            />
                         </Group>
                     </Group>
                 </Paper>
@@ -269,7 +298,9 @@ export const ContentPanel: FC<Props> = ({
                         </ConditionalVisibility>
 
                         <ConditionalVisibility
-                            isVisible={activeEditorTab === EditorTabs.CHART}
+                            isVisible={
+                                activeEditorTab === EditorTabs.VISUALIZATION
+                            }
                         >
                             {queryResults?.results && barChartConfig && (
                                 <BarChart
@@ -369,24 +400,6 @@ export const ContentPanel: FC<Props> = ({
                                                         ? IconLayoutNavbarExpand
                                                         : IconLayoutNavbarCollapse
                                                 }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip
-                                        variant="xs"
-                                        label="Configure"
-                                        position="bottom"
-                                    >
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={
-                                                isChartConfigOpen
-                                                    ? closeChartConfig
-                                                    : openChartConfig
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconAdjustmentsCog}
                                             />
                                         </ActionIcon>
                                     </Tooltip>
