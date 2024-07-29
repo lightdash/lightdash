@@ -138,6 +138,7 @@ const ViewSqlChart = () => {
                                         barChartConfig &&
                                         data && (
                                             <BarChart
+                                                isLoading={isLoading}
                                                 data={{
                                                     results: data.results,
                                                     columns: [],
