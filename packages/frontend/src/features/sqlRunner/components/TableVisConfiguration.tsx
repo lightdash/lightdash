@@ -1,4 +1,4 @@
-import { ActionIcon, ScrollArea, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -29,9 +29,10 @@ const TableVisConfiguration: FC = ({}) => {
             className="only-vertical"
             type="auto"
             sx={{ flex: 1 }}
+            mb="md"
         >
             <Config>
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                <Config.Section>
                     <Config.Heading>Column labels</Config.Heading>
 
                     {Object.keys(tableVisConfig.columns).map((reference) => {
@@ -85,7 +86,7 @@ const TableVisConfiguration: FC = ({}) => {
                             />
                         );
                     })}
-                </Stack>
+                </Config.Section>
             </Config>
         </ScrollArea>
     );
