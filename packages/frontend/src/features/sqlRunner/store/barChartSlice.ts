@@ -103,18 +103,17 @@ export const barChartConfigSlice = createSlice({
             action: PayloadAction<{ index: number; label: string }>,
         ) => {
             if (!config) return;
-            if (!config.display) {
-                config.display = {
-                    yAxis: [
-                        {
-                            label: action.payload.label,
-                        },
-                    ],
+
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+
+            const { index, label } = action.payload;
+            if (config.display.yAxis[index] === undefined) {
+                config.display.yAxis[index] = {
+                    label,
                 };
-            }
-            if (config?.display?.yAxis) {
-                config.display.yAxis[action.payload.index].label =
-                    action.payload.label;
+            } else {
+                config.display.yAxis[index].label = label;
             }
         },
         setSeriesLabel: (
