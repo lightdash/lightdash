@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
+import { ConditionalDisplay } from '../../../components/common/ConditionalDisplay';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
@@ -245,6 +246,8 @@ export const ContentPanel: FC<Props> = ({
                                                 ? 'filled'
                                                 : 'outline'
                                         }
+                                        // TODO: remove once we add an empty state
+                                        disabled={!queryResults?.results}
                                         onClick={() =>
                                             !isLoading &&
                                             dispatch(
@@ -262,6 +265,8 @@ export const ContentPanel: FC<Props> = ({
                                                 ? 'filled'
                                                 : 'outline'
                                         }
+                                        // TODO: remove once we add an empty state
+                                        disabled={!queryResults?.results}
                                         onClick={() =>
                                             !isLoading &&
                                             dispatch(
@@ -343,41 +348,43 @@ export const ContentPanel: FC<Props> = ({
                                 })}
                                 h="100%"
                             >
-                                <Box
-                                    display={
-                                        activeVisTab === VisTabs.CHART
-                                            ? 'block'
-                                            : 'none'
-                                    }
+                                <ConditionalDisplay
+                                    isVisible={activeVisTab === VisTabs.CHART}
                                 >
-                                    {selectedChartType === ChartKind.TABLE && (
+                                    <ConditionalDisplay
+                                        isVisible={
+                                            selectedChartType ===
+                                            ChartKind.TABLE
+                                        }
+                                    >
                                         <Table
                                             data={queryResults.results}
                                             config={tableVisConfig}
                                         />
-                                    )}
-                                    {selectedChartType ===
-                                        ChartKind.VERTICAL_BAR &&
-                                        barChartConfig && (
+                                    </ConditionalDisplay>
+                                    <ConditionalDisplay
+                                        isVisible={
+                                            selectedChartType ===
+                                            ChartKind.VERTICAL_BAR
+                                        }
+                                    >
+                                        {barChartConfig && (
                                             <BarChart
                                                 data={queryResults}
                                                 config={barChartConfig}
                                                 isLoading={isLoading}
                                             />
                                         )}
-                                </Box>
-                                <Box
-                                    display={
-                                        activeVisTab === VisTabs.RESULTS
-                                            ? 'block'
-                                            : 'none'
-                                    }
+                                    </ConditionalDisplay>
+                                </ConditionalDisplay>
+                                <ConditionalDisplay
+                                    isVisible={activeVisTab === VisTabs.RESULTS}
                                 >
                                     <Table
                                         data={queryResults.results}
                                         config={resultsTableConfig}
                                     />
-                                </Box>
+                                </ConditionalDisplay>
                             </Paper>
                         )}
                     </Stack>
