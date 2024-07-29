@@ -78,7 +78,7 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setInitialResultsAndSeries: (
+        setSqlRunnerResults: (
             state,
             action: PayloadAction<ResultsAndColumns>,
         ) => {
@@ -156,7 +156,7 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    setInitialResultsAndSeries,
+    setSqlRunnerResults,
     updateName,
     setSql,
     setActiveEditorTab,
