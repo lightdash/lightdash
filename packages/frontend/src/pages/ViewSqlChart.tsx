@@ -166,11 +166,11 @@ const ViewSqlChart = () => {
     );
 };
 
-const SqlRunnerNewPage = () => {
+const ViewSqlChartPage = () => {
     return (
         <Provider store={store}>
             <ViewSqlChart />
         </Provider>
     );
 };
-export default SqlRunnerNewPage;
+export default ViewSqlChartPage;
