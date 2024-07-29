@@ -392,6 +392,12 @@
                 "type": "object"
             }
         },
+        "unit_tests": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
         "sources": {
             "type": "array",
             "items": {
