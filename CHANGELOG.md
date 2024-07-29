@@ -1,3 +1,11 @@
+## [0.1190.1](https://github.com/lightdash/lightdash/compare/0.1190.0...0.1190.1) (2024-07-29)
+
+
+### Bug Fixes
+
+* bar chart loading state ([#10881](https://github.com/lightdash/lightdash/issues/10881)) ([2820f2e](https://github.com/lightdash/lightdash/commit/2820f2e048076f1a4776e5a8e00623f7f0685ede))
+* sql autofill ([#10882](https://github.com/lightdash/lightdash/issues/10882)) ([3b71b9f](https://github.com/lightdash/lightdash/commit/3b71b9f3463c4b437cbf1d50724c24fe6dee2534))
+
 # [0.1190.0](https://github.com/lightdash/lightdash/compare/0.1189.1...0.1190.0) (2024-07-29)
 
 
