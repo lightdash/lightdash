@@ -107,9 +107,10 @@ Here are some other things worth mentioning about the `order_fields_by` paramete
 - By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
 - Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
 
-- dbt metrics appear first
-- then, metrics defined in the model's `meta`
-- then, metrics defined in the dimensions' `meta`
+  - dbt metrics appear first
+  - then, metrics defined in the model's `meta`
+  - then, metrics defined in the dimensions' `meta`
+
 - Group labels inherit the index of the first dimension that use them.
 
 ### Group label

@@ -355,6 +355,7 @@ export const ContentPanel: FC<Props> = ({
                                                 <BarChart
                                                     data={queryResults}
                                                     config={barChartConfig}
+                                                    isLoading={isLoading}
                                                 />
                                             )}
                                     </>

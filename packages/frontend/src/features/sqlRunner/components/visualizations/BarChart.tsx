@@ -8,14 +8,21 @@ import { useBarChart } from '../../transformers/useBarChart';
 type BarChartProps = {
     data: ResultsAndColumns;
     config: BarChartConfig;
+    isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
-    const { error, value: spec } = useBarChart(
-        data.results,
-        data.columns,
-        config,
-    );
+const BarChart: FC<BarChartProps> = ({
+    data,
+    config,
+    style,
+    isLoading: isLoadingProp,
+}) => {
+    const {
+        loading: transformLoading,
+        error,
+        value: spec,
+    } = useBarChart(data.results, data.columns, config);
+    const loading = isLoadingProp || transformLoading;
 
     if (error) {
         return <Center>Error: {error.message}</Center>;
@@ -26,7 +33,7 @@ const BarChart: FC<BarChartProps> = ({ data, config, style }) => {
             {spec && (
                 <EChartsReact
                     option={spec}
-                    notMerge
+                    showLoading={loading}
                     opts={{
                         renderer: 'svg',
                         width: 'auto',

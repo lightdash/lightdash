@@ -41,6 +41,7 @@ import SqlRunner from './pages/SqlRunner';
 import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
+import ViewSqlChart from './pages/ViewSqlChart';
 
 const Routes: FC = () => {
     return (
@@ -226,7 +227,19 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/sql-runner-new/saved/:slug">
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner-new/saved/:slug"
+                                    >
+                                        <NavBar />
+
+                                        <ViewSqlChart />
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner-new/saved/:slug/edit"
+                                    >
                                         <NavBar />
 
                                         <SqlRunnerNew />

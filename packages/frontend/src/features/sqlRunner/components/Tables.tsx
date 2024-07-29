@@ -39,7 +39,7 @@ const TableItem: FC<{
         <Box ref={hoverRef} pos="relative">
             <UnstyledButton
                 onClick={() => {
-                    if (!sql) {
+                    if (!sql || sql.match(/SELECT \* FROM (.+) LIMIT 10/)) {
                         dispatch(
                             setSql(`SELECT * FROM ${quotedTable} LIMIT 10`),
                         );

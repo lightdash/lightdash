@@ -1,7 +1,8 @@
 import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
-import { IconDeviceFloppy } from '@tabler/icons-react';
+import { IconArrowBackUp, IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
@@ -12,6 +13,7 @@ import { SaveSqlChartModal } from './SaveSqlChartModal';
 import ShareSqlLinkButton from './ShareSqlLinkButton';
 
 export const Header: FC = () => {
+    const history = useHistory();
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlUuid = useAppSelector(
@@ -19,6 +21,7 @@ export const Header: FC = () => {
     );
     const space = useAppSelector((state) => state.sqlRunner.space);
     const name = useAppSelector((state) => state.sqlRunner.name);
+    const slug = useAppSelector((state) => state.sqlRunner.slug);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
         state.sqlRunner.selectedChartType === ChartKind.TABLE
@@ -94,6 +97,24 @@ export const Header: FC = () => {
                         >
                             <ShareSqlLinkButton />
                         </Tooltip>
+                        {slug && (
+                            <Tooltip
+                                variant="xs"
+                                label="Back to view page"
+                                position="bottom"
+                            >
+                                <ActionIcon size="xs">
+                                    <MantineIcon
+                                        icon={IconArrowBackUp}
+                                        onClick={() =>
+                                            history.push(
+                                                `/projects/${projectUuid}/sql-runner-new/saved/${slug}`,
+                                            )
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
             </Paper>

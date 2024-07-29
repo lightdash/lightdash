@@ -20,6 +20,7 @@ export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
     savedSqlUuid: string | undefined;
+    slug: string | undefined;
     space:
         | {
               uuid: string;
@@ -50,6 +51,7 @@ const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
     savedSqlUuid: undefined,
+    slug: undefined,
     space: undefined,
     name: '',
     description: '',
@@ -83,6 +85,8 @@ export const sqlRunnerSlice = createSlice({
             if (!action.payload.results || !action.payload.columns) {
                 return;
             }
+
+            state.sqlColumns = action.payload.columns;
             // Set the initial results table config
             const columns = Object.keys(action.payload.results[0]).reduce<
                 TableChartSqlConfig['columns']
@@ -116,6 +120,7 @@ export const sqlRunnerSlice = createSlice({
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
             state.savedSqlUuid = action.payload.savedSqlUuid;
+            state.slug = action.payload.slug;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
             state.space = action.payload.space;

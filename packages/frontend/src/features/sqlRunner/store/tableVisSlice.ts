@@ -20,6 +20,18 @@ export const tableVisSlice = createSlice({
                 config.columns[reference].label = label;
             }
         },
+        updateColumnVisibility: (
+            { config },
+            action: PayloadAction<{
+                reference: string;
+                visible: boolean;
+            }>,
+        ) => {
+            const { reference, visible } = action.payload;
+            if (config && config.columns[reference]) {
+                config.columns[reference].visible = visible;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setInitialResultsAndSeries, (state, action) => {
@@ -57,4 +69,5 @@ export const tableVisSlice = createSlice({
     },
 });
 
-export const { updateFieldLabel } = tableVisSlice.actions;
+export const { updateFieldLabel, updateColumnVisibility } =
+    tableVisSlice.actions;
