@@ -2,12 +2,11 @@ import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     Divider,
     Group,
-    Loader,
     Paper,
     Stack,
-    Tabs,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -235,43 +234,47 @@ export const ContentPanel: FC<Props> = ({
                     }
                 >
                     <Stack h="100%" spacing={0}>
-                        <Paper
-                            shadow="none"
-                            radius={0}
-                            px="md"
-                            pb={0}
-                            pt="sm"
-                            withBorder
-                        >
-                            <Group position="apart" pb={0} noWrap>
-                                <Tabs
-                                    value={activeVisTab}
-                                    onTabChange={(val: VisTabs) => {
-                                        dispatch(setActiveVisTab(val));
-                                    }}
-                                    // Negative margin to ge the tab indicator on the border
-                                    mb={-2}
-                                >
-                                    <Tabs.List>
-                                        <Tabs.Tab
-                                            value={VisTabs.CHART}
-                                            disabled={isLoading}
-                                        >
-                                            Chart
-                                        </Tabs.Tab>
-                                        <Tabs.Tab
-                                            value={VisTabs.RESULTS}
-                                            disabled={isLoading}
-                                        >
-                                            Results
-                                        </Tabs.Tab>
-                                        {isLoading && (
-                                            <Loader mt="xs" size="xs" />
-                                        )}
-                                    </Tabs.List>
-                                </Tabs>
-
-                                <Group spacing="md" pb="sm" noWrap>
+                        <Paper shadow="none" radius={0} p="xs" withBorder>
+                            <Group position="apart">
+                                <Group spacing="xs">
+                                    <Button
+                                        size="xs"
+                                        color="dark"
+                                        variant={
+                                            activeVisTab === VisTabs.CHART
+                                                ? 'filled'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            !isLoading &&
+                                            dispatch(
+                                                setActiveVisTab(VisTabs.CHART),
+                                            )
+                                        }
+                                    >
+                                        Chart
+                                    </Button>
+                                    <Button
+                                        size="xs"
+                                        color="dark"
+                                        variant={
+                                            activeVisTab === VisTabs.RESULTS
+                                                ? 'filled'
+                                                : 'outline'
+                                        }
+                                        onClick={() =>
+                                            !isLoading &&
+                                            dispatch(
+                                                setActiveVisTab(
+                                                    VisTabs.RESULTS,
+                                                ),
+                                            )
+                                        }
+                                    >
+                                        Results
+                                    </Button>
+                                </Group>
+                                <Group noWrap>
                                     <Tooltip
                                         key={String(
                                             isResultsHeightMoreThanHalf,
@@ -340,34 +343,41 @@ export const ContentPanel: FC<Props> = ({
                                 })}
                                 h="100%"
                             >
-                                {activeVisTab === VisTabs.CHART && (
-                                    <>
-                                        {selectedChartType ===
-                                            ChartKind.TABLE && (
-                                            <Table
-                                                data={queryResults.results}
-                                                config={tableVisConfig}
-                                            />
-                                        )}
-                                        {selectedChartType ===
-                                            ChartKind.VERTICAL_BAR &&
-                                            barChartConfig && (
-                                                <BarChart
-                                                    data={queryResults}
-                                                    config={barChartConfig}
-                                                    isLoading={isLoading}
-                                                />
-                                            )}
-                                    </>
-                                )}
-                                {activeVisTab === VisTabs.RESULTS && (
-                                    <>
+                                <Box
+                                    display={
+                                        activeVisTab === VisTabs.CHART
+                                            ? 'block'
+                                            : 'none'
+                                    }
+                                >
+                                    {selectedChartType === ChartKind.TABLE && (
                                         <Table
                                             data={queryResults.results}
-                                            config={resultsTableConfig}
+                                            config={tableVisConfig}
                                         />
-                                    </>
-                                )}
+                                    )}
+                                    {selectedChartType ===
+                                        ChartKind.VERTICAL_BAR &&
+                                        barChartConfig && (
+                                            <BarChart
+                                                data={queryResults}
+                                                config={barChartConfig}
+                                                isLoading={isLoading}
+                                            />
+                                        )}
+                                </Box>
+                                <Box
+                                    display={
+                                        activeVisTab === VisTabs.RESULTS
+                                            ? 'block'
+                                            : 'none'
+                                    }
+                                >
+                                    <Table
+                                        data={queryResults.results}
+                                        config={resultsTableConfig}
+                                    />
+                                </Box>
                             </Paper>
                         )}
                     </Stack>
