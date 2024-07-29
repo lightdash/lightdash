@@ -1,3 +1,15 @@
+# [0.1190.0](https://github.com/lightdash/lightdash/compare/0.1189.1...0.1190.0) (2024-07-29)
+
+
+### Bug Fixes
+
+* promotion upsert chart type ([#10878](https://github.com/lightdash/lightdash/issues/10878)) ([65997e6](https://github.com/lightdash/lightdash/commit/65997e6ab5d2167787038c45628ce28e7bb2ca30))
+
+
+### Features
+
+* update bar chart config & add styling ([#10867](https://github.com/lightdash/lightdash/issues/10867)) ([489b083](https://github.com/lightdash/lightdash/commit/489b0836a2c645126beb0b1bf233c99c53a85356))
+
 ## [0.1189.1](https://github.com/lightdash/lightdash/compare/0.1189.0...0.1189.1) (2024-07-29)
 
 
