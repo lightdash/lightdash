@@ -27,7 +27,7 @@ enum TabOption {
     SQL = 'sql',
 }
 
-const SqlRunnerNew = () => {
+const ViewSqlChart = () => {
     const dispatch = useAppDispatch();
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
@@ -169,7 +169,7 @@ const SqlRunnerNew = () => {
 const SqlRunnerNewPage = () => {
     return (
         <Provider store={store}>
-            <SqlRunnerNew />
+            <ViewSqlChart />
         </Provider>
     );
 };

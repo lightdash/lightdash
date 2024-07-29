@@ -97,22 +97,24 @@ export const Header: FC = () => {
                         >
                             <ShareSqlLinkButton />
                         </Tooltip>
-                        <Tooltip
-                            variant="xs"
-                            label="Back to view page"
-                            position="bottom"
-                        >
-                            <ActionIcon size="xs">
-                                <MantineIcon
-                                    icon={IconArrowBackUp}
-                                    onClick={() =>
-                                        history.push(
-                                            `/projects/${projectUuid}/sql-runner-new/saved/${slug}`,
-                                        )
-                                    }
-                                />
-                            </ActionIcon>
-                        </Tooltip>
+                        {slug && (
+                            <Tooltip
+                                variant="xs"
+                                label="Back to view page"
+                                position="bottom"
+                            >
+                                <ActionIcon size="xs">
+                                    <MantineIcon
+                                        icon={IconArrowBackUp}
+                                        onClick={() =>
+                                            history.push(
+                                                `/projects/${projectUuid}/sql-runner-new/saved/${slug}`,
+                                            )
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
             </Paper>
