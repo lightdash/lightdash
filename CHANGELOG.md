@@ -1,3 +1,10 @@
+# [0.1191.0](https://github.com/lightdash/lightdash/compare/0.1190.1...0.1191.0) (2024-07-29)
+
+
+### Features
+
+* view page for SQL chart ([#10873](https://github.com/lightdash/lightdash/issues/10873)) ([18939e5](https://github.com/lightdash/lightdash/commit/18939e5eccc03b1336363a8d9d69ce1135dbfe11))
+
 ## [0.1190.1](https://github.com/lightdash/lightdash/compare/0.1190.0...0.1190.1) (2024-07-29)
 
 
