@@ -42,7 +42,7 @@ const SqlRunnerNew = () => {
         (state) => state.sqlRunner.resultsTableConfig,
     );
     const tableVisConfig = useAppSelector(
-        (state) => state.sqlRunner.tableChartConfig,
+        (state) => state.tableVisConfig.config,
     );
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
@@ -134,12 +134,17 @@ const SqlRunnerNew = () => {
                                         />
                                     )}
                                     {selectedChartType ===
-                                        ChartKind.VERTICAL_BAR && (
-                                        <BarChart
-                                            data={data.results}
-                                            config={barChartConfig}
-                                        />
-                                    )}
+                                        ChartKind.VERTICAL_BAR &&
+                                        barChartConfig &&
+                                        data && (
+                                            <BarChart
+                                                data={{
+                                                    results: data.results,
+                                                    columns: [],
+                                                }}
+                                                config={barChartConfig}
+                                            />
+                                        )}
                                 </>
                             )}
                             {activeTab === TabOption.RESULTS && (
