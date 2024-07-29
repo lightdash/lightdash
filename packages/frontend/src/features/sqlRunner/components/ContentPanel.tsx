@@ -61,6 +61,7 @@ export const ContentPanel: FC<Props> = ({
         () => resultsHeight > wrapperHeight / 2,
         [resultsHeight, wrapperHeight],
     );
+    // NOTE: debounce is used to avoid the chart from being resized too often
     const [debouncedInputSectionHeight] = useDebouncedValue(
         inputSectionHeight,
         100,
