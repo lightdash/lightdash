@@ -3,7 +3,6 @@ import {
     ActionIcon,
     Group,
     MantineProvider,
-    SegmentedControl,
     Stack,
     Title,
     Tooltip,
@@ -11,26 +10,25 @@ import {
 import { IconLayoutSidebarRightCollapse } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { themeOverride } from '../../../components/VisualizationConfigs/mantineTheme';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setSelectedChartType } from '../store/sqlRunnerSlice';
+import { useAppSelector } from '../store/hooks';
 import { BarChartConfig } from './BarChartConfiguration';
 import TableVisConfiguration from './TableVisConfiguration';
+import { VisualizationSwitcher } from './VisualizationSwitcher';
 
 type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
 export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
-    const dispatch = useAppDispatch();
-
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
 
     return (
         <MantineProvider inherit theme={themeOverride}>
-            <Stack h="100vh" spacing="xs">
+            <Stack h="100vh">
                 <Group position="apart">
                     <Title order={5} fz="sm" c="gray.6">
                         Configuration
@@ -45,17 +43,12 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                     </Tooltip>
                 </Group>
 
-                <SegmentedControl
-                    size="xs"
-                    value={selectedChartType}
-                    onChange={(value: ChartKind) =>
-                        dispatch(setSelectedChartType(value))
-                    }
-                    data={[
-                        { value: ChartKind.TABLE, label: 'Table' },
-                        { value: ChartKind.VERTICAL_BAR, label: 'Bar chart' },
-                    ]}
-                />
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Chart type</Config.Heading>
+                        <VisualizationSwitcher />
+                    </Config.Section>
+                </Config>
 
                 {selectedChartType === ChartKind.TABLE && (
                     <TableVisConfiguration />
