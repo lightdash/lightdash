@@ -21,7 +21,7 @@ const BarChart: FC<BarChartProps> = memo(
         const loading = isLoadingProp || transformLoading;
 
         if (error) {
-            return <Center>Error: {error.message}</Center>;
+            return <Center>{error.message}</Center>;
         }
 
         return (
