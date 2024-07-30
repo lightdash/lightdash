@@ -1,13 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Button, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -27,7 +19,7 @@ import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
 
-const MIN_RESULTS_HEIGHT = 50;
+const MIN_RESULTS_HEIGHT = 10;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
@@ -291,11 +283,7 @@ export const ContentPanel: FC = () => {
                                 borderColor: theme.colors.gray[3],
                                 cursor: 'ns-resize',
                             })}
-                        >
-                            <Group position="apart">
-                                <Title order={5}>Results</Title>
-                            </Group>
-                        </Paper>
+                        />
                     }
                     style={{
                         position: 'relative',
@@ -310,7 +298,7 @@ export const ContentPanel: FC = () => {
                         shadow="none"
                         radius={0}
                         p="sm"
-                        mt={38}
+                        mt="sm"
                         sx={(theme) => ({
                             flex: 1,
                             overflow: 'auto',
