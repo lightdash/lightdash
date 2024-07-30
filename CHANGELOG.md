@@ -1,3 +1,10 @@
+# [0.1196.0](https://github.com/lightdash/lightdash/compare/0.1195.0...0.1196.0) (2024-07-30)
+
+
+### Features
+
+* allow to update SQL chart name, description and space ([#10904](https://github.com/lightdash/lightdash/issues/10904)) ([288c920](https://github.com/lightdash/lightdash/commit/288c920f1397302863ded5131e2ab06f77162330))
+
 # [0.1195.0](https://github.com/lightdash/lightdash/compare/0.1194.0...0.1195.0) (2024-07-30)
 
 
