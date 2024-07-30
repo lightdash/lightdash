@@ -1,3 +1,10 @@
+## [0.1196.1](https://github.com/lightdash/lightdash/compare/0.1196.0...0.1196.1) (2024-07-30)
+
+
+### Bug Fixes
+
+* reset SQL runner redux state on page unmount ([#10912](https://github.com/lightdash/lightdash/issues/10912)) ([7a327a6](https://github.com/lightdash/lightdash/commit/7a327a6f13555d4626a8e5f50ca9a4d0c7126d46))
+
 # [0.1196.0](https://github.com/lightdash/lightdash/compare/0.1195.0...0.1196.0) (2024-07-30)
 
 
