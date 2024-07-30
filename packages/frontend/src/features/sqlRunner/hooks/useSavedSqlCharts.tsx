@@ -127,7 +127,7 @@ export const useDeleteSqlChartMutation = (
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<{ savedSqlUuid: string }, ApiError>(
-        () => deleteSavedSqlChart(projectUuid, savedSqlUuid!),
+        () => deleteSavedSqlChart(projectUuid, savedSqlUuid),
         {
             mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
             onSuccess: () => {

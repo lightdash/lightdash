@@ -27,8 +27,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSqlRunnerResults,
     setSql,
+    setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
