@@ -30,7 +30,9 @@ const { version: VERSION } = require('../package.json');
 
 const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
 const defaultProfilesDir =
-    process.env.DBT_PROFILES_DIR || path.join(os.homedir(), '.dbt');
+    process.env.DBT_PROFILES_DIR ||
+    process.cwd() ||
+    path.join(os.homedir(), '.dbt');
 
 function parseIntArgument(value: string) {
     const parsedValue = parseInt(value, 10);
