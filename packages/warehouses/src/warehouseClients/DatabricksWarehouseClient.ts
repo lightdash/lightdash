@@ -288,8 +288,13 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
-            if (query) await query.close();
-            await close();
+            try {
+                if (query) await query.close();
+                await close();
+            } catch (e: any) {
+                // Only console error. Don't allow close errors to override the original error
+                console.error('Error closing Databricks session', e);
+            }
         }
     }
 
