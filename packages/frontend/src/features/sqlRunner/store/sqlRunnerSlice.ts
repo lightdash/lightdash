@@ -40,6 +40,9 @@ export interface SqlRunnerState {
         saveChartModal: {
             isOpen: boolean;
         };
+        deleteChartModal: {
+            isOpen: boolean;
+        };
     };
 
     quoteChar: string;
@@ -63,6 +66,9 @@ const initialState: SqlRunnerState = {
         saveChartModal: {
             isOpen: false,
         },
+        deleteChartModal: {
+            isOpen: false,
+        },
     },
     quoteChar: '"',
     sqlColumns: undefined,
@@ -78,7 +84,7 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setInitialResultsAndSeries: (
+        setSqlRunnerResults: (
             state,
             action: PayloadAction<ResultsAndColumns>,
         ) => {
@@ -156,7 +162,7 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    setInitialResultsAndSeries,
+    setSqlRunnerResults,
     updateName,
     setSql,
     setActiveEditorTab,

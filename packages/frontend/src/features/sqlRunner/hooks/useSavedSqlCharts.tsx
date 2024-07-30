@@ -112,3 +112,35 @@ export const useUpdateSqlChartMutation = (
         },
     );
 };
+
+const deleteSavedSqlChart = async (projectUuid: string, savedSqlUuid: string) =>
+    lightdashApi<ApiUpdateSqlChart['results']>({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteSqlChartMutation = (
+    projectUuid: string,
+    savedSqlUuid: string,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<{ savedSqlUuid: string }, ApiError>(
+        () => deleteSavedSqlChart(projectUuid, savedSqlUuid),
+        {
+            mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
+            onSuccess: () => {
+                showToastSuccess({
+                    title: `Success! SQL chart deleted`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete chart`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
