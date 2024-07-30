@@ -191,10 +191,9 @@ export const BarChartFieldConfiguration = () => {
     const series = useAppSelector(
         (state) => state.barChartConfig.config?.display?.series,
     );
-    const groupByFields = useAppSelector(
-        (state) => state.barChartConfig.config?.fieldConfig?.groupBy,
+    const groupByField = useAppSelector(
+        (state) => state.barChartConfig.config?.fieldConfig?.groupBy?.[0],
     );
-    const groupByField = groupByFields?.[0];
     const groupByLayoutOptions = useAppSelector(
         (state) => state.barChartConfig.options.groupByOptions,
     );
