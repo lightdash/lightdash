@@ -33,6 +33,7 @@ export const SqlEditor = styled(AceEditor)<
     & > .ace_gutter {
         background-color: ${({ gutterBackgroundColor }) =>
             gutterBackgroundColor};
+        z-index: 0;
     }
     ${({ isFullScreen }) =>
         isFullScreen
