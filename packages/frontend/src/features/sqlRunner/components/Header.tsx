@@ -1,6 +1,10 @@
 import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
-import { IconArrowBackUp, IconDeviceFloppy } from '@tabler/icons-react';
+import {
+    IconArrowBackUp,
+    IconDeviceFloppy,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -9,6 +13,7 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { DEFAULT_NAME, toggleModal, updateName } from '../store/sqlRunnerSlice';
+import { DeleteSqlChartModal } from './DeleteSqlChartModal';
 import { SaveSqlChartModal } from './SaveSqlChartModal';
 import ShareSqlLinkButton from './ShareSqlLinkButton';
 
@@ -38,6 +43,12 @@ export const Header: FC = () => {
     );
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
+    }, [dispatch]);
+    const isDeleteModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
+    );
+    const onCloseDeleteModal = useCallback(() => {
+        dispatch(toggleModal('deleteChartModal'));
     }, [dispatch]);
 
     return (
@@ -115,6 +126,24 @@ export const Header: FC = () => {
                                 </ActionIcon>
                             </Tooltip>
                         )}
+                        {savedSqlUuid && (
+                            <Tooltip
+                                variant="xs"
+                                label="Delete"
+                                position="bottom"
+                            >
+                                <ActionIcon size="xs">
+                                    <MantineIcon
+                                        icon={IconTrash}
+                                        onClick={() =>
+                                            dispatch(
+                                                toggleModal('deleteChartModal'),
+                                            )
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
             </Paper>
@@ -123,6 +152,18 @@ export const Header: FC = () => {
                 opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
             />
+            {savedSqlUuid && (
+                <DeleteSqlChartModal
+                    projectUuid={projectUuid}
+                    savedSqlUuid={savedSqlUuid}
+                    name={name}
+                    opened={isDeleteModalOpen}
+                    onClose={onCloseDeleteModal}
+                    onSuccess={() =>
+                        history.push(`/projects/${projectUuid}/home`)
+                    }
+                />
+            )}
         </>
     );
 };
