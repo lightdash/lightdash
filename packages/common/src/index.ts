@@ -226,6 +226,7 @@ export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
 export * from './visualizations/BarChartDataTransformer';
+export * from './visualizations/PieChartDataTransformer';
 export * from './visualizations/ResultsTransformerBase';
 export * from './visualizations/SqlRunnerResultsTableTransformer';
 export * from './visualizations/SqlRunnerResultsTransformer';

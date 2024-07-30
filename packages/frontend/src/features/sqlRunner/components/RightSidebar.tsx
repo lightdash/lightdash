@@ -56,6 +56,9 @@ export const RightSidebar: FC<Props> = ({ setSidebarOpen }) => {
                 {selectedChartType === ChartKind.VERTICAL_BAR && (
                     <BarChartConfig />
                 )}
+                {selectedChartType === ChartKind.PIE && (
+                    <p>Put a pie chart config here</p>
+                )}
             </Stack>
         </MantineProvider>
     );

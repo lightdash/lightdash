@@ -27,11 +27,12 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSqlRunnerResults,
     setSql,
+    setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
+import PieChart from './visualizations/PieChart';
 import { Table } from './visualizations/Table';
 
 type Props = {
@@ -92,6 +93,10 @@ export const ContentPanel: FC<Props> = ({
 
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
+    );
+
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
     );
 
     const {
@@ -302,24 +307,48 @@ export const ContentPanel: FC<Props> = ({
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results && barChartConfig && (
-                                <BarChart
-                                    data={queryResults}
-                                    config={barChartConfig}
-                                    isLoading={isLoading}
-                                    style={{
-                                        // NOTE: Ensures the chart is always full height
-                                        display:
-                                            selectedChartType ===
-                                            ChartKind.VERTICAL_BAR
-                                                ? 'block'
-                                                : 'none',
-                                        height: debouncedInputSectionHeight,
-                                        width: '100%',
-                                        flex: 1,
-                                    }}
-                                />
-                            )}
+                            {queryResults?.results &&
+                                barChartConfig &&
+                                selectedChartType ===
+                                    ChartKind.VERTICAL_BAR && (
+                                    <BarChart
+                                        data={queryResults}
+                                        config={barChartConfig}
+                                        isLoading={isLoading}
+                                        style={{
+                                            // NOTE: Ensures the chart is always full height
+                                            display:
+                                                selectedChartType ===
+                                                ChartKind.VERTICAL_BAR
+                                                    ? 'block'
+                                                    : 'none',
+                                            height: debouncedInputSectionHeight,
+                                            width: '100%',
+                                            flex: 1,
+                                        }}
+                                    />
+                                )}
+
+                            {queryResults?.results &&
+                                pieChartConfig &&
+                                selectedChartType === ChartKind.PIE && (
+                                    <PieChart
+                                        data={queryResults}
+                                        config={pieChartConfig}
+                                        isLoading={isLoading}
+                                        style={{
+                                            // NOTE: Ensures the chart is always full height
+                                            display:
+                                                selectedChartType ===
+                                                ChartKind.PIE
+                                                    ? 'block'
+                                                    : 'none',
+                                            height: debouncedInputSectionHeight,
+                                            width: '100%',
+                                            flex: 1,
+                                        }}
+                                    />
+                                )}
 
                             {queryResults?.results &&
                                 selectedChartType === ChartKind.TABLE && (

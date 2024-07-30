@@ -1,6 +1,7 @@
 import { DimensionType, MetricType } from '../types/field';
 import {
     type BarChartData,
+    type PieChartData,
     type ResultsTransformerBase,
     type RowData,
 } from './ResultsTransformerBase';
@@ -72,6 +73,28 @@ export type SqlTransformBarChartConfig = {
           }
         | undefined;
 };
+
+// TODO: Should pie chart share the X and Y layout options? They could be
+// called something else
+export type PieChartDimensionOptions = {
+    type: XLayoutType;
+    reference: string;
+};
+
+export type PieChartMetricOptions = {
+    reference: string;
+    aggregationOptions: AggregationOptions[];
+};
+
+export type PieChartDisplay = {
+    isDonut?: boolean;
+};
+
+export type SqlTransformPieChartConfig = {
+    groupFieldIds?: string[];
+    metricId?: string;
+};
+
 export type DuckDBSqlFunction = (
     sql: string,
     rowData: RowData[],
@@ -136,7 +159,11 @@ type SqlRunnerResultsTransformerDeps = {
 };
 
 export class SqlRunnerResultsTransformer
-    implements ResultsTransformerBase<SqlTransformBarChartConfig>
+    implements
+        ResultsTransformerBase<
+            SqlTransformBarChartConfig,
+            SqlTransformPieChartConfig
+        >
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
@@ -300,6 +327,56 @@ export class SqlRunnerResultsTransformer
             results: pivotResults.results,
             xAxisColumn: groupByColumns[0],
             seriesColumns: pivotResults.valueColumns || [],
+        };
+    }
+
+    pieChartGroupFieldOptions(): PieChartDimensionOptions[] {
+        // TODO: Either make these option getters more generic or
+        // do something specific for pie charts
+        return this.barChartXLayoutOptions();
+    }
+
+    pieChartMetricFieldOptions(): PieChartMetricOptions[] {
+        // TODO: Either make these option getters more generic or
+        // do something specific for pie charts
+        return this.barChartYLayoutOptions();
+    }
+
+    defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {
+        const firstCategoricalColumn = this.columns.find(
+            (column) => column.type === DimensionType.STRING,
+        );
+
+        const firstNumericColumn = this.columns.find(
+            (column) => column.type === DimensionType.NUMBER,
+        );
+
+        const groupFieldIds = firstCategoricalColumn?.reference
+            ? [firstCategoricalColumn.reference]
+            : undefined;
+        const metricId = firstNumericColumn?.reference;
+
+        if (
+            !groupFieldIds ||
+            groupFieldIds.length === 0 ||
+            metricId === undefined
+        ) {
+            return undefined;
+        }
+
+        return {
+            groupFieldIds,
+            metricId,
+        };
+    }
+
+    public async transformPieChartData(
+        config: SqlTransformPieChartConfig,
+    ): Promise<PieChartData> {
+        console.log('transformPieChartData', config);
+
+        return {
+            results: this.rows,
         };
     }
 }
