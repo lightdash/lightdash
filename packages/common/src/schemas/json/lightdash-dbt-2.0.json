@@ -87,13 +87,16 @@
                                                 ]
                                             },
                                             "label": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "description": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "sql": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "hidden": {
                                                 "type": "boolean"
@@ -184,13 +187,16 @@
                                                             ]
                                                         },
                                                         "label": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "description": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "sql": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "hidden": {
                                                             "type": "boolean"
@@ -223,13 +229,16 @@
                                             "type": "object",
                                             "properties": {
                                                 "label": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "description": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "sql": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "hidden": {
                                                     "type": "boolean"
