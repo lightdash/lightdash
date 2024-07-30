@@ -1,6 +1,5 @@
 import { ChartKind } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Button,
     Group,
@@ -10,12 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
-import {
-    IconChartHistogram,
-    IconCodeCircle,
-    IconLayoutNavbarCollapse,
-    IconLayoutNavbarExpand,
-} from '@tabler/icons-react';
+import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
@@ -46,10 +40,6 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const isResultsHeightMoreThanHalf = useMemo(
-        () => resultsHeight > wrapperHeight / 2,
-        [resultsHeight, wrapperHeight],
-    );
     // NOTE: debounce is used to avoid the chart from being resized too often
     const [debouncedInputSectionHeight] = useDebouncedValue(
         inputSectionHeight,
@@ -194,35 +184,6 @@ export const ContentPanel: FC = () => {
                                     });
                                 }}
                             />
-                            <Tooltip
-                                key={String(isResultsHeightMoreThanHalf)}
-                                variant="xs"
-                                label={
-                                    !isResultsHeightMoreThanHalf
-                                        ? 'Collapse'
-                                        : 'Expand'
-                                }
-                                position="bottom"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={() =>
-                                        setResultsHeight(
-                                            isResultsHeightMoreThanHalf
-                                                ? MIN_RESULTS_HEIGHT
-                                                : maxResultsHeight,
-                                        )
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            !isResultsHeightMoreThanHalf
-                                                ? IconLayoutNavbarCollapse
-                                                : IconLayoutNavbarExpand
-                                        }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
                         </Group>
                     </Group>
                 </Paper>
@@ -333,39 +294,6 @@ export const ContentPanel: FC = () => {
                         >
                             <Group position="apart">
                                 <Title order={5}>Results</Title>
-                                <Group noWrap>
-                                    <Tooltip
-                                        key={String(
-                                            isResultsHeightMoreThanHalf,
-                                        )}
-                                        variant="xs"
-                                        label={
-                                            isResultsHeightMoreThanHalf
-                                                ? 'Collapse'
-                                                : 'Expand'
-                                        }
-                                        position="bottom"
-                                    >
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={() =>
-                                                setResultsHeight(
-                                                    isResultsHeightMoreThanHalf
-                                                        ? MIN_RESULTS_HEIGHT
-                                                        : maxResultsHeight,
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isResultsHeightMoreThanHalf
-                                                        ? IconLayoutNavbarExpand
-                                                        : IconLayoutNavbarCollapse
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
                             </Group>
                         </Paper>
                     }
