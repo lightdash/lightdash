@@ -111,7 +111,7 @@ export const ContentPanel: FC = () => {
                     shadow="none"
                     radius={0}
                     px="md"
-                    py="sm"
+                    py={6}
                     bg="gray.1"
                     sx={(theme) => ({
                         borderWidth: isResultsPanelFullHeight
@@ -280,7 +280,7 @@ export const ContentPanel: FC = () => {
                             shadow="none"
                             radius={0}
                             px="md"
-                            py="sm"
+                            py={6}
                             withBorder
                             bg="gray.1"
                             sx={(theme) => ({
@@ -310,7 +310,7 @@ export const ContentPanel: FC = () => {
                         shadow="none"
                         radius={0}
                         p="sm"
-                        mt={50}
+                        mt={38}
                         sx={(theme) => ({
                             flex: 1,
                             overflow: 'auto',
