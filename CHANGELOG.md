@@ -1,3 +1,10 @@
+# [0.1193.0](https://github.com/lightdash/lightdash/compare/0.1192.2...0.1193.0) (2024-07-30)
+
+
+### Features
+
+* option to delete SQL chart ([#10900](https://github.com/lightdash/lightdash/issues/10900)) ([bd6071c](https://github.com/lightdash/lightdash/commit/bd6071c59606b5de18fdfd4c79e3efe0cf35218c))
+
 ## [0.1192.2](https://github.com/lightdash/lightdash/compare/0.1192.1...0.1192.2) (2024-07-30)
 
 
