@@ -1,3 +1,10 @@
+## [0.1192.1](https://github.com/lightdash/lightdash/compare/0.1192.0...0.1192.1) (2024-07-30)
+
+
+### Bug Fixes
+
+* saving chat within dashboard as save as overrides dashboard ([#10877](https://github.com/lightdash/lightdash/issues/10877)) ([afc47ca](https://github.com/lightdash/lightdash/commit/afc47ca454a53a48432fff995ad7aef5d7e13c2e))
+
 # [0.1192.0](https://github.com/lightdash/lightdash/compare/0.1191.1...0.1192.0) (2024-07-30)
 
 
