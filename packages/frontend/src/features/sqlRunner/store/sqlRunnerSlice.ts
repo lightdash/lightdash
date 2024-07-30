@@ -39,7 +39,7 @@ export interface SqlRunnerState {
 
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
-    selectedChartType: ChartKind;
+    selectedChartType: ChartKind | undefined;
 
     resultsTableConfig: SqlTableConfig | undefined;
     modals: {
@@ -64,7 +64,7 @@ const initialState: SqlRunnerState = {
     sql: '',
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: ChartKind.VERTICAL_BAR,
+    selectedChartType: undefined,
     resultsTableConfig: undefined,
     modals: {
         saveChartModal: {
