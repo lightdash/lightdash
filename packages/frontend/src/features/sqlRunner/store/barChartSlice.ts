@@ -1,29 +1,36 @@
 import {
     ChartKind,
+    deepEqual,
     type AggregationOptions,
     type BarChartConfig,
     type BarChartDisplay,
+    type GroupByLayoutOptions,
+    type SqlTransformBarChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/useBarChart';
-import { setInitialResultsAndSeries, setSaveChartData } from './sqlRunnerSlice';
+import { setSaveChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
+    defaultLayout: SqlTransformBarChartConfig | undefined;
     config: BarChartConfig | undefined;
     options: {
         xLayoutOptions: XLayoutOptions[];
         yLayoutOptions: YLayoutOptions[];
+        groupByOptions: GroupByLayoutOptions[];
     };
 };
 
 const initialState: InitialState = {
+    defaultLayout: undefined,
     config: undefined,
     options: {
         xLayoutOptions: [],
         yLayoutOptions: [],
+        groupByOptions: [],
     },
 };
 
@@ -47,6 +54,23 @@ export const barChartConfigSlice = createSlice({
         setXAxisReference: ({ config }, action: PayloadAction<string>) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x.reference = action.payload;
+            }
+        },
+        setGroupByReference: (
+            { config },
+            action: PayloadAction<{
+                reference: string;
+            }>,
+        ) => {
+            if (config?.fieldConfig) {
+                config.fieldConfig.groupBy = [
+                    { reference: action.payload.reference },
+                ];
+            }
+        },
+        unsetGroupByReference: ({ config }) => {
+            if (config?.fieldConfig) {
+                config.fieldConfig.groupBy = undefined;
             }
         },
         setYAxisReference: (
@@ -132,12 +156,9 @@ export const barChartConfigSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(setInitialResultsAndSeries, (state, action) => {
-            if (
-                state.config === undefined &&
-                action.payload.results &&
-                action.payload.columns
-            ) {
+        builder.addCase(setSqlRunnerResults, (state, action) => {
+            if (action.payload.results && action.payload.columns) {
+                // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
                         rows: action.payload.results,
@@ -149,8 +170,32 @@ export const barChartConfigSlice = createSlice({
                             sqlRunnerResultsTransformer.barChartXLayoutOptions(),
                         yLayoutOptions:
                             sqlRunnerResultsTransformer.barChartYLayoutOptions(),
+                        groupByOptions:
+                            sqlRunnerResultsTransformer.barChartGroupByLayoutOptions(),
                     };
-                    state.config = sqlRunnerResultsTransformer.defaultConfig();
+                }
+
+                // Update layout
+                const oldDefaultLayout = state.defaultLayout;
+                const newDefaultLayout =
+                    sqlRunnerResultsTransformer.defaultBarChartLayout();
+                state.defaultLayout = newDefaultLayout;
+
+                if (
+                    !state.config ||
+                    deepEqual(
+                        oldDefaultLayout || {},
+                        state.config?.fieldConfig || {},
+                    )
+                ) {
+                    state.config = {
+                        metadata: {
+                            version: 1,
+                        },
+                        type: ChartKind.VERTICAL_BAR,
+                        fieldConfig: newDefaultLayout,
+                        display: state.config?.display,
+                    };
                 }
             }
         });
@@ -169,4 +214,6 @@ export const {
     setYAxisReference,
     setYAxisAggregation,
     setSeriesLabel,
+    setGroupByReference,
+    unsetGroupByReference,
 } = barChartConfigSlice.actions;

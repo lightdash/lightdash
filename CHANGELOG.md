@@ -1,3 +1,31 @@
+# [0.1194.0](https://github.com/lightdash/lightdash/compare/0.1193.0...0.1194.0) (2024-07-30)
+
+
+### Features
+
+* add pivot to bar charts ([#10899](https://github.com/lightdash/lightdash/issues/10899)) ([0c00d64](https://github.com/lightdash/lightdash/commit/0c00d644ad389528f84eb6836d1fc76774e061cd))
+
+# [0.1193.0](https://github.com/lightdash/lightdash/compare/0.1192.2...0.1193.0) (2024-07-30)
+
+
+### Features
+
+* option to delete SQL chart ([#10900](https://github.com/lightdash/lightdash/issues/10900)) ([bd6071c](https://github.com/lightdash/lightdash/commit/bd6071c59606b5de18fdfd4c79e3efe0cf35218c))
+
+## [0.1192.2](https://github.com/lightdash/lightdash/compare/0.1192.1...0.1192.2) (2024-07-30)
+
+
+### Bug Fixes
+
+* improve bar chart defaults ([#10891](https://github.com/lightdash/lightdash/issues/10891)) ([ee462bf](https://github.com/lightdash/lightdash/commit/ee462bfd0f37954d6bd6d55ab89cb1024972b9a6))
+
+## [0.1192.1](https://github.com/lightdash/lightdash/compare/0.1192.0...0.1192.1) (2024-07-30)
+
+
+### Bug Fixes
+
+* saving chat within dashboard as save as overrides dashboard ([#10877](https://github.com/lightdash/lightdash/issues/10877)) ([afc47ca](https://github.com/lightdash/lightdash/commit/afc47ca454a53a48432fff995ad7aef5d7e13c2e))
+
 # [0.1192.0](https://github.com/lightdash/lightdash/compare/0.1191.1...0.1192.0) (2024-07-30)
 
 

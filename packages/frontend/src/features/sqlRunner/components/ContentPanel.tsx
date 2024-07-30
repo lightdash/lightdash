@@ -27,8 +27,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setInitialResultsAndSeries,
     setSql,
+    setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
@@ -101,7 +101,7 @@ export const ContentPanel: FC<Props> = ({
     } = useSqlQueryRun({
         onSuccess: (data) => {
             if (data) {
-                dispatch(setInitialResultsAndSeries(data));
+                dispatch(setSqlRunnerResults(data));
                 if (activeEditorTab === EditorTabs.SQL) {
                     dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
                 }

@@ -1,6 +1,4 @@
 import { DimensionType, MetricType } from '../types/field';
-import { ChartKind } from '../types/savedCharts';
-import { type BarChartConfig } from '../types/sqlRunner';
 import {
     type BarChartData,
     type ResultsTransformerBase,
@@ -40,7 +38,7 @@ export type YLayoutOptions = {
     aggregationOptions: AggregationOptions[];
 };
 
-type SeriesLayoutOptions = {
+export type GroupByLayoutOptions = {
     reference: string;
 };
 
@@ -68,11 +66,7 @@ export type SqlTransformBarChartConfig = {
         reference: string;
         aggregation: AggregationOptions;
     }[];
-    groupBy:
-        | {
-              reference: string;
-          }
-        | undefined;
+    groupBy: { reference: string }[] | undefined;
 };
 export type DuckDBSqlFunction = (
     sql: string,
@@ -153,8 +147,8 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    barChartSeriesLayoutOptions(): SeriesLayoutOptions[] {
-        const options: SeriesLayoutOptions[] = [];
+    barChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
+        const options: GroupByLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.STRING:
@@ -229,40 +223,51 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    private defaultLayout(): SqlTransformBarChartConfig | undefined {
-        const firstColumnNonNumeric = this.columns.find(
-            (column) => column.type !== DimensionType.NUMBER,
+    defaultBarChartLayout(): SqlTransformBarChartConfig | undefined {
+        const firstCategoricalColumn = this.columns.find(
+            (column) => column.type === DimensionType.STRING,
         );
-        if (!firstColumnNonNumeric) return undefined;
-
-        const firstColumnNumeric = this.columns.find(
+        const firstBooleanColumn = this.columns.find(
+            (column) => column.type === DimensionType.BOOLEAN,
+        );
+        const firstDateColumn = this.columns.find((column) =>
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
+        );
+        const firstNumericColumn = this.columns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
-        return {
-            x: {
-                reference: firstColumnNonNumeric.reference,
-            },
-            y: firstColumnNumeric
-                ? [
-                      {
-                          reference: firstColumnNumeric.reference,
-                          aggregation: aggregationOptions[0],
-                      },
-                  ]
-                : [],
-            groupBy: undefined,
+        const xColumn =
+            firstCategoricalColumn ||
+            firstBooleanColumn ||
+            firstDateColumn ||
+            firstNumericColumn;
+        if (xColumn === undefined) {
+            return undefined;
+        }
+        const x = {
+            reference: xColumn.reference,
         };
-    }
 
-    defaultConfig(): BarChartConfig {
-        return {
-            metadata: {
-                version: 1,
+        const yColumn =
+            firstNumericColumn || firstBooleanColumn || firstCategoricalColumn;
+        if (yColumn === undefined) {
+            return undefined;
+        }
+        const y = [
+            {
+                reference: yColumn.reference,
+                aggregation:
+                    yColumn.type === DimensionType.NUMBER
+                        ? MetricType.SUM
+                        : MetricType.COUNT,
             },
-            type: ChartKind.VERTICAL_BAR,
-            fieldConfig: this.defaultLayout(),
-            display: undefined,
+        ];
+
+        return {
+            x,
+            y,
+            groupBy: undefined,
         };
     }
 
@@ -270,9 +275,10 @@ export class SqlRunnerResultsTransformer
         config: SqlTransformBarChartConfig,
     ): Promise<BarChartData> {
         const groupByColumns = [config.x.reference];
-        const pivotsSql = config.groupBy?.reference
-            ? [config.groupBy.reference]
-            : [];
+        const pivotsSql =
+            config.groupBy === undefined
+                ? []
+                : config.groupBy.map((groupBy) => groupBy.reference);
         const valuesSql = config.y.map(
             (y) => `${y.aggregation}(${y.reference})`,
         );
