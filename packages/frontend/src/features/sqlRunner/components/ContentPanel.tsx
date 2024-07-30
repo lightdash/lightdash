@@ -11,7 +11,6 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
 import {
-    IconAdjustmentsCog,
     IconChartHistogram,
     IconCodeCircle,
     IconLayoutNavbarCollapse,
@@ -34,19 +33,9 @@ import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
 import { Table } from './visualizations/Table';
 
-type Props = {
-    isChartConfigOpen: boolean;
-    openChartConfig: () => void;
-    closeChartConfig: () => void;
-};
-
 const MIN_RESULTS_HEIGHT = 50;
 
-export const ContentPanel: FC<Props> = ({
-    isChartConfigOpen,
-    openChartConfig,
-    closeChartConfig,
-}) => {
+export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
 
     const {
@@ -102,9 +91,7 @@ export const ContentPanel: FC<Props> = ({
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-                if (activeEditorTab === EditorTabs.SQL) {
-                    dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-                }
+
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -167,59 +154,33 @@ export const ContentPanel: FC<Props> = ({
                                 >
                                     SQL
                                 </Button>
-                                <Button.Group>
-                                    <Button
-                                        size="xs"
-                                        color="dark"
-                                        variant={
-                                            activeEditorTab ===
-                                            EditorTabs.VISUALIZATION
-                                                ? 'filled'
-                                                : 'subtle'
-                                        }
-                                        // TODO: remove once we add an empty state
-                                        disabled={!queryResults?.results}
-                                        onClick={() =>
-                                            !isLoading &&
-                                            dispatch(
-                                                setActiveEditorTab(
-                                                    EditorTabs.VISUALIZATION,
-                                                ),
-                                            )
-                                        }
-                                        leftIcon={
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                        }
-                                    >
-                                        Chart
-                                    </Button>
-                                    {activeEditorTab ===
-                                        EditorTabs.VISUALIZATION && (
-                                        <Button
-                                            variant={
-                                                isChartConfigOpen
-                                                    ? 'filled'
-                                                    : 'outline'
-                                            }
-                                            color="dark"
-                                            size="xs"
-                                            onClick={
-                                                isChartConfigOpen
-                                                    ? closeChartConfig
-                                                    : openChartConfig
-                                            }
-                                            leftIcon={
-                                                <MantineIcon
-                                                    icon={IconAdjustmentsCog}
-                                                />
-                                            }
-                                        >
-                                            Configure
-                                        </Button>
-                                    )}
-                                </Button.Group>
+                                <Button
+                                    size="xs"
+                                    color="dark"
+                                    variant={
+                                        activeEditorTab ===
+                                        EditorTabs.VISUALIZATION
+                                            ? 'filled'
+                                            : 'subtle'
+                                    }
+                                    // TODO: remove once we add an empty state
+                                    disabled={!queryResults?.results}
+                                    onClick={() =>
+                                        !isLoading &&
+                                        dispatch(
+                                            setActiveEditorTab(
+                                                EditorTabs.VISUALIZATION,
+                                            ),
+                                        )
+                                    }
+                                    leftIcon={
+                                        <MantineIcon
+                                            icon={IconChartHistogram}
+                                        />
+                                    }
+                                >
+                                    Chart
+                                </Button>
                             </Group>
                         </Group>
 
@@ -281,6 +242,7 @@ export const ContentPanel: FC<Props> = ({
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
+                            overflow: 'auto',
                             height: inputSectionHeight,
                             width: inputSectionWidth,
                         }}

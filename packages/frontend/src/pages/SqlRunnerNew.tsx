@@ -1,6 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
-import { IconDatabase } from '@tabler/icons-react';
+import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
+import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -9,7 +9,6 @@ import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
-import { RightSidebar } from '../features/sqlRunner/components/RightSidebar';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { store } from '../features/sqlRunner/store';
 import {
@@ -35,7 +34,6 @@ const SqlRunnerNew = () => {
 
     const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
-    const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
     const { data: project } = useProject(projectUuid);
 
     useEffect(() => {
@@ -79,8 +77,6 @@ const SqlRunnerNew = () => {
             header={<Header />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
-            isRightSidebarOpen={isRightSidebarOpen}
-            rightSidebar={<RightSidebar setSidebarOpen={setRightSidebarOpen} />}
         >
             <Group
                 align={'stretch'}
@@ -94,34 +90,27 @@ const SqlRunnerNew = () => {
                     <Paper
                         shadow="none"
                         radius={0}
-                        px="md"
+                        px="sm"
                         py="lg"
                         style={{ flexGrow: 0 }}
                     >
-                        <Tooltip
-                            variant="xs"
-                            label={'Open sidebar'}
-                            position="right"
-                        >
-                            <ActionIcon size="xs">
-                                <MantineIcon
-                                    icon={IconDatabase}
-                                    onClick={() => setLeftSidebarOpen(true)}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
+                        <Stack spacing="xs">
+                            <Tooltip
+                                variant="xs"
+                                label={'Open sidebar'}
+                                position="right"
+                            >
+                                <ActionIcon size="sm">
+                                    <MantineIcon
+                                        icon={IconLayoutSidebarLeftExpand}
+                                        onClick={() => setLeftSidebarOpen(true)}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Stack>
                     </Paper>
                 )}
-                <ContentPanel
-                    isChartConfigOpen={isRightSidebarOpen}
-                    openChartConfig={() => {
-                        setLeftSidebarOpen(false);
-                        setRightSidebarOpen(true);
-                    }}
-                    closeChartConfig={() => {
-                        setRightSidebarOpen(false);
-                    }}
-                />
+                <ContentPanel />
             </Group>
         </Page>
     );

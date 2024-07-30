@@ -14,6 +14,11 @@ export enum EditorTabs {
     VISUALIZATION = 'visualization',
 }
 
+export enum SidebarTabs {
+    TABLES = 'tables',
+    VISUALIZATION = 'visualization',
+}
+
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
 export interface SqlRunnerState {
@@ -32,8 +37,9 @@ export interface SqlRunnerState {
 
     sql: string;
 
+    activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
-    selectedChartType: ChartKind;
+    selectedChartType: ChartKind | undefined;
 
     resultsTableConfig: SqlTableConfig | undefined;
     modals: {
@@ -59,8 +65,9 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
+    activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: ChartKind.VERTICAL_BAR,
+    selectedChartType: undefined,
     resultsTableConfig: undefined,
     modals: {
         saveChartModal: {
@@ -123,6 +130,15 @@ export const sqlRunnerSlice = createSlice({
         },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
+            if (action.payload === EditorTabs.VISUALIZATION) {
+                state.activeSidebarTab = SidebarTabs.VISUALIZATION;
+                if (state.selectedChartType === undefined) {
+                    state.selectedChartType = ChartKind.VERTICAL_BAR;
+                }
+            }
+            if (action.payload === EditorTabs.SQL) {
+                state.activeSidebarTab = SidebarTabs.TABLES;
+            }
         },
         setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
             state.savedSqlUuid = action.payload.savedSqlUuid;
