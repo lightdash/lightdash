@@ -1,3 +1,17 @@
+# [0.1195.0](https://github.com/lightdash/lightdash/compare/0.1194.0...0.1195.0) (2024-07-30)
+
+
+### Bug Fixes
+
+* databricks log on close error ([#10896](https://github.com/lightdash/lightdash/issues/10896)) ([e09a926](https://github.com/lightdash/lightdash/commit/e09a92678a24d5c07ee6994719c97820b4476135))
+* packages/warehouses/package.json to reduce vulnerabilities ([#10875](https://github.com/lightdash/lightdash/issues/10875)) ([a8887ff](https://github.com/lightdash/lightdash/commit/a8887ffa2d0b86c94a20e9bf53cda8e2b1fd8438))
+
+
+### Features
+
+* add validation to bar chart field config ([#10905](https://github.com/lightdash/lightdash/issues/10905)) ([c27acd4](https://github.com/lightdash/lightdash/commit/c27acd4372185961818116934eafabb80b000767))
+* move sql chart config to left ([#10903](https://github.com/lightdash/lightdash/issues/10903)) ([f3fa36b](https://github.com/lightdash/lightdash/commit/f3fa36bc64b17acf4a0178e3b1512039daddaa7a))
+
 # [0.1194.0](https://github.com/lightdash/lightdash/compare/0.1193.0...0.1194.0) (2024-07-30)
 
 
