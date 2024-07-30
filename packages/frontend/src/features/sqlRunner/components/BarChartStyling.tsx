@@ -1,8 +1,11 @@
-import { XLayoutType } from '@lightdash/common';
-import { Stack, TextInput } from '@mantine/core';
+import { Select, Stack, TextInput } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import { setXAxisLabel, setYAxisLabel } from '../store/barChartSlice';
+import {
+    setXAxisLabel,
+    setYAxisLabel,
+    setYAxisPosition,
+} from '../store/barChartSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 const DEBOUNCE_TIME = 500;
@@ -21,13 +24,19 @@ export const BarChartStyling = () => {
             state.barChartConfig.config?.display?.yAxis?.[0]?.label ??
             state.barChartConfig.config?.fieldConfig?.y?.[0]?.reference,
     );
-
+    const yAxisPosition = useAppSelector(
+        (state) => state.barChartConfig.config?.display?.yAxis?.[0]?.position,
+    );
     const onXAxisLabelChange = debounce((label: string) => {
         dispatch(setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
     }, DEBOUNCE_TIME);
 
     const onYAxisLabelChange = debounce((label: string) => {
         dispatch(setYAxisLabel({ index: 0, label }));
+    }, DEBOUNCE_TIME);
+
+    const onYAxisPositionChange = debounce((position: string | undefined) => {
+        dispatch(setYAxisPosition({ index: 0, position }));
     }, DEBOUNCE_TIME);
 
     return (
@@ -46,12 +55,25 @@ export const BarChartStyling = () => {
             <Config>
                 <Config.Section>
                     <Config.Heading>{`Y-axis label`}</Config.Heading>
-
                     <TextInput
                         defaultValue={yAxisLabel}
                         radius="md"
                         onChange={(e) => onYAxisLabelChange(e.target.value)}
                     />
+                    <Select
+                        data={['left', 'right']}
+                        defaultValue={yAxisPosition}
+                        onChange={(value) =>
+                            onYAxisPositionChange(value || undefined)
+                        }
+                        placeholder={'Change the y-axis position'}
+                    />
+                </Config.Section>
+            </Config>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>{`Series`}</Config.Heading>
+                    <TextInput radius="md" />
                 </Config.Section>
             </Config>
         </Stack>
