@@ -1,3 +1,17 @@
+# [0.1192.0](https://github.com/lightdash/lightdash/compare/0.1191.1...0.1192.0) (2024-07-30)
+
+
+### Features
+
+* rearrange content panel options ([#10890](https://github.com/lightdash/lightdash/issues/10890)) ([61ae753](https://github.com/lightdash/lightdash/commit/61ae7532828688fe4e10fbec1d31c5381172a729))
+
+## [0.1191.1](https://github.com/lightdash/lightdash/compare/0.1191.0...0.1191.1) (2024-07-29)
+
+
+### Bug Fixes
+
+* fix dbt 1.8 cli tests ([#10889](https://github.com/lightdash/lightdash/issues/10889)) ([2896956](https://github.com/lightdash/lightdash/commit/2896956071abc80f8f667451cfa36853cd04953f))
+
 # [0.1191.0](https://github.com/lightdash/lightdash/compare/0.1190.1...0.1191.0) (2024-07-29)
 
 

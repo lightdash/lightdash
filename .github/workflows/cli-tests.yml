@@ -63,7 +63,7 @@ jobs:
 
       ## Remove dbt metrics for dbt 1.6
       - name: Remove dbt metrics for dbt 1.6
-        if: matrix.dbt == '1.6' || matrix.dbt == '1.7'
+        if: matrix.dbt == '1.6' || matrix.dbt == '1.7' || matrix.dbt == '1.8'
         run: |
           rm ./examples/full-jaffle-shop-demo/dbt/models/metrics.yml
 
