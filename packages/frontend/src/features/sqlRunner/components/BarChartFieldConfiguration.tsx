@@ -42,6 +42,12 @@ const YFieldsAxisConfig: FC<{
                         label: y.reference,
                     }))}
                     value={field.reference}
+                    error={
+                        yLayoutOptions.find(
+                            (y) => y.reference === field.reference,
+                        ) === undefined &&
+                        `Column "${field.reference}" not in SQL`
+                    }
                     placeholder="Select Y axis"
                     onChange={(value) => {
                         if (!value) return;
@@ -117,6 +123,10 @@ const XFieldAxisConfig = ({
                 if (!value) return;
                 dispatch(setXAxisReference(value));
             }}
+            error={
+                xLayoutOptions.find((x) => x.reference === field.reference) ===
+                    undefined && `Column "${field.reference}" not in SQL query`
+            }
             icon={
                 <TableFieldIcon
                     fieldType={
@@ -147,6 +157,11 @@ const GroupByFieldAxisConfig = ({
             }))}
             value={field?.reference}
             placeholder="Select group by"
+            error={
+                field !== undefined &&
+                !groupByOptions.find((x) => x.reference === field.reference) &&
+                `Column "${field.reference}" not in SQL query`
+            }
             onChange={(value) => {
                 if (!value) {
                     dispatch(unsetGroupByReference());
