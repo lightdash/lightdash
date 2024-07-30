@@ -91,6 +91,9 @@ export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
+        resetState: () => {
+            return initialState;
+        },
         loadState: (state, action: PayloadAction<SqlRunnerState>) => {
             return action.payload;
         },
@@ -192,5 +195,6 @@ export const {
     setSelectedChartType,
     toggleModal,
     loadState,
+    resetState,
     setQuoteChar,
 } = sqlRunnerSlice.actions;

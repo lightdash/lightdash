@@ -4,6 +4,7 @@ import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { useUnmount } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
@@ -17,6 +18,7 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     loadState,
+    resetState,
     setProjectUuid,
     setQuoteChar,
     setSaveChartData,
@@ -35,6 +37,10 @@ const SqlRunnerNew = () => {
     const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
+
+    useUnmount(() => {
+        dispatch(resetState());
+    });
 
     useEffect(() => {
         if (sqlRunnerState) {
