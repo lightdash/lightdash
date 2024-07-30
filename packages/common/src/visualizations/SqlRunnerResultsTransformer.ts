@@ -38,7 +38,7 @@ export type YLayoutOptions = {
     aggregationOptions: AggregationOptions[];
 };
 
-type SeriesLayoutOptions = {
+export type GroupByLayoutOptions = {
     reference: string;
 };
 
@@ -66,11 +66,7 @@ export type SqlTransformBarChartConfig = {
         reference: string;
         aggregation: AggregationOptions;
     }[];
-    groupBy:
-        | {
-              reference: string;
-          }
-        | undefined;
+    groupBy: { reference: string }[] | undefined;
 };
 export type DuckDBSqlFunction = (
     sql: string,
@@ -151,8 +147,8 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    barChartSeriesLayoutOptions(): SeriesLayoutOptions[] {
-        const options: SeriesLayoutOptions[] = [];
+    barChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
+        const options: GroupByLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.STRING:
@@ -279,9 +275,10 @@ export class SqlRunnerResultsTransformer
         config: SqlTransformBarChartConfig,
     ): Promise<BarChartData> {
         const groupByColumns = [config.x.reference];
-        const pivotsSql = config.groupBy?.reference
-            ? [config.groupBy.reference]
-            : [];
+        const pivotsSql =
+            config.groupBy === undefined
+                ? []
+                : config.groupBy.map((groupBy) => groupBy.reference);
         const valuesSql = config.y.map(
             (y) => `${y.aggregation}(${y.reference})`,
         );

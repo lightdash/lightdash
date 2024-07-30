@@ -4,6 +4,7 @@ import {
     type AggregationOptions,
     type BarChartConfig,
     type BarChartDisplay,
+    type GroupByLayoutOptions,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
@@ -19,6 +20,7 @@ type InitialState = {
     options: {
         xLayoutOptions: XLayoutOptions[];
         yLayoutOptions: YLayoutOptions[];
+        groupByOptions: GroupByLayoutOptions[];
     };
 };
 
@@ -28,6 +30,7 @@ const initialState: InitialState = {
     options: {
         xLayoutOptions: [],
         yLayoutOptions: [],
+        groupByOptions: [],
     },
 };
 
@@ -51,6 +54,23 @@ export const barChartConfigSlice = createSlice({
         setXAxisReference: ({ config }, action: PayloadAction<string>) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x.reference = action.payload;
+            }
+        },
+        setGroupByReference: (
+            { config },
+            action: PayloadAction<{
+                reference: string;
+            }>,
+        ) => {
+            if (config?.fieldConfig) {
+                config.fieldConfig.groupBy = [
+                    { reference: action.payload.reference },
+                ];
+            }
+        },
+        unsetGroupByReference: ({ config }) => {
+            if (config?.fieldConfig) {
+                config.fieldConfig.groupBy = undefined;
             }
         },
         setYAxisReference: (
@@ -150,6 +170,8 @@ export const barChartConfigSlice = createSlice({
                             sqlRunnerResultsTransformer.barChartXLayoutOptions(),
                         yLayoutOptions:
                             sqlRunnerResultsTransformer.barChartYLayoutOptions(),
+                        groupByOptions:
+                            sqlRunnerResultsTransformer.barChartGroupByLayoutOptions(),
                     };
                 }
 
@@ -192,4 +214,6 @@ export const {
     setYAxisReference,
     setYAxisAggregation,
     setSeriesLabel,
+    setGroupByReference,
+    unsetGroupByReference,
 } = barChartConfigSlice.actions;
