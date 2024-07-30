@@ -1,3 +1,10 @@
+## [0.1192.2](https://github.com/lightdash/lightdash/compare/0.1192.1...0.1192.2) (2024-07-30)
+
+
+### Bug Fixes
+
+* improve bar chart defaults ([#10891](https://github.com/lightdash/lightdash/issues/10891)) ([ee462bf](https://github.com/lightdash/lightdash/commit/ee462bfd0f37954d6bd6d55ab89cb1024972b9a6))
+
 ## [0.1192.1](https://github.com/lightdash/lightdash/compare/0.1192.0...0.1192.1) (2024-07-30)
 
 
