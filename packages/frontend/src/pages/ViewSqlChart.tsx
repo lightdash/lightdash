@@ -4,6 +4,7 @@ import { Prism } from '@mantine/prism';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { HeaderViewMode } from '../features/sqlRunner/components/HeaderViewMode';
@@ -17,6 +18,7 @@ import {
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
 import {
+    resetState,
     setProjectUuid,
     setSaveChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
@@ -48,6 +50,10 @@ const ViewSqlChart = () => {
         (state) => state.barChartConfig.config,
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+
+    useUnmount(() => {
+        dispatch(resetState());
+    });
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {
