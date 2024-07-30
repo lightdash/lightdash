@@ -9,7 +9,6 @@ import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
-import { RightSidebar } from '../features/sqlRunner/components/RightSidebar';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { store } from '../features/sqlRunner/store';
 import {
@@ -35,7 +34,6 @@ const SqlRunnerNew = () => {
 
     const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
-    const [isRightSidebarOpen, setRightSidebarOpen] = useState(false);
     const { data: project } = useProject(projectUuid);
 
     useEffect(() => {
@@ -79,8 +77,6 @@ const SqlRunnerNew = () => {
             header={<Header />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
-            isRightSidebarOpen={isRightSidebarOpen}
-            rightSidebar={<RightSidebar setSidebarOpen={setRightSidebarOpen} />}
         >
             <Group
                 align={'stretch'}
@@ -112,16 +108,7 @@ const SqlRunnerNew = () => {
                         </Tooltip>
                     </Paper>
                 )}
-                <ContentPanel
-                    isChartConfigOpen={isRightSidebarOpen}
-                    openChartConfig={() => {
-                        setLeftSidebarOpen(false);
-                        setRightSidebarOpen(true);
-                    }}
-                    closeChartConfig={() => {
-                        setRightSidebarOpen(false);
-                    }}
-                />
+                <ContentPanel />
             </Group>
         </Page>
     );
