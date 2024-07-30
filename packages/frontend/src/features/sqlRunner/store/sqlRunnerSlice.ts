@@ -43,6 +43,9 @@ export interface SqlRunnerState {
         deleteChartModal: {
             isOpen: boolean;
         };
+        updateChartModal: {
+            isOpen: boolean;
+        };
     };
 
     quoteChar: string;
@@ -67,6 +70,9 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
         deleteChartModal: {
+            isOpen: false,
+        },
+        updateChartModal: {
             isOpen: false,
         },
     },
