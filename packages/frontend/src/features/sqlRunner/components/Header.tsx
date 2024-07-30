@@ -24,11 +24,13 @@ export const Header: FC = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlUuid,
+        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
-    const space = useAppSelector((state) => state.sqlRunner.space);
+    const space = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart?.space,
+    );
     const name = useAppSelector((state) => state.sqlRunner.name);
-    const slug = useAppSelector((state) => state.sqlRunner.slug);
+    const slug = useAppSelector((state) => state.sqlRunner.savedSqlChart?.slug);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const config = useAppSelector((state) =>
         state.sqlRunner.selectedChartType === ChartKind.TABLE

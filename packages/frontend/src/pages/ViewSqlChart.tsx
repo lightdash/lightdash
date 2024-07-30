@@ -33,7 +33,7 @@ const ViewSqlChart = () => {
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlUuid,
+        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
