@@ -91,9 +91,7 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-                if (activeEditorTab === EditorTabs.SQL) {
-                    dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-                }
+
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
