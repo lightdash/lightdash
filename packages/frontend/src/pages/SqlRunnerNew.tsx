@@ -19,7 +19,7 @@ import {
     loadState,
     setProjectUuid,
     setQuoteChar,
-    setSaveChartData,
+    setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
 import useSearchParams from '../hooks/useSearchParams';
@@ -52,7 +52,7 @@ const SqlRunnerNew = () => {
         projectUuid,
         slug: params.slug,
         onSuccess: (data) => {
-            dispatch(setSaveChartData(data));
+            dispatch(setSavedChartData(data));
         },
     });
     useEffect(() => {

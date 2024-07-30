@@ -18,7 +18,7 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     setProjectUuid,
-    setSaveChartData,
+    setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -59,7 +59,7 @@ const ViewSqlChart = () => {
         projectUuid,
         slug: params.slug,
         onSuccess: (data) => {
-            dispatch(setSaveChartData(data));
+            dispatch(setSavedChartData(data));
         },
     });
 

@@ -132,7 +132,7 @@ export const sqlRunnerSlice = createSlice({
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
         },
-        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
+        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
             state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
@@ -171,7 +171,7 @@ export const {
     updateName,
     setSql,
     setActiveEditorTab,
-    setSaveChartData,
+    setSavedChartData,
     setSelectedChartType,
     toggleModal,
     loadState,
