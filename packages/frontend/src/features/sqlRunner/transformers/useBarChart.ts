@@ -1,6 +1,5 @@
 import {
-    BarChartDataTransformer,
-    SqlRunnerResultsTransformer,
+    BarChartResultsTransformer,
     type BarChartConfig,
     type ResultRow,
     type RowData,
@@ -32,18 +31,6 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
     });
 };
 
-export class SqlRunnerResultsTransformerFE extends SqlRunnerResultsTransformer {
-    constructor(args: { rows: (RowData | ResultRow)[]; columns: SqlColumn[] }) {
-        super({
-            rows: isResultRows(args.rows)
-                ? convertToRowData(args.rows)
-                : args.rows,
-            columns: args.columns,
-            duckDBSqlFunction: duckDBFE,
-        });
-    }
-}
-
 export const useBarChart = (
     rows: ResultRow[],
     columns: SqlColumn[],
@@ -51,22 +38,17 @@ export const useBarChart = (
 ) => {
     const transformer = useMemo(
         () =>
-            new SqlRunnerResultsTransformerFE({
-                rows,
+            new BarChartResultsTransformer({
+                rows: isResultRows(rows) ? convertToRowData(rows) : rows,
                 columns,
+                duckDBSqlFunction: duckDBFE,
             }),
         [rows, columns],
     );
-    const barChart = useMemo(
-        () =>
-            new BarChartDataTransformer({
-                transformer,
-            }),
-        [transformer],
-    );
 
     return useAsync(
-        async () => barChart.getEchartsSpec(config.fieldConfig, config.display),
-        [config, barChart],
+        async () =>
+            transformer.getEchartsSpec(config.fieldConfig, config.display),
+        [config, transformer],
     );
 };

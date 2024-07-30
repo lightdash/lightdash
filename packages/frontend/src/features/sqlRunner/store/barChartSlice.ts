@@ -1,4 +1,5 @@
 import {
+    BarChartResultsTransformer,
     ChartKind,
     type AggregationOptions,
     type BarChartConfig,
@@ -8,7 +9,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { SqlRunnerResultsTransformerFE } from '../transformers/useBarChart';
+import { duckDBFE } from '../duckDBQuery';
 import { setInitialResultsAndSeries, setSaveChartData } from './sqlRunnerSlice';
 
 type InitialState = {
@@ -139,9 +140,10 @@ export const barChartConfigSlice = createSlice({
                 action.payload.columns
             ) {
                 const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformerFE({
+                    new BarChartResultsTransformer({
                         rows: action.payload.results,
                         columns: action.payload.columns,
+                        duckDBSqlFunction: duckDBFE,
                     });
                 if (action.payload.columns) {
                     state.options = {

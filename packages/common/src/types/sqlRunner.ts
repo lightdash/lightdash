@@ -2,7 +2,7 @@ import {
     type BarChartDisplay,
     type SqlColumn,
     type SqlTransformBarChartConfig,
-} from '../visualizations/SqlRunnerResultsTransformer';
+} from '../visualizations/BarChartResultsTransformer';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';
