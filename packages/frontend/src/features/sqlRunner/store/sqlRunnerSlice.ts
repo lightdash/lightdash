@@ -126,6 +126,9 @@ export const sqlRunnerSlice = createSlice({
             state.activeEditorTab = action.payload;
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
+                if (state.selectedChartType === undefined) {
+                    state.selectedChartType = ChartKind.VERTICAL_BAR;
+                }
             }
             if (action.payload === EditorTabs.SQL) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
