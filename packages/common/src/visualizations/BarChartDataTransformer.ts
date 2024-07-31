@@ -46,10 +46,9 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
             },
             yAxis: [
                 {
-                    // TODO: display should always be defined and defaults should be applied in the transformer
                     type: 'value',
+                    position: display?.yAxis?.[0]?.position || 'left',
                     name:
-                        // TODO: display should always be defined and defaults should be applied in the transformer
                         (display?.yAxis && display.yAxis[0].label) ||
                         friendlyName(
                             transformedData?.seriesColumns.length === 1

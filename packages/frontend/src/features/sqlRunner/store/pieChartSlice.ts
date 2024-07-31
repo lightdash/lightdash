@@ -9,7 +9,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
-import { setSaveChartData, setSqlRunnerResults } from './sqlRunnerSlice';
+import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultFieldConfig: SqlTransformPieChartConfig | undefined;
@@ -81,9 +81,10 @@ export const pieChartConfigSlice = createSlice({
                 }
             }
         });
-        builder.addCase(setSaveChartData, (state, action) => {
+        builder.addCase(setSavedChartData, (state, action) => {
             if (action.payload.config.type === ChartKind.PIE) {
-                console.log('setSaveChartData to PIE', action.payload.config);
+                // TODO: load saved chart
+                // console.log('setSaveChartData to PIE', action.payload.config);
             }
         });
     },

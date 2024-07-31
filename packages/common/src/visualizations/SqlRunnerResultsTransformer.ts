@@ -50,7 +50,7 @@ export type BarChartDisplay = {
     };
     yAxis?: {
         label?: string;
-        position?: 'left' | 'right';
+        position?: string;
     }[];
     series?: Record<string, { label?: string; yAxisIndex?: number }>;
     legend?: {

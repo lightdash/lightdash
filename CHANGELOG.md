@@ -1,3 +1,17 @@
+# [0.1197.0](https://github.com/lightdash/lightdash/compare/0.1196.2...0.1197.0) (2024-07-31)
+
+
+### Features
+
+* change the position of bar y-axis ([#10908](https://github.com/lightdash/lightdash/issues/10908)) ([0c719b9](https://github.com/lightdash/lightdash/commit/0c719b91ef9d4f726135e91f3b4d8685c6e7161b))
+
+## [0.1196.2](https://github.com/lightdash/lightdash/compare/0.1196.1...0.1196.2) (2024-07-31)
+
+
+### Bug Fixes
+
+* group by clear bar chart sql ([#10922](https://github.com/lightdash/lightdash/issues/10922)) ([2ba18c9](https://github.com/lightdash/lightdash/commit/2ba18c9cdef3ba939d7b27a02c7631abf4bb218e))
+
 ## [0.1196.1](https://github.com/lightdash/lightdash/compare/0.1196.0...0.1196.1) (2024-07-30)
 
 

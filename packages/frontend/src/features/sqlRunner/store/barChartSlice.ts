@@ -12,7 +12,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
-import { setSaveChartData, setSqlRunnerResults } from './sqlRunnerSlice';
+import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultLayout: SqlTransformBarChartConfig | undefined;
@@ -154,6 +154,27 @@ export const barChartConfigSlice = createSlice({
                     action.payload.label;
             }
         },
+        setYAxisPosition: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                position: string | undefined;
+            }>,
+        ) => {
+            if (!config) return;
+
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+
+            const { index, position } = action.payload;
+            if (config.display.yAxis[index] === undefined) {
+                config.display.yAxis[index] = {
+                    position,
+                };
+            } else {
+                config.display.yAxis[index].position = position;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
@@ -199,7 +220,7 @@ export const barChartConfigSlice = createSlice({
                 }
             }
         });
-        builder.addCase(setSaveChartData, (state, action) => {
+        builder.addCase(setSavedChartData, (state, action) => {
             if (action.payload.config.type === ChartKind.VERTICAL_BAR) {
                 state.config = action.payload.config;
             }
@@ -216,4 +237,5 @@ export const {
     setSeriesLabel,
     setGroupByReference,
     unsetGroupByReference,
+    setYAxisPosition,
 } = barChartConfigSlice.actions;
