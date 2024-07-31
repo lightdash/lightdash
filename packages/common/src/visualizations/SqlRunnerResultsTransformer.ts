@@ -62,6 +62,7 @@ export type BarChartDisplay = {
 export type SqlTransformBarChartConfig = {
     x: {
         reference: string;
+        type: XLayoutType;
     };
     y: {
         reference: string;
@@ -191,6 +192,8 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
+    // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
+    // The output 'category' | 'time' is echarts specific. or is this more general?
     barChartXLayoutOptions(): XLayoutOptions[] {
         const options: XLayoutOptions[] = [];
         for (const column of this.columns) {
@@ -272,8 +275,13 @@ export class SqlRunnerResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x = {
+        const x: SqlTransformBarChartConfig['x'] = {
             reference: xColumn.reference,
+            type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                xColumn.type,
+            )
+                ? XLayoutType.TIME
+                : XLayoutType.CATEGORY,
         };
 
         const yColumn =
@@ -322,7 +330,7 @@ export class SqlRunnerResultsTransformer
 
         return {
             results: pivotResults.results,
-            xAxisColumn: groupByColumns[0],
+            xAxisColumn: { reference: groupByColumns[0], type: config.x.type },
             seriesColumns: pivotResults.valueColumns || [],
         };
     }

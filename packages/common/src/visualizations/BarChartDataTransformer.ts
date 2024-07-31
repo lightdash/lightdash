@@ -33,11 +33,16 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
             },
             xAxis: {
                 // TODO: display should always be defined and defaults should be applied in the transformer
-                type: display?.xAxis?.type ?? DEFAULT_X_AXIS_TYPE,
+                type:
+                    display?.xAxis?.type ||
+                    transformedData?.xAxisColumn.type ||
+                    DEFAULT_X_AXIS_TYPE,
                 name:
                     // TODO: display should always be defined and defaults should be applied in the transformer
                     display?.xAxis?.label ||
-                    friendlyName(transformedData?.xAxisColumn || 'xAxisColumn'),
+                    friendlyName(
+                        transformedData?.xAxisColumn.reference || 'xAxisColumn',
+                    ),
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
@@ -68,13 +73,16 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
                 source: transformedData?.results,
             },
             series: transformedData?.seriesColumns.map((seriesColumn) => ({
-                dimensions: [transformedData.xAxisColumn, seriesColumn],
+                dimensions: [
+                    transformedData.xAxisColumn.reference,
+                    seriesColumn,
+                ],
                 type: 'bar',
                 name:
                     (display?.series && display.series[seriesColumn]?.label) ||
                     friendlyName(seriesColumn),
                 encode: {
-                    x: transformedData.xAxisColumn,
+                    x: transformedData.xAxisColumn.reference,
                     y: seriesColumn,
                 },
                 yAxisIndex:
