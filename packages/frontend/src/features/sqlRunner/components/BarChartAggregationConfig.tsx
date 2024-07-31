@@ -1,5 +1,5 @@
 import { MetricType, type YLayoutOptions } from '@lightdash/common';
-import { Group, SegmentedControl, Text } from '@mantine/core';
+import { Box, Group, Select, Text } from '@mantine/core';
 import {
     IconMathFunction,
     IconMathMax,
@@ -10,7 +10,7 @@ import {
     IconTrendingUp,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
-import { type FC } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
@@ -39,7 +39,12 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
         default:
             icon = IconMathOff;
     }
-    return <MantineIcon color="indigo.4" icon={icon} />;
+
+    return (
+        // <Paper>
+        <MantineIcon color="indigo.4" icon={icon} />
+        // </Paper>
+    );
 };
 
 type Props = {
@@ -50,6 +55,18 @@ type Props = {
     ) => void;
 };
 
+const AggregationItem = forwardRef<
+    HTMLDivElement,
+    ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
+>(({ value, ...others }, ref) => (
+    <Box ref={ref} {...others}>
+        <Group noWrap spacing="xs">
+            <AggregationIcon aggregation={value} />
+            <Text>{capitalize(value)}</Text>
+        </Group>
+    </Box>
+));
+
 export const BarChartAggregationConfig: FC<Props> = ({
     options,
     onChangeAggregation,
@@ -58,18 +75,34 @@ export const BarChartAggregationConfig: FC<Props> = ({
     const aggregationOptionsWithNone = options ?? [];
 
     return (
-        <SegmentedControl
+        <Select
             data={aggregationOptionsWithNone.map((option) => ({
                 value: option,
-                label: (
-                    <Group noWrap spacing={0}>
-                        <AggregationIcon aggregation={option} />
-                        <Text>{capitalize(option)}</Text>
-                    </Group>
-                ),
+                label: capitalize(option),
             }))}
+            itemComponent={AggregationItem}
+            icon={aggregation && <AggregationIcon aggregation={aggregation} />}
             value={aggregation ?? aggregationOptionsWithNone?.[0]}
             onChange={(value) => value && onChangeAggregation(value)}
+            styles={(theme) => ({
+                input: {
+                    width: '110px',
+                    fontWeight: 500,
+                },
+                item: {
+                    '&[data-selected="true"]': {
+                        color: theme.colors.gray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.colors.gray[2],
+                    },
+                    '&[data-selected="true"]:hover': {
+                        backgroundColor: theme.colors.gray[3],
+                    },
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
+                    },
+                },
+            })}
         />
     );
 };
