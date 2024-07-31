@@ -1,3 +1,10 @@
+## [0.1198.1](https://github.com/lightdash/lightdash/compare/0.1198.0...0.1198.1) (2024-07-31)
+
+
+### Bug Fixes
+
+* notMerge eCharts on barcharts ([#10938](https://github.com/lightdash/lightdash/issues/10938)) ([855e011](https://github.com/lightdash/lightdash/commit/855e01173d5d3c177aa86db55e6a6ac741cb79f2))
+
 # [0.1198.0](https://github.com/lightdash/lightdash/compare/0.1197.2...0.1198.0) (2024-07-31)
 
 
