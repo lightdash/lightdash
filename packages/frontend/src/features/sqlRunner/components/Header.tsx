@@ -1,6 +1,11 @@
 import { ChartKind } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
-import { IconArrowBackUp, IconDeviceFloppy } from '@tabler/icons-react';
+import { ActionIcon, Group, Paper, Title, Tooltip } from '@mantine/core';
+import {
+    IconArrowBackUp,
+    IconDeviceFloppy,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -9,8 +14,10 @@ import { EditableText } from '../../../components/VisualizationConfigs/common/Ed
 import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { DEFAULT_NAME, toggleModal, updateName } from '../store/sqlRunnerSlice';
+import { DeleteSqlChartModal } from './DeleteSqlChartModal';
 import { SaveSqlChartModal } from './SaveSqlChartModal';
 import ShareSqlLinkButton from './ShareSqlLinkButton';
+import { UpdateSqlChartModal } from './UpdateSqlChartModal';
 
 export const Header: FC = () => {
     const history = useHistory();
@@ -39,6 +46,18 @@ export const Header: FC = () => {
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
     }, [dispatch]);
+    const isDeleteModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
+    );
+    const onCloseDeleteModal = useCallback(() => {
+        dispatch(toggleModal('deleteChartModal'));
+    }, [dispatch]);
+    const isUpdateModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.updateChartModal.isOpen,
+    );
+    const onCloseUpdateModal = useCallback(() => {
+        dispatch(toggleModal('updateChartModal'));
+    }, [dispatch]);
 
     return (
         <>
@@ -52,15 +71,34 @@ export const Header: FC = () => {
                                 spaceName={space.name}
                             />
                         )}
-                        <EditableText
-                            size="md"
-                            w={400}
-                            placeholder={DEFAULT_NAME}
-                            value={name}
-                            onChange={(e) =>
-                                dispatch(updateName(e.currentTarget.value))
-                            }
-                        />
+                        {savedSqlUuid ? (
+                            <>
+                                <Title c="dark.6" order={5} fw={600}>
+                                    {name}
+                                </Title>
+                                <ActionIcon
+                                    size="xs"
+                                    color="gray.6"
+                                    onClick={() =>
+                                        dispatch(
+                                            toggleModal('updateChartModal'),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon icon={IconPencil} />
+                                </ActionIcon>
+                            </>
+                        ) : (
+                            <EditableText
+                                size="md"
+                                w={400}
+                                placeholder={DEFAULT_NAME}
+                                value={name}
+                                onChange={(e) =>
+                                    dispatch(updateName(e.currentTarget.value))
+                                }
+                            />
+                        )}
                     </Group>
                     <Group spacing="md">
                         <Tooltip
@@ -115,6 +153,24 @@ export const Header: FC = () => {
                                 </ActionIcon>
                             </Tooltip>
                         )}
+                        {savedSqlUuid && (
+                            <Tooltip
+                                variant="xs"
+                                label="Delete"
+                                position="bottom"
+                            >
+                                <ActionIcon size="xs">
+                                    <MantineIcon
+                                        icon={IconTrash}
+                                        onClick={() =>
+                                            dispatch(
+                                                toggleModal('deleteChartModal'),
+                                            )
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
             </Paper>
@@ -123,6 +179,27 @@ export const Header: FC = () => {
                 opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
             />
+            {savedSqlUuid && (
+                <UpdateSqlChartModal
+                    opened={isUpdateModalOpen}
+                    projectUuid={projectUuid}
+                    savedSqlUuid={savedSqlUuid}
+                    onClose={() => onCloseUpdateModal()}
+                    onSuccess={() => onCloseUpdateModal()}
+                />
+            )}
+            {savedSqlUuid && (
+                <DeleteSqlChartModal
+                    projectUuid={projectUuid}
+                    savedSqlUuid={savedSqlUuid}
+                    name={name}
+                    opened={isDeleteModalOpen}
+                    onClose={onCloseDeleteModal}
+                    onSuccess={() =>
+                        history.push(`/projects/${projectUuid}/home`)
+                    }
+                />
+            )}
         </>
     );
 };
