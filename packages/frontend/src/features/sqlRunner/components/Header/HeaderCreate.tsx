@@ -10,7 +10,6 @@ import {
     updateName,
 } from '../../store/sqlRunnerSlice';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
-import ShareSqlLinkButton from '../ShareSqlLinkButton';
 
 export const HeaderCreate: FC = () => {
     const dispatch = useAppDispatch();
@@ -51,13 +50,6 @@ export const HeaderCreate: FC = () => {
                                     }}
                                 />
                             </ActionIcon>
-                        </Tooltip>
-                        <Tooltip
-                            variant="xs"
-                            label="Share URL"
-                            position="bottom"
-                        >
-                            <ShareSqlLinkButton />
                         </Tooltip>
                     </Group>
                 </Group>

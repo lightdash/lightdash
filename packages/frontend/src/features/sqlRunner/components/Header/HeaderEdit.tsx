@@ -16,7 +16,6 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
-import ShareSqlLinkButton from '../ShareSqlLinkButton';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
@@ -114,13 +113,6 @@ export const HeaderEdit: FC = () => {
                                     }}
                                 />
                             </ActionIcon>
-                        </Tooltip>
-                        <Tooltip
-                            variant="xs"
-                            label="Share URL"
-                            position="bottom"
-                        >
-                            <ShareSqlLinkButton />
                         </Tooltip>
                         <Tooltip
                             variant="xs"
