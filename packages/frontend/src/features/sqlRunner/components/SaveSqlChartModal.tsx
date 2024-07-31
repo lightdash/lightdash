@@ -1,4 +1,3 @@
-import { ChartKind } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -25,6 +24,7 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectCurrentChartConfig } from '../store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -64,12 +64,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     }, [name, form, description, spaces]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const config = useAppSelector((state) =>
-        state.sqlRunner.selectedChartType === undefined ||
-        state.sqlRunner.selectedChartType === ChartKind.TABLE
-            ? state.tableVisConfig.config
-            : state.barChartConfig.config,
-    );
+    const config = useAppSelector((state) => selectCurrentChartConfig(state));
 
     const {
         mutateAsync: createSavedSqlChart,
