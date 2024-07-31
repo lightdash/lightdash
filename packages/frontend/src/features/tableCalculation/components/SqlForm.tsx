@@ -56,7 +56,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
 
     return (
         <>
-            <ScrollArea h={isFullScreen ? '95%' : '150px'}>
+            <ScrollArea h={isFullScreen ? '95%' : '75px'}>
                 <SqlEditor
                     mode="sql"
                     theme="github"
