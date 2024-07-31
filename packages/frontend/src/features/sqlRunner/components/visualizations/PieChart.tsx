@@ -1,5 +1,5 @@
 import { type PieChartSQLConfig } from '@lightdash/common';
-import { Center, Skeleton } from '@mantine/core';
+import { Center, LoadingOverlay } from '@mantine/core';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
@@ -26,11 +26,11 @@ const PieChart: FC<PieChartProps> = memo(
 
         return (
             <>
-                {!spec && <Skeleton h="100%" />}
+                <LoadingOverlay visible={loading || !spec} />
                 {spec && (
                     <EChartsReact
                         option={spec}
-                        showLoading={loading}
+                        notMerge
                         opts={{
                             renderer: 'svg',
                             width: 'auto',
