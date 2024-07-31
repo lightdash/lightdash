@@ -174,13 +174,15 @@ const GroupByFieldAxisConfig = ({
                 }
             }}
             icon={
-                <TableFieldIcon
-                    fieldType={
-                        sqlColumns?.find(
-                            (x) => x.reference === field?.reference,
-                        )?.type ?? DimensionType.STRING
-                    }
-                />
+                field?.reference ? (
+                    <TableFieldIcon
+                        fieldType={
+                            sqlColumns?.find(
+                                (x) => x.reference === field?.reference,
+                            )?.type ?? DimensionType.STRING
+                        }
+                    />
+                ) : null
             }
             clearable
         />
