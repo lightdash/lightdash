@@ -367,11 +367,9 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    public async transformPieChartData(
-        config: SqlTransformPieChartConfig,
-    ): Promise<PieChartData> {
-        console.log('transformPieChartData', config);
-
+    public async transformPieChartData(): // config: SqlTransformPieChartConfig,
+    Promise<PieChartData> {
+        // TODO: NYI
         return {
             results: this.rows,
         };
