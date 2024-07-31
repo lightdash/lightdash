@@ -158,6 +158,9 @@ const TableCalculationModal: FC<Props> = ({
                 body: {
                     paddingBottom: 0,
                 },
+                content: {
+                    maxHeight: '70vh !important',
+                },
             }}
             fullScreen={isFullscreen}
         >
