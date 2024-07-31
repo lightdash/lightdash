@@ -142,6 +142,21 @@ export class OpenIdIdentityModel {
         return this.getIdentityByOpenId(identity.issuer, identity.subject);
     }
 
+    async getIdentity(userId: number, issuer: string, email: string) {
+        const [identity] = await this.getOpenIdQueryBuilder()
+            .where('issuer', issuer)
+            .andWhere('email', email)
+            .andWhere('openid_identities.user_id', userId);
+
+        if (!identity) {
+            throw new NotFoundError(
+                'No identity exists with userId, issuer and email',
+            );
+        }
+
+        return OpenIdIdentityModel._parseDbIdentity(identity);
+    }
+
     async deleteIdentity(userId: number, issuer: string, email: string) {
         await this.database.transaction(async (trx) => {
             const identities = await this.database(
