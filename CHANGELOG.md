@@ -1,3 +1,10 @@
+## [0.1197.2](https://github.com/lightdash/lightdash/compare/0.1197.1...0.1197.2) (2024-07-31)
+
+
+### Bug Fixes
+
+* format date values with the new interval when changing date dimension ([#10930](https://github.com/lightdash/lightdash/issues/10930)) ([5eb5d13](https://github.com/lightdash/lightdash/commit/5eb5d13d4030c2de4da794eaf8d8ad4b5e189e01))
+
 ## [0.1197.1](https://github.com/lightdash/lightdash/compare/0.1197.0...0.1197.1) (2024-07-31)
 
 
