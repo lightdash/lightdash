@@ -1,3 +1,10 @@
+# [0.1198.0](https://github.com/lightdash/lightdash/compare/0.1197.2...0.1198.0) (2024-07-31)
+
+
+### Features
+
+* improved loading state for sql runner ([#10929](https://github.com/lightdash/lightdash/issues/10929)) ([7951778](https://github.com/lightdash/lightdash/commit/79517780114e7bc14598747f7c65403cc46e4026))
+
 ## [0.1197.2](https://github.com/lightdash/lightdash/compare/0.1197.1...0.1197.2) (2024-07-31)
 
 
