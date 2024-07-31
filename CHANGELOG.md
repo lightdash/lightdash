@@ -1,3 +1,10 @@
+# [0.1197.0](https://github.com/lightdash/lightdash/compare/0.1196.2...0.1197.0) (2024-07-31)
+
+
+### Features
+
+* change the position of bar y-axis ([#10908](https://github.com/lightdash/lightdash/issues/10908)) ([0c719b9](https://github.com/lightdash/lightdash/commit/0c719b91ef9d4f726135e91f3b4d8685c6e7161b))
+
 ## [0.1196.2](https://github.com/lightdash/lightdash/compare/0.1196.1...0.1196.2) (2024-07-31)
 
 
