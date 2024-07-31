@@ -155,7 +155,7 @@ const GroupByFieldAxisConfig = ({
                 value: groupBy.reference,
                 label: groupBy.reference,
             }))}
-            value={field?.reference}
+            value={field?.reference ?? null}
             placeholder="Select group by"
             error={
                 field !== undefined &&
