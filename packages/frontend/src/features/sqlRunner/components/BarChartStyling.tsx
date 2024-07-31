@@ -1,3 +1,4 @@
+import { XLayoutType } from '@lightdash/common';
 import { Select, Stack, TextInput } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
@@ -68,12 +69,6 @@ export const BarChartStyling = () => {
                         }
                         placeholder={'Change the y-axis position'}
                     />
-                </Config.Section>
-            </Config>
-            <Config>
-                <Config.Section>
-                    <Config.Heading>{`Series`}</Config.Heading>
-                    <TextInput radius="md" />
                 </Config.Section>
             </Config>
         </Stack>
