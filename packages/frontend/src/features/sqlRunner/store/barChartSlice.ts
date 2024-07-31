@@ -154,6 +154,27 @@ export const barChartConfigSlice = createSlice({
                     action.payload.label;
             }
         },
+        setYAxisPosition: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                position: string | undefined;
+            }>,
+        ) => {
+            if (!config) return;
+
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+
+            const { index, position } = action.payload;
+            if (config.display.yAxis[index] === undefined) {
+                config.display.yAxis[index] = {
+                    position,
+                };
+            } else {
+                config.display.yAxis[index].position = position;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
@@ -216,4 +237,5 @@ export const {
     setSeriesLabel,
     setGroupByReference,
     unsetGroupByReference,
+    setYAxisPosition,
 } = barChartConfigSlice.actions;
