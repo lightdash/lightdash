@@ -7,12 +7,20 @@ import {
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
-import { Group, Select } from '@mantine/core';
-import { type FC } from 'react';
+import { ActionIcon, Box, Group, Select, UnstyledButton } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconTrash,
+} from '@tabler/icons-react';
+import { useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { AddButton } from '../../../components/VisualizationConfigs/common/AddButton';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import {
     addYAxisField,
+    removeYAxisField,
     setGroupByReference,
     setXAxisReference,
     setYAxisAggregation,
@@ -26,75 +34,129 @@ import { TableFieldIcon } from './TableFields';
 const YFieldsAxisConfig: FC<{
     field: SqlTransformBarChartConfig['y'][number];
     yLayoutOptions: YLayoutOptions[];
-}> = ({ field, yLayoutOptions }) => {
+    isSingle: boolean;
+    index: number;
+}> = ({ field, yLayoutOptions, isSingle, index }) => {
+    const { hovered, ref } = useHover();
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const [isOpen, setIsOpen] = useState(true);
 
     return (
-        <Config>
-            <Config.Section>
-                <Select
-                    radius="md"
-                    data={yLayoutOptions.map((y) => ({
-                        value: y.reference,
-                        label: y.reference,
-                    }))}
-                    value={field.reference}
-                    error={
-                        yLayoutOptions.find(
-                            (y) => y.reference === field.reference,
-                        ) === undefined &&
-                        `Column "${field.reference}" not in SQL`
-                    }
-                    placeholder="Select Y axis"
-                    onChange={(value) => {
-                        if (!value) return;
-                        dispatch(
-                            setYAxisReference({
-                                previousReference: field.reference,
-                                reference: value,
-                                aggregation:
-                                    yLayoutOptions.find(
-                                        (option) => option.reference === value,
-                                    )?.aggregationOptions[0] ??
-                                    DEFAULT_AGGREGATION,
-                            }),
-                        );
-                    }}
-                    icon={
-                        <TableFieldIcon
-                            fieldType={
-                                sqlColumns?.find(
-                                    (x) => x.reference === field.reference,
-                                )?.type ?? DimensionType.STRING
+        <>
+            {!isSingle && (
+                <Group ref={ref} position="apart">
+                    <UnstyledButton
+                        onClick={() => setIsOpen(!isOpen)}
+                        sx={{
+                            flex: 1,
+                        }}
+                    >
+                        <Group spacing="two">
+                            <MantineIcon
+                                icon={
+                                    isOpen ? IconChevronDown : IconChevronRight
+                                }
+                            />
+
+                            <Config.Subheading>
+                                {/* TODO: rename type when we have series type */}
+                                Bar series {index + 1}
+                            </Config.Subheading>
+                        </Group>
+                    </UnstyledButton>
+                    <ActionIcon
+                        onClick={() => {
+                            dispatch(removeYAxisField(index));
+                        }}
+                        sx={{
+                            visibility: hovered ? 'visible' : 'hidden',
+                        }}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Group>
+            )}
+
+            <Box
+                display={isOpen ? 'block' : 'none'}
+                sx={(theme) => ({
+                    paddingLeft: !isSingle ? theme.spacing.xs : 0,
+                    borderLeft: !isSingle
+                        ? `1px solid ${theme.colors.gray[3]}`
+                        : 0,
+                })}
+            >
+                <Config>
+                    <Config.Section>
+                        <Select
+                            radius="md"
+                            data={yLayoutOptions.map((y) => ({
+                                value: y.reference,
+                                label: y.reference,
+                            }))}
+                            value={field.reference}
+                            error={
+                                yLayoutOptions.find(
+                                    (y) => y.reference === field.reference,
+                                ) === undefined &&
+                                `Column "${field.reference}" not in SQL`
+                            }
+                            placeholder="Select Y axis"
+                            onChange={(value) => {
+                                if (!value) return;
+                                dispatch(
+                                    setYAxisReference({
+                                        previousReference: field.reference,
+                                        reference: value,
+                                        index,
+                                        aggregation:
+                                            yLayoutOptions.find(
+                                                (option) =>
+                                                    option.reference === value,
+                                            )?.aggregationOptions[0] ??
+                                            DEFAULT_AGGREGATION,
+                                    }),
+                                );
+                            }}
+                            icon={
+                                <TableFieldIcon
+                                    fieldType={
+                                        sqlColumns?.find(
+                                            (x) =>
+                                                x.reference === field.reference,
+                                        )?.type ?? DimensionType.STRING
+                                    }
+                                />
                             }
                         />
-                    }
-                />
 
-                <Group noWrap spacing="xs">
-                    <Config.Label>Aggregation</Config.Label>
+                        <Config.Group>
+                            <Config.Label>Aggregation</Config.Label>
 
-                    <BarChartAggregationConfig
-                        options={
-                            yLayoutOptions.find(
-                                (layout) =>
-                                    layout.reference === field.reference,
-                            )?.aggregationOptions
-                        }
-                        aggregation={field.aggregation}
-                        onChangeAggregation={(value) =>
-                            dispatch(
-                                setYAxisAggregation({
-                                    reference: field.reference,
-                                    aggregation: value,
-                                }),
-                            )
-                        }
-                    />
-                </Group>
-            </Config.Section>
-        </Config>
+                            <BarChartAggregationConfig
+                                options={
+                                    yLayoutOptions.find(
+                                        (layout) =>
+                                            layout.reference ===
+                                            field.reference,
+                                    )?.aggregationOptions
+                                }
+                                aggregation={field.aggregation}
+                                onChangeAggregation={(value) =>
+                                    dispatch(
+                                        setYAxisAggregation({
+                                            reference: field.reference,
+                                            aggregation: value,
+                                        }),
+                                    )
+                                }
+                            />
+                        </Config.Group>
+                    </Config.Section>
+                </Config>
+            </Box>
+        </>
     );
 };
 
@@ -240,11 +302,13 @@ export const BarChartFieldConfiguration = () => {
                     </Config.Group>
                     {yLayoutOptions &&
                         yAxisFields &&
-                        yAxisFields.map((field) => (
+                        yAxisFields.map((field, index) => (
                             <YFieldsAxisConfig
-                                key={field.reference}
+                                key={field.reference + index}
                                 field={field}
                                 yLayoutOptions={yLayoutOptions}
+                                isSingle={yAxisFields.length === 1}
+                                index={index}
                             />
                         ))}
                 </Config.Section>

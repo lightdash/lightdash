@@ -69,14 +69,12 @@ export const barChartConfigSlice = createSlice({
             action: PayloadAction<{
                 previousReference: string;
                 reference: string;
+                index: number;
                 aggregation: AggregationOptions;
             }>,
         ) => {
             if (config?.fieldConfig?.y) {
-                const yAxis = config.fieldConfig.y.find(
-                    (axis) =>
-                        axis.reference === action.payload.previousReference,
-                );
+                const yAxis = config.fieldConfig.y[action.payload.index];
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation = action.payload.aggregation;
@@ -192,6 +190,12 @@ export const barChartConfigSlice = createSlice({
                 });
             }
         },
+        removeYAxisField: (state, action: PayloadAction<number>) => {
+            if (!state.config) return;
+            if (!state.config.fieldConfig) return;
+
+            state.config.fieldConfig.y.splice(action.payload, 1);
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
@@ -255,4 +259,5 @@ export const {
     unsetGroupByReference,
     setYAxisPosition,
     addYAxisField,
+    removeYAxisField,
 } = barChartConfigSlice.actions;

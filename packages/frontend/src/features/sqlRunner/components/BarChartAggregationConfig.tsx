@@ -76,6 +76,7 @@ export const BarChartAggregationConfig: FC<Props> = ({
 
     return (
         <Select
+            radius="md"
             data={aggregationOptionsWithNone.map((option) => ({
                 value: option,
                 label: capitalize(option),
