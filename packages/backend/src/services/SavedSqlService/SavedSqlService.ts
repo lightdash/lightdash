@@ -4,11 +4,17 @@ import {
     CreateSqlChart,
     FeatureFlags,
     ForbiddenError,
+    isBarChartSQLConfig,
+    isPieChartSQLConfig,
     SessionUser,
     SqlChart,
     UpdateSqlChart,
 } from '@lightdash/common';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { uniq } from 'lodash';
+import {
+    CreateSqlChartVersionEvent,
+    LightdashAnalytics,
+} from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -42,6 +48,34 @@ export class SavedSqlService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
+    }
+
+    static getCreateVersionEventProperties(
+        config: SqlChart['config'],
+    ): Pick<
+        CreateSqlChartVersionEvent['properties'],
+        'chartKind' | 'barChart' | 'pieChart'
+    > {
+        return {
+            chartKind: config.type,
+            barChart: isBarChartSQLConfig(config)
+                ? {
+                      groupByCount: (config.fieldConfig?.groupBy ?? []).length,
+                      yAxisCount: (config.fieldConfig?.y ?? []).length,
+                      aggregationTypes: uniq(
+                          (config.fieldConfig?.y ?? []).map(
+                              (y) => y.aggregation,
+                          ),
+                      ),
+                  }
+                : undefined,
+            pieChart: isPieChartSQLConfig(config)
+                ? {
+                      groupByCount: (config.fieldConfig?.groupFieldIds ?? [])
+                          .length,
+                  }
+                : undefined,
+        };
     }
 
     private async hasAccess(
@@ -176,7 +210,9 @@ export class SavedSqlService extends BaseService {
                 versionId: createdChart.savedSqlVersionUuid,
                 projectId: projectUuid,
                 organizationId: organizationUuid,
-                chartKind: sqlChart.config.type,
+                ...SavedSqlService.getCreateVersionEventProperties(
+                    sqlChart.config,
+                ),
             },
         });
 
@@ -262,7 +298,9 @@ export class SavedSqlService extends BaseService {
                     versionId: updatedChart.savedSqlVersionUuid,
                     projectId: projectUuid,
                     organizationId: organizationUuid,
-                    chartKind: sqlChart.versionedData.config.type,
+                    ...SavedSqlService.getCreateVersionEventProperties(
+                        sqlChart.versionedData.config,
+                    ),
                 },
             });
         }

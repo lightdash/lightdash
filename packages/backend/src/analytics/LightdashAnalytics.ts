@@ -707,7 +707,7 @@ type DeleteSqlChartEvent = BaseTrack & {
     };
 };
 
-type CreateSqlChartVersionEvent = BaseTrack & {
+export type CreateSqlChartVersionEvent = BaseTrack & {
     event: 'sql_chart_version.created';
     userId: string;
     properties: {
@@ -716,6 +716,14 @@ type CreateSqlChartVersionEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         chartKind: ChartKind;
+        barChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        pieChart?: {
+            groupByCount: number;
+        };
     };
 };
 
