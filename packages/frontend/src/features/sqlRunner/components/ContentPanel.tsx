@@ -1,5 +1,13 @@
 import { ChartKind } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    LoadingOverlay,
+    Paper,
+    Stack,
+    Tooltip,
+} from '@mantine/core';
 import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -307,6 +315,7 @@ export const ContentPanel: FC = () => {
                             borderColor: theme.colors.gray[3],
                         })}
                     >
+                        <LoadingOverlay visible={isLoading} />
                         {queryResults?.results && (
                             <Table
                                 data={queryResults.results}

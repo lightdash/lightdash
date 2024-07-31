@@ -1,5 +1,5 @@
 import { type BarChartConfig } from '@lightdash/common';
-import { Center, Skeleton } from '@mantine/core';
+import { Center, LoadingOverlay, Skeleton } from '@mantine/core';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
@@ -27,10 +27,10 @@ const BarChart: FC<BarChartProps> = memo(
         return (
             <>
                 {!spec && <Skeleton h="100%" />}
+                <LoadingOverlay visible={loading} />
                 {spec && (
                     <EChartsReact
                         option={spec}
-                        showLoading={loading}
                         opts={{
                             renderer: 'svg',
                             width: 'auto',

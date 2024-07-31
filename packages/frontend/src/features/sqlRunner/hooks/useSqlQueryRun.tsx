@@ -48,7 +48,11 @@ export const useSqlQueryRun = ({
 }) => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const sqlQueryRunMutation = useMutation<
+    const {
+        mutate,
+        isLoading: isMutating,
+        data: sqlQueryJob,
+    } = useMutation<
         ApiJobScheduledResponse['results'],
         ApiError,
         {
@@ -58,44 +62,45 @@ export const useSqlQueryRun = ({
         mutationKey: ['sqlRunner', 'run'],
     });
 
-    const { data: sqlQueryJob } = sqlQueryRunMutation;
-
-    const { data: scheduledDeliveryJobStatus } = useQuery<
-        ApiSqlRunnerJobStatusResponse['results'] | undefined,
-        ApiError
-    >(
-        ['jobStatus', sqlQueryJob?.jobId],
-        () => {
-            if (!sqlQueryJob?.jobId) return;
-            return getSchedulerJobStatus<ApiSqlRunnerJobStatusResponse>(
-                sqlQueryJob.jobId,
-            );
-        },
-        {
-            refetchInterval: (data, query) => {
-                if (
-                    !!query.state.error ||
-                    data?.status === SchedulerJobStatus.COMPLETED ||
-                    data?.status === SchedulerJobStatus.ERROR
-                )
-                    return false;
-                return 1000;
+    const { data: scheduledDeliveryJobStatus, isFetching: jobIsLoading } =
+        useQuery<
+            ApiSqlRunnerJobStatusResponse['results'] | undefined,
+            ApiError
+        >(
+            ['jobStatus', sqlQueryJob?.jobId],
+            () => {
+                if (!sqlQueryJob?.jobId) return;
+                return getSchedulerJobStatus<ApiSqlRunnerJobStatusResponse>(
+                    sqlQueryJob.jobId,
+                );
             },
-            onSuccess: (data) => {
-                if (data?.status === SchedulerJobStatus.ERROR) {
-                    if (isErrorDetails(data?.details)) {
-                        showToastError({
-                            title: 'Could not run SQL query',
-                            subtitle: data?.details?.error,
-                        });
+            {
+                refetchInterval: (data, query) => {
+                    if (
+                        !!query.state.error ||
+                        data?.status === SchedulerJobStatus.COMPLETED ||
+                        data?.status === SchedulerJobStatus.ERROR
+                    )
+                        return false;
+                    return 1000;
+                },
+                onSuccess: (data) => {
+                    if (data?.status === SchedulerJobStatus.ERROR) {
+                        if (isErrorDetails(data?.details)) {
+                            showToastError({
+                                title: 'Could not run SQL query',
+                                subtitle: data?.details?.error,
+                            });
+                        }
                     }
-                }
+                },
+                enabled: Boolean(
+                    sqlQueryJob && sqlQueryJob?.jobId !== undefined,
+                ),
             },
-            enabled: Boolean(sqlQueryJob && sqlQueryJob?.jobId !== undefined),
-        },
-    );
+        );
 
-    const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
+    const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
         ApiError,
         ResultsAndColumns | undefined
@@ -185,24 +190,26 @@ export const useSqlQueryRun = ({
             onSuccess: (data) => {
                 onSuccess(data);
             },
+            keepPreviousData: true,
         },
     );
 
     const isLoading = useMemo(
         () =>
-            sqlQueryRunMutation.isLoading ||
-            (scheduledDeliveryJobStatus?.status ===
-                SchedulerJobStatus.STARTED &&
-                isResultsLoading),
+            isMutating ||
+            jobIsLoading ||
+            scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED ||
+            isResultsLoading,
         [
-            sqlQueryRunMutation.isLoading,
+            isMutating,
+            jobIsLoading,
             scheduledDeliveryJobStatus?.status,
             isResultsLoading,
         ],
     );
 
     return {
-        ...sqlQueryRunMutation,
+        mutate,
         isLoading,
         data: sqlQueryResults,
     };
