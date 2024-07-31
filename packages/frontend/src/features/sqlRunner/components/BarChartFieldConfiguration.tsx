@@ -8,13 +8,12 @@ import {
     type YLayoutOptions,
 } from '@lightdash/common';
 import { Group, Select } from '@mantine/core';
-import debounce from 'lodash/debounce';
 import { type FC } from 'react';
+import { AddButton } from '../../../components/VisualizationConfigs/common/AddButton';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import {
+    addYAxisField,
     setGroupByReference,
-    setSeriesLabel,
     setXAxisReference,
     setYAxisAggregation,
     setYAxisReference,
@@ -23,8 +22,6 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { BarChartAggregationConfig } from './BarChartAggregationConfig';
 import { TableFieldIcon } from './TableFields';
-
-const DEBOUNCE_TIME = 500;
 
 const YFieldsAxisConfig: FC<{
     field: SqlTransformBarChartConfig['y'][number];
@@ -213,19 +210,12 @@ export const BarChartFieldConfiguration = () => {
         (state) => state.barChartConfig.config?.fieldConfig?.y,
     );
 
-    const series = useAppSelector(
-        (state) => state.barChartConfig.config?.display?.series,
-    );
     const groupByField = useAppSelector(
         (state) => state.barChartConfig.config?.fieldConfig?.groupBy?.[0],
     );
     const groupByLayoutOptions = useAppSelector(
         (state) => state.barChartConfig.options.groupByOptions,
     );
-
-    const onSeriesLabelChange = debounce((reference: string, label: string) => {
-        dispatch(setSeriesLabel({ reference, label }));
-    }, DEBOUNCE_TIME);
 
     return (
         <>
@@ -242,8 +232,12 @@ export const BarChartFieldConfiguration = () => {
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`Y-axis`}</Config.Heading>
-
+                    <Config.Group>
+                        <Config.Heading>{`Y-axis`}</Config.Heading>
+                        <AddButton
+                            onClick={() => dispatch(addYAxisField())}
+                        ></AddButton>
+                    </Config.Group>
                     {yLayoutOptions &&
                         yAxisFields &&
                         yAxisFields.map((field) => (
@@ -264,20 +258,6 @@ export const BarChartFieldConfiguration = () => {
                     />
                 </Config.Section>
             </Config>
-            {series && (
-                <Config>
-                    <Config.Heading>Series</Config.Heading>
-                    {Object.entries(series).map(([reference, { label }]) => (
-                        <EditableText
-                            key={reference}
-                            defaultValue={label ?? reference}
-                            onChange={(e) =>
-                                onSeriesLabelChange(reference, e.target.value)
-                            }
-                        />
-                    ))}
-                </Config>
-            )}
         </>
     );
 };
