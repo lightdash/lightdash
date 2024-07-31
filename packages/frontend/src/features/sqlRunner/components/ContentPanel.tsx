@@ -230,66 +230,59 @@ export const ContentPanel: FC = () => {
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results &&
-                                barChartConfig &&
-                                selectedChartType ===
-                                    ChartKind.VERTICAL_BAR && (
-                                    <BarChart
-                                        data={queryResults}
-                                        config={barChartConfig}
-                                        isLoading={isLoading}
-                                        style={{
-                                            // NOTE: Ensures the chart is always full height
-                                            display:
-                                                selectedChartType ===
-                                                ChartKind.VERTICAL_BAR
-                                                    ? 'block'
-                                                    : 'none',
-                                            height: debouncedInputSectionHeight,
-                                            width: '100%',
-                                            flex: 1,
-                                        }}
-                                    />
-                                )}
+                            {queryResults?.results && barChartConfig && (
+                                <BarChart
+                                    data={queryResults}
+                                    config={barChartConfig}
+                                    isLoading={isLoading}
+                                    style={{
+                                        // NOTE: Ensures the chart is always full height
+                                        display:
+                                            selectedChartType ===
+                                            ChartKind.VERTICAL_BAR
+                                                ? 'block'
+                                                : 'none',
+                                        height: debouncedInputSectionHeight,
+                                        width: '100%',
+                                        flex: 1,
+                                    }}
+                                />
+                            )}
 
-                            {queryResults?.results &&
-                                pieChartConfig &&
-                                selectedChartType === ChartKind.PIE && (
-                                    <PieChart
-                                        data={queryResults}
-                                        config={pieChartConfig}
-                                        isLoading={isLoading}
-                                        style={{
-                                            // NOTE: Ensures the chart is always full height
-                                            display:
-                                                selectedChartType ===
-                                                ChartKind.PIE
-                                                    ? 'block'
-                                                    : 'none',
-                                            height: debouncedInputSectionHeight,
-                                            width: '100%',
-                                            flex: 1,
-                                        }}
-                                    />
-                                )}
+                            {queryResults?.results && pieChartConfig && (
+                                <PieChart
+                                    data={queryResults}
+                                    config={pieChartConfig}
+                                    isLoading={isLoading}
+                                    style={{
+                                        // NOTE: Ensures the chart is always full height
+                                        display:
+                                            selectedChartType === ChartKind.PIE
+                                                ? 'block'
+                                                : 'none',
+                                        height: debouncedInputSectionHeight,
+                                        width: '100%',
+                                        flex: 1,
+                                    }}
+                                />
+                            )}
 
-                            {queryResults?.results &&
-                                selectedChartType === ChartKind.TABLE && (
-                                    <Paper
-                                        shadow="none"
-                                        radius={0}
-                                        p="sm"
-                                        sx={() => ({
-                                            flex: 1,
-                                            overflow: 'auto',
-                                        })}
-                                    >
-                                        <Table
-                                            data={queryResults.results}
-                                            config={tableVisConfig}
-                                        />
-                                    </Paper>
-                                )}
+                            {queryResults?.results && (
+                                <Paper
+                                    shadow="none"
+                                    radius={0}
+                                    p="sm"
+                                    sx={() => ({
+                                        flex: 1,
+                                        overflow: 'auto',
+                                    })}
+                                >
+                                    <Table
+                                        data={queryResults.results}
+                                        config={tableVisConfig}
+                                    />
+                                </Paper>
+                            )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>
