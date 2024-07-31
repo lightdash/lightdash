@@ -1,6 +1,7 @@
 import {
     ChartKind,
     deepEqual,
+    isPieChartSQLConfig,
     type PieChartDimensionOptions,
     type PieChartMetricOptions,
     type PieChartSQLConfig,
@@ -82,9 +83,8 @@ export const pieChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
-            if (action.payload.config.type === ChartKind.PIE) {
-                // TODO: load saved chart
-                // console.log('setSaveChartData to PIE', action.payload.config);
+            if (isPieChartSQLConfig(action.payload.config)) {
+                state.config = action.payload.config;
             }
         });
     },

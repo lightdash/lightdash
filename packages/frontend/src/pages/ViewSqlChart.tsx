@@ -49,6 +49,9 @@ const ViewSqlChart = () => {
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
     );
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
+    );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
 
     useUnmount(() => {
@@ -153,6 +156,18 @@ const ViewSqlChart = () => {
                                                     columns: [],
                                                 }}
                                                 config={barChartConfig}
+                                            />
+                                        )}
+                                    {selectedChartType === ChartKind.PIE &&
+                                        pieChartConfig &&
+                                        data && (
+                                            <SqlRunnerChart
+                                                isLoading={isLoading}
+                                                data={{
+                                                    results: data.results,
+                                                    columns: [],
+                                                }}
+                                                config={pieChartConfig}
                                             />
                                         )}
                                 </>
