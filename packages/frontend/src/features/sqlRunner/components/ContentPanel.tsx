@@ -17,6 +17,7 @@ import {
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
 import BarChart from './visualizations/BarChart';
+import PieChart from './visualizations/PieChart';
 import { Table } from './visualizations/Table';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -63,6 +64,10 @@ export const ContentPanel: FC = () => {
 
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
+    );
+
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
     );
 
     const {
@@ -236,23 +241,40 @@ export const ContentPanel: FC = () => {
                                 />
                             )}
 
-                            {queryResults?.results &&
-                                selectedChartType === ChartKind.TABLE && (
-                                    <Paper
-                                        shadow="none"
-                                        radius={0}
-                                        p="sm"
-                                        sx={() => ({
-                                            flex: 1,
-                                            overflow: 'auto',
-                                        })}
-                                    >
-                                        <Table
-                                            data={queryResults.results}
-                                            config={tableVisConfig}
-                                        />
-                                    </Paper>
-                                )}
+                            {queryResults?.results && pieChartConfig && (
+                                <PieChart
+                                    data={queryResults}
+                                    config={pieChartConfig}
+                                    isLoading={isLoading}
+                                    style={{
+                                        // NOTE: Ensures the chart is always full height
+                                        display:
+                                            selectedChartType === ChartKind.PIE
+                                                ? 'block'
+                                                : 'none',
+                                        height: debouncedInputSectionHeight,
+                                        width: '100%',
+                                        flex: 1,
+                                    }}
+                                />
+                            )}
+
+                            {queryResults?.results && (
+                                <Paper
+                                    shadow="none"
+                                    radius={0}
+                                    p="sm"
+                                    sx={() => ({
+                                        flex: 1,
+                                        overflow: 'auto',
+                                    })}
+                                >
+                                    <Table
+                                        data={queryResults.results}
+                                        config={tableVisConfig}
+                                    />
+                                </Paper>
+                            )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>

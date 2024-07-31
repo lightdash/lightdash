@@ -2,11 +2,14 @@ import { friendlyName } from '../types/field';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
 import { type BarChartDisplay } from './SqlRunnerResultsTransformer';
 
-export class BarChartDataTransformer<TBarChartLayout> {
-    private readonly transformer: ResultsTransformerBase<TBarChartLayout>;
+export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
+    private readonly transformer: ResultsTransformerBase<
+        TBarChartLayout,
+        TPieChartConfig
+    >;
 
     constructor(args: {
-        transformer: ResultsTransformerBase<TBarChartLayout>;
+        transformer: ResultsTransformerBase<TBarChartLayout, TPieChartConfig>;
     }) {
         this.transformer = args.transformer;
     }

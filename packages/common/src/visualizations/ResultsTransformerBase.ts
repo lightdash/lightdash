@@ -6,6 +6,14 @@ export type BarChartData = {
     seriesColumns: string[];
 };
 
-export interface ResultsTransformerBase<BarChartConfigType> {
+export type PieChartData = {
+    results: RowData[];
+};
+
+export interface ResultsTransformerBase<
+    BarChartConfigType,
+    PieChartConfigType,
+> {
     transformBarChartData(config: BarChartConfigType): Promise<BarChartData>;
+    transformPieChartData(config: PieChartConfigType): Promise<PieChartData>;
 }
