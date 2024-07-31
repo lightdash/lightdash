@@ -54,13 +54,17 @@ const SqlRunnerNew = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    useSavedSqlChart({
+    const { data } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
-        onSuccess: (data) => {
-            dispatch(setSavedChartData(data));
-        },
     });
+
+    useEffect(() => {
+        if (data) {
+            dispatch(setSavedChartData(data));
+        }
+    }, [dispatch, data]);
+
     useEffect(() => {
         if (project?.warehouseConnection?.type) {
             dispatch(
@@ -80,7 +84,7 @@ const SqlRunnerNew = () => {
             title="SQL Runner"
             noContentPadding
             flexContent
-            header={<Header />}
+            header={<Header mode={params.slug ? 'edit' : 'create'} />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
         >

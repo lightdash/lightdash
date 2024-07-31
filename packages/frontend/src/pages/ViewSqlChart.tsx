@@ -7,7 +7,7 @@ import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import { HeaderViewMode } from '../features/sqlRunner/components/HeaderViewMode';
+import { Header } from '../features/sqlRunner/components/Header';
 import BarChart from '../features/sqlRunner/components/visualizations/BarChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
@@ -61,13 +61,16 @@ const ViewSqlChart = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    const { error: chartError } = useSavedSqlChart({
+    const { error: chartError, data: sqlChart } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
-        onSuccess: (data) => {
-            dispatch(setSavedChartData(data));
-        },
     });
+
+    useEffect(() => {
+        if (sqlChart) {
+            dispatch(setSavedChartData(sqlChart));
+        }
+    }, [dispatch, sqlChart]);
 
     const {
         data,
@@ -94,7 +97,7 @@ const ViewSqlChart = () => {
             title="SQL chart"
             noContentPadding
             withFullHeight
-            header={<HeaderViewMode />}
+            header={<Header mode="view" />}
         >
             <Stack h="100%" spacing={0}>
                 <Paper
