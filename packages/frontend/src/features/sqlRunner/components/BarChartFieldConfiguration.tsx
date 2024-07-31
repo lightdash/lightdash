@@ -1,6 +1,7 @@
 import {
     DEFAULT_AGGREGATION,
     DimensionType,
+    XLayoutType,
     type GroupByLayoutOptions,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
@@ -121,7 +122,14 @@ const XFieldAxisConfig = ({
             placeholder="Select X axis"
             onChange={(value) => {
                 if (!value) return;
-                dispatch(setXAxisReference(value));
+                dispatch(
+                    setXAxisReference({
+                        reference: value,
+                        type:
+                            xLayoutOptions.find((x) => x.reference === value)
+                                ?.type ?? XLayoutType.CATEGORY,
+                    }),
+                );
             }}
             error={
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
