@@ -1,4 +1,3 @@
-import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Group, Paper, Title, Tooltip } from '@mantine/core';
 import {
     IconArrowBackUp,
@@ -13,6 +12,7 @@ import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import { useUpdateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectCurrentChartConfig } from '../store/selectors';
 import { DEFAULT_NAME, toggleModal, updateName } from '../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from './DeleteSqlChartModal';
 import { SaveSqlChartModal } from './SaveSqlChartModal';
@@ -32,11 +32,7 @@ export const Header: FC = () => {
     const name = useAppSelector((state) => state.sqlRunner.name);
     const slug = useAppSelector((state) => state.sqlRunner.savedSqlChart?.slug);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const config = useAppSelector((state) =>
-        state.sqlRunner.selectedChartType === ChartKind.TABLE
-            ? state.tableVisConfig.config
-            : state.barChartConfig.config,
-    );
+    const config = useAppSelector((state) => selectCurrentChartConfig(state));
     const { mutate } = useUpdateSqlChartMutation(
         projectUuid,
         savedSqlUuid || '',
