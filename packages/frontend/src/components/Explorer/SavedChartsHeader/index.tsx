@@ -976,7 +976,13 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             }
                         });
 
-                        history.push('/');
+                        if (search) {
+                            history.push(
+                                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                            );
+                        } else {
+                            history.push(`/`);
+                        }
 
                         deleteModalHandlers.close();
                     }}
