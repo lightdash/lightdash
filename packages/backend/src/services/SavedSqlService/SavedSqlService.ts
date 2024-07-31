@@ -4,7 +4,6 @@ import {
     CreateSqlChart,
     FeatureFlags,
     ForbiddenError,
-    isBarChartSQLConfig,
     SessionUser,
     SqlChart,
     UpdateSqlChart,

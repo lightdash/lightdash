@@ -679,6 +679,7 @@ type ViewSqlChart = BaseTrack & {
 
 type CreateSqlChartEvent = BaseTrack & {
     event: 'sql_chart.created';
+    userId: string;
     properties: {
         chartId: string;
         projectId: string;
@@ -688,6 +689,7 @@ type CreateSqlChartEvent = BaseTrack & {
 
 type UpdateSqlChartEvent = BaseTrack & {
     event: 'sql_chart.updated';
+    userId: string;
     properties: {
         chartId: string;
         projectId: string;
@@ -697,6 +699,7 @@ type UpdateSqlChartEvent = BaseTrack & {
 
 type DeleteSqlChartEvent = BaseTrack & {
     event: 'sql_chart.deleted';
+    userId: string;
     properties: {
         chartId: string;
         projectId: string;
@@ -706,6 +709,7 @@ type DeleteSqlChartEvent = BaseTrack & {
 
 type CreateSqlChartVersionEvent = BaseTrack & {
     event: 'sql_chart_version.created';
+    userId: string;
     properties: {
         chartId: string;
         versionId: string;
