@@ -58,6 +58,13 @@ export type ApiSqlRunnerJobStatusResponse = {
     };
 };
 
+export type SqlRunnerChartConfig = {
+    metadata: {
+        version: number;
+    };
+    type: ChartKind;
+};
+
 export type SqlTableConfig = {
     columns: {
         [key: string]: {
@@ -70,35 +77,22 @@ export type SqlTableConfig = {
     };
 };
 
-export type TableChartSqlConfig = SqlTableConfig & {
-    metadata: {
-        version: number;
+export type TableChartSqlConfig = SqlRunnerChartConfig &
+    SqlTableConfig & {
+        type: ChartKind.TABLE;
     };
-    type: ChartKind.TABLE;
-};
 
-export type BarChartConfig = {
-    metadata: {
-        version: number;
-    };
+export type BarChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR;
     fieldConfig: SqlTransformBarChartConfig | undefined;
     display: BarChartDisplay | undefined;
 };
 
-export type PieChartSQLConfig = {
-    metadata: {
-        version: number;
-    };
+export type PieChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.PIE;
     fieldConfig: SqlTransformPieChartConfig | undefined;
     display: PieChartDisplay | undefined;
 };
-
-export type SqlRunnerChartConfig =
-    | TableChartSqlConfig
-    | BarChartConfig
-    | PieChartSQLConfig;
 
 export const isTableChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
@@ -106,11 +100,12 @@ export const isTableChartSQLConfig = (
 
 export const isBarChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
-): value is BarChartConfig => !!value && value.type === ChartKind.VERTICAL_BAR;
+): value is BarChartSqlConfig =>
+    !!value && value.type === ChartKind.VERTICAL_BAR;
 
 export const isPieChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
-): value is PieChartSQLConfig => !!value && value.type === ChartKind.PIE;
+): value is PieChartSqlConfig => !!value && value.type === ChartKind.PIE;
 
 export type SqlChart = {
     savedSqlUuid: string;

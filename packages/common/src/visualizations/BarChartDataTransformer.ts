@@ -1,6 +1,9 @@
 import { friendlyName } from '../types/field';
+import {
+    isBarChartSQLConfig,
+    type SqlRunnerChartConfig,
+} from '../types/sqlRunner';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
-import { type BarChartDisplay } from './SqlRunnerResultsTransformer';
 
 export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
     private readonly transformer: ResultsTransformerBase<
@@ -14,13 +17,17 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
         this.transformer = args.transformer;
     }
 
-    async getEchartsSpec(
-        fieldConfig: TBarChartLayout | undefined,
-        // TODO: display should always be defined and defaults should be applied in the transformer
-        display: BarChartDisplay | undefined,
-    ) {
+    async getEchartsSpec(config: SqlRunnerChartConfig) {
+        if (!isBarChartSQLConfig(config)) {
+            return {};
+        }
+
+        const { fieldConfig, display } = config;
+
         const transformedData = fieldConfig
-            ? await this.transformer.transformBarChartData(fieldConfig)
+            ? await this.transformer.transformBarChartData(
+                  fieldConfig as TBarChartLayout,
+              )
             : undefined;
 
         const DEFAULT_X_AXIS_TYPE = 'category';

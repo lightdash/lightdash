@@ -3,7 +3,7 @@ import {
     deepEqual,
     type PieChartDimensionOptions,
     type PieChartMetricOptions,
-    type PieChartSQLConfig,
+    type PieChartSqlConfig,
     type SqlTransformPieChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -13,7 +13,7 @@ import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultFieldConfig: SqlTransformPieChartConfig | undefined;
-    config: PieChartSQLConfig | undefined;
+    config: PieChartSqlConfig | undefined;
     options: {
         groupFieldOptions: PieChartDimensionOptions[];
         metricFieldOptions: PieChartMetricOptions[];

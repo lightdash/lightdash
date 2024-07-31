@@ -8,7 +8,7 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { HeaderViewMode } from '../features/sqlRunner/components/HeaderViewMode';
-import BarChart from '../features/sqlRunner/components/visualizations/BarChart';
+import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
@@ -143,7 +143,7 @@ const ViewSqlChart = () => {
                                         ChartKind.VERTICAL_BAR &&
                                         barChartConfig &&
                                         data && (
-                                            <BarChart
+                                            <SqlRunnerChart
                                                 isLoading={isLoading}
                                                 data={{
                                                     results: data.results,

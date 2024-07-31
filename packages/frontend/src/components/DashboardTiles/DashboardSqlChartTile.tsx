@@ -1,12 +1,13 @@
 import {
     ChartKind,
+    isTableChartSQLConfig,
     type Dashboard,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
+import SqlRunnerChart from '../../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -91,11 +92,15 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     onDelete={onDelete}
                     onEdit={onEdit}
                 >
-                    {data.chart.config.type === ChartKind.TABLE && (
-                        <Table data={data.results} config={data.chart.config} />
-                    )}
+                    {data.chart.config.type === ChartKind.TABLE &&
+                        isTableChartSQLConfig(data.chart.config) && (
+                            <Table
+                                data={data.results}
+                                config={data.chart.config}
+                            />
+                        )}
                     {data.chart.config.type === ChartKind.VERTICAL_BAR && (
-                        <BarChart
+                        <SqlRunnerChart
                             data={{
                                 results: data.results,
                                 columns: [],

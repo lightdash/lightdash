@@ -1,23 +1,23 @@
-import { type PieChartSQLConfig } from '@lightdash/common';
+import { type SqlRunnerChartConfig } from '@lightdash/common';
 import { Center, LoadingOverlay } from '@mantine/core';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
-import { usePieChart } from '../../transformers/usePieChart';
+import { useSqlChart } from '../../transformers/useSqlChart';
 
-type PieChartProps = {
+type SqlRunnerChartProps = {
     data: ResultsAndColumns;
-    config: PieChartSQLConfig;
+    config: SqlRunnerChartConfig;
     isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const PieChart: FC<PieChartProps> = memo(
+const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
     ({ data, config, style, isLoading: isLoadingProp }) => {
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = usePieChart(data.results, data.columns, config);
+        } = useSqlChart(data.results, data.columns, config);
         const loading = isLoadingProp || transformLoading;
 
         if (error) {
@@ -44,4 +44,4 @@ const PieChart: FC<PieChartProps> = memo(
     },
 );
 
-export default PieChart;
+export default SqlRunnerChart;
