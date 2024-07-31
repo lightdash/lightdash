@@ -155,6 +155,12 @@ const TableCalculationModal: FC<Props> = ({
                     fontSize: theme.fontSizes.md,
                     fontWeight: 700,
                 },
+                body: {
+                    paddingBottom: 0,
+                },
+                content: {
+                    maxHeight: '70vh !important',
+                },
             }}
             fullScreen={isFullscreen}
         >
@@ -224,7 +230,22 @@ const TableCalculationModal: FC<Props> = ({
                             data={Object.values(TableCalculationType)}
                         ></Select>
                     </Tooltip>
-                    <Group position="apart">
+                </Stack>
+
+                <Stack
+                    sx={() => ({
+                        position: 'sticky',
+                        backgroundColor: 'white',
+                        bottom: 0,
+                        zIndex: 2,
+                    })}
+                >
+                    <Group
+                        position="apart"
+                        sx={() => ({
+                            padding: theme.spacing.md,
+                        })}
+                    >
                         <ActionIcon
                             variant="outline"
                             onClick={toggleFullscreen}

@@ -33,6 +33,7 @@ export const SqlEditor = styled(AceEditor)<
     & > .ace_gutter {
         background-color: ${({ gutterBackgroundColor }) =>
             gutterBackgroundColor};
+        z-index: 0;
     }
     ${({ isFullScreen }) =>
         isFullScreen
@@ -55,7 +56,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
 
     return (
         <>
-            <ScrollArea h={isFullScreen ? '95%' : '150px'}>
+            <ScrollArea h={isFullScreen ? '95%' : '75px'}>
                 <SqlEditor
                     mode="sql"
                     theme="github"
