@@ -507,6 +507,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         filtersCount: number;
         tilesCount: number;
         chartTilesCount: number;
+        sqlChartTilesCount: number;
         markdownTilesCount: number;
         loomTilesCount: number;
         duplicated?: boolean;
