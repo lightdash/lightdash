@@ -8,6 +8,7 @@ import {
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashUser,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
@@ -79,21 +80,21 @@ type SqlExecutedEvent = BaseTrack & {
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | 'google';
+        loginProvider: 'password' | OpenIdIdentityIssuerType;
     };
 };
 
 type IdentityLinkedEvent = BaseTrack & {
     event: 'user.identity_linked' | 'user.identity_removed';
     properties: {
-        loginProvider: 'google';
+        loginProvider: OpenIdIdentityIssuerType;
     };
 };
 
 type CreateUserEvent = BaseTrack & {
     event: 'user.created';
     properties: {
-        userConnectionType: 'password' | 'google';
+        userConnectionType: 'password' | OpenIdIdentityIssuerType;
     };
 };
 

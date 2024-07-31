@@ -503,7 +503,7 @@ export class UserService extends BaseService {
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: openIdUser.openId.issuerType,
                 },
             });
 
@@ -658,7 +658,7 @@ export class UserService extends BaseService {
             userId: sessionUser.userUuid,
             event: 'user.identity_linked',
             properties: {
-                loginProvider: 'google',
+                loginProvider: openIdUser.openId.issuerType,
             },
         });
 
@@ -772,6 +772,11 @@ export class UserService extends BaseService {
         user: SessionUser,
         openIdentity: DeleteOpenIdentity,
     ): Promise<void> {
+        const userIdentity = await this.openIdIdentityModel.getIdentity(
+            user.userId,
+            openIdentity.issuer,
+            openIdentity.email,
+        );
         await this.openIdIdentityModel.deleteIdentity(
             user.userId,
             openIdentity.issuer,
@@ -781,7 +786,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             event: 'user.identity_removed',
             properties: {
-                loginProvider: 'google',
+                loginProvider: userIdentity.issuerType,
             },
         });
     }
@@ -950,7 +955,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             properties: {
                 userConnectionType: isOpenIdUser(createUser)
-                    ? 'google'
+                    ? createUser.openId.issuerType
                     : 'password',
             },
         });
@@ -959,7 +964,7 @@ export class UserService extends BaseService {
                 userId: user.userUuid,
                 event: 'user.identity_linked',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: createUser.openId.issuerType,
                 },
             });
         } else {
