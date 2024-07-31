@@ -40,11 +40,7 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             icon = IconMathOff;
     }
 
-    return (
-        // <Paper>
-        <MantineIcon color="indigo.4" icon={icon} />
-        // </Paper>
-    );
+    return <MantineIcon color="indigo.4" icon={icon} />;
 };
 
 type Props = {
