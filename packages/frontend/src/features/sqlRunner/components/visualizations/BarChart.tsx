@@ -30,6 +30,7 @@ const BarChart: FC<BarChartProps> = memo(
                 {spec && (
                     <EChartsReact
                         option={spec}
+                        notMerge
                         opts={{
                             renderer: 'svg',
                             width: 'auto',
