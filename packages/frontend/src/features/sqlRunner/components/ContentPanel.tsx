@@ -194,13 +194,14 @@ export const ContentPanel: FC = () => {
                         borderWidth: '0 0 0 1px',
                         borderStyle: 'solid',
                         borderColor: theme.colors.gray[3],
+                        overflow: 'auto',
                     })}
                 >
                     <Box
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
-                            overflow: 'auto',
+                            overflowY: 'hidden',
                             height: inputSectionHeight,
                             width: inputSectionWidth,
                         }}
