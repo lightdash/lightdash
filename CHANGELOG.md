@@ -1,3 +1,10 @@
+## [0.1197.1](https://github.com/lightdash/lightdash/compare/0.1197.0...0.1197.1) (2024-07-31)
+
+
+### Bug Fixes
+
+* Table Calculation Modal (save and cancel) buttons ([#10901](https://github.com/lightdash/lightdash/issues/10901)) ([0c1b074](https://github.com/lightdash/lightdash/commit/0c1b07464308e0c7169aa86a7b83cc73b1c9b5fb))
+
 # [0.1197.0](https://github.com/lightdash/lightdash/compare/0.1196.2...0.1197.0) (2024-07-31)
 
 
