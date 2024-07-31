@@ -1,3 +1,10 @@
+## [0.1196.2](https://github.com/lightdash/lightdash/compare/0.1196.1...0.1196.2) (2024-07-31)
+
+
+### Bug Fixes
+
+* group by clear bar chart sql ([#10922](https://github.com/lightdash/lightdash/issues/10922)) ([2ba18c9](https://github.com/lightdash/lightdash/commit/2ba18c9cdef3ba939d7b27a02c7631abf4bb218e))
+
 ## [0.1196.1](https://github.com/lightdash/lightdash/compare/0.1196.0...0.1196.1) (2024-07-30)
 
 
