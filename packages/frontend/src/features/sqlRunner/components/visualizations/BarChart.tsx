@@ -27,7 +27,7 @@ const BarChart: FC<BarChartProps> = memo(
         return (
             <>
                 {!spec && <Skeleton h="100%" />}
-                <LoadingOverlay visible={loading} />
+                <LoadingOverlay visible={loading || !spec} />
                 {spec && (
                     <EChartsReact
                         option={spec}
