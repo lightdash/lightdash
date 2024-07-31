@@ -20,7 +20,7 @@ import {
 import {
     resetState,
     setProjectUuid,
-    setSaveChartData,
+    setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -35,7 +35,7 @@ const ViewSqlChart = () => {
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlUuid,
+        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
@@ -65,7 +65,7 @@ const ViewSqlChart = () => {
         projectUuid,
         slug: params.slug,
         onSuccess: (data) => {
-            dispatch(setSaveChartData(data));
+            dispatch(setSavedChartData(data));
         },
     });
 

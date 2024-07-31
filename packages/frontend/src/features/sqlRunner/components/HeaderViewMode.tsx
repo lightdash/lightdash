@@ -15,12 +15,14 @@ export const HeaderViewMode: FC = () => {
     const dispatch = useAppDispatch();
     const { user } = useApp();
     const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlUuid,
+        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const space = useAppSelector((state) => state.sqlRunner.space);
+    const space = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart?.space,
+    );
     const name = useAppSelector((state) => state.sqlRunner.name);
-    const slug = useAppSelector((state) => state.sqlRunner.slug);
+    const slug = useAppSelector((state) => state.sqlRunner.savedSqlChart?.slug);
     const isDeleteModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
     );

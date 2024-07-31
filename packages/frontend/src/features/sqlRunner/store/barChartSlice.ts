@@ -12,7 +12,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/useBarChart';
-import { setSaveChartData, setSqlRunnerResults } from './sqlRunnerSlice';
+import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultLayout: SqlTransformBarChartConfig | undefined;
@@ -199,7 +199,7 @@ export const barChartConfigSlice = createSlice({
                 }
             }
         });
-        builder.addCase(setSaveChartData, (state, action) => {
+        builder.addCase(setSavedChartData, (state, action) => {
             if (action.payload.config.type === ChartKind.VERTICAL_BAR) {
                 state.config = action.payload.config;
             }

@@ -24,23 +24,13 @@ export const DEFAULT_NAME = 'Untitled SQL Query';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    savedSqlUuid: string | undefined;
-    slug: string | undefined;
-    space:
-        | {
-              uuid: string;
-              name: string;
-          }
-        | undefined;
+    savedSqlChart: SqlChart | undefined;
     name: string;
     description: string;
-
     sql: string;
-
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
-
     resultsTableConfig: SqlTableConfig | undefined;
     modals: {
         saveChartModal: {
@@ -53,18 +43,14 @@ export interface SqlRunnerState {
             isOpen: boolean;
         };
     };
-
     quoteChar: string;
-
     sqlColumns: SqlColumn[] | undefined;
 }
 
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
-    savedSqlUuid: undefined,
-    slug: undefined,
-    space: undefined,
+    savedSqlChart: undefined,
     name: '',
     description: '',
     sql: '',
@@ -149,13 +135,10 @@ export const sqlRunnerSlice = createSlice({
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
         },
-        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedSqlUuid = action.payload.savedSqlUuid;
-            state.slug = action.payload.slug;
+        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
-            state.space = action.payload.space;
-
             state.sql = action.payload.sql;
             state.selectedChartType =
                 action.payload.config.type === ChartKind.TABLE
@@ -191,7 +174,7 @@ export const {
     updateName,
     setSql,
     setActiveEditorTab,
-    setSaveChartData,
+    setSavedChartData,
     setSelectedChartType,
     toggleModal,
     loadState,
