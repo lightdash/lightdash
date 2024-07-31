@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     CartesianSeriesType,
+    ChartKind,
     ChartType,
     DbtProjectType,
     getRequestMethod,
@@ -665,6 +666,54 @@ type DashboardView = BaseTrack & {
     };
 };
 
+type ViewSqlChart = BaseTrack & {
+    event: 'sql_chart.view';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type CreateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.created';
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type UpdateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.updated';
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type DeleteSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.deleted';
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type CreateSqlChartVersionEvent = BaseTrack & {
+    event: 'sql_chart_version.created';
+    properties: {
+        chartId: string;
+        versionId: string;
+        projectId: string;
+        organizationId: string;
+        chartKind: ChartKind;
+    };
+};
+
 type PromoteContent = BaseTrack & {
     event: 'promote.executed' | 'promote.error';
     userId: string;
@@ -994,6 +1043,11 @@ type TypedEvent =
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent
+    | ViewSqlChart
+    | CreateSqlChartEvent
+    | UpdateSqlChartEvent
+    | DeleteSqlChartEvent
+    | CreateSqlChartVersionEvent
     | CommentsEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

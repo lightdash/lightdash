@@ -1,5 +1,4 @@
 import {
-    ApiCreateSqlChart,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
@@ -281,7 +280,11 @@ export class SavedSqlModel {
         userUuid: string,
         projectUuid: string,
         data: CreateSqlChart,
-    ): Promise<ApiCreateSqlChart['results']> {
+    ): Promise<{
+        savedSqlUuid: string;
+        slug: string;
+        savedSqlVersionUuid: string;
+    }> {
         return this.database.transaction(async (trx) => {
             const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
                 SavedSqlTableName,

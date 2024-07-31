@@ -4,6 +4,7 @@ import {
     CreateSqlChart,
     FeatureFlags,
     ForbiddenError,
+    isBarChartSQLConfig,
     SessionUser,
     SqlChart,
     UpdateSqlChart,
@@ -113,6 +114,15 @@ export class SavedSqlService extends BaseService {
         if (!hasViewAccess) {
             throw new ForbiddenError("You don't have access to this chart");
         }
+        this.analytics.track({
+            event: 'sql_chart.view',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
         return savedChart;
     }
 
@@ -143,7 +153,35 @@ export class SavedSqlService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
-        return this.savedSqlModel.create(user.userUuid, projectUuid, sqlChart);
+        const createdChart = await this.savedSqlModel.create(
+            user.userUuid,
+            projectUuid,
+            sqlChart,
+        );
+
+        this.analytics.track({
+            event: 'sql_chart.created',
+            userId: user.userUuid,
+            properties: {
+                chartId: createdChart.savedSqlUuid,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
+
+        this.analytics.track({
+            event: 'sql_chart_version.created',
+            userId: user.userUuid,
+            properties: {
+                chartId: createdChart.savedSqlUuid,
+                versionId: createdChart.savedSqlVersionUuid,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                chartKind: sqlChart.config.type,
+            },
+        });
+
+        return createdChart;
     }
 
     async updateSqlChart(
@@ -200,11 +238,37 @@ export class SavedSqlService extends BaseService {
             }
         }
 
-        return this.savedSqlModel.update({
+        const updatedChart = await this.savedSqlModel.update({
             userUuid: user.userUuid,
             savedSqlUuid,
             sqlChart,
         });
+
+        this.analytics.track({
+            event: 'sql_chart.updated',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
+
+        if (updatedChart.savedSqlVersionUuid && sqlChart.versionedData) {
+            this.analytics.track({
+                event: 'sql_chart_version.created',
+                userId: user.userUuid,
+                properties: {
+                    chartId: updatedChart.savedSqlUuid,
+                    versionId: updatedChart.savedSqlVersionUuid,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    chartKind: sqlChart.versionedData.config.type,
+                },
+            });
+        }
+
+        return updatedChart;
     }
 
     async deleteSqlChart(
@@ -226,6 +290,16 @@ export class SavedSqlService extends BaseService {
             );
         }
         await this.savedSqlModel.delete(savedSqlUuid);
+
+        this.analytics.track({
+            event: 'sql_chart.deleted',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
     }
 
     async getChartWithResultJob(
