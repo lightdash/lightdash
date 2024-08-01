@@ -1,3 +1,10 @@
+## [0.1200.3](https://github.com/lightdash/lightdash/compare/0.1200.2...0.1200.3) (2024-08-01)
+
+
+### Bug Fixes
+
+* dont use conditional visibility for table overflows ([#10966](https://github.com/lightdash/lightdash/issues/10966)) ([221be77](https://github.com/lightdash/lightdash/commit/221be77750fa1ed140655c688a579ba02d2367ff))
+
 ## [0.1200.2](https://github.com/lightdash/lightdash/compare/0.1200.1...0.1200.2) (2024-08-01)
 
 
