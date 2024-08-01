@@ -145,7 +145,7 @@ const YFieldsAxisConfig: FC<{
                                 onChangeAggregation={(value) =>
                                     dispatch(
                                         setYAxisAggregation({
-                                            reference: field.reference,
+                                            index,
                                             aggregation: value,
                                         }),
                                     )
