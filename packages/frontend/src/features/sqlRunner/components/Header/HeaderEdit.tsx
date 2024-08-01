@@ -12,11 +12,11 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { selectCurrentChartConfig } from '../../store/selectors';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
-import {selectCurrentChartConfig} from "../../store/selectors";
 
 export const HeaderEdit: FC = () => {
     const history = useHistory();
