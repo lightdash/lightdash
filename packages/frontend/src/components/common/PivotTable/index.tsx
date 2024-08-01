@@ -135,28 +135,28 @@ const PivotTable: FC<PivotTableProps> = ({
                           _leafRows: Row<ResultRow>[],
                           childRows: Row<ResultRow>[],
                       ) => {
-                          const aggregatedValue = childRows.reduce<number>(
-                              (agg, childRow) => {
-                                  const cellValue = childRow.getValue(
-                                      columnId,
-                                  ) as ResultRow[number] | undefined;
-                                  const rawValue = cellValue?.value?.raw;
+                          const aggregatedValue = childRows.reduce<
+                              number | null
+                          >((agg, childRow) => {
+                              const cellValue = childRow.getValue(columnId) as
+                                  | ResultRow[number]
+                                  | undefined;
+                              const rawValue = cellValue?.value?.raw;
 
-                                  if (rawValue === null) return agg;
-                                  const adder = Number(rawValue);
-                                  if (isNaN(adder)) return agg;
+                              if (rawValue === null) return agg;
+                              const adder = Number(rawValue);
+                              if (isNaN(adder)) return agg;
 
-                                  const precision = getDecimalPrecision(
-                                      adder,
-                                      agg,
-                                  );
-                                  return (
-                                      (agg * precision + adder * precision) /
-                                      precision
-                                  );
-                              },
-                              0,
-                          );
+                              const numericAgg = agg ?? 0;
+                              const precision = getDecimalPrecision(
+                                  adder,
+                                  numericAgg,
+                              );
+                              return (
+                                  (numericAgg * precision + adder * precision) /
+                                  precision
+                              );
+                          }, null);
 
                           return (
                               <Text span fw={600}>
