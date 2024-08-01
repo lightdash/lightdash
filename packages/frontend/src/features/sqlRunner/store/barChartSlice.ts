@@ -197,6 +197,14 @@ export const barChartConfigSlice = createSlice({
             if (!state.config.fieldConfig) return;
 
             state.config.fieldConfig.y.splice(action.payload, 1);
+
+            // Remove series styling if only one y axis field left
+            if (
+                state.config.fieldConfig.y.length === 1 &&
+                state.config.display?.series
+            ) {
+                state.config.display.series = undefined;
+            }
         },
     },
     extraReducers: (builder) => {
