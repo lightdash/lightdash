@@ -8,7 +8,6 @@ import {
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
-import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../store/hooks';
 import { SidebarTabs } from '../store/sqlRunnerSlice';
@@ -42,13 +41,14 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 </Tooltip>
             </Group>
 
-            <ConditionalVisibility
-                isVisible={activeSidebarTab === SidebarTabs.TABLES}
+            <Stack
+                display={
+                    activeSidebarTab === SidebarTabs.TABLES ? 'inherit' : 'none'
+                }
+                sx={{ flex: 1, overflow: 'hidden' }}
             >
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <TablesPanel />
-                </Stack>
-            </ConditionalVisibility>
+                <TablesPanel />
+            </Stack>
 
             <ScrollArea
                 offsetScrollbars
@@ -56,15 +56,15 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 className="only-vertical"
                 sx={{
                     flex: 1,
+                    display:
+                        activeSidebarTab === SidebarTabs.VISUALIZATION
+                            ? 'inherit'
+                            : 'none',
                 }}
             >
-                <ConditionalVisibility
-                    isVisible={activeSidebarTab === SidebarTabs.VISUALIZATION}
-                >
-                    <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                        <VisualizationConfigPanel />
-                    </Stack>
-                </ConditionalVisibility>
+                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                    <VisualizationConfigPanel />
+                </Stack>
             </ScrollArea>
         </Stack>
     );
