@@ -119,7 +119,7 @@ const ViewSqlChart = () => {
                         </Tabs.List>
                     </Tabs>
 
-                    {data?.results && !isLoading && (
+                    {data && !isLoading && (
                         <Paper shadow="none" radius={0} px={0} py="sm">
                             {activeTab === TabOption.CHART && currentVisConfig && (
                                 <>
@@ -127,7 +127,7 @@ const ViewSqlChart = () => {
                                         currentVisConfig,
                                     ) && (
                                         <Table
-                                            data={data.results}
+                                            data={data}
                                             config={currentVisConfig}
                                         />
                                     )}
@@ -139,7 +139,7 @@ const ViewSqlChart = () => {
                                             <SqlRunnerChart
                                                 isLoading={isLoading}
                                                 data={{
-                                                    results: data.results,
+                                                    results: data,
                                                     columns: [],
                                                 }}
                                                 config={currentVisConfig}
@@ -149,7 +149,7 @@ const ViewSqlChart = () => {
                             )}
                             {activeTab === TabOption.RESULTS && (
                                 <Table
-                                    data={data.results}
+                                    data={data}
                                     config={resultsTableConfig}
                                 />
                             )}
