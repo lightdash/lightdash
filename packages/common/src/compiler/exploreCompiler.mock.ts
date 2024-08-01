@@ -129,6 +129,7 @@ export const exploreOneEmptyTableCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {},
             metrics: {},
             lineageGraph: {},
@@ -344,6 +345,7 @@ export const exploreTableSelfReferenceCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -377,6 +379,7 @@ export const exploreTableSelfReferenceCompiledSqlWhere: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -452,6 +455,7 @@ export const exploreReferenceDimensionCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -564,6 +568,7 @@ export const exploreComplexReferenceCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -711,6 +716,7 @@ export const compiledSimpleJoinedExplore: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -739,6 +745,7 @@ export const compiledSimpleJoinedExplore: Explore = {
             schema: 'schema',
             sqlTable: 'test.tableb',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -839,6 +846,7 @@ export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -867,6 +875,7 @@ export const compiledExploreWithJoinWithFieldsAndGroups: Explore = {
             schema: 'schema',
             sqlTable: 'test.tableb',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -1355,6 +1364,7 @@ export const exploreWithMetricNumberCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     ...exploreWithMetricNumber.tables.a.dimensions.dim1,
@@ -1644,6 +1654,7 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             dimensions: {
                 dim1: {
                     fieldType: FieldType.DIMENSION,
@@ -1695,6 +1706,7 @@ export const exploreWithRequiredAttributesCompiled: Explore = {
             schema: 'schema',
             sqlTable: 'test.table',
             sqlWhere: undefined,
+            compiledSqlWhere: undefined,
             hidden: undefined,
             dimensions: {
                 dim1: {

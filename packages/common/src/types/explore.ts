@@ -35,6 +35,7 @@ export type CompiledTable = TableBase & {
     metrics: Record<string, CompiledMetric>;
     lineageGraph: LineageGraph;
     source?: Source | undefined;
+    compiledSqlWhere?: string;
 };
 
 export type Explore = {

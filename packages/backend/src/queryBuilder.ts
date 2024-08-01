@@ -645,6 +645,32 @@ export const getCustomBinDimensionSql = ({
     return { ctes, joins, tables: [...new Set(tables)], selects };
 };
 
+const getJoinedTables = (explore: Explore, tableNames: string[]): string[] => {
+    if (tableNames.length === 0) {
+        return [];
+    }
+    const allNewReferences = explore.joinedTables.reduce<string[]>(
+        (sum, joinedTable) => {
+            if (tableNames.includes(joinedTable.table)) {
+                const newReferencesInJoin = parseAllReferences(
+                    joinedTable.sqlOn,
+                    joinedTable.table,
+                ).reduce<string[]>(
+                    (acc, { refTable }) =>
+                        !tableNames.includes(refTable)
+                            ? [...acc, refTable]
+                            : acc,
+                    [],
+                );
+                return [...sum, ...newReferencesInJoin];
+            }
+            return sum;
+        },
+        [],
+    );
+    return [...allNewReferences, ...getJoinedTables(explore, allNewReferences)];
+};
+
 export type CompiledQuery = {
     query: string;
     hasExampleMetric: boolean;
@@ -761,6 +787,7 @@ export const buildQuery = ({
                 `custom metric: "${metric.name}"`,
             );
         });
+
     const selectedTables = new Set<string>([
         ...metrics.reduce<string[]>((acc, field) => {
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
@@ -807,34 +834,22 @@ export const buildQuery = ({
         ),
     ]);
 
-    const getJoinedTables = (tableNames: string[]): string[] => {
-        if (tableNames.length === 0) {
-            return [];
-        }
-        const allNewReferences = explore.joinedTables.reduce<string[]>(
-            (sum, joinedTable) => {
-                if (tableNames.includes(joinedTable.table)) {
-                    const newReferencesInJoin = parseAllReferences(
-                        joinedTable.sqlOn,
-                        joinedTable.table,
-                    ).reduce<string[]>(
-                        (acc, { refTable }) =>
-                            !tableNames.includes(refTable)
-                                ? [...acc, refTable]
-                                : acc,
-                        [],
-                    );
-                    return [...sum, ...newReferencesInJoin];
-                }
-                return sum;
-            },
-            [],
-        );
-        return [...allNewReferences, ...getJoinedTables(allNewReferences)];
-    };
+    const tableCompiledSqlWhere =
+        explore.tables[explore.baseTable].compiledSqlWhere;
+    const tableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+
+    const tableSqlWhereTableReferences = tableSqlWhere
+        ? parseAllReferences(tableSqlWhere, explore.baseTable)
+        : undefined;
+
+    const tablesFromTableSqlWhereFilter = tableSqlWhereTableReferences
+        ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
+        : [];
+
     const joinedTables = new Set([
         ...selectedTables,
-        ...getJoinedTables([...selectedTables]),
+        ...getJoinedTables(explore, [...selectedTables]),
+        ...tablesFromTableSqlWhereFilter,
     ]);
 
     const sqlJoins = explore.joinedTables
@@ -1067,12 +1082,10 @@ export const buildQuery = ({
             filters.dimensions,
         );
 
-    const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
-
-    const tableSqlWhere = baseTableSqlWhere
+    const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
         ? [
               replaceUserAttributes(
-                  baseTableSqlWhere,
+                  tableCompiledSqlWhere,
                   intrinsicUserAttributes,
                   userAttributes,
                   stringQuoteChar,
@@ -1089,7 +1102,7 @@ export const buildQuery = ({
         : [];
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [
-        ...tableSqlWhere,
+        ...tableSqlWhereWithReplacedAttributes,
         ...nestedFilterWhere,
         ...requiredFiltersWhere,
     ];
