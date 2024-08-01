@@ -17,24 +17,19 @@ import {
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
 import {
-    loadState,
     resetState,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
-import useSearchParams from '../hooks/useSearchParams';
-import { useGetShare } from '../hooks/useShare';
 
 const SqlRunnerNew = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
-    const state = useSearchParams('state');
 
-    const { data: sqlRunnerState } = useGetShare(state || undefined);
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
 
@@ -43,24 +38,22 @@ const SqlRunnerNew = () => {
     });
 
     useEffect(() => {
-        if (sqlRunnerState) {
-            dispatch(loadState(JSON.parse(sqlRunnerState.params)));
-        }
-    }, [dispatch, sqlRunnerState]);
-
-    useEffect(() => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    useSavedSqlChart({
+    const { data } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
-        onSuccess: (data) => {
-            dispatch(setSavedChartData(data));
-        },
     });
+
+    useEffect(() => {
+        if (data) {
+            dispatch(setSavedChartData(data));
+        }
+    }, [dispatch, data]);
+
     useEffect(() => {
         if (project?.warehouseConnection?.type) {
             dispatch(
@@ -80,7 +73,7 @@ const SqlRunnerNew = () => {
             title="SQL Runner"
             noContentPadding
             flexContent
-            header={<Header />}
+            header={<Header mode={params.slug ? 'edit' : 'create'} />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
         >

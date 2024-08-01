@@ -1,3 +1,17 @@
+# [0.1199.0](https://github.com/lightdash/lightdash/compare/0.1198.2...0.1199.0) (2024-08-01)
+
+
+### Features
+
+* show SQL chart details in header ([#10924](https://github.com/lightdash/lightdash/issues/10924)) ([708ddff](https://github.com/lightdash/lightdash/commit/708ddff75d43becb36fb94706104bad8faf761c4))
+
+## [0.1198.2](https://github.com/lightdash/lightdash/compare/0.1198.1...0.1198.2) (2024-07-31)
+
+
+### Bug Fixes
+
+* use time axes on bar charts ([#10943](https://github.com/lightdash/lightdash/issues/10943)) ([7fb3e21](https://github.com/lightdash/lightdash/commit/7fb3e21515e9e65c39069a554e82470323806f72))
+
 ## [0.1198.1](https://github.com/lightdash/lightdash/compare/0.1198.0...0.1198.1) (2024-07-31)
 
 

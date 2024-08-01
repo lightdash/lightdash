@@ -1,5 +1,4 @@
 import {
-    ApiCreateSqlChart,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
@@ -31,9 +30,7 @@ type SelectSavedSql = Pick<
     | 'slug'
     | 'dashboard_uuid'
     | 'created_at'
-    | 'created_by_user_uuid'
     | 'last_version_updated_at'
-    | 'last_version_updated_by_user_uuid'
 > &
     Pick<DbSavedSqlVersion, 'sql' | 'config' | 'chart_kind'> &
     Pick<DbSpace, 'space_uuid'> &
@@ -45,9 +42,9 @@ type SelectSavedSql = Pick<
         created_by_user_uuid: string | null;
         created_by_user_first_name: string | null;
         created_by_user_last_name: string | null;
-        last_updated_by_user_uuid: string | null;
-        last_updated_by_user_first_name: string | null;
-        last_updated_by_user_last_name: string | null;
+        last_version_updated_by_user_uuid: string | null;
+        last_version_updated_by_user_first_name: string | null;
+        last_version_updated_by_user_last_name: string | null;
     };
 
 export class SavedSqlModel {
@@ -72,11 +69,13 @@ export class SavedSqlModel {
                   }
                 : null,
             lastUpdatedAt: row.last_version_updated_at,
-            lastUpdatedBy: row.last_updated_by_user_uuid
+            lastUpdatedBy: row.last_version_updated_by_user_uuid
                 ? {
-                      userUuid: row.last_updated_by_user_uuid,
-                      firstName: row.last_updated_by_user_first_name ?? '',
-                      lastName: row.last_updated_by_user_last_name ?? '',
+                      userUuid: row.last_version_updated_by_user_uuid,
+                      firstName:
+                          row.last_version_updated_by_user_first_name ?? '',
+                      lastName:
+                          row.last_version_updated_by_user_last_name ?? '',
                   }
                 : null,
             sql: row.sql,
@@ -158,18 +157,17 @@ export class SavedSqlModel {
                 `${SavedSqlTableName}.created_at`,
                 `${SavedSqlTableName}.slug`,
                 `${SavedSqlTableName}.last_version_updated_at`,
-                `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
                 `${DashboardsTableName}.name as dashboardName`,
                 `${SavedSqlVersionsTableName}.sql`,
                 `${SavedSqlVersionsTableName}.config`,
                 `${SavedSqlVersionsTableName}.chart_kind`,
                 `${OrganizationTableName}.organization_uuid`,
-                `createdByUser.user_uuid`,
-                `createdByUser.first_name`,
-                `createdByUser.last_name`,
-                `updatedByUser.user_uuid`,
-                `updatedByUser.first_name`,
-                `updatedByUser.last_name`,
+                `createdByUser.user_uuid as created_by_user_uuid`,
+                `createdByUser.first_name as created_by_user_first_name`,
+                `createdByUser.last_name as created_by_user_last_name`,
+                `updatedByUser.user_uuid as last_version_updated_by_user_uuid`,
+                `updatedByUser.first_name as last_version_updated_by_user_first_name`,
+                `updatedByUser.last_name as last_version_updated_by_user_last_name`,
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
             ])
@@ -281,7 +279,11 @@ export class SavedSqlModel {
         userUuid: string,
         projectUuid: string,
         data: CreateSqlChart,
-    ): Promise<ApiCreateSqlChart['results']> {
+    ): Promise<{
+        savedSqlUuid: string;
+        slug: string;
+        savedSqlVersionUuid: string;
+    }> {
         return this.database.transaction(async (trx) => {
             const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
                 SavedSqlTableName,

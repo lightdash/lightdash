@@ -52,9 +52,12 @@ export const barChartConfigSlice = createSlice({
         //         state.config.fieldConfig.y = [...yAxisFields, action.payload];
         //     }
         // },
-        setXAxisReference: ({ config }, action: PayloadAction<string>) => {
+        setXAxisReference: (
+            { config },
+            action: PayloadAction<SqlTransformBarChartConfig['x']>,
+        ) => {
             if (config?.fieldConfig?.x) {
-                config.fieldConfig.x.reference = action.payload;
+                config.fieldConfig.x = action.payload;
             }
         },
         setGroupByReference: (

@@ -2,7 +2,7 @@ export type RowData = Record<string, unknown>;
 
 export type BarChartData = {
     results: RowData[];
-    xAxisColumn: string;
+    xAxisColumn: { reference: string; type: string };
     seriesColumns: string[];
 };
 
@@ -15,5 +15,6 @@ export interface ResultsTransformerBase<
     PieChartConfigType,
 > {
     transformBarChartData(config: BarChartConfigType): Promise<BarChartData>;
+
     transformPieChartData(config: PieChartConfigType): Promise<PieChartData>;
 }

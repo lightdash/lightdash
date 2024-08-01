@@ -1,28 +1,28 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Paper, Title, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Paper, Stack, Title, Tooltip } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { TitleBreadCrumbs } from '../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
-import { useApp } from '../../../providers/AppProvider';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleModal } from '../store/sqlRunnerSlice';
-import { DeleteSqlChartModal } from './DeleteSqlChartModal';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
+import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
+import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
+import { useApp } from '../../../../providers/AppProvider';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { toggleModal } from '../../store/sqlRunnerSlice';
+import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 
-export const HeaderViewMode: FC = () => {
+export const HeaderView: FC = () => {
     const history = useHistory();
     const dispatch = useAppDispatch();
     const { user } = useApp();
-    const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
-    );
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const space = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart?.space,
     );
-    const name = useAppSelector((state) => state.sqlRunner.name);
-    const slug = useAppSelector((state) => state.sqlRunner.savedSqlChart?.slug);
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
     const isDeleteModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
     );
@@ -47,22 +47,45 @@ export const HeaderViewMode: FC = () => {
         }),
     );
 
+    if (!savedSqlChart) {
+        return null;
+    }
+
     return (
         <>
-            <Paper shadow="none" radius={0} px="md" py="md" withBorder>
+            <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
                 <Group position="apart">
-                    <Group spacing="two">
-                        {space && (
-                            <TitleBreadCrumbs
-                                projectUuid={projectUuid}
-                                spaceUuid={space.uuid}
-                                spaceName={space.name}
+                    <Stack spacing="none">
+                        <Group spacing="two">
+                            {space && (
+                                <TitleBreadCrumbs
+                                    projectUuid={projectUuid}
+                                    spaceUuid={space.uuid}
+                                    spaceName={space.name}
+                                />
+                            )}
+                            <Title c="dark.6" order={5} fw={600}>
+                                {savedSqlChart.name}
+                            </Title>
+                        </Group>
+                        <Group spacing="xs">
+                            <UpdatedInfo
+                                updatedAt={savedSqlChart.lastUpdatedAt}
+                                user={savedSqlChart.lastUpdatedBy}
+                                partiallyBold={false}
                             />
-                        )}
-                        <Title c="dark.6" order={5} fw={600}>
-                            {name}
-                        </Title>
-                    </Group>
+                            <ResourceInfoPopup
+                                resourceUuid={savedSqlChart.savedSqlUuid}
+                                projectUuid={projectUuid}
+                                description={
+                                    savedSqlChart.description ?? undefined
+                                }
+                                viewStats={1} // todo: update endpoint to return view stats
+                                firstViewedAt={undefined}
+                                withChartData={false}
+                            />
+                        </Group>
+                    </Stack>
                     <Group spacing="md">
                         {canManageSqlRunner && canManageChart && (
                             <Tooltip
@@ -75,7 +98,7 @@ export const HeaderViewMode: FC = () => {
                                         icon={IconPencil}
                                         onClick={() =>
                                             history.push(
-                                                `/projects/${projectUuid}/sql-runner-new/saved/${slug}/edit`,
+                                                `/projects/${projectUuid}/sql-runner-new/saved/${savedSqlChart.slug}/edit`,
                                             )
                                         }
                                     />
@@ -103,18 +126,14 @@ export const HeaderViewMode: FC = () => {
                     </Group>
                 </Group>
             </Paper>
-            {savedSqlUuid && (
-                <DeleteSqlChartModal
-                    projectUuid={projectUuid}
-                    savedSqlUuid={savedSqlUuid}
-                    name={name}
-                    opened={isDeleteModalOpen}
-                    onClose={onCloseDeleteModal}
-                    onSuccess={() =>
-                        history.push(`/projects/${projectUuid}/home`)
-                    }
-                />
-            )}
+            <DeleteSqlChartModal
+                projectUuid={projectUuid}
+                savedSqlUuid={savedSqlChart.savedSqlUuid}
+                name={savedSqlChart.name}
+                opened={isDeleteModalOpen}
+                onClose={onCloseDeleteModal}
+                onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
+            />
         </>
     );
 };
