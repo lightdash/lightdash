@@ -1,4 +1,8 @@
-import { ChartKind } from '@lightdash/common';
+import {
+    isBarChartSQLConfig,
+    isPieChartSQLConfig,
+    isTableChartSQLConfig,
+} from '@lightdash/common';
 import { Loader, Paper, Stack, Tabs } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { useEffect, useState } from 'react';
@@ -17,6 +21,7 @@ import {
     useAppDispatch,
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
+import { selectCurrentChartConfig } from '../features/sqlRunner/store/selectors';
 import {
     resetState,
     setProjectUuid,
@@ -37,17 +42,12 @@ const ViewSqlChart = () => {
     const savedSqlUuid = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
-    const tableVisConfig = useAppSelector(
-        (state) => state.tableVisConfig.config,
-    );
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
+
+    const currentVisConfig = useAppSelector((state) =>
+        selectCurrentChartConfig(state),
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
 
@@ -134,17 +134,20 @@ const ViewSqlChart = () => {
 
                     {data?.results && !isLoading && (
                         <Paper shadow="none" radius={0} px={0} py="sm">
-                            {activeTab === TabOption.CHART && (
+                            {activeTab === TabOption.CHART && currentVisConfig && (
                                 <>
-                                    {selectedChartType === ChartKind.TABLE && (
+                                    {isTableChartSQLConfig(
+                                        currentVisConfig,
+                                    ) && (
                                         <Table
                                             data={data.results}
-                                            config={tableVisConfig}
+                                            config={currentVisConfig}
                                         />
                                     )}
-                                    {selectedChartType ===
-                                        ChartKind.VERTICAL_BAR &&
-                                        barChartConfig &&
+                                    {(isBarChartSQLConfig(currentVisConfig) ||
+                                        isPieChartSQLConfig(
+                                            currentVisConfig,
+                                        )) &&
                                         data && (
                                             <SqlRunnerChart
                                                 isLoading={isLoading}
@@ -152,7 +155,7 @@ const ViewSqlChart = () => {
                                                     results: data.results,
                                                     columns: [],
                                                 }}
-                                                config={barChartConfig}
+                                                config={currentVisConfig}
                                             />
                                         )}
                                 </>
