@@ -169,8 +169,9 @@ export const barChartConfigSlice = createSlice({
 
             const yAxisFieldsAvailable = state.options.yLayoutOptions.filter(
                 (option) =>
-                    option.reference !==
-                    state.config?.fieldConfig?.y[0]?.reference,
+                    !state.config?.fieldConfig?.y
+                        .map((y) => y.reference)
+                        .includes(option.reference),
             );
             const yAxisFields = state.config.fieldConfig.y;
 
