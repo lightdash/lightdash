@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { LightdashError, ValidationTarget } from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
-import * as os from 'os';
-import * as path from 'path';
+import { findDbtDefaultProfile } from './dbt/profile';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
@@ -29,10 +28,7 @@ const OPTIMIZED_NODE_VERSION = 20;
 const { version: VERSION } = require('../package.json');
 
 const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
-const defaultProfilesDir =
-    process.env.DBT_PROFILES_DIR ||
-    process.cwd() ||
-    path.join(os.homedir(), '.dbt');
+const defaultProfilesDir: string = findDbtDefaultProfile();
 
 function parseIntArgument(value: string) {
     const parsedValue = parseInt(value, 10);
