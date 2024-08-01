@@ -57,7 +57,8 @@ export const useSqlChartAndResults = ({
         },
     );
 
-    const { data: sqlChartAndResultsJob } = sqlChartAndResultsQuery;
+    const { data: sqlChartAndResultsJob, error: sqlChartAndResultsError } =
+        sqlChartAndResultsQuery;
 
     useEffect(() => {
         // Set the chart if it exists
@@ -66,7 +67,7 @@ export const useSqlChartAndResults = ({
         }
     }, [sqlChartAndResultsJob]);
 
-    const { data: scheduledDeliveryJobStatus } = useQuery<
+    const { data: scheduledDeliveryJobStatus, error: jobError } = useQuery<
         ApiJobStatusResponse['results'] | undefined,
         ApiError
     >(
@@ -97,10 +98,11 @@ export const useSqlChartAndResults = ({
         },
     );
 
-    const { data: sqlQueryResults, isLoading: isResultsLoading } = useQuery<
-        ResultRow[] | undefined,
-        ApiError
-    >(
+    const {
+        data: sqlQueryResults,
+        isLoading: isResultsLoading,
+        error: resultsError,
+    } = useQuery<ResultRow[] | undefined, ApiError>(
         ['sqlChartQueryResults', savedSqlUuid, sqlChartAndResultsJob?.jobId],
         async () => {
             const url = scheduledDeliveryJobStatus?.details?.fileUrl;
@@ -166,23 +168,40 @@ export const useSqlChartAndResults = ({
         },
     );
 
-    const isLoading = useMemo(
-        () =>
+    const error = useMemo(() => {
+        return sqlChartAndResultsError || jobError || resultsError;
+    }, [sqlChartAndResultsError, jobError, resultsError]);
+
+    const isLoading = useMemo(() => {
+        const hasError = Boolean(error);
+        const isAnyQueryLoading =
             sqlChartAndResultsQuery.isLoading ||
             (scheduledDeliveryJobStatus?.status ===
                 SchedulerJobStatus.STARTED &&
                 isResultsLoading) ||
-            isResultsLoading,
-        [
-            sqlChartAndResultsQuery.isLoading,
-            scheduledDeliveryJobStatus?.status,
-            isResultsLoading,
-        ],
-    );
+            isResultsLoading;
+        return (
+            !hasError &&
+            (!sqlChartAndResultsQuery.isFetched
+                ? sqlChartAndResultsQuery.isFetching
+                : isAnyQueryLoading)
+        );
+    }, [
+        sqlChartAndResultsQuery.isFetched,
+        sqlChartAndResultsQuery.isFetching,
+        sqlChartAndResultsQuery.isLoading,
+        scheduledDeliveryJobStatus?.status,
+        isResultsLoading,
+        error,
+    ]);
 
     return {
         ...sqlChartAndResultsQuery,
         isLoading,
-        data: { results: sqlQueryResults, chart },
+        error,
+        data:
+            sqlQueryResults && chart
+                ? { results: sqlQueryResults, chart }
+                : undefined,
     };
 };
