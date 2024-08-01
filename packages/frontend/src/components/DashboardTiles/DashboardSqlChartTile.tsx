@@ -1,7 +1,6 @@
 import {
     ChartKind,
     isTableChartSQLConfig,
-    type Dashboard,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -19,21 +18,19 @@ interface Props
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: DashboardSqlChartTileType;
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    minimal?: boolean;
 }
 
 /**
  * TODO
  * Handle minimal mode
- * Handle edit
- * Add support for description and title
+ * handle tabs
  */
 
 export const DashboardSqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
-    onEdit,
-    onDelete,
+    ...rest
 }) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -49,77 +46,61 @@ export const DashboardSqlChartTile: FC<Props> = ({
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
-                // TODO: complete this
-                belongsToDashboard={false}
                 tile={tile}
                 isLoading
-                title={tile.properties.chartName || ''}
-                // TODO: see if we can remove these
-                onDelete={() => {}}
-                onEdit={() => {}}
+                title={tile.properties.title || tile.properties.chartName || ''}
+                {...rest}
             />
         );
     }
 
-    if (error !== null || !data)
+    if (error !== null || !data) {
         return (
             <TileBase
-                title=""
                 isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
                 tile={tile}
-                onDelete={() => {}}
-                onEdit={() => {}}
+                title={tile.properties.title || tile.properties.chartName || ''}
+                {...rest}
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    // TODO: handle error
-                    title="No data available"
+                    title={error?.error?.message || 'No data available'}
                 />
             </TileBase>
         );
+    }
 
     return (
-        <>
-            {data.chart && data.results ? (
-                <TileBase
-                    isEditMode={isEditMode}
-                    chartName={tile.properties.chartName ?? ''}
-                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${data.chart.slug}`}
-                    tile={tile}
-                    title={
-                        tile.properties.title || tile.properties.chartName || ''
-                    }
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                >
-                    {data.chart.config.type === ChartKind.TABLE &&
-                        isTableChartSQLConfig(data.chart.config) && (
-                            <Table
-                                data={data.results}
-                                config={data.chart.config}
-                            />
-                        )}
-                    {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
-                        data.chart.config.type === ChartKind.LINE ||
-                        data.chart.config.type === ChartKind.PIE) && (
-                        <SqlRunnerChart
-                            data={{
-                                results: data.results,
-                                columns: [],
-                            }}
-                            config={data.chart.config}
-                            style={{
-                                minHeight: 'inherit',
-                                height: '100%',
-                                width: '100%',
-                            }}
-                            isLoading={isLoading}
-                        />
-                    )}
-                </TileBase>
-            ) : (
-                <div>No data</div>
+        <TileBase
+            isEditMode={isEditMode}
+            chartName={tile.properties.chartName ?? ''}
+            titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${data.chart.slug}`}
+            tile={tile}
+            title={tile.properties.title || tile.properties.chartName || ''}
+            {...rest}
+        >
+            {data.chart.config.type === ChartKind.TABLE &&
+                isTableChartSQLConfig(data.chart.config) && (
+                    <Table data={data.results} config={data.chart.config} />
+                )}
+            {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
+                data.chart.config.type === ChartKind.LINE ||
+                data.chart.config.type === ChartKind.PIE) && (
+                <SqlRunnerChart
+                    data={{
+                        results: data.results,
+                        columns: [],
+                    }}
+                    config={data.chart.config}
+                    style={{
+                        minHeight: 'inherit',
+                        height: '100%',
+                        width: '100%',
+                    }}
+                    isLoading={isLoading}
+                />
             )}
-        </>
+        </TileBase>
     );
 };
