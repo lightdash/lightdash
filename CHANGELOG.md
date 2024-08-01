@@ -1,3 +1,10 @@
+# [0.1201.0](https://github.com/lightdash/lightdash/compare/0.1200.3...0.1201.0) (2024-08-01)
+
+
+### Features
+
+* endpoint to fetch SQL chart results from slug ([#10965](https://github.com/lightdash/lightdash/issues/10965)) ([8b19360](https://github.com/lightdash/lightdash/commit/8b193600adfa4698e7ad4b0aea9cd03d6fea7165))
+
 ## [0.1200.3](https://github.com/lightdash/lightdash/compare/0.1200.2...0.1200.3) (2024-08-01)
 
 
