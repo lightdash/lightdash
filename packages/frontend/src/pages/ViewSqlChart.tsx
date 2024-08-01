@@ -9,6 +9,7 @@ import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { Header } from '../features/sqlRunner/components/Header';
 import BarChart from '../features/sqlRunner/components/visualizations/BarChart';
+import PieChart from '../features/sqlRunner/components/visualizations/PieChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
@@ -161,7 +162,7 @@ const ViewSqlChart = () => {
                                     {selectedChartType === ChartKind.PIE &&
                                         pieChartConfig &&
                                         data && (
-                                            <SqlRunnerChart
+                                            <PieChart
                                                 isLoading={isLoading}
                                                 data={{
                                                     results: data.results,
