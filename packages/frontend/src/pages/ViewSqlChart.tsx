@@ -9,6 +9,7 @@ import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import { Header } from '../features/sqlRunner/components/Header';
 import BarChart from '../features/sqlRunner/components/visualizations/BarChart';
+import PieChart from '../features/sqlRunner/components/visualizations/PieChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
@@ -48,6 +49,9 @@ const ViewSqlChart = () => {
     );
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
+    );
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
 
@@ -153,6 +157,18 @@ const ViewSqlChart = () => {
                                                     columns: [],
                                                 }}
                                                 config={barChartConfig}
+                                            />
+                                        )}
+                                    {selectedChartType === ChartKind.PIE &&
+                                        pieChartConfig &&
+                                        data && (
+                                            <PieChart
+                                                isLoading={isLoading}
+                                                data={{
+                                                    results: data.results,
+                                                    columns: [],
+                                                }}
+                                                config={pieChartConfig}
                                             />
                                         )}
                                 </>

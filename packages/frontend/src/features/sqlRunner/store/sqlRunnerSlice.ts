@@ -138,9 +138,7 @@ export const sqlRunnerSlice = createSlice({
             state.description = action.payload.description || '';
             state.sql = action.payload.sql;
             state.selectedChartType =
-                action.payload.config.type === ChartKind.TABLE
-                    ? ChartKind.TABLE
-                    : ChartKind.VERTICAL_BAR;
+                action.payload.config.type || ChartKind.VERTICAL_BAR;
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
