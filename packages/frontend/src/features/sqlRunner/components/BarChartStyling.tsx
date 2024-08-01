@@ -123,8 +123,9 @@ export const BarChartStyling = () => {
                             }
                         />
                     </Config.Group>
-                    <Config.Subheading>Series</Config.Subheading>
-
+                    {series.length > 1 && (
+                        <Config.Subheading>Series</Config.Subheading>
+                    )}
                     {series.map((s, index) => (
                         <Config.Group key={index}>
                             <Config.Label>{`Series ${index + 1}`}</Config.Label>
