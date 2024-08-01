@@ -35,18 +35,12 @@ export const BarChartStyling = () => {
         });
     });
 
-    console.log({ series });
-
     const xAxisLabel = useAppSelector(
-        (state) =>
-            state.barChartConfig.config?.display?.xAxis?.label ??
-            state.barChartConfig.config?.fieldConfig?.x?.reference,
+        (state) => state.barChartConfig.config?.display?.xAxis?.label,
     );
 
     const yAxisLabel = useAppSelector(
-        (state) =>
-            state.barChartConfig.config?.display?.yAxis?.[0]?.label ??
-            state.barChartConfig.config?.fieldConfig?.y?.[0]?.reference,
+        (state) => state.barChartConfig.config?.display?.yAxis?.[0]?.label,
     );
     const yAxisPosition = useAppSelector(
         (state) => state.barChartConfig.config?.display?.yAxis?.[0]?.position,
@@ -80,6 +74,7 @@ export const BarChartStyling = () => {
                         defaultValue={xAxisLabel}
                         radius="md"
                         onChange={(e) => onXAxisLabelChange(e.target.value)}
+                        placeholder="X-axis label"
                     />
                 </Config.Section>
             </Config>
@@ -90,6 +85,7 @@ export const BarChartStyling = () => {
                         defaultValue={yAxisLabel}
                         radius="md"
                         onChange={(e) => onYAxisLabelChange(e.target.value)}
+                        placeholder="Y-axis label"
                     />
                     <Config.Group>
                         <Config.Label>{`Y-axis position`}</Config.Label>
