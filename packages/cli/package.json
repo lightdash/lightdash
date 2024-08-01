@@ -43,7 +43,6 @@
     "scripts": {
         "test": "jest",
         "build": "tsc --build tsconfig.json",
-        "build-watch": "tsc --build tsconfig.json --watch",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "prettier --config .prettierrc.js --ignore-unknown --ignore-path ./../../.gitignore",
         "lint": "yarn run linter ./src",
