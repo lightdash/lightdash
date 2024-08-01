@@ -1,14 +1,33 @@
+import { ChartKind } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { LineChartFieldConfiguration } from './LineChartFieldConfiguration';
-import { LineChartStyling } from './LineChartStyling';
+import { barChartConfigSlice } from '../store/barChartSlice';
+import { useAppSelector } from '../store/hooks';
+import { lineChartConfigSlice } from '../store/lineChartSlice';
+import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
+import { LineChartStyling } from './CartesianChartStyling';
 
-export const LineChartConfig = () => {
+export const CartesianChartConfig = () => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
     const [isStylingOpen, setIsStylingOpen] = useState(false);
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+
+    const actions =
+        selectedChartType === ChartKind.LINE
+            ? lineChartConfigSlice.actions
+            : selectedChartType === ChartKind.VERTICAL_BAR
+            ? barChartConfigSlice.actions
+            : null;
+
+    if (!actions) {
+        return null;
+    }
+
     return (
         <Stack spacing="xs" mb="lg">
             <Group spacing="xs">
@@ -31,7 +50,9 @@ export const LineChartConfig = () => {
                 </ActionIcon>
             </Group>
 
-            {isFieldConfigurationOpen && <LineChartFieldConfiguration />}
+            {isFieldConfigurationOpen && (
+                <CartesianChartFieldConfiguration actions={actions} />
+            )}
 
             <Divider />
 
@@ -49,7 +70,7 @@ export const LineChartConfig = () => {
                 </ActionIcon>
             </Group>
 
-            {isStylingOpen && <LineChartStyling />}
+            {isStylingOpen && <LineChartStyling actions={actions} />}
         </Stack>
     );
 };

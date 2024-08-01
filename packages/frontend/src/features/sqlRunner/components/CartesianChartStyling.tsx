@@ -2,16 +2,16 @@ import { XLayoutType } from '@lightdash/common';
 import { Select, Stack, TextInput } from '@mantine/core';
 import debounce from 'lodash/debounce';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import {
-    setXAxisLabel,
-    setYAxisLabel,
-    setYAxisPosition,
-} from '../store/lineChartSlice';
 
 const DEBOUNCE_TIME = 500;
 
-export const LineChartStyling = () => {
+export const LineChartStyling = ({
+    actions,
+}: {
+    actions: CartesianChartActionsType;
+}) => {
     const dispatch = useAppDispatch();
 
     const xAxisLabel = useAppSelector(
@@ -29,15 +29,15 @@ export const LineChartStyling = () => {
         (state) => state.lineChartConfig.config?.display?.yAxis?.[0]?.position,
     );
     const onXAxisLabelChange = debounce((label: string) => {
-        dispatch(setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
+        dispatch(actions.setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
     }, DEBOUNCE_TIME);
 
     const onYAxisLabelChange = debounce((label: string) => {
-        dispatch(setYAxisLabel({ index: 0, label }));
+        dispatch(actions.setYAxisLabel({ index: 0, label }));
     }, DEBOUNCE_TIME);
 
     const onYAxisPositionChange = debounce((position: string | undefined) => {
-        dispatch(setYAxisPosition({ index: 0, position }));
+        dispatch(actions.setYAxisPosition({ index: 0, position }));
     }, DEBOUNCE_TIME);
 
     return (

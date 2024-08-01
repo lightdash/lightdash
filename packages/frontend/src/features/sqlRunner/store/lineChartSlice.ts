@@ -1,14 +1,14 @@
-import { ChartKind, deepEqual } from '@lightdash/common';
+import { ChartKind, deepEqual, isLineChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
-import { barChartConfigSlice } from './barChartSlice';
-import { setSqlRunnerResults } from './sqlRunnerSlice';
+import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
+import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
-    initialState: barChartConfigSlice.getInitialState(),
+    initialState: cartesianChartConfigSlice.getInitialState(),
     reducers: {
-        ...barChartConfigSlice.caseReducers,
+        ...cartesianChartConfigSlice.caseReducers,
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
@@ -53,18 +53,12 @@ export const lineChartConfigSlice = createSlice({
                 }
             }
         });
+        builder.addCase(setSavedChartData, (state, action) => {
+            if (isLineChartSQLConfig(action.payload.config)) {
+                state.config = action.payload.config;
+            }
+        });
     },
 });
 
-export const {
-    addYAxisField,
-    removeYAxisField,
-    setGroupByReference,
-    setXAxisReference,
-    setYAxisAggregation,
-    setYAxisReference,
-    unsetGroupByReference,
-    setXAxisLabel,
-    setYAxisLabel,
-    setYAxisPosition,
-} = lineChartConfigSlice.actions;
+export type lineChartActionsType = typeof lineChartConfigSlice.actions;
