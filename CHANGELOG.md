@@ -1,3 +1,10 @@
+# [0.1199.0](https://github.com/lightdash/lightdash/compare/0.1198.2...0.1199.0) (2024-08-01)
+
+
+### Features
+
+* show SQL chart details in header ([#10924](https://github.com/lightdash/lightdash/issues/10924)) ([708ddff](https://github.com/lightdash/lightdash/commit/708ddff75d43becb36fb94706104bad8faf761c4))
+
 ## [0.1198.2](https://github.com/lightdash/lightdash/compare/0.1198.1...0.1198.2) (2024-07-31)
 
 
