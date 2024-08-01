@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 
+// To be reused across all hooks that need to fetch SQL query results
 const getResultsStream = async (url: string | undefined) => {
     try {
         if (!url) {
