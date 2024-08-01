@@ -1,3 +1,11 @@
+## [0.1200.1](https://github.com/lightdash/lightdash/compare/0.1200.0...0.1200.1) (2024-08-01)
+
+
+### Bug Fixes
+
+* allow to update a dashboard whith SQL chart tiles where the uuid is null ([#10957](https://github.com/lightdash/lightdash/issues/10957)) ([8be3239](https://github.com/lightdash/lightdash/commit/8be323916ff2be535b72d82e45c644962ac7091c))
+* dashboard SQL chart tile loading state ([#10956](https://github.com/lightdash/lightdash/issues/10956)) ([c88d9a6](https://github.com/lightdash/lightdash/commit/c88d9a6a5c858487a4e7e35f735cbb35f40a2cbe))
+
 # [0.1200.0](https://github.com/lightdash/lightdash/compare/0.1199.0...0.1200.0) (2024-08-01)
 
 
