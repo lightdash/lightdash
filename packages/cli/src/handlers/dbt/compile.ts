@@ -111,36 +111,38 @@ export const dbtCompileNecessaryModels = async (
     loadManifestOpts: LoadManifestArgs,
     options: DbtCompileOptions,
 ) => {
-    try {
-        const manifest = await loadManifest(loadManifestOpts);
-        const manifestModels = getModelsFromManifest(manifest);
-        const selectedModelNames = (
-            options.select ?? manifestModels.map((model) => model.name)
-        ).filter((modelName) => !options.exclude?.includes(modelName));
-
-        const selectedModelNodes = manifestModels.filter((model) =>
-            selectedModelNames.includes(model.name),
-        );
-
-        // Selected models and their joined models
-        const modelNamesToCompile = new Set(
-            selectedModelNodes.reduce<string[]>((acc, model) => {
-                const joinedModelNames = recursivelyGetJoinedModelNames(
-                    model,
-                    manifestModels,
-                );
-                return [...acc, model.name, ...(joinedModelNames ?? [])];
-            }, []),
-        );
-
-        await dbtCompile({
-            ...options,
-            select: Array.from(modelNamesToCompile),
-        });
-    } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
-        throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
+    // If no models are explicitly selected or excluded, compile all models
+    if (!options.select && !options.exclude) {
+        await dbtCompile(options);
+        return;
     }
+
+    const manifest = await loadManifest(loadManifestOpts);
+    const manifestModels = getModelsFromManifest(manifest);
+
+    const selectedModelNames = (
+        options.select ?? manifestModels.map((model) => model.name)
+    ).filter((modelName) => !options.exclude?.includes(modelName));
+
+    const selectedModelNodes = manifestModels.filter((model) =>
+        selectedModelNames.includes(model.name),
+    );
+
+    // Selected models and their joined models
+    const modelNamesToCompile = new Set(
+        selectedModelNodes.reduce<string[]>((acc, model) => {
+            const joinedModelNames = recursivelyGetJoinedModelNames(
+                model,
+                manifestModels,
+            );
+            return [...acc, model.name, ...(joinedModelNames ?? [])];
+        }, []),
+    );
+
+    await dbtCompile({
+        ...options,
+        select: Array.from(modelNamesToCompile),
+    });
 };
 
 export const dbtParse = async (
