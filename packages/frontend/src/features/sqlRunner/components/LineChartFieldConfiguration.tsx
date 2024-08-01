@@ -3,7 +3,7 @@ import {
     DimensionType,
     XLayoutType,
     type GroupByLayoutOptions,
-    type SqlTransformBarChartConfig,
+    type SqlTransformCartesianChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
@@ -28,11 +28,11 @@ import {
     setYAxisReference,
     unsetGroupByReference,
 } from '../store/lineChartSlice';
-import { LineChartAggregationConfig } from './LineChartAggregationConfig';
+import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
 import { TableFieldIcon } from './TableFields';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlTransformBarChartConfig['y'][number];
+    field: SqlTransformCartesianChartConfig['y'][number];
     yLayoutOptions: YLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -60,8 +60,7 @@ const YFieldsAxisConfig: FC<{
                             />
 
                             <Config.Subheading>
-                                {/* TODO: rename type when we have series type */}
-                                Bar series {index + 1}
+                                Series {index + 1}
                             </Config.Subheading>
                         </Group>
                     </UnstyledButton>
@@ -133,7 +132,7 @@ const YFieldsAxisConfig: FC<{
                         <Config.Group>
                             <Config.Label>Aggregation</Config.Label>
 
-                            <LineChartAggregationConfig
+                            <CartesianChartAggregationConfig
                                 options={
                                     yLayoutOptions.find(
                                         (layout) =>
@@ -163,7 +162,7 @@ const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
 }: {
-    field: SqlTransformBarChartConfig['x'];
+    field: SqlTransformCartesianChartConfig['x'];
     xLayoutOptions: XLayoutOptions[];
 }) => {
     const dispatch = useAppDispatch();

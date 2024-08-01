@@ -1,4 +1,9 @@
-import { ChartKind, isTableChartSQLConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    isCartesianChartSQLConfig,
+    isPieChartSQLConfig,
+    isTableChartSQLConfig,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -225,9 +230,8 @@ export const ContentPanel: FC = () => {
                         >
                             {queryResults?.results &&
                                 currentVisConfig &&
-                                // TODO: need a more robust check for what can be rendered
-                                // by the chart renderer. For now its just not tables
-                                !isTableChartSQLConfig(currentVisConfig) && (
+                                (isCartesianChartSQLConfig(currentVisConfig) ||
+                                    isPieChartSQLConfig(currentVisConfig)) && (
                                     <SqlRunnerChart
                                         data={queryResults}
                                         config={currentVisConfig}

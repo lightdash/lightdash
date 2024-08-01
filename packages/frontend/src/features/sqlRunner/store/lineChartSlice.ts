@@ -13,7 +13,6 @@ export const lineChartConfigSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
             if (action.payload.data.results && action.payload.data.columns) {
-                //TODO: BarLine
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
                         rows: action.payload.data.results,
@@ -22,18 +21,18 @@ export const lineChartConfigSlice = createSlice({
                 if (action.payload.data.columns) {
                     state.options = {
                         xLayoutOptions:
-                            sqlRunnerResultsTransformer.barChartXLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartXLayoutOptions(),
                         yLayoutOptions:
-                            sqlRunnerResultsTransformer.barChartYLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartYLayoutOptions(),
                         groupByOptions:
-                            sqlRunnerResultsTransformer.barChartGroupByLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartGroupByLayoutOptions(),
                     };
                 }
 
                 // Update layout
                 const oldDefaultLayout = state.defaultLayout;
                 const newDefaultLayout =
-                    sqlRunnerResultsTransformer.defaultBarChartLayout();
+                    sqlRunnerResultsTransformer.defaultCartesianChartLayout();
                 state.defaultLayout = newDefaultLayout;
 
                 if (

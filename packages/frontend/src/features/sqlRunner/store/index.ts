@@ -12,7 +12,7 @@ export const store = configureStore({
     reducer: {
         sqlRunner: sqlRunnerSlice.reducer,
         barChartConfig: barChartConfigSlice.reducer,
-        lineChartConfig: lineChartConfigSlice.reducer, // TODO: BarLine
+        lineChartConfig: lineChartConfigSlice.reducer,
         pieChartConfig: pieChartConfigSlice.reducer,
         tableVisConfig: tableVisSlice.reducer,
     },

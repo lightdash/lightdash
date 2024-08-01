@@ -4,11 +4,11 @@ import {
     DEFAULT_AGGREGATION,
     isBarChartSQLConfig,
     type AggregationOptions,
-    type BarChartDisplay,
     type BarChartSqlConfig,
+    type CartesianChartDisplay,
     type GroupByLayoutOptions,
     type LineChartSqlConfig,
-    type SqlTransformBarChartConfig,
+    type SqlTransformCartesianChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
@@ -18,7 +18,7 @@ import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsT
 import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
-    defaultLayout: SqlTransformBarChartConfig | undefined;
+    defaultLayout: SqlTransformCartesianChartConfig | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
         xLayoutOptions: XLayoutOptions[];
@@ -43,7 +43,7 @@ export const barChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             { config },
-            action: PayloadAction<SqlTransformBarChartConfig['x']>,
+            action: PayloadAction<SqlTransformCartesianChartConfig['x']>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = action.payload;
@@ -101,7 +101,7 @@ export const barChartConfigSlice = createSlice({
         },
         setXAxisLabel: (
             { config },
-            action: PayloadAction<BarChartDisplay['xAxis']>,
+            action: PayloadAction<CartesianChartDisplay['xAxis']>,
         ) => {
             if (!config) return;
             if (!config.display) {
@@ -202,7 +202,6 @@ export const barChartConfigSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
             if (action.payload.data.results && action.payload.data.columns) {
-                //TODO: BarLine
                 // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
@@ -212,18 +211,18 @@ export const barChartConfigSlice = createSlice({
                 if (action.payload.data.columns) {
                     state.options = {
                         xLayoutOptions:
-                            sqlRunnerResultsTransformer.barChartXLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartXLayoutOptions(),
                         yLayoutOptions:
-                            sqlRunnerResultsTransformer.barChartYLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartYLayoutOptions(),
                         groupByOptions:
-                            sqlRunnerResultsTransformer.barChartGroupByLayoutOptions(),
+                            sqlRunnerResultsTransformer.cartesianChartGroupByLayoutOptions(),
                     };
                 }
 
                 // Update layout
                 const oldDefaultLayout = state.defaultLayout;
                 const newDefaultLayout =
-                    sqlRunnerResultsTransformer.defaultBarChartLayout();
+                    sqlRunnerResultsTransformer.defaultCartesianChartLayout();
                 state.defaultLayout = newDefaultLayout;
 
                 if (

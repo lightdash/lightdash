@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     isBarChartSQLConfig,
+    isLineChartSQLConfig,
     isPieChartSQLConfig,
     SessionUser,
     SqlChart,
@@ -54,11 +55,22 @@ export class SavedSqlService extends BaseService {
         config: SqlChart['config'],
     ): Pick<
         CreateSqlChartVersionEvent['properties'],
-        'chartKind' | 'barChart' | 'pieChart'
+        'chartKind' | 'barChart' | 'lineChart' | 'pieChart'
     > {
         return {
             chartKind: config.type,
             barChart: isBarChartSQLConfig(config)
+                ? {
+                      groupByCount: (config.fieldConfig?.groupBy ?? []).length,
+                      yAxisCount: (config.fieldConfig?.y ?? []).length,
+                      aggregationTypes: uniq(
+                          (config.fieldConfig?.y ?? []).map(
+                              (y) => y.aggregation,
+                          ),
+                      ),
+                  }
+                : undefined,
+            lineChart: isLineChartSQLConfig(config)
                 ? {
                       groupByCount: (config.fieldConfig?.groupBy ?? []).length,
                       yAxisCount: (config.fieldConfig?.y ?? []).length,
