@@ -1,4 +1,4 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, isTableChartSQLConfig } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -17,6 +17,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectCurrentChartConfig } from '../store/selectors';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -65,16 +66,8 @@ export const ContentPanel: FC = () => {
     );
 
     // configurable table
-    const tableVisConfig = useAppSelector(
-        (state) => state.tableVisConfig.config,
-    );
-
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
-    );
-
-    const pieChartConfig = useAppSelector(
-        (state) => state.pieChartConfig.config,
+    const currentVisConfig = useAppSelector((state) =>
+        selectCurrentChartConfig(state),
     );
 
     const {
@@ -84,7 +77,7 @@ export const ContentPanel: FC = () => {
     } = useSqlQueryRun({
         onSuccess: (data) => {
             if (data) {
-                dispatch(setSqlRunnerResults(data));
+                dispatch(setSqlRunnerResults({ data, selectedChartType }));
 
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
@@ -230,59 +223,46 @@ export const ContentPanel: FC = () => {
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results && barChartConfig && (
-                                <SqlRunnerChart
-                                    data={queryResults}
-                                    config={barChartConfig}
-                                    isLoading={isLoading}
-                                    style={{
-                                        // NOTE: Ensures the chart is always full height
-                                        display:
-                                            selectedChartType ===
-                                            ChartKind.VERTICAL_BAR
-                                                ? 'block'
-                                                : 'none',
-                                        height: debouncedInputSectionHeight,
-                                        width: '100%',
-                                        flex: 1,
-                                    }}
-                                />
-                            )}
-
-                            {queryResults?.results && pieChartConfig && (
-                                <SqlRunnerChart
-                                    data={queryResults}
-                                    config={pieChartConfig}
-                                    isLoading={isLoading}
-                                    style={{
-                                        // NOTE: Ensures the chart is always full height
-                                        display:
-                                            selectedChartType === ChartKind.PIE
-                                                ? 'block'
-                                                : 'none',
-                                        height: debouncedInputSectionHeight,
-                                        width: '100%',
-                                        flex: 1,
-                                    }}
-                                />
-                            )}
-
-                            {queryResults?.results && (
-                                <Paper
-                                    shadow="none"
-                                    radius={0}
-                                    p="sm"
-                                    sx={() => ({
-                                        flex: 1,
-                                        overflow: 'auto',
-                                    })}
-                                >
-                                    <Table
-                                        data={queryResults.results}
-                                        config={tableVisConfig}
+                            {queryResults?.results &&
+                                currentVisConfig &&
+                                // TODO: need a more robust check for what can be rendered
+                                // by the chart renderer. For now its just not tables
+                                !isTableChartSQLConfig(currentVisConfig) && (
+                                    <SqlRunnerChart
+                                        data={queryResults}
+                                        config={currentVisConfig}
+                                        isLoading={isLoading}
+                                        style={{
+                                            // NOTE: Ensures the chart is always full height
+                                            display:
+                                                selectedChartType !==
+                                                ChartKind.TABLE
+                                                    ? 'block'
+                                                    : 'none',
+                                            height: debouncedInputSectionHeight,
+                                            width: '100%',
+                                            flex: 1,
+                                        }}
                                     />
-                                </Paper>
-                            )}
+                                )}
+
+                            {queryResults?.results &&
+                                isTableChartSQLConfig(currentVisConfig) && (
+                                    <Paper
+                                        shadow="none"
+                                        radius={0}
+                                        p="sm"
+                                        sx={() => ({
+                                            flex: 1,
+                                            overflow: 'auto',
+                                        })}
+                                    >
+                                        <Table
+                                            data={queryResults.results}
+                                            config={currentVisConfig}
+                                        />
+                                    </Paper>
+                                )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>

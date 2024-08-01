@@ -85,15 +85,18 @@ export const sqlRunnerSlice = createSlice({
         },
         setSqlRunnerResults: (
             state,
-            action: PayloadAction<ResultsAndColumns>,
+            action: PayloadAction<{
+                data: ResultsAndColumns;
+                selectedChartType?: ChartKind;
+            }>,
         ) => {
-            if (!action.payload.results || !action.payload.columns) {
+            if (!action.payload.data.results || !action.payload.data.columns) {
                 return;
             }
 
-            state.sqlColumns = action.payload.columns;
+            state.sqlColumns = action.payload.data.columns;
             // Set the initial results table config
-            const columns = Object.keys(action.payload.results[0]).reduce<
+            const columns = Object.keys(action.payload.data.results[0]).reduce<
                 TableChartSqlConfig['columns']
             >(
                 (acc, key) => ({

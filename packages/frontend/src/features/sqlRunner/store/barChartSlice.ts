@@ -7,6 +7,7 @@ import {
     type BarChartDisplay,
     type BarChartSqlConfig,
     type GroupByLayoutOptions,
+    type LineChartSqlConfig,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
@@ -18,7 +19,7 @@ import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultLayout: SqlTransformBarChartConfig | undefined;
-    config: BarChartSqlConfig | undefined;
+    config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
         xLayoutOptions: XLayoutOptions[];
         yLayoutOptions: YLayoutOptions[];
@@ -200,14 +201,15 @@ export const barChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
-            if (action.payload.results && action.payload.columns) {
+            if (action.payload.data.results && action.payload.data.columns) {
+                //TODO: BarLine
                 // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
-                        rows: action.payload.results,
-                        columns: action.payload.columns,
+                        rows: action.payload.data.results,
+                        columns: action.payload.data.columns,
                     });
-                if (action.payload.columns) {
+                if (action.payload.data.columns) {
                     state.options = {
                         xLayoutOptions:
                             sqlRunnerResultsTransformer.barChartXLayoutOptions(),

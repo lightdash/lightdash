@@ -1,6 +1,7 @@
 import {
     BarChartDataTransformer,
     isBarChartSQLConfig,
+    isLineChartSQLConfig,
     isPieChartSQLConfig,
     PieChartDataTransformer,
     type ResultRow,
@@ -26,7 +27,7 @@ export const useSqlChart = (
     );
 
     const visTransformer = useMemo(() => {
-        if (isBarChartSQLConfig(config)) {
+        if (isBarChartSQLConfig(config) || isLineChartSQLConfig(config)) {
             return new BarChartDataTransformer({
                 transformer,
             });

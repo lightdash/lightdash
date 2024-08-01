@@ -1,5 +1,6 @@
 import {
     isBarChartSQLConfig,
+    isLineChartSQLConfig,
     isPieChartSQLConfig,
     isTableChartSQLConfig,
 } from '@lightdash/common';
@@ -145,6 +146,9 @@ const ViewSqlChart = () => {
                                         />
                                     )}
                                     {(isBarChartSQLConfig(currentVisConfig) ||
+                                        isLineChartSQLConfig(
+                                            currentVisConfig,
+                                        ) ||
                                         isPieChartSQLConfig(
                                             currentVisConfig,
                                         )) &&

@@ -100,6 +100,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                             />
                         )}
                     {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
+                        data.chart.config.type === ChartKind.LINE ||
                         data.chart.config.type === ChartKind.PIE) && (
                         <SqlRunnerChart
                             data={{

@@ -1,6 +1,8 @@
 import { friendlyName } from '../types/field';
+import { ChartKind } from '../types/savedCharts';
 import {
     isBarChartSQLConfig,
+    isLineChartSQLConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
@@ -18,11 +20,11 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
-        if (!isBarChartSQLConfig(config)) {
+        if (!isBarChartSQLConfig(config) && !isLineChartSQLConfig(config)) {
             return {};
         }
 
-        const { fieldConfig, display } = config;
+        const { fieldConfig, display, type } = config;
 
         const transformedData = fieldConfig
             ? await this.transformer.transformBarChartData(
@@ -31,6 +33,9 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
             : undefined;
 
         const DEFAULT_X_AXIS_TYPE = 'category';
+
+        const defaultSeriesType =
+            type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         return {
             tooltip: {},
@@ -84,7 +89,7 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
                     transformedData.xAxisColumn.reference,
                     seriesColumn,
                 ],
-                type: 'bar',
+                type: defaultSeriesType,
                 name:
                     (display?.series && display.series[seriesColumn]?.label) ||
                     friendlyName(seriesColumn),

@@ -42,13 +42,13 @@ export const pieChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
-            if (action.payload.results && action.payload.columns) {
+            if (action.payload.data.results && action.payload.data.columns) {
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
-                        rows: action.payload.results,
-                        columns: action.payload.columns,
+                        rows: action.payload.data.results,
+                        columns: action.payload.data.columns,
                     });
-                if (action.payload.columns) {
+                if (action.payload.data.columns) {
                     state.options = {
                         groupFieldOptions:
                             sqlRunnerResultsTransformer.pieChartGroupFieldOptions(),

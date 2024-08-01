@@ -154,7 +154,7 @@ type SqlRunnerResultsTransformerDeps = {
     rows: RowData[];
     columns: SqlColumn[];
 };
-
+// TODO: BarLine these props
 export class SqlRunnerResultsTransformer
     implements
         ResultsTransformerBase<

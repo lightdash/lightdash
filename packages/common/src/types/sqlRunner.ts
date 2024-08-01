@@ -88,6 +88,12 @@ export type BarChartSqlConfig = SqlRunnerChartConfig & {
     display: BarChartDisplay | undefined;
 };
 
+export type LineChartSqlConfig = SqlRunnerChartConfig & {
+    type: ChartKind.LINE;
+    fieldConfig: SqlTransformBarChartConfig | undefined; // TODO: BarLine
+    display: BarChartDisplay | undefined; // TODO: BarLine
+};
+
 export type PieChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.PIE;
     fieldConfig: SqlTransformPieChartConfig | undefined;
@@ -102,6 +108,10 @@ export const isBarChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
 ): value is BarChartSqlConfig =>
     !!value && value.type === ChartKind.VERTICAL_BAR;
+
+export const isLineChartSQLConfig = (
+    value: SqlRunnerChartConfig | undefined,
+): value is LineChartSqlConfig => !!value && value.type === ChartKind.LINE;
 
 export const isPieChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
