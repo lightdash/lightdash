@@ -2,9 +2,10 @@ import {
     ChartKind,
     deepEqual,
     DEFAULT_AGGREGATION,
+    isBarChartSQLConfig,
     type AggregationOptions,
-    type BarChartConfig,
     type BarChartDisplay,
+    type BarChartSqlConfig,
     type GroupByLayoutOptions,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
@@ -17,7 +18,7 @@ import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
     defaultLayout: SqlTransformBarChartConfig | undefined;
-    config: BarChartConfig | undefined;
+    config: BarChartSqlConfig | undefined;
     options: {
         xLayoutOptions: XLayoutOptions[];
         yLayoutOptions: YLayoutOptions[];
@@ -242,7 +243,7 @@ export const barChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
-            if (action.payload.config.type === ChartKind.VERTICAL_BAR) {
+            if (isBarChartSQLConfig(action.payload.config)) {
                 state.config = action.payload.config;
             }
         });

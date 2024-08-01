@@ -1,4 +1,8 @@
-import { ChartKind, type TableChartSqlConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    isTableChartSQLConfig,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
@@ -62,7 +66,7 @@ export const tableVisSlice = createSlice({
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
-            if (action.payload.config.type === ChartKind.TABLE) {
+            if (isTableChartSQLConfig(action.payload.config)) {
                 state.config = action.payload.config;
             }
         });

@@ -7282,187 +7282,10 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "SqlTableConfig": {
+            "SqlRunnerChartConfig": {
                 "properties": {
-                    "columns": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "properties": {
-                                "order": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "frozen": {
-                                    "type": "boolean"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                },
-                                "visible": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "frozen",
-                                "label",
-                                "reference",
-                                "visible"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "object"
-                    }
-                },
-                "required": ["columns"],
-                "type": "object"
-            },
-            "ChartKind.TABLE": {
-                "enum": ["table"],
-                "type": "string"
-            },
-            "TableChartSqlConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SqlTableConfig"
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.TABLE"
-                            },
-                            "metadata": {
-                                "properties": {
-                                    "version": {
-                                        "type": "number",
-                                        "format": "double"
-                                    }
-                                },
-                                "required": ["version"],
-                                "type": "object"
-                            }
-                        },
-                        "required": ["type", "metadata"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ChartKind.VERTICAL_BAR": {
-                "enum": ["vertical_bar"],
-                "type": "string"
-            },
-            "AggregationOptions": {
-                "type": "string"
-            },
-            "SqlTransformBarChartConfig": {
-                "properties": {
-                    "groupBy": {
-                        "properties": {
-                            "reference": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["reference"],
-                        "type": "object"
-                    },
-                    "y": {
-                        "items": {
-                            "properties": {
-                                "aggregation": {
-                                    "$ref": "#/components/schemas/AggregationOptions"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["aggregation", "reference"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "x": {
-                        "properties": {
-                            "reference": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["reference"],
-                        "type": "object"
-                    }
-                },
-                "required": ["y", "x"],
-                "type": "object"
-            },
-            "XLayoutType": {
-                "enum": ["time", "category"],
-                "type": "string"
-            },
-            "Record_string._label%3F%3Astring--yAxisIndex%3F%3Anumber--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "BarChartDisplay": {
-                "properties": {
-                    "legend": {
-                        "properties": {
-                            "align": {
-                                "type": "string",
-                                "enum": ["start", "center", "end"]
-                            },
-                            "position": {
-                                "type": "string",
-                                "enum": ["top", "bottom", "left", "right"]
-                            }
-                        },
-                        "required": ["align", "position"],
-                        "type": "object"
-                    },
-                    "series": {
-                        "$ref": "#/components/schemas/Record_string._label%3F%3Astring--yAxisIndex%3F%3Anumber--__"
-                    },
-                    "yAxis": {
-                        "items": {
-                            "properties": {
-                                "position": {
-                                    "type": "string",
-                                    "enum": ["left", "right"]
-                                },
-                                "label": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "xAxis": {
-                        "properties": {
-                            "type": {
-                                "$ref": "#/components/schemas/XLayoutType"
-                            },
-                            "label": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                },
-                "type": "object"
-            },
-            "BarChartConfig": {
-                "properties": {
-                    "display": {
-                        "$ref": "#/components/schemas/BarChartDisplay"
-                    },
-                    "fieldConfig": {
-                        "$ref": "#/components/schemas/SqlTransformBarChartConfig"
-                    },
                     "type": {
-                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                        "$ref": "#/components/schemas/ChartKind"
                     },
                     "metadata": {
                         "properties": {
@@ -7477,16 +7300,6 @@
                 },
                 "required": ["type", "metadata"],
                 "type": "object"
-            },
-            "SqlRunnerChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/TableChartSqlConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/BarChartConfig"
-                    }
-                ]
             },
             "Pick_Space.uuid-or-name_": {
                 "properties": {
@@ -8998,7 +8811,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1185.2",
+        "version": "0.1198.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

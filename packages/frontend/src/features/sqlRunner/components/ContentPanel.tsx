@@ -24,8 +24,7 @@ import {
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
-import BarChart from './visualizations/BarChart';
-import PieChart from './visualizations/PieChart';
+import SqlRunnerChart from './visualizations/SqlRunnerChart';
 import { Table } from './visualizations/Table';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -232,7 +231,7 @@ export const ContentPanel: FC = () => {
                             }
                         >
                             {queryResults?.results && barChartConfig && (
-                                <BarChart
+                                <SqlRunnerChart
                                     data={queryResults}
                                     config={barChartConfig}
                                     isLoading={isLoading}
@@ -251,7 +250,7 @@ export const ContentPanel: FC = () => {
                             )}
 
                             {queryResults?.results && pieChartConfig && (
-                                <PieChart
+                                <SqlRunnerChart
                                     data={queryResults}
                                     config={pieChartConfig}
                                     isLoading={isLoading}

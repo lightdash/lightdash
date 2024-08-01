@@ -1,8 +1,8 @@
-import { type ResultsTransformerBase } from './ResultsTransformerBase';
 import {
-    type PieChartDisplay,
-    type SqlTransformPieChartConfig,
-} from './SqlRunnerResultsTransformer';
+    isPieChartSQLConfig,
+    type SqlRunnerChartConfig,
+} from '../types/sqlRunner';
+import { type ResultsTransformerBase } from './ResultsTransformerBase';
 
 export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
     private readonly transformer: ResultsTransformerBase<
@@ -16,10 +16,13 @@ export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
         this.transformer = args.transformer;
     }
 
-    async getEchartsSpec(
-        fieldConfig: SqlTransformPieChartConfig | undefined,
-        display: PieChartDisplay | undefined,
-    ) {
+    async getEchartsSpec(config: SqlRunnerChartConfig) {
+        if (!isPieChartSQLConfig(config)) {
+            return {};
+        }
+
+        const { fieldConfig, display } = config;
+
         const transformedData = fieldConfig
             ? await this.transformer.transformPieChartData(
                   fieldConfig as TPieChartConfig,
