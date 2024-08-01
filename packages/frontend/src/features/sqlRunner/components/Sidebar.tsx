@@ -1,4 +1,11 @@
-import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Group,
+    ScrollArea,
+    Stack,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
@@ -43,13 +50,22 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 </Stack>
             </ConditionalVisibility>
 
-            <ConditionalVisibility
-                isVisible={activeSidebarTab === SidebarTabs.VISUALIZATION}
+            <ScrollArea
+                offsetScrollbars
+                variant="primary"
+                className="only-vertical"
+                sx={{
+                    flex: 1,
+                }}
             >
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <VisualizationConfigPanel />
-                </Stack>
-            </ConditionalVisibility>
+                <ConditionalVisibility
+                    isVisible={activeSidebarTab === SidebarTabs.VISUALIZATION}
+                >
+                    <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                        <VisualizationConfigPanel />
+                    </Stack>
+                </ConditionalVisibility>
+            </ScrollArea>
         </Stack>
     );
 };
