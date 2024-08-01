@@ -107,7 +107,6 @@ const YFieldsAxisConfig: FC<{
                                 if (!value) return;
                                 dispatch(
                                     setYAxisReference({
-                                        previousReference: field.reference,
                                         reference: value,
                                         index,
                                         aggregation:

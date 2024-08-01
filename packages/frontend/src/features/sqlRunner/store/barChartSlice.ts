@@ -67,7 +67,6 @@ export const barChartConfigSlice = createSlice({
         setYAxisReference: (
             { config },
             action: PayloadAction<{
-                previousReference: string;
                 reference: string;
                 index: number;
                 aggregation: AggregationOptions;
