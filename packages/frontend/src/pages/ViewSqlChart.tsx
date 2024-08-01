@@ -15,7 +15,7 @@ import { Header } from '../features/sqlRunner/components/Header';
 import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
-import { useSqlQueryRun } from '../features/sqlRunner/hooks/useSqlChartResults';
+import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -54,7 +54,7 @@ const ViewSqlChart = () => {
         data,
         isLoading,
         error: resultsError,
-    } = useSqlQueryRun(projectUuid, params.slug);
+    } = useSqlChartResults(projectUuid, params.slug);
 
     useUnmount(() => {
         dispatch(resetState());

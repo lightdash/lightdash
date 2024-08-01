@@ -106,7 +106,7 @@ const getSqlChartResults = async ({
             return new Promise((resolve) => {
                 setTimeout(async () => {
                     resolve(await getCompleteJob());
-                }, 3000);
+                }, 1000);
             });
         }
         if (job.status === SchedulerJobStatus.COMPLETED) {
@@ -134,7 +134,7 @@ const getSqlChartResults = async ({
     return getResultsStream(url);
 };
 
-export const useSqlQueryRun = (
+export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
 ) => {
