@@ -1,6 +1,7 @@
 import {
     ChartKind,
     deepEqual,
+    DEFAULT_AGGREGATION,
     isBarChartSQLConfig,
     type AggregationOptions,
     type BarChartDisplay,
@@ -39,19 +40,6 @@ export const barChartConfigSlice = createSlice({
     name: 'barChartConfig',
     initialState,
     reducers: {
-        // TODO: add y field feature
-        // addYField: (
-        //     state,
-        //     action: PayloadAction<SqlTransformBarChartConfig['y'][number]>,
-        // ) => {
-        //     if (!state.config) return;
-        //     if (!state.config.fieldConfig) return;
-
-        //     const yAxisFields = state.config.fieldConfig.y;
-        //     if (yAxisFields) {
-        //         state.config.fieldConfig.y = [...yAxisFields, action.payload];
-        //     }
-        // },
         setXAxisReference: (
             { config },
             action: PayloadAction<SqlTransformBarChartConfig['x']>,
@@ -80,16 +68,13 @@ export const barChartConfigSlice = createSlice({
         setYAxisReference: (
             { config },
             action: PayloadAction<{
-                previousReference: string;
                 reference: string;
+                index: number;
                 aggregation: AggregationOptions;
             }>,
         ) => {
             if (config?.fieldConfig?.y) {
-                const yAxis = config.fieldConfig.y.find(
-                    (axis) =>
-                        axis.reference === action.payload.previousReference,
-                );
+                const yAxis = config.fieldConfig.y[action.payload.index];
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation = action.payload.aggregation;
@@ -179,6 +164,39 @@ export const barChartConfigSlice = createSlice({
                 config.display.yAxis[index].position = position;
             }
         },
+        addYAxisField: (state) => {
+            if (!state.config) return;
+            if (!state.config.fieldConfig) return;
+
+            const yAxisFieldsAvailable = state.options.yLayoutOptions.filter(
+                (option) =>
+                    !state.config?.fieldConfig?.y
+                        .map((y) => y.reference)
+                        .includes(option.reference),
+            );
+            const yAxisFields = state.config.fieldConfig.y;
+
+            let defaultYAxisField: string | undefined;
+
+            if (yAxisFieldsAvailable.length > 0) {
+                defaultYAxisField = yAxisFieldsAvailable[0].reference;
+            } else {
+                defaultYAxisField = state.config.fieldConfig.y[0].reference;
+            }
+
+            if (yAxisFields) {
+                state.config.fieldConfig.y.push({
+                    reference: defaultYAxisField,
+                    aggregation: DEFAULT_AGGREGATION,
+                });
+            }
+        },
+        removeYAxisField: (state, action: PayloadAction<number>) => {
+            if (!state.config) return;
+            if (!state.config.fieldConfig) return;
+
+            state.config.fieldConfig.y.splice(action.payload, 1);
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
@@ -238,8 +256,9 @@ export const {
     setXAxisReference,
     setYAxisReference,
     setYAxisAggregation,
-    setSeriesLabel,
     setGroupByReference,
     unsetGroupByReference,
     setYAxisPosition,
+    addYAxisField,
+    removeYAxisField,
 } = barChartConfigSlice.actions;
