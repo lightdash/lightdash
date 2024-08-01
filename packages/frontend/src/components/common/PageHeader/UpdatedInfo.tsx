@@ -3,19 +3,35 @@ import { Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
-export const UpdatedInfo: FC<{
+const TimeAgo: FC<{
     updatedAt: Date;
-    user: Partial<SessionUser> | undefined;
+    partiallyBold?: boolean;
+}> = ({ updatedAt, partiallyBold = true }) => {
+    const timeAgo = useTimeAgo(updatedAt || new Date());
+
+    return (
+        <Text span fw={partiallyBold ? 600 : 'default'}>
+            {timeAgo}
+        </Text>
+    );
+};
+
+export const UpdatedInfo: FC<{
+    updatedAt: Date | undefined;
+    user: Partial<SessionUser> | null | undefined;
     partiallyBold?: boolean;
 }> = ({ updatedAt, user, partiallyBold = true }) => {
-    const timeAgo = useTimeAgo(updatedAt);
-
     return (
         <Text c="gray.6" fz="xs">
             Last edited{' '}
-            <Text span fw={partiallyBold ? 600 : 'default'}>
-                {timeAgo}
-            </Text>{' '}
+            {updatedAt && (
+                <>
+                    <TimeAgo
+                        updatedAt={updatedAt}
+                        partiallyBold={partiallyBold}
+                    />{' '}
+                </>
+            )}
             {user && user.firstName ? (
                 <>
                     by{' '}
