@@ -1,3 +1,10 @@
+# [0.1200.0](https://github.com/lightdash/lightdash/compare/0.1199.0...0.1200.0) (2024-08-01)
+
+
+### Features
+
+* allow adding series ([#10932](https://github.com/lightdash/lightdash/issues/10932)) ([0879bf4](https://github.com/lightdash/lightdash/commit/0879bf464eb68789abf9c6891ea59942d1758688))
+
 # [0.1199.0](https://github.com/lightdash/lightdash/compare/0.1198.2...0.1199.0) (2024-08-01)
 
 
