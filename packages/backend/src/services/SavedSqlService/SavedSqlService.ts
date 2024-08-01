@@ -339,6 +339,37 @@ export class SavedSqlService extends BaseService {
         });
     }
 
+    async getResultJob(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<{ jobId: string }> {
+        const savedChart = await this.savedSqlModel.getBySlug(
+            projectUuid,
+            slug,
+        );
+
+        const hasViewAccess = await this.hasSavedChartAccess(
+            user,
+            'view',
+            savedChart,
+        );
+        if (!hasViewAccess) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+
+        const jobId = await this.schedulerClient.runSql({
+            userUuid: user.userUuid,
+            organizationUuid: savedChart.organization.organizationUuid,
+            projectUuid: savedChart.project.projectUuid,
+            sql: savedChart.sql,
+        });
+
+        return {
+            jobId,
+        };
+    }
+
     async getChartWithResultJob(
         user: SessionUser,
         projectUuid: string,

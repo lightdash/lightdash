@@ -15,7 +15,7 @@ import { Header } from '../features/sqlRunner/components/Header';
 import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
-import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
+import { useSqlQueryRun } from '../features/sqlRunner/hooks/useSqlChartResults';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -39,17 +39,22 @@ const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
-    );
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
-
     const currentVisConfig = useAppSelector((state) =>
         selectCurrentChartConfig(state),
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const { error: chartError, data: sqlChart } = useSavedSqlChart({
+        projectUuid,
+        slug: params.slug,
+    });
+    const {
+        data,
+        isLoading,
+        error: resultsError,
+    } = useSqlQueryRun(projectUuid, params.slug);
 
     useUnmount(() => {
         dispatch(resetState());
@@ -61,35 +66,17 @@ const ViewSqlChart = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    const { error: chartError, data: sqlChart } = useSavedSqlChart({
-        projectUuid,
-        slug: params.slug,
-    });
-
     useEffect(() => {
         if (sqlChart) {
             dispatch(setSavedChartData(sqlChart));
         }
     }, [dispatch, sqlChart]);
 
-    const {
-        data,
-        isLoading,
-        error: chartAndResultsError,
-    } = useSqlChartAndResults({
-        projectUuid,
-        savedSqlUuid: savedSqlUuid ?? null,
-    });
-
-    if (!projectUuid) {
-        return null;
-    }
-
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
-    if (chartAndResultsError) {
-        return <ErrorState error={chartAndResultsError.error} />;
+    if (resultsError) {
+        return <ErrorState error={resultsError.error} />;
     }
 
     return (
