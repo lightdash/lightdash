@@ -25,6 +25,31 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 
+        const series = transformedData?.seriesColumns.map(
+            (seriesColumn, index) => {
+                const seriesLabel = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.label;
+
+                return {
+                    dimensions: [
+                        transformedData.xAxisColumn.reference,
+                        seriesColumn,
+                    ],
+                    type: 'bar',
+                    name: seriesLabel || friendlyName(seriesColumn),
+                    encode: {
+                        x: transformedData.xAxisColumn.reference,
+                        y: seriesColumn,
+                    },
+                    yAxisIndex:
+                        (display?.series &&
+                            display.series[seriesColumn]?.yAxisIndex) ||
+                        0,
+                };
+            },
+        );
+
         return {
             tooltip: {},
             legend: {
@@ -72,24 +97,7 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
                 id: 'dataset',
                 source: transformedData?.results,
             },
-            series: transformedData?.seriesColumns.map((seriesColumn) => ({
-                dimensions: [
-                    transformedData.xAxisColumn.reference,
-                    seriesColumn,
-                ],
-                type: 'bar',
-                name:
-                    (display?.series && display.series[seriesColumn]?.label) ||
-                    friendlyName(seriesColumn),
-                encode: {
-                    x: transformedData.xAxisColumn.reference,
-                    y: seriesColumn,
-                },
-                yAxisIndex:
-                    (display?.series &&
-                        display.series[seriesColumn]?.yAxisIndex) ||
-                    0,
-            })),
+            series,
         };
     }
 }

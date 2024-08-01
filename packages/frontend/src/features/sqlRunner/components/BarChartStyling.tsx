@@ -5,6 +5,7 @@ import debounce from 'lodash/debounce';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import {
+    setSeriesLabel,
     setXAxisLabel,
     setYAxisLabel,
     setYAxisPosition,
@@ -15,6 +16,26 @@ const DEBOUNCE_TIME = 500;
 
 export const BarChartStyling = () => {
     const dispatch = useAppDispatch();
+
+    const series = useAppSelector((state) => {
+        if (
+            !state.barChartConfig.config?.fieldConfig?.y ||
+            state.barChartConfig.config.fieldConfig.y.length <= 1
+        ) {
+            return [];
+        }
+        return state.barChartConfig.config.fieldConfig.y.map((field, index) => {
+            const label = Object.values(
+                state.barChartConfig.config?.display?.series || {},
+            ).find((s) => s.yAxisIndex === index)?.label;
+            return {
+                reference: field.reference,
+                label: label || field.reference,
+            };
+        });
+    });
+
+    console.log({ series });
 
     const xAxisLabel = useAppSelector(
         (state) =>
@@ -41,6 +62,13 @@ export const BarChartStyling = () => {
     const onYAxisPositionChange = debounce((position: string | undefined) => {
         dispatch(setYAxisPosition({ index: 0, position }));
     }, DEBOUNCE_TIME);
+
+    const onSeriesLabelChange = debounce(
+        (index: number, label: string, reference: string) => {
+            dispatch(setSeriesLabel({ index, label, reference }));
+        },
+        DEBOUNCE_TIME,
+    );
 
     return (
         <Stack spacing="xs">
@@ -95,6 +123,26 @@ export const BarChartStyling = () => {
                             }
                         />
                     </Config.Group>
+                    <Config.Subheading>Series</Config.Subheading>
+
+                    {series.map((s, index) => (
+                        <Config.Group key={index}>
+                            <Config.Label>{`Series ${index + 1}`}</Config.Label>
+                            <Group spacing="xs">
+                                <TextInput
+                                    defaultValue={s.label}
+                                    radius="md"
+                                    onChange={(e) =>
+                                        onSeriesLabelChange(
+                                            index,
+                                            e.target.value,
+                                            s.reference,
+                                        )
+                                    }
+                                />
+                            </Group>
+                        </Config.Group>
+                    ))}
                 </Config.Section>
             </Config>
         </Stack>

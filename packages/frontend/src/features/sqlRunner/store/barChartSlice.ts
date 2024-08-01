@@ -83,16 +83,14 @@ export const barChartConfigSlice = createSlice({
         setYAxisAggregation: (
             { config },
             action: PayloadAction<{
-                reference: string;
+                index: number;
                 aggregation: AggregationOptions;
             }>,
         ) => {
             if (!config) return;
             if (!config?.fieldConfig?.y) return;
 
-            const yAxis = config.fieldConfig.y.find(
-                (axis) => axis.reference === action.payload.reference,
-            );
+            const yAxis = config.fieldConfig.y[action.payload.index];
             if (yAxis) {
                 yAxis.aggregation = action.payload.aggregation;
             }
@@ -131,16 +129,20 @@ export const barChartConfigSlice = createSlice({
         setSeriesLabel: (
             { config },
             action: PayloadAction<{
-                reference: string;
+                index: number;
                 label: string;
+                reference: string;
             }>,
         ) => {
-            if (!config || !config.display) return;
+            if (!config) return;
 
-            if (config.display.series) {
-                config.display.series[action.payload.reference].label =
-                    action.payload.label;
-            }
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+
+            config.display.series[action.payload.reference] = {
+                label: action.payload.label,
+                yAxisIndex: action.payload.index,
+            };
         },
         setYAxisPosition: (
             { config },
@@ -260,4 +262,5 @@ export const {
     setYAxisPosition,
     addYAxisField,
     removeYAxisField,
+    setSeriesLabel,
 } = barChartConfigSlice.actions;
