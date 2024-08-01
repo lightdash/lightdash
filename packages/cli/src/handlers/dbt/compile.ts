@@ -1,5 +1,7 @@
-import { ParseError } from '@lightdash/common';
+import { DbtModelNode, ParseError } from '@lightdash/common';
 import execa from 'execa';
+import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
+import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
@@ -41,7 +43,7 @@ const dbtCompileArgs = [
 const camelToSnakeCase = (str: string) =>
     str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-const optionsToArgs = (options: DbtCompileOptions): string[] =>
+const optionsToArgs = (options: Partial<DbtCompileOptions>): string[] =>
     Object.entries(options).reduce<string[]>((acc, [key, value]) => {
         if (value !== undefined && dbtCompileArgs.includes(key)) {
             const argKey = `--${camelToSnakeCase(key)}`;
@@ -56,6 +58,7 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
         }
         return acc;
     }, []);
+
 export const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
@@ -66,6 +69,101 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : '-';
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
+    }
+};
+
+// TODO: Move this to somewhere appropriate
+type UnrenderedConfig =
+    | {
+          meta?: {
+              joins?: Array<{ join: string }>;
+          };
+      }
+    | undefined;
+
+const recursivelyGetJoinedModelNames = (
+    modelNode: DbtModelNode,
+    allModelNodes: DbtModelNode[],
+): string[] => {
+    const joinedModelNames = (
+        modelNode.unrendered_config as UnrenderedConfig
+    )?.meta?.joins?.map((j) => j.join);
+
+    if (!joinedModelNames) {
+        return [];
+    }
+
+    const joinedModelNodes = allModelNodes.filter((model) =>
+        joinedModelNames.includes(model.name),
+    );
+
+    return joinedModelNodes.reduce<string[]>(
+        (acc, model) => [
+            ...acc,
+            model.name,
+            ...recursivelyGetJoinedModelNames(model, allModelNodes),
+        ],
+        [],
+    );
+};
+
+export const dbtCompileNecessaryModels = async (
+    loadManifestOpts: LoadManifestArgs,
+    options: DbtCompileOptions,
+) => {
+    try {
+        const manifest = await loadManifest(loadManifestOpts);
+        const manifestModels = getModelsFromManifest(manifest);
+        const selectedModelNames = (
+            options.select ?? manifestModels.map((model) => model.name)
+        ).filter((modelName) => !options.exclude?.includes(modelName));
+
+        const selectedModelNodes = manifestModels.filter((model) =>
+            selectedModelNames.includes(model.name),
+        );
+
+        // Selected models and their joined models
+        const modelNamesToCompile = new Set(
+            selectedModelNodes.reduce<string[]>((acc, model) => {
+                const joinedModelNames = recursivelyGetJoinedModelNames(
+                    model,
+                    manifestModels,
+                );
+                return [...acc, model.name, ...(joinedModelNames ?? [])];
+            }, []),
+        );
+
+        await dbtCompile({
+            ...options,
+            select: Array.from(modelNamesToCompile),
+        });
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
+        throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
+    }
+};
+
+export const dbtParse = async (
+    dbtVersion: string,
+    opts: Pick<
+        DbtCompileOptions,
+        'profilesDir' | 'projectDir' | 'profile' | 'target'
+    >,
+) => {
+    try {
+        const args = optionsToArgs(opts);
+
+        if (dbtVersion.startsWith('1.3.') || dbtVersion.startsWith('1.4.')) {
+            args.push('--write-manifest');
+        }
+
+        GlobalState.debug(`> Running: dbt parse ${args.join(' ')}`);
+        const { stdout, stderr } = await execa('dbt', ['parse', ...args]);
+        console.error(stdout);
+        console.error(stderr);
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '-';
+        throw new ParseError(`Failed to run dbt parse:\n  ${msg}`);
     }
 };
 
