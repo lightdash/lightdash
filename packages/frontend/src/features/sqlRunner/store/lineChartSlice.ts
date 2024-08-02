@@ -1,11 +1,11 @@
-import { ChartKind, deepEqual, isBarChartSQLConfig } from '@lightdash/common';
+import { ChartKind, deepEqual, isLineChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
 import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
-export const barChartConfigSlice = createSlice({
-    name: 'barChartConfig',
+export const lineChartConfigSlice = createSlice({
+    name: 'lineChartConfig',
     initialState: cartesianChartConfigSlice.getInitialState(),
     reducers: {
         ...cartesianChartConfigSlice.caseReducers,
@@ -13,7 +13,6 @@ export const barChartConfigSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
             if (action.payload.results && action.payload.columns) {
-                // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
                         rows: action.payload.results,
@@ -47,7 +46,7 @@ export const barChartConfigSlice = createSlice({
                         metadata: {
                             version: 1,
                         },
-                        type: ChartKind.VERTICAL_BAR,
+                        type: ChartKind.LINE,
                         fieldConfig: newDefaultLayout,
                         display: state.config?.display,
                     };
@@ -55,11 +54,11 @@ export const barChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
-            if (isBarChartSQLConfig(action.payload.config)) {
+            if (isLineChartSQLConfig(action.payload.config)) {
                 state.config = action.payload.config;
             }
         });
     },
 });
 
-export type BarChartActionsType = typeof barChartConfigSlice.actions;
+export type LineChartActionsType = typeof lineChartConfigSlice.actions;

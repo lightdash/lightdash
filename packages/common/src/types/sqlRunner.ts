@@ -1,8 +1,8 @@
 import {
-    type BarChartDisplay,
+    type CartesianChartDisplay,
     type PieChartDisplay,
     type SqlColumn,
-    type SqlTransformBarChartConfig,
+    type SqlTransformCartesianChartConfig,
     type SqlTransformPieChartConfig,
 } from '../visualizations/SqlRunnerResultsTransformer';
 import { type Dashboard } from './dashboard';
@@ -84,10 +84,22 @@ export type TableChartSqlConfig = SqlRunnerChartConfig &
         type: ChartKind.TABLE;
     };
 
+export type CartesianChartSqlConfig = SqlRunnerChartConfig & {
+    type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
+    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    display: CartesianChartDisplay | undefined;
+};
+
 export type BarChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: SqlTransformBarChartConfig | undefined;
-    display: BarChartDisplay | undefined;
+    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    display: CartesianChartDisplay | undefined;
+};
+
+export type LineChartSqlConfig = SqlRunnerChartConfig & {
+    type: ChartKind.LINE;
+    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    display: CartesianChartDisplay | undefined;
 };
 
 export type PieChartSqlConfig = SqlRunnerChartConfig & {
@@ -104,6 +116,16 @@ export const isBarChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
 ): value is BarChartSqlConfig =>
     !!value && value.type === ChartKind.VERTICAL_BAR;
+
+export const isLineChartSQLConfig = (
+    value: SqlRunnerChartConfig | undefined,
+): value is LineChartSqlConfig => !!value && value.type === ChartKind.LINE;
+
+export const isCartesianChartSQLConfig = (
+    value: SqlRunnerChartConfig | undefined,
+): value is CartesianChartSqlConfig =>
+    !!value &&
+    (value.type === ChartKind.LINE || value.type === ChartKind.VERTICAL_BAR);
 
 export const isPieChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,

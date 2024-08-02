@@ -4,42 +4,39 @@ import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import {
-    setXAxisLabel,
-    setYAxisLabel,
-    setYAxisPosition,
-} from '../store/barChartSlice';
+import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectCurrentCartesianChartState } from '../store/selectors';
 
 const DEBOUNCE_TIME = 500;
 
-export const BarChartStyling = () => {
+export const CartesianChartStyling = ({
+    actions,
+}: {
+    actions: CartesianChartActionsType;
+}) => {
     const dispatch = useAppDispatch();
 
-    const xAxisLabel = useAppSelector(
-        (state) =>
-            state.barChartConfig.config?.display?.xAxis?.label ??
-            state.barChartConfig.config?.fieldConfig?.x?.reference,
-    );
+    const currentConfig = useAppSelector(selectCurrentCartesianChartState);
 
-    const yAxisLabel = useAppSelector(
-        (state) =>
-            state.barChartConfig.config?.display?.yAxis?.[0]?.label ??
-            state.barChartConfig.config?.fieldConfig?.y?.[0]?.reference,
-    );
-    const yAxisPosition = useAppSelector(
-        (state) => state.barChartConfig.config?.display?.yAxis?.[0]?.position,
-    );
+    const xAxisLabel =
+        currentConfig?.config?.display?.xAxis?.label ??
+        currentConfig?.config?.fieldConfig?.x?.reference;
+    const yAxisLabel =
+        currentConfig?.config?.display?.yAxis?.[0]?.label ??
+        currentConfig?.config?.fieldConfig?.y?.[0]?.reference;
+    const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
+
     const onXAxisLabelChange = debounce((label: string) => {
-        dispatch(setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
+        dispatch(actions.setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
     }, DEBOUNCE_TIME);
 
     const onYAxisLabelChange = debounce((label: string) => {
-        dispatch(setYAxisLabel({ index: 0, label }));
+        dispatch(actions.setYAxisLabel({ index: 0, label }));
     }, DEBOUNCE_TIME);
 
     const onYAxisPositionChange = debounce((position: string | undefined) => {
-        dispatch(setYAxisPosition({ index: 0, position }));
+        dispatch(actions.setYAxisPosition({ index: 0, position }));
     }, DEBOUNCE_TIME);
 
     return (

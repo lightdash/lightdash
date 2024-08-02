@@ -726,6 +726,11 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
             yAxisCount: number;
             aggregationTypes: string[];
         };
+        lineChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
         pieChart?: {
             groupByCount: number;
         };

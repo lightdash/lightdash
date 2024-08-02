@@ -1,6 +1,6 @@
 export type RowData = Record<string, unknown>;
 
-export type BarChartData = {
+export type CartesianChartData = {
     results: RowData[];
     xAxisColumn: { reference: string; type: string };
     seriesColumns: string[];
@@ -11,10 +11,12 @@ export type PieChartData = {
 };
 
 export interface ResultsTransformerBase<
-    BarChartConfigType,
+    CartesianChartConfigType,
     PieChartConfigType,
 > {
-    transformBarChartData(config: BarChartConfigType): Promise<BarChartData>;
+    transformCartesianChartData(
+        config: CartesianChartConfigType,
+    ): Promise<CartesianChartData>;
 
     transformPieChartData(config: PieChartConfigType): Promise<PieChartData>;
 }

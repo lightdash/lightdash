@@ -3,7 +3,7 @@ import {
     DimensionType,
     XLayoutType,
     type GroupByLayoutOptions,
-    type SqlTransformBarChartConfig,
+    type SqlTransformCartesianChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
@@ -18,25 +18,19 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AddButton } from '../../../components/VisualizationConfigs/common/AddButton';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import {
-    addYAxisField,
-    removeYAxisField,
-    setGroupByReference,
-    setXAxisReference,
-    setYAxisAggregation,
-    setYAxisReference,
-    unsetGroupByReference,
-} from '../store/barChartSlice';
+import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { BarChartAggregationConfig } from './BarChartAggregationConfig';
+import { cartesianChartSelectors } from '../store/selectors';
+import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
 import { TableFieldIcon } from './TableFields';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlTransformBarChartConfig['y'][number];
+    field: SqlTransformCartesianChartConfig['y'][number];
     yLayoutOptions: YLayoutOptions[];
     isSingle: boolean;
     index: number;
-}> = ({ field, yLayoutOptions, isSingle, index }) => {
+    actions: CartesianChartActionsType;
+}> = ({ field, yLayoutOptions, isSingle, index, actions }) => {
     const { hovered, ref } = useHover();
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -60,14 +54,13 @@ const YFieldsAxisConfig: FC<{
                             />
 
                             <Config.Subheading>
-                                {/* TODO: rename type when we have series type */}
-                                Bar series {index + 1}
+                                Series {index + 1}
                             </Config.Subheading>
                         </Group>
                     </UnstyledButton>
                     <ActionIcon
                         onClick={() => {
-                            dispatch(removeYAxisField(index));
+                            dispatch(actions.removeYAxisField(index));
                         }}
                         sx={{
                             visibility: hovered ? 'visible' : 'hidden',
@@ -106,7 +99,7 @@ const YFieldsAxisConfig: FC<{
                             onChange={(value) => {
                                 if (!value) return;
                                 dispatch(
-                                    setYAxisReference({
+                                    actions.setYAxisReference({
                                         reference: value,
                                         index,
                                         aggregation:
@@ -133,7 +126,7 @@ const YFieldsAxisConfig: FC<{
                         <Config.Group>
                             <Config.Label>Aggregation</Config.Label>
 
-                            <BarChartAggregationConfig
+                            <CartesianChartAggregationConfig
                                 options={
                                     yLayoutOptions.find(
                                         (layout) =>
@@ -144,7 +137,7 @@ const YFieldsAxisConfig: FC<{
                                 aggregation={field.aggregation}
                                 onChangeAggregation={(value) =>
                                     dispatch(
-                                        setYAxisAggregation({
+                                        actions.setYAxisAggregation({
                                             index,
                                             aggregation: value,
                                         }),
@@ -162,9 +155,11 @@ const YFieldsAxisConfig: FC<{
 const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
+    actions,
 }: {
-    field: SqlTransformBarChartConfig['x'];
+    field: SqlTransformCartesianChartConfig['x'];
     xLayoutOptions: XLayoutOptions[];
+    actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -181,7 +176,7 @@ const XFieldAxisConfig = ({
             onChange={(value) => {
                 if (!value) return;
                 dispatch(
-                    setXAxisReference({
+                    actions.setXAxisReference({
                         reference: value,
                         type:
                             xLayoutOptions.find((x) => x.reference === value)
@@ -207,10 +202,12 @@ const XFieldAxisConfig = ({
 
 const GroupByFieldAxisConfig = ({
     field,
-    groupByOptions,
+    groupByOptions = [],
+    actions,
 }: {
     field: undefined | { reference: string };
-    groupByOptions: GroupByLayoutOptions[];
+    groupByOptions?: GroupByLayoutOptions[];
+    actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -230,10 +227,10 @@ const GroupByFieldAxisConfig = ({
             }
             onChange={(value) => {
                 if (!value) {
-                    dispatch(unsetGroupByReference());
+                    dispatch(actions.unsetGroupByReference());
                 } else {
                     dispatch(
-                        setGroupByReference({
+                        actions.setGroupByReference({
                             reference: value,
                         }),
                     );
@@ -255,27 +252,25 @@ const GroupByFieldAxisConfig = ({
     );
 };
 
-export const BarChartFieldConfiguration = () => {
+export const CartesianChartFieldConfiguration = ({
+    actions,
+}: {
+    actions: CartesianChartActionsType;
+}) => {
     const dispatch = useAppDispatch();
     const xLayoutOptions = useAppSelector(
-        (state) => state.barChartConfig.options.xLayoutOptions,
+        cartesianChartSelectors.getXLayoutOptions,
     );
     const yLayoutOptions = useAppSelector(
-        (state) => state.barChartConfig.options.yLayoutOptions,
+        cartesianChartSelectors.getYLayoutOptions,
     );
-
-    const xAxisField = useAppSelector(
-        (state) => state.barChartConfig.config?.fieldConfig?.x,
-    );
-    const yAxisFields = useAppSelector(
-        (state) => state.barChartConfig.config?.fieldConfig?.y,
-    );
-
+    const xAxisField = useAppSelector(cartesianChartSelectors.getXAxisField);
+    const yAxisFields = useAppSelector(cartesianChartSelectors.getYAxisFields);
     const groupByField = useAppSelector(
-        (state) => state.barChartConfig.config?.fieldConfig?.groupBy?.[0],
+        cartesianChartSelectors.getGroupByField,
     );
     const groupByLayoutOptions = useAppSelector(
-        (state) => state.barChartConfig.options.groupByOptions,
+        cartesianChartSelectors.getGroupByLayoutOptions,
     );
 
     return (
@@ -287,6 +282,7 @@ export const BarChartFieldConfiguration = () => {
                         <XFieldAxisConfig
                             field={xAxisField}
                             xLayoutOptions={xLayoutOptions}
+                            actions={actions}
                         />
                     )}
                 </Config.Section>
@@ -296,7 +292,7 @@ export const BarChartFieldConfiguration = () => {
                     <Config.Group>
                         <Config.Heading>{`Y-axis`}</Config.Heading>
                         <AddButton
-                            onClick={() => dispatch(addYAxisField())}
+                            onClick={() => dispatch(actions.addYAxisField())}
                         ></AddButton>
                     </Config.Group>
                     {yLayoutOptions &&
@@ -308,6 +304,7 @@ export const BarChartFieldConfiguration = () => {
                                 yLayoutOptions={yLayoutOptions}
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
+                                actions={actions}
                             />
                         ))}
                 </Config.Section>
@@ -318,6 +315,7 @@ export const BarChartFieldConfiguration = () => {
                     <GroupByFieldAxisConfig
                         field={groupByField}
                         groupByOptions={groupByLayoutOptions}
+                        actions={actions}
                     />
                 </Config.Section>
             </Config>

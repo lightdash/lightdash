@@ -63,7 +63,7 @@ const AggregationItem = forwardRef<
     </Box>
 ));
 
-export const BarChartAggregationConfig: FC<Props> = ({
+export const CartesianChartAggregationConfig: FC<Props> = ({
     options,
     onChangeAggregation,
     aggregation,

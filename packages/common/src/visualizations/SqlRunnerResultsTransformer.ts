@@ -1,6 +1,6 @@
 import { DimensionType, MetricType } from '../types/field';
 import {
-    type BarChartData,
+    type CartesianChartData,
     type PieChartData,
     type ResultsTransformerBase,
     type RowData,
@@ -43,7 +43,7 @@ export type GroupByLayoutOptions = {
     reference: string;
 };
 
-export type BarChartDisplay = {
+export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
         type: XLayoutType;
@@ -59,7 +59,7 @@ export type BarChartDisplay = {
     };
 };
 
-export type SqlTransformBarChartConfig = {
+export type SqlTransformCartesianChartConfig = {
     x: {
         reference: string;
         type: XLayoutType;
@@ -154,11 +154,10 @@ type SqlRunnerResultsTransformerDeps = {
     rows: RowData[];
     columns: SqlColumn[];
 };
-
 export class SqlRunnerResultsTransformer
     implements
         ResultsTransformerBase<
-            SqlTransformBarChartConfig,
+            SqlTransformCartesianChartConfig,
             SqlTransformPieChartConfig
         >
 {
@@ -175,7 +174,7 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    barChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
+    cartesianChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
         const options: GroupByLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -194,7 +193,7 @@ export class SqlRunnerResultsTransformer
 
     // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
     // The output 'category' | 'time' is echarts specific. or is this more general?
-    barChartXLayoutOptions(): XLayoutOptions[] {
+    cartesianChartXLayoutOptions(): XLayoutOptions[] {
         const options: XLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -225,7 +224,7 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    barChartYLayoutOptions(): YLayoutOptions[] {
+    cartesianChartYLayoutOptions(): YLayoutOptions[] {
         const options: YLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -253,7 +252,9 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    defaultBarChartLayout(): SqlTransformBarChartConfig | undefined {
+    defaultCartesianChartLayout():
+        | SqlTransformCartesianChartConfig
+        | undefined {
         const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
@@ -275,7 +276,7 @@ export class SqlRunnerResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: SqlTransformBarChartConfig['x'] = {
+        const x: SqlTransformCartesianChartConfig['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
@@ -306,9 +307,9 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    public async transformBarChartData(
-        config: SqlTransformBarChartConfig,
-    ): Promise<BarChartData> {
+    public async transformCartesianChartData(
+        config: SqlTransformCartesianChartConfig,
+    ): Promise<CartesianChartData> {
         const groupByColumns = [config.x.reference];
         const pivotsSql =
             config.groupBy === undefined
@@ -321,9 +322,9 @@ export class SqlRunnerResultsTransformer
 
         const pivotResults = await getPivotedResults({
             rows: this.rows, // data
-            groupByColumns, // bar x location
-            valuesSql, // bar height
-            pivotsSql, // bar grouping
+            groupByColumns, // x location
+            valuesSql, // height
+            pivotsSql, // grouping
             sortsSql,
             duckDBSqlFunction: this.duckDBSqlFunction,
         });
@@ -338,13 +339,13 @@ export class SqlRunnerResultsTransformer
     pieChartGroupFieldOptions(): PieChartDimensionOptions[] {
         // TODO: Either make these option getters more generic or
         // do something specific for pie charts
-        return this.barChartXLayoutOptions();
+        return this.cartesianChartXLayoutOptions();
     }
 
     pieChartMetricFieldOptions(): PieChartMetricOptions[] {
         // TODO: Either make these option getters more generic or
         // do something specific for pie charts
-        return this.barChartYLayoutOptions();
+        return this.cartesianChartYLayoutOptions();
     }
 
     defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {

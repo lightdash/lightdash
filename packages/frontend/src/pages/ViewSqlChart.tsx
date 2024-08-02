@@ -1,8 +1,4 @@
-import {
-    isBarChartSQLConfig,
-    isPieChartSQLConfig,
-    isTableChartSQLConfig,
-} from '@lightdash/common';
+import { isTableChartSQLConfig } from '@lightdash/common';
 import { Loader, Paper, Stack, Tabs } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { useEffect, useState } from 'react';
@@ -131,10 +127,7 @@ const ViewSqlChart = () => {
                                             config={currentVisConfig}
                                         />
                                     )}
-                                    {(isBarChartSQLConfig(currentVisConfig) ||
-                                        isPieChartSQLConfig(
-                                            currentVisConfig,
-                                        )) &&
+                                    {!isTableChartSQLConfig(currentVisConfig) &&
                                         data && (
                                             <SqlRunnerChart
                                                 isLoading={isLoading}

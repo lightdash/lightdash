@@ -1,36 +1,46 @@
 import { friendlyName } from '../types/field';
+import { ChartKind } from '../types/savedCharts';
 import {
-    isBarChartSQLConfig,
+    isCartesianChartSQLConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
 
-export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
+export class CartesianChartDataTransformer<
+    TCartesianChartLayout,
+    TPieChartConfig,
+> {
     private readonly transformer: ResultsTransformerBase<
-        TBarChartLayout,
+        TCartesianChartLayout,
         TPieChartConfig
     >;
 
     constructor(args: {
-        transformer: ResultsTransformerBase<TBarChartLayout, TPieChartConfig>;
+        transformer: ResultsTransformerBase<
+            TCartesianChartLayout,
+            TPieChartConfig
+        >;
     }) {
         this.transformer = args.transformer;
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
-        if (!isBarChartSQLConfig(config)) {
+        if (!isCartesianChartSQLConfig(config)) {
             return {};
         }
 
-        const { fieldConfig, display } = config;
+        const { fieldConfig, display, type } = config;
 
         const transformedData = fieldConfig
-            ? await this.transformer.transformBarChartData(
-                  fieldConfig as TBarChartLayout,
+            ? await this.transformer.transformCartesianChartData(
+                  fieldConfig as TCartesianChartLayout,
               )
             : undefined;
 
         const DEFAULT_X_AXIS_TYPE = 'category';
+
+        const defaultSeriesType =
+            type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         return {
             tooltip: {},
@@ -84,7 +94,7 @@ export class BarChartDataTransformer<TBarChartLayout, TPieChartConfig> {
                     transformedData.xAxisColumn.reference,
                     seriesColumn,
                 ],
-                type: 'bar',
+                type: defaultSeriesType,
                 name:
                     (display?.series && display.series[seriesColumn]?.label) ||
                     friendlyName(seriesColumn),
