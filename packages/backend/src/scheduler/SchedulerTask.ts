@@ -29,7 +29,7 @@ import {
     NotEnoughResults,
     NotificationFrequency,
     NotificationPayloadBase,
-    operatorAction,
+    operatorActionValue,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -1092,9 +1092,11 @@ export default class SchedulerTask {
                     (threshold) =>
                         `- **${friendlyName(
                             threshold.fieldId,
-                        )}** ${operatorAction(threshold.operator)} **${
-                            threshold.value
-                        }**`,
+                        )}** ${operatorActionValue(
+                            threshold.operator,
+                            threshold.value,
+                            '**',
+                        )}`,
                 );
                 const thresholdMessage = `Your results for the chart **${
                     details.name

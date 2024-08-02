@@ -44,6 +44,7 @@ import {
     IconChevronUp,
     IconHelpCircle,
     IconMail,
+    IconPercentage,
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
@@ -510,6 +511,20 @@ const SchedulerForm: FC<Props> = ({
                                         }}
                                         value={
                                             form.values.thresholds?.[0]?.value
+                                        }
+                                        rightSection={
+                                            (form.values.thresholds?.[0]
+                                                ?.operator ===
+                                                ThresholdOperator.INCREASED_BY ||
+                                                form.values.thresholds?.[0]
+                                                    ?.operator ===
+                                                    ThresholdOperator.DECREASED_BY) && (
+                                                <MantineIcon
+                                                    icon={IconPercentage}
+                                                    size="lg"
+                                                    color="blue.4"
+                                                />
+                                            )
                                         }
                                     />
                                 </Group>

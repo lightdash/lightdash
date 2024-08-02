@@ -1,8 +1,7 @@
 import {
-    assertUnreachable,
     friendlyName,
     LightdashPage,
-    operatorAction,
+    operatorActionValue,
     ThresholdOperator,
     ThresholdOptions,
 } from '@lightdash/common';
@@ -214,9 +213,11 @@ export const getChartThresholdAlertBlocks = ({
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `• *${friendlyName(threshold.fieldId)}* ${operatorAction(
+            text: `• *${friendlyName(threshold.fieldId)}* ${operatorActionValue(
                 threshold.operator,
-            )} *${threshold.value}*`,
+                threshold.value,
+                '*',
+            )}`,
         },
     }));
     return getBlocks([
