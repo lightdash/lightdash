@@ -9,7 +9,6 @@ export type SlackSettings = {
     notificationChannel: string | undefined;
     appProfilePhotoUrl: string | undefined;
     slackChannelProjectMappings?: SlackChannelProjectMapping[];
-    isSlackInstalled: boolean;
 };
 
 export const slackRequiredScopes = [

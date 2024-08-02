@@ -37,11 +37,7 @@ export class SlackIntegrationService<
                 organizationUuid,
             );
 
-        if (installation === undefined) {
-            return {
-                isSlackInstalled: false,
-            };
-        }
+        if (installation === undefined) return undefined;
 
         const response: SlackSettings = {
             organizationUuid,
@@ -50,7 +46,6 @@ export class SlackIntegrationService<
             scopes: installation.scopes,
             notificationChannel: installation.notificationChannel,
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
-            isSlackInstalled: true,
         };
         return response;
     }

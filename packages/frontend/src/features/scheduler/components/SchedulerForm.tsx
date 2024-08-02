@@ -338,26 +338,19 @@ const SchedulerForm: FC<Props> = ({
         enabled: isDashboard,
     });
 
-    const slackQuery = useGetSlack();
-    const isSlackInstalled = slackQuery.data?.isSlackInstalled ? true : false
+    const { data: slackInstallation, isInitialLoading } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
+
     const slackState = useMemo(() => {
-        if (slackQuery.isInitialLoading) {
-            return SlackStates.LOADING;
-        } else {
-            if (
-                slackQuery.data?.slackTeamName === undefined ||
-                slackQuery.isError
-            ) {
-                return SlackStates.NO_SLACK;
-            } else if (slackQuery.data && !hasRequiredScopes(slackQuery.data)) {
-                return SlackStates.MISSING_SCOPES;
-            }
-            return SlackStates.SUCCESS;
-        }
-    }, [slackQuery]);
+        if (isInitialLoading) return SlackStates.LOADING;
+        if (!organizationHasSlack) return SlackStates.NO_SLACK;
+        if (!hasRequiredScopes(slackInstallation))
+            return SlackStates.MISSING_SCOPES;
+        return SlackStates.SUCCESS;
+    }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
     const slackChannelsQuery = useSlackChannels({
-        enabled: isSlackInstalled,
+        enabled: organizationHasSlack,
     });
 
     const slackChannels = useMemo(() => {

@@ -99,7 +99,7 @@ import {
     type SchedulerJobStatus,
     type SchedulerWithLogs,
 } from './types/scheduler';
-import { type SlackChannel } from './types/slack';
+import { type ApiSlackChannelsResponse } from './types/slack';
 import { type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
@@ -625,8 +625,8 @@ type ApiResults =
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
+    | ApiSlackChannelsResponse['results']
     | UserActivity
-    | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult

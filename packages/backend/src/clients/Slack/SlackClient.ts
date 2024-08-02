@@ -61,7 +61,9 @@ export class SlackClient {
         return new WebClient(installation.token);
     }
 
-    async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
+    async getChannels(
+        organizationUuid: string,
+    ): Promise<SlackChannel[] | undefined> {
         if (
             cachedChannels[organizationUuid] &&
             new Date().getTime() -
@@ -75,6 +77,13 @@ export class SlackClient {
 
         let nextCursor: string | undefined;
         let allChannels: ConversationsListResponse['channels'] = [];
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) return undefined;
 
         const webClient = await this.getWebClient(organizationUuid);
 
