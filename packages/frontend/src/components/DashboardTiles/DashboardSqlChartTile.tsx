@@ -75,7 +75,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
         <TileBase
             isEditMode={isEditMode}
             chartName={tile.properties.chartName ?? ''}
-            titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${data.chart.slug}`}
+            titleHref={`/projects/${projectUuid}/sql-runner/${data.chart.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}

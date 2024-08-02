@@ -96,9 +96,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUuid}/${
-                                    canSaveSqlChart
-                                        ? 'sql-runner-new'
-                                        : 'sqlRunner'
+                                    canSaveSqlChart ? 'sql-runner' : 'sqlRunner'
                                 }`}
                                 icon={IconTerminal2}
                             />
