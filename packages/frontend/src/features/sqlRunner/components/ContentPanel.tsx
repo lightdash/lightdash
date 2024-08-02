@@ -13,9 +13,9 @@ import {
     Stack,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue, useElementSize, useHotkeys } from '@mantine/hooks';
+import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useDeferredValue, useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -46,11 +46,7 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    // NOTE: debounce is used to avoid the chart from being resized too often
-    const [debouncedInputSectionHeight] = useDebouncedValue(
-        inputSectionHeight,
-        100,
-    );
+    const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
         [resultsHeight, maxResultsHeight],
@@ -243,7 +239,7 @@ export const ContentPanel: FC = () => {
                                                 ChartKind.TABLE
                                                     ? 'block'
                                                     : 'none',
-                                            height: debouncedInputSectionHeight,
+                                            height: deferredInputSectionHeight,
                                             width: '100%',
                                             flex: 1,
                                         }}
