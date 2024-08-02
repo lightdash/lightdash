@@ -1,8 +1,6 @@
-import { NotFound } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
-    AdditionalMetric,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -36,7 +34,6 @@ import {
     DownloadFileType,
     Explore,
     ExploreError,
-    Field,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -64,7 +61,6 @@ import {
     JobStepType,
     JobType,
     MetricQuery,
-    MetricType,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     NotExistsError,
@@ -86,6 +82,7 @@ import {
     SpaceQuery,
     SpaceSummary,
     SqlColumn,
+    SqlRunnerPayload,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -106,7 +103,6 @@ import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import { ReadStream } from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
@@ -1769,6 +1765,7 @@ export class ProjectService extends BaseService {
                         userId: user.userUuid,
                         event: 'query.executed',
                         properties: {
+                            organizationId: organizationUuid,
                             projectId: projectUuid,
                             hasExampleMetric,
                             dimensionsCount: metricQuery.dimensions.length,
@@ -1909,11 +1906,14 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        await this.analytics.track({
+        this.analytics.track({
             userId: user.userUuid,
-            event: 'sql.executed',
+            event: 'query.executed',
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                usingStreaming: false,
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -2016,11 +2016,13 @@ export class ProjectService extends BaseService {
         return serverUrl;
     }
 
-    async streamSqlQueryIntoFile(
-        userUuid: string,
-        projectUuid: string,
-        sql: string,
-    ): Promise<{
+    async streamSqlQueryIntoFile({
+        userUuid,
+        projectUuid,
+        sql,
+        sqlChartUuid,
+        context,
+    }: SqlRunnerPayload): Promise<{
         fileUrl: string;
         columns: SqlColumn[];
     }> {
@@ -2030,9 +2032,12 @@ export class ProjectService extends BaseService {
 
         this.analytics.track({
             userId: userUuid,
-            event: 'sql.executed',
+            event: 'query.executed',
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
+                context: context as QueryExecutionContext,
+                sqlChartId: sqlChartUuid,
                 usingStreaming: true,
             },
         });
@@ -2917,37 +2922,6 @@ export class ProjectService extends BaseService {
         await sshTunnel.disconnect();
 
         return warehouseCatalog[database][schema][tableName];
-    }
-
-    async scheduleSqlJob(
-        user: SessionUser,
-        projectUuid: string,
-        sql: string,
-    ): Promise<{ jobId: string }> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot('create', 'Job') ||
-            user.ability.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const jobId = await this.schedulerClient.runSql({
-            userUuid: user.userUuid,
-            organizationUuid,
-            projectUuid,
-            sql,
-        });
-
-        return { jobId };
     }
 
     async getTablesConfiguration(
