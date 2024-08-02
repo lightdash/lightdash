@@ -22,6 +22,8 @@ export type SqlRunnerPayload = {
     sql: string;
     userUuid: string;
     organizationUuid: string | undefined;
+    sqlChartUuid?: string;
+    context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
 };
 
 export type SqlRunnerBody = {

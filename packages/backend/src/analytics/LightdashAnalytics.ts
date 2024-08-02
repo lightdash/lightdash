@@ -71,13 +71,6 @@ type DbtCloudIntegration = BaseTrack & {
     };
 };
 
-type SqlExecutedEvent = BaseTrack & {
-    event: 'sql.executed';
-    properties: {
-        projectId: string;
-    };
-};
-
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
@@ -162,6 +155,8 @@ export enum QueryExecutionContext {
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
     EXPLORE = 'exploreView',
     CHART = 'chartView',
+    SQL_CHART = 'sqlChartView',
+    SQL_RUNNER = 'sqlRunner',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
@@ -187,33 +182,42 @@ export const getContextFromHeader = (req: Request) => {
     }
 };
 
+type MetricQueryExecutionProperties = {
+    chartId?: string;
+    metricsCount: number;
+    dimensionsCount: number;
+    tableCalculationsCount: number;
+    tableCalculationsPercentFormatCount: number;
+    tableCalculationsCurrencyFormatCount: number;
+    tableCalculationsNumberFormatCount: number;
+    filtersCount: number;
+    sortsCount: number;
+    hasExampleMetric: boolean;
+    additionalMetricsCount: number;
+    additionalMetricsFilterCount: number;
+    additionalMetricsPercentFormatCount: number;
+    additionalMetricsCurrencyFormatCount: number;
+    additionalMetricsNumberFormatCount: number;
+    numFixedWidthBinCustomDimensions: number;
+    numFixedBinsBinCustomDimensions: number;
+    numCustomRangeBinCustomDimensions: number;
+    numCustomSqlDimensions: number;
+    dateZoomGranularity: string | null;
+    timezone?: string;
+};
+
+type SqlExecutionProperties = {
+    sqlChartId?: string;
+    usingStreaming: boolean;
+};
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
-        projectId: string;
-        metricsCount: number;
-        dimensionsCount: number;
-        tableCalculationsCount: number;
-        tableCalculationsPercentFormatCount: number;
-        tableCalculationsCurrencyFormatCount: number;
-        tableCalculationsNumberFormatCount: number;
-        filtersCount: number;
-        sortsCount: number;
-        hasExampleMetric: boolean;
-        additionalMetricsCount: number;
-        additionalMetricsFilterCount: number;
-        additionalMetricsPercentFormatCount: number;
-        additionalMetricsCurrencyFormatCount: number;
-        additionalMetricsNumberFormatCount: number;
         context: QueryExecutionContext;
-        numFixedWidthBinCustomDimensions: number;
-        numFixedBinsBinCustomDimensions: number;
-        numCustomRangeBinCustomDimensions: number;
-        numCustomSqlDimensions: number;
-        dateZoomGranularity: string | null;
-        timezone?: string;
-        chartId?: string;
-    };
+        organizationId: string;
+        projectId: string;
+    } & (MetricQueryExecutionProperties | SqlExecutionProperties);
 };
 
 type CreateOrganizationEvent = BaseTrack & {
@@ -1028,7 +1032,6 @@ type TypedEvent =
     | UserWarehouseCredentialsDeleteEvent
     | LoginEvent
     | IdentityLinkedEvent
-    | SqlExecutedEvent
     | DbtCloudIntegration
     | PersonalAccessTokenEvent
     | DuplicatedChartCreatedEvent
@@ -1080,6 +1083,7 @@ type LightdashAnalyticsArguments = {
     dataPlaneUrl: string;
     options?: ConstructorParameters<typeof Analytics>[2];
 };
+
 export class LightdashAnalytics extends Analytics {
     private readonly lightdashConfig: LightdashConfig;
 

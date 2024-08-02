@@ -103,8 +103,8 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getProjectService()
-                .scheduleSqlJob(req.user!, projectUuid, body.sql),
+                .getSavedSqlService()
+                .getResultJobFromSql(req.user!, projectUuid, body.sql),
         };
     }
 
@@ -211,7 +211,7 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getResultJob(req.user!, projectUuid, slug),
+                .getSqlChartResultJob(req.user!, projectUuid, slug),
         };
     }
 

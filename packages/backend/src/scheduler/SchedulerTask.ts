@@ -896,11 +896,7 @@ export default class SchedulerTask {
             },
             async () => {
                 const { fileUrl, columns } =
-                    await this.projectService.streamSqlQueryIntoFile(
-                        payload.userUuid,
-                        payload.projectUuid,
-                        payload.sql,
-                    );
+                    await this.projectService.streamSqlQueryIntoFile(payload);
                 return { fileUrl, columns };
             },
         );

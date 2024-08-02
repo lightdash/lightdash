@@ -130,7 +130,7 @@ describe('ProjectService', () => {
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'sql.executed',
+                event: 'query.executed',
             }),
         );
     });
