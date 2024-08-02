@@ -1,3 +1,10 @@
+## [0.1202.1](https://github.com/lightdash/lightdash/compare/0.1202.0...0.1202.1) (2024-08-02)
+
+
+### Bug Fixes
+
+* snowflake override warehouse ([#10976](https://github.com/lightdash/lightdash/issues/10976)) ([9aa92d9](https://github.com/lightdash/lightdash/commit/9aa92d9e48747143c26f513733e5e215fa62ea92))
+
 # [0.1202.0](https://github.com/lightdash/lightdash/compare/0.1201.0...0.1202.0) (2024-08-02)
 
 
