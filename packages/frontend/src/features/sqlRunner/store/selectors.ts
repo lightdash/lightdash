@@ -46,7 +46,7 @@ export const selectCurrentChartConfig = createSelector(
     },
 );
 
-const selectCurrentCartesianChartState = createSelector(
+export const selectCurrentCartesianChartState = createSelector(
     [
         selectSqlRunnerState,
         selectBarChartConfigState,

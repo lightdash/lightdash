@@ -6,6 +6,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectCurrentCartesianChartState } from '../store/selectors';
 
 const DEBOUNCE_TIME = 500;
 
@@ -16,20 +17,16 @@ export const LineChartStyling = ({
 }) => {
     const dispatch = useAppDispatch();
 
-    const xAxisLabel = useAppSelector(
-        (state) =>
-            state.lineChartConfig.config?.display?.xAxis?.label ??
-            state.lineChartConfig.config?.fieldConfig?.x?.reference,
-    );
+    const currentConfig = useAppSelector(selectCurrentCartesianChartState);
 
-    const yAxisLabel = useAppSelector(
-        (state) =>
-            state.lineChartConfig.config?.display?.yAxis?.[0]?.label ??
-            state.lineChartConfig.config?.fieldConfig?.y?.[0]?.reference,
-    );
-    const yAxisPosition = useAppSelector(
-        (state) => state.lineChartConfig.config?.display?.yAxis?.[0]?.position,
-    );
+    const xAxisLabel =
+        currentConfig?.config?.display?.xAxis?.label ??
+        currentConfig?.config?.fieldConfig?.x?.reference;
+    const yAxisLabel =
+        currentConfig?.config?.display?.yAxis?.[0]?.label ??
+        currentConfig?.config?.fieldConfig?.y?.[0]?.reference;
+    const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
+
     const onXAxisLabelChange = debounce((label: string) => {
         dispatch(actions.setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
     }, DEBOUNCE_TIME);
