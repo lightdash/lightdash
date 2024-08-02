@@ -98,7 +98,7 @@ export const HeaderView: FC = () => {
                                         icon={IconPencil}
                                         onClick={() =>
                                             history.push(
-                                                `/projects/${projectUuid}/sql-runner-new/saved/${savedSqlChart.slug}/edit`,
+                                                `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
                                             )
                                         }
                                     />

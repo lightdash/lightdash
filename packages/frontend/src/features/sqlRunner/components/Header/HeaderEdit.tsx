@@ -120,7 +120,7 @@ export const HeaderEdit: FC = () => {
                                     icon={IconArrowBackUp}
                                     onClick={() =>
                                         history.push(
-                                            `/projects/${savedSqlChart.project.projectUuid}/sql-runner-new/saved/${savedSqlChart.slug}`,
+                                            `/projects/${savedSqlChart.project.projectUuid}/sql-runner/${savedSqlChart.slug}`,
                                         )
                                     }
                                 />

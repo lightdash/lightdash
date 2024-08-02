@@ -229,7 +229,7 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
-                                        path="/projects/:projectUuid/sql-runner-new/saved/:slug"
+                                        path="/projects/:projectUuid/sql-runner/:slug"
                                     >
                                         <NavBar />
 
@@ -238,14 +238,17 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
-                                        path="/projects/:projectUuid/sql-runner-new/saved/:slug/edit"
+                                        path="/projects/:projectUuid/sql-runner/:slug/edit"
                                     >
                                         <NavBar />
 
                                         <SqlRunnerNew />
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/sql-runner-new">
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner"
+                                    >
                                         <NavBar />
 
                                         <SqlRunnerNew />
