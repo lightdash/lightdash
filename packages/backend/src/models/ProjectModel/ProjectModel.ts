@@ -74,10 +74,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import {
-    convertExploresToCatalog,
-    ExploreCatalog,
-} from '../CatalogModel/utils';
+import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -763,7 +760,7 @@ export class ProjectModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ): Promise<[DbCatalogIn, ExploreCatalog][]> {
+    ): Promise<DbCatalogIn[]> {
         if (cachedExplores.length === 0) {
             return [];
         }
@@ -804,9 +801,7 @@ export class ProjectModel {
                             }),
                     );
 
-                    return transactionInserts.map<
-                        [DbCatalogIn, ExploreCatalog]
-                    >((insert, index) => [insert, catalogItems[index]]);
+                    return transactionInserts;
                 },
             );
 
