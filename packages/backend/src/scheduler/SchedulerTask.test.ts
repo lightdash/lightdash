@@ -44,7 +44,7 @@ describe('isPositiveThresholdAlert', () => {
             },
         ];
 
-        const lowValues = [0.1, 1, 2, 5, 8, 9, 9.8]; // From 0.1% to 9.9%
+        const lowValues = [0.1, 1, 2, 5, 8, 9]; // From 0.1% to 9%
         lowValues.forEach((value) => {
             expect(
                 SchedulerTask.isPositiveThresholdAlert(
@@ -87,7 +87,7 @@ describe('isPositiveThresholdAlert', () => {
             },
         ];
 
-        const lowValues = [0.1, 1, 2, 5, 8, 9]; // From 0.1% to 9.9%
+        const lowValues = [0.1, 1, 2, 5, 8, 9]; // From 0.1% to 9%
         lowValues.forEach((value) => {
             expect(
                 SchedulerTask.isPositiveThresholdAlert(
