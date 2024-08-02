@@ -86,6 +86,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 pos="relative"
                 h="100%"
                 mah="100%"
+                sx={{ zIndex: 1 }}
                 {...containerProps}
             >
                 <Transition
