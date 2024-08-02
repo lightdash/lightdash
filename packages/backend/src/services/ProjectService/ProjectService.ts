@@ -19,6 +19,7 @@ import {
     CreateJob,
     CreateProject,
     CreateProjectMember,
+    CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -340,12 +341,23 @@ export class ProjectService extends BaseService {
             return { warehouseClient: existingClient, sshTunnel };
         }
         // otherwise create a new client and cache for future use
+        const getSnowflakeWarehouse = (
+            snowflakeCredentials: CreateSnowflakeCredentials,
+        ): string => {
+            if (snowflakeCredentials.override) {
+                this.logger.debug(
+                    `Overriding snowflake warehouse ${snowflakeVirtualWarehouse} with ${snowflakeCredentials.warehouse}`,
+                );
+                return snowflakeCredentials.warehouse;
+            }
+            return snowflakeVirtualWarehouse || snowflakeCredentials.warehouse;
+        };
+
         const credentialsWithWarehouse =
             credentials.type === WarehouseTypes.SNOWFLAKE
                 ? {
                       ...warehouseSshCredentials,
-                      warehouse:
-                          snowflakeVirtualWarehouse || credentials.warehouse,
+                      warehouse: getSnowflakeWarehouse(credentials),
                   }
                 : warehouseSshCredentials;
         const client = this.projectModel.getWarehouseClientFromCredentials(

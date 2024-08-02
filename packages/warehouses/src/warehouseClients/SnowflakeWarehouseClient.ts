@@ -188,10 +188,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
         try {
-            if (
-                this.connectionOptions.warehouse &&
-                !this.credentials.override
-            ) {
+            if (this.connectionOptions.warehouse) {
                 // eslint-disable-next-line no-console
                 console.debug(
                     `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
