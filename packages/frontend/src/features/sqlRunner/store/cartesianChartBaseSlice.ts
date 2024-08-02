@@ -33,7 +33,7 @@ const initialState: InitialState = {
 };
 
 export const cartesianChartConfigSlice = createSlice({
-    name: 'cartesianChartConfig',
+    name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
         setXAxisReference: (

@@ -62,4 +62,4 @@ export const barChartConfigSlice = createSlice({
     },
 });
 
-export type barChartActionsType = typeof barChartConfigSlice.actions;
+export type BarChartActionsType = typeof barChartConfigSlice.actions;

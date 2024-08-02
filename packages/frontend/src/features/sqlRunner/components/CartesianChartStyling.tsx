@@ -10,7 +10,7 @@ import { selectCurrentCartesianChartState } from '../store/selectors';
 
 const DEBOUNCE_TIME = 500;
 
-export const LineChartStyling = ({
+export const CartesianChartStyling = ({
     actions,
 }: {
     actions: CartesianChartActionsType;

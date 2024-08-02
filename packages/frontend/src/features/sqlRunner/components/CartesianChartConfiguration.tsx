@@ -7,7 +7,7 @@ import { barChartConfigSlice } from '../store/barChartSlice';
 import { useAppSelector } from '../store/hooks';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
-import { LineChartStyling } from './CartesianChartStyling';
+import { CartesianChartStyling } from './CartesianChartStyling';
 
 export const CartesianChartConfig = () => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
@@ -70,7 +70,7 @@ export const CartesianChartConfig = () => {
                 </ActionIcon>
             </Group>
 
-            {isStylingOpen && <LineChartStyling actions={actions} />}
+            {isStylingOpen && <CartesianChartStyling actions={actions} />}
         </Stack>
     );
 };

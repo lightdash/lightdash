@@ -29,7 +29,7 @@ const YFieldsAxisConfig: FC<{
     yLayoutOptions: YLayoutOptions[];
     isSingle: boolean;
     index: number;
-    actions: any;
+    actions: CartesianChartActionsType;
 }> = ({ field, yLayoutOptions, isSingle, index, actions }) => {
     const { hovered, ref } = useHover();
     const dispatch = useAppDispatch();
@@ -159,7 +159,7 @@ const XFieldAxisConfig = ({
 }: {
     field: SqlTransformCartesianChartConfig['x'];
     xLayoutOptions: XLayoutOptions[];
-    actions: any;
+    actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);

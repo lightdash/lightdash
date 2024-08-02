@@ -61,4 +61,4 @@ export const lineChartConfigSlice = createSlice({
     },
 });
 
-export type lineChartActionsType = typeof lineChartConfigSlice.actions;
+export type LineChartActionsType = typeof lineChartConfigSlice.actions;
