@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
+import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Sidebar } from '../features/sqlRunner';
@@ -43,7 +44,7 @@ const SqlRunnerNew = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    const { data } = useSavedSqlChart({
+    const { data, error: chartError } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
     });
@@ -64,8 +65,8 @@ const SqlRunnerNew = () => {
         }
     }, [dispatch, project?.warehouseConnection?.type]);
 
-    if (!projectUuid) {
-        return null;
+    if (chartError) {
+        return <ErrorState error={chartError.error} />;
     }
 
     return (
