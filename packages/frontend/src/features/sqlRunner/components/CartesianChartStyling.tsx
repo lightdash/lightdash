@@ -1,6 +1,8 @@
 import { XLayoutType } from '@lightdash/common';
-import { Select, Stack, TextInput } from '@mantine/core';
+import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
+import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -61,14 +63,38 @@ export const LineChartStyling = ({
                         radius="md"
                         onChange={(e) => onYAxisLabelChange(e.target.value)}
                     />
-                    <Select
-                        data={['left', 'right']}
-                        defaultValue={yAxisPosition}
-                        onChange={(value) =>
-                            onYAxisPositionChange(value || undefined)
-                        }
-                        placeholder={'Change the y-axis position'}
-                    />
+                    <Config.Group>
+                        <Config.Label>{`Position`}</Config.Label>
+                        <SegmentedControl
+                            radius="md"
+                            data={[
+                                {
+                                    value: 'left',
+                                    label: (
+                                        <Group spacing="xs" noWrap>
+                                            <MantineIcon icon={IconAlignLeft} />
+                                            <Text>Left</Text>
+                                        </Group>
+                                    ),
+                                },
+                                {
+                                    value: 'right',
+                                    label: (
+                                        <Group spacing="xs" noWrap>
+                                            <Text>Right</Text>
+                                            <MantineIcon
+                                                icon={IconAlignRight}
+                                            />
+                                        </Group>
+                                    ),
+                                },
+                            ]}
+                            defaultValue={yAxisPosition}
+                            onChange={(value) =>
+                                onYAxisPositionChange(value || undefined)
+                            }
+                        />
+                    </Config.Group>
                 </Config.Section>
             </Config>
         </Stack>

@@ -80,16 +80,14 @@ export const cartesianChartConfigSlice = createSlice({
         setYAxisAggregation: (
             { config },
             action: PayloadAction<{
-                reference: string;
+                index: number;
                 aggregation: AggregationOptions;
             }>,
         ) => {
             if (!config) return;
             if (!config?.fieldConfig?.y) return;
 
-            const yAxis = config.fieldConfig.y.find(
-                (axis) => axis.reference === action.payload.reference,
-            );
+            const yAxis = config.fieldConfig.y[action.payload.index];
             if (yAxis) {
                 yAxis.aggregation = action.payload.aggregation;
             }

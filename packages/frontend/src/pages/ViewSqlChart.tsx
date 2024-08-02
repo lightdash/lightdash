@@ -11,7 +11,7 @@ import { Header } from '../features/sqlRunner/components/Header';
 import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
-import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
+import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -35,17 +35,22 @@ const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
-    );
     const resultsTableConfig = useAppSelector(
         (state) => state.sqlRunner.resultsTableConfig,
     );
-
     const currentVisConfig = useAppSelector((state) =>
         selectCurrentChartConfig(state),
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const { error: chartError, data: sqlChart } = useSavedSqlChart({
+        projectUuid,
+        slug: params.slug,
+    });
+    const {
+        data,
+        isLoading,
+        error: resultsError,
+    } = useSqlChartResults(projectUuid, params.slug);
 
     useUnmount(() => {
         dispatch(resetState());
@@ -57,35 +62,17 @@ const ViewSqlChart = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    const { error: chartError, data: sqlChart } = useSavedSqlChart({
-        projectUuid,
-        slug: params.slug,
-    });
-
     useEffect(() => {
         if (sqlChart) {
             dispatch(setSavedChartData(sqlChart));
         }
     }, [dispatch, sqlChart]);
 
-    const {
-        data,
-        isLoading,
-        error: chartAndResultsError,
-    } = useSqlChartAndResults({
-        projectUuid,
-        savedSqlUuid: savedSqlUuid ?? null,
-    });
-
-    if (!projectUuid) {
-        return null;
-    }
-
     if (chartError) {
         return <ErrorState error={chartError.error} />;
     }
-    if (chartAndResultsError) {
-        return <ErrorState error={chartAndResultsError.error} />;
+    if (resultsError) {
+        return <ErrorState error={resultsError.error} />;
     }
 
     return (
@@ -128,7 +115,7 @@ const ViewSqlChart = () => {
                         </Tabs.List>
                     </Tabs>
 
-                    {data?.results && !isLoading && (
+                    {data && !isLoading && (
                         <Paper shadow="none" radius={0} px={0} py="sm">
                             {activeTab === TabOption.CHART && currentVisConfig && (
                                 <>
@@ -136,7 +123,7 @@ const ViewSqlChart = () => {
                                         currentVisConfig,
                                     ) && (
                                         <Table
-                                            data={data.results}
+                                            data={data}
                                             config={currentVisConfig}
                                         />
                                     )}
@@ -145,7 +132,7 @@ const ViewSqlChart = () => {
                                             <SqlRunnerChart
                                                 isLoading={isLoading}
                                                 data={{
-                                                    results: data.results,
+                                                    results: data,
                                                     columns: [],
                                                 }}
                                                 config={currentVisConfig}
@@ -155,7 +142,7 @@ const ViewSqlChart = () => {
                             )}
                             {activeTab === TabOption.RESULTS && (
                                 <Table
-                                    data={data.results}
+                                    data={data}
                                     config={resultsTableConfig}
                                 />
                             )}

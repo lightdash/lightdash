@@ -1,3 +1,24 @@
+# [0.1201.0](https://github.com/lightdash/lightdash/compare/0.1200.3...0.1201.0) (2024-08-01)
+
+
+### Features
+
+* endpoint to fetch SQL chart results from slug ([#10965](https://github.com/lightdash/lightdash/issues/10965)) ([8b19360](https://github.com/lightdash/lightdash/commit/8b193600adfa4698e7ad4b0aea9cd03d6fea7165))
+
+## [0.1200.3](https://github.com/lightdash/lightdash/compare/0.1200.2...0.1200.3) (2024-08-01)
+
+
+### Bug Fixes
+
+* dont use conditional visibility for table overflows ([#10966](https://github.com/lightdash/lightdash/issues/10966)) ([221be77](https://github.com/lightdash/lightdash/commit/221be77750fa1ed140655c688a579ba02d2367ff))
+
+## [0.1200.2](https://github.com/lightdash/lightdash/compare/0.1200.1...0.1200.2) (2024-08-01)
+
+
+### Bug Fixes
+
+* change y axis aggregation based on index instead of reference ([#10961](https://github.com/lightdash/lightdash/issues/10961)) ([62f772c](https://github.com/lightdash/lightdash/commit/62f772cf2cc04e48a44b2049a15288471647aff8))
+
 ## [0.1200.1](https://github.com/lightdash/lightdash/compare/0.1200.0...0.1200.1) (2024-08-01)
 
 
