@@ -54,7 +54,11 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        return new WebClient(installation?.token);
+        if (!installation) {
+            throw new Error('Could not find slack installation');
+        }
+
+        return new WebClient(installation.token);
     }
 
     async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
@@ -173,10 +177,17 @@ export class SlackClient {
     ) {
         const { organizationUuid, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
-        const { appProfilePhotoUrl } =
-            (await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
-            )) || {};
+            );
+
+        if (!installation) {
+            throw new Error('Could not find slack installation');
+        }
+
+        const { appProfilePhotoUrl } = installation;
 
         return webClient.chat
             .postMessage({

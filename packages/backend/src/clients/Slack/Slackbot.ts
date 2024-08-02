@@ -189,7 +189,11 @@ export class SlackBot {
                             details?.organizationUuid,
                         );
 
-                    appProfilePhotoUrl = installation?.appProfilePhotoUrl;
+                    if (!installation) {
+                        throw new Error('Could not find slack installation');
+                    }
+
+                    appProfilePhotoUrl = installation.appProfilePhotoUrl;
 
                     const { imageUrl } = await this.unfurlService.unfurlImage({
                         url: details.minimalUrl,
