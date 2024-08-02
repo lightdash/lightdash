@@ -1,3 +1,15 @@
+# [0.1202.0](https://github.com/lightdash/lightdash/compare/0.1201.0...0.1202.0) (2024-08-02)
+
+
+### Bug Fixes
+
+* page sidebar above center main section ([#10982](https://github.com/lightdash/lightdash/issues/10982)) ([fe50c22](https://github.com/lightdash/lightdash/commit/fe50c227d63ebce1e83b0dca9b25215140192e40))
+
+
+### Features
+
+* update SQL runner routes ([#10973](https://github.com/lightdash/lightdash/issues/10973)) ([89ef633](https://github.com/lightdash/lightdash/commit/89ef6338bab894df39e6526e40f80e6628275054))
+
 # [0.1201.0](https://github.com/lightdash/lightdash/compare/0.1200.3...0.1201.0) (2024-08-01)
 
 
