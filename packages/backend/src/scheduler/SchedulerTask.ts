@@ -1257,22 +1257,22 @@ export default class SchedulerTask {
             }
             return parseFloat(result[fieldId]);
         };
-        const firstValue = getValue(0);
+        const latestValue = getValue(0);
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
-                return firstValue > thresholdValue;
+                return latestValue > thresholdValue;
             case ThresholdOperator.LESS_THAN:
-                return firstValue < thresholdValue;
+                return latestValue < thresholdValue;
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
-                const secondValue = getValue(1);
+                const previousValue = getValue(1);
                 if (operator === ThresholdOperator.INCREASED_BY) {
                     const percentageIncrease =
-                        ((firstValue - secondValue) / secondValue) * 100;
+                        ((latestValue - previousValue) / previousValue) * 100;
                     return percentageIncrease > thresholdValue;
                 }
                 const percentageDecrease =
-                    ((secondValue - firstValue) / secondValue) * 100;
+                    ((previousValue - latestValue) / previousValue) * 100;
                 return percentageDecrease > thresholdValue;
 
             default:
