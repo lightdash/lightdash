@@ -1,3 +1,11 @@
+## [0.1202.4](https://github.com/lightdash/lightdash/compare/0.1202.3...0.1202.4) (2024-08-02)
+
+
+### Bug Fixes
+
+* increase by and decreased by alert threshold ([#10998](https://github.com/lightdash/lightdash/issues/10998)) ([cdedf3c](https://github.com/lightdash/lightdash/commit/cdedf3cfd37e125c5918249ceb15d3807ced6907))
+* threshold alert copy and icon ([#11000](https://github.com/lightdash/lightdash/issues/11000)) ([15fe968](https://github.com/lightdash/lightdash/commit/15fe9689c00db7c692d2bd235adb0b8a35cf23dc))
+
 ## [0.1202.3](https://github.com/lightdash/lightdash/compare/0.1202.2...0.1202.3) (2024-08-02)
 
 
