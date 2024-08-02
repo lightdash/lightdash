@@ -1,8 +1,9 @@
-import { NotEnoughResults } from '@lightdash/common';
+import { NotEnoughResults, ThresholdOperator } from '@lightdash/common';
 import SchedulerTask from './SchedulerTask';
 import {
     resultsWithOneRow,
-    resultsWithTwoRows,
+    resultsWithTwoDecreasingRows,
+    resultsWithTwoIncreasingRows,
     thresholdIncreasedByMock,
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
@@ -32,11 +33,77 @@ describe('isPositiveThresholdAlert', () => {
                 resultsWithOneRow,
             ),
         ).toBe(true);
+    });
+
+    it('should test threshold INCREASED_BY', () => {
+        const increasedByRevenue = (value: number) => [
+            {
+                operator: ThresholdOperator.INCREASED_BY,
+                fieldId: 'revenue',
+                value,
+            },
+        ];
+
+        const lowValues = [0.1, 1, 2, 5, 8, 9, 9.8]; // From 0.1% to 9.9%
+        lowValues.forEach((value) => {
+            expect(
+                SchedulerTask.isPositiveThresholdAlert(
+                    increasedByRevenue(value),
+                    resultsWithTwoIncreasingRows,
+                ),
+            ).toBe(true);
+        });
+        const highValues = [10, 10.1, 15, 50, 100]; // From 10% to 100%
+        highValues.forEach((value) => {
+            expect(
+                SchedulerTask.isPositiveThresholdAlert(
+                    increasedByRevenue(value),
+                    resultsWithTwoIncreasingRows,
+                ),
+            ).toBe(false);
+        });
+
+        // Test decrease
+
         expect(
             SchedulerTask.isPositiveThresholdAlert(
-                [thresholdIncreasedByMock],
-                resultsWithTwoRows,
+                increasedByRevenue(0.05),
+                resultsWithTwoDecreasingRows,
             ),
-        ).toBe(true);
+        ).toBe(false);
+        expect(
+            SchedulerTask.isPositiveThresholdAlert(
+                increasedByRevenue(0.8),
+                resultsWithTwoDecreasingRows,
+            ),
+        ).toBe(false);
+    });
+    it('should test threshold DECREASED_BY', () => {
+        const decreasedByRevenue = (value: number) => [
+            {
+                operator: ThresholdOperator.DECREASED_BY,
+                fieldId: 'revenue',
+                value,
+            },
+        ];
+
+        const lowValues = [0.1, 1, 2, 5, 8, 9]; // From 0.1% to 9.9%
+        lowValues.forEach((value) => {
+            expect(
+                SchedulerTask.isPositiveThresholdAlert(
+                    decreasedByRevenue(value),
+                    resultsWithTwoDecreasingRows,
+                ),
+            ).toBe(true);
+        });
+        const highValues = [10, 10.1, 15, 50, 100]; // From 10% to 100%
+        highValues.forEach((value) => {
+            expect(
+                SchedulerTask.isPositiveThresholdAlert(
+                    decreasedByRevenue(value),
+                    resultsWithTwoDecreasingRows,
+                ),
+            ).toBe(false);
+        });
     });
 });

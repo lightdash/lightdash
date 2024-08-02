@@ -1266,11 +1266,14 @@ export default class SchedulerTask {
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
                 const secondValue = getValue(1);
-                const increase = firstValue - secondValue;
                 if (operator === ThresholdOperator.INCREASED_BY) {
-                    return thresholdValue < increase / (secondValue * 100);
+                    const percentageIncrease =
+                        ((firstValue - secondValue) / secondValue) * 100;
+                    return percentageIncrease > thresholdValue;
                 }
-                return thresholdValue > increase / (secondValue * 100);
+                const percentageDecrease =
+                    ((secondValue - firstValue) / secondValue) * 100;
+                return percentageDecrease > thresholdValue;
 
             default:
                 assertUnreachable(
