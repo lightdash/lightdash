@@ -645,14 +645,28 @@ const Dashboard: FC = () => {
                             haveTabsChanged
                         }
                         onAddTiles={handleAddTiles}
-                        onSaveDashboard={() =>
+                        onSaveDashboard={() => {
+                            const dimensionFilters = [
+                                ...dashboardFilters.dimensions,
+                                ...dashboardTemporaryFilters.dimensions,
+                            ];
+                            // Reset value for required filter on save dashboard
+                            const requiredFiltersWithoutValues =
+                                dimensionFilters.map((filter) => {
+                                    if (filter.required) {
+                                        return {
+                                            ...filter,
+                                            disabled: true,
+                                            values: [],
+                                        };
+                                    }
+                                    return filter;
+                                });
+
                             mutate({
                                 tiles: dashboardTiles,
                                 filters: {
-                                    dimensions: [
-                                        ...dashboardFilters.dimensions,
-                                        ...dashboardTemporaryFilters.dimensions,
-                                    ],
+                                    dimensions: requiredFiltersWithoutValues,
                                     metrics: [
                                         ...dashboardFilters.metrics,
                                         ...dashboardTemporaryFilters.metrics,
@@ -664,8 +678,8 @@ const Dashboard: FC = () => {
                                 },
                                 name: dashboard.name,
                                 tabs: dashboardTabs,
-                            })
-                        }
+                            });
+                        }}
                         onCancel={handleCancel}
                         onMoveToSpace={handleMoveDashboardToSpace}
                         onDuplicate={duplicateModalHandlers.open}
