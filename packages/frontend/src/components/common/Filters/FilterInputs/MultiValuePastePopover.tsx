@@ -32,7 +32,6 @@ const MultiValuePastePopUp: FC<PropsWithChildren<Props>> = ({
             position="top-start"
             withArrow
             arrowPosition="side"
-            closeOnEscape
         >
             <Popover.Target>{children}</Popover.Target>
             <Popover.Dropdown>
