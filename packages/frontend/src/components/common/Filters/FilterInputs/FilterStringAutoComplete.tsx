@@ -97,7 +97,6 @@ const FilterStringAutoComplete: FC<Props> = ({
     const handlePaste = useCallback(
         (event: React.ClipboardEvent<HTMLInputElement>) => {
             const clipboardData = event.clipboardData.getData('Text');
-            console.log('onPaste2', clipboardData);
             if (clipboardData.includes(',') || clipboardData.includes('\n')) {
                 setTempPasteValues(clipboardData);
                 setPastePopUpOpened(true);
