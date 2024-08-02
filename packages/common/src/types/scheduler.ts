@@ -75,16 +75,20 @@ export enum NotificationFrequency {
     ONCE = 'once',
     // DAILY = 'daily',
 }
-export const operatorAction = (operator: ThresholdOperator) => {
+export const operatorActionValue = (
+    operator: ThresholdOperator,
+    value: number | string,
+    highlight: string = '*',
+) => {
     switch (operator) {
         case ThresholdOperator.GREATER_THAN:
-            return 'exceeded';
+            return `exceeded ${highlight}${value}${highlight}`;
         case ThresholdOperator.LESS_THAN:
-            return 'fell below';
+            return `fell below ${highlight}${value}${highlight}`;
         case ThresholdOperator.INCREASED_BY:
-            return 'increased by';
+            return `increased by ${highlight}${value}%${highlight} or more`;
         case ThresholdOperator.DECREASED_BY:
-            return 'decreased by';
+            return `decreased by ${highlight}${value}%${highlight} or less`;
         default:
             assertUnreachable(
                 operator,
