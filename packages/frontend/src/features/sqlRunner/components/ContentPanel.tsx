@@ -82,7 +82,7 @@ export const ContentPanel: FC = () => {
     } = useSqlQueryRun({
         onSuccess: (data) => {
             if (data) {
-                dispatch(setSqlRunnerResults({ data, selectedChartType }));
+                dispatch(setSqlRunnerResults(data));
 
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);

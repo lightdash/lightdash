@@ -12,14 +12,14 @@ export const barChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
-            if (action.payload.data.results && action.payload.data.columns) {
+            if (action.payload.results && action.payload.columns) {
                 // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
-                        rows: action.payload.data.results,
-                        columns: action.payload.data.columns,
+                        rows: action.payload.results,
+                        columns: action.payload.columns,
                     });
-                if (action.payload.data.columns) {
+                if (action.payload.columns) {
                     state.options = {
                         xLayoutOptions:
                             sqlRunnerResultsTransformer.cartesianChartXLayoutOptions(),
