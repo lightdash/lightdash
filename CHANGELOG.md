@@ -1,3 +1,10 @@
+## [0.1202.3](https://github.com/lightdash/lightdash/compare/0.1202.2...0.1202.3) (2024-08-02)
+
+
+### Bug Fixes
+
+* e2e test couldn't write to sql editor ([#10989](https://github.com/lightdash/lightdash/issues/10989)) ([0ae440f](https://github.com/lightdash/lightdash/commit/0ae440f8818bf8da4b36b580d01645ca5221ad64))
+
 ## [0.1202.2](https://github.com/lightdash/lightdash/compare/0.1202.1...0.1202.2) (2024-08-02)
 
 
