@@ -1,6 +1,8 @@
 import {
     DEFAULT_AGGREGATION,
     DimensionType,
+    XLayoutType,
+    type GroupByLayoutOptions,
     type SqlTransformBarChartConfig,
     type XLayoutOptions,
     type YLayoutOptions,
@@ -11,10 +13,12 @@ import { type FC } from 'react';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { EditableText } from '../../../components/VisualizationConfigs/common/EditableText';
 import {
+    setGroupByReference,
     setSeriesLabel,
     setXAxisReference,
     setYAxisAggregation,
     setYAxisReference,
+    unsetGroupByReference,
 } from '../store/barChartSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { BarChartAggregationConfig } from './BarChartAggregationConfig';
@@ -22,12 +26,8 @@ import { TableFieldIcon } from './TableFields';
 
 const DEBOUNCE_TIME = 500;
 
-type Axes = SqlTransformBarChartConfig;
-
-// TODO: add y field feature
-
 const YFieldsAxisConfig: FC<{
-    field: Axes['y'][number];
+    field: SqlTransformBarChartConfig['y'][number];
     yLayoutOptions: YLayoutOptions[];
 }> = ({ field, yLayoutOptions }) => {
     const dispatch = useAppDispatch();
@@ -43,6 +43,12 @@ const YFieldsAxisConfig: FC<{
                         label: y.reference,
                     }))}
                     value={field.reference}
+                    error={
+                        yLayoutOptions.find(
+                            (y) => y.reference === field.reference,
+                        ) === undefined &&
+                        `Column "${field.reference}" not in SQL`
+                    }
                     placeholder="Select Y axis"
                     onChange={(value) => {
                         if (!value) return;
@@ -99,7 +105,7 @@ const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
 }: {
-    field: Axes['x'];
+    field: SqlTransformBarChartConfig['x'];
     xLayoutOptions: XLayoutOptions[];
 }) => {
     const dispatch = useAppDispatch();
@@ -116,8 +122,19 @@ const XFieldAxisConfig = ({
             placeholder="Select X axis"
             onChange={(value) => {
                 if (!value) return;
-                dispatch(setXAxisReference(value));
+                dispatch(
+                    setXAxisReference({
+                        reference: value,
+                        type:
+                            xLayoutOptions.find((x) => x.reference === value)
+                                ?.type ?? XLayoutType.CATEGORY,
+                    }),
+                );
             }}
+            error={
+                xLayoutOptions.find((x) => x.reference === field.reference) ===
+                    undefined && `Column "${field.reference}" not in SQL query`
+            }
             icon={
                 <TableFieldIcon
                     fieldType={
@@ -126,6 +143,56 @@ const XFieldAxisConfig = ({
                     }
                 />
             }
+        />
+    );
+};
+
+const GroupByFieldAxisConfig = ({
+    field,
+    groupByOptions,
+}: {
+    field: undefined | { reference: string };
+    groupByOptions: GroupByLayoutOptions[];
+}) => {
+    const dispatch = useAppDispatch();
+    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    return (
+        <Select
+            radius="md"
+            data={groupByOptions.map((groupBy) => ({
+                value: groupBy.reference,
+                label: groupBy.reference,
+            }))}
+            value={field?.reference ?? null}
+            placeholder="Select group by"
+            error={
+                field !== undefined &&
+                !groupByOptions.find((x) => x.reference === field.reference) &&
+                `Column "${field.reference}" not in SQL query`
+            }
+            onChange={(value) => {
+                if (!value) {
+                    dispatch(unsetGroupByReference());
+                } else {
+                    dispatch(
+                        setGroupByReference({
+                            reference: value,
+                        }),
+                    );
+                }
+            }}
+            icon={
+                field?.reference ? (
+                    <TableFieldIcon
+                        fieldType={
+                            sqlColumns?.find(
+                                (x) => x.reference === field?.reference,
+                            )?.type ?? DimensionType.STRING
+                        }
+                    />
+                ) : null
+            }
+            clearable
         />
     );
 };
@@ -148,6 +215,12 @@ export const BarChartFieldConfiguration = () => {
 
     const series = useAppSelector(
         (state) => state.barChartConfig.config?.display?.series,
+    );
+    const groupByField = useAppSelector(
+        (state) => state.barChartConfig.config?.fieldConfig?.groupBy?.[0],
+    );
+    const groupByLayoutOptions = useAppSelector(
+        (state) => state.barChartConfig.options.groupByOptions,
     );
 
     const onSeriesLabelChange = debounce((reference: string, label: string) => {
@@ -180,6 +253,15 @@ export const BarChartFieldConfiguration = () => {
                                 yLayoutOptions={yLayoutOptions}
                             />
                         ))}
+                </Config.Section>
+            </Config>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Group by</Config.Heading>
+                    <GroupByFieldAxisConfig
+                        field={groupByField}
+                        groupByOptions={groupByLayoutOptions}
+                    />
                 </Config.Section>
             </Config>
             {series && (

@@ -1,23 +1,23 @@
-import { type BarChartConfig } from '@lightdash/common';
+import { type PieChartSQLConfig } from '@lightdash/common';
 import { Center, LoadingOverlay } from '@mantine/core';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
-import { useBarChart } from '../../transformers/useBarChart';
+import { usePieChart } from '../../transformers/usePieChart';
 
-type BarChartProps = {
+type PieChartProps = {
     data: ResultsAndColumns;
-    config: BarChartConfig;
+    config: PieChartSQLConfig;
     isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const BarChart: FC<BarChartProps> = memo(
+const PieChart: FC<PieChartProps> = memo(
     ({ data, config, style, isLoading: isLoadingProp }) => {
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useBarChart(data.results, data.columns, config);
+        } = usePieChart(data.results, data.columns, config);
         const loading = isLoadingProp || transformLoading;
 
         if (error) {
@@ -44,4 +44,4 @@ const BarChart: FC<BarChartProps> = memo(
     },
 );
 
-export default BarChart;
+export default PieChart;

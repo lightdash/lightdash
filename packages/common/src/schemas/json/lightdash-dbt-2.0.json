@@ -38,6 +38,19 @@
                             ]
                         }
                     },
+                    "data_tests": {
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "object"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
                     "meta": {
                         "type": "object",
                         "properties": {
@@ -142,6 +155,19 @@
                                     "type": "boolean"
                                 },
                                 "tests": {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "data_tests": {
                                     "type": "array",
                                     "items": {
                                         "anyOf": [

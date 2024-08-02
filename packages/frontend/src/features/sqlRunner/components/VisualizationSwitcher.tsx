@@ -84,6 +84,7 @@ export const VisualizationSwitcher = () => {
     const AVAILABLE_VISUALIZATIONS = [
         { label: 'Table', value: ChartKind.TABLE },
         { label: 'Bar chart', value: ChartKind.VERTICAL_BAR },
+        { label: 'Pie chart', value: ChartKind.PIE },
     ];
 
     const selectedChartType = useAppSelector(

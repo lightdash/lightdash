@@ -1,6 +1,6 @@
 import {
-    BarChartDataTransformer,
-    type BarChartConfig,
+    PieChartDataTransformer,
+    type PieChartSQLConfig,
     type ResultRow,
     type SqlColumn,
 } from '@lightdash/common';
@@ -8,10 +8,10 @@ import { useMemo } from 'react';
 import { useAsync } from 'react-use';
 import { SqlRunnerResultsTransformerFE } from './SqlRunnerResultsTransformerFE';
 
-export const useBarChart = (
+export const usePieChart = (
     rows: ResultRow[],
     columns: SqlColumn[],
-    config: BarChartConfig,
+    config: PieChartSQLConfig,
 ) => {
     const transformer = useMemo(
         () =>
@@ -21,16 +21,16 @@ export const useBarChart = (
             }),
         [rows, columns],
     );
-    const barChart = useMemo(
+    const pieChart = useMemo(
         () =>
-            new BarChartDataTransformer({
+            new PieChartDataTransformer({
                 transformer,
             }),
         [transformer],
     );
 
     return useAsync(
-        async () => barChart.getEchartsSpec(config.fieldConfig, config.display),
-        [config, barChart],
+        async () => pieChart.getEchartsSpec(config.fieldConfig, config.display),
+        [config, pieChart],
     );
 };

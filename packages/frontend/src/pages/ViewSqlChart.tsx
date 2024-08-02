@@ -4,10 +4,12 @@ import { Prism } from '@mantine/prism';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
-import { HeaderViewMode } from '../features/sqlRunner/components/HeaderViewMode';
+import { Header } from '../features/sqlRunner/components/Header';
 import BarChart from '../features/sqlRunner/components/visualizations/BarChart';
+import PieChart from '../features/sqlRunner/components/visualizations/PieChart';
 import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartAndResults } from '../features/sqlRunner/hooks/useSqlChartAndResults';
@@ -17,8 +19,9 @@ import {
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
 import {
+    resetState,
     setProjectUuid,
-    setSaveChartData,
+    setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -33,7 +36,7 @@ const ViewSqlChart = () => {
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlUuid = useAppSelector(
-        (state) => state.sqlRunner.savedSqlUuid,
+        (state) => state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
@@ -47,7 +50,14 @@ const ViewSqlChart = () => {
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
     );
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
+    );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+
+    useUnmount(() => {
+        dispatch(resetState());
+    });
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {
@@ -55,13 +65,16 @@ const ViewSqlChart = () => {
         }
     }, [dispatch, params.projectUuid, projectUuid]);
 
-    const { error: chartError } = useSavedSqlChart({
+    const { error: chartError, data: sqlChart } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
-        onSuccess: (data) => {
-            dispatch(setSaveChartData(data));
-        },
     });
+
+    useEffect(() => {
+        if (sqlChart) {
+            dispatch(setSavedChartData(sqlChart));
+        }
+    }, [dispatch, sqlChart]);
 
     const {
         data,
@@ -88,7 +101,7 @@ const ViewSqlChart = () => {
             title="SQL chart"
             noContentPadding
             withFullHeight
-            header={<HeaderViewMode />}
+            header={<Header mode="view" />}
         >
             <Stack h="100%" spacing={0}>
                 <Paper
@@ -144,6 +157,18 @@ const ViewSqlChart = () => {
                                                     columns: [],
                                                 }}
                                                 config={barChartConfig}
+                                            />
+                                        )}
+                                    {selectedChartType === ChartKind.PIE &&
+                                        pieChartConfig &&
+                                        data && (
+                                            <PieChart
+                                                isLoading={isLoading}
+                                                data={{
+                                                    results: data.results,
+                                                    columns: [],
+                                                }}
+                                                config={pieChartConfig}
                                             />
                                         )}
                                 </>

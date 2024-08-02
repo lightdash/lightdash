@@ -10,36 +10,46 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
-import { type z } from 'zod';
+import { useEffect } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     SaveDestination,
     SaveToSpace,
     validationSchema,
+    type FormValues,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
-import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
-import { updateName } from '../store/sqlRunnerSlice';
+import {
+    useSavedSqlChart,
+    useUpdateSqlChartMutation,
+} from '../hooks/useSavedSqlCharts';
 
-type FormValues = z.infer<typeof validationSchema>;
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+    projectUuid: string;
+    savedSqlUuid: string;
+    onSuccess: () => void;
+};
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+export const UpdateSqlChartModal = ({
+    projectUuid,
+    savedSqlUuid,
+    opened,
+    onClose,
+    onSuccess,
+}: Props) => {
+    const { data } = useSavedSqlChart({
+        projectUuid,
+        uuid: savedSqlUuid,
+    });
 
-export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
-    const dispatch = useAppDispatch();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
-
-    const name = useAppSelector((state) => state.sqlRunner.name);
-    const description = useAppSelector((state) => state.sqlRunner.description);
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
+    const { mutateAsync: updateChart, isLoading: isSaving } =
+        useUpdateSqlChartMutation(projectUuid, savedSqlUuid);
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -52,69 +62,40 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     useEffect(() => {
-        if (!form.values.name && name) {
-            form.setFieldValue('name', name);
+        if (data) {
+            if (!form.values.name && data.name) {
+                form.setFieldValue('name', data.name);
+            }
+            if (!form.values.description && data.description) {
+                form.setFieldValue('description', data.description);
+            }
+            if (!form.values.spaceUuid && data.space.uuid) {
+                form.setFieldValue('spaceUuid', data.space.uuid);
+            }
         }
-        if (!form.values.description && description) {
-            form.setFieldValue('description', description);
-        }
-        if (!form.values.spaceUuid && spaces.length > 0) {
-            form.setFieldValue('spaceUuid', spaces[0].uuid);
-        }
-    }, [name, form, description, spaces]);
+    }, [data, form]);
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const config = useAppSelector((state) => selectCurrentChartConfig(state));
+    const handleOnSubmit = form.onSubmit(
+        async ({ name, description, spaceUuid, newSpaceName }) => {
+            let newSpace = newSpaceName
+                ? await createSpace({
+                      name: newSpaceName,
+                      access: [],
+                      isPrivate: true,
+                  })
+                : undefined;
 
-    const {
-        mutateAsync: createSavedSqlChart,
-        isLoading: isCreatingSavedSqlChart,
-        isSuccess: isSavedSqlChartCreated,
-    } = useCreateSqlChartMutation(projectUuid);
-
-    useEffect(() => {
-        if (isSavedSqlChartCreated) {
-            onClose();
-        }
-    }, [isSavedSqlChartCreated, onClose]);
-
-    const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0) {
-            return;
-        }
-        let newSpace = form.values.newSpaceName
-            ? await createSpace({
-                  name: form.values.newSpaceName,
-                  access: [],
-                  isPrivate: true,
-              })
-            : undefined;
-        const spaceUuid =
-            newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
-        if (config) {
-            await createSavedSqlChart({
-                name: form.values.name,
-                description: form.values.description || '',
-                sql,
-                config,
-                spaceUuid: spaceUuid,
+            await updateChart({
+                unversionedData: {
+                    name,
+                    description: description ?? null,
+                    spaceUuid: newSpace?.uuid || spaceUuid || spaces[0].uuid,
+                },
             });
-            dispatch(updateName(form.values.name));
-        }
-        onClose();
-    }, [
-        config,
-        createSavedSqlChart,
-        dispatch,
-        form.values.description,
-        form.values.name,
-        form.values.spaceUuid,
-        form.values.newSpaceName,
-        onClose,
-        spaces,
-        sql,
-        createSpace,
-    ]);
+
+            onSuccess();
+        },
+    );
 
     return (
         <Modal
@@ -124,7 +105,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
-                    <Text fw={500}>Save chart</Text>
+                    <Text fw={500}>Update chart</Text>
                 </Group>
             }
             styles={(theme) => ({
@@ -132,7 +113,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 body: { padding: 0 },
             })}
         >
-            <form onSubmit={form.onSubmit(handleOnSubmit)}>
+            <form onSubmit={handleOnSubmit}>
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
@@ -165,15 +146,14 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                     <Button
                         onClick={onClose}
                         variant="outline"
-                        disabled={isCreatingSavedSqlChart}
+                        disabled={isSaving}
                     >
                         Cancel
                     </Button>
-
                     <Button
                         type="submit"
-                        disabled={!form.values.name || config === undefined}
-                        loading={isCreatingSavedSqlChart}
+                        disabled={!form.values.name}
+                        loading={isSaving}
                     >
                         Save
                     </Button>

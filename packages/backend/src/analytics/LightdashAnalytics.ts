@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     CartesianSeriesType,
+    ChartKind,
     ChartType,
     DbtProjectType,
     getRequestMethod,
@@ -8,6 +9,7 @@ import {
     LightdashMode,
     LightdashRequestMethodHeader,
     LightdashUser,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
@@ -79,21 +81,21 @@ type SqlExecutedEvent = BaseTrack & {
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | 'google';
+        loginProvider: 'password' | OpenIdIdentityIssuerType;
     };
 };
 
 type IdentityLinkedEvent = BaseTrack & {
     event: 'user.identity_linked' | 'user.identity_removed';
     properties: {
-        loginProvider: 'google';
+        loginProvider: OpenIdIdentityIssuerType;
     };
 };
 
 type CreateUserEvent = BaseTrack & {
     event: 'user.created';
     properties: {
-        userConnectionType: 'password' | 'google';
+        userConnectionType: 'password' | OpenIdIdentityIssuerType;
     };
 };
 
@@ -506,6 +508,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         filtersCount: number;
         tilesCount: number;
         chartTilesCount: number;
+        sqlChartTilesCount: number;
         markdownTilesCount: number;
         loomTilesCount: number;
         duplicated?: boolean;
@@ -662,6 +665,66 @@ type DashboardView = BaseTrack & {
         dashboardId: string;
         projectId: string;
         organizationId: string;
+    };
+};
+
+type ViewSqlChart = BaseTrack & {
+    event: 'sql_chart.view';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type CreateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type UpdateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.updated';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type DeleteSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.deleted';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+export type CreateSqlChartVersionEvent = BaseTrack & {
+    event: 'sql_chart_version.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        versionId: string;
+        projectId: string;
+        organizationId: string;
+        chartKind: ChartKind;
+        barChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        pieChart?: {
+            groupByCount: number;
+        };
     };
 };
 
@@ -994,6 +1057,11 @@ type TypedEvent =
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent
+    | ViewSqlChart
+    | CreateSqlChartEvent
+    | UpdateSqlChartEvent
+    | DeleteSqlChartEvent
+    | CreateSqlChartVersionEvent
     | CommentsEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

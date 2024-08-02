@@ -14,53 +14,58 @@ export enum EditorTabs {
     VISUALIZATION = 'visualization',
 }
 
+export enum SidebarTabs {
+    TABLES = 'tables',
+    VISUALIZATION = 'visualization',
+}
+
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    savedSqlUuid: string | undefined;
-    slug: string | undefined;
-    space:
-        | {
-              uuid: string;
-              name: string;
-          }
-        | undefined;
+    savedSqlChart: SqlChart | undefined;
     name: string;
     description: string;
-
     sql: string;
-
+    activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
-    selectedChartType: ChartKind;
-
+    selectedChartType: ChartKind | undefined;
     resultsTableConfig: SqlTableConfig | undefined;
     modals: {
         saveChartModal: {
             isOpen: boolean;
         };
+        deleteChartModal: {
+            isOpen: boolean;
+        };
+        updateChartModal: {
+            isOpen: boolean;
+        };
     };
-
     quoteChar: string;
-
     sqlColumns: SqlColumn[] | undefined;
 }
 
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
-    savedSqlUuid: undefined,
-    slug: undefined,
-    space: undefined,
+    savedSqlChart: undefined,
     name: '',
     description: '',
     sql: '',
+    activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: ChartKind.VERTICAL_BAR,
+    selectedChartType: undefined,
     resultsTableConfig: undefined,
     modals: {
         saveChartModal: {
+            isOpen: false,
+        },
+        deleteChartModal: {
+            isOpen: false,
+        },
+        updateChartModal: {
             isOpen: false,
         },
     },
@@ -72,13 +77,13 @@ export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        loadState: (state, action: PayloadAction<SqlRunnerState>) => {
-            return action.payload;
+        resetState: () => {
+            return initialState;
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setInitialResultsAndSeries: (
+        setSqlRunnerResults: (
             state,
             action: PayloadAction<ResultsAndColumns>,
         ) => {
@@ -117,19 +122,23 @@ export const sqlRunnerSlice = createSlice({
         },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
+            if (action.payload === EditorTabs.VISUALIZATION) {
+                state.activeSidebarTab = SidebarTabs.VISUALIZATION;
+                if (state.selectedChartType === undefined) {
+                    state.selectedChartType = ChartKind.VERTICAL_BAR;
+                }
+            }
+            if (action.payload === EditorTabs.SQL) {
+                state.activeSidebarTab = SidebarTabs.TABLES;
+            }
         },
-        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedSqlUuid = action.payload.savedSqlUuid;
-            state.slug = action.payload.slug;
+        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
-            state.space = action.payload.space;
-
             state.sql = action.payload.sql;
             state.selectedChartType =
-                action.payload.config.type === ChartKind.TABLE
-                    ? ChartKind.TABLE
-                    : ChartKind.VERTICAL_BAR;
+                action.payload.config.type || ChartKind.VERTICAL_BAR;
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
@@ -156,13 +165,13 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    setInitialResultsAndSeries,
+    setSqlRunnerResults,
     updateName,
     setSql,
     setActiveEditorTab,
-    setSaveChartData,
+    setSavedChartData,
     setSelectedChartType,
     toggleModal,
-    loadState,
+    resetState,
     setQuoteChar,
 } = sqlRunnerSlice.actions;

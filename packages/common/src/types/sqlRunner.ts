@@ -1,7 +1,9 @@
 import {
     type BarChartDisplay,
+    type PieChartDisplay,
     type SqlColumn,
     type SqlTransformBarChartConfig,
+    type SqlTransformPieChartConfig,
 } from '../visualizations/SqlRunnerResultsTransformer';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
@@ -84,7 +86,19 @@ export type BarChartConfig = {
     display: BarChartDisplay | undefined;
 };
 
-export type SqlRunnerChartConfig = TableChartSqlConfig | BarChartConfig;
+export type PieChartSQLConfig = {
+    metadata: {
+        version: number;
+    };
+    type: ChartKind.PIE;
+    fieldConfig: SqlTransformPieChartConfig | undefined;
+    display: PieChartDisplay | undefined;
+};
+
+export type SqlRunnerChartConfig =
+    | TableChartSqlConfig
+    | BarChartConfig
+    | PieChartSQLConfig;
 
 export const isTableChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
@@ -93,6 +107,10 @@ export const isTableChartSQLConfig = (
 export const isBarChartSQLConfig = (
     value: SqlRunnerChartConfig | undefined,
 ): value is BarChartConfig => !!value && value.type === ChartKind.VERTICAL_BAR;
+
+export const isPieChartSQLConfig = (
+    value: SqlRunnerChartConfig | undefined,
+): value is PieChartSQLConfig => !!value && value.type === ChartKind.PIE;
 
 export type SqlChart = {
     savedSqlUuid: string;

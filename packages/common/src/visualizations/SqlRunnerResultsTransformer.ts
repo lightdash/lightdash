@@ -1,8 +1,7 @@
 import { DimensionType, MetricType } from '../types/field';
-import { ChartKind } from '../types/savedCharts';
-import { type BarChartConfig } from '../types/sqlRunner';
 import {
     type BarChartData,
+    type PieChartData,
     type ResultsTransformerBase,
     type RowData,
 } from './ResultsTransformerBase';
@@ -40,7 +39,7 @@ export type YLayoutOptions = {
     aggregationOptions: AggregationOptions[];
 };
 
-type SeriesLayoutOptions = {
+export type GroupByLayoutOptions = {
     reference: string;
 };
 
@@ -51,7 +50,7 @@ export type BarChartDisplay = {
     };
     yAxis?: {
         label?: string;
-        position?: 'left' | 'right';
+        position?: string;
     }[];
     series?: Record<string, { label?: string; yAxisIndex?: number }>;
     legend?: {
@@ -63,17 +62,36 @@ export type BarChartDisplay = {
 export type SqlTransformBarChartConfig = {
     x: {
         reference: string;
+        type: XLayoutType;
     };
     y: {
         reference: string;
         aggregation: AggregationOptions;
     }[];
-    groupBy:
-        | {
-              reference: string;
-          }
-        | undefined;
+    groupBy: { reference: string }[] | undefined;
 };
+
+// TODO: Should pie chart share the X and Y layout options? They could be
+// called something else
+export type PieChartDimensionOptions = {
+    type: XLayoutType;
+    reference: string;
+};
+
+export type PieChartMetricOptions = {
+    reference: string;
+    aggregationOptions: AggregationOptions[];
+};
+
+export type PieChartDisplay = {
+    isDonut?: boolean;
+};
+
+export type SqlTransformPieChartConfig = {
+    groupFieldIds?: string[];
+    metricId?: string;
+};
+
 export type DuckDBSqlFunction = (
     sql: string,
     rowData: RowData[],
@@ -138,7 +156,11 @@ type SqlRunnerResultsTransformerDeps = {
 };
 
 export class SqlRunnerResultsTransformer
-    implements ResultsTransformerBase<SqlTransformBarChartConfig>
+    implements
+        ResultsTransformerBase<
+            SqlTransformBarChartConfig,
+            SqlTransformPieChartConfig
+        >
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
@@ -153,8 +175,8 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    barChartSeriesLayoutOptions(): SeriesLayoutOptions[] {
-        const options: SeriesLayoutOptions[] = [];
+    barChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
+        const options: GroupByLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.STRING:
@@ -170,6 +192,8 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
+    // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
+    // The output 'category' | 'time' is echarts specific. or is this more general?
     barChartXLayoutOptions(): XLayoutOptions[] {
         const options: XLayoutOptions[] = [];
         for (const column of this.columns) {
@@ -229,40 +253,56 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    private defaultLayout(): SqlTransformBarChartConfig | undefined {
-        const firstColumnNonNumeric = this.columns.find(
-            (column) => column.type !== DimensionType.NUMBER,
+    defaultBarChartLayout(): SqlTransformBarChartConfig | undefined {
+        const firstCategoricalColumn = this.columns.find(
+            (column) => column.type === DimensionType.STRING,
         );
-        if (!firstColumnNonNumeric) return undefined;
-
-        const firstColumnNumeric = this.columns.find(
+        const firstBooleanColumn = this.columns.find(
+            (column) => column.type === DimensionType.BOOLEAN,
+        );
+        const firstDateColumn = this.columns.find((column) =>
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
+        );
+        const firstNumericColumn = this.columns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
-        return {
-            x: {
-                reference: firstColumnNonNumeric.reference,
-            },
-            y: firstColumnNumeric
-                ? [
-                      {
-                          reference: firstColumnNumeric.reference,
-                          aggregation: aggregationOptions[0],
-                      },
-                  ]
-                : [],
-            groupBy: undefined,
+        const xColumn =
+            firstCategoricalColumn ||
+            firstBooleanColumn ||
+            firstDateColumn ||
+            firstNumericColumn;
+        if (xColumn === undefined) {
+            return undefined;
+        }
+        const x: SqlTransformBarChartConfig['x'] = {
+            reference: xColumn.reference,
+            type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                xColumn.type,
+            )
+                ? XLayoutType.TIME
+                : XLayoutType.CATEGORY,
         };
-    }
 
-    defaultConfig(): BarChartConfig {
-        return {
-            metadata: {
-                version: 1,
+        const yColumn =
+            firstNumericColumn || firstBooleanColumn || firstCategoricalColumn;
+        if (yColumn === undefined) {
+            return undefined;
+        }
+        const y = [
+            {
+                reference: yColumn.reference,
+                aggregation:
+                    yColumn.type === DimensionType.NUMBER
+                        ? MetricType.SUM
+                        : MetricType.COUNT,
             },
-            type: ChartKind.VERTICAL_BAR,
-            fieldConfig: this.defaultLayout(),
-            display: undefined,
+        ];
+
+        return {
+            x,
+            y,
+            groupBy: undefined,
         };
     }
 
@@ -270,9 +310,10 @@ export class SqlRunnerResultsTransformer
         config: SqlTransformBarChartConfig,
     ): Promise<BarChartData> {
         const groupByColumns = [config.x.reference];
-        const pivotsSql = config.groupBy?.reference
-            ? [config.groupBy.reference]
-            : [];
+        const pivotsSql =
+            config.groupBy === undefined
+                ? []
+                : config.groupBy.map((groupBy) => groupBy.reference);
         const valuesSql = config.y.map(
             (y) => `${y.aggregation}(${y.reference})`,
         );
@@ -289,8 +330,56 @@ export class SqlRunnerResultsTransformer
 
         return {
             results: pivotResults.results,
-            xAxisColumn: groupByColumns[0],
+            xAxisColumn: { reference: groupByColumns[0], type: config.x.type },
             seriesColumns: pivotResults.valueColumns || [],
+        };
+    }
+
+    pieChartGroupFieldOptions(): PieChartDimensionOptions[] {
+        // TODO: Either make these option getters more generic or
+        // do something specific for pie charts
+        return this.barChartXLayoutOptions();
+    }
+
+    pieChartMetricFieldOptions(): PieChartMetricOptions[] {
+        // TODO: Either make these option getters more generic or
+        // do something specific for pie charts
+        return this.barChartYLayoutOptions();
+    }
+
+    defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {
+        const firstCategoricalColumn = this.columns.find(
+            (column) => column.type === DimensionType.STRING,
+        );
+
+        const firstNumericColumn = this.columns.find(
+            (column) => column.type === DimensionType.NUMBER,
+        );
+
+        const groupFieldIds = firstCategoricalColumn?.reference
+            ? [firstCategoricalColumn.reference]
+            : undefined;
+        const metricId = firstNumericColumn?.reference;
+
+        if (
+            !groupFieldIds ||
+            groupFieldIds.length === 0 ||
+            metricId === undefined
+        ) {
+            return undefined;
+        }
+
+        return {
+            groupFieldIds,
+            metricId,
+        };
+    }
+
+    public async transformPieChartData(): // config: SqlTransformPieChartConfig,
+    Promise<PieChartData> {
+        // TODO: NYI
+        return {
+            results: this.rows,
         };
     }
 }

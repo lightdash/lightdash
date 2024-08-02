@@ -4,6 +4,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
+    isDateItem,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -56,12 +57,23 @@ const FilterRuleForm: FC<Props> = ({
             );
             if (selectedField && activeField) {
                 if (selectedField.type === activeField.type) {
-                    onChange({
+                    const newFilterRuleBase = {
                         ...filterRule,
                         target: {
                             fieldId,
                         },
-                    });
+                    };
+
+                    const newFilterRule = isDateItem(selectedField)
+                        ? // If the field is the same type but different field, we need to update the filter rule with the new time frames
+                          getFilterRuleWithDefaultValue(
+                              selectedField,
+                              newFilterRuleBase,
+                              filterRule.values,
+                          )
+                        : newFilterRuleBase;
+
+                    onChange(newFilterRule);
                 } else {
                     onChange(createFilterRuleFromField(selectedField));
                 }

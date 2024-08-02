@@ -60,7 +60,7 @@ export const validationSchema = z.object({
         .default(SaveDestination.Space),
 });
 
-type FormValues = z.infer<typeof validationSchema>;
+export type FormValues = z.infer<typeof validationSchema>;
 
 export type SaveToSpaceProps = {
     form: UseFormReturnType<FormValues>;
