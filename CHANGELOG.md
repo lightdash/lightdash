@@ -1,3 +1,10 @@
+## [0.1202.2](https://github.com/lightdash/lightdash/compare/0.1202.1...0.1202.2) (2024-08-02)
+
+
+### Bug Fixes
+
+* show SQL chart page error ([#10992](https://github.com/lightdash/lightdash/issues/10992)) ([1baa9c3](https://github.com/lightdash/lightdash/commit/1baa9c3b0fb752b40bb2083d141d9757509a278b))
+
 ## [0.1202.1](https://github.com/lightdash/lightdash/compare/0.1202.0...0.1202.1) (2024-08-02)
 
 
