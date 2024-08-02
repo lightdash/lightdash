@@ -230,21 +230,15 @@ const TableCalculationModal: FC<Props> = ({
                             data={Object.values(TableCalculationType)}
                         ></Select>
                     </Tooltip>
-                </Stack>
-
-                <Stack
-                    sx={() => ({
-                        position: 'sticky',
-                        backgroundColor: 'white',
-                        bottom: 0,
-                        zIndex: 2,
-                    })}
-                >
                     <Group
                         position="apart"
-                        sx={() => ({
-                            padding: theme.spacing.md,
-                        })}
+                        pos="sticky"
+                        bottom={0}
+                        bg="white"
+                        style={{ zIndex: 1 }}
+                        mt="sm"
+                        p={theme.spacing.md}
+                        align="flex-end"
                     >
                         <ActionIcon
                             variant="outline"
