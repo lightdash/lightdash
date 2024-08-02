@@ -14,6 +14,7 @@ import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
+    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -339,7 +340,39 @@ export class SavedSqlService extends BaseService {
         });
     }
 
-    async getResultJob(
+    async getResultJobFromSql(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+    ): Promise<{ jobId: string }> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const jobId = await this.schedulerClient.runSql({
+            userUuid: user.userUuid,
+            organizationUuid,
+            projectUuid,
+            sql,
+            context: QueryExecutionContext.SQL_RUNNER,
+        });
+
+        return { jobId };
+    }
+
+    async getSqlChartResultJob(
         user: SessionUser,
         projectUuid: string,
         slug: string,
@@ -363,6 +396,8 @@ export class SavedSqlService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,
             sql: savedChart.sql,
+            sqlChartUuid: savedChart.savedSqlUuid,
+            context: QueryExecutionContext.SQL_CHART,
         });
 
         return {
@@ -393,6 +428,8 @@ export class SavedSqlService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,
             sql: savedChart.sql,
+            sqlChartUuid: savedSqlUuid,
+            context: QueryExecutionContext.DASHBOARD,
         });
 
         return {
