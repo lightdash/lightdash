@@ -1,9 +1,4 @@
-import {
-    ChartKind,
-    isCartesianChartSQLConfig,
-    isPieChartSQLConfig,
-    isTableChartSQLConfig,
-} from '@lightdash/common';
+import { isTableChartSQLConfig } from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -68,9 +63,20 @@ export const ContentPanel: FC = () => {
         (state) => state.sqlRunner.resultsTableConfig,
     );
 
-    // configurable table
+    // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
         selectCurrentChartConfig(state),
+    );
+
+    // Select these configs so we can keep the charts mounted
+    const barChartConfig = useAppSelector(
+        (state) => state.barChartConfig.config,
+    );
+    const lineChartConfig = useAppSelector(
+        (state) => state.lineChartConfig.config,
+    );
+    const pieChartConfig = useAppSelector(
+        (state) => state.pieChartConfig.config,
     );
 
     const {
@@ -226,24 +232,33 @@ export const ContentPanel: FC = () => {
                         >
                             {queryResults?.results &&
                                 currentVisConfig &&
-                                (isCartesianChartSQLConfig(currentVisConfig) ||
-                                    isPieChartSQLConfig(currentVisConfig)) && (
-                                    <SqlRunnerChart
-                                        data={queryResults}
-                                        config={currentVisConfig}
-                                        isLoading={isLoading}
-                                        style={{
-                                            // NOTE: Ensures the chart is always full height
-                                            display:
-                                                selectedChartType !==
-                                                ChartKind.TABLE
-                                                    ? 'block'
-                                                    : 'none',
-                                            height: deferredInputSectionHeight,
-                                            width: '100%',
-                                            flex: 1,
-                                        }}
-                                    />
+                                [
+                                    barChartConfig,
+                                    lineChartConfig,
+                                    pieChartConfig,
+                                ].map(
+                                    (config, idx) =>
+                                        config && (
+                                            <ConditionalVisibility
+                                                key={idx}
+                                                isVisible={
+                                                    selectedChartType ===
+                                                    config?.type
+                                                }
+                                            >
+                                                <SqlRunnerChart
+                                                    data={queryResults}
+                                                    config={config}
+                                                    isLoading={isLoading}
+                                                    style={{
+                                                        // NOTE: Ensures the chart is always full height
+                                                        height: deferredInputSectionHeight,
+                                                        width: '100%',
+                                                        flex: 1,
+                                                    }}
+                                                />
+                                            </ConditionalVisibility>
+                                        ),
                                 )}
 
                             {queryResults?.results &&
