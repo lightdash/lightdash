@@ -316,7 +316,8 @@ export class ExploreCompiler {
 
         return {
             ...table,
-            compiledSqlWhere,
+            uncompiledSqlWhere: table.sqlWhere,
+            sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
         };

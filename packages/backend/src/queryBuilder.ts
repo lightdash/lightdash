@@ -834,9 +834,8 @@ export const buildQuery = ({
         ),
     ]);
 
-    const tableCompiledSqlWhere =
-        explore.tables[explore.baseTable].compiledSqlWhere;
-    const tableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+    const tableCompiledSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+    const tableSqlWhere = explore.tables[explore.baseTable].uncompiledSqlWhere;
 
     const tableSqlWhereTableReferences = tableSqlWhere
         ? parseAllReferences(tableSqlWhere, explore.baseTable)

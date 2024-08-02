@@ -565,7 +565,7 @@ export const EXPLORE_WITH_SQL_FILTER: Explore = {
         table1: {
             ...EXPLORE.tables.table1,
             sqlWhere: "${lightdash.attribute.country} = 'US'",
-            compiledSqlWhere: "${lightdash.attribute.country} = 'US'",
+            uncompiledSqlWhere: "${lightdash.attribute.country} = 'US'",
         },
     },
 };
