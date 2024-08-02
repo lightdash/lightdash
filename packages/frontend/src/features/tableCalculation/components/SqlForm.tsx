@@ -33,7 +33,6 @@ export const SqlEditor = styled(AceEditor)<
     & > .ace_gutter {
         background-color: ${({ gutterBackgroundColor }) =>
             gutterBackgroundColor};
-        z-index: 0;
     }
     ${({ isFullScreen }) =>
         isFullScreen
@@ -56,7 +55,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
 
     return (
         <>
-            <ScrollArea h={isFullScreen ? '95%' : '75px'}>
+            <ScrollArea h={isFullScreen ? '95%' : '150px'}>
                 <SqlEditor
                     mode="sql"
                     theme="github"
@@ -67,6 +66,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
                     setOptions={{
                         autoScrollEditorIntoView: true,
                     }}
+                    style={{ zIndex: 0 }}
                     onLoad={setAceEditor}
                     enableLiveAutocompletion
                     enableBasicAutocompletion
