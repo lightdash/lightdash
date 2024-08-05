@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    deepEqual,
     isTableChartSQLConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
@@ -7,13 +8,17 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
-const initialState: { config: TableChartSqlConfig | undefined } = {
-    config: undefined,
+type InitialState = {
+    defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
+    config: TableChartSqlConfig | undefined;
 };
 
 export const tableVisSlice = createSlice({
     name: 'tableVisConfig',
-    initialState,
+    initialState: {
+        defaultColumnConfig: undefined,
+        config: undefined,
+    } as InitialState,
     reducers: {
         updateFieldLabel: (
             { config },
@@ -39,7 +44,7 @@ export const tableVisSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
-            if (state.config === undefined) {
+            if (action.payload.results && action.payload.columns) {
                 // TODO: this should come from the transformer
                 const columns = Object.keys(action.payload.results[0]).reduce<
                     TableChartSqlConfig['columns']
@@ -56,13 +61,27 @@ export const tableVisSlice = createSlice({
                     }),
                     {},
                 );
-                state.config = {
-                    type: ChartKind.TABLE,
-                    metadata: {
-                        version: 1,
-                    },
-                    columns,
-                };
+
+                const oldDefaultColumnConfig = state.defaultColumnConfig;
+                const newDefaultColumnConfig = columns;
+
+                state.defaultColumnConfig = columns;
+
+                if (
+                    !state.config ||
+                    !deepEqual(
+                        oldDefaultColumnConfig || {},
+                        newDefaultColumnConfig || {},
+                    )
+                ) {
+                    state.config = {
+                        type: ChartKind.TABLE,
+                        metadata: {
+                            version: 1,
+                        },
+                        columns,
+                    };
+                }
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
