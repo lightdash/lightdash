@@ -1,3 +1,10 @@
+## [0.1202.5](https://github.com/lightdash/lightdash/compare/0.1202.4...0.1202.5) (2024-08-05)
+
+
+### Bug Fixes
+
+* show popover on paste ([#10970](https://github.com/lightdash/lightdash/issues/10970)) ([811aebc](https://github.com/lightdash/lightdash/commit/811aebc5a89e8b22e83224f8df7fc2dae2c1715f))
+
 ## [0.1202.4](https://github.com/lightdash/lightdash/compare/0.1202.3...0.1202.4) (2024-08-02)
 
 
