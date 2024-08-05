@@ -6,12 +6,13 @@ import {
 } from '@lightdash/common';
 import {
     Box,
-    Button,
     getDefaultZIndex,
     Group,
     LoadingOverlay,
     Paper,
+    SegmentedControl,
     Stack,
+    Text,
     Tooltip,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
@@ -122,55 +123,53 @@ export const ContentPanel: FC = () => {
                 >
                     <Group position="apart">
                         <Group position="apart">
-                            <Group spacing="xs">
-                                <Button
-                                    size="xs"
-                                    color="dark"
-                                    variant={
-                                        activeEditorTab === EditorTabs.SQL
-                                            ? 'filled'
-                                            : 'subtle'
+                            <SegmentedControl
+                                color="dark"
+                                size="sm"
+                                radius="sm"
+                                data={[
+                                    {
+                                        value: 'sql',
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconCodeCircle}
+                                                />
+                                                <Text>Query</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: 'chart',
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconChartHistogram}
+                                                />
+                                                <Text>Chart</Text>
+                                            </Group>
+                                        ),
+                                        disabled: !queryResults?.results,
+                                    },
+                                ]}
+                                defaultValue={'sql'}
+                                onChange={(value) => {
+                                    if (isLoading) {
+                                        return;
                                     }
-                                    onClick={() =>
-                                        !isLoading &&
+                                    if (value === 'sql') {
                                         dispatch(
                                             setActiveEditorTab(EditorTabs.SQL),
-                                        )
-                                    }
-                                    leftIcon={
-                                        <MantineIcon icon={IconCodeCircle} />
-                                    }
-                                >
-                                    SQL
-                                </Button>
-                                <Button
-                                    size="xs"
-                                    color="dark"
-                                    variant={
-                                        activeEditorTab ===
-                                        EditorTabs.VISUALIZATION
-                                            ? 'filled'
-                                            : 'subtle'
-                                    }
-                                    // TODO: remove once we add an empty state
-                                    disabled={!queryResults?.results}
-                                    onClick={() =>
-                                        !isLoading &&
+                                        );
+                                    } else {
                                         dispatch(
                                             setActiveEditorTab(
                                                 EditorTabs.VISUALIZATION,
                                             ),
-                                        )
+                                        );
                                     }
-                                    leftIcon={
-                                        <MantineIcon
-                                            icon={IconChartHistogram}
-                                        />
-                                    }
-                                >
-                                    Chart
-                                </Button>
-                            </Group>
+                                }}
+                            />
                         </Group>
 
                         <Group spacing="md">

@@ -1,11 +1,17 @@
 import { isTableChartSQLConfig } from '@lightdash/common';
-import { Loader, Paper, Stack, Tabs } from '@mantine/core';
+import { Box, Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
+import {
+    IconChartHistogram,
+    IconCodeCircle,
+    IconTable,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { Header } from '../features/sqlRunner/components/Header';
 import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
@@ -82,78 +88,91 @@ const ViewSqlChart = () => {
             withFullHeight
             header={<Header mode="view" />}
         >
-            <Stack h="100%" spacing={0}>
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    px="md"
-                    pb={0}
-                    pt="sm"
-                    sx={{
-                        flex: 1,
-                    }}
-                >
-                    <Tabs
+            <Stack h="100%" px="md" py={6}>
+                <Group position="apart">
+                    <SegmentedControl
+                        color="dark"
+                        size="sm"
+                        radius="sm"
+                        disabled={isLoading}
+                        data={[
+                            {
+                                value: TabOption.CHART,
+                                label: (
+                                    <Group spacing="xs" noWrap>
+                                        <MantineIcon
+                                            icon={IconChartHistogram}
+                                        />
+                                        <Text>Chart</Text>
+                                    </Group>
+                                ),
+                            },
+                            {
+                                value: TabOption.RESULTS,
+                                label: (
+                                    <Group spacing="xs" noWrap>
+                                        <MantineIcon icon={IconTable} />
+                                        <Text>Results</Text>
+                                    </Group>
+                                ),
+                            },
+                            {
+                                value: TabOption.SQL,
+                                label: (
+                                    <Group spacing="xs" noWrap>
+                                        <MantineIcon icon={IconCodeCircle} />
+                                        <Text>Query</Text>
+                                    </Group>
+                                ),
+                            },
+                        ]}
                         value={activeTab}
-                        onTabChange={(val: TabOption) => setActiveTab(val)}
-                    >
-                        <Tabs.List>
-                            <Tabs.Tab value={TabOption.CHART}>Chart</Tabs.Tab>
-                            <Tabs.Tab
-                                value={TabOption.RESULTS}
-                                disabled={isLoading}
-                            >
-                                Results
-                            </Tabs.Tab>
-                            <Tabs.Tab
-                                value={TabOption.SQL}
-                                disabled={isLoading}
-                            >
-                                SQL
-                            </Tabs.Tab>
-                            {isLoading && <Loader mt="xs" size="xs" />}
-                        </Tabs.List>
-                    </Tabs>
+                        onChange={(val: TabOption) => setActiveTab(val)}
+                    />
+                </Group>
 
-                    {data && !isLoading && (
-                        <Paper shadow="none" radius={0} px={0} py="sm">
-                            {activeTab === TabOption.CHART && currentVisConfig && (
-                                <>
-                                    {isTableChartSQLConfig(
-                                        currentVisConfig,
-                                    ) && (
-                                        <Table
-                                            data={data}
+                {data && !isLoading && (
+                    <Box
+                        sx={{
+                            position: 'relative',
+                            flex: 1,
+                        }}
+                    >
+                        {activeTab === TabOption.CHART && currentVisConfig && (
+                            <>
+                                {isTableChartSQLConfig(currentVisConfig) && (
+                                    <Table
+                                        data={data}
+                                        config={currentVisConfig}
+                                    />
+                                )}
+                                {!isTableChartSQLConfig(currentVisConfig) &&
+                                    data && (
+                                        <SqlRunnerChart
+                                            isLoading={isLoading}
+                                            data={{
+                                                results: data,
+                                                columns: [],
+                                            }}
                                             config={currentVisConfig}
+                                            style={{
+                                                height: '100%',
+                                                width: '100%',
+                                            }}
                                         />
                                     )}
-                                    {!isTableChartSQLConfig(currentVisConfig) &&
-                                        data && (
-                                            <SqlRunnerChart
-                                                isLoading={isLoading}
-                                                data={{
-                                                    results: data,
-                                                    columns: [],
-                                                }}
-                                                config={currentVisConfig}
-                                            />
-                                        )}
-                                </>
-                            )}
-                            {activeTab === TabOption.RESULTS && (
-                                <Table
-                                    data={data}
-                                    config={resultsTableConfig}
-                                />
-                            )}
-                            {activeTab === TabOption.SQL && (
-                                <Prism language="sql" withLineNumbers>
-                                    {sql || ''}
-                                </Prism>
-                            )}
-                        </Paper>
-                    )}
-                </Paper>
+                            </>
+                        )}
+                        {activeTab === TabOption.RESULTS && (
+                            <Table data={data} config={resultsTableConfig} />
+                        )}
+                        {activeTab === TabOption.SQL && (
+                            <Prism language="sql" withLineNumbers>
+                                {sql || ''}
+                            </Prism>
+                        )}
+                    </Box>
+                )}
             </Stack>
         </Page>
     );
