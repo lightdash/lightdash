@@ -94,9 +94,11 @@ export type SqlTransformPieChartConfig = {
 export type DuckDBSqlFunction = (
     sql: string,
     rowData: RowData[],
+    columns: SqlColumn[],
 ) => Promise<RowData[]>;
 
 type GetPivotedResultsArgs = {
+    columns: SqlColumn[];
     rows: RowData[];
     valuesSql: string[];
     pivotsSql: string[];
@@ -106,6 +108,7 @@ type GetPivotedResultsArgs = {
 };
 
 export const getPivotedResults = async ({
+    columns,
     rows,
     valuesSql,
     pivotsSql,
@@ -135,7 +138,7 @@ export const getPivotedResults = async ({
         query += ` ORDER BY ${sortsSql.join(', ')}`;
     }
 
-    const pivoted = await duckDBSqlFunction(query, rows);
+    const pivoted = await duckDBSqlFunction(query, rows, columns);
 
     const fieldNames = Object.keys(pivoted[0]);
 
@@ -327,6 +330,7 @@ export class SqlRunnerResultsTransformer
         const sortsSql = [`${config.x.reference} ASC`];
 
         const pivotResults = await getPivotedResults({
+            columns: this.columns,
             rows: this.rows, // data
             groupByColumns, // x location
             valuesSql, // height
