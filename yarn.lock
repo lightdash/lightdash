@@ -7852,6 +7852,15 @@ axios@^1.6.5:
     form-data "^4.0.0"
     proxy-from-env "^1.1.0"
 
+axios@^1.6.8:
+  version "1.7.3"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.3.tgz#a1125f2faf702bc8e8f2104ec3a76fab40257d85"
+  integrity sha512-Ar7ND9pU99eJ9GpoGQKhKf58GpUOgnzuaB7ueNQ5BMi0p+LZ5oaEnfF999fAArcTIBwXTCHAmGcHOZJaWPq9Nw==
+  dependencies:
+    follow-redirects "^1.15.6"
+    form-data "^4.0.0"
+    proxy-from-env "^1.1.0"
+
 axobject-query@^2.2.0:
   version "2.2.0"
   resolved "https://registry.npmjs.org/axobject-query/-/axobject-query-2.2.0.tgz"
@@ -18604,10 +18613,10 @@ snake-case@^3.0.4:
     dot-case "^3.0.4"
     tslib "^2.0.3"
 
-snowflake-sdk@^1.10.0:
-  version "1.10.0"
-  resolved "https://registry.yarnpkg.com/snowflake-sdk/-/snowflake-sdk-1.10.0.tgz#589b7fe2901b2336505d19611c020299029cc6b2"
-  integrity sha512-FDRHHkfRVmFqrDGWZSjBLEch1CYcVahXZK4kd/KMp/wr14o2FSagc6C7vPkw+0RXkcGnrkUKdancC7yfkz9rrA==
+snowflake-sdk@~1.10.0:
+  version "1.10.1"
+  resolved "https://registry.yarnpkg.com/snowflake-sdk/-/snowflake-sdk-1.10.1.tgz#5f280200e2c45b4c259475cd2a5567a60fc1159d"
+  integrity sha512-g9kfJtzHdbN2jeWg0on4H6FL0uNS8O72dIdL+xGP43g1ddyabAf9zFSY+D4KUydidjnWj7OB8W1gHQGBF/1BYw==
   dependencies:
     "@aws-sdk/client-s3" "^3.388.0"
     "@aws-sdk/node-http-handler" "^3.374.0"
@@ -18617,7 +18626,7 @@ snowflake-sdk@^1.10.0:
     agent-base "^6.0.2"
     asn1.js-rfc2560 "^5.0.0"
     asn1.js-rfc5280 "^3.0.0"
-    axios "^1.6.5"
+    axios "^1.6.8"
     big-integer "^1.6.43"
     bignumber.js "^9.1.2"
     binascii "0.0.2"
