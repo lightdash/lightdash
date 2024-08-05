@@ -43,7 +43,10 @@ export const HeaderView: FC = () => {
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            access: [], // todo: update endpoint to return space "isPrivate" and "access"
+            isPrivate: savedSqlChart?.space.isPrivate,
+            access: savedSqlChart?.space.userAccess
+                ? [savedSqlChart.space.userAccess]
+                : [],
         }),
     );
 

@@ -14,7 +14,7 @@ import {
     type ApiJobScheduledResponse,
     type SchedulerJobStatus,
 } from './scheduler';
-import { type Space } from './space';
+import { type SpaceSummary } from './space';
 import { type LightdashUser } from './user';
 
 export type SqlRunnerPayload = {
@@ -149,7 +149,7 @@ export type SqlChart = {
         LightdashUser,
         'userUuid' | 'firstName' | 'lastName'
     > | null;
-    space: Pick<Space, 'uuid' | 'name'>;
+    space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate' | 'userAccess'>;
     dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
     project: Pick<Project, 'projectUuid'>;
     organization: Pick<Organization, 'organizationUuid'>;
