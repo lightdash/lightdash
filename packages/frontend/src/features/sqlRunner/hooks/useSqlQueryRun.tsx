@@ -182,9 +182,23 @@ export const useSqlQueryRun = ({
                 ) {
                     return undefined;
                 }
+
+                // Identify columns where all values are null so we can disable them
+                const allNullColumns = Object.keys(data[0] || {}).filter(
+                    (columnName) =>
+                        data.every(
+                            (row) => row[columnName]?.value?.raw === null,
+                        ),
+                );
+
                 return {
                     results: data,
-                    columns: scheduledDeliveryJobStatus.details.columns,
+                    columns: scheduledDeliveryJobStatus.details.columns.map(
+                        (c) => ({
+                            ...c,
+                            isNull: allNullColumns.includes(c.reference),
+                        }),
+                    ),
                 };
             },
             onSuccess: (data) => {
