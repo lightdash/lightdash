@@ -361,20 +361,13 @@ export class SqlRunnerResultsTransformer
             (column) => column.type === DimensionType.STRING,
         );
 
-        const firstDateColumn = activeColumns.find((column) =>
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
-        );
-
         const firstNumericColumn = activeColumns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
-        let groupFieldIds: string[] | undefined;
-        if (firstCategoricalColumn?.reference) {
-            groupFieldIds = [firstCategoricalColumn.reference];
-        } else if (firstDateColumn?.reference) {
-            groupFieldIds = [firstDateColumn.reference];
-        }
+        const groupFieldIds = firstCategoricalColumn?.reference
+            ? [firstCategoricalColumn.reference]
+            : undefined;
 
         const metricId = firstNumericColumn?.reference || undefined;
 

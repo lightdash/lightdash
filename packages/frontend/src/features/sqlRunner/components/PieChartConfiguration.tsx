@@ -33,12 +33,13 @@ export const PieChartConfiguration = () => {
                     }))}
                     disabled={groupFieldOptions.length === 0}
                     value={groupField}
-                    placeholder="Select X axis"
+                    placeholder="Select group by"
                     onChange={(value) => {
                         if (!value) return;
                         dispatch(setGroupFieldIds(value));
                     }}
                     error={
+                        !!groupField &&
                         groupFieldOptions.find(
                             (x) => x.reference === groupField,
                         ) === undefined &&
