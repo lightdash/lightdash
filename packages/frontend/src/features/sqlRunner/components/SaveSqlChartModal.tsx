@@ -72,9 +72,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     }, [name, form, description, spaces, isFormPopulated]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const selectedChartConfig = useAppSelector((state) =>
-        selectCurrentChartConfig(state),
-    );
+    const selectedChartConfig = useAppSelector(selectCurrentChartConfig);
     const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
     const {
