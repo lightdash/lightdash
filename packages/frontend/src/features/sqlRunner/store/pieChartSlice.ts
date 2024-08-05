@@ -38,9 +38,7 @@ export const pieChartConfigSlice = createSlice({
             if (!config) return;
 
             if (!config.fieldConfig) {
-                config.fieldConfig = {
-                    groupFieldIds: [action.payload],
-                };
+                config.fieldConfig = {};
             }
 
             config.fieldConfig.groupFieldIds = [action.payload];
