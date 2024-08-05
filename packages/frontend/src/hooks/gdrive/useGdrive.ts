@@ -5,7 +5,7 @@ import {
     type UploadMetricGsheet,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
 import useHealth from '../health/useHealth';
@@ -29,26 +29,7 @@ export const useGdriveAccessToken = (
         null,
     );
 
-    useEffect(() => {
-        if (googleLoginPopup) {
-            const checkClosed = setInterval(() => {
-                if (googleLoginPopup?.closed) {
-                    setGoogleLoginPopup(
-                        window.open(
-                            gdriveUrl,
-                            'login-popup',
-                            'width=600,height=600',
-                        ),
-                    );
-                }
-            }, 1000);
-            return () => {
-                clearInterval(checkClosed);
-            };
-        }
-    }, [googleLoginPopup, gdriveUrl]);
-
-    return useQuery<ApiGdriveAccessTokenResponse['results'], ApiError>({
+    useQuery<ApiGdriveAccessTokenResponse['results'], ApiError>({
         queryKey: ['gdrive_access_token'],
         queryFn: getGdriveAccessToken,
         retry: false,
@@ -65,17 +46,25 @@ export const useGdriveAccessToken = (
         },
         onError: () => {
             if (googleLoginPopup?.closed) return false;
-            if (!googleLoginPopup) {
-                setGoogleLoginPopup(
-                    window.open(
-                        gdriveUrl,
-                        'login-popup',
-                        'width=600,height=600',
-                    ),
+            if (googleLoginPopup === null) {
+                const popupWindow = window.open(
+                    gdriveUrl,
+                    'login-popup',
+                    'width=600,height=600',
                 );
+                setGoogleLoginPopup(popupWindow);
             }
         },
     });
+
+    return {
+        closePopup: () => {
+            if (googleLoginPopup !== null) {
+                window.close();
+                setGoogleLoginPopup(null);
+            }
+        },
+    };
 };
 
 export const uploadGsheet = async (gsheetMetric: UploadMetricGsheet) => {
