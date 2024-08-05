@@ -7,7 +7,7 @@ import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?ur
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import { type DuckDBSqlFunction } from '@lightdash/common';
-import { tableFromJSON, tableToIPC, Type } from 'apache-arrow';
+import { tableFromArrays, tableToIPC, Type } from 'apache-arrow';
 
 const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
     mvp: {
@@ -26,15 +26,24 @@ function initializeBundle() {
 }
 initializeBundle();
 
-export const duckDBFE: DuckDBSqlFunction = async (sql, rowData) => {
+export const duckDBFE: DuckDBSqlFunction = async (sql, rowData, columns) => {
     const bundle = await bundlePromise;
-    const arrowTable = tableFromJSON(rowData);
     const worker = new Worker(bundle.mainWorker!);
     const logger = new duckdb.ConsoleLogger();
     const db = new duckdb.AsyncDuckDB(logger, worker);
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     const conn = await db.connect();
 
+    const columnReferences = columns.map((c) => c.reference);
+    const typedArrays = columnReferences.reduce((acc, c) => {
+        const col = rowData.map((r) => r[c]);
+        return {
+            ...acc,
+            [c]: col,
+        };
+    }, {});
+
+    const arrowTable = tableFromArrays(typedArrays);
     await conn.insertArrowFromIPCStream(tableToIPC(arrowTable), {
         name: 'results_data',
     });
