@@ -1,5 +1,6 @@
 import {
     DEFAULT_AGGREGATION,
+    XLayoutType,
     type AggregationOptions,
     type BarChartSqlConfig,
     type CartesianChartDisplay,
@@ -37,11 +38,17 @@ export const cartesianChartConfigSlice = createSlice({
     initialState,
     reducers: {
         setXAxisReference: (
-            { config },
-            action: PayloadAction<SqlTransformCartesianChartConfig['x']>,
+            state,
+            action: PayloadAction<
+                SqlTransformCartesianChartConfig['x']['reference']
+            >,
         ) => {
-            if (config?.fieldConfig?.x) {
-                config.fieldConfig.x = action.payload;
+            if (state.config?.fieldConfig?.x) {
+                state.config.fieldConfig.x.reference = action.payload;
+                state.config.fieldConfig.x.type =
+                    state.options.xLayoutOptions.find(
+                        (x) => x.reference === action.payload,
+                    )?.type ?? XLayoutType.CATEGORY;
             }
         },
         setGroupByReference: (
@@ -62,18 +69,21 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
         setYAxisReference: (
-            { config },
+            state,
             action: PayloadAction<{
                 reference: string;
                 index: number;
-                aggregation: AggregationOptions;
             }>,
         ) => {
-            if (config?.fieldConfig?.y) {
-                const yAxis = config.fieldConfig.y[action.payload.index];
+            if (state.config?.fieldConfig?.y) {
+                const yAxis = state.config.fieldConfig.y[action.payload.index];
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
-                    yAxis.aggregation = action.payload.aggregation;
+                    yAxis.aggregation =
+                        state.options.yLayoutOptions.find(
+                            (option) =>
+                                option.reference === action.payload.reference,
+                        )?.aggregationOptions[0] ?? DEFAULT_AGGREGATION;
                 }
             }
         },

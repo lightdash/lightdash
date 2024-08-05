@@ -1,7 +1,5 @@
 import {
-    DEFAULT_AGGREGATION,
     DimensionType,
-    XLayoutType,
     type GroupByLayoutOptions,
     type SqlTransformCartesianChartConfig,
     type XLayoutOptions,
@@ -102,12 +100,6 @@ const YFieldsAxisConfig: FC<{
                                     actions.setYAxisReference({
                                         reference: value,
                                         index,
-                                        aggregation:
-                                            yLayoutOptions.find(
-                                                (option) =>
-                                                    option.reference === value,
-                                            )?.aggregationOptions[0] ??
-                                            DEFAULT_AGGREGATION,
                                     }),
                                 );
                             }}
@@ -175,14 +167,7 @@ const XFieldAxisConfig = ({
             placeholder="Select X axis"
             onChange={(value) => {
                 if (!value) return;
-                dispatch(
-                    actions.setXAxisReference({
-                        reference: value,
-                        type:
-                            xLayoutOptions.find((x) => x.reference === value)
-                                ?.type ?? XLayoutType.CATEGORY,
-                    }),
-                );
+                dispatch(actions.setXAxisReference(value));
             }}
             error={
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
