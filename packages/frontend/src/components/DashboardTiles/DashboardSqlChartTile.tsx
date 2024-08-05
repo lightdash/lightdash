@@ -4,7 +4,7 @@ import {
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import SqlRunnerChart from '../../features/sqlRunner/components/visualizations/SqlRunnerChart';
 import { Table } from '../../features/sqlRunner/components/visualizations/Table';
@@ -40,6 +40,14 @@ export const DashboardSqlChartTile: FC<Props> = ({
         projectUuid,
         savedSqlUuid: tile.properties.savedSqlUuid,
     });
+
+    const sqlRunnerChartData = useMemo(
+        () => ({
+            results: data?.results ?? [],
+            columns: [],
+        }),
+        [data],
+    );
 
     if (isLoading) {
         return (
@@ -88,10 +96,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                 data.chart.config.type === ChartKind.LINE ||
                 data.chart.config.type === ChartKind.PIE) && (
                 <SqlRunnerChart
-                    data={{
-                        results: data.results,
-                        columns: [],
-                    }}
+                    data={sqlRunnerChartData}
                     config={data.chart.config}
                     style={{
                         minHeight: 'inherit',
