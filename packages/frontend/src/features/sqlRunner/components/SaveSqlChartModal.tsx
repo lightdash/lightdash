@@ -10,7 +10,7 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -24,7 +24,10 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
+import {
+    selectBarChartConfigState,
+    selectCurrentChartConfig,
+} from '../store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -32,10 +35,14 @@ type FormValues = z.infer<typeof validationSchema>;
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
+    console.log('SaveSqlChartModal: opened', opened);
+
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
+    const [isFormPopulated, setIsFormPopulated] = useState(false);
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
@@ -52,19 +59,25 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     useEffect(() => {
-        if (!form.values.name && name) {
-            form.setFieldValue('name', name);
+        if (!isFormPopulated) {
+            if (name) {
+                form.setFieldValue('name', name);
+            }
+            if (description) {
+                form.setFieldValue('description', description);
+            }
+            if (spaces.length > 0) {
+                form.setFieldValue('spaceUuid', spaces[0].uuid);
+            }
+            setIsFormPopulated(true);
         }
-        if (!form.values.description && description) {
-            form.setFieldValue('description', description);
-        }
-        if (!form.values.spaceUuid && spaces.length > 0) {
-            form.setFieldValue('spaceUuid', spaces[0].uuid);
-        }
-    }, [name, form, description, spaces]);
+    }, [name, form, description, spaces, isFormPopulated]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const config = useAppSelector((state) => selectCurrentChartConfig(state));
+    const selectedChartConfig = useAppSelector((state) =>
+        selectCurrentChartConfig(state),
+    );
+    const defaultChartConfig = useAppSelector(selectBarChartConfigState);
 
     const {
         mutateAsync: createSavedSqlChart,
@@ -91,29 +104,35 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             : undefined;
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
-        if (config) {
+
+        const configToSave = selectedChartConfig ?? defaultChartConfig.config;
+
+        if (configToSave && sql) {
             await createSavedSqlChart({
                 name: form.values.name,
                 description: form.values.description || '',
                 sql,
-                config,
+                config: configToSave,
                 spaceUuid: spaceUuid,
             });
-            dispatch(updateName(form.values.name));
         }
+
+        dispatch(updateName(form.values.name));
+
         onClose();
     }, [
-        config,
-        createSavedSqlChart,
-        dispatch,
-        form.values.description,
-        form.values.name,
-        form.values.spaceUuid,
-        form.values.newSpaceName,
-        onClose,
         spaces,
-        sql,
+        form.values.newSpaceName,
+        form.values.spaceUuid,
+        form.values.name,
+        form.values.description,
         createSpace,
+        selectedChartConfig,
+        onClose,
+        createSavedSqlChart,
+        sql,
+        defaultChartConfig,
+        dispatch,
     ]);
 
     return (
@@ -172,7 +191,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name || config === undefined}
+                        disabled={!form.values.name || !sql}
                         loading={isCreatingSavedSqlChart}
                     >
                         Save

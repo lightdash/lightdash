@@ -14,6 +14,7 @@ import { SaveSqlChartModal } from '../SaveSqlChartModal';
 export const HeaderCreate: FC = () => {
     const dispatch = useAppDispatch();
     const name = useAppSelector((state) => state.sqlRunner.name);
+    const loadedColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
@@ -42,7 +43,7 @@ export const HeaderCreate: FC = () => {
                             label="Save chart"
                             position="bottom"
                         >
-                            <ActionIcon size="xs">
+                            <ActionIcon size="xs" disabled={!loadedColumns}>
                                 <MantineIcon
                                     icon={IconDeviceFloppy}
                                     onClick={() => {
