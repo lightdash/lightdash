@@ -1,3 +1,10 @@
+## [0.1202.8](https://github.com/lightdash/lightdash/compare/0.1202.7...0.1202.8) (2024-08-05)
+
+
+### Bug Fixes
+
+* can save sql without viewing chart ([#11015](https://github.com/lightdash/lightdash/issues/11015)) ([8d0c32d](https://github.com/lightdash/lightdash/commit/8d0c32d4af797ddd00b06b6198ff3e1b682ed258))
+
 ## [0.1202.7](https://github.com/lightdash/lightdash/compare/0.1202.6...0.1202.7) (2024-08-05)
 
 
