@@ -1,3 +1,10 @@
+## [0.1202.6](https://github.com/lightdash/lightdash/compare/0.1202.5...0.1202.6) (2024-08-05)
+
+
+### Bug Fixes
+
+* temporary value on required filter ([#10968](https://github.com/lightdash/lightdash/issues/10968)) ([e78094b](https://github.com/lightdash/lightdash/commit/e78094bdb490bf6de069e542ddd41f105fa4bc87))
+
 ## [0.1202.5](https://github.com/lightdash/lightdash/compare/0.1202.4...0.1202.5) (2024-08-05)
 
 
