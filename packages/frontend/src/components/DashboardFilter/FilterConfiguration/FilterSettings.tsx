@@ -126,7 +126,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     onChange={handleChangeFilterOperator}
                     value={filterRule.operator}
                 />
-                {showAnyValueDisabledInput && (
+                {showAnyValueDisabledInput && !filterRule.required && (
                     <TextInput
                         disabled
                         size="xs"
@@ -137,7 +137,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         })}
                     />
                 )}
-                {showValueInput && (
+                {(showValueInput || filterRule.required) && (
                     <FilterInputComponent
                         popoverProps={popoverProps}
                         filterType={filterType}
@@ -150,76 +150,87 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         }
                     />
                 )}
+
                 {isEditMode && (
                     <>
-                        <Tooltip
-                            withinPortal
-                            position="right"
-                            label={
-                                isFilterDisabled
-                                    ? 'Toggle on to set a default filter value'
-                                    : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
-                            }
-                            openDelay={500}
-                        >
-                            <Box w="max-content">
-                                <Switch
-                                    label={
-                                        <Text size="xs" mt="two" fw={500}>
-                                            Provide default value
-                                        </Text>
-                                    }
-                                    labelPosition="right"
-                                    checked={!isFilterDisabled}
-                                    onChange={(e) => {
-                                        const newFilter: DashboardFilterRule = {
-                                            ...filterRule,
-                                            disabled: !e.currentTarget.checked,
-                                            required:
-                                                filterRule.required &&
-                                                !e.currentTarget.checked
-                                                    ? // If the filter is required and the user is disabling it, we should also disable the required flag
-                                                      false
-                                                    : filterRule.required,
-                                        };
+                        {filterRule.required &&
+                            (filterRule?.values || []).length > 0 && (
+                                <Text size="xs" color={'gray.7'}>
+                                    Temporary filter values for required filters
+                                    will be removed on dashboard save
+                                </Text>
+                            )}
+                        {!filterRule.required && (
+                            <Tooltip
+                                withinPortal
+                                position="right"
+                                label={
+                                    isFilterDisabled
+                                        ? 'Toggle on to set a default filter value'
+                                        : 'Toggle off to leave the filter value empty, allowing users to populate it in view mode'
+                                }
+                                openDelay={500}
+                            >
+                                <Box w="max-content">
+                                    <Switch
+                                        label={
+                                            <Text size="xs" mt="two" fw={500}>
+                                                Provide default value
+                                            </Text>
+                                        }
+                                        labelPosition="right"
+                                        checked={!isFilterDisabled}
+                                        onChange={(e) => {
+                                            const newFilter: DashboardFilterRule =
+                                                {
+                                                    ...filterRule,
+                                                    disabled:
+                                                        !e.currentTarget
+                                                            .checked,
+                                                    required:
+                                                        filterRule.required &&
+                                                        !e.currentTarget.checked
+                                                            ? // If the filter is required and the user is disabling it, we should also disable the required flag
+                                                              false
+                                                            : filterRule.required,
+                                                };
 
-                                        onChangeFilterRule(
-                                            e.currentTarget.checked
-                                                ? newFilter
-                                                : getFilterRuleWithDefaultValue(
-                                                      field,
-                                                      newFilter,
-                                                      null,
-                                                  ),
-                                        );
-                                    }}
-                                />
-                            </Box>
-                        </Tooltip>
-
-                        {filterRule.disabled && (
-                            <Checkbox
-                                size="xs"
-                                checked={filterRule.required}
-                                onChange={(e) => {
-                                    const newFilter: DashboardFilterRule = {
-                                        ...filterRule,
-                                        required: e.currentTarget.checked,
-                                    };
-
-                                    onChangeFilterRule(
-                                        e.currentTarget.checked
-                                            ? newFilter
-                                            : getFilterRuleWithDefaultValue(
-                                                  field,
-                                                  newFilter,
-                                                  null,
-                                              ),
-                                    );
-                                }}
-                                label="Require value for dashboard to run"
-                            />
+                                            onChangeFilterRule(
+                                                e.currentTarget.checked
+                                                    ? newFilter
+                                                    : getFilterRuleWithDefaultValue(
+                                                          field,
+                                                          newFilter,
+                                                          null,
+                                                      ),
+                                            );
+                                        }}
+                                    />
+                                </Box>
+                            </Tooltip>
                         )}
+
+                        <Checkbox
+                            size="xs"
+                            checked={filterRule.required}
+                            onChange={(e) => {
+                                const newFilter: DashboardFilterRule = {
+                                    ...filterRule,
+                                    required: e.currentTarget.checked,
+                                };
+
+                                onChangeFilterRule(
+                                    e.currentTarget.checked
+                                        ? newFilter
+                                        : getFilterRuleWithDefaultValue(
+                                              field,
+                                              newFilter,
+                                              null,
+                                          ),
+                                );
+                            }}
+                            label="Require value for dashboard to run"
+                        />
                     </>
                 )}
             </Stack>
