@@ -176,7 +176,7 @@ export const cartesianChartConfigSlice = createSlice({
                 (option) =>
                     !state.config?.fieldConfig?.y
                         .map((y) => y.reference)
-                        .includes(option.reference),
+                        .includes(option.reference) && !option.disabled,
             );
             const yAxisFields = state.config.fieldConfig.y;
 

@@ -5,7 +5,7 @@ import {
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Select, UnstyledButton } from '@mantine/core';
+import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -20,7 +20,7 @@ import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { cartesianChartSelectors } from '../store/selectors';
 import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
-import { TableFieldIcon } from './TableFields';
+import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
     field: SqlTransformCartesianChartConfig['y'][number];
@@ -80,18 +80,18 @@ const YFieldsAxisConfig: FC<{
             >
                 <Config>
                     <Config.Section>
-                        <Select
-                            radius="md"
+                        <FieldReferenceSelect
                             data={yLayoutOptions.map((y) => ({
                                 value: y.reference,
                                 label: y.reference,
+                                disabled: y.disabled,
                             }))}
                             value={field.reference}
                             error={
                                 yLayoutOptions.find(
                                     (y) => y.reference === field.reference,
                                 ) === undefined &&
-                                `Column "${field.reference}" not in SQL`
+                                `Column "${field.reference}" not in SQL query`
                             }
                             placeholder="Select Y axis"
                             onChange={(value) => {
@@ -103,15 +103,10 @@ const YFieldsAxisConfig: FC<{
                                     }),
                                 );
                             }}
-                            icon={
-                                <TableFieldIcon
-                                    fieldType={
-                                        sqlColumns?.find(
-                                            (x) =>
-                                                x.reference === field.reference,
-                                        )?.type ?? DimensionType.STRING
-                                    }
-                                />
+                            fieldType={
+                                sqlColumns?.find(
+                                    (x) => x.reference === field.reference,
+                                )?.type ?? DimensionType.STRING
                             }
                         />
 
@@ -157,11 +152,11 @@ const XFieldAxisConfig = ({
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
-        <Select
-            radius="md"
+        <FieldReferenceSelect
             data={xLayoutOptions.map((x) => ({
                 value: x.reference,
                 label: x.reference,
+                disabled: x.disabled,
             }))}
             value={field.reference}
             placeholder="Select X axis"
@@ -173,13 +168,9 @@ const XFieldAxisConfig = ({
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
                     undefined && `Column "${field.reference}" not in SQL query`
             }
-            icon={
-                <TableFieldIcon
-                    fieldType={
-                        sqlColumns?.find((x) => x.reference === field.reference)
-                            ?.type ?? DimensionType.STRING
-                    }
-                />
+            fieldType={
+                sqlColumns?.find((x) => x.reference === field.reference)
+                    ?.type ?? DimensionType.STRING
             }
         />
     );
@@ -197,11 +188,12 @@ const GroupByFieldAxisConfig = ({
     const dispatch = useAppDispatch();
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     return (
-        <Select
-            radius="md"
+        <FieldReferenceSelect
+            clearable
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
                 label: groupBy.reference,
+                disabled: groupBy.disabled,
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
@@ -221,18 +213,10 @@ const GroupByFieldAxisConfig = ({
                     );
                 }
             }}
-            icon={
-                field?.reference ? (
-                    <TableFieldIcon
-                        fieldType={
-                            sqlColumns?.find(
-                                (x) => x.reference === field?.reference,
-                            )?.type ?? DimensionType.STRING
-                        }
-                    />
-                ) : null
+            fieldType={
+                sqlColumns?.find((x) => x.reference === field?.reference)
+                    ?.type ?? DimensionType.STRING
             }
-            clearable
         />
     );
 };

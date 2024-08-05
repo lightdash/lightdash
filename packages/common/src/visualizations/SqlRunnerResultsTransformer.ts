@@ -22,6 +22,7 @@ export type AggregationOptions = typeof aggregationOptions[number];
 export type SqlColumn = {
     reference: string;
     type: DimensionType;
+    isNull?: boolean;
 };
 
 export enum XLayoutType {
@@ -32,15 +33,18 @@ export enum XLayoutType {
 export type XLayoutOptions = {
     type: XLayoutType;
     reference: string;
+    disabled: boolean;
 };
 
 export type YLayoutOptions = {
     reference: string;
     aggregationOptions: AggregationOptions[];
+    disabled: boolean;
 };
 
 export type GroupByLayoutOptions = {
     reference: string;
+    disabled: boolean;
 };
 
 export type CartesianChartDisplay = {
@@ -71,12 +75,7 @@ export type SqlTransformCartesianChartConfig = {
     groupBy: { reference: string }[] | undefined;
 };
 
-// TODO: Should pie chart share the X and Y layout options? They could be
-// called something else
-export type PieChartDimensionOptions = {
-    type: XLayoutType;
-    reference: string;
-};
+export type PieChartDimensionOptions = XLayoutOptions;
 
 export type PieChartMetricOptions = {
     reference: string;
@@ -182,6 +181,7 @@ export class SqlRunnerResultsTransformer
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
+                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -201,12 +201,14 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.TIME,
+                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.TIMESTAMP:
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.TIME,
+                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.STRING:
@@ -215,6 +217,7 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.CATEGORY,
+                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -232,6 +235,7 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         aggregationOptions,
+                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.STRING:
@@ -243,6 +247,7 @@ export class SqlRunnerResultsTransformer
                                 option === MetricType.COUNT ||
                                 option === MetricType.COUNT_DISTINCT,
                         ),
+                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -255,16 +260,17 @@ export class SqlRunnerResultsTransformer
     defaultCartesianChartLayout():
         | SqlTransformCartesianChartConfig
         | undefined {
-        const firstCategoricalColumn = this.columns.find(
+        const activeColumns = this.columns.filter((column) => !column.isNull);
+        const firstCategoricalColumn = activeColumns.find(
             (column) => column.type === DimensionType.STRING,
         );
-        const firstBooleanColumn = this.columns.find(
+        const firstBooleanColumn = activeColumns.find(
             (column) => column.type === DimensionType.BOOLEAN,
         );
-        const firstDateColumn = this.columns.find((column) =>
+        const firstDateColumn = activeColumns.find((column) =>
             [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
         );
-        const firstNumericColumn = this.columns.find(
+        const firstNumericColumn = activeColumns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
@@ -349,18 +355,28 @@ export class SqlRunnerResultsTransformer
     }
 
     defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {
-        const firstCategoricalColumn = this.columns.find(
+        const activeColumns = this.columns.filter((column) => !column.isNull);
+
+        const firstCategoricalColumn = activeColumns.find(
             (column) => column.type === DimensionType.STRING,
         );
 
-        const firstNumericColumn = this.columns.find(
+        const firstDateColumn = activeColumns.find((column) =>
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
+        );
+
+        const firstNumericColumn = activeColumns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
-        const groupFieldIds = firstCategoricalColumn?.reference
-            ? [firstCategoricalColumn.reference]
-            : undefined;
-        const metricId = firstNumericColumn?.reference;
+        let groupFieldIds: string[] | undefined;
+        if (firstCategoricalColumn?.reference) {
+            groupFieldIds = [firstCategoricalColumn.reference];
+        } else if (firstDateColumn?.reference) {
+            groupFieldIds = [firstDateColumn.reference];
+        }
+
+        const metricId = firstNumericColumn?.reference || undefined;
 
         if (
             !groupFieldIds ||

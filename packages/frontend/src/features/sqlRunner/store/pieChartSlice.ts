@@ -35,9 +35,15 @@ export const pieChartConfigSlice = createSlice({
     initialState,
     reducers: {
         setGroupFieldIds: ({ config }, action: PayloadAction<string>) => {
-            if (config?.fieldConfig) {
-                config.fieldConfig.groupFieldIds = [action.payload];
+            if (!config) return;
+
+            if (!config.fieldConfig) {
+                config.fieldConfig = {
+                    groupFieldIds: [action.payload],
+                };
             }
+
+            config.fieldConfig.groupFieldIds = [action.payload];
         },
     },
     extraReducers: (builder) => {
