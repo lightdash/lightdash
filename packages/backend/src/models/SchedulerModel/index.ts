@@ -146,7 +146,17 @@ export class SchedulerModel {
     ): Promise<SchedulerAndTargets[]> {
         const schedulers = this.database(SchedulerTableName)
             .select()
-            .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid);
+            .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid)
+            .orderBy([
+                {
+                    column: 'name',
+                    order: 'asc',
+                },
+                {
+                    column: 'created_at',
+                    order: 'asc',
+                },
+            ]);
         return this.getSchedulersWithTargets(await schedulers);
     }
 
@@ -155,7 +165,17 @@ export class SchedulerModel {
     ): Promise<SchedulerAndTargets[]> {
         const schedulers = this.database(SchedulerTableName)
             .select()
-            .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid);
+            .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid)
+            .orderBy([
+                {
+                    column: 'name',
+                    order: 'asc',
+                },
+                {
+                    column: 'created_at',
+                    order: 'asc',
+                },
+            ]);
         return this.getSchedulersWithTargets(await schedulers);
     }
 
