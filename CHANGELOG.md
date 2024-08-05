@@ -1,3 +1,10 @@
+## [0.1202.10](https://github.com/lightdash/lightdash/compare/0.1202.9...0.1202.10) (2024-08-05)
+
+
+### Bug Fixes
+
+* trigger release ([#11023](https://github.com/lightdash/lightdash/issues/11023)) ([3d40e09](https://github.com/lightdash/lightdash/commit/3d40e09d18db6787735bb4ee205aaa57f59f6b6e))
+
 ## [0.1202.9](https://github.com/lightdash/lightdash/compare/0.1202.8...0.1202.9) (2024-08-05)
 
 
