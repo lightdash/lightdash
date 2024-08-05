@@ -1,3 +1,10 @@
+## [0.1202.7](https://github.com/lightdash/lightdash/compare/0.1202.6...0.1202.7) (2024-08-05)
+
+
+### Bug Fixes
+
+* sort scheduler list by name to avoid reorders ([#10999](https://github.com/lightdash/lightdash/issues/10999)) ([c3b2b5c](https://github.com/lightdash/lightdash/commit/c3b2b5c00ce18c6925da0e7f419b1869b280cafa))
+
 ## [0.1202.6](https://github.com/lightdash/lightdash/compare/0.1202.5...0.1202.6) (2024-08-05)
 
 
