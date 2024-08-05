@@ -1,3 +1,10 @@
+## [0.1202.9](https://github.com/lightdash/lightdash/compare/0.1202.8...0.1202.9) (2024-08-05)
+
+
+### Bug Fixes
+
+* cli join compile ([#11019](https://github.com/lightdash/lightdash/issues/11019)) ([851892d](https://github.com/lightdash/lightdash/commit/851892d92a621275f1d70965bd93ae9df657be06))
+
 ## [0.1202.8](https://github.com/lightdash/lightdash/compare/0.1202.7...0.1202.8) (2024-08-05)
 
 
