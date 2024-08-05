@@ -25,8 +25,8 @@ import {
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-    selectBarChartConfigState,
     selectCurrentChartConfig,
+    selectTableVisConfigState,
 } from '../store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
@@ -35,8 +35,6 @@ type FormValues = z.infer<typeof validationSchema>;
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
-    console.log('SaveSqlChartModal: opened', opened);
-
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
@@ -77,7 +75,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const selectedChartConfig = useAppSelector((state) =>
         selectCurrentChartConfig(state),
     );
-    const defaultChartConfig = useAppSelector(selectBarChartConfigState);
+    const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
     const {
         mutateAsync: createSavedSqlChart,

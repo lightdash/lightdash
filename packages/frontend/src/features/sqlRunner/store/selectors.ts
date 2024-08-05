@@ -4,7 +4,7 @@ import { type RootState } from '.';
 
 const selectSqlRunnerState = (state: RootState): RootState['sqlRunner'] =>
     state.sqlRunner;
-export const selectBarChartConfigState = (
+const selectBarChartConfigState = (
     state: RootState,
 ): RootState['barChartConfig'] => state.barChartConfig;
 const selectLineChartConfigState = (
@@ -13,7 +13,7 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
-const selectTableVisConfigState = (
+export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
