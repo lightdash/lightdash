@@ -7,6 +7,7 @@ import {
 import {
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     LoadingOverlay,
     Paper,
@@ -290,6 +291,7 @@ export const ContentPanel: FC = () => {
                             withBorder
                             bg="gray.1"
                             sx={(theme) => ({
+                                zIndex: getDefaultZIndex('overlay') + 1,
                                 borderWidth: isResultsPanelFullHeight
                                     ? '0 0 0 1px'
                                     : '0 0 1px 1px',
@@ -321,7 +323,12 @@ export const ContentPanel: FC = () => {
                             borderColor: theme.colors.gray[3],
                         })}
                     >
-                        <LoadingOverlay visible={isLoading} />
+                        <LoadingOverlay
+                            loaderProps={{
+                                size: 'xs',
+                            }}
+                            visible={isLoading}
+                        />
                         {queryResults?.results && (
                             <Table
                                 data={queryResults.results}
