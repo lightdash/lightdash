@@ -208,7 +208,6 @@ export const useSqlQueryRun = ({
             isResultsLoading,
         ],
     );
-
     return {
         mutate,
         isLoading,
