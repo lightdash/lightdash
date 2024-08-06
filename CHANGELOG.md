@@ -1,3 +1,13 @@
+## [0.1202.13](https://github.com/lightdash/lightdash/compare/0.1202.12...0.1202.13) (2024-08-06)
+
+
+### Bug Fixes
+
+* orphaned chart deletion ([#11016](https://github.com/lightdash/lightdash/issues/11016)) ([cdbed5e](https://github.com/lightdash/lightdash/commit/cdbed5ea56b10c7441a089a06855f4fbce89785b))
+* SQL chart access in private spaces ([#11006](https://github.com/lightdash/lightdash/issues/11006)) ([1775bf1](https://github.com/lightdash/lightdash/commit/1775bf13a8b9251b0e81be42e9229b5d04adbbf2))
+* SQL chart view page loading state and chart height ([#11017](https://github.com/lightdash/lightdash/issues/11017)) ([2cf3d6c](https://github.com/lightdash/lightdash/commit/2cf3d6c7616fb0cf6fd6a937a07ec9646008bb60))
+* table `sql_filter` should join a referenced table ([#10967](https://github.com/lightdash/lightdash/issues/10967)) ([715b00c](https://github.com/lightdash/lightdash/commit/715b00c3d08c528534acb987765a8912dc5344ef))
+
 ## [0.1202.12](https://github.com/lightdash/lightdash/compare/0.1202.11...0.1202.12) (2024-08-06)
 
 
