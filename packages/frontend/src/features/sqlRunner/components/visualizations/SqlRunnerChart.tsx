@@ -1,7 +1,9 @@
 import { type SqlRunnerChartConfig } from '@lightdash/common';
-import { Center, LoadingOverlay } from '@mantine/core';
+import { LoadingOverlay } from '@mantine/core';
+import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
+import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
 import { useSqlChart } from '../../transformers/useSqlChart';
 
@@ -21,7 +23,13 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
         const loading = isLoadingProp || transformLoading;
 
         if (error) {
-            return <Center>{error.message}</Center>;
+            return (
+                <SuboptimalState
+                    title="Error"
+                    description={error.message}
+                    icon={IconAlertCircle}
+                />
+            );
         }
 
         return (

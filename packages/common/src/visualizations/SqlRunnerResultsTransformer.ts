@@ -71,12 +71,7 @@ export type SqlTransformCartesianChartConfig = {
     groupBy: { reference: string }[] | undefined;
 };
 
-// TODO: Should pie chart share the X and Y layout options? They could be
-// called something else
-export type PieChartDimensionOptions = {
-    type: XLayoutType;
-    reference: string;
-};
+export type PieChartDimensionOptions = XLayoutOptions;
 
 export type PieChartMetricOptions = {
     reference: string;
@@ -95,9 +90,11 @@ export type SqlTransformPieChartConfig = {
 export type DuckDBSqlFunction = (
     sql: string,
     rowData: RowData[],
+    columns: SqlColumn[],
 ) => Promise<RowData[]>;
 
 type GetPivotedResultsArgs = {
+    columns: SqlColumn[];
     rows: RowData[];
     valuesSql: string[];
     pivotsSql: string[];
@@ -107,6 +104,7 @@ type GetPivotedResultsArgs = {
 };
 
 export const getPivotedResults = async ({
+    columns,
     rows,
     valuesSql,
     pivotsSql,
@@ -136,7 +134,7 @@ export const getPivotedResults = async ({
         query += ` ORDER BY ${sortsSql.join(', ')}`;
     }
 
-    const pivoted = await duckDBSqlFunction(query, rows);
+    const pivoted = await duckDBSqlFunction(query, rows, columns);
 
     const fieldNames = Object.keys(pivoted[0]);
 
@@ -321,6 +319,7 @@ export class SqlRunnerResultsTransformer
         const sortsSql = [`${config.x.reference} ASC`];
 
         const pivotResults = await getPivotedResults({
+            columns: this.columns,
             rows: this.rows, // data
             groupByColumns, // x location
             valuesSql, // height
@@ -360,7 +359,8 @@ export class SqlRunnerResultsTransformer
         const groupFieldIds = firstCategoricalColumn?.reference
             ? [firstCategoricalColumn.reference]
             : undefined;
-        const metricId = firstNumericColumn?.reference;
+
+        const metricId = firstNumericColumn?.reference || undefined;
 
         if (
             !groupFieldIds ||

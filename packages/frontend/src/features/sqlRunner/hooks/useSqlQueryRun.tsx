@@ -182,6 +182,7 @@ export const useSqlQueryRun = ({
                 ) {
                     return undefined;
                 }
+
                 return {
                     results: data,
                     columns: scheduledDeliveryJobStatus.details.columns,
@@ -207,7 +208,6 @@ export const useSqlQueryRun = ({
             isResultsLoading,
         ],
     );
-
     return {
         mutate,
         isLoading,
