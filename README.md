@@ -377,6 +377,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/calculuslmvt"><img src="https://avatars.githubusercontent.com/u/55044051?v=4?s=100" width="100px;" alt="AYUSH SINGH"/><br /><sub><b>AYUSH SINGH</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=calculuslmvt" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/xinlingqudongX"><img src="https://avatars.githubusercontent.com/u/26372348?v=4?s=100" width="100px;" alt="xinlingqudongX"/><br /><sub><b>xinlingqudongX</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/issues?q=author%3AxinlingqudongX" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/aayushi1995"><img src="https://avatars.githubusercontent.com/u/25344927?v=4?s=100" width="100px;" alt="Aayushi Kambariya"/><br /><sub><b>Aayushi Kambariya</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=aayushi1995" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/maxdiplogit"><img src="https://avatars.githubusercontent.com/u/111004544?v=4?s=100" width="100px;" alt="Harshmeet Singh"/><br /><sub><b>Harshmeet Singh</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=maxdiplogit" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
