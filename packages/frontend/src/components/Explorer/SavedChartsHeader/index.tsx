@@ -976,7 +976,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                             }
                         });
 
-                        if (search) {
+                        if (dashboardUuid) {
                             history.push(
                                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
                             );
