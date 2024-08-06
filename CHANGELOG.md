@@ -1,3 +1,10 @@
+## [0.1202.11](https://github.com/lightdash/lightdash/compare/0.1202.10...0.1202.11) (2024-08-06)
+
+
+### Bug Fixes
+
+* SQL chart dashboard tile loading state ([#11010](https://github.com/lightdash/lightdash/issues/11010)) ([59bf768](https://github.com/lightdash/lightdash/commit/59bf768039d46c27509cffd146e26bf97483be95))
+
 ## [0.1202.10](https://github.com/lightdash/lightdash/compare/0.1202.9...0.1202.10) (2024-08-05)
 
 
