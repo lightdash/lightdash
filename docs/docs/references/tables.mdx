@@ -137,7 +137,17 @@ Use `sql_filter` to permanently filter the table for all queries made against it
 - `${dimension_a}` a dimension from the current table
 - `${table_b.dimension_b}` a dimension from a joined table
 
-The filter will only be applied when querying this table directly. If the current table (Table A) is included via a join to another table (Table B) then the `sql_filter` for Table B will be applied but not for Table A.
+:::info
+
+`sql_filter` will only be applied when querying tables directly. For example: If Table A includes another table (Table B) with `sql_filter` applied to it, then only the `sql_filter` from Table A will be applied when querying Table A directly. The `sql_filter` from Table B _will not_ be applied.
+
+:::
+
+:::info
+
+If you reference a dimension from a joined table in your `sql_filter`, the referenced table will be joined automatically. For example: If you reference `${table_b.dimension_b}` in Table A's `sql_filter`, then Table B will be joined to Table A automatically.
+
+:::
 
 ### Required attributes
 
