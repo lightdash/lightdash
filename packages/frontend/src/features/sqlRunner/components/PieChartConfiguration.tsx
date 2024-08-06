@@ -29,7 +29,6 @@ export const PieChartConfiguration = () => {
                     data={groupFieldOptions.map((x) => ({
                         value: x.reference,
                         label: x.reference,
-                        disabled: x.disabled,
                     }))}
                     disabled={groupFieldOptions.length === 0}
                     value={groupField}

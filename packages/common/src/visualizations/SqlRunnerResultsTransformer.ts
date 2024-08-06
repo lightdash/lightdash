@@ -22,7 +22,6 @@ export type AggregationOptions = typeof aggregationOptions[number];
 export type SqlColumn = {
     reference: string;
     type: DimensionType;
-    isNull?: boolean;
 };
 
 export enum XLayoutType {
@@ -33,18 +32,15 @@ export enum XLayoutType {
 export type XLayoutOptions = {
     type: XLayoutType;
     reference: string;
-    disabled: boolean;
 };
 
 export type YLayoutOptions = {
     reference: string;
     aggregationOptions: AggregationOptions[];
-    disabled: boolean;
 };
 
 export type GroupByLayoutOptions = {
     reference: string;
-    disabled: boolean;
 };
 
 export type CartesianChartDisplay = {
@@ -184,7 +180,6 @@ export class SqlRunnerResultsTransformer
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
-                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -204,14 +199,12 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.TIME,
-                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.TIMESTAMP:
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.TIME,
-                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.STRING:
@@ -220,7 +213,6 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         type: XLayoutType.CATEGORY,
-                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -238,7 +230,6 @@ export class SqlRunnerResultsTransformer
                     options.push({
                         reference: column.reference,
                         aggregationOptions,
-                        disabled: !!column.isNull,
                     });
                     break;
                 case DimensionType.STRING:
@@ -250,7 +241,6 @@ export class SqlRunnerResultsTransformer
                                 option === MetricType.COUNT ||
                                 option === MetricType.COUNT_DISTINCT,
                         ),
-                        disabled: !!column.isNull,
                     });
                     break;
                 default:
@@ -263,17 +253,16 @@ export class SqlRunnerResultsTransformer
     defaultCartesianChartLayout():
         | SqlTransformCartesianChartConfig
         | undefined {
-        const activeColumns = this.columns.filter((column) => !column.isNull);
-        const firstCategoricalColumn = activeColumns.find(
+        const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
-        const firstBooleanColumn = activeColumns.find(
+        const firstBooleanColumn = this.columns.find(
             (column) => column.type === DimensionType.BOOLEAN,
         );
-        const firstDateColumn = activeColumns.find((column) =>
+        const firstDateColumn = this.columns.find((column) =>
             [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
         );
-        const firstNumericColumn = activeColumns.find(
+        const firstNumericColumn = this.columns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 
@@ -359,13 +348,11 @@ export class SqlRunnerResultsTransformer
     }
 
     defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {
-        const activeColumns = this.columns.filter((column) => !column.isNull);
-
-        const firstCategoricalColumn = activeColumns.find(
+        const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
 
-        const firstNumericColumn = activeColumns.find(
+        const firstNumericColumn = this.columns.find(
             (column) => column.type === DimensionType.NUMBER,
         );
 

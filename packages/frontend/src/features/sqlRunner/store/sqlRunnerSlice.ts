@@ -1,6 +1,7 @@
 import {
     ChartKind,
     type SqlChart,
+    type SqlColumn,
     type SqlTableConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
@@ -43,7 +44,7 @@ export interface SqlRunnerState {
         };
     };
     quoteChar: string;
-    sqlColumns: ResultsAndColumns['columns'] | undefined;
+    sqlColumns: SqlColumn[] | undefined;
 }
 
 const initialState: SqlRunnerState = {

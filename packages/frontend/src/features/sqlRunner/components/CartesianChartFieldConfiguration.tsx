@@ -84,7 +84,6 @@ const YFieldsAxisConfig: FC<{
                             data={yLayoutOptions.map((y) => ({
                                 value: y.reference,
                                 label: y.reference,
-                                disabled: y.disabled,
                             }))}
                             value={field.reference}
                             error={
@@ -156,7 +155,6 @@ const XFieldAxisConfig = ({
             data={xLayoutOptions.map((x) => ({
                 value: x.reference,
                 label: x.reference,
-                disabled: x.disabled,
             }))}
             value={field.reference}
             placeholder="Select X axis"
@@ -193,7 +191,6 @@ const GroupByFieldAxisConfig = ({
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
                 label: groupBy.reference,
-                disabled: groupBy.disabled,
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
