@@ -49,7 +49,7 @@ export const SelectGoogleSheetButton: FC = () => {
         [methods],
     );
 
-    useGdriveAccessToken({
+    const { closePopup } = useGdriveAccessToken({
         enabled: isGoogleAuthQueryEnabled,
         onSuccess: (accessToken) => {
             if (
@@ -130,6 +130,7 @@ export const SelectGoogleSheetButton: FC = () => {
             <Button
                 size="xs"
                 onClick={() => {
+                    closePopup();
                     setIsGoogleAuthQueryEnabled(true);
                 }}
             >
