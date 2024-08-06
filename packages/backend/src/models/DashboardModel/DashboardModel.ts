@@ -1033,23 +1033,20 @@ export class DashboardModel {
     async getOrphanedCharts(
         dashboardUuid: string,
     ): Promise<Pick<SavedChart, 'uuid'>[]> {
-        const getLastVersionIdQuery = this.database(DashboardsTableName)
+        const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
+            .distinct('saved_chart_id')
             .leftJoin(
                 DashboardVersionsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardTileChartTableName}.dashboard_version_id`,
+            )
+            .leftJoin(
+                DashboardsTableName,
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .select([`${DashboardVersionsTableName}.dashboard_version_id`])
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-            .limit(1);
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid);
 
-        const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
-            .select(`saved_chart_id`)
-            .where(
-                `${DashboardTileChartTableName}.dashboard_version_id`,
-                getLastVersionIdQuery,
-            );
         const orphanedCharts = await this.database(SavedChartsTableName)
             .select(`saved_query_uuid`)
             .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)

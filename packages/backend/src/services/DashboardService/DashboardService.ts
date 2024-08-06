@@ -132,6 +132,7 @@ export class DashboardService extends BaseService {
         const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
             dashboardUuid,
         );
+
         await Promise.all(
             orphanedCharts.map(async (chart) => {
                 const deletedChart = await this.savedChartModel.delete(
