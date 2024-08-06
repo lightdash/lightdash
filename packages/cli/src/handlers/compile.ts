@@ -24,7 +24,12 @@ import {
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { dbtCompile, DbtCompileOptions, dbtList } from './dbt/compile';
+import {
+    dbtCompileNecessaryModels,
+    DbtCompileOptions,
+    dbtList,
+    dbtParse,
+} from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
@@ -76,13 +81,6 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     // Skipping assumes manifest.json already exists.
     let compiledModelIds: string[] | undefined;
-    if (options.useDbtList) {
-        compiledModelIds = await dbtList(options);
-    } else if (!options.skipDbtCompile) {
-        await dbtCompile(options);
-    } else {
-        GlobalState.debug('> Skipping dbt compile');
-    }
 
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
@@ -91,6 +89,27 @@ export const compile = async (options: CompileHandlerOptions) => {
     GlobalState.debug(`> Compiling with profiles dir ${absoluteProfilesPath}`);
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
+
+    if (options.useDbtList) {
+        compiledModelIds = await dbtList(options);
+    } else if (!options.skipDbtCompile) {
+        // Generate manifest file without compiling any models
+        await dbtParse(dbtVersion, {
+            profilesDir: options.profilesDir,
+            projectDir: options.projectDir,
+            profile: options.profile,
+            target: options.target,
+        });
+
+        // Compile all models and their joins
+        await dbtCompileNecessaryModels(
+            { targetDir: context.targetDir },
+            options,
+        );
+    } else {
+        GlobalState.debug('> Skipping dbt compile');
+    }
+
     const profileName = options.profile || context.profileName;
     const { target } = await loadDbtTarget({
         profilesDir: absoluteProfilesPath,
@@ -108,8 +127,10 @@ export const compile = async (options: CompileHandlerOptions) => {
             ? options.startOfWeek
             : undefined,
     });
+
     const manifest = await loadManifest({ targetDir: context.targetDir });
-    const models = getModelsFromManifest(manifest).filter((model) => {
+    const manifestModels = getModelsFromManifest(manifest);
+    const compiledModels = manifestModels.filter((model) => {
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }
@@ -118,9 +139,8 @@ export const compile = async (options: CompileHandlerOptions) => {
     });
 
     const adapterType = manifest.metadata.adapter_type;
-
     const { valid: validModels, invalid: failedExplores } =
-        await validateDbtModel(adapterType, models);
+        await validateDbtModel(adapterType, compiledModels);
 
     if (failedExplores.length > 0) {
         const errors = failedExplores.map((failedExplore) =>
