@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "0.1202.15",
+    "version": "0.1202.16",
     "main": "index.js",
     "license": "MIT",
     "scripts": {
@@ -15,7 +15,7 @@
     },
     "devDependencies": {},
     "dependencies": {
-        "@lightdash/common": "^0.1202.15",
+        "@lightdash/common": "^0.1202.16",
         "@testing-library/cypress": "^9.0.0",
         "cypress": "^13.7.2",
         "cypress-file-upload": "^5.0.8",

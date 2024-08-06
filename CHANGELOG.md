@@ -1,3 +1,10 @@
+## [0.1202.16](https://github.com/lightdash/lightdash/compare/0.1202.15...0.1202.16) (2024-08-06)
+
+
+### Bug Fixes
+
+* infinite google login popup ([#11008](https://github.com/lightdash/lightdash/issues/11008)) ([efbc0b6](https://github.com/lightdash/lightdash/commit/efbc0b654362b1f6748f125ae1699143f904bc9f))
+
 ## [0.1202.15](https://github.com/lightdash/lightdash/compare/0.1202.14...0.1202.15) (2024-08-06)
 
 
