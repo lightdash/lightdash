@@ -1,3 +1,10 @@
+## [0.1202.15](https://github.com/lightdash/lightdash/compare/0.1202.14...0.1202.15) (2024-08-06)
+
+
+### Bug Fixes
+
+* handle error when a column's rows are all null ([#11009](https://github.com/lightdash/lightdash/issues/11009)) ([07319dd](https://github.com/lightdash/lightdash/commit/07319ddd9f97f10abadee726a9a290ed9c6067e0))
+
 ## [0.1202.14](https://github.com/lightdash/lightdash/compare/0.1202.13...0.1202.14) (2024-08-06)
 
 
