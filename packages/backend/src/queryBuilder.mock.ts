@@ -558,13 +558,14 @@ export const METRIC_QUERY_JOIN_CHAIN: CompiledMetricQuery = {
     compiledCustomDimensions: [],
 };
 
-export const EXPLORE_WITH_SQL_FILTER = {
+export const EXPLORE_WITH_SQL_FILTER: Explore = {
     ...EXPLORE,
     tables: {
         ...EXPLORE.tables,
         table1: {
             ...EXPLORE.tables.table1,
             sqlWhere: "${lightdash.attribute.country} = 'US'",
+            uncompiledSqlWhere: "${lightdash.attribute.country} = 'US'",
         },
     },
 };

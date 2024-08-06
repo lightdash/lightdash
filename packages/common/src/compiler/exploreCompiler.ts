@@ -152,6 +152,7 @@ export class ExploreCompiler {
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
+
                 const requiredDimensionsForJoin = parseAllReferences(
                     join.sqlOn,
                     join.table,
@@ -299,17 +300,23 @@ export class ExploreCompiler {
             }),
             {},
         );
-        const compiledSqlWhere = table.sqlWhere
-            ? table.sqlWhere.replace(
-                  lightdashVariablePattern,
-                  (_, p1) =>
-                      this.compileDimensionReference(p1, tables, table.name)
-                          .sql,
-              )
-            : undefined;
+
+        const compiledSqlWhere = table.sqlWhere?.replace(
+            lightdashVariablePattern,
+            (_, p1) => {
+                const compiledReference = this.compileDimensionReference(
+                    p1,
+                    tables,
+                    table.name,
+                );
+
+                return compiledReference.sql;
+            },
+        );
 
         return {
             ...table,
+            uncompiledSqlWhere: table.sqlWhere,
             sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
@@ -681,11 +688,15 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
     ): string {
         // Sql join contains references to dimensions
-        return join.sqlOn.replace(
-            lightdashVariablePattern,
-            (_, p1) =>
-                this.compileDimensionReference(p1, tables, join.table).sql,
-        );
+        return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
+            const compiledReference = this.compileDimensionReference(
+                p1,
+                tables,
+                join.table,
+            );
+
+            return compiledReference.sql;
+        });
     }
 
     compileJoin(
