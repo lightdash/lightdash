@@ -6,7 +6,7 @@ import {
     type CartesianChartDisplay,
     type GroupByLayoutOptions,
     type LineChartSqlConfig,
-    type SqlTransformCartesianChartConfig,
+    type SqlCartesianChartLayout,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
@@ -14,7 +14,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 type InitialState = {
-    defaultLayout: SqlTransformCartesianChartConfig | undefined;
+    defaultLayout: SqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
         xLayoutOptions: XLayoutOptions[];
@@ -39,9 +39,7 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             state,
-            action: PayloadAction<
-                SqlTransformCartesianChartConfig['x']['reference']
-            >,
+            action: PayloadAction<SqlCartesianChartLayout['x']['reference']>,
         ) => {
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;

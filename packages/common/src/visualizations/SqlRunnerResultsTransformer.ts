@@ -59,7 +59,7 @@ export type CartesianChartDisplay = {
     };
 };
 
-export type SqlTransformCartesianChartConfig = {
+export type SqlCartesianChartLayout = {
     x: {
         reference: string;
         type: XLayoutType;
@@ -155,7 +155,7 @@ type SqlRunnerResultsTransformerDeps = {
 export class SqlRunnerResultsTransformer
     implements
         ResultsTransformerBase<
-            SqlTransformCartesianChartConfig,
+            SqlCartesianChartLayout,
             SqlTransformPieChartConfig
         >
 {
@@ -250,9 +250,19 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    defaultCartesianChartLayout():
-        | SqlTransformCartesianChartConfig
-        | undefined {
+    getCartesianLayoutOptions(): {
+        xLayoutOptions: XLayoutOptions[];
+        yLayoutOptions: YLayoutOptions[];
+        groupByOptions: GroupByLayoutOptions[];
+    } {
+        return {
+            xLayoutOptions: this.cartesianChartXLayoutOptions(),
+            yLayoutOptions: this.cartesianChartYLayoutOptions(),
+            groupByOptions: this.cartesianChartGroupByLayoutOptions(),
+        };
+    }
+
+    defaultCartesianChartLayout(): SqlCartesianChartLayout | undefined {
         const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
@@ -274,7 +284,7 @@ export class SqlRunnerResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: SqlTransformCartesianChartConfig['x'] = {
+        const x: SqlCartesianChartLayout['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
@@ -306,7 +316,7 @@ export class SqlRunnerResultsTransformer
     }
 
     public async transformCartesianChartData(
-        config: SqlTransformCartesianChartConfig,
+        config: SqlCartesianChartLayout,
     ): Promise<CartesianChartData> {
         const groupByColumns = [config.x.reference];
         const pivotsSql =

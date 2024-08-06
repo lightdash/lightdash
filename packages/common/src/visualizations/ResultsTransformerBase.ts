@@ -1,3 +1,5 @@
+import { type SqlCartesianChartLayout } from './SqlRunnerResultsTransformer';
+
 export type RowData = Record<string, unknown>;
 
 export type CartesianChartData = {
@@ -17,6 +19,8 @@ export interface ResultsTransformerBase<
     transformCartesianChartData(
         config: CartesianChartConfigType,
     ): Promise<CartesianChartData>;
+
+    defaultCartesianChartLayout(): SqlCartesianChartLayout | undefined;
 
     transformPieChartData(config: PieChartConfigType): Promise<PieChartData>;
 }

@@ -1,4 +1,8 @@
-import { ChartKind, deepEqual, isBarChartSQLConfig } from '@lightdash/common';
+import {
+    CartesianChartDataTransformer,
+    ChartKind,
+    isBarChartSQLConfig,
+} from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -13,45 +17,27 @@ export const barChartConfigSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(setSqlRunnerResults, (state, action) => {
             if (action.payload.results && action.payload.columns) {
-                // Transform results into options
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });
-                if (action.payload.columns) {
-                    state.options = {
-                        xLayoutOptions:
-                            sqlRunnerResultsTransformer.cartesianChartXLayoutOptions(),
-                        yLayoutOptions:
-                            sqlRunnerResultsTransformer.cartesianChartYLayoutOptions(),
-                        groupByOptions:
-                            sqlRunnerResultsTransformer.cartesianChartGroupByLayoutOptions(),
-                    };
-                }
 
-                // Update layout
-                const oldDefaultLayout = state.defaultLayout;
-                const newDefaultLayout =
-                    sqlRunnerResultsTransformer.defaultCartesianChartLayout();
+                state.options =
+                    sqlRunnerResultsTransformer.getCartesianLayoutOptions();
+
+                const chartDataTransformer = new CartesianChartDataTransformer({
+                    transformer: sqlRunnerResultsTransformer,
+                });
+
+                const { newConfig, newDefaultLayout } =
+                    chartDataTransformer.getChartConfig({
+                        chartType: ChartKind.VERTICAL_BAR,
+                        currentConfig: state.config,
+                    });
+
+                state.config = newConfig;
                 state.defaultLayout = newDefaultLayout;
-
-                if (
-                    !state.config ||
-                    deepEqual(
-                        oldDefaultLayout || {},
-                        state.config?.fieldConfig || {},
-                    )
-                ) {
-                    state.config = {
-                        metadata: {
-                            version: 1,
-                        },
-                        type: ChartKind.VERTICAL_BAR,
-                        fieldConfig: newDefaultLayout,
-                        display: state.config?.display,
-                    };
-                }
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {

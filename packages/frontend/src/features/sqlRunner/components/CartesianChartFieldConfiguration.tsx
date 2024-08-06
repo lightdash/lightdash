@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type GroupByLayoutOptions,
-    type SqlTransformCartesianChartConfig,
+    type SqlCartesianChartLayout,
     type XLayoutOptions,
     type YLayoutOptions,
 } from '@lightdash/common';
@@ -23,7 +23,7 @@ import { CartesianChartAggregationConfig } from './CartesianChartAggregationConf
 import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlTransformCartesianChartConfig['y'][number];
+    field: SqlCartesianChartLayout['y'][number];
     yLayoutOptions: YLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -143,7 +143,7 @@ const XFieldAxisConfig = ({
     xLayoutOptions,
     actions,
 }: {
-    field: SqlTransformCartesianChartConfig['x'];
+    field: SqlCartesianChartLayout['x'];
     xLayoutOptions: XLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
