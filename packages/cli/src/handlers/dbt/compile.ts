@@ -80,7 +80,7 @@ export function getCompiledModels(
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }
-        // in case they skipped the compile step, we check if the models are compiled
+
         return model.compiled;
     });
 }
