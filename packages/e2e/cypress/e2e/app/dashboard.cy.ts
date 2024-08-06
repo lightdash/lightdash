@@ -206,6 +206,7 @@ describe('Dashboard', () => {
         // Open filter popover  and check that all charts have the filter applied except for the new one (which is referencing another explore)
         cy.contains('Payment method is credit_card').click();
         cy.findAllByRole('tab').eq(1).click();
+
         cy.get('.mantine-Checkbox-body').should('have.length', 5); // 4 checkboxes for the 4 charts + `select all` checkbox
 
         // Enable filter for the new chart
