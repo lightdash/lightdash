@@ -37,6 +37,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SessionUser,
+    SlackInstallationNotFoundError,
     SlackNotificationPayload,
     SqlColumn,
     sqlRunnerJob,
@@ -597,7 +598,7 @@ export default class SchedulerTask {
                 details: { error: e.message },
             });
 
-            if (`${e}`.includes('Could not find slack installation')) {
+            if (e instanceof SlackInstallationNotFoundError) {
                 console.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );

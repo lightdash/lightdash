@@ -1,4 +1,7 @@
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    SlackInstallationNotFoundError,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { Express } from 'express';
@@ -190,7 +193,7 @@ export class SlackBot {
                         );
 
                     if (!installation) {
-                        throw new Error('Could not find slack installation');
+                        throw new SlackInstallationNotFoundError();
                     }
 
                     appProfilePhotoUrl = installation.appProfilePhotoUrl;

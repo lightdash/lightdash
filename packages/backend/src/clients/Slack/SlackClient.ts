@@ -1,6 +1,7 @@
 import {
     SlackAppCustomSettings,
     SlackChannel,
+    SlackInstallationNotFoundError,
     SlackSettings,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -55,7 +56,7 @@ export class SlackClient {
             );
 
         if (!installation) {
-            throw new Error('Could not find slack installation');
+            throw new SlackInstallationNotFoundError();
         }
 
         return new WebClient(installation.token);
@@ -193,7 +194,7 @@ export class SlackClient {
             );
 
         if (!installation) {
-            throw new Error('Could not find slack installation');
+            throw new SlackInstallationNotFoundError();
         }
 
         const { appProfilePhotoUrl } = installation;
