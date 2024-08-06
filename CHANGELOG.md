@@ -1,3 +1,10 @@
+## [0.1202.14](https://github.com/lightdash/lightdash/compare/0.1202.13...0.1202.14) (2024-08-06)
+
+
+### Bug Fixes
+
+* reset table config when columns change ([#11020](https://github.com/lightdash/lightdash/issues/11020)) ([3b8d93a](https://github.com/lightdash/lightdash/commit/3b8d93ac1c57105909c8b255296fa0e21b96180a))
+
 ## [0.1202.13](https://github.com/lightdash/lightdash/compare/0.1202.12...0.1202.13) (2024-08-06)
 
 
