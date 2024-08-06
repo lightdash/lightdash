@@ -25,10 +25,10 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
-    dbtCompileNecessaryModels,
+    compileModelsAndJoins,
     DbtCompileOptions,
     dbtList,
-    dbtParse,
+    getCompiledModels,
 } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
@@ -93,19 +93,8 @@ export const compile = async (options: CompileHandlerOptions) => {
     if (options.useDbtList) {
         compiledModelIds = await dbtList(options);
     } else if (!options.skipDbtCompile) {
-        // Generate manifest file without compiling any models
-        await dbtParse(dbtVersion, {
-            profilesDir: options.profilesDir,
-            projectDir: options.projectDir,
-            profile: options.profile,
-            target: options.target,
-        });
-
-        // Compile all models and their joins
-        await dbtCompileNecessaryModels(
-            { targetDir: context.targetDir },
-            options,
-        );
+        // Compile selected models and their joined models
+        await compileModelsAndJoins({ targetDir: context.targetDir }, options);
     } else {
         GlobalState.debug('> Skipping dbt compile');
     }
@@ -130,13 +119,7 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     const manifest = await loadManifest({ targetDir: context.targetDir });
     const manifestModels = getModelsFromManifest(manifest);
-    const compiledModels = manifestModels.filter((model) => {
-        if (compiledModelIds) {
-            return compiledModelIds.includes(model.unique_id);
-        }
-        // in case they skipped the compile step, we check if the models are compiled
-        return model.compiled;
-    });
+    const compiledModels = getCompiledModels(manifestModels, compiledModelIds);
 
     const adapterType = manifest.metadata.adapter_type;
     const { valid: validModels, invalid: failedExplores } =

@@ -72,6 +72,19 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
     }
 };
 
+export function getCompiledModels(
+    manifestModels: DbtModelNode[],
+    compiledModelIds?: string[],
+) {
+    return manifestModels.filter((model) => {
+        if (compiledModelIds) {
+            return compiledModelIds.includes(model.unique_id);
+        }
+        // in case they skipped the compile step, we check if the models are compiled
+        return model.compiled;
+    });
+}
+
 // TODO: Move this to somewhere appropriate
 type UnrenderedConfig =
     | {
@@ -84,7 +97,16 @@ type UnrenderedConfig =
 const recursivelyGetJoinedModelNames = (
     modelNode: DbtModelNode,
     allModelNodes: DbtModelNode[],
+    visited: Set<string> = new Set(),
 ): string[] => {
+    if (visited.has(modelNode.name)) {
+        GlobalState.debug(`Already visited ${modelNode.name}. Skipping.`);
+        return [];
+    }
+
+    GlobalState.debug(`Getting joined models for ${modelNode.name}`);
+    visited.add(modelNode.name);
+
     const joinedModelNames = (
         modelNode.unrendered_config as UnrenderedConfig
     )?.meta?.joins?.map((j) => j.join);
@@ -101,72 +123,49 @@ const recursivelyGetJoinedModelNames = (
         (acc, model) => [
             ...acc,
             model.name,
-            ...recursivelyGetJoinedModelNames(model, allModelNodes),
+            ...recursivelyGetJoinedModelNames(model, allModelNodes, visited),
         ],
         [],
     );
 };
 
-export const dbtCompileNecessaryModels = async (
+export const compileModelsAndJoins = async (
     loadManifestOpts: LoadManifestArgs,
     options: DbtCompileOptions,
 ) => {
-    // If no models are explicitly selected or excluded, compile all models
+    // do initial compilation so we can get the list of models that are compiled after this command (e.g. selecting/excluding by tags)
+    await dbtCompile(options);
+
+    // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
     if (!options.select && !options.exclude) {
-        await dbtCompile(options);
         return;
     }
 
+    // Load manifest and get all models
     const manifest = await loadManifest(loadManifestOpts);
-    const manifestModels = getModelsFromManifest(manifest);
-
-    const selectedModelNames = (
-        options.select ?? manifestModels.map((model) => model.name)
-    ).filter((modelName) => !options.exclude?.includes(modelName));
-
-    const selectedModelNodes = manifestModels.filter((model) =>
-        selectedModelNames.includes(model.name),
-    );
+    const allManifestModels = getModelsFromManifest(manifest);
+    const currCompiledModels = getCompiledModels(allManifestModels);
 
     // Selected models and their joined models
-    const modelNamesToCompile = new Set(
-        selectedModelNodes.reduce<string[]>((acc, model) => {
+    const modelsToCompile = new Set(
+        currCompiledModels.reduce<string[]>((acc, model) => {
             const joinedModelNames = recursivelyGetJoinedModelNames(
                 model,
-                manifestModels,
+                allManifestModels,
+                new Set(acc), // minimize recursion by passing already visited models in the current list
             );
-            return [...acc, model.name, ...(joinedModelNames ?? [])];
+            return [...acc, model.name, ...joinedModelNames];
         }, []),
+    );
+
+    GlobalState.debug(
+        `> Models to compile: ${Array.from(modelsToCompile).join(', ')}`,
     );
 
     await dbtCompile({
         ...options,
-        select: Array.from(modelNamesToCompile),
+        select: Array.from(modelsToCompile),
     });
-};
-
-export const dbtParse = async (
-    dbtVersion: string,
-    opts: Pick<
-        DbtCompileOptions,
-        'profilesDir' | 'projectDir' | 'profile' | 'target'
-    >,
-) => {
-    try {
-        const args = optionsToArgs(opts);
-
-        if (dbtVersion.startsWith('1.3.') || dbtVersion.startsWith('1.4.')) {
-            args.push('--write-manifest');
-        }
-
-        GlobalState.debug(`> Running: dbt parse ${args.join(' ')}`);
-        const { stdout, stderr } = await execa('dbt', ['parse', ...args]);
-        console.error(stdout);
-        console.error(stderr);
-    } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : '-';
-        throw new ParseError(`Failed to run dbt parse:\n  ${msg}`);
-    }
 };
 
 export const dbtList = async (
