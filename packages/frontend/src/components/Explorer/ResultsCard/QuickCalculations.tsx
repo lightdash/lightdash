@@ -97,25 +97,32 @@ const getSqlForQuickCalculation = (
 ) => {
     const fieldQuoteChar = getFieldQuoteChar(warehouseType);
 
-    const orderSql =
+    const orderSql = (reverseSorting: boolean = false) =>
         sorts.length > 0
             ? `ORDER BY ${sorts
-                  .map(
-                      (sort) =>
-                          `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar} ${
-                              sort.descending ? 'DESC' : 'ASC'
-                          }`,
-                  )
+                  .map((sort) => {
+                      const fieldSort = sort.descending ? 'DESC' : 'ASC';
+                      const reverseSort = sort.descending ? 'ASC' : 'DESC';
+                      const sortOrder = reverseSorting
+                          ? reverseSort
+                          : fieldSort;
+                      return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar} ${sortOrder}`;
+                  })
                   .join(', ')} `
             : '';
+
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
             return `(
-              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql}) ,0)
+              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
+                true,
+            )}) ,0)
             ) - 1`;
         case QuickCalculation.PERCENT_OF_PREVIOUS_VALUE:
             return `(
-              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql}),0)
+              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
+                true,
+            )}),0)
             )`;
         case QuickCalculation.PERCENT_OF_COLUMN_TOTAL:
             return `(
@@ -124,7 +131,9 @@ const getSqlForQuickCalculation = (
         case QuickCalculation.RANK_IN_COLUMN:
             return `RANK() OVER(ORDER BY \${${fieldReference}} ASC)`;
         case QuickCalculation.RUNNING_TOTAL:
-            return `SUM(\${${fieldReference}}) OVER(${orderSql} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+            return `SUM(\${${fieldReference}}) OVER(${orderSql(
+                false,
+            )} ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
             
           `;
         default:
