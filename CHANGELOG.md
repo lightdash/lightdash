@@ -1,3 +1,10 @@
+## [0.1203.1](https://github.com/lightdash/lightdash/compare/0.1203.0...0.1203.1) (2024-08-06)
+
+
+### Bug Fixes
+
+* revert "cli join compile" ([#11039](https://github.com/lightdash/lightdash/issues/11039)) ([fc6ebfc](https://github.com/lightdash/lightdash/commit/fc6ebfcf1ac00585ba137d07c8ea437accef5ba3)), closes [#11019](https://github.com/lightdash/lightdash/issues/11019)
+
 # [0.1203.0](https://github.com/lightdash/lightdash/compare/0.1202.17...0.1203.0) (2024-08-06)
 
 
