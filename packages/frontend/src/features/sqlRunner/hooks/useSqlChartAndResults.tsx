@@ -1,38 +1,41 @@
 import {
-    SchedulerJobStatus,
+    isErrorDetails,
     type ApiError,
-    type ApiJobStatusResponse,
     type ApiSqlChartWithResults,
     type ResultRow,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
 import { lightdashApi } from '../../../api';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
+import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
 
-const scheduleSavedSqlChartJobAndGetResults = async ({
+const getSqlChartAndResults = async ({
     projectUuid,
     savedSqlUuid,
 }: {
     projectUuid: string;
     savedSqlUuid: string;
-}) =>
-    lightdashApi<ApiSqlChartWithResults['results']>({
+}): Promise<{ results: ResultRow[]; chart: SqlChart }> => {
+    const chartAndScheduledJob = await lightdashApi<
+        ApiSqlChartWithResults['results']
+    >({
         url: `/projects/${projectUuid}/sqlRunner/saved/${savedSqlUuid}/chart-and-results`,
         method: 'GET',
         body: undefined,
     });
+    const job = await getSqlRunnerCompleteJob(chartAndScheduledJob.jobId);
+    const url =
+        job?.details && !isErrorDetails(job.details)
+            ? job.details.fileUrl
+            : undefined;
+    const results = await getResultsFromStream(url);
 
-/**
- * Gets the Chart and SQL query results from the server
- *
- * Steps:
- * 1. Schedule the SQL query job and get the jobId + chart
- * 2. Get the status of the scheduled job
- * 3. Fetch the results of the job
- */
+    return {
+        chart: chartAndScheduledJob.chart,
+        results,
+    };
+};
+
 export const useSqlChartAndResults = ({
     savedSqlUuid,
     projectUuid,
@@ -40,168 +43,16 @@ export const useSqlChartAndResults = ({
     savedSqlUuid: string | null;
     projectUuid: string;
 }) => {
-    const { showToastError } = useToaster();
-    const [chart, setChart] = useState<SqlChart>();
-    const sqlChartAndResultsQuery = useQuery<
-        ApiSqlChartWithResults['results'],
-        ApiError
-    >(
-        ['sqlChartAndResults', projectUuid, savedSqlUuid],
-        () =>
-            scheduleSavedSqlChartJobAndGetResults({
+    return useQuery<{ results: ResultRow[]; chart: SqlChart }, ApiError>(
+        ['sqlChartResults', projectUuid, savedSqlUuid],
+        () => {
+            return getSqlChartAndResults({
                 projectUuid,
                 savedSqlUuid: savedSqlUuid!,
-            }),
+            });
+        },
         {
             enabled: Boolean(savedSqlUuid),
         },
     );
-
-    const { data: sqlChartAndResultsJob, error: sqlChartAndResultsError } =
-        sqlChartAndResultsQuery;
-
-    useEffect(() => {
-        // Set the chart if it exists
-        if (sqlChartAndResultsJob?.chart) {
-            setChart(sqlChartAndResultsJob.chart);
-        }
-    }, [sqlChartAndResultsJob]);
-
-    const { data: scheduledDeliveryJobStatus, error: jobError } = useQuery<
-        ApiJobStatusResponse['results'] | undefined,
-        ApiError
-    >(
-        ['jobStatus', sqlChartAndResultsJob?.jobId, savedSqlUuid],
-        () => {
-            if (!sqlChartAndResultsJob?.jobId) return;
-            return getSchedulerJobStatus(sqlChartAndResultsJob.jobId);
-        },
-        {
-            refetchInterval: (data, query) => {
-                if (
-                    !!query.state.error ||
-                    data?.status === SchedulerJobStatus.COMPLETED ||
-                    data?.status === SchedulerJobStatus.ERROR
-                )
-                    return false;
-                return 1000;
-            },
-            onSuccess: (data) => {
-                if (data?.status === SchedulerJobStatus.ERROR) {
-                    showToastError({
-                        title: 'Could not run SQL query',
-                        subtitle: data.details?.error,
-                    });
-                }
-            },
-            enabled: Boolean(sqlChartAndResultsJob?.jobId !== undefined),
-        },
-    );
-
-    const {
-        data: sqlQueryResults,
-        isLoading: isResultsLoading,
-        error: resultsError,
-    } = useQuery<ResultRow[] | undefined, ApiError>(
-        ['sqlChartQueryResults', savedSqlUuid, sqlChartAndResultsJob?.jobId],
-        async () => {
-            const url = scheduledDeliveryJobStatus?.details?.fileUrl;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json',
-                },
-            });
-            const rb = response.body;
-            const reader = rb?.getReader();
-
-            const stream = new ReadableStream({
-                start(controller) {
-                    function push() {
-                        void reader?.read().then(({ done, value }) => {
-                            if (done) {
-                                // Close the stream
-                                controller.close();
-                                return;
-                            }
-                            // Enqueue the next data chunk into our target stream
-                            controller.enqueue(value);
-
-                            push();
-                        });
-                    }
-
-                    push();
-                },
-            });
-
-            const responseStream = new Response(stream, {
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const result = await responseStream.text();
-
-            // Split the JSON strings by newline
-            const jsonStrings = result.trim().split('\n');
-            const jsonObjects: ResultRow[] = jsonStrings
-                .map((jsonString) => {
-                    try {
-                        return JSON.parse(jsonString);
-                    } catch (e) {
-                        throw new Error('Error parsing JSON');
-                    }
-                })
-                .filter((obj) => obj !== null);
-
-            return jsonObjects;
-        },
-        {
-            onError: () => {
-                showToastError({
-                    title: 'Could not fetch SQL query results',
-                });
-            },
-            enabled: Boolean(
-                scheduledDeliveryJobStatus?.status ===
-                    SchedulerJobStatus.COMPLETED &&
-                    scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
-            ),
-        },
-    );
-
-    const error = useMemo(() => {
-        return sqlChartAndResultsError || jobError || resultsError;
-    }, [sqlChartAndResultsError, jobError, resultsError]);
-
-    const isLoading = useMemo(() => {
-        const hasError = Boolean(error);
-        const isAnyQueryLoading =
-            sqlChartAndResultsQuery.isLoading ||
-            (scheduledDeliveryJobStatus?.status ===
-                SchedulerJobStatus.STARTED &&
-                isResultsLoading) ||
-            isResultsLoading;
-        return (
-            !hasError &&
-            (!sqlChartAndResultsQuery.isFetched
-                ? sqlChartAndResultsQuery.isFetching
-                : isAnyQueryLoading)
-        );
-    }, [
-        sqlChartAndResultsQuery.isFetched,
-        sqlChartAndResultsQuery.isFetching,
-        sqlChartAndResultsQuery.isLoading,
-        scheduledDeliveryJobStatus?.status,
-        isResultsLoading,
-        error,
-    ]);
-
-    return {
-        ...sqlChartAndResultsQuery,
-        isLoading,
-        error,
-        data:
-            sqlQueryResults && chart
-                ? { results: sqlQueryResults, chart }
-                : undefined,
-    };
 };
