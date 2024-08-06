@@ -48,7 +48,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/results')
-    @OperationId('postChartResults')
+    @OperationId('PostChartResults')
     async postChartResults(
         @Body()
         body: {
@@ -73,7 +73,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
-    @OperationId('postChartResults')
+    @OperationId('PostDashboardTile')
     async postDashboardTile(
         @Body()
         body: {
@@ -114,7 +114,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/history')
-    @OperationId('get')
+    @OperationId('GetChartHistory')
     async getChartHistory(
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -137,7 +137,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/version/{versionUuid}')
-    @OperationId('get')
+    @OperationId('GetChartVersion')
     async getChartVersion(
         @Path() chartUuid: string,
         @Path() versionUuid: string,

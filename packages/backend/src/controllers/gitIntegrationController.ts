@@ -78,7 +78,7 @@ export class GitIntegrationController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Post('/pull-requests/custom-metrics')
-    @OperationId('CreatePullRequestForChartFields')
+    @OperationId('CreatePullRequestForCustomMetrics')
     async CreatePullRequestForCustomMetrics(
         @Path() projectUuid: string,
         @Body()
