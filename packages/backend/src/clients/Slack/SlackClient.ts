@@ -1,6 +1,7 @@
 import {
     SlackAppCustomSettings,
     SlackChannel,
+    SlackInstallationNotFoundError,
     SlackSettings,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -54,10 +55,16 @@ export class SlackClient {
                 organizationUuid,
             );
 
-        return new WebClient(installation?.token);
+        if (!installation) {
+            throw new SlackInstallationNotFoundError();
+        }
+
+        return new WebClient(installation.token);
     }
 
-    async getChannels(organizationUuid: string): Promise<SlackChannel[]> {
+    async getChannels(
+        organizationUuid: string,
+    ): Promise<SlackChannel[] | undefined> {
         if (
             cachedChannels[organizationUuid] &&
             new Date().getTime() -
@@ -71,6 +78,13 @@ export class SlackClient {
 
         let nextCursor: string | undefined;
         let allChannels: ConversationsListResponse['channels'] = [];
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) return undefined;
 
         const webClient = await this.getWebClient(organizationUuid);
 
@@ -173,10 +187,17 @@ export class SlackClient {
     ) {
         const { organizationUuid, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
-        const { appProfilePhotoUrl } =
-            (await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
-            )) || {};
+            );
+
+        if (!installation) {
+            throw new SlackInstallationNotFoundError();
+        }
+
+        const { appProfilePhotoUrl } = installation;
 
         return webClient.chat
             .postMessage({

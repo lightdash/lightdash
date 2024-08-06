@@ -5,7 +5,7 @@ export type SlackChannel = {
 
 export type ApiSlackChannelsResponse = {
     status: 'ok';
-    results: SlackChannel[];
+    results: SlackChannel[] | undefined;
 };
 
 export type ApiSlackCustomSettingsResponse = {

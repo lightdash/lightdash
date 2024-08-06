@@ -338,27 +338,23 @@ const SchedulerForm: FC<Props> = ({
         enabled: isDashboard,
     });
 
-    const slackQuery = useGetSlack();
-    const slackState = useMemo(() => {
-        if (slackQuery.isInitialLoading) {
-            return SlackStates.LOADING;
-        } else {
-            if (
-                slackQuery.data?.slackTeamName === undefined ||
-                slackQuery.isError
-            ) {
-                return SlackStates.NO_SLACK;
-            } else if (slackQuery.data && !hasRequiredScopes(slackQuery.data)) {
-                return SlackStates.MISSING_SCOPES;
-            }
-            return SlackStates.SUCCESS;
-        }
-    }, [slackQuery]);
+    const { data: slackInstallation, isInitialLoading } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const slackChannelsQuery = useSlackChannels();
+    const slackState = useMemo(() => {
+        if (isInitialLoading) return SlackStates.LOADING;
+        if (!organizationHasSlack) return SlackStates.NO_SLACK;
+        if (!hasRequiredScopes(slackInstallation))
+            return SlackStates.MISSING_SCOPES;
+        return SlackStates.SUCCESS;
+    }, [isInitialLoading, organizationHasSlack, slackInstallation]);
+
+    const slackChannelsQuery = useSlackChannels({
+        enabled: organizationHasSlack,
+    });
 
     const slackChannels = useMemo(() => {
-        return (slackChannelsQuery.data || [])
+        return (slackChannelsQuery?.data || [])
             .map((channel) => {
                 const channelPrefix = channel.name.charAt(0);
 
@@ -374,7 +370,7 @@ const SchedulerForm: FC<Props> = ({
                 };
             })
             .concat(privateChannels);
-    }, [slackChannelsQuery.data, privateChannels]);
+    }, [slackChannelsQuery?.data, privateChannels]);
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
@@ -880,7 +876,7 @@ const SchedulerForm: FC<Props> = ({
                                                                 .slackTargets
                                                         }
                                                         rightSection={
-                                                            slackChannelsQuery.isInitialLoading ?? (
+                                                            slackChannelsQuery?.isInitialLoading ?? (
                                                                 <Loader size="sm" />
                                                             )
                                                         }

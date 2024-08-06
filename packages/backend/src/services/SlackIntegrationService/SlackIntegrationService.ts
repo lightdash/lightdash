@@ -31,22 +31,21 @@ export class SlackIntegrationService<
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
-        const slackAuth =
+
+        const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
             );
-        if (slackAuth === undefined) {
-            throw new NotFoundError(
-                `Could not find an installation for organizationUuid ${organizationUuid}`,
-            );
-        }
+
+        if (installation === undefined) return undefined;
+
         const response: SlackSettings = {
             organizationUuid,
-            slackTeamName: slackAuth.slackTeamName,
-            createdAt: slackAuth.createdAt,
-            scopes: slackAuth.scopes,
-            notificationChannel: slackAuth.notificationChannel,
-            appProfilePhotoUrl: slackAuth.appProfilePhotoUrl,
+            slackTeamName: installation.slackTeamName,
+            createdAt: installation.createdAt,
+            scopes: installation.scopes,
+            notificationChannel: installation.notificationChannel,
+            appProfilePhotoUrl: installation.appProfilePhotoUrl,
         };
         return response;
     }
