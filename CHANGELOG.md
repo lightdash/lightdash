@@ -1,3 +1,11 @@
+## [0.1202.12](https://github.com/lightdash/lightdash/compare/0.1202.11...0.1202.12) (2024-08-06)
+
+
+### Bug Fixes
+
+* [Snyk] Security upgrade @aws-sdk/client-s3 from 3.272.0 to 3.529.0 ([#10897](https://github.com/lightdash/lightdash/issues/10897)) ([50eca0b](https://github.com/lightdash/lightdash/commit/50eca0b374b4d244c64d7ca0a0fe85da77e9bb1e))
+* fix quick table calculation sorting ([#11005](https://github.com/lightdash/lightdash/issues/11005)) ([2d19923](https://github.com/lightdash/lightdash/commit/2d1992376de1be7fdacf4385fe7b16a6393a8fb9))
+
 ## [0.1202.11](https://github.com/lightdash/lightdash/compare/0.1202.10...0.1202.11) (2024-08-06)
 
 
