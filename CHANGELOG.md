@@ -1,3 +1,10 @@
+## [0.1202.17](https://github.com/lightdash/lightdash/compare/0.1202.16...0.1202.17) (2024-08-06)
+
+
+### Bug Fixes
+
+* slack auth model throwing an error ([#10991](https://github.com/lightdash/lightdash/issues/10991)) ([03579bb](https://github.com/lightdash/lightdash/commit/03579bb63ef036828a3cb7cd360293fa292695bd))
+
 ## [0.1202.16](https://github.com/lightdash/lightdash/compare/0.1202.15...0.1202.16) (2024-08-06)
 
 
