@@ -4,6 +4,9 @@ models:
     meta:
       required_attributes:
         is_admin: 'true'
+      joins:
+        - join: customers
+          sql_on: ${customers.customer_id} = ${plan.id}
     columns:
       - name: id
       - name: plan_name

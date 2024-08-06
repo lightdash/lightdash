@@ -94,7 +94,7 @@ type UnrenderedConfig =
       }
     | undefined;
 
-const recursivelyGetJoinedModelNames = (
+const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,
     allModelNodes: DbtModelNode[],
     visited: Set<string> = new Set(),
@@ -123,7 +123,7 @@ const recursivelyGetJoinedModelNames = (
         (acc, model) => [
             ...acc,
             model.name,
-            ...recursivelyGetJoinedModelNames(model, allModelNodes, visited),
+            ...getJoinedModelsRecursively(model, allModelNodes, visited),
         ],
         [],
     );
@@ -149,7 +149,7 @@ export const compileModelsAndJoins = async (
     // Selected models and their joined models
     const modelsToCompile = new Set(
         currCompiledModels.reduce<string[]>((acc, model) => {
-            const joinedModelNames = recursivelyGetJoinedModelNames(
+            const joinedModelNames = getJoinedModelsRecursively(
                 model,
                 allManifestModels,
                 new Set(acc), // minimize recursion by passing already visited models in the current list
