@@ -6554,13 +6554,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.uuid-or-name_': {
+    'Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
+                isPrivate: { dataType: 'boolean', required: true },
+                userAccess: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SpaceShare' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -6618,7 +6627,10 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                space: { ref: 'Pick_Space.uuid-or-name_', required: true },
+                space: {
+                    ref: 'Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_',
+                    required: true,
+                },
                 lastUpdatedBy: {
                     dataType: 'union',
                     subSchemas: [

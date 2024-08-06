@@ -7,7 +7,11 @@ import {
     isBarChartSQLConfig,
     isLineChartSQLConfig,
     isPieChartSQLConfig,
+    Organization,
+    Project,
     SessionUser,
+    SpaceShare,
+    SpaceSummary,
     SqlChart,
     UpdateSqlChart,
 } from '@lightdash/common';
@@ -99,7 +103,7 @@ export class SavedSqlService extends BaseService {
             projectUuid,
             organizationUuid,
         }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
-    ) {
+    ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
@@ -121,13 +125,20 @@ export class SavedSqlService extends BaseService {
             }),
         );
 
-        return hasFeatureFlag && hasPermission;
+        return {
+            hasAccess: hasFeatureFlag && hasPermission,
+            userAccess: access[0],
+        };
     }
 
     private async hasSavedChartAccess(
         user: SessionUser,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
-        savedChart: SqlChart,
+        savedChart: {
+            project: Pick<Project, 'projectUuid'>;
+            organization: Pick<Organization, 'organizationUuid'>;
+            space: Pick<SpaceSummary, 'uuid'>;
+        },
     ) {
         return this.hasAccess(user, action, {
             spaceUuid: savedChart.space.uuid,
@@ -152,11 +163,8 @@ export class SavedSqlService extends BaseService {
         } else {
             throw new Error('Either savedSqlUuid or slug must be provided');
         }
-        const hasViewAccess = await this.hasSavedChartAccess(
-            user,
-            'view',
-            savedChart,
-        );
+        const { hasAccess: hasViewAccess, userAccess } =
+            await this.hasSavedChartAccess(user, 'view', savedChart);
         if (!hasViewAccess) {
             throw new ForbiddenError("You don't have access to this chart");
         }
@@ -169,7 +177,13 @@ export class SavedSqlService extends BaseService {
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
-        return savedChart;
+        return {
+            ...savedChart,
+            space: {
+                ...savedChart.space,
+                userAccess,
+            },
+        };
     }
 
     async createSqlChart(
@@ -188,11 +202,15 @@ export class SavedSqlService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const hasCreateAccess = await this.hasAccess(user, 'create', {
-            spaceUuid: sqlChart.spaceUuid,
-            projectUuid,
-            organizationUuid,
-        });
+        const { hasAccess: hasCreateAccess } = await this.hasAccess(
+            user,
+            'create',
+            {
+                spaceUuid: sqlChart.spaceUuid,
+                projectUuid,
+                organizationUuid,
+            },
+        );
 
         if (!hasCreateAccess) {
             throw new ForbiddenError(
@@ -254,7 +272,7 @@ export class SavedSqlService extends BaseService {
             projectUuid,
         });
 
-        const hasUpdateAccess = await this.hasSavedChartAccess(
+        const { hasAccess: hasUpdateAccess } = await this.hasSavedChartAccess(
             user,
             'update',
             savedChart,
@@ -270,15 +288,12 @@ export class SavedSqlService extends BaseService {
             sqlChart.unversionedData &&
             savedChart.space.uuid !== sqlChart.unversionedData.spaceUuid
         ) {
-            const hasUpdateAccessToNewSpace = await this.hasAccess(
-                user,
-                'update',
-                {
+            const { hasAccess: hasUpdateAccessToNewSpace } =
+                await this.hasAccess(user, 'update', {
                     spaceUuid: sqlChart.unversionedData.spaceUuid,
                     organizationUuid: savedChart.organization.organizationUuid,
                     projectUuid: savedChart.project.projectUuid,
-                },
-            );
+                });
             if (!hasUpdateAccessToNewSpace) {
                 throw new ForbiddenError(
                     "You don't have permission to move this chart to the new space",
@@ -329,7 +344,7 @@ export class SavedSqlService extends BaseService {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
-        const hasDeleteAccess = await this.hasSavedChartAccess(
+        const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
             user,
             'delete',
             savedChart,
@@ -394,7 +409,7 @@ export class SavedSqlService extends BaseService {
             slug,
         );
 
-        const hasViewAccess = await this.hasSavedChartAccess(
+        const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
             user,
             'view',
             savedChart,
@@ -421,16 +436,13 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         savedSqlUuid: string,
-    ) {
+    ): Promise<{ jobId: string; chart: SqlChart }> {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
 
-        const hasViewAccess = await this.hasSavedChartAccess(
-            user,
-            'view',
-            savedChart,
-        );
+        const { hasAccess: hasViewAccess, userAccess } =
+            await this.hasSavedChartAccess(user, 'view', savedChart);
         if (!hasViewAccess) {
             throw new ForbiddenError("You don't have access to this chart");
         }
@@ -446,7 +458,13 @@ export class SavedSqlService extends BaseService {
 
         return {
             jobId,
-            chart: savedChart,
+            chart: {
+                ...savedChart,
+                space: {
+                    ...savedChart.space,
+                    userAccess,
+                },
+            },
         };
     }
 }
