@@ -2,11 +2,11 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type ResultRow,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
+import { type ResultsAndColumns } from './useSqlQueryRun';
 
 const getSqlChartResults = async ({
     projectUuid,
@@ -27,14 +27,22 @@ const getSqlChartResults = async ({
         job?.details && !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    return getResultsFromStream(url);
+    const results = await getResultsFromStream(url);
+
+    return {
+        results,
+        columns:
+            job?.details && !isErrorDetails(job.details)
+                ? job.details.columns
+                : [],
+    };
 };
 
 export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
 ) => {
-    return useQuery<ResultRow[] | undefined, ApiError>(
+    return useQuery<ResultsAndColumns | undefined, ApiError>(
         ['sqlChartResults', projectUuid, slug],
         () => {
             return getSqlChartResults({

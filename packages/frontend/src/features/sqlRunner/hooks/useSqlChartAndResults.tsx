@@ -2,12 +2,12 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiSqlChartWithResults,
-    type ResultRow,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
+import { type ResultsAndColumns } from './useSqlQueryRun';
 
 const getSqlChartAndResults = async ({
     projectUuid,
@@ -15,7 +15,7 @@ const getSqlChartAndResults = async ({
 }: {
     projectUuid: string;
     savedSqlUuid: string;
-}): Promise<{ results: ResultRow[]; chart: SqlChart }> => {
+}): Promise<{ resultsAndColumns: ResultsAndColumns; chart: SqlChart }> => {
     const chartAndScheduledJob = await lightdashApi<
         ApiSqlChartWithResults['results']
     >({
@@ -32,7 +32,13 @@ const getSqlChartAndResults = async ({
 
     return {
         chart: chartAndScheduledJob.chart,
-        results,
+        resultsAndColumns: {
+            results,
+            columns:
+                job?.details && !isErrorDetails(job.details)
+                    ? job.details.columns
+                    : [],
+        },
     };
 };
 
@@ -43,7 +49,10 @@ export const useSqlChartAndResults = ({
     savedSqlUuid: string | null;
     projectUuid: string;
 }) => {
-    return useQuery<{ results: ResultRow[]; chart: SqlChart }, ApiError>(
+    return useQuery<
+        { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
+        ApiError
+    >(
         ['sqlChartResults', projectUuid, savedSqlUuid],
         () => {
             return getSqlChartAndResults({
