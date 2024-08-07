@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     convertFieldRefToFieldId,
-    CustomDimensionType,
     deepEqual,
     getFieldRef,
     getItemId,
@@ -893,18 +892,11 @@ function reducer(
                         dimensions,
                         customDimensions:
                             state.unsavedChartVersion.metricQuery.customDimensions?.map(
-                                (customDimension) => {
-                                    const customDimensionIdentifier =
-                                        customDimension.type ===
-                                        CustomDimensionType.BIN
-                                            ? customDimension.name
-                                            : customDimension.id;
-
-                                    return customDimensionIdentifier ===
-                                        action.payload.previousCustomDimensionId
+                                (customDimension) =>
+                                    customDimension.id ===
+                                    action.payload.customDimension.id
                                         ? action.payload.customDimension
-                                        : customDimension;
-                                },
+                                        : customDimension,
                             ),
                     },
                 },
