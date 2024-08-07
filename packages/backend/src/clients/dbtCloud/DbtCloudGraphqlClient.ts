@@ -38,6 +38,36 @@ export default class DbtCloudGraphqlClient {
         });
     }
 
+    /**
+     * Converts CreateQueryArgs to a string that can be used in a GraphQL query
+     */
+    private static async getPreparedCreateQueryArgs({
+        groupBy,
+        metrics,
+        orderBy,
+        where,
+    }: CreateQueryArgs | CompileSqlArgs) {
+        const metricsString = metrics.map(
+            (metric) => `{ name: "${metric.name}" }`,
+        );
+        const groupByString = groupBy.map((g) => `{ name: "${g.name}" }`);
+        const whereString = where.map((w) => `{ sql: "${w.sql}" }`);
+        const orderByString = orderBy.map((o) => {
+            if ('metric' in o) {
+                return `{ metric: { name: "${o.metric.name}" }, descending: ${o.descending} }`;
+            }
+
+            return `{ groupBy: { name: "${o.groupBy.name}" }, descending: ${o.descending} }`;
+        });
+
+        return {
+            metricsString: `[${metricsString}]`,
+            groupByString: `[${groupByString}]`,
+            whereString: `[${whereString}]`,
+            orderByString: `[${orderByString}]`,
+        };
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async runGraphQlQuery<T>({
         domain,
@@ -45,7 +75,6 @@ export default class DbtCloudGraphqlClient {
         environmentId,
         bearerToken,
     }: RunGraphQLQueryArgs): Promise<T> {
-        console.log('query', query);
         return DbtCloudGraphqlClient.getClient({ domain, bearerToken }).request(
             query,
             {
@@ -60,31 +89,35 @@ export default class DbtCloudGraphqlClient {
         environmentId,
         ...graphqlArgs
     }: RunQueryArgs): Promise<RunQueryResponse> {
-        const { groupBy, metrics, order, where, limit } = graphqlArgs;
+        const { limit } = graphqlArgs;
+        const { groupByString, metricsString, orderByString, whereString } =
+            await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
+
         const createQuery = `
-            mutation {
+            mutation CreateQuery($environmentId: BigInt!) {
                 createQuery(
-                    environmentId: BigInt!
-                    metrics: ${JSON.stringify(metrics)}
-                    groupBy: ${JSON.stringify(groupBy)}
-                    limit: ${limit ?? 'null'}
-                    where: ${JSON.stringify(where)}
-                    order: ${JSON.stringify(order)}
+                    environmentId: $environmentId
+                    metrics: ${metricsString}
+                    groupBy: ${groupByString}
+                    limit: ${limit ?? null}
+                    where: ${whereString}
+                    orderBy: ${orderByString}
                 ) {
                     queryId
                 }
             }`;
 
-        const { queryId } = await this.runGraphQlQuery<CreateQueryResponse>({
-            domain,
-            bearerToken,
-            query: createQuery,
-            environmentId,
-        });
+        const { createQuery: createQueryResponse } =
+            await this.runGraphQlQuery<CreateQueryResponse>({
+                domain,
+                bearerToken,
+                query: createQuery,
+                environmentId,
+            });
 
         const query = `
             query GetQueryResults($environmentId: BigInt!) {
-                query(environmentId: $environmentId, queryId: "${queryId}") {
+                query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}") {
                     status
                     sql
                     jsonResult
@@ -93,12 +126,13 @@ export default class DbtCloudGraphqlClient {
             }
         `;
 
-        const rawResponse = await this.runGraphQlQuery<RunQueryRawResponse>({
-            domain,
-            bearerToken,
-            query,
-            environmentId,
-        });
+        const { query: rawResponse } =
+            await this.runGraphQlQuery<RunQueryRawResponse>({
+                domain,
+                bearerToken,
+                query,
+                environmentId,
+            });
 
         return {
             ...rawResponse,
@@ -116,16 +150,19 @@ export default class DbtCloudGraphqlClient {
         environmentId,
         ...graphqlArgs
     }: GetSqlArgs) {
-        const { groupBy, metrics, order, where, limit } = graphqlArgs;
+        const { limit } = graphqlArgs;
+        const { groupByString, metricsString, orderByString, whereString } =
+            await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
+
         const query = `
-            mutation {
+            mutation CompileSql($environmentId: BigInt!) {
                 compileSql(
-                    environmentId: BigInt!
-                    metrics: ${JSON.stringify(metrics)}
-                    groupBy: ${JSON.stringify(groupBy)}
-                    limit: ${limit ?? 'null'}
-                    where: ${JSON.stringify(where)}
-                    order: ${JSON.stringify(order)}
+                    environmentId: $environmentId
+                    metrics: ${metricsString}
+                    groupBy: ${groupByString}
+                    limit: ${limit ?? null}
+                    where: ${whereString}
+                    orderBy: ${orderByString}
                 ) {
                     sql
                 }

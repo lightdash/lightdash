@@ -32,17 +32,21 @@ export type CreateQueryArgs = {
     groupBy: GroupByInput[];
     limit?: number;
     where: WhereInput[];
-    order: OrderByInput[];
+    orderBy: OrderByInput[];
 };
 
 export type CreateQueryResponse = {
-    queryId: string;
+    createQuery: {
+        queryId: string;
+    };
 };
 
 export type CompileSqlArgs = CreateQueryArgs;
 
 export type CompileSqlResponse = {
-    sql: string;
+    compileSql: {
+        sql: string;
+    };
 };
 
 export enum QueryStatus {
@@ -54,10 +58,12 @@ export enum QueryStatus {
 }
 
 export type RunQueryRawResponse = {
-    status: QueryStatus;
-    sql: string | null;
-    jsonResult: string | null; // base64 encoded;
-    error: string | null;
+    query: {
+        status: QueryStatus;
+        sql: string | null;
+        jsonResult: string | null; // base64 encoded;
+        error: string | null;
+    };
 };
 
 export type MetricFlowJsonResults = {
@@ -75,6 +81,6 @@ export type MetricFlowJsonResults = {
     }>;
 };
 
-export type RunQueryResponse = RunQueryRawResponse & {
+export type RunQueryResponse = RunQueryRawResponse['query'] & {
     jsonResult: MetricFlowJsonResults | null;
 };
