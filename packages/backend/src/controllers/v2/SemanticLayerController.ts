@@ -53,7 +53,7 @@ export class SemanticLayerController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/tables/{table}/fields')
+    @Get('/views/{table}/fields')
     @OperationId('getSemanticLayerFields')
     async getFields(
         @Request() req: express.Request,

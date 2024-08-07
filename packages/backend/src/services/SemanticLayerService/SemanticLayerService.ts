@@ -2,9 +2,12 @@ import { subject } from '@casl/ability';
 import {
     CatalogField,
     CatalogTable,
+    CatalogType,
+    FieldType,
     ForbiddenError,
     MetricQuery,
     MissingConfigError,
+    NotFoundError,
     ResultRow,
     SessionUser,
 } from '@lightdash/common';
@@ -85,11 +88,12 @@ export class SemanticLayerService extends BaseService {
     ): Promise<CatalogTable[]> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
-        await semanticLayer.getViews();
-        // semanticLayer.getViews()
-        // TODO convert tables to catalog type
-
-        return [];
+        const views = await semanticLayer.getViews();
+        return views.map((view) => ({
+            type: CatalogType.Table,
+            name: view.name,
+            label: view.title,
+        }));
     }
 
     async getFields(
@@ -101,7 +105,32 @@ export class SemanticLayerService extends BaseService {
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
         // semanticLayer.getFields()
         // TODO convert fields to catalog type
-        return [];
+        const view = (await semanticLayer.getViews()).find(
+            (v) => v.name === table,
+        );
+        console.debug('view?.dimensions', view?.dimensions);
+        if (view === undefined) {
+            throw new NotFoundError(`View ${table} not found`);
+        }
+        const dimensions = view.dimensions.map((d) => ({
+            type: CatalogType.Field,
+            name: d.name,
+            label: d.title,
+            tableName: table,
+            basicType: d.type,
+            fieldType: FieldType.DIMENSION,
+        }));
+        const metrics =
+            view.measures.map((d) => ({
+                type: CatalogType.Field,
+                name: d.name,
+                label: d.title,
+                tableName: table,
+                basicType: d.type,
+                fieldType: FieldType.METRIC,
+            })) || [];
+
+        return [...dimensions, ...metrics];
     }
 
     async getResults(

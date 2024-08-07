@@ -27,9 +27,11 @@ export default class CubeClient {
     async getViews() {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
-        const cubes = await this.cubeApi.meta();
-        console.debug('cubes', cubes);
-        return cubes;
+        const meta = await this.cubeApi.meta();
+        console.debug('cubes', meta);
+        const views = meta.cubes.filter((c) => c.type === 'view');
+        console.debug('views', views);
+        return views;
     }
 
     async runQuery(cubeQuery: Query) {
