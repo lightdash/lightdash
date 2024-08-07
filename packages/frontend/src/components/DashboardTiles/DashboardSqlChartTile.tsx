@@ -43,8 +43,8 @@ export const DashboardSqlChartTile: FC<Props> = ({
 
     const sqlRunnerChartData = useMemo(
         () => ({
-            results: data?.results ?? [],
-            columns: [],
+            results: data?.resultsAndColumns.results ?? [],
+            columns: data?.resultsAndColumns.columns ?? [],
         }),
         [data],
     );
@@ -90,7 +90,10 @@ export const DashboardSqlChartTile: FC<Props> = ({
         >
             {data.chart.config.type === ChartKind.TABLE &&
                 isTableChartSQLConfig(data.chart.config) && (
-                    <Table data={data.results} config={data.chart.config} />
+                    <Table
+                        data={data.resultsAndColumns.results}
+                        config={data.chart.config}
+                    />
                 )}
             {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
                 data.chart.config.type === ChartKind.LINE ||
