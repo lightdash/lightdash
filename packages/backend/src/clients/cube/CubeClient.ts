@@ -1,13 +1,40 @@
-import { GraphQLClient } from 'graphql-request';
-import { URL } from 'url';
+import cube, {
+    CubeApi,
+    Query,
+    QueryRecordType,
+    QueryType,
+    ResultSet,
+} from '@cubejs-client/core';
 
-type RunQueryArgs = {
+type CubeArgs = {
+    token: string;
     domain: string;
 };
 
 export default class CubeClient {
     // eslint-disable-next-line class-methods-use-this
-    async runQuery({ domain }: RunQueryArgs) {
-        throw new Error('Not implemented');
+    cubeApi: CubeApi;
+
+    constructor({ token, domain }: CubeArgs) {
+        this.cubeApi = cube(token, { apiUrl: `${domain}/cubejs-api/v1` });
+    }
+
+    async runQuery(cubeQuery: Query) {
+        /* query sample: 
+        {
+        measures: ['Stories.count'],
+        timeDimensions: [{
+            dimension: 'Stories.time',
+            dateRange: ['2015-01-01', '2015-12-31'],
+            granularity: 'month'
+        }]
+        } */
+        const resultSet = await this.cubeApi.load(cubeQuery);
+        return resultSet;
+    }
+
+    async getSql(query: Query) {
+        const sql = await this.cubeApi.sql(query);
+        return sql;
     }
 }
