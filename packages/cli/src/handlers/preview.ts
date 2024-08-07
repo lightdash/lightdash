@@ -315,7 +315,7 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
-            ignoreErrors: !options.raiseErrors,
+            ignoreErrors: options.ignoreErrors,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
