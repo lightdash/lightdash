@@ -1,3 +1,5 @@
+//! Types for dbt GraphQl API, fetched from: https://docs.getdbt.com/docs/dbt-cloud-apis/sl-graphql#querying
+
 export type MetricInput = {
     name: string;
 };
