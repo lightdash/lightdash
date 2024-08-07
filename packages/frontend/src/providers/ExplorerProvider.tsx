@@ -894,7 +894,7 @@ function reducer(
                             state.unsavedChartVersion.metricQuery.customDimensions?.map(
                                 (customDimension) =>
                                     customDimension.id ===
-                                    action.payload.customDimension.id
+                                    action.payload.previousCustomDimensionId
                                         ? action.payload.customDimension
                                         : customDimension,
                             ),
