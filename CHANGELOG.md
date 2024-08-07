@@ -1,3 +1,10 @@
+## [0.1203.3](https://github.com/lightdash/lightdash/compare/0.1203.2...0.1203.3) (2024-08-07)
+
+
+### Bug Fixes
+
+* sql runner style fixes ([#11048](https://github.com/lightdash/lightdash/issues/11048)) ([cd509e6](https://github.com/lightdash/lightdash/commit/cd509e6b65028012af7ebae709758345dee7dd5e))
+
 ## [0.1203.2](https://github.com/lightdash/lightdash/compare/0.1203.1...0.1203.2) (2024-08-07)
 
 
