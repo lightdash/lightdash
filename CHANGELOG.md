@@ -1,3 +1,10 @@
+## [0.1203.5](https://github.com/lightdash/lightdash/compare/0.1203.4...0.1203.5) (2024-08-07)
+
+
+### Bug Fixes
+
+* use columns from saved sql charts ([#11068](https://github.com/lightdash/lightdash/issues/11068)) ([06b9b75](https://github.com/lightdash/lightdash/commit/06b9b756a07db134fe03eff0005ef7afffbf05c4))
+
 ## [0.1203.4](https://github.com/lightdash/lightdash/compare/0.1203.3...0.1203.4) (2024-08-07)
 
 
