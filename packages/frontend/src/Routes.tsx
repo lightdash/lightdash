@@ -33,6 +33,7 @@ import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
+import SemanticViewerPage from './pages/SemanticViewer';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
@@ -258,6 +259,19 @@ const Routes: FC = () => {
                                         <NavBar />
                                         <TrackPage name={PageName.METRIC_FLOW}>
                                             <MetricFlowPage />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/semantic-viewer"
+                                    >
+                                        <NavBar />
+
+                                        <TrackPage
+                                            name={PageName.SEMANTIC_VIEWER}
+                                        >
+                                            <SemanticViewerPage />
                                         </TrackPage>
                                     </Route>
 
