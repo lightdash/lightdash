@@ -406,6 +406,7 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option('--raise-errors', 'Raise errors if deploy fails', false)
     .action(startPreviewHandler);
 
 program

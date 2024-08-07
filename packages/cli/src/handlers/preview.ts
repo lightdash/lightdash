@@ -25,6 +25,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     name?: string;
     verbose: boolean;
     startOfWeek?: number;
+    raiseErrors: boolean;
 };
 
 type StopPreviewHandlerOptions = {
@@ -314,7 +315,7 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
-            ignoreErrors: true,
+            ignoreErrors: !options.raiseErrors,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
