@@ -84,3 +84,39 @@ export type MetricFlowJsonResults = {
 export type RunQueryResponse = RunQueryRawResponse['query'] & {
     jsonResult: MetricFlowJsonResults | null;
 };
+
+type DimensionType = 'CATEGORICAL' | 'TIME';
+type MetricType = 'SIMPLE' | 'RATIO' | 'CUMULATIVE' | 'DERIVED' | 'CONVERSION';
+
+type Dimension = {
+    name: string;
+    description: string;
+    type: DimensionType;
+};
+
+type Metric = {
+    name: string;
+    description: string;
+    type: MetricType;
+    dimensions: Dimension[];
+};
+
+export type GetMetricsResponse = {
+    metrics: Metric[];
+};
+
+export type GetMetricsForDimensionsArgs = {
+    dimensions: GroupByInput[];
+};
+
+export type GetMetricsForDimensionsResponse = {
+    metricsForDimensions: Metric[];
+};
+
+export type GetDimensionsArgs = {
+    metrics: MetricInput[];
+};
+
+export type GetDimensionsResponse = {
+    dimensions: Dimension[];
+};

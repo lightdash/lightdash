@@ -3,32 +3,38 @@ import {
     CompileSqlResponse,
     CreateQueryArgs,
     CreateQueryResponse,
+    GetDimensionsArgs,
+    GetDimensionsResponse,
+    GetMetricsForDimensionsArgs,
+    GetMetricsForDimensionsResponse,
+    GetMetricsResponse,
     RunQueryRawResponse,
     RunQueryResponse,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
 import { URL } from 'url';
 
-type GetClientArgs = {
+type EnvironmentContext = {
+    environmentId: string;
+};
+
+type GetClientFnArgs = {
     domain: string;
     bearerToken: string;
 };
 
-type RunGraphQLQueryArgs = GetClientArgs & {
-    environmentId: string;
-    query: string;
-};
-
-type GetSqlArgs = GetClientArgs &
-    CompileSqlArgs &
-    Pick<RunGraphQLQueryArgs, 'environmentId'>;
-
-type RunQueryArgs = GetClientArgs &
-    CreateQueryArgs &
-    Pick<RunGraphQLQueryArgs, 'environmentId'>;
+type BaseArgs = EnvironmentContext & GetClientFnArgs;
+type RunQueryFnArgs = BaseArgs & CreateQueryArgs;
+type GetSqlFnArgs = BaseArgs & CompileSqlArgs;
+type GetDimensionsFnArgs = BaseArgs & GetDimensionsArgs;
+type GetMetricsForDimensionsFnArgs = BaseArgs & GetMetricsForDimensionsArgs;
+type RunGraphQLQueryFnArgs = GetClientFnArgs &
+    EnvironmentContext & {
+        query: string;
+    };
 
 export default class DbtCloudGraphqlClient {
-    private static getClient({ domain, bearerToken }: GetClientArgs) {
+    private static getClient({ domain, bearerToken }: GetClientFnArgs) {
         const endpoint = new URL('/api/graphql', domain);
         return new GraphQLClient(endpoint.href, {
             headers: {
@@ -74,7 +80,7 @@ export default class DbtCloudGraphqlClient {
         query,
         environmentId,
         bearerToken,
-    }: RunGraphQLQueryArgs): Promise<T> {
+    }: RunGraphQLQueryFnArgs): Promise<T> {
         return DbtCloudGraphqlClient.getClient({ domain, bearerToken }).request(
             query,
             {
@@ -88,7 +94,7 @@ export default class DbtCloudGraphqlClient {
         domain,
         environmentId,
         ...graphqlArgs
-    }: RunQueryArgs): Promise<RunQueryResponse> {
+    }: RunQueryFnArgs): Promise<RunQueryResponse> {
         const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
@@ -149,7 +155,7 @@ export default class DbtCloudGraphqlClient {
         domain,
         environmentId,
         ...graphqlArgs
-    }: GetSqlArgs) {
+    }: GetSqlFnArgs) {
         const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
@@ -171,6 +177,84 @@ export default class DbtCloudGraphqlClient {
         return this.runGraphQlQuery<CompileSqlResponse>({
             domain,
             bearerToken,
+            query,
+            environmentId,
+        });
+    }
+
+    async getMetrics({ bearerToken, domain, environmentId }: BaseArgs) {
+        const query = `
+            query GetMetrics($environmentId: BigInt!) {
+                metrics(environmentId: $environmentId) {
+                    name
+                    description
+                    type
+                    dimensions {
+                        name
+                        description
+                        type
+                    }
+                }
+            }`;
+
+        return this.runGraphQlQuery<GetMetricsResponse>({
+            bearerToken,
+            domain,
+            query,
+            environmentId,
+        });
+    }
+
+    async getMetricsForDimensions({
+        bearerToken,
+        dimensions,
+        domain,
+        environmentId,
+    }: GetMetricsForDimensionsFnArgs) {
+        const query = `
+            query GetMetricsForDimensions($environmentId: BigInt!) {
+                metricsForDimensions(environmentId: $environmentId, dimensions: [${dimensions.map(
+                    (dimension) => `{ name: "${dimension.name}" }`,
+                )}]) {
+                    name
+                    description
+                    type
+                    dimensions {
+                        name
+                        description
+                        type
+                    }
+                }
+            }`;
+
+        return this.runGraphQlQuery<GetMetricsForDimensionsResponse>({
+            bearerToken,
+            domain,
+            environmentId,
+            query,
+        });
+    }
+
+    async getDimensions({
+        bearerToken,
+        domain,
+        environmentId,
+        metrics,
+    }: GetDimensionsFnArgs) {
+        const query = `
+            query GetDimensions($environmentId: BigInt!) {
+                dimensions(environmentId: $environmentId, metrics: [${metrics.map(
+                    (metric) => `{ name: "${metric.name}" }`,
+                )}]) {
+                    name
+                    description
+                    type
+                }
+            }`;
+
+        return this.runGraphQlQuery<GetDimensionsResponse>({
+            bearerToken,
+            domain,
             query,
             environmentId,
         });
