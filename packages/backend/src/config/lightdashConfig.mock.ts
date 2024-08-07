@@ -148,4 +148,7 @@ export const lightdashConfigMock: LightdashConfig = {
             allowedDomains: [],
         },
     },
+    cube: {
+        token: '',
+    },
 };
