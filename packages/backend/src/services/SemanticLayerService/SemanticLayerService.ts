@@ -73,6 +73,7 @@ export class SemanticLayerService extends BaseService {
         if (bearerToken) {
             return this.dbtCloudClient;
         } */
+        // TODO check if cube is available
         return this.cubeClient;
 
         throw new MissingConfigError('No semantic layer available');
@@ -84,6 +85,7 @@ export class SemanticLayerService extends BaseService {
     ): Promise<CatalogTable[]> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
+        await semanticLayer.getViews();
         // semanticLayer.getViews()
         // TODO convert tables to catalog type
 

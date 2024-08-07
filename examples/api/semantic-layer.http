@@ -7,7 +7,7 @@ Content-Type: application/json
     "password": "demo_password!"
 }
 
-### Catalog endpoint
+### Semantic layer endpoint
 
 #### Get tables
 GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/views
