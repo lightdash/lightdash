@@ -1,15 +1,15 @@
 import {
-    CompileSqlArgs,
-    CompileSqlResponse,
-    CreateQueryArgs,
-    CreateQueryResponse,
-    GetDimensionsArgs,
-    GetDimensionsResponse,
-    GetMetricsForDimensionsArgs,
-    GetMetricsForDimensionsResponse,
-    GetMetricsResponse,
-    RunQueryRawResponse,
-    RunQueryResponse,
+    DbtGraphQLCompileSqlArgs,
+    DbtGraphQLCompileSqlResponse,
+    DbtGraphQLCreateQueryArgs,
+    DbtGraphQLCreateQueryResponse,
+    DbtGraphQLGetDimensionsArgs,
+    DbtGraphQLGetDimensionsResponse,
+    DbtGraphQLGetMetricsForDimensionsArgs,
+    DbtGraphQLGetMetricsForDimensionsResponse,
+    DbtGraphQLGetMetricsResponse,
+    DbtGraphQLRunQueryRawResponse,
+    DbtGraphQLRunQueryResponse,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
 import { URL } from 'url';
@@ -24,10 +24,11 @@ type GetClientFnArgs = {
 };
 
 type BaseArgs = EnvironmentContext & GetClientFnArgs;
-type RunQueryFnArgs = BaseArgs & CreateQueryArgs;
-type GetSqlFnArgs = BaseArgs & CompileSqlArgs;
-type GetDimensionsFnArgs = BaseArgs & GetDimensionsArgs;
-type GetMetricsForDimensionsFnArgs = BaseArgs & GetMetricsForDimensionsArgs;
+type RunQueryFnArgs = BaseArgs & DbtGraphQLCreateQueryArgs;
+type GetSqlFnArgs = BaseArgs & DbtGraphQLCompileSqlArgs;
+type GetDimensionsFnArgs = BaseArgs & DbtGraphQLGetDimensionsArgs;
+type GetMetricsForDimensionsFnArgs = BaseArgs &
+    DbtGraphQLGetMetricsForDimensionsArgs;
 type RunGraphQLQueryFnArgs = GetClientFnArgs &
     EnvironmentContext & {
         query: string;
@@ -52,7 +53,7 @@ export default class DbtCloudGraphqlClient {
         metrics,
         orderBy,
         where,
-    }: Partial<CreateQueryArgs | CompileSqlArgs>) {
+    }: Partial<DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs>) {
         const metricsString =
             metrics?.map((metric) => `{ name: "${metric.name}" }`) ?? '';
         const groupByString =
@@ -101,7 +102,7 @@ export default class DbtCloudGraphqlClient {
         domain,
         environmentId,
         ...graphqlArgs
-    }: RunQueryFnArgs): Promise<RunQueryResponse> {
+    }: RunQueryFnArgs): Promise<DbtGraphQLRunQueryResponse> {
         const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
@@ -121,7 +122,7 @@ export default class DbtCloudGraphqlClient {
             }`;
 
         const { createQuery: createQueryResponse } =
-            await this.runGraphQlQuery<CreateQueryResponse>({
+            await this.runGraphQlQuery<DbtGraphQLCreateQueryResponse>({
                 domain,
                 bearerToken,
                 query: createQuery,
@@ -140,7 +141,7 @@ export default class DbtCloudGraphqlClient {
         `;
 
         const { query: rawResponse } =
-            await this.runGraphQlQuery<RunQueryRawResponse>({
+            await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>({
                 domain,
                 bearerToken,
                 query,
@@ -181,7 +182,7 @@ export default class DbtCloudGraphqlClient {
                 }
             }`;
 
-        return this.runGraphQlQuery<CompileSqlResponse>({
+        return this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>({
             domain,
             bearerToken,
             query,
@@ -206,7 +207,7 @@ export default class DbtCloudGraphqlClient {
                 }
             }`;
 
-        return this.runGraphQlQuery<GetMetricsResponse>({
+        return this.runGraphQlQuery<DbtGraphQLGetMetricsResponse>({
             bearerToken,
             domain,
             query,
@@ -238,7 +239,7 @@ export default class DbtCloudGraphqlClient {
                 }
             }`;
 
-        return this.runGraphQlQuery<GetMetricsForDimensionsResponse>({
+        return this.runGraphQlQuery<DbtGraphQLGetMetricsForDimensionsResponse>({
             bearerToken,
             domain,
             environmentId,
@@ -264,7 +265,7 @@ export default class DbtCloudGraphqlClient {
                 }
             }`;
 
-        return this.runGraphQlQuery<GetDimensionsResponse>({
+        return this.runGraphQlQuery<DbtGraphQLGetDimensionsResponse>({
             bearerToken,
             domain,
             query,

@@ -1,6 +1,6 @@
 //! Types for dbt GraphQl API, fetched from: https://docs.getdbt.com/docs/dbt-cloud-apis/sl-graphql#querying
 
-export enum TimeGranularity {
+export enum DbtTimeGranularity {
     NANOSECOND = 'NANOSECOND',
     MICROSECOND = 'MICROSECOND',
     MILLISECOND = 'MILLISECOND',
@@ -14,12 +14,12 @@ export enum TimeGranularity {
     YEAR = 'YEAR',
 }
 
-export enum DimensionType {
+export enum DbtDimensionType {
     CATEGORICAL = 'CATEGORICAL',
     TIME = 'TIME',
 }
 
-export enum MetricType {
+export enum DbtMetricType {
     SIMPLE = 'SIMPLE',
     RATIO = 'RATIO',
     CUMULATIVE = 'CUMULATIVE',
@@ -27,7 +27,7 @@ export enum MetricType {
     CONVERSION = 'CONVERSION',
 }
 
-export enum QueryStatus {
+export enum DbtQueryStatus {
     PENDING = 'PENDING',
     RUNNING = 'RUNNING',
     COMPILED = 'COMPILED',
@@ -35,65 +35,67 @@ export enum QueryStatus {
     FAILED = 'FAILED',
 }
 
-export type MetricInput = {
+export type DbtGraphQLMetricInput = {
     name: string;
 };
 
-export type GroupByInput = {
+export type DbtGraphQLGroupByInput = {
     name: string;
-    grain?: TimeGranularity;
+    grain?: DbtTimeGranularity;
 };
 
-export type WhereInput = {
+export type DbtGraphQLWhereInput = {
     sql: string;
 };
 
-export type OrderByinputBase = {
+export type DbtGraphQLOrderByinputBase = {
     descending: boolean;
 };
 
-export type OrderByinputMetric = OrderByinputBase & {
-    metric: MetricInput;
+export type DbtGraphQLOrderByinputMetric = DbtGraphQLOrderByinputBase & {
+    metric: DbtGraphQLMetricInput;
 };
 
-export type OrderByinputGroupBy = OrderByinputBase & {
-    groupBy: GroupByInput;
+export type DbtGraphQLOrderByinputGroupBy = DbtGraphQLOrderByinputBase & {
+    groupBy: DbtGraphQLGroupByInput;
 };
 
-export type OrderByInput = OrderByinputMetric | OrderByinputGroupBy;
+export type DbtGraphQLOrderByInput =
+    | DbtGraphQLOrderByinputMetric
+    | DbtGraphQLOrderByinputGroupBy;
 
-export type CreateQueryArgs = {
-    metrics: MetricInput[];
-    groupBy: GroupByInput[];
+export type DbtGraphQLCreateQueryArgs = {
+    metrics: DbtGraphQLMetricInput[];
+    groupBy: DbtGraphQLGroupByInput[];
     limit?: number;
-    where: WhereInput[];
-    orderBy: OrderByInput[];
+    where: DbtGraphQLWhereInput[];
+    orderBy: DbtGraphQLOrderByInput[];
 };
 
-export type CreateQueryResponse = {
+export type DbtGraphQLCreateQueryResponse = {
     createQuery: {
         queryId: string;
     };
 };
 
-export type CompileSqlArgs = CreateQueryArgs;
+export type DbtGraphQLCompileSqlArgs = DbtGraphQLCreateQueryArgs;
 
-export type CompileSqlResponse = {
+export type DbtGraphQLCompileSqlResponse = {
     compileSql: {
         sql: string;
     };
 };
 
-export type RunQueryRawResponse = {
+export type DbtGraphQLRunQueryRawResponse = {
     query: {
-        status: QueryStatus;
+        status: DbtQueryStatus;
         sql: string | null;
         jsonResult: string | null; // base64 encoded;
         error: string | null;
     };
 };
 
-export type MetricFlowJsonResults = {
+export type DbtGraphQLJsonResult = {
     schema: {
         fields: Array<{
             name: string;
@@ -108,41 +110,42 @@ export type MetricFlowJsonResults = {
     }>;
 };
 
-export type RunQueryResponse = RunQueryRawResponse['query'] & {
-    jsonResult: MetricFlowJsonResults | null;
-};
+export type DbtGraphQLRunQueryResponse =
+    DbtGraphQLRunQueryRawResponse['query'] & {
+        jsonResult: DbtGraphQLJsonResult | null;
+    };
 
-type Dimension = {
+type DbtGraphQLDimension = {
     name: string;
     description: string;
-    type: DimensionType;
-    queryableGranularities: TimeGranularity[];
+    type: DbtDimensionType;
+    queryableGranularities: DbtTimeGranularity[];
 };
 
-type Metric = {
+type DbtGraphQLMetric = {
     name: string;
     description: string;
-    type: MetricType;
-    dimensions: Dimension[];
-    queryableGranularities: TimeGranularity[];
+    type: DbtMetricType;
+    dimensions: DbtGraphQLDimension[];
+    queryableGranularities: DbtTimeGranularity[];
 };
 
-export type GetMetricsResponse = {
-    metrics: Metric[];
+export type DbtGraphQLGetMetricsResponse = {
+    metrics: DbtGraphQLMetric[];
 };
 
-export type GetMetricsForDimensionsArgs = {
-    dimensions: GroupByInput[];
+export type DbtGraphQLGetMetricsForDimensionsArgs = {
+    dimensions: DbtGraphQLGroupByInput[];
 };
 
-export type GetMetricsForDimensionsResponse = {
-    metricsForDimensions: Metric[];
+export type DbtGraphQLGetMetricsForDimensionsResponse = {
+    metricsForDimensions: DbtGraphQLMetric[];
 };
 
-export type GetDimensionsArgs = {
-    metrics: MetricInput[];
+export type DbtGraphQLGetDimensionsArgs = {
+    metrics: DbtGraphQLMetricInput[];
 };
 
-export type GetDimensionsResponse = {
-    dimensions: Dimension[];
+export type DbtGraphQLGetDimensionsResponse = {
+    dimensions: DbtGraphQLDimension[];
 };
