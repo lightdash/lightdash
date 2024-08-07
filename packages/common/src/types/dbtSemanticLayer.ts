@@ -43,10 +43,36 @@ export type CompileSqlResponse = {
     sql: string;
 };
 
-export type RunQueryResponse = {
-    // TODO: type the response properties
-    status: any;
-    sql: string;
-    jsonResult: any;
-    error: any;
+export enum QueryStatus {
+    PENDING = 'PENDING',
+    RUNNING = 'RUNNING',
+    COMPILED = 'COMPILED',
+    SUCCESSFUL = 'SUCCESSFUL',
+    FAILED = 'FAILED',
+}
+
+export type RunQueryRawResponse = {
+    status: QueryStatus;
+    sql: string | null;
+    jsonResult: string | null; // base64 encoded;
+    error: string | null;
+};
+
+export type MetricFlowJsonResults = {
+    schema: {
+        fields: Array<{
+            name: string;
+            type: string;
+        }>;
+        primaryKey: Array<string>;
+        pandas_version: string;
+    };
+    data: Array<{
+        index: number;
+        [key: string]: string | number | boolean | null;
+    }>;
+};
+
+export type RunQueryResponse = RunQueryRawResponse & {
+    jsonResult: MetricFlowJsonResults | null;
 };

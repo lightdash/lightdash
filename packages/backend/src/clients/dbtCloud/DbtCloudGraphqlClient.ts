@@ -3,6 +3,7 @@ import {
     CompileSqlResponse,
     CreateQueryArgs,
     CreateQueryResponse,
+    RunQueryRawResponse,
     RunQueryResponse,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -58,7 +59,7 @@ export default class DbtCloudGraphqlClient {
         domain,
         environmentId,
         ...graphqlArgs
-    }: RunQueryArgs) {
+    }: RunQueryArgs): Promise<RunQueryResponse> {
         const { groupBy, metrics, order, where, limit } = graphqlArgs;
         const createQuery = `
             mutation {
@@ -92,12 +93,21 @@ export default class DbtCloudGraphqlClient {
             }
         `;
 
-        return this.runGraphQlQuery<RunQueryResponse>({
+        const rawResponse = await this.runGraphQlQuery<RunQueryRawResponse>({
             domain,
             bearerToken,
             query,
             environmentId,
         });
+
+        return {
+            ...rawResponse,
+            jsonResult: rawResponse.jsonResult
+                ? JSON.parse(
+                      Buffer.from(rawResponse.jsonResult, 'base64').toString(),
+                  )
+                : null,
+        };
     }
 
     async getSql({
