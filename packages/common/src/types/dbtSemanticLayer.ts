@@ -1,17 +1,39 @@
 //! Types for dbt GraphQl API, fetched from: https://docs.getdbt.com/docs/dbt-cloud-apis/sl-graphql#querying
 
-export type TimeGranularity =
-    | 'NANOSECOND'
-    | 'MICROSECOND'
-    | 'MILLISECOND'
-    | 'SECOND'
-    | 'MINUTE'
-    | 'HOUR'
-    | 'DAY'
-    | 'WEEK'
-    | 'MONTH'
-    | 'QUARTER'
-    | 'YEAR';
+export enum TimeGranularity {
+    NANOSECOND = 'NANOSECOND',
+    MICROSECOND = 'MICROSECOND',
+    MILLISECOND = 'MILLISECOND',
+    SECOND = 'SECOND',
+    MINUTE = 'MINUTE',
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    QUARTER = 'QUARTER',
+    YEAR = 'YEAR',
+}
+
+export enum DimensionType {
+    CATEGORICAL = 'CATEGORICAL',
+    TIME = 'TIME',
+}
+
+export enum MetricType {
+    SIMPLE = 'SIMPLE',
+    RATIO = 'RATIO',
+    CUMULATIVE = 'CUMULATIVE',
+    DERIVED = 'DERIVED',
+    CONVERSION = 'CONVERSION',
+}
+
+export enum QueryStatus {
+    PENDING = 'PENDING',
+    RUNNING = 'RUNNING',
+    COMPILED = 'COMPILED',
+    SUCCESSFUL = 'SUCCESSFUL',
+    FAILED = 'FAILED',
+}
 
 export type MetricInput = {
     name: string;
@@ -62,14 +84,6 @@ export type CompileSqlResponse = {
     };
 };
 
-export enum QueryStatus {
-    PENDING = 'PENDING',
-    RUNNING = 'RUNNING',
-    COMPILED = 'COMPILED',
-    SUCCESSFUL = 'SUCCESSFUL',
-    FAILED = 'FAILED',
-}
-
 export type RunQueryRawResponse = {
     query: {
         status: QueryStatus;
@@ -97,9 +111,6 @@ export type MetricFlowJsonResults = {
 export type RunQueryResponse = RunQueryRawResponse['query'] & {
     jsonResult: MetricFlowJsonResults | null;
 };
-
-type DimensionType = 'CATEGORICAL' | 'TIME';
-type MetricType = 'SIMPLE' | 'RATIO' | 'CUMULATIVE' | 'DERIVED' | 'CONVERSION';
 
 type Dimension = {
     name: string;
