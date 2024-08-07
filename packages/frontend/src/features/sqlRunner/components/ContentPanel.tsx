@@ -287,7 +287,7 @@ export const ContentPanel: FC = () => {
                             withBorder
                             bg="gray.1"
                             sx={(theme) => ({
-                                zIndex: getDefaultZIndex('overlay') + 1,
+                                zIndex: getDefaultZIndex('modal') - 1,
                                 borderWidth: isResultsPanelFullHeight
                                     ? '0 0 0 1px'
                                     : '0 0 1px 1px',
