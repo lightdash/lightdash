@@ -82,7 +82,7 @@ export type PieChartDisplay = {
     isDonut?: boolean;
 };
 
-export type SqlTransformPieChartConfig = {
+export type SqlPieChartConfig = {
     groupFieldIds?: string[];
     metricId?: string;
 };
@@ -154,10 +154,7 @@ type SqlRunnerResultsTransformerDeps = {
 };
 export class SqlRunnerResultsTransformer
     implements
-        ResultsTransformerBase<
-            SqlCartesianChartLayout,
-            SqlTransformPieChartConfig
-        >
+        ResultsTransformerBase<SqlCartesianChartLayout, SqlPieChartConfig>
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
@@ -357,7 +354,7 @@ export class SqlRunnerResultsTransformer
         return this.cartesianChartYLayoutOptions();
     }
 
-    defaultPieChartFieldConfig(): SqlTransformPieChartConfig | undefined {
+    defaultPieChartFieldConfig(): SqlPieChartConfig | undefined {
         const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );

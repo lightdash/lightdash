@@ -3,7 +3,7 @@ import {
     type PieChartDisplay,
     type SqlCartesianChartLayout,
     type SqlColumn,
-    type SqlTransformPieChartConfig,
+    type SqlPieChartConfig,
 } from '../visualizations/SqlRunnerResultsTransformer';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
@@ -104,7 +104,7 @@ export type LineChartSqlConfig = SqlRunnerChartConfig & {
 
 export type PieChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.PIE;
-    fieldConfig: SqlTransformPieChartConfig | undefined;
+    fieldConfig: SqlPieChartConfig | undefined;
     display: PieChartDisplay | undefined;
 };
 

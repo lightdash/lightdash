@@ -1,5 +1,7 @@
+import { ChartKind } from '../types/savedCharts';
 import {
     isPieChartSQLConfig,
+    type PieChartSqlConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
@@ -14,6 +16,34 @@ export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
         transformer: ResultsTransformerBase<TBarChartLayout, TPieChartConfig>;
     }) {
         this.transformer = args.transformer;
+    }
+
+    getChartConfig({ currentConfig }: { currentConfig?: PieChartSqlConfig }) {
+        const newDefaultConfig = this.transformer.defaultPieChartFieldConfig();
+
+        let newConfig = currentConfig;
+
+        if (!currentConfig) {
+            newConfig = {
+                metadata: {
+                    version: 1,
+                },
+                type: ChartKind.PIE,
+                fieldConfig: newDefaultConfig,
+                display: {
+                    isDonut: false,
+                },
+            };
+        } else {
+            newConfig = {
+                ...currentConfig,
+                fieldConfig: newDefaultConfig,
+            };
+        }
+
+        return {
+            newConfig,
+        };
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
