@@ -85,15 +85,6 @@ export function getCompiledModels(
     });
 }
 
-// TODO: Move this to somewhere appropriate
-type UnrenderedConfig =
-    | {
-          meta?: {
-              joins?: Array<{ join: string }>;
-          };
-      }
-    | undefined;
-
 const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,
     allModelNodes: DbtModelNode[],
@@ -107,9 +98,9 @@ const getJoinedModelsRecursively = (
     GlobalState.debug(`Getting joined models for ${modelNode.name}`);
     visited.add(modelNode.name);
 
-    const joinedModelNames = (
-        modelNode.unrendered_config as UnrenderedConfig
-    )?.meta?.joins?.map((j) => j.join);
+    const joinedModelNames = modelNode.unrendered_config?.meta?.joins?.map(
+        (j) => j.join,
+    );
 
     if (!joinedModelNames) {
         return [];
