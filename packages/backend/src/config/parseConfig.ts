@@ -269,6 +269,10 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    cube: {
+        token: string;
+        domain?: string;
+    };
 };
 
 export type SlackConfig = {
@@ -759,6 +763,10 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+        },
+        cube: {
+            token: process.env.CUBE_TOKEN || '',
+            domain: process.env.CUBE_DOMAIN,
         },
     };
 };

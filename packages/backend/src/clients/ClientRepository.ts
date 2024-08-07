@@ -121,7 +121,13 @@ export class ClientRepository
     }
 
     public getCubeClient(): CubeClient {
-        return this.getClient('cubeClient', () => new CubeClient());
+        return this.getClient(
+            'cubeClient',
+            () =>
+                new CubeClient({
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
     }
 
     public getEmailClient(): EmailClient {
