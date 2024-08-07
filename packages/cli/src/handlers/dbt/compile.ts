@@ -1,5 +1,7 @@
-import { ParseError } from '@lightdash/common';
+import { DbtModelNode, ParseError } from '@lightdash/common';
 import execa from 'execa';
+import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
+import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 
@@ -41,7 +43,7 @@ const dbtCompileArgs = [
 const camelToSnakeCase = (str: string) =>
     str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-const optionsToArgs = (options: DbtCompileOptions): string[] =>
+const optionsToArgs = (options: Partial<DbtCompileOptions>): string[] =>
     Object.entries(options).reduce<string[]>((acc, [key, value]) => {
         if (value !== undefined && dbtCompileArgs.includes(key)) {
             const argKey = `--${camelToSnakeCase(key)}`;
@@ -56,6 +58,7 @@ const optionsToArgs = (options: DbtCompileOptions): string[] =>
         }
         return acc;
     }, []);
+
 export const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
@@ -67,6 +70,93 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         const msg = e instanceof Error ? e.message : '-';
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
+};
+
+export function getCompiledModels(
+    manifestModels: DbtModelNode[],
+    compiledModelIds?: string[],
+) {
+    return manifestModels.filter((model) => {
+        if (compiledModelIds) {
+            return compiledModelIds.includes(model.unique_id);
+        }
+
+        return model.compiled;
+    });
+}
+
+const getJoinedModelsRecursively = (
+    modelNode: DbtModelNode,
+    allModelNodes: DbtModelNode[],
+    visited: Set<string> = new Set(),
+): string[] => {
+    if (visited.has(modelNode.name)) {
+        GlobalState.debug(`Already visited ${modelNode.name}. Skipping.`);
+        return [];
+    }
+
+    GlobalState.debug(`Getting joined models for ${modelNode.name}`);
+    visited.add(modelNode.name);
+
+    const joinedModelNames = modelNode.unrendered_config?.meta?.joins?.map(
+        (j) => j.join,
+    );
+
+    if (!joinedModelNames) {
+        return [];
+    }
+
+    const joinedModelNodes = allModelNodes.filter((model) =>
+        joinedModelNames.includes(model.name),
+    );
+
+    return joinedModelNodes.reduce<string[]>(
+        (acc, model) => [
+            ...acc,
+            model.name,
+            ...getJoinedModelsRecursively(model, allModelNodes, visited),
+        ],
+        [],
+    );
+};
+
+export const compileModelsAndJoins = async (
+    loadManifestOpts: LoadManifestArgs,
+    options: DbtCompileOptions,
+) => {
+    // do initial compilation so we can get the list of models that are compiled after this command (e.g. selecting/excluding by tags)
+    await dbtCompile(options);
+
+    // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
+    if (!options.select && !options.exclude) {
+        return;
+    }
+
+    // Load manifest and get all models
+    const manifest = await loadManifest(loadManifestOpts);
+    const allManifestModels = getModelsFromManifest(manifest);
+    const currCompiledModels = getCompiledModels(allManifestModels);
+
+    // Selected models and their joined models
+    const modelsToCompile = new Set(
+        currCompiledModels.reduce<string[]>((acc, model) => {
+            const joinedModelNames = getJoinedModelsRecursively(
+                model,
+                allManifestModels,
+                new Set(acc), // minimize recursion by passing already visited models in the current list
+            );
+            return [...acc, model.name, ...joinedModelNames];
+        }, []),
+    );
+
+    GlobalState.debug(
+        `> Models to compile: ${Array.from(modelsToCompile).join(', ')}`,
+    );
+
+    await dbtCompile({
+        ...options,
+        select: Array.from(modelsToCompile),
+    });
 };
 
 export const dbtList = async (
