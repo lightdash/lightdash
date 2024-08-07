@@ -82,11 +82,13 @@ export default class DbtCloudGraphqlClient {
         });
 
         const query = `
-            query(environmentId: $environmentId, queryId: "${queryId}") {
-              status
-              sql
-              jsonResult
-              error
+            query GetQueryResults($environmentId: BigInt!) {
+                query(environmentId: $environmentId, queryId: "${queryId}") {
+                    status
+                    sql
+                    jsonResult
+                    error
+                }
             }
         `;
 
