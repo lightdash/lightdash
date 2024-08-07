@@ -6,7 +6,15 @@ nunjucksEnv.addFilter('as_number', (str) => parseFloat(str));
 
 // jinja global functions
 const nunjucksContext = {
-    env_var: (key: string, fallback?: string) => process.env[key] ?? fallback,
+    env_var: (key: string, options?: string | { default?: string }) => {
+        let fallbackValue: string | undefined;
+        if (typeof options === 'string') {
+            fallbackValue = options;
+        } else if (typeof options === 'object') {
+            fallbackValue = options.default;
+        }
+        return process.env[key] ?? fallbackValue;
+    },
     var: (key: string) =>
         JSON.parse(process.argv[process.argv.indexOf('--vars') + 1])[key],
 };

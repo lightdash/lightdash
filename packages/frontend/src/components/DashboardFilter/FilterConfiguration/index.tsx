@@ -334,7 +334,11 @@ const FilterConfiguration: FC<Props> = ({
                 </Tabs.Panel>
 
                 {!!selectedField && draftFilterRule && (
-                    <Tabs.Panel value={FilterTabs.TILES} w={500}>
+                    <Tabs.Panel
+                        value={FilterTabs.TILES}
+                        w={500}
+                        data-testid="DashboardFilterConfiguration/ChartTiles"
+                    >
                         <TileFilterConfiguration
                             field={selectedField}
                             tabs={tabs}

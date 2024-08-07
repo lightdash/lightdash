@@ -1,3 +1,17 @@
+## [0.1203.1](https://github.com/lightdash/lightdash/compare/0.1203.0...0.1203.1) (2024-08-06)
+
+
+### Bug Fixes
+
+* revert "cli join compile" ([#11039](https://github.com/lightdash/lightdash/issues/11039)) ([fc6ebfc](https://github.com/lightdash/lightdash/commit/fc6ebfcf1ac00585ba137d07c8ea437accef5ba3)), closes [#11019](https://github.com/lightdash/lightdash/issues/11019)
+
+# [0.1203.0](https://github.com/lightdash/lightdash/compare/0.1202.17...0.1203.0) (2024-08-06)
+
+
+### Features
+
+* update profile.yml directory logic and nunjucks template ([#10916](https://github.com/lightdash/lightdash/issues/10916)) ([1eaa0d2](https://github.com/lightdash/lightdash/commit/1eaa0d29dac25a194c3ca883d8e6f0f3e677801b))
+
 ## [0.1202.17](https://github.com/lightdash/lightdash/compare/0.1202.16...0.1202.17) (2024-08-06)
 
 
