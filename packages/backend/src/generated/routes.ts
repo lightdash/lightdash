@@ -7697,6 +7697,37 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerView: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                visible: { dataType: 'boolean' },
+                description: { dataType: 'string' },
+                label: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                aggType: { dataType: 'string' },
+                visible: { dataType: 'boolean' },
+                description: { dataType: 'string' },
+                fieldType: { ref: 'FieldType', required: true },
+                type: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string._value-ResultValue--__': {
         dataType: 'refAlias',
         type: {

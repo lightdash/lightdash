@@ -8579,6 +8579,51 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SemanticLayerView": {
+                "properties": {
+                    "visible": {
+                        "type": "boolean"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "name"],
+                "type": "object"
+            },
+            "SemanticLayerField": {
+                "properties": {
+                    "aggType": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "type", "label", "name"],
+                "type": "object"
+            },
             "Record_string._value-ResultValue--__": {
                 "properties": {},
                 "type": "object",

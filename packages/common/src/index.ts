@@ -193,6 +193,7 @@ export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/search';
+export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';

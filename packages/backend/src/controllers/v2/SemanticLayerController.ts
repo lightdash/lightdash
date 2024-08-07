@@ -4,6 +4,8 @@ import {
     CatalogTable,
     MetricQueryRequest,
     ResultRow,
+    SemanticLayerField,
+    SemanticLayerView,
 } from '@lightdash/common';
 import {
     Body,
@@ -38,7 +40,7 @@ export class SemanticLayerController extends BaseController {
     async getViews(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-    ): Promise<{ status: 'ok'; results: CatalogTable[] }> {
+    ): Promise<{ status: 'ok'; results: SemanticLayerView[] }> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -59,7 +61,7 @@ export class SemanticLayerController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() table: string,
-    ): Promise<{ status: 'ok'; results: CatalogField[] }> {
+    ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
         return {
             status: 'ok',

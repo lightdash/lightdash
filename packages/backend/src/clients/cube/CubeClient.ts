@@ -39,6 +39,9 @@ export default class CubeClient {
         if (view === undefined) {
             throw new NotFoundError(`View ${viewName} not found`);
         }
+        console.debug('view.dimensions', view.dimensions);
+        console.debug('view.measures', view.measures);
+
         return [view.dimensions, view.measures];
     }
 

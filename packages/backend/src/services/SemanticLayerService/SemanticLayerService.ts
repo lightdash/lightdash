@@ -9,6 +9,8 @@ import {
     MissingConfigError,
     NotFoundError,
     ResultRow,
+    SemanticLayerField,
+    SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -85,14 +87,14 @@ export class SemanticLayerService extends BaseService {
     async getViews(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<CatalogTable[]> {
+    ): Promise<SemanticLayerView[]> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
         const views = await semanticLayer.getViews();
         return views.map((view) => ({
-            type: CatalogType.Table,
             name: view.name,
             label: view.title,
+            visible: view.public,
         }));
     }
 
@@ -100,29 +102,24 @@ export class SemanticLayerService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         table: string,
-    ): Promise<CatalogField[]> {
+    ): Promise<SemanticLayerField[]> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
-        // semanticLayer.getFields()
-        // TODO convert fields to catalog type
         const [dimensions, metrics] = await semanticLayer.getFields(table);
-        const dimensionFields: CatalogField[] = dimensions.map((d) => ({
-            type: CatalogType.Field,
+        const dimensionFields: SemanticLayerField[] = dimensions.map((d) => ({
             name: d.name,
             label: d.title,
-            tableName: table,
-            tableLabel: table,
-            basicType: d.type,
+            type: d.type,
+            description: d.shortTitle,
+            visible: d.public,
             fieldType: FieldType.DIMENSION,
         }));
-        const metricFields: CatalogField[] = metrics.map((d) => ({
-            type: CatalogType.Field,
+        const metricFields: SemanticLayerField[] = metrics.map((d) => ({
             name: d.name,
             label: d.title,
-            tableName: table,
-            tableLabel: table,
-
-            basicType: d.type,
+            description: d.shortTitle,
+            visible: d.public,
+            type: d.type,
             fieldType: FieldType.METRIC,
         }));
 
