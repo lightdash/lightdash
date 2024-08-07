@@ -1,3 +1,10 @@
+## [0.1203.2](https://github.com/lightdash/lightdash/compare/0.1203.1...0.1203.2) (2024-08-07)
+
+
+### Bug Fixes
+
+* cli compile joined models ([#11043](https://github.com/lightdash/lightdash/issues/11043)) ([16413bb](https://github.com/lightdash/lightdash/commit/16413bb5c7bc38e3dc737c3ffb8b029c226502a4)), closes [#11039](https://github.com/lightdash/lightdash/issues/11039)
+
 ## [0.1203.1](https://github.com/lightdash/lightdash/compare/0.1203.0...0.1203.1) (2024-08-06)
 
 
