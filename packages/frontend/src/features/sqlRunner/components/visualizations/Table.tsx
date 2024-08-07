@@ -47,23 +47,25 @@ export const Table: FC<Props> = ({ data, config }) => {
             >
                 <TableStyled>
                     <thead>
-                        {headerGroups.map((headerGroup) =>
-                            headerGroup.headers.map((header) => (
-                                <th
-                                    key={header.id}
-                                    style={{
-                                        backgroundColor: TABLE_HEADER_BG,
-                                    }}
-                                >
-                                    {/* TODO: do we need to check if it's a
+                        <tr>
+                            {headerGroups.map((headerGroup) =>
+                                headerGroup.headers.map((header) => (
+                                    <th
+                                        key={header.id}
+                                        style={{
+                                            backgroundColor: TABLE_HEADER_BG,
+                                        }}
+                                    >
+                                        {/* TODO: do we need to check if it's a
                                         placeholder? */}
-                                    {flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext(),
-                                    )}
-                                </th>
-                            )),
-                        )}
+                                        {flexRender(
+                                            header.column.columnDef.header,
+                                            header.getContext(),
+                                        )}
+                                    </th>
+                                )),
+                            )}
+                        </tr>
                     </thead>
                     <tbody>
                         {paddingTop > 0 && (
