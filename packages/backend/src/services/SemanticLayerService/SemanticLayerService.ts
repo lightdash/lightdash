@@ -105,32 +105,28 @@ export class SemanticLayerService extends BaseService {
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
         // semanticLayer.getFields()
         // TODO convert fields to catalog type
-        const view = (await semanticLayer.getViews()).find(
-            (v) => v.name === table,
-        );
-        console.debug('view?.dimensions', view?.dimensions);
-        if (view === undefined) {
-            throw new NotFoundError(`View ${table} not found`);
-        }
-        const dimensions = view.dimensions.map((d) => ({
+        const [dimensions, metrics] = await semanticLayer.getFields(table);
+        const dimensionFields: CatalogField[] = dimensions.map((d) => ({
             type: CatalogType.Field,
             name: d.name,
             label: d.title,
             tableName: table,
+            tableLabel: table,
             basicType: d.type,
             fieldType: FieldType.DIMENSION,
         }));
-        const metrics =
-            view.measures.map((d) => ({
-                type: CatalogType.Field,
-                name: d.name,
-                label: d.title,
-                tableName: table,
-                basicType: d.type,
-                fieldType: FieldType.METRIC,
-            })) || [];
+        const metricFields: CatalogField[] = metrics.map((d) => ({
+            type: CatalogType.Field,
+            name: d.name,
+            label: d.title,
+            tableName: table,
+            tableLabel: table,
 
-        return [...dimensions, ...metrics];
+            basicType: d.type,
+            fieldType: FieldType.METRIC,
+        }));
+
+        return [...dimensionFields, ...metricFields];
     }
 
     async getResults(

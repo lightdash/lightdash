@@ -1,5 +1,5 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
-import { MissingConfigError } from '@lightdash/common';
+import { MissingConfigError, NotFoundError } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 type CubeArgs = {
@@ -30,8 +30,16 @@ export default class CubeClient {
         const meta = await this.cubeApi.meta();
         console.debug('cubes', meta);
         const views = meta.cubes.filter((c) => c.type === 'view');
-        console.debug('views', views);
         return views;
+    }
+
+    async getFields(viewName: string) {
+        const views = await this.getViews();
+        const view = views.find((v) => v.name === viewName);
+        if (view === undefined) {
+            throw new NotFoundError(`View ${viewName} not found`);
+        }
+        return [view.dimensions, view.measures];
     }
 
     async runQuery(cubeQuery: Query) {
