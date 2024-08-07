@@ -29,13 +29,13 @@ import { BaseController } from '../baseController';
 @Hidden() // Hide this endpoint from the documentation for now
 export class SemanticLayerController extends BaseController {
     /**
-     * Get tables from semantic layer
+     * Get views from semantic layer
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/tables')
-    @OperationId('GetSemanticLayerTables')
-    async getTables(
+    @Get('/views')
+    @OperationId('GetSemanticLayerViews')
+    async getViews(
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<{ status: 'ok'; results: CatalogTable[] }> {
@@ -44,7 +44,7 @@ export class SemanticLayerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getTables(req.user!, projectUuid),
+                .getViews(req.user!, projectUuid),
         };
     }
 

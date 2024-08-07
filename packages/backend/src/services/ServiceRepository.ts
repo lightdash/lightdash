@@ -668,6 +668,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
+                    // cubeClient: this.clients.getCubeClient(),
+                    dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                 }),
         );
     }
