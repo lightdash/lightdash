@@ -52,19 +52,26 @@ export default class DbtCloudGraphqlClient {
         metrics,
         orderBy,
         where,
-    }: CreateQueryArgs | CompileSqlArgs) {
-        const metricsString = metrics.map(
-            (metric) => `{ name: "${metric.name}" }`,
-        );
-        const groupByString = groupBy.map((g) => `{ name: "${g.name}" }`);
-        const whereString = where.map((w) => `{ sql: "${w.sql}" }`);
-        const orderByString = orderBy.map((o) => {
-            if ('metric' in o) {
-                return `{ metric: { name: "${o.metric.name}" }, descending: ${o.descending} }`;
-            }
+    }: Partial<CreateQueryArgs | CompileSqlArgs>) {
+        const metricsString =
+            metrics?.map((metric) => `{ name: "${metric.name}" }`) ?? '';
+        const groupByString =
+            groupBy?.map((g) => {
+                if ('grain' in g) {
+                    return `{ name: "${g.name}", grain: ${g.grain} }`;
+                }
 
-            return `{ groupBy: { name: "${o.groupBy.name}" }, descending: ${o.descending} }`;
-        });
+                return `{ name: "${g.name}" }`;
+            }) ?? '';
+        const whereString = where?.map((w) => `{ sql: "${w.sql}" }`) ?? '';
+        const orderByString =
+            orderBy?.map((o) => {
+                if ('metric' in o) {
+                    return `{ metric: { name: "${o.metric.name}" }, descending: ${o.descending} }`;
+                }
+
+                return `{ groupBy: { name: "${o.groupBy.name}" }, descending: ${o.descending} }`;
+            }) ?? '';
 
         return {
             metricsString: `[${metricsString}]`,
@@ -189,10 +196,12 @@ export default class DbtCloudGraphqlClient {
                     name
                     description
                     type
+                    queryableGranularities
                     dimensions {
                         name
                         description
                         type
+                        queryableGranularities
                     }
                 }
             }`;
@@ -219,10 +228,12 @@ export default class DbtCloudGraphqlClient {
                     name
                     description
                     type
+                    queryableGranularities
                     dimensions {
                         name
                         description
                         type
+                        queryableGranularities
                     }
                 }
             }`;
@@ -249,6 +260,7 @@ export default class DbtCloudGraphqlClient {
                     name
                     description
                     type
+                    queryableGranularities
                 }
             }`;
 

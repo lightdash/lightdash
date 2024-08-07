@@ -1,12 +1,25 @@
 //! Types for dbt GraphQl API, fetched from: https://docs.getdbt.com/docs/dbt-cloud-apis/sl-graphql#querying
 
+export type TimeGranularity =
+    | 'NANOSECOND'
+    | 'MICROSECOND'
+    | 'MILLISECOND'
+    | 'SECOND'
+    | 'MINUTE'
+    | 'HOUR'
+    | 'DAY'
+    | 'WEEK'
+    | 'MONTH'
+    | 'QUARTER'
+    | 'YEAR';
+
 export type MetricInput = {
     name: string;
 };
 
 export type GroupByInput = {
     name: string;
-    // grain: TimeGranularity = null; // TODO: Revisit when implementing time granularity
+    grain?: TimeGranularity;
 };
 
 export type WhereInput = {
@@ -92,6 +105,7 @@ type Dimension = {
     name: string;
     description: string;
     type: DimensionType;
+    queryableGranularities: TimeGranularity[];
 };
 
 type Metric = {
@@ -99,6 +113,7 @@ type Metric = {
     description: string;
     type: MetricType;
     dimensions: Dimension[];
+    queryableGranularities: TimeGranularity[];
 };
 
 export type GetMetricsResponse = {
