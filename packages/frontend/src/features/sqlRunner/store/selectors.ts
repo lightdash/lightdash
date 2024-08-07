@@ -17,32 +17,41 @@ export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
-export const selectCurrentChartConfig = createSelector(
+const selectChartConfigByKind = createSelector(
     [
-        selectSqlRunnerState,
+        (state, chartKind) => chartKind,
         selectBarChartConfigState,
         selectLineChartConfigState,
         selectPieChartConfigState,
         selectTableVisConfigState,
     ],
     (
-        sqlRunnerState,
+        chartKind,
         barChartConfigState,
         lineChartConfigState,
         pieChartConfigState,
         tableVisConfigState,
     ) => {
-        const { selectedChartType } = sqlRunnerState;
-        if (selectedChartType === ChartKind.VERTICAL_BAR) {
-            return barChartConfigState.config;
-        } else if (selectedChartType === ChartKind.LINE) {
-            return lineChartConfigState.config;
-        } else if (selectedChartType === ChartKind.PIE) {
-            return pieChartConfigState.config;
-        } else if (selectedChartType === ChartKind.TABLE) {
-            return tableVisConfigState.config;
+        switch (chartKind) {
+            case ChartKind.VERTICAL_BAR:
+                return barChartConfigState.config;
+            case ChartKind.LINE:
+                return lineChartConfigState.config;
+            case ChartKind.PIE:
+                return pieChartConfigState.config;
+            case ChartKind.TABLE:
+                return tableVisConfigState.config;
+            default:
+                return undefined;
         }
-        return undefined;
+    },
+);
+
+export const selectCurrentChartConfig = createSelector(
+    [selectSqlRunnerState, (state) => state],
+    (sqlRunnerState, state) => {
+        const { selectedChartType } = sqlRunnerState;
+        return selectChartConfigByKind(state, selectedChartType);
     },
 );
 

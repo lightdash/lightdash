@@ -1,3 +1,10 @@
+## [0.1203.4](https://github.com/lightdash/lightdash/compare/0.1203.3...0.1203.4) (2024-08-07)
+
+
+### Bug Fixes
+
+* better error handling for missing fields ([#11041](https://github.com/lightdash/lightdash/issues/11041)) ([2a2ca47](https://github.com/lightdash/lightdash/commit/2a2ca47b8d491673674a9b2260978dc31f0893fd))
+
 ## [0.1203.3](https://github.com/lightdash/lightdash/compare/0.1203.2...0.1203.3) (2024-08-07)
 
 

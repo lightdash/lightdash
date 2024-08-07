@@ -1,9 +1,9 @@
 import {
     type CartesianChartDisplay,
     type PieChartDisplay,
+    type SqlCartesianChartLayout,
     type SqlColumn,
-    type SqlTransformCartesianChartConfig,
-    type SqlTransformPieChartConfig,
+    type SqlPieChartConfig,
 } from '../visualizations/SqlRunnerResultsTransformer';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
@@ -86,25 +86,25 @@ export type TableChartSqlConfig = SqlRunnerChartConfig &
 
 export type CartesianChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    fieldConfig: SqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type BarChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    fieldConfig: SqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type LineChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.LINE;
-    fieldConfig: SqlTransformCartesianChartConfig | undefined;
+    fieldConfig: SqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type PieChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.PIE;
-    fieldConfig: SqlTransformPieChartConfig | undefined;
+    fieldConfig: SqlPieChartConfig | undefined;
     display: PieChartDisplay | undefined;
 };
 

@@ -1,11 +1,10 @@
 import {
-    ChartKind,
-    deepEqual,
     isPieChartSQLConfig,
+    PieChartDataTransformer,
     type PieChartDimensionOptions,
     type PieChartMetricOptions,
     type PieChartSqlConfig,
-    type SqlTransformPieChartConfig,
+    type SqlPieChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -13,7 +12,7 @@ import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsT
 import { setSavedChartData, setSqlRunnerResults } from './sqlRunnerSlice';
 
 type InitialState = {
-    defaultFieldConfig: SqlTransformPieChartConfig | undefined;
+    defaultFieldConfig: SqlPieChartConfig | undefined;
     config: PieChartSqlConfig | undefined;
     options: {
         groupFieldOptions: PieChartDimensionOptions[];
@@ -61,29 +60,15 @@ export const pieChartConfigSlice = createSlice({
                     };
                 }
 
-                const oldDefaultConfig = state.defaultFieldConfig;
-                const newDefaultConfig =
-                    sqlRunnerResultsTransformer.defaultPieChartFieldConfig();
-                state.defaultFieldConfig = newDefaultConfig;
+                const dataTransformer = new PieChartDataTransformer({
+                    transformer: sqlRunnerResultsTransformer,
+                });
 
-                if (
-                    !state.config ||
-                    deepEqual(
-                        oldDefaultConfig || {},
-                        state.config?.fieldConfig || {},
-                    )
-                ) {
-                    state.config = {
-                        metadata: {
-                            version: 1,
-                        },
-                        type: ChartKind.PIE,
-                        fieldConfig: newDefaultConfig,
-                        display: {
-                            isDonut: false,
-                        },
-                    };
-                }
+                const { newConfig } = dataTransformer.getChartConfig({
+                    currentConfig: state.config,
+                });
+
+                state.config = newConfig;
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {

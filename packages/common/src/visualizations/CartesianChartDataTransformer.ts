@@ -1,7 +1,9 @@
+import { intersectionBy } from 'lodash';
 import { friendlyName } from '../types/field';
 import { ChartKind } from '../types/savedCharts';
 import {
     isCartesianChartSQLConfig,
+    type CartesianChartSqlConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
 import { type ResultsTransformerBase } from './ResultsTransformerBase';
@@ -22,6 +24,48 @@ export class CartesianChartDataTransformer<
         >;
     }) {
         this.transformer = args.transformer;
+    }
+
+    getChartConfig({
+        chartType,
+        currentConfig,
+    }: {
+        chartType: ChartKind.VERTICAL_BAR | ChartKind.LINE;
+        currentConfig?: CartesianChartSqlConfig;
+    }) {
+        const newDefaultLayout = this.transformer.defaultCartesianChartLayout();
+
+        const someFieldsMatch =
+            currentConfig?.fieldConfig?.x.reference ===
+                newDefaultLayout?.x.reference ||
+            intersectionBy(
+                currentConfig?.fieldConfig?.y || [],
+                newDefaultLayout?.y || [],
+                'reference',
+            ).length > 0;
+
+        let newConfig = currentConfig;
+
+        if (!currentConfig) {
+            newConfig = {
+                metadata: {
+                    version: 1,
+                },
+                type: chartType,
+                fieldConfig: newDefaultLayout,
+                display: undefined,
+            };
+        } else if (currentConfig && !someFieldsMatch) {
+            newConfig = {
+                ...currentConfig,
+                fieldConfig: newDefaultLayout,
+            };
+        }
+
+        return {
+            newConfig,
+            newDefaultLayout,
+        };
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
