@@ -2,10 +2,11 @@ import {
     ApiErrorPayload,
     CatalogField,
     CatalogTable,
-    MetricQuery,
+    MetricQueryRequest,
     ResultRow,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
@@ -22,7 +23,7 @@ import express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
-@Route('/api//v2/projects/{projectId}/semantic-layer/')
+@Route('/api//v2/projects/{projectUuid}/semantic-layer/')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'SemanticLayer')
 @Hidden() // Hide this endpoint from the documentation for now
@@ -78,35 +79,35 @@ export class SemanticLayerController extends BaseController {
     async getResults(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Post() query: MetricQuery,
+        @Body() body: MetricQueryRequest,
     ): Promise<{ status: 'ok'; results: ResultRow[] }> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getResults(req.user!, projectUuid, query),
+                .getResults(req.user!, projectUuid, body),
         };
     }
 
     /**
-     * Get results from semantic layer
+     * Get SQL from semantic layer
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/results')
+    @Post('/sql')
     @OperationId('getSemanticLayerSql')
     async getSql(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Post() query: MetricQuery,
+        @Body() body: MetricQueryRequest,
     ): Promise<{ status: 'ok'; results: string }> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getSql(req.user!, projectUuid, query),
+                .getSql(req.user!, projectUuid, body),
         };
     }
 }

@@ -8579,6 +8579,14 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Record_string._value-ResultValue--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"
@@ -8820,7 +8828,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1202.16",
+        "version": "0.1203.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
