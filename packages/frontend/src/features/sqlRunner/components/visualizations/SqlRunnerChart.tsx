@@ -22,11 +22,16 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
         } = useSqlChart(data.results, data.columns, config);
         const loading = isLoadingProp || transformLoading;
 
+        // TODO: this could be more robust
+        const errorMessage = error?.message.includes('Binder Error')
+            ? 'Some specified columns do not exist in the data'
+            : error?.message;
+
         if (error) {
             return (
                 <SuboptimalState
-                    title="Error"
-                    description={error.message}
+                    title="Error generating chart"
+                    description={errorMessage}
                     icon={IconAlertCircle}
                 />
             );
