@@ -14,8 +14,9 @@ import MantineIcon from '../common/MantineIcon';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;
+    disabled?: boolean;
     onSubmit: () => void;
-}> = ({ onSubmit, isLoading }) => {
+}> = ({ onSubmit, isLoading, disabled = false }) => {
     const os = useOs();
     return (
         <Tooltip
@@ -43,6 +44,7 @@ const RunSqlQueryButton: FC<{
                     leftIcon={<MantineIcon icon={IconPlayerPlay} />}
                     onClick={onSubmit}
                     loading={isLoading}
+                    disabled={disabled}
                 >
                     Run query
                 </Button>

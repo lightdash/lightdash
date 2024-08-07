@@ -175,6 +175,7 @@ export const ContentPanel: FC = () => {
                         <Group spacing="md">
                             <RunSqlQueryButton
                                 isLoading={isLoading}
+                                disabled={!sql}
                                 onSubmit={() => {
                                     if (!sql) return;
                                     runSqlQuery({

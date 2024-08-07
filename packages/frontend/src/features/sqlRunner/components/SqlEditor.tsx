@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Loader } from '@mantine/core';
+import { Center, Loader } from '@mantine/core';
 import Editor, {
     type BeforeMount,
     type EditorProps,
@@ -241,7 +241,11 @@ export const SqlEditor: FC<{
     }, []);
 
     if (isLoading || isTablesDataLoading) {
-        return <Loader color="gray" size="xs" />;
+        return (
+            <Center h="100%">
+                <Loader color="gray" size="xs" />
+            </Center>
+        );
     }
 
     if (!data) {
