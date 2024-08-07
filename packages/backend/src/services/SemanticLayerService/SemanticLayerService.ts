@@ -9,6 +9,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import CubeClient from '../../clients/cube/CubeClient';
 import DbtCloudGraphqlClient from '../../clients/dbtCloud/DbtCloudGraphqlClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -20,7 +21,7 @@ type SearchServiceArguments = {
     projectModel: ProjectModel;
 
     // Clients
-    // cubeClient: CubeClient;
+    cubeClient: CubeClient;
     dbtCloudClient: DbtCloudGraphqlClient;
 };
 
@@ -32,7 +33,8 @@ export class SemanticLayerService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     // Clients
-    // private readonly cubeClient: CubeClient;
+    private readonly cubeClient: CubeClient;
+
     private readonly dbtCloudClient: DbtCloudGraphqlClient;
 
     constructor(args: SearchServiceArguments) {
@@ -41,7 +43,7 @@ export class SemanticLayerService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         // Clients
-        // this.cubeClient = cubeClient;
+        this.cubeClient = args.cubeClient;
         this.dbtCloudClient = args.dbtCloudClient;
     }
 
@@ -62,14 +64,16 @@ export class SemanticLayerService extends BaseService {
 
     async getSemanticLayerClient(
         projectUuid: string,
-    ): Promise<DbtCloudGraphqlClient> {
+    ): Promise<CubeClient /* | DbtCloudGraphqlClient */> {
+        // TODO return same types from dbtcloud
         // TODO get different client based on project
         // For now, we get the client based on the available lightdash config
         // TODO move dbt to lightdashConfig
-        const bearerToken = process.env.DBT_CLOUD_BEARER_TOKEN || undefined;
+        /* const bearerToken = process.env.DBT_CLOUD_BEARER_TOKEN || undefined;
         if (bearerToken) {
             return this.dbtCloudClient;
-        }
+        } */
+        return this.cubeClient;
 
         throw new MissingConfigError('No semantic layer available');
     }
