@@ -344,6 +344,7 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .action(previewHandler);
 
 program
@@ -406,7 +407,7 @@ program
         parseUseDbtListOption,
         true,
     )
-    .option('--raise-errors', 'Raise errors if deploy fails', false)
+    .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .action(startPreviewHandler);
 
 program
