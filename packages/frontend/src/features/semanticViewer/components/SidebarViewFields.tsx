@@ -4,6 +4,7 @@ import {
     type SemanticLayerField,
 } from '@lightdash/common';
 import { Center, Loader, NavLink, Stack, Text } from '@mantine/core';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleField } from '../store/semanticViewerSlice';
@@ -52,7 +53,12 @@ const SidebarViewFields = () => {
         dispatch(toggleField({ field, fieldType }));
     };
 
-    return (
+    return fields.data.length === 0 ? (
+        <SuboptimalState
+            title="No fields available"
+            description="No fields have been created in this view yet."
+        />
+    ) : (
         <Stack spacing="one">
             {fields.data.map((field) => (
                 <NavLink

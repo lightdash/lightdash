@@ -18,9 +18,9 @@ import MantineIcon, {
 const getFieldColor = (type: SemanticLayerField['fieldType']) => {
     switch (type) {
         case FieldType.DIMENSION:
-            return '#0E5A8A';
+            return 'blue';
         case FieldType.METRIC:
-            return '#A66321';
+            return 'orange';
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
     }
