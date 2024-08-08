@@ -188,7 +188,6 @@ export const previewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
-            ignoreErrors: true,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -246,7 +245,6 @@ export const previewHandler = async (
                     await deploy(await compile(options), {
                         ...options,
                         projectUuid: project.projectUuid,
-                        ignoreErrors: true,
                     });
                 }
 
@@ -315,7 +313,6 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
-            ignoreErrors: options.ignoreErrors,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -375,7 +372,6 @@ export const startPreviewHandler = async (
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
-            ignoreErrors: true,
         });
         const url = await projectUrl(project);
 
