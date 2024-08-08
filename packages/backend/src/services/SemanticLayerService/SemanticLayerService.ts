@@ -103,7 +103,7 @@ export class SemanticLayerService extends BaseService {
 
         return this.analytics.wrapEvent<any[]>(
             {
-                event: 'semantic_layer.get_view', // started, completed, error suffix when using wrapEvent
+                event: 'semantic_layer.get_views', // started, completed, error suffix when using wrapEvent
                 userId: user.userUuid,
                 properties: {
                     organizationId: organizationUuid,

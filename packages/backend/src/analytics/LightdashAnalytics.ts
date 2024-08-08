@@ -1,4 +1,5 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
+import { Type } from '@aws-sdk/client-s3';
 import {
     CartesianSeriesType,
     ChartKind,
@@ -1000,13 +1001,15 @@ export type GroupDeleteEvent = BaseTrack & {
 };
 
 export type SemanticLayerView = BaseTrack & {
-    event: 'semantic_layer.get_view'; // started, completed, error suffix when using wrapEvent
+    event: 'semantic_layer.get_views'; // started, completed, error suffix when using wrapEvent
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
         // on completed
         viewsCount?: number;
+        // on error
+        error?: string;
     };
 };
 
@@ -1219,6 +1222,10 @@ export class LightdashAnalytics extends Analytics {
             await this.track({
                 ...payload,
                 event: `${payload.event}.error`,
+                properties: {
+                    ...payload.properties,
+                    error: e.message,
+                },
             });
             Logger.error(`Error in scheduler task: ${e}`);
             throw e;
