@@ -273,6 +273,11 @@ export type LightdashConfig = {
         token: string;
         domain?: string;
     };
+    dbtCloud: {
+        bearerToken?: string;
+        environmentId?: string;
+        domain: string;
+    };
 };
 
 export type SlackConfig = {
@@ -767,6 +772,13 @@ export const parseConfig = (): LightdashConfig => {
         cube: {
             token: process.env.CUBE_TOKEN || '',
             domain: process.env.CUBE_DOMAIN,
+        },
+        dbtCloud: {
+            bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,
+            environmentId: process.env.DBT_CLOUD_ENVIRONMENT_ID,
+            domain:
+                process.env.DBT_CLOUD_DOMAIN ||
+                `https://semantic-layer.cloud.getdbt.com`,
         },
     };
 };

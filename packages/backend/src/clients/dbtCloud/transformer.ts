@@ -7,10 +7,11 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerTransformer,
+    SemanticLayerView,
 } from '@lightdash/common';
 
 export const dbtCloudTransfomers: SemanticLayerTransformer<
-    unknown, // dbt doesn't have the concept of views
+    SemanticLayerView,
     DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs,
     DbtGraphQLDimension[],
     DbtGraphQLMetric[],
@@ -40,14 +41,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
 
         return [...semanticDimensions, ...semanticMetrics];
     },
-    viewsToSemanticLayerViews: (_ = []) => [
-        // return a placeholder view
-        {
-            label: 'DBT Semantic View',
-            name: 'dbtSemanticView',
-            visible: true,
-        },
-    ],
+    viewsToSemanticLayerViews: (views) => views, // dbt doesn't have the concept of views so we return a placeholder
     semanticLayerQueryToQuery: (query) => {
         const { metrics, dimensions } = query;
         return {

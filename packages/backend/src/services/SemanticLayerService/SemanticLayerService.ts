@@ -10,7 +10,6 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import CubeClient from '../../clients/cube/CubeClient';
-import { cubeTransfomers } from '../../clients/cube/transformer';
 import DbtCloudGraphqlClient from '../../clients/dbtCloud/DbtCloudGraphqlClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -64,10 +63,9 @@ export class SemanticLayerService extends BaseService {
         return project;
     }
 
-    async getSemanticLayerClient(projectUuid: string): Promise<{
-        client: CubeClient;
-        transformer: typeof cubeTransfomers;
-    } /* | DbtCloudGraphqlClient */> {
+    async getSemanticLayerClient(
+        projectUuid: string,
+    ): Promise<CubeClient | DbtCloudGraphqlClient> {
         // TODO return same types from dbtcloud
         // TODO get different client based on project
         // For now, we get the client based on the available lightdash config
@@ -77,10 +75,7 @@ export class SemanticLayerService extends BaseService {
             return this.dbtCloudClient;
         } */
         // TODO check if cube is available
-        return {
-            client: this.cubeClient,
-            transformer: cubeTransfomers,
-        };
+        return this.cubeClient;
 
         throw new MissingConfigError('No semantic layer available');
     }
@@ -104,10 +99,8 @@ export class SemanticLayerService extends BaseService {
                 },
             },
             async () => {
-                const { client, transformer } =
-                    await this.getSemanticLayerClient(projectUuid);
-                const views = await client.getViews();
-                return transformer.viewsToSemanticLayerViews(views);
+                const client = await this.getSemanticLayerClient(projectUuid);
+                return client.getViews();
             },
             // Extra properties for analytic event after the function is executed
             (result) => ({
@@ -122,11 +115,8 @@ export class SemanticLayerService extends BaseService {
         table: string,
     ): Promise<SemanticLayerField[]> {
         await this.checkCanViewProject(user, projectUuid);
-        const { client, transformer } = await this.getSemanticLayerClient(
-            projectUuid,
-        );
-        const [dimensions, metrics] = await client.getFields(table);
-        return transformer.fieldsToSemanticLayerFields(dimensions, metrics);
+        const client = await this.getSemanticLayerClient(projectUuid);
+        return client.getFields(table);
     }
 
     async getResults(
@@ -135,15 +125,9 @@ export class SemanticLayerService extends BaseService {
         query: SemanticLayerQuery,
     ): Promise<ResultRow[]> {
         await this.checkCanViewProject(user, projectUuid);
-        const { client, transformer } = await this.getSemanticLayerClient(
-            projectUuid,
-        );
+        const client = await this.getSemanticLayerClient(projectUuid);
 
-        const semanticQuery = transformer.semanticLayerQueryToQuery(query);
-        const results = await client.getResults(semanticQuery);
-        const resultRows = transformer.resultsToResultRows(results);
-
-        return resultRows;
+        return client.getResults(query);
     }
 
     async getSql(
@@ -152,14 +136,7 @@ export class SemanticLayerService extends BaseService {
         query: SemanticLayerQuery,
     ): Promise<string> {
         await this.checkCanViewProject(user, projectUuid);
-        const { client, transformer } = await this.getSemanticLayerClient(
-            projectUuid,
-        );
-
-        const semanticQuery = transformer.semanticLayerQueryToQuery(query);
-        const sqlQuery = await client.getSql(semanticQuery);
-        const sql = transformer.sqlToString(sqlQuery);
-
-        return sql;
+        const client = await this.getSemanticLayerClient(projectUuid);
+        return client.getSql(query);
     }
 }

@@ -1,6 +1,11 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
-import { MissingConfigError, NotFoundError } from '@lightdash/common';
+import {
+    MissingConfigError,
+    NotFoundError,
+    SemanticLayerQuery,
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { cubeTransfomers } from './transformer';
 
 type CubeArgs = {
     lightdashConfig: LightdashConfig;
@@ -9,6 +14,8 @@ type CubeArgs = {
 export default class CubeClient {
     // eslint-disable-next-line class-methods-use-this
     cubeApi?: CubeApi;
+
+    transformers = cubeTransfomers;
 
     constructor({ lightdashConfig }: CubeArgs) {
         const { token, domain } = lightdashConfig.cube;
@@ -24,36 +31,44 @@ export default class CubeClient {
         this.cubeApi = cube(token, { apiUrl: `${domain}/cubejs-api/v1` });
     }
 
-    async getViews() {
+    private async _getCubeViews() {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
         const meta = await this.cubeApi.meta();
-        const views = meta.cubes.filter((c) => c.type === 'view');
-        return views;
+        return meta.cubes.filter((c) => c.type === 'view');
+    }
+
+    async getViews() {
+        const views = await this._getCubeViews();
+        return this.transformers.viewsToSemanticLayerViews(views);
     }
 
     async getFields(viewName: string) {
-        const views = await this.getViews();
+        const views = await this._getCubeViews();
         const view = views.find((v) => v.name === viewName);
         if (view === undefined) {
             throw new NotFoundError(`View ${viewName} not found`);
         }
 
-        return [view.dimensions, view.measures];
+        return this.transformers.fieldsToSemanticLayerFields(
+            view.dimensions,
+            view.measures,
+        );
     }
 
-    async getResults(cubeQuery: Query) {
+    async getResults(query: SemanticLayerQuery) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
+        const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
         const resultSet: any = await this.cubeApi.load(cubeQuery);
-        return resultSet;
+        return this.transformers.resultsToResultRows(resultSet);
     }
 
-    async getSql(query: Query) {
+    async getSql(query: SemanticLayerQuery) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
-
-        const sql = await this.cubeApi.sql(query);
-        return sql;
+        const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
+        const sql = await this.cubeApi.sql(cubeQuery);
+        return this.transformers.sqlToString(sql);
     }
 }

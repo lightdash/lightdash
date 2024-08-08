@@ -116,7 +116,10 @@ export class ClientRepository
     public getDbtCloudGraphqlClient(): DbtCloudGraphqlClient {
         return this.getClient(
             'dbtCloudGraphqlClient',
-            () => new DbtCloudGraphqlClient(),
+            () =>
+                new DbtCloudGraphqlClient({
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
         );
     }
 
