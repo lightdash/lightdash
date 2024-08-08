@@ -1,7 +1,14 @@
-import { Cube, TCubeDimension, TCubeMeasure } from '@cubejs-client/core';
+import {
+    Cube,
+    Query as CubeQuery,
+    ResultSet,
+    TCubeDimension,
+    TCubeMeasure,
+} from '@cubejs-client/core';
 import {
     FieldType,
     SemanticLayerField,
+    SemanticLayerQuery,
     SemanticLayerView,
 } from '@lightdash/common';
 
@@ -35,4 +42,13 @@ export const cubeTransfomers = {
             label: view.title,
             visible: view.public,
         })),
+    semanticLayerQueryToCubeQuery: (query: SemanticLayerQuery): CubeQuery => ({
+        measures: query.metrics,
+        dimensions: query.dimensions,
+        filters: [],
+        timeDimensions: [],
+        limit: 100,
+    }),
+    cubeResultSetToResultRows: (cubeResultSet: any): Record<string, any>[] =>
+        cubeResultSet.loadResponse.results[0]?.data || [],
 };

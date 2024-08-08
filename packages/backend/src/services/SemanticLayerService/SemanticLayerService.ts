@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ResultRow,
     SemanticLayerField,
+    SemanticLayerQuery,
     SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';
@@ -112,19 +113,22 @@ export class SemanticLayerService extends BaseService {
     async getResults(
         user: SessionUser,
         projectUuid: string,
-        query: MetricQuery,
+        query: SemanticLayerQuery,
     ): Promise<ResultRow[]> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
-        // semanticLayer.getResults()
-        // TODO convert results to ResultRow type
-        return [];
+
+        const cubeQuery = cubeTransfomers.semanticLayerQueryToCubeQuery(query);
+        const results = await semanticLayer.getResults(cubeQuery);
+        const resultRows = cubeTransfomers.cubeResultSetToResultRows(results);
+
+        return resultRows;
     }
 
     async getSql(
         user: SessionUser,
         projectUuid: string,
-        query: MetricQuery,
+        query: SemanticLayerQuery,
     ): Promise<string> {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);

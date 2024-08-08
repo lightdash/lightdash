@@ -6,7 +6,6 @@ export type SemanticLayerView = {
     description?: string;
     visible?: boolean;
 };
-// TODO split into dimension and metric ?
 export type SemanticLayerField = {
     name: string;
     label: string;
@@ -15,4 +14,9 @@ export type SemanticLayerField = {
     description?: string;
     visible?: boolean;
     aggType?: string; // eg: count, sum
+};
+
+export type SemanticLayerQuery = {
+    dimensions: string[];
+    metrics: string[];
 };

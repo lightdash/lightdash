@@ -45,19 +45,10 @@ export default class CubeClient {
         return [view.dimensions, view.measures];
     }
 
-    async runQuery(cubeQuery: Query) {
-        /* query sample: 
-        {
-        measures: ['Stories.count'],
-        timeDimensions: [{
-            dimension: 'Stories.time',
-            dateRange: ['2015-01-01', '2015-12-31'],
-            granularity: 'month'
-        }]
-        } */
+    async getResults(cubeQuery: Query) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
-        const resultSet = await this.cubeApi.load(cubeQuery);
+        const resultSet: any = await this.cubeApi.load(cubeQuery);
         return resultSet;
     }
 

@@ -7742,6 +7742,26 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string._value-ResultValue--__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValidationTarget: {
         dataType: 'refEnum',
         enums: ['charts', 'dashboards', 'tables'],
@@ -16035,7 +16055,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'MetricQueryRequest',
+                    ref: 'SemanticLayerQuery',
                 },
             };
 
@@ -16098,7 +16118,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'MetricQueryRequest',
+                    ref: 'SemanticLayerQuery',
                 },
             };
 

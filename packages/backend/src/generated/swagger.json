@@ -8632,6 +8632,24 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
             },
+            "SemanticLayerQuery": {
+                "properties": {
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["metrics", "dimensions"],
+                "type": "object"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"

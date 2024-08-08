@@ -5,6 +5,7 @@ import {
     MetricQueryRequest,
     ResultRow,
     SemanticLayerField,
+    SemanticLayerQuery,
     SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -81,7 +82,7 @@ export class SemanticLayerController extends BaseController {
     async getResults(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: MetricQueryRequest,
+        @Body() body: SemanticLayerQuery,
     ): Promise<{ status: 'ok'; results: ResultRow[] }> {
         this.setStatus(200);
         return {
@@ -102,7 +103,7 @@ export class SemanticLayerController extends BaseController {
     async getSql(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: MetricQueryRequest,
+        @Body() body: SemanticLayerQuery,
     ): Promise<{ status: 'ok'; results: string }> {
         this.setStatus(200);
         return {
