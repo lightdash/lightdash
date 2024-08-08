@@ -244,10 +244,7 @@ ${styles.bold('Examples:')}
     )
     .option('--verbose', undefined, false)
     .option('-y, --assume-yes', 'assume yes to prompts', false)
-    .action(async (options, command) => {
-        const { assumeYes, ...dbtOptions } = options;
-        await dbtRunHandler(dbtOptions, { assumeYes, ...command });
-    });
+    .action(dbtRunHandler);
 
 program
     .command('compile')

@@ -9,13 +9,12 @@ import { DbtCompileOptions } from './compile';
 type DbtRunHandlerOptions = DbtCompileOptions & {
     excludeMeta: boolean;
     verbose: boolean;
+    assumeYes: boolean;
 };
 
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
-    command: Command & {
-        assumeYes?: boolean;
-    },
+    command: Command,
 ) => {
     GlobalState.setVerbose(options.verbose);
 
@@ -55,7 +54,7 @@ export const dbtRunHandler = async (
     }
     await generateHandler({
         ...options,
-        assumeYes: !!command.assumeYes,
+        assumeYes: options.assumeYes,
         excludeMeta: options.excludeMeta,
     });
 };
