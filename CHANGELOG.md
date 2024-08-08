@@ -1,3 +1,10 @@
+## [0.1205.1](https://github.com/lightdash/lightdash/compare/0.1205.0...0.1205.1) (2024-08-08)
+
+
+### Bug Fixes
+
+* sql runner fixes - back button, toasts, styles ([#11079](https://github.com/lightdash/lightdash/issues/11079)) ([3b5392a](https://github.com/lightdash/lightdash/commit/3b5392aa6359f1b2660e1b47abedc27fc9564d4f))
+
 # [0.1205.0](https://github.com/lightdash/lightdash/compare/0.1204.0...0.1205.0) (2024-08-08)
 
 
