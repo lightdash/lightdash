@@ -68,7 +68,7 @@ node ./packages/cli/dist/index.js dbt run --project-dir ./examples/full-jaffle-s
 
 If you want to test different dbt versions, you can replace the string `dbt` in the "execa" calls in the package with `dbt${YOUR_VERSION}`, eg: `dbt1.8`.
 
-If the version you want to test is >= 1.6, and you're using "full-jaffle-shop-demo", you'll also need to delete the field `metrics.yml` in: /examples/full-jaffle-shop-demo/dbt/models/metrics.yml
+If the version you want to test is >= 1.6, and you're using "full-jaffle-shop-demo", you'll also need to delete the file `metrics.yml` in: /examples/full-jaffle-shop-demo/dbt/models/metrics.yml
 
 ```
 
