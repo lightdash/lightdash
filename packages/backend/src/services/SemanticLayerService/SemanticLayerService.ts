@@ -69,9 +69,7 @@ export class SemanticLayerService extends BaseService {
         }
     }
 
-    async getSemanticLayerClient(
-        projectUuid: string,
-    ): Promise<{
+    async getSemanticLayerClient(projectUuid: string): Promise<{
         client: CubeClient;
         transformer: typeof cubeTransfomers;
     } /* | DbtCloudGraphqlClient */> {
