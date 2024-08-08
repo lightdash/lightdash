@@ -1,5 +1,6 @@
 import {
     type SemanticLayerField,
+    type SemanticLayerQuery,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -18,16 +19,34 @@ export const apiGetSemanticLayerViews = ({
         body: undefined,
     });
 
+type GetSemanticLayerViewFieldsRequestParams = {
+    projectUuid: string;
+    view: string;
+};
+
 export const apiGetSemanticLayerViewFields = ({
     projectUuid,
     view,
-}: {
-    projectUuid: string;
-    view: string;
-}) =>
+}: GetSemanticLayerViewFieldsRequestParams) =>
     lightdashApi<SemanticLayerField[]>({
         version: 'v2',
         method: 'GET',
         url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields`,
         body: undefined,
+    });
+
+type GetSemanticLayerSqlRequestParams = {
+    projectUuid: string;
+    payload: SemanticLayerQuery;
+};
+
+export const apiPostSemanticLayerSql = ({
+    projectUuid,
+    payload,
+}: GetSemanticLayerSqlRequestParams) =>
+    lightdashApi<string>({
+        version: 'v2',
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/sql`,
+        body: JSON.stringify(payload),
     });

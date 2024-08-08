@@ -4,7 +4,7 @@ import {
     type SemanticLayerField,
 } from '@lightdash/common';
 import { Center, Loader, NavLink, Stack, Text } from '@mantine/core';
-import { useGetSemanticLayerViewFields } from '../api/hooks';
+import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleField } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
@@ -26,16 +26,15 @@ const getNavbarColorByFieldType = (
 };
 
 const SidebarViewFields = () => {
-    const { projectUuid, view, selectedFields } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { projectUuid, view, selectedDimensions, selectedMetrics } =
+        useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
 
     if (!view) {
         throw new Error('Impossible state');
     }
 
-    const fields = useGetSemanticLayerViewFields({ projectUuid, view });
+    const fields = useSemanticLayerViewFields({ projectUuid, view });
 
     if (fields.isError) {
         throw fields.error;
@@ -49,8 +48,8 @@ const SidebarViewFields = () => {
         );
     }
 
-    const handleFieldToggle = (field: string) => {
-        dispatch(toggleField(field));
+    const handleFieldToggle = (field: string, fieldType: FieldType) => {
+        dispatch(toggleField({ field, fieldType }));
     };
 
     return (
@@ -63,8 +62,14 @@ const SidebarViewFields = () => {
                     label={<Text truncate>{field.label}</Text>}
                     icon={<FieldIcon field={field} />}
                     disabled={!field.visible}
-                    active={selectedFields.has(field.name)}
-                    onClick={() => handleFieldToggle(field.name)}
+                    active={
+                        // FIXME: not the best way to check if a field is selected
+                        selectedDimensions.includes(field.name) ||
+                        selectedMetrics.includes(field.name)
+                    }
+                    onClick={() =>
+                        handleFieldToggle(field.name, field.fieldType)
+                    }
                 />
             ))}
         </Stack>

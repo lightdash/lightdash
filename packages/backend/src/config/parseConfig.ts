@@ -768,7 +768,7 @@ export const parseConfig = (): LightdashConfig => {
         cube: {
             enabled: !!process.env.CUBE_TOKEN,
             token: process.env.CUBE_TOKEN || '',
-            domain: process.env.CUBE_DOMAIN,
+            domain: process.env.CUBE_DOMAIN || '',
         },
     };
 };

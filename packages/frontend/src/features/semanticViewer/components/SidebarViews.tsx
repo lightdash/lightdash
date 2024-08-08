@@ -1,7 +1,7 @@
 import { Center, Loader, NavLink, Stack, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useGetSemanticLayerViews } from '../api/hooks';
+import { useSemanticLayerViews } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { enterView } from '../store/semanticViewerSlice';
 
@@ -9,7 +9,7 @@ const SidebarViews = () => {
     const dispatch = useAppDispatch();
     const { projectUuid } = useAppSelector((state) => state.semanticViewer);
 
-    const views = useGetSemanticLayerViews({ projectUuid });
+    const views = useSemanticLayerViews({ projectUuid });
 
     const handleViewClick = (view: string) => {
         dispatch(enterView(view));

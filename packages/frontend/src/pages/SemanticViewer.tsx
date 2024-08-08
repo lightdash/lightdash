@@ -33,8 +33,8 @@ const SemanticViewerPageWithStore = () => {
     return (
         <Page
             title="Semantic Viewer"
+            withFullHeight
             noContentPadding
-            flexContent
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<SemanticViewer.Sidebar onSidebarClose={sidebarClose} />}
         >
