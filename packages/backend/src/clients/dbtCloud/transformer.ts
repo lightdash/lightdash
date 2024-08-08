@@ -8,9 +8,9 @@ import {
     DbtGraphQLMetric,
     DbtMetricType,
     FieldType as FieldKind,
-    ResultRow,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerResultRow,
     SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -77,17 +77,9 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
     },
     resultsToResultRows: (results) => {
         const { data } = results;
-        return data.map((row): ResultRow => {
-            const newRow: ResultRow = {};
-            Object.entries(row).forEach(([key, value]) => {
-                newRow[key] = {
-                    value: {
-                        formatted: value ? value.toString() : '∅', // For now formatting the value to go into the ResultRow is just stringifying it or showing '∅' if it's null
-                        raw: value,
-                    },
-                };
-            });
-            return newRow;
+        return data.map((row) => {
+            const { index, ...rowValues } = row;
+            return rowValues;
         });
     },
     sqlToString: (sql) => sql,

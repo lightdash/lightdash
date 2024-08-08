@@ -2,9 +2,9 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     MissingConfigError,
-    ResultRow,
     SemanticLayerField,
     SemanticLayerQuery,
+    SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';
@@ -128,7 +128,7 @@ export class SemanticLayerService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         query: SemanticLayerQuery,
-    ): Promise<ResultRow[]> {
+    ): Promise<SemanticLayerResultRow[]> {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
 
