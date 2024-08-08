@@ -12,7 +12,7 @@ import { CartesianChartStyling } from './CartesianChartStyling';
 export const CartesianChartConfig = () => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
-    const [isStylingOpen, setIsStylingOpen] = useState(false);
+    const [isStylingOpen, setIsStylingOpen] = useState(true);
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -54,7 +54,7 @@ export const CartesianChartConfig = () => {
                 <CartesianChartFieldConfiguration actions={actions} />
             )}
 
-            <Divider />
+            <Divider my="sm" />
 
             <Group spacing="xs">
                 <Title order={5} fz="sm" c="gray.9">
