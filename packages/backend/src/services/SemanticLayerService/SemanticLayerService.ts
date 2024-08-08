@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import CubeClient from '../../clients/cube/CubeClient';
+import { cubeTransfomers } from '../../clients/cube/transformer';
 import DbtCloudGraphqlClient from '../../clients/dbtCloud/DbtCloudGraphqlClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -91,11 +92,7 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
         const views = await semanticLayer.getViews();
-        return views.map((view) => ({
-            name: view.name,
-            label: view.title,
-            visible: view.public,
-        }));
+        return cubeTransfomers.cubesToSemanticLayerViews(views);
     }
 
     async getFields(
@@ -106,24 +103,10 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const semanticLayer = await this.getSemanticLayerClient(projectUuid);
         const [dimensions, metrics] = await semanticLayer.getFields(table);
-        const dimensionFields: SemanticLayerField[] = dimensions.map((d) => ({
-            name: d.name,
-            label: d.title,
-            type: d.type,
-            description: d.shortTitle,
-            visible: d.public,
-            fieldType: FieldType.DIMENSION,
-        }));
-        const metricFields: SemanticLayerField[] = metrics.map((d) => ({
-            name: d.name,
-            label: d.title,
-            description: d.shortTitle,
-            visible: d.public,
-            type: d.type,
-            fieldType: FieldType.METRIC,
-        }));
-
-        return [...dimensionFields, ...metricFields];
+        return cubeTransfomers.cubeFieldsToSemanticLayerFields(
+            dimensions,
+            metrics,
+        );
     }
 
     async getResults(
