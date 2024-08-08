@@ -1,3 +1,10 @@
+# [0.1205.0](https://github.com/lightdash/lightdash/compare/0.1204.0...0.1205.0) (2024-08-08)
+
+
+### Features
+
+* allow for lightdash dbt run --assume-yes flag ([#11073](https://github.com/lightdash/lightdash/issues/11073)) ([51fae62](https://github.com/lightdash/lightdash/commit/51fae62b206c193e50a0ff260a825938d7946c27))
+
 # [0.1204.0](https://github.com/lightdash/lightdash/compare/0.1203.5...0.1204.0) (2024-08-08)
 
 
