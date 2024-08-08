@@ -149,8 +149,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     cube: {
-        enabled: false,
         token: '',
-        domain: '',
     },
 };
