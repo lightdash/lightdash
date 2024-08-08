@@ -9,8 +9,10 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useDeferredValue, useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
@@ -43,6 +45,7 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
+    const mantineTheme = useMantineTheme();
     const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
@@ -187,6 +190,7 @@ export const ContentPanel: FC = () => {
                                     runSqlQuery({
                                         sql,
                                     });
+                                    notifications.clean();
                                 }}
                             />
                         </Group>
@@ -256,6 +260,9 @@ export const ContentPanel: FC = () => {
                                                         height: deferredInputSectionHeight,
                                                         width: '100%',
                                                         flex: 1,
+                                                        marginTop:
+                                                            mantineTheme.spacing
+                                                                .sm,
                                                     }}
                                                 />
                                             </ConditionalVisibility>
