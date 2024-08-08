@@ -58,11 +58,12 @@ const SidebarViewFields = () => {
             {fields.data.map((field) => (
                 <NavLink
                     key={field.name}
+                    h="xxl"
                     color={getNavbarColorByFieldType(field.fieldType)}
                     label={<Text truncate>{field.label}</Text>}
                     icon={<FieldIcon field={field} />}
                     disabled={!field.visible}
-                    active={selectedFields.includes(field.name)}
+                    active={selectedFields.has(field.name)}
                     onClick={() => handleFieldToggle(field.name)}
                 />
             ))}

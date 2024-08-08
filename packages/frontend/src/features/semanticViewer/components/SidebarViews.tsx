@@ -32,6 +32,7 @@ const SidebarViews = () => {
             {views.data.map((view) => (
                 <NavLink
                     key={view.name}
+                    h="xxl"
                     label={<Text truncate>{view.label}</Text>}
                     disabled={!view.visible}
                     icon={<MantineIcon icon={IconTable} />}
