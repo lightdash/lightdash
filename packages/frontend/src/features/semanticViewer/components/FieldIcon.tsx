@@ -1,6 +1,6 @@
 import {
     assertUnreachable,
-    FieldType,
+    FieldType as FieldKind,
     type SemanticLayerField,
 } from '@lightdash/common';
 import {
@@ -15,14 +15,14 @@ import MantineIcon, {
     type MantineIconProps,
 } from '../../../components/common/MantineIcon';
 
-const getFieldColor = (type: SemanticLayerField['fieldType']) => {
-    switch (type) {
-        case FieldType.DIMENSION:
+const getFieldColor = (kind: SemanticLayerField['kind']) => {
+    switch (kind) {
+        case FieldKind.DIMENSION:
             return 'blue';
-        case FieldType.METRIC:
+        case FieldKind.METRIC:
             return 'orange';
         default:
-            return assertUnreachable(type, `Unknown field type: ${type}`);
+            return assertUnreachable(kind, `Unknown field kind: ${kind}`);
     }
 };
 
@@ -54,7 +54,7 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
     ({ field, size = 'lg', selected, ...iconProps }, ref) => {
         const iconColor = selected
             ? 'white'
-            : iconProps.color ?? getFieldColor(field.fieldType);
+            : iconProps.color ?? getFieldColor(field.kind);
 
         const props = {
             ...iconProps,

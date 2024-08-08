@@ -1,4 +1,4 @@
-import { FieldType } from '@lightdash/common';
+import { FieldType as FieldKind } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
@@ -42,7 +42,7 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 field: string;
-                fieldType: FieldType;
+                kind: FieldKind;
             }>,
         ) => {
             if (!state.view) {
@@ -51,8 +51,8 @@ export const semanticViewerSlice = createSlice({
 
             console.log(action.payload);
 
-            switch (action.payload.fieldType) {
-                case FieldType.DIMENSION:
+            switch (action.payload.kind) {
+                case FieldKind.DIMENSION:
                     if (
                         state.selectedDimensions.includes(action.payload.field)
                     ) {
@@ -64,7 +64,7 @@ export const semanticViewerSlice = createSlice({
                         state.selectedDimensions.push(action.payload.field);
                     }
                     break;
-                case FieldType.METRIC:
+                case FieldKind.METRIC:
                     if (state.selectedMetrics.includes(action.payload.field)) {
                         state.selectedMetrics = state.selectedMetrics.filter(
                             (field) => field !== action.payload.field,
