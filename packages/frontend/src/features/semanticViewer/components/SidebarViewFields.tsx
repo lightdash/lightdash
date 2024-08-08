@@ -7,10 +7,10 @@ import {
     ActionIcon,
     Box,
     Center,
+    Highlight,
     Loader,
     NavLink,
     Stack,
-    Text,
     TextInput,
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
@@ -131,7 +131,14 @@ const SidebarViewFields = () => {
                             key={field.name}
                             h="xxl"
                             color={getNavbarColorByFieldType(field.fieldType)}
-                            label={<Text truncate>{field.label}</Text>}
+                            label={
+                                <Highlight
+                                    highlight={searchQuery.split(' ')}
+                                    truncate
+                                >
+                                    {field.label}
+                                </Highlight>
+                            }
                             icon={<FieldIcon field={field} />}
                             disabled={!field.visible}
                             active={
