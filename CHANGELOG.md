@@ -1,3 +1,10 @@
+## [0.1206.1](https://github.com/lightdash/lightdash/compare/0.1206.0...0.1206.1) (2024-08-08)
+
+
+### Bug Fixes
+
+* If a chart is deleted, It should be redirected to the dashboard ([#10951](https://github.com/lightdash/lightdash/issues/10951)) ([1c5c7a1](https://github.com/lightdash/lightdash/commit/1c5c7a1c4dbb7f44115e93bd4dd36e410b4d3a72))
+
 # [0.1206.0](https://github.com/lightdash/lightdash/compare/0.1205.1...0.1206.0) (2024-08-08)
 
 
