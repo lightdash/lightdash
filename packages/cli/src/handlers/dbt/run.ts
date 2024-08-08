@@ -54,7 +54,6 @@ export const dbtRunHandler = async (
     }
     await generateHandler({
         ...options,
-        assumeYes: options.assumeYes,
         excludeMeta: options.excludeMeta,
     });
 };
