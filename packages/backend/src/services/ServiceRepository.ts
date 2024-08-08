@@ -25,6 +25,7 @@ import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
+import { SemanticLayerService } from './SemanticLayerService/SemanticLayerService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
@@ -70,6 +71,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    semanticLayerService: SemanticLayerService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -654,6 +656,20 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     contentModel: this.models.getContentModel(),
+                }),
+        );
+    }
+
+    public getSemanticLayerService(): SemanticLayerService {
+        return this.getService(
+            'semanticLayerService',
+            () =>
+                new SemanticLayerService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    cubeClient: this.clients.getCubeClient(),
+                    dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                 }),
         );
     }

@@ -1,0 +1,34 @@
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Semantic layer endpoint
+
+#### Get views
+GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/views
+
+#### Get fields
+GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/views/organizations/fields
+
+#### Get results
+POST http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/results 
+Content-Type: application/json
+
+{
+    "dimensions": ["organizations.demo_joins_orders_status"],
+    "metrics": ["organizations.total_acv"]
+} 
+
+#### Get sql
+POST http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/sql 
+Content-Type: application/json
+
+{
+    "dimensions": ["organizations.demo_joins_orders_status"],
+    "metrics": ["organizations.total_acv"]
+} 

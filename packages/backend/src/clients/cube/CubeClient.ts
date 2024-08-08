@@ -1,5 +1,5 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
-import { MissingConfigError } from '@lightdash/common';
+import { MissingConfigError, NotFoundError } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 
 type CubeArgs = {
@@ -24,19 +24,28 @@ export default class CubeClient {
         this.cubeApi = cube(token, { apiUrl: `${domain}/cubejs-api/v1` });
     }
 
-    async runQuery(cubeQuery: Query) {
-        /* query sample: 
-        {
-        measures: ['Stories.count'],
-        timeDimensions: [{
-            dimension: 'Stories.time',
-            dateRange: ['2015-01-01', '2015-12-31'],
-            granularity: 'month'
-        }]
-        } */
+    async getViews() {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
-        const resultSet = await this.cubeApi.load(cubeQuery);
+        const meta = await this.cubeApi.meta();
+        const views = meta.cubes.filter((c) => c.type === 'view');
+        return views;
+    }
+
+    async getFields(viewName: string) {
+        const views = await this.getViews();
+        const view = views.find((v) => v.name === viewName);
+        if (view === undefined) {
+            throw new NotFoundError(`View ${viewName} not found`);
+        }
+
+        return [view.dimensions, view.measures];
+    }
+
+    async getResults(cubeQuery: Query) {
+        if (this.cubeApi === undefined)
+            throw new MissingConfigError('Cube has not been initialized');
+        const resultSet: any = await this.cubeApi.load(cubeQuery);
         return resultSet;
     }
 
