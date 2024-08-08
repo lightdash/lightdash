@@ -73,6 +73,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             groupBy: dimensions.map((dimension) => ({ name: dimension })),
             where: [],
             orderBy: [],
+            limit: 100, // Let this be 100 for now
         };
     },
     resultsToResultRows: (results) => {
