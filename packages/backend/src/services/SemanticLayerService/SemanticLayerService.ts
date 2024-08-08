@@ -127,8 +127,8 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        const cubeQuery = transformer.semanticLayerQueryToCubeQuery(query);
-        const results = await client.getResults(cubeQuery);
+        const semanticQuery = transformer.semanticLayerQueryToCubeQuery(query);
+        const results = await client.getResults(semanticQuery);
         const resultRows = transformer.cubeResultSetToResultRows(results);
 
         return resultRows;
