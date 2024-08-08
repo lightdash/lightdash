@@ -6,6 +6,7 @@ import {
     TCubeMemberType,
 } from '@cubejs-client/core';
 import {
+    assertUnreachable,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
@@ -25,7 +26,10 @@ function getSemanticLayerTypeFromCubeType(
         case 'time':
             return SemanticLayerFieldType.TIME;
         default:
-            throw new Error(`Unknown cube type: ${cubeType}`);
+            return assertUnreachable(
+                cubeType,
+                `Unknown cube type: ${cubeType}`,
+            );
     }
 }
 
