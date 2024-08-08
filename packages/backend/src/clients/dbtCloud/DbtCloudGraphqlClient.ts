@@ -23,7 +23,6 @@ type DbtCloudGraphqlClientArgs = {
     lightdashConfig: LightdashConfig;
 };
 
-type RunQueryFnArgs = DbtGraphQLCreateQueryArgs;
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
 type GetMetricsForDimensionsFnArgs = DbtGraphQLGetMetricsForDimensionsArgs;
 
