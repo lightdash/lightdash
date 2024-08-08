@@ -196,11 +196,13 @@ export default class DbtCloudGraphqlClient {
                 metrics(environmentId: $environmentId) {
                     name
                     description
+                    label
                     type
                     queryableGranularities
                     dimensions {
                         name
                         description
+                        label
                         type
                         queryableGranularities
                     }
@@ -228,11 +230,13 @@ export default class DbtCloudGraphqlClient {
                 )}]) {
                     name
                     description
+                    label
                     type
                     queryableGranularities
                     dimensions {
                         name
                         description
+                        label
                         type
                         queryableGranularities
                     }
@@ -260,6 +264,7 @@ export default class DbtCloudGraphqlClient {
                 )}]) {
                     name
                     description
+                    label
                     type
                     queryableGranularities
                 }
