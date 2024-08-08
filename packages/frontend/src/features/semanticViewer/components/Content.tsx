@@ -14,7 +14,7 @@ import SqlViewer from './SqlViewer';
 
 const MIN_RESULTS_HEIGHT = 10;
 
-export const ContentPanel: FC = () => {
+const Content: FC = () => {
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -154,3 +154,5 @@ export const ContentPanel: FC = () => {
         </Stack>
     );
 };
+
+export default Content;

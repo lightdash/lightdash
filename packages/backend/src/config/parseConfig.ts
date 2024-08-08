@@ -270,8 +270,9 @@ export type LightdashConfig = {
     };
     logging: LoggingConfig;
     cube: {
+        enabled: boolean;
         token: string;
-        domain?: string;
+        domain: string;
     };
 };
 
@@ -765,6 +766,7 @@ export const parseConfig = (): LightdashConfig => {
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
         cube: {
+            enabled: !!process.env.CUBE_TOKEN,
             token: process.env.CUBE_TOKEN || '',
             domain: process.env.CUBE_DOMAIN,
         },

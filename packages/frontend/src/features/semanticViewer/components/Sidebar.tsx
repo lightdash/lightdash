@@ -1,33 +1,63 @@
-import { ActionIcon, Group, Stack, Title, Tooltip } from '@mantine/core';
-import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { ActionIcon, Flex, Group, Stack, Title, Tooltip } from '@mantine/core';
+import {
+    IconChevronLeft,
+    IconLayoutSidebarLeftCollapse,
+} from '@tabler/icons-react';
+import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { TablesPanel } from './TablesPanel';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { exitView } from '../store/semanticViewerSlice';
+import SidebarViewFields from './SidebarViewFields';
+import SidebarViews from './SidebarViews';
 
 type Props = {
-    setSidebarOpen: Dispatch<SetStateAction<boolean>>;
+    onSidebarClose: () => void;
 };
 
-export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
+const Sidebar: FC<Props> = ({ onSidebarClose }) => {
+    const { view } = useAppSelector((state) => state.semanticViewer);
+    const dispatch = useAppDispatch();
+
+    const handleExitView = () => {
+        dispatch(exitView());
+    };
+
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart">
                 <Title order={5} fz="sm" c="gray.6">
-                    TABLES
+                    <Group spacing="xs">
+                        {view && (
+                            <Tooltip
+                                variant="xs"
+                                label="Back to views"
+                                position="left"
+                            >
+                                <ActionIcon onClick={handleExitView} size="xs">
+                                    <MantineIcon icon={IconChevronLeft} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+
+                        {!view ? 'Views' : 'Fields'}
+                    </Group>
                 </Title>
+
                 <Tooltip variant="xs" label="Close sidebar" position="left">
                     <ActionIcon size="xs">
                         <MantineIcon
                             icon={IconLayoutSidebarLeftCollapse}
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={() => onSidebarClose()}
                         />
                     </ActionIcon>
                 </Tooltip>
             </Group>
 
-            <Stack display="inherit" sx={{ flex: 1, overflow: 'hidden' }}>
-                <TablesPanel />
-            </Stack>
+            <Flex direction="column" sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                {!view ? <SidebarViews /> : <SidebarViewFields />}
+            </Flex>
         </Stack>
     );
 };
+
+export default Sidebar;

@@ -26,9 +26,10 @@ import express from 'express';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
-@Route('/api//v2/projects/{projectUuid}/semantic-layer/')
+@Route('/api/v2/projects/{projectUuid}/semantic-layer/')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'SemanticLayer')
+// FIXME: unhide
 @Hidden() // Hide this endpoint from the documentation for now
 export class SemanticLayerController extends BaseController {
     /**

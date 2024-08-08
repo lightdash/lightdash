@@ -1,54 +1,42 @@
 import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { useUnmount } from 'react-use';
-// import ErrorState from '../components/common/ErrorState';
+import { useMount, useUnmount } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-
-import { Sidebar } from '../features/semanticViewer';
-import { ContentPanel } from '../features/semanticViewer/components/ContentPanel';
+import * as SemanticViewer from '../features/semanticViewer';
 import { store } from '../features/semanticViewer/store';
-import {
-    useAppDispatch,
-    useAppSelector,
-} from '../features/semanticViewer/store/hooks';
+import { useAppDispatch } from '../features/semanticViewer/store/hooks';
 import {
     resetState,
     setProjectUuid,
 } from '../features/semanticViewer/store/semanticViewerSlice';
-// import { useProject } from '../hooks/useProject'; // FIXME: ???
 
 const SemanticViewerPageWithStore = () => {
-    const dispatch = useAppDispatch();
-    const projectUuid = useAppSelector(
-        (state) => state.semanticViewer.projectUuid,
-    );
+    const [isLeftSidebarOpen, { close: sidebarClose, open: sidebarOpen }] =
+        useDisclosure(true);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
 
-    const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
-    // const { data: project } = useProject(projectUuid);
+    const dispatch = useAppDispatch();
+
+    useMount(() => {
+        dispatch(setProjectUuid(params.projectUuid));
+    });
 
     useUnmount(() => {
         dispatch(resetState());
     });
 
-    useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
-        }
-    }, [dispatch, params.projectUuid, projectUuid]);
-
     return (
         <Page
-            title="SQL Runner"
+            title="Semantic Viewer"
             noContentPadding
             flexContent
             isSidebarOpen={isLeftSidebarOpen}
-            sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
+            sidebar={<SemanticViewer.Sidebar onSidebarClose={sidebarClose} />}
         >
             <Group
                 align={'stretch'}
@@ -75,14 +63,15 @@ const SemanticViewerPageWithStore = () => {
                                 <ActionIcon size="sm">
                                     <MantineIcon
                                         icon={IconLayoutSidebarLeftExpand}
-                                        onClick={() => setLeftSidebarOpen(true)}
+                                        onClick={sidebarOpen}
                                     />
                                 </ActionIcon>
                             </Tooltip>
                         </Stack>
                     </Paper>
                 )}
-                <ContentPanel />
+
+                <SemanticViewer.Content />
             </Group>
         </Page>
     );
