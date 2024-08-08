@@ -22,7 +22,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         const semanticDimensions: SemanticLayerField[] = dimensions.map(
             (dimension) => ({
                 name: dimension.name,
-                label: dimension.label ?? '',
+                label: dimension.label ?? dimension.name,
                 description: dimension.description ?? '',
                 type: dimension.type,
                 visible: true,
@@ -32,7 +32,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
 
         const semanticMetrics: SemanticLayerField[] = metrics.map((metric) => ({
             name: metric.name,
-            label: metric.label ?? '',
+            label: metric.label ?? metric.name,
             description: metric.description ?? '',
             visible: true,
             type: metric.type,
