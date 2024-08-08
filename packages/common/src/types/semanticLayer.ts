@@ -1,4 +1,5 @@
 import { type FieldType as FieldKind } from './field';
+import { type ResultRow } from './results';
 
 export type SemanticLayerView = {
     name: string;
@@ -43,6 +44,6 @@ export interface SemanticLayerTransformer<
     ) => SemanticLayerField[];
     viewsToSemanticLayerViews: (views: ViewType[]) => SemanticLayerView[];
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
-    resultsToResultRows: (results: ResultsType) => Record<string, any>[];
+    resultsToResultRows: (results: ResultsType) => ResultRow[];
     sqlToString: (sql: SqlType) => string;
 }
