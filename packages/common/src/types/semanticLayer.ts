@@ -6,10 +6,18 @@ export type SemanticLayerView = {
     description?: string;
     visible?: boolean;
 };
+
+export enum SemanticLayerFieldType {
+    TIME = 'time',
+    NUMBER = 'number',
+    STRING = 'string',
+    BOOLEAN = 'boolean',
+}
+
 export type SemanticLayerField = {
     name: string;
     label: string;
-    type: string;
+    type: SemanticLayerFieldType;
     kind: FieldKind;
     description?: string;
     visible?: boolean;

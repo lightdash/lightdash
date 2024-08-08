@@ -3,12 +3,31 @@ import {
     Query as CubeQuery,
     TCubeDimension,
     TCubeMeasure,
+    TCubeMemberType,
 } from '@cubejs-client/core';
 import {
     FieldType as FieldKind,
     SemanticLayerField,
+    SemanticLayerFieldType,
     SemanticLayerTransformer,
 } from '@lightdash/common';
+
+function getSemanticLayerTypeFromCubeType(
+    cubeType: TCubeMemberType,
+): SemanticLayerFieldType {
+    switch (cubeType) {
+        case 'string':
+            return SemanticLayerFieldType.STRING;
+        case 'number':
+            return SemanticLayerFieldType.NUMBER;
+        case 'boolean':
+            return SemanticLayerFieldType.BOOLEAN;
+        case 'time':
+            return SemanticLayerFieldType.TIME;
+        default:
+            throw new Error(`Unknown cube type: ${cubeType}`);
+    }
+}
 
 export const cubeTransfomers: SemanticLayerTransformer<
     Cube,
@@ -23,7 +42,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             (d) => ({
                 name: d.name,
                 label: d.title,
-                type: d.type,
+                type: getSemanticLayerTypeFromCubeType(d.type),
                 description: d.shortTitle,
                 visible: d.public,
                 kind: FieldKind.DIMENSION,
@@ -34,7 +53,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             label: d.title,
             description: d.shortTitle,
             visible: d.public,
-            type: d.type,
+            type: getSemanticLayerTypeFromCubeType(d.type),
             kind: FieldKind.METRIC,
         }));
 

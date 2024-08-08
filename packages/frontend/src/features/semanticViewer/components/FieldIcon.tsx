@@ -1,14 +1,12 @@
 import {
     assertUnreachable,
-    DbtDimensionType,
-    DbtMetricType,
     FieldType as FieldKind,
+    SemanticLayerFieldType,
     type SemanticLayerField,
 } from '@lightdash/common';
 import {
     Icon123,
     IconAbc,
-    IconCalendar,
     IconClockHour4,
     IconToggleLeft,
 } from '@tabler/icons-react';
@@ -28,25 +26,16 @@ const getFieldColor = (kind: SemanticLayerField['kind']) => {
     }
 };
 
-const getFieldIconName = (type: SemanticLayerField['type']) => {
+const getFieldIconName = (type: SemanticLayerFieldType) => {
     switch (type) {
-        case DbtMetricType.CONVERSION:
-        case DbtDimensionType.CATEGORICAL:
-        case 'string':
+        case SemanticLayerFieldType.STRING:
             return 'citation';
-        case DbtMetricType.DERIVED:
-        case DbtMetricType.CUMULATIVE:
-        case DbtMetricType.RATIO:
-        case DbtMetricType.SIMPLE:
-        case 'number':
+        case SemanticLayerFieldType.NUMBER:
             return 'numerical';
-        case 'date':
-            return 'calendar';
-        case 'boolean':
-            return 'segmented-control';
-        case DbtDimensionType.TIME:
-        case 'time':
+        case SemanticLayerFieldType.TIME:
             return 'time';
+        case SemanticLayerFieldType.BOOLEAN:
+            return 'segmented-control';
         default:
             // FIXME: type should be FieldType
             // return assertUnreachable(type, `Unknown field type: ${type}`);
@@ -79,8 +68,6 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
                 return <MantineIcon icon={IconAbc} {...props} />;
             case 'numerical':
                 return <MantineIcon icon={Icon123} {...props} />;
-            case 'calendar':
-                return <MantineIcon icon={IconCalendar} {...props} />;
             case 'time':
                 return <MantineIcon icon={IconClockHour4} {...props} />;
             case 'segmented-control':
