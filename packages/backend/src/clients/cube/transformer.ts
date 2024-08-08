@@ -10,23 +10,30 @@ import {
     FieldType,
     SemanticLayerField,
     SemanticLayerQuery,
+    SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
 
-export const cubeTransfomers = {
-    cubeFieldsToSemanticLayerFields: (
-        cubeDimensions: TCubeDimension[] | TCubeMeasure[],
-        cubeMetrics: TCubeDimension[] | TCubeMeasure[],
-    ): SemanticLayerField[] => {
-        const dimensions: SemanticLayerField[] = cubeDimensions.map((d) => ({
-            name: d.name,
-            label: d.title,
-            type: d.type,
-            description: d.shortTitle,
-            visible: d.public,
-            fieldType: FieldType.DIMENSION,
-        }));
-        const metrics: SemanticLayerField[] = cubeMetrics.map((d) => ({
+export const cubeTransfomers: SemanticLayerTransformer<
+    Cube,
+    CubeQuery,
+    TCubeDimension[] | TCubeMeasure[],
+    TCubeDimension[] | TCubeMeasure[],
+    any,
+    any
+> = {
+    fieldsToSemanticLayerFields: (dimensions, metrics) => {
+        const semanticDimensions: SemanticLayerField[] = dimensions.map(
+            (d) => ({
+                name: d.name,
+                label: d.title,
+                type: d.type,
+                description: d.shortTitle,
+                visible: d.public,
+                fieldType: FieldType.DIMENSION,
+            }),
+        );
+        const semanticMetrics: SemanticLayerField[] = metrics.map((d) => ({
             name: d.name,
             label: d.title,
             description: d.shortTitle,
@@ -35,23 +42,23 @@ export const cubeTransfomers = {
             fieldType: FieldType.METRIC,
         }));
 
-        return [...dimensions, ...metrics];
+        return [...semanticDimensions, ...semanticMetrics];
     },
-    cubesToSemanticLayerViews: (cubeViews: Cube[]): SemanticLayerView[] =>
+    viewsToSemanticLayerViews: (cubeViews) =>
         cubeViews.map((view) => ({
             name: view.name,
             label: view.title,
             visible: view.public,
         })),
-    semanticLayerQueryToCubeQuery: (query: SemanticLayerQuery): CubeQuery => ({
+    semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
         dimensions: query.dimensions,
         filters: [],
         timeDimensions: [],
         limit: 100,
     }),
-    cubeResultSetToResultRows: (cubeResultSet: any): Record<string, any>[] =>
+    resultsToResultRows: (cubeResultSet) =>
         cubeResultSet.loadResponse.results[0]?.data || [],
 
-    cubeSqlToString: (cubeSql: any): string => cubeSql.sqlQuery.sql.sql[0],
+    sqlToString: (cubeSql) => cubeSql.sqlQuery.sql.sql[0],
 };

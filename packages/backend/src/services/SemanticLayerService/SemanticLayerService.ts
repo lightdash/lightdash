@@ -1,14 +1,7 @@
 import { subject } from '@casl/ability';
-import { Cube } from '@cubejs-client/core';
 import {
-    CatalogField,
-    CatalogTable,
-    CatalogType,
-    FieldType,
     ForbiddenError,
-    MetricQuery,
     MissingConfigError,
-    NotFoundError,
     ResultRow,
     SemanticLayerField,
     SemanticLayerQuery,
@@ -114,7 +107,7 @@ export class SemanticLayerService extends BaseService {
                 const { client, transformer } =
                     await this.getSemanticLayerClient(projectUuid);
                 const views = await client.getViews();
-                return transformer.cubesToSemanticLayerViews(views);
+                return transformer.viewsToSemanticLayerViews(views);
             },
             // Extra properties for analytic event after the function is executed
             (result) => ({
@@ -133,7 +126,7 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
         const [dimensions, metrics] = await client.getFields(table);
-        return transformer.cubeFieldsToSemanticLayerFields(dimensions, metrics);
+        return transformer.fieldsToSemanticLayerFields(dimensions, metrics);
     }
 
     async getResults(
@@ -146,9 +139,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        const semanticQuery = transformer.semanticLayerQueryToCubeQuery(query);
+        const semanticQuery = transformer.semanticLayerQueryToQuery(query);
         const results = await client.getResults(semanticQuery);
-        const resultRows = transformer.cubeResultSetToResultRows(results);
+        const resultRows = transformer.resultsToResultRows(results);
 
         return resultRows;
     }
@@ -163,9 +156,9 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
         );
 
-        const semanticQuery = transformer.semanticLayerQueryToCubeQuery(query);
+        const semanticQuery = transformer.semanticLayerQueryToQuery(query);
         const sqlQuery = await client.getSql(semanticQuery);
-        const sql = transformer.cubeSqlToString(sqlQuery);
+        const sql = transformer.sqlToString(sqlQuery);
 
         return sql;
     }
