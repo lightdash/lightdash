@@ -1,4 +1,4 @@
-import { type FieldType as FieldKind } from './field';
+import { type FieldType } from './field';
 
 export type SemanticLayerView = {
     name: string;
@@ -18,7 +18,7 @@ export type SemanticLayerField = {
     name: string;
     label: string;
     type: SemanticLayerFieldType;
-    kind: FieldKind;
+    kind: FieldType;
     description?: string;
     visible?: boolean;
     aggType?: string; // eg: count, sum
@@ -26,6 +26,7 @@ export type SemanticLayerField = {
 
 export type SemanticLayerQuery = {
     dimensions: string[];
+    timeDimensions: string[];
     metrics: string[];
 };
 

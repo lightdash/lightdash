@@ -15,6 +15,7 @@ const SqlViewer: FC = () => {
             payload: {
                 dimensions: selectedDimensions,
                 metrics: selectedMetrics,
+                timeDimensions: [],
             },
         },
         {

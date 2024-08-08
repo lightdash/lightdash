@@ -67,10 +67,15 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
     },
     viewsToSemanticLayerViews: (views) => views, // dbt doesn't have the concept of views so we return a placeholder
     semanticLayerQueryToQuery: (query) => {
-        const { metrics, dimensions } = query;
+        const { metrics, dimensions, timeDimensions } = query;
         return {
             metrics: metrics.map((metric) => ({ name: metric })),
-            groupBy: dimensions.map((dimension) => ({ name: dimension })),
+            groupBy: [
+                ...dimensions.map((dimension) => ({ name: dimension })),
+                ...timeDimensions.map((timeDimension) => ({
+                    name: timeDimension,
+                })),
+            ],
             where: [],
             orderBy: [],
             limit: 100, // Let this be 100 for now
