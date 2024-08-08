@@ -40,6 +40,7 @@ type Props = {
     filters: Filters;
     setFilters: (value: Filters, shouldFetchResults: boolean) => void;
     isEditMode: boolean;
+    tableName: string;
 };
 
 const getInvalidFilterRules = (
@@ -58,7 +59,12 @@ const getInvalidFilterRules = (
         return accumulator;
     }, []);
 
-const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
+const FiltersForm: FC<Props> = ({
+    filters,
+    setFilters,
+    isEditMode,
+    tableName,
+}) => {
     const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -260,6 +266,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             maw={300}
                             autoFocus
                             hasGrouping
+                            tableName={tableName}
                             items={fields}
                             onChange={(field) => {
                                 if (!field) return;
