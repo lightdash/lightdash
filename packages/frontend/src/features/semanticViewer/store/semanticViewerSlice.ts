@@ -5,14 +5,14 @@ export interface SemanticViewerState {
     projectUuid: string;
 
     view: string | undefined;
-    selectedFields: string[];
+    selectedFields: Set<string>;
 }
 
 const initialState: SemanticViewerState = {
     projectUuid: '',
 
     view: undefined,
-    selectedFields: [],
+    selectedFields: new Set<string>(),
 };
 
 export const semanticViewerSlice = createSlice({
@@ -30,19 +30,17 @@ export const semanticViewerSlice = createSlice({
         },
         exitView: (state) => {
             state.view = undefined;
-            state.selectedFields = [];
+            state.selectedFields = new Set<string>();
         },
         toggleField: (state, action: PayloadAction<string>) => {
             if (!state.view) {
                 throw new Error('Impossible state');
             }
 
-            const index = state.selectedFields.indexOf(action.payload);
-
-            if (index === -1) {
-                state.selectedFields.push(action.payload);
+            if (state.selectedFields.has(action.payload)) {
+                state.selectedFields.delete(action.payload);
             } else {
-                state.selectedFields.splice(index, 1);
+                state.selectedFields.add(action.payload);
             }
         },
     },
