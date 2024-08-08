@@ -13,7 +13,9 @@ type DbtRunHandlerOptions = DbtCompileOptions & {
 
 export const dbtRunHandler = async (
     options: DbtRunHandlerOptions,
-    command: Command,
+    command: Command & {
+        assumeYes?: boolean;
+    },
 ) => {
     GlobalState.setVerbose(options.verbose);
 
@@ -29,7 +31,7 @@ export const dbtRunHandler = async (
     });
 
     const commands = command.parent.args.reduce<string[]>((acc, arg) => {
-        if (arg === '--verbose') return acc;
+        if (arg === '--verbose' || arg === '--assume-yes') return acc;
         return [...acc, arg];
     }, []);
 
@@ -53,7 +55,7 @@ export const dbtRunHandler = async (
     }
     await generateHandler({
         ...options,
-        assumeYes: true,
+        assumeYes: !!command.assumeYes,
         excludeMeta: options.excludeMeta,
     });
 };
