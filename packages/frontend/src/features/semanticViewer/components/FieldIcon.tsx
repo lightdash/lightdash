@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    DbtDimensionType,
+    DbtMetricType,
     FieldType as FieldKind,
     type SemanticLayerField,
 } from '@lightdash/common';
@@ -28,14 +30,21 @@ const getFieldColor = (kind: SemanticLayerField['kind']) => {
 
 const getFieldIconName = (type: SemanticLayerField['type']) => {
     switch (type) {
+        case DbtMetricType.CONVERSION:
+        case DbtDimensionType.CATEGORICAL:
         case 'string':
             return 'citation';
+        case DbtMetricType.DERIVED:
+        case DbtMetricType.CUMULATIVE:
+        case DbtMetricType.RATIO:
+        case DbtMetricType.SIMPLE:
         case 'number':
             return 'numerical';
         case 'date':
             return 'calendar';
         case 'boolean':
             return 'segmented-control';
+        case DbtDimensionType.TIME:
         case 'time':
             return 'time';
         default:
