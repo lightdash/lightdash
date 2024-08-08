@@ -34,6 +34,7 @@ export enum PageName {
     SAVED_DASHBOARDS = 'saved_dashboards',
     DASHBOARD = 'DASHBOARD',
     SQL_RUNNER = 'SQL_RUNNER',
+    SEMANTIC_VIEWER = 'SEMANTIC_VIEWER',
     METRIC_FLOW = 'METRIC_FLOW',
     SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
     APPEARANCE = 'appearance_settings',
