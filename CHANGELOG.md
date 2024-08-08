@@ -1,3 +1,15 @@
+# [0.1204.0](https://github.com/lightdash/lightdash/compare/0.1203.5...0.1204.0) (2024-08-08)
+
+
+### Bug Fixes
+
+* custom dimension edit not persisting ([#11058](https://github.com/lightdash/lightdash/issues/11058)) ([d9ee340](https://github.com/lightdash/lightdash/commit/d9ee340f5182129bd98ed0ba506f80bdd28fc231))
+
+
+### Features
+
+* prepare graphql client with necessary functions ([#11050](https://github.com/lightdash/lightdash/issues/11050)) ([e22a05e](https://github.com/lightdash/lightdash/commit/e22a05efc8cd016014c7e08a492e9a5d9ccec2db))
+
 ## [0.1203.5](https://github.com/lightdash/lightdash/compare/0.1203.4...0.1203.5) (2024-08-07)
 
 
