@@ -25,6 +25,7 @@ import Analytics, {
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -998,6 +999,17 @@ export type GroupDeleteEvent = BaseTrack & {
     };
 };
 
+export type SemanticLayerView = BaseTrack & {
+    event: 'semantic_layer.get_view'; // started, completed, error suffix when using wrapEvent
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // on completed
+        viewsCount?: number;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1071,6 +1083,8 @@ type TypedEvent =
     | DeleteSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent;
+
+type WrapTypedEvent = SemanticLayerView;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
@@ -1175,5 +1189,39 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
+    }
+
+    async wrapEvent<T>(
+        payload: WrapTypedEvent,
+        func: () => Promise<T>,
+        extraProperties?: (r: T) => any,
+    ) {
+        try {
+            this.track({
+                ...payload,
+                event: `${payload.event}.started`,
+            });
+
+            const results = await func();
+
+            const properties = extraProperties ? extraProperties(results) : {};
+            this.track({
+                ...payload,
+                event: `${payload.event}.completed`,
+                properties: {
+                    ...payload.properties,
+                    ...properties,
+                },
+            });
+
+            return results;
+        } catch (e) {
+            await this.track({
+                ...payload,
+                event: `${payload.event}.error`,
+            });
+            Logger.error(`Error in scheduler task: ${e}`);
+            throw e;
+        }
     }
 }

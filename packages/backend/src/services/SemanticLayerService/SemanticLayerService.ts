@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { Cube } from '@cubejs-client/core';
 import {
     CatalogField,
     CatalogTable,
@@ -67,6 +68,7 @@ export class SemanticLayerService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        return project;
     }
 
     async getSemanticLayerClient(projectUuid: string): Promise<{
@@ -94,12 +96,31 @@ export class SemanticLayerService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SemanticLayerView[]> {
-        await this.checkCanViewProject(user, projectUuid);
-        const { client, transformer } = await this.getSemanticLayerClient(
+        const { organizationUuid } = await this.checkCanViewProject(
+            user,
             projectUuid,
         );
-        const views = await client.getViews();
-        return transformer.cubesToSemanticLayerViews(views);
+
+        return this.analytics.wrapEvent<any[]>(
+            {
+                event: 'semantic_layer.get_view', // started, completed, error suffix when using wrapEvent
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            },
+            async () => {
+                const { client, transformer } =
+                    await this.getSemanticLayerClient(projectUuid);
+                const views = await client.getViews();
+                return transformer.cubesToSemanticLayerViews(views);
+            },
+            // Extra properties for analytic event after the function is executed
+            (result) => ({
+                viewCount: result.length,
+            }),
+        );
     }
 
     async getFields(
