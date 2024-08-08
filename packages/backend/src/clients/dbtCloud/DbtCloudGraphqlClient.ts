@@ -10,7 +10,6 @@ import {
     DbtGraphQLGetMetricsResponse,
     DbtGraphQLJsonResult,
     DbtGraphQLRunQueryRawResponse,
-    DbtGraphQLRunQueryResponse,
     SemanticLayerQuery,
     SemanticLayerView,
 } from '@lightdash/common';
