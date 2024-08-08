@@ -66,16 +66,21 @@ export class SemanticLayerService extends BaseService {
     async getSemanticLayerClient(
         projectUuid: string,
     ): Promise<CubeClient | DbtCloudGraphqlClient> {
-        // TODO return same types from dbtcloud
-        // TODO get different client based on project
-        // For now, we get the client based on the available lightdash config
-        // TODO move dbt to lightdashConfig
-        /* const bearerToken = process.env.DBT_CLOUD_BEARER_TOKEN || undefined;
-        if (bearerToken) {
+        // TODO: get different client based on project, right now we're only doing this based on config
+
+        if (
+            !!this.lightdashConfig.dbtCloud.bearerToken &&
+            !!this.lightdashConfig.dbtCloud.environmentId
+        ) {
             return this.dbtCloudClient;
-        } */
-        // TODO check if cube is available
-        return this.cubeClient;
+        }
+
+        if (
+            !!this.lightdashConfig.cube.token &&
+            !!this.lightdashConfig.cube.domain
+        ) {
+            return this.cubeClient;
+        }
 
         throw new MissingConfigError('No semantic layer available');
     }
