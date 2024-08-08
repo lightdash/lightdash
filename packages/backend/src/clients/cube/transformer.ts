@@ -1,6 +1,8 @@
 import {
     Cube,
     Query as CubeQuery,
+    ResultSet,
+    SqlQuery,
     TCubeDimension,
     TCubeMeasure,
     TCubeMemberType,
@@ -38,8 +40,8 @@ export const cubeTransfomers: SemanticLayerTransformer<
     CubeQuery,
     TCubeDimension[] | TCubeMeasure[],
     TCubeDimension[] | TCubeMeasure[],
-    any,
-    any
+    ResultSet,
+    SqlQuery
 > = {
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
         const semanticDimensions: SemanticLayerField[] = dimensions.map(
@@ -76,8 +78,6 @@ export const cubeTransfomers: SemanticLayerTransformer<
         timeDimensions: [],
         limit: 100,
     }),
-    resultsToResultRows: (cubeResultSet) =>
-        cubeResultSet.loadResponse.results[0]?.data || [],
-
-    sqlToString: (cubeSql) => cubeSql.sqlQuery.sql.sql[0],
+    resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
+    sqlToString: (cubeSql) => cubeSql.sql(),
 };
