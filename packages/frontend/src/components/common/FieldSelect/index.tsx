@@ -107,7 +107,16 @@ const FieldSelect = <T extends Item = Item>({
         return [
             map,
             [...items].sort((a, b) => {
-                // Build tableLabelMap during sorting
+                /**
+                 * Sorting logic:
+                 * Sorts by table first
+                 * Then sorts by type
+                 * 1. Dimensions
+                 * 2. Custom dimensions
+                 * 3. Metrics & Additional metrics
+                 * 4. Table calculations
+                 * Then sorts by label
+                 */
                 if (
                     isField(a) &&
                     !isCustomDimension(a) &&
