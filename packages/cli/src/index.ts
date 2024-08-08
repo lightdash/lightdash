@@ -243,7 +243,7 @@ ${styles.bold('Examples:')}
         false,
     )
     .option('--verbose', undefined, false)
-
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(dbtRunHandler);
 
 program
