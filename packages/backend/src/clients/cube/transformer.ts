@@ -1,17 +1,13 @@
 import {
     Cube,
     Query as CubeQuery,
-    ResultSet,
-    SqlQuery,
     TCubeDimension,
     TCubeMeasure,
 } from '@cubejs-client/core';
 import {
-    FieldType,
+    FieldType as FieldKind,
     SemanticLayerField,
-    SemanticLayerQuery,
     SemanticLayerTransformer,
-    SemanticLayerView,
 } from '@lightdash/common';
 
 export const cubeTransfomers: SemanticLayerTransformer<
@@ -30,7 +26,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
                 type: d.type,
                 description: d.shortTitle,
                 visible: d.public,
-                fieldType: FieldType.DIMENSION,
+                kind: FieldKind.DIMENSION,
             }),
         );
         const semanticMetrics: SemanticLayerField[] = metrics.map((d) => ({
@@ -39,7 +35,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             description: d.shortTitle,
             visible: d.public,
             type: d.type,
-            fieldType: FieldType.METRIC,
+            kind: FieldKind.METRIC,
         }));
 
         return [...semanticDimensions, ...semanticMetrics];
