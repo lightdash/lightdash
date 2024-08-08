@@ -149,7 +149,7 @@ This description in YAML:
 
 ```yaml
 - name: product_tier
-  description: >
+  description: >-
     This is a longer description...
     ...that requires multiple lines
     and it will be combined in the Lightdash UI
@@ -161,9 +161,9 @@ Will appear like this in the Lightdash UI:
 This is a longer description......that requires multiple lines and it will be combined in the Lightdash UI
 ```
 
-### Vertical bar for presserving multiple lines `|`
+### Vertical bar for preserving line breaks
 
-If you need multiple lines where the line breaks will stay inplace, you can use a `|` character like this:
+If you need line breaks to stay in place when they show up in the Lightdash UI, you can use a `|` character like this:
 
 ```yaml
 - name: product_tier
