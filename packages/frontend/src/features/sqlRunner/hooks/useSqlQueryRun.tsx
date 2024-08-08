@@ -18,14 +18,16 @@ import { useAppSelector } from '../store/hooks';
 const scheduleSqlJob = async ({
     projectUuid,
     sql,
+    limit,
 }: {
     projectUuid: string;
     sql: SqlRunnerBody['sql'];
+    limit: SqlRunnerBody['limit'];
 }) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/projects/${projectUuid}/sqlRunner/run`,
         method: 'POST',
-        body: JSON.stringify({ sql }),
+        body: JSON.stringify({ sql, limit }),
     });
 
 export type ResultsAndColumns = {
@@ -57,8 +59,9 @@ export const useSqlQueryRun = ({
         ApiError,
         {
             sql: SqlRunnerBody['sql'];
+            limit: SqlRunnerBody['limit'];
         }
-    >(({ sql }) => scheduleSqlJob({ projectUuid, sql }), {
+    >(({ sql, limit }) => scheduleSqlJob({ projectUuid, sql, limit }), {
         mutationKey: ['sqlRunner', 'run'],
     });
 

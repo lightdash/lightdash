@@ -20,6 +20,7 @@ import { type LightdashUser } from './user';
 export type SqlRunnerPayload = {
     projectUuid: string;
     sql: string;
+    limit?: number;
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
@@ -28,6 +29,7 @@ export type SqlRunnerPayload = {
 
 export type SqlRunnerBody = {
     sql: string;
+    limit?: number;
 };
 
 export type SqlRunnerResults = ResultRow[];
@@ -137,6 +139,7 @@ export type SqlChart = {
     description: string | null;
     slug: string;
     sql: string;
+    limit: number;
     config: SqlRunnerChartConfig;
     chartKind: ChartKind;
     createdAt: Date;
@@ -159,6 +162,7 @@ export type CreateSqlChart = {
     name: string;
     description: string | null;
     sql: string;
+    limit: number;
     config: SqlRunnerChartConfig;
     spaceUuid: string;
 };
@@ -171,6 +175,7 @@ export type UpdateUnversionedSqlChart = {
 
 export type UpdateVersionedSqlChart = {
     sql: string;
+    limit: number;
     config: SqlRunnerChartConfig;
 };
 

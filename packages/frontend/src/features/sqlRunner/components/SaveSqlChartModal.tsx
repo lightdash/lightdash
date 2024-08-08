@@ -72,6 +72,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     }, [name, form, description, spaces, isFormPopulated]);
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const limit = useAppSelector((state) => state.sqlRunner.limit);
     const selectedChartConfig = useAppSelector(selectCurrentChartConfig);
     const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
@@ -108,6 +109,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 name: form.values.name,
                 description: form.values.description || '',
                 sql,
+                limit,
                 config: configToSave,
                 spaceUuid: spaceUuid,
             });
@@ -124,11 +126,12 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         form.values.description,
         createSpace,
         selectedChartConfig,
+        defaultChartConfig.config,
+        sql,
+        dispatch,
         onClose,
         createSavedSqlChart,
-        sql,
-        defaultChartConfig,
-        dispatch,
+        limit,
     ]);
 
     return (

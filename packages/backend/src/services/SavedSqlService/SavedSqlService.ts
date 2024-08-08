@@ -371,6 +371,7 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sql: string,
+        limit?: number,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -393,6 +394,7 @@ export class SavedSqlService extends BaseService {
             organizationUuid,
             projectUuid,
             sql,
+            limit,
             context: QueryExecutionContext.SQL_RUNNER,
         });
 
@@ -423,6 +425,7 @@ export class SavedSqlService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,
             sql: savedChart.sql,
+            limit: savedChart.limit,
             sqlChartUuid: savedChart.savedSqlUuid,
             context: QueryExecutionContext.SQL_CHART,
         });
@@ -452,6 +455,7 @@ export class SavedSqlService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,
             sql: savedChart.sql,
+            limit: savedChart.limit,
             sqlChartUuid: savedSqlUuid,
             context: QueryExecutionContext.DASHBOARD,
         });
