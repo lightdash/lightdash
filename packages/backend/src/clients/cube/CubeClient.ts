@@ -28,7 +28,6 @@ export default class CubeClient {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
         const meta = await this.cubeApi.meta();
-        console.debug('cubes', meta);
         const views = meta.cubes.filter((c) => c.type === 'view');
         return views;
     }
@@ -39,8 +38,6 @@ export default class CubeClient {
         if (view === undefined) {
             throw new NotFoundError(`View ${viewName} not found`);
         }
-        console.debug('view.dimensions', view.dimensions);
-        console.debug('view.measures', view.measures);
 
         return [view.dimensions, view.measures];
     }

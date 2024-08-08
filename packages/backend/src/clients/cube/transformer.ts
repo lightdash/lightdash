@@ -2,6 +2,7 @@ import {
     Cube,
     Query as CubeQuery,
     ResultSet,
+    SqlQuery,
     TCubeDimension,
     TCubeMeasure,
 } from '@cubejs-client/core';
@@ -51,4 +52,6 @@ export const cubeTransfomers = {
     }),
     cubeResultSetToResultRows: (cubeResultSet: any): Record<string, any>[] =>
         cubeResultSet.loadResponse.results[0]?.data || [],
+
+    cubeSqlToString: (cubeSql: any): string => cubeSql.sqlQuery.sql.sql[0],
 };
