@@ -26,10 +26,6 @@ models:
         description: 'Unique identifier for a user."
 ```
 
-Column descriptions in your YAML file are automatically pulled into Lightdash and you can spot them if you hover over the dimension name 👀
-
-![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
-
 ## Dimension configuration
 
 To customize the dimension, you can do it in your dbt model's YAML file.
@@ -128,6 +124,65 @@ We currently support these dimension types:
 | timestamp       |
 | date            |
 | boolean         |
+
+## Description
+
+Column descriptions in your YAML file are automatically pulled into Lightdash and you can spot them if you hover over the dimension name 👀
+
+![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
+
+Descriptions support any formatting that works with YAML, but the three characters used most often are:
+
+### Quotes for escaping
+
+When you surround text with double or single quotes it will escape the text between so that any special characters recognized by YAML will still pass through to the Lightdash UI.
+
+```yaml
+description: "The contents of this column include this & that."
+```
+
+### Greater than symbol for folded text blocks
+
+When you use `>-` it allows you to type descriptions that are multiple lines long in the YAML file, but the text will be combined into a single line when parsed. The `lightdash generate` command will automatically add this to keep YAML files easy to read.
+
+This description in YAML:
+
+```yaml
+- name: product_tier
+  description: >-
+    This is a longer description...
+    ...that requires multiple lines
+    and it will be combined in the Lightdash UI
+```
+
+Will appear like this in the Lightdash UI:
+ 
+```
+This is a longer description......that requires multiple lines and it will be combined in the Lightdash UI
+```
+
+### Vertical bar for preserving line breaks
+
+If you need line breaks to stay in place when they show up in the Lightdash UI, you can use a `|` character like this:
+
+```yaml
+- name: product_tier
+  description: |
+    This is a longer description...
+    ...that requires multiple lines
+    and it will stay on multiple lines
+```
+And in Lightdash UI it will appear like this:
+
+```
+This is a longer description...
+...that requires multiple lines
+and it will stay on multiple lines
+```
+
+### Using dbt doc blocks
+
+You can also use dbt docs blocks in descriptions, [more on that here](/guides/cli/how-to-auto-generate-schema-files#using-doc-blocks-to-build-better-yml-files).
 
 ## Compact values
 
