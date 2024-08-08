@@ -1,3 +1,10 @@
+# [0.1206.0](https://github.com/lightdash/lightdash/compare/0.1205.1...0.1206.0) (2024-08-08)
+
+
+### Features
+
+* semantic viewer frontend ([#11075](https://github.com/lightdash/lightdash/issues/11075)) ([65535e0](https://github.com/lightdash/lightdash/commit/65535e03d69a18a2817e1add9ad2f8ac74df91ea))
+
 ## [0.1205.1](https://github.com/lightdash/lightdash/compare/0.1205.0...0.1205.1) (2024-08-08)
 
 
