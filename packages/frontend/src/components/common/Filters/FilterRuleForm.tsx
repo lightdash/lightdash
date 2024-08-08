@@ -23,6 +23,7 @@ type Props = {
     onChange: (value: FilterRule) => void;
     onDelete: () => void;
     onConvertToGroup?: () => void;
+    baseTable?: string;
 };
 
 const FilterRuleForm: FC<Props> = ({
@@ -32,6 +33,7 @@ const FilterRuleForm: FC<Props> = ({
     onChange,
     onDelete,
     onConvertToGroup,
+    baseTable,
 }) => {
     const { popoverProps } = useFiltersContext();
     const activeField = useMemo(() => {
@@ -99,6 +101,7 @@ const FilterRuleForm: FC<Props> = ({
                 onDropdownOpen={popoverProps?.onOpen}
                 onDropdownClose={popoverProps?.onClose}
                 hasGrouping
+                baseTable={baseTable}
                 item={activeField}
                 items={fields}
                 onChange={(field) => {

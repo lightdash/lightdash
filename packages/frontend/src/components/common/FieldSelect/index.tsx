@@ -2,11 +2,11 @@ import {
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
-    isAdditionalMetric,
     isCustomDimension,
     isDimension,
     isField,
     isMetric,
+    isTableCalculation,
     type Item,
 } from '@lightdash/common';
 import {
@@ -75,7 +75,7 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     onChange: (value: T | undefined) => void;
     onClosed?: () => void;
     hasGrouping?: boolean;
-    tableName?: string;
+    baseTable?: string;
 };
 
 const getLabel = (item: Item, hasGrouping: boolean) => {
@@ -91,47 +91,55 @@ const FieldSelect = <T extends Item = Item>({
     onClosed,
     inactiveItemIds = [],
     hasGrouping = false,
-    tableName,
+    baseTable,
     ...rest
 }: FieldSelectProps<T>): JSX.Element => {
-    const sortedItems = useMemo(() => {
-        // Give priority to items in the table === tableName
-        // Then, sort by type - dimensions first, then custom dimensions, then metrics, then custom metrics, then table calculations
-        // Then, sort alphabetically by label
+    const [tableLabelMap, sortedItems] = useMemo(() => {
+        const map = new Map<string, string>();
 
-        return items.sort((a, b) => {
-            if (tableName) {
-                const aIsInTable = 'table' in a && a.table === tableName;
-                const bIsInTable = 'table' in b && b.table === tableName;
+        const getTypePriority = (i: Item): number => {
+            if (isDimension(i)) return 1;
+            if (isCustomDimension(i)) return 2;
+            if (isMetric(i)) return 3; // Additional metrics are compiled as metrics
+            return 4; // Table calculations have the lowest priority
+        };
 
-                if (aIsInTable && !bIsInTable) return -1;
-                if (!aIsInTable && bIsInTable) return 1;
-            }
+        return [
+            map,
+            [...items].sort((a, b) => {
+                // Build tableLabelMap during sorting
+                if (
+                    isField(a) &&
+                    !isCustomDimension(a) &&
+                    a.table &&
+                    a.tableLabel
+                ) {
+                    map.set(a.table, a.tableLabel);
+                }
+                if (
+                    isField(b) &&
+                    !isCustomDimension(b) &&
+                    b.table &&
+                    b.tableLabel
+                ) {
+                    map.set(b.table, b.tableLabel);
+                }
 
-            const getTypePriority = (i: Item) => {
-                if (isDimension(i)) return 1;
-                if (isCustomDimension(i)) return 2;
-                if (isMetric(i)) return 3;
-                if (isAdditionalMetric(i)) return 4;
+                if (baseTable) {
+                    const aIsInTable = 'table' in a && a.table === baseTable;
+                    const bIsInTable = 'table' in b && b.table === baseTable;
+                    if (aIsInTable !== bIsInTable) return aIsInTable ? -1 : 1;
+                }
 
-                // Assume table calculations have the lowest priority
-                return 5;
-            };
+                const priorityDiff = getTypePriority(a) - getTypePriority(b);
+                if (priorityDiff !== 0) return priorityDiff;
 
-            const priorityA = getTypePriority(a);
-            const priorityB = getTypePriority(b);
-
-            // Sort by type priority
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-
-            // If same type, sort alphabetically by label
-            return getLabel(a, hasGrouping).localeCompare(
-                getLabel(b, hasGrouping),
-            );
-        });
-    }, [items, tableName, hasGrouping]);
+                return getLabel(a, hasGrouping).localeCompare(
+                    getLabel(b, hasGrouping),
+                );
+            }),
+        ];
+    }, [items, baseTable, hasGrouping]);
 
     const selectedItemId = useMemo(() => {
         return item ? getItemId(item) : undefined;
@@ -172,7 +180,14 @@ const FieldSelect = <T extends Item = Item>({
                 value: getItemId(i),
                 label: getLabel(i, hasGrouping),
                 description: isField(i) ? i.description : undefined,
-                group: hasGrouping && isField(i) ? i.tableLabel : undefined,
+                group:
+                    hasGrouping && isField(i)
+                        ? i.tableLabel
+                        : isCustomDimension(i)
+                        ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
+                        : isTableCalculation(i)
+                        ? 'Table Calculations'
+                        : undefined,
                 disabled: inactiveItemIds.includes(getItemId(i)),
                 size: rest.size,
             }))}

@@ -8,6 +8,7 @@ type Props = {
     filterRules: FilterRule[];
     isEditMode: boolean;
     onChange: (value: FilterRule[]) => void;
+    baseTable?: string;
 };
 
 const SimplifiedFilterGroupForm: FC<Props> = ({
@@ -15,6 +16,7 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
     fields,
     filterRules,
     onChange,
+    baseTable,
 }) => {
     const onDeleteItem = useCallback(
         (index: number) => {
@@ -58,6 +60,7 @@ const SimplifiedFilterGroupForm: FC<Props> = ({
                         fields={fields}
                         onChange={(value) => onChangeItem(index, value)}
                         onDelete={() => onDeleteItem(index)}
+                        baseTable={baseTable}
                     />
                 ))}
             </Stack>

@@ -40,7 +40,7 @@ type Props = {
     filters: Filters;
     setFilters: (value: Filters, shouldFetchResults: boolean) => void;
     isEditMode: boolean;
-    tableName: string;
+    baseTable?: string;
 };
 
 const getInvalidFilterRules = (
@@ -63,7 +63,7 @@ const FiltersForm: FC<Props> = ({
     filters,
     setFilters,
     isEditMode,
-    tableName,
+    baseTable,
 }) => {
     const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
@@ -180,6 +180,7 @@ const FiltersForm: FC<Props> = ({
                                 and: filterRules,
                             });
                         }}
+                        baseTable={baseTable}
                     />
                 ) : (
                     <>
@@ -194,6 +195,7 @@ const FiltersForm: FC<Props> = ({
 
                         {rootFilterGroup && (
                             <FilterGroupForm
+                                baseTable={baseTable}
                                 hideLine
                                 hideButtons
                                 filterGroup={rootFilterGroup}
@@ -266,7 +268,7 @@ const FiltersForm: FC<Props> = ({
                             maw={300}
                             autoFocus
                             hasGrouping
-                            tableName={tableName}
+                            baseTable={baseTable}
                             items={fields}
                             onChange={(field) => {
                                 if (!field) return;

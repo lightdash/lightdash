@@ -268,7 +268,7 @@ const FiltersCard: FC = memo(() => {
                     isEditMode={isEditMode}
                     filters={filters}
                     setFilters={setFilters}
-                    tableName={tableName}
+                    baseTable={data?.baseTable}
                 />
             </FiltersProvider>
         </CollapsableCard>
