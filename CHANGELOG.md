@@ -1,3 +1,10 @@
+# [0.1209.0](https://github.com/lightdash/lightdash/compare/0.1208.3...0.1209.0) (2024-08-09)
+
+
+### Features
+
+* sort field select similar to explore tree ([#11083](https://github.com/lightdash/lightdash/issues/11083)) ([5c758fb](https://github.com/lightdash/lightdash/commit/5c758fbbb5454de5164aefb39b5569dc69146f76))
+
 ## [0.1208.3](https://github.com/lightdash/lightdash/compare/0.1208.2...0.1208.3) (2024-08-09)
 
 
