@@ -68,10 +68,11 @@ export interface WarehouseClient {
 
     concatString(...args: string[]): string;
 
-    getTables(
+    getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog>;
+    ): Promise<{ database: string; schema: string; table: string }[]>;
+
     getFields(
         tableName: string,
         schema?: string,

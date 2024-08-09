@@ -294,9 +294,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async getAllTables(
-        schema: string,
-    ): Promise<{ database: string; schema: string; table: string }[]> {
+    async getAllTables() {
         const client = new BigQuery({
             projectId: this.credentials.project,
             location: this.credentials.location,
