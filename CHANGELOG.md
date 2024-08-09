@@ -1,3 +1,10 @@
+## [0.1208.3](https://github.com/lightdash/lightdash/compare/0.1208.2...0.1208.3) (2024-08-09)
+
+
+### Bug Fixes
+
+* process date additional_dimensions correctly ([#11100](https://github.com/lightdash/lightdash/issues/11100)) ([06ba4d9](https://github.com/lightdash/lightdash/commit/06ba4d915dc2e2a79ed538c116daa192b8d2e822))
+
 ## [0.1208.2](https://github.com/lightdash/lightdash/compare/0.1208.1...0.1208.2) (2024-08-09)
 
 
