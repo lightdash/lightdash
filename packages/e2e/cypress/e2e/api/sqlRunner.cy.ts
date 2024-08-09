@@ -336,7 +336,7 @@ describe(`Saved SQL chart`, () => {
                         const { results } = getResp.body;
                         expect(results.name).to.be.eq('test update');
                         expect(results.sql).to.be.eq(
-                            'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                            'SELECT * FROM postgres.jaffle.payments',
                         );
 
                         // delete sql chart
