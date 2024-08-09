@@ -1,3 +1,10 @@
+## [0.1208.1](https://github.com/lightdash/lightdash/compare/0.1208.0...0.1208.1) (2024-08-09)
+
+
+### Bug Fixes
+
+* add timeDimensions to frontend ([#11095](https://github.com/lightdash/lightdash/issues/11095)) ([a20800d](https://github.com/lightdash/lightdash/commit/a20800de9493dc419716e383e7bdce992ad156e6))
+
 # [0.1208.0](https://github.com/lightdash/lightdash/compare/0.1207.0...0.1208.0) (2024-08-09)
 
 
