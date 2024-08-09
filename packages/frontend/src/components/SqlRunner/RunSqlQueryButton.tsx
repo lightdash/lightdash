@@ -14,9 +14,9 @@ import LimitButton from '../LimitButton';
 
 const RunSqlQueryButton: FC<{
     isLoading: boolean;
-    limit: number;
+    limit?: number;
     disabled?: boolean;
-    onLimitChange: (limit: number) => void;
+    onLimitChange?: (limit: number) => void;
     onSubmit: () => void;
 }> = ({ onSubmit, onLimitChange, isLoading, limit, disabled = false }) => {
     const os = useOs();
@@ -43,7 +43,7 @@ const RunSqlQueryButton: FC<{
             >
                 <Button
                     size="xs"
-                    pr="xxs"
+                    pr={limit ? 'xs' : undefined}
                     leftIcon={<MantineIcon icon={IconPlayerPlay} />}
                     onClick={onSubmit}
                     loading={isLoading}
@@ -56,15 +56,17 @@ const RunSqlQueryButton: FC<{
                         )}`,
                     })}
                 >
-                    Run query ({limit})
+                    {`Run query ${limit ? `(${limit})` : ''}`}
                 </Button>
             </Tooltip>
-            <LimitButton
-                disabled={disabled}
-                size="xs"
-                limit={10}
-                onLimitChange={onLimitChange}
-            />
+            {onLimitChange !== undefined && (
+                <LimitButton
+                    disabled={disabled}
+                    size="xs"
+                    limit={limit || 500}
+                    onLimitChange={onLimitChange}
+                />
+            )}
         </Button.Group>
     );
 };
