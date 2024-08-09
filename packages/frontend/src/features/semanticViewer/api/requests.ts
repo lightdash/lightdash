@@ -48,13 +48,13 @@ export const apiGetSemanticLayerViewFields = ({
     selectedFields,
 }: GetSemanticLayerViewFieldsRequestParams) => {
     const selectedFieldsEntries = getQueryParamsReadyArrays(selectedFields);
-    const urlParams = new URLSearchParams(selectedFieldsEntries);
+    const queryParams = new URLSearchParams(selectedFieldsEntries);
 
     return lightdashApi<SemanticLayerField[]>({
         version: 'v2',
         method: 'GET',
         url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields${
-            urlParams ? `?${urlParams}` : ''
+            queryParams ? `?${queryParams}` : ''
         }`,
         body: undefined,
     });
