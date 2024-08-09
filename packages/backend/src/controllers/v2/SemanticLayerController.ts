@@ -13,6 +13,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -60,13 +61,20 @@ export class SemanticLayerController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() table: string,
+        @Query('dimensions') dimensions: string[] = [],
+        @Query('timeDimensions') timeDimensions: string[] = [],
+        @Query('metrics') metrics: string[] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getFields(req.user!, projectUuid, table),
+                .getFields(req.user!, projectUuid, table, {
+                    dimensions,
+                    timeDimensions,
+                    metrics,
+                }),
         };
     }
 
