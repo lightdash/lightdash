@@ -180,7 +180,9 @@ const useTableConfig = (
         });
     }, [columnOrder, itemsMap]);
 
-    const canUseSubtotals = dimensions.length > 1;
+    const canUseSubtotals =
+        !metricsAsRows &&
+        dimensions.length - (pivotDimensions?.length || 0) > 1;
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
@@ -320,6 +322,8 @@ const useTableConfig = (
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
+                getField,
+                getFieldLabel,
             })
             .then((data) => {
                 setPivotTableData({
@@ -343,6 +347,7 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
+        getFieldLabel,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
