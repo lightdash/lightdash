@@ -12,6 +12,7 @@ import {
     DbtGraphQLJsonResult,
     DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
+    SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -27,7 +28,7 @@ type DbtCloudGraphqlClientArgs = {
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
 type GetMetricsForDimensionsFnArgs = DbtGraphQLGetMetricsForDimensionsArgs;
 
-export default class DbtCloudGraphqlClient {
+export default class DbtCloudGraphqlClient implements SemanticLayerClient {
     transformers = dbtCloudTransfomers;
 
     domain: string;

@@ -2,6 +2,7 @@ import cube, { CubeApi, Query } from '@cubejs-client/core';
 import {
     MissingConfigError,
     NotFoundError,
+    SemanticLayerClient,
     SemanticLayerQuery,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -11,7 +12,7 @@ type CubeArgs = {
     lightdashConfig: LightdashConfig;
 };
 
-export default class CubeClient {
+export default class CubeClient implements SemanticLayerClient {
     // eslint-disable-next-line class-methods-use-this
     cubeApi?: CubeApi;
 
