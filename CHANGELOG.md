@@ -1,3 +1,10 @@
+## [0.1208.2](https://github.com/lightdash/lightdash/compare/0.1208.1...0.1208.2) (2024-08-09)
+
+
+### Bug Fixes
+
+* auto join models ([#11098](https://github.com/lightdash/lightdash/issues/11098)) ([3aa0d85](https://github.com/lightdash/lightdash/commit/3aa0d858d050f531cde3dd1e97605f780806d31c))
+
 ## [0.1208.1](https://github.com/lightdash/lightdash/compare/0.1208.0...0.1208.1) (2024-08-09)
 
 
