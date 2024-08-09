@@ -334,6 +334,7 @@ export const convertTable = (
                                                           type: dim.type,
                                                           label: dim.label,
                                                           groups: dim.groups,
+                                                          sql: dim.sql,
                                                       },
                                                   },
                                               }
@@ -342,6 +343,8 @@ export const convertTable = (
                                     undefined,
                                     interval,
                                     startOfWeek,
+                                    'isAdditionalDimension' in dim &&
+                                        dim.isAdditionalDimension,
                                 ),
                         }),
                         {},
