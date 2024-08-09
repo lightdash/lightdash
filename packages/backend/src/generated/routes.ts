@@ -6543,7 +6543,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { sql: { dataType: 'string', required: true } },
+            nestedProperties: {
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -6667,6 +6670,7 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 slug: { dataType: 'string', required: true },
                 description: {
@@ -6741,6 +6745,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
                     dataType: 'union',
@@ -6808,6 +6813,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
             validators: {},

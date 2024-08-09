@@ -297,6 +297,17 @@ export const sortDayOfWeekName = (
     )`;
 };
 
+export const applyLimitToSqlQuery = ({
+    sqlQuery,
+    limit,
+}: {
+    sqlQuery: string;
+    limit: number | undefined;
+}): string => {
+    if (limit === undefined) return sqlQuery;
+    return `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+};
+
 export const getCustomSqlDimensionSql = ({
     warehouseClient,
     customDimensions,

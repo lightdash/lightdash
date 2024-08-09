@@ -33,7 +33,7 @@ type SelectSavedSql = Pick<
     | 'created_at'
     | 'last_version_updated_at'
 > &
-    Pick<DbSavedSqlVersion, 'sql' | 'config' | 'chart_kind'> &
+    Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> &
     Pick<DbSpace, 'space_uuid'> &
     Pick<DbProject, 'project_uuid'> &
     Pick<DbOrganization, 'organization_uuid'> & {
@@ -86,6 +86,7 @@ export class SavedSqlModel {
                   }
                 : null,
             sql: row.sql,
+            limit: row.limit,
             config: row.config as SqlRunnerChartConfig,
             chartKind: row.chart_kind,
             space: {
@@ -167,6 +168,7 @@ export class SavedSqlModel {
                 `${SavedSqlTableName}.last_version_updated_at`,
                 `${DashboardsTableName}.name as dashboardName`,
                 `${SavedSqlVersionsTableName}.sql`,
+                `${SavedSqlVersionsTableName}.limit`,
                 `${SavedSqlVersionsTableName}.config`,
                 `${SavedSqlVersionsTableName}.chart_kind`,
                 `${OrganizationTableName}.organization_uuid`,
@@ -245,6 +247,7 @@ export class SavedSqlModel {
             userUuid: string;
             config: SqlRunnerChartConfig;
             sql: string;
+            limit: number;
         },
     ): Promise<string> {
         const [{ saved_sql_version_uuid: savedSqlVersionUuid }] = await trx(
@@ -253,6 +256,7 @@ export class SavedSqlModel {
             {
                 saved_sql_uuid: data.savedSqlUuid,
                 sql: data.sql,
+                limit: data.limit,
                 config: data.config,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
@@ -316,6 +320,7 @@ export class SavedSqlModel {
                 userUuid,
                 config: data.config,
                 sql: data.sql,
+                limit: data.limit,
             });
             return { savedSqlUuid, slug, savedSqlVersionUuid };
         });
@@ -344,6 +349,7 @@ export class SavedSqlModel {
                     userUuid: data.userUuid,
                     config: data.sqlChart.versionedData.config,
                     sql: data.sqlChart.versionedData.sql,
+                    limit: data.sqlChart.versionedData.limit,
                 });
             }
 

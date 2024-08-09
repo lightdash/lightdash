@@ -104,7 +104,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getResultJobFromSql(req.user!, projectUuid, body.sql),
+                .getResultJobFromSql(
+                    req.user!,
+                    projectUuid,
+                    body.sql,
+                    body.limit,
+                ),
         };
     }
 

@@ -66,6 +66,7 @@ export type DbSavedSqlVersion = {
     saved_sql_uuid: string;
     created_at: Date;
     sql: string;
+    limit: number;
     config: object;
     chart_kind: ChartKind;
     created_by_user_uuid: string;
@@ -73,7 +74,12 @@ export type DbSavedSqlVersion = {
 
 export type InsertSavedSqlVersion = Pick<
     DbSavedSqlVersion,
-    'saved_sql_uuid' | 'sql' | 'config' | 'chart_kind' | 'created_by_user_uuid'
+    | 'saved_sql_uuid'
+    | 'sql'
+    | 'limit'
+    | 'config'
+    | 'chart_kind'
+    | 'created_by_user_uuid'
 >;
 
 export type SavedSqlVersionsTable = Knex.CompositeTableType<
