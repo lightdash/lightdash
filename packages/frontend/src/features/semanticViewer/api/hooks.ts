@@ -26,15 +26,31 @@ export const useSemanticLayerViews = ({
 type SemanticLayerViewFieldsParams = {
     projectUuid: string;
     view: string;
+    selectedFields: Pick<
+        SemanticLayerQuery,
+        'dimensions' | 'timeDimensions' | 'metrics'
+    >;
 };
 
 export const useSemanticLayerViewFields = ({
     projectUuid,
     view,
+    selectedFields,
 }: SemanticLayerViewFieldsParams) =>
     useQuery<SemanticLayerField[], ApiError>({
-        queryKey: [projectUuid, 'semanticLayer', view, 'fields'],
-        queryFn: () => apiGetSemanticLayerViewFields({ projectUuid, view }),
+        queryKey: [
+            projectUuid,
+            'semanticLayer',
+            view,
+            'fields',
+            selectedFields,
+        ],
+        queryFn: () =>
+            apiGetSemanticLayerViewFields({
+                projectUuid,
+                view,
+                selectedFields,
+            }),
     });
 
 type SemanticLayerSqlParams = {

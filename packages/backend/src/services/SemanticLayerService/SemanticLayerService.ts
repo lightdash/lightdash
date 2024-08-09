@@ -117,7 +117,7 @@ export class SemanticLayerService extends BaseService {
     async getFields(
         user: SessionUser,
         projectUuid: string,
-        table: string,
+        view: string,
         selectedFields: Pick<
             SemanticLayerQuery,
             'dimensions' | 'timeDimensions' | 'metrics'
@@ -125,7 +125,7 @@ export class SemanticLayerService extends BaseService {
     ): Promise<SemanticLayerField[]> {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
-        return client.getFields(table, selectedFields);
+        return client.getFields(view, selectedFields);
     }
 
     async getResults(
