@@ -276,62 +276,58 @@ export default class DbtCloudGraphqlClient {
     ) {
         // Get all metrics and check which ones are available for the selected dimensions
         const { metrics: allMetrics } = await this.getMetrics();
+        const { dimensions: allDimensions } = await this.getDimensions({
+            metrics: [],
+        });
+
+        const hasSelectedDimensions =
+            selectedDimensions.length > 0 || selectedTimeDimensions.length > 0;
+        const hasSelectedMetrics = selectedMetrics.length > 0;
+
+        let metrics = allMetrics;
         let availableMetrics: DbtGraphQLMetric[] | undefined;
 
-        if (
-            selectedDimensions.length > 0 ||
-            selectedTimeDimensions.length > 0
-        ) {
-            availableMetrics = (
+        if (hasSelectedDimensions) {
+            const getMetricsForDimensionsResult =
                 await this.getMetricsForDimensions({
                     dimensions: [
                         ...selectedDimensions.map((d) => ({ name: d })),
                         ...selectedTimeDimensions.map((d) => ({ name: d })),
                     ],
-                })
-            ).metricsForDimensions;
+                });
+
+            availableMetrics =
+                getMetricsForDimensionsResult.metricsForDimensions;
         }
 
-        const metrics = allMetrics.map((metric) => {
-            // When available metrics is undefined, all metrics are visible
-            const isVisible = availableMetrics
-                ? availableMetrics.find((m) => m.name === metric.name)
-                : true;
+        metrics = allMetrics.map((metric) => ({
+            ...metric,
+            // If no dimensions are selected, availableMetrics will be undefined and all metrics will be visible
+            visible: availableMetrics
+                ? !!availableMetrics.find((m) => m.name === metric.name)
+                : true,
+        }));
 
-            return {
-                ...metric,
-                visible: !!isVisible,
-            };
-        });
-
-        // Get all dimensions and check which ones are available for the selected metrics
-        const { dimensions: allDimensions } = await this.getDimensions({
-            metrics: [],
-        });
-
+        let dimensions = allDimensions;
         let availableDimensions: DbtGraphQLDimension[] | undefined;
 
-        if (selectedMetrics.length > 0) {
-            availableDimensions = (
-                await this.getDimensions({
-                    metrics: selectedMetrics.map((metric) => ({
-                        name: metric,
-                    })),
-                })
-            ).dimensions;
+        if (hasSelectedMetrics) {
+            const getDimensionsResult = await this.getDimensions({
+                metrics: selectedMetrics.map((metric) => ({
+                    name: metric,
+                })),
+            });
+
+            availableDimensions = getDimensionsResult.dimensions;
         }
 
-        const dimensions = allDimensions.map((dimension) => {
-            // When available dimensions is undefined, all dimensions are visible
-            const isVisible = availableDimensions
-                ? availableDimensions.find((d) => d.name === dimension.name)
-                : true;
-
-            return {
-                ...dimension,
-                visible: !!isVisible,
-            };
-        });
+        dimensions = allDimensions.map((dimension) => ({
+            ...dimension,
+            // If no metrics are selected, availableDimensions will be undefined and all dimensions will be visible
+            visible: availableDimensions
+                ? !!availableDimensions.find((d) => d.name === dimension.name)
+                : true,
+        }));
 
         return this.transformers.fieldsToSemanticLayerFields(
             dimensions,
