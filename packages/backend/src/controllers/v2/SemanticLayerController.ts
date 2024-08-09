@@ -13,6 +13,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -54,19 +55,26 @@ export class SemanticLayerController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/views/{table}/fields')
+    @Get('/views/{view}/fields')
     @OperationId('getSemanticLayerFields')
     async getFields(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() table: string,
+        @Path() view: string,
+        @Query() dimensions: string[] = [],
+        @Query() timeDimensions: string[] = [],
+        @Query() metrics: string[] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getFields(req.user!, projectUuid, table),
+                .getFields(req.user!, projectUuid, view, {
+                    dimensions,
+                    timeDimensions,
+                    metrics,
+                }),
         };
     }
 

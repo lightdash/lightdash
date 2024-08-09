@@ -22,18 +22,43 @@ export const apiGetSemanticLayerViews = ({
 type GetSemanticLayerViewFieldsRequestParams = {
     projectUuid: string;
     view: string;
+    selectedFields: Pick<
+        SemanticLayerQuery,
+        'dimensions' | 'timeDimensions' | 'metrics'
+    >;
 };
+
+// Makes sure the selectedFields object is in the correct format for the Query Params
+function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
+    const selectedFieldsEntries = Object.entries(selectedFields).reduce<
+        string[][]
+    >((acc, [key, value]) => {
+        if (value.length > 0) {
+            acc.push(...value.map((v) => [key, v]));
+        }
+        return acc;
+    }, []);
+
+    return selectedFieldsEntries;
+}
 
 export const apiGetSemanticLayerViewFields = ({
     projectUuid,
     view,
-}: GetSemanticLayerViewFieldsRequestParams) =>
-    lightdashApi<SemanticLayerField[]>({
+    selectedFields,
+}: GetSemanticLayerViewFieldsRequestParams) => {
+    const selectedFieldsEntries = getQueryParamsReadyArrays(selectedFields);
+    const queryParams = new URLSearchParams(selectedFieldsEntries);
+
+    return lightdashApi<SemanticLayerField[]>({
         version: 'v2',
         method: 'GET',
-        url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields`,
+        url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields${
+            queryParams ? `?${queryParams}` : ''
+        }`,
         body: undefined,
     });
+};
 
 type GetSemanticLayerSqlRequestParams = {
     projectUuid: string;

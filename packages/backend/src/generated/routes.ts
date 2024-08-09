@@ -15977,7 +15977,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/views/:table/fields',
+        '/api/v2/projects/:projectUuid/semantic-layer/views/:view/fields',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype.getFields,
@@ -16001,11 +16001,32 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                table: {
+                view: {
                     in: 'path',
-                    name: 'table',
+                    name: 'view',
                     required: true,
                     dataType: 'string',
+                },
+                dimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'dimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                timeDimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'timeDimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                metrics: {
+                    default: [],
+                    in: 'query',
+                    name: 'metrics',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
             };
 
