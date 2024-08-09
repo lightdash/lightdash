@@ -279,7 +279,8 @@ describe(`Saved SQL chart`, () => {
             const sqlChartToCreate: CreateSqlChart = {
                 name: 'test',
                 description: null,
-                sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 21',
+                sql: 'SELECT * FROM postgres.jaffle.payments',
+                limit: 21,
                 config: {
                     metadata: {
                         version: 1,
@@ -307,7 +308,8 @@ describe(`Saved SQL chart`, () => {
                         spaceUuid: space.uuid,
                     },
                     versionedData: {
-                        sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                        sql: 'SELECT * FROM postgres.jaffle.payments',
+                        limit: 22,
                         config: {
                             metadata: {
                                 version: 1,
