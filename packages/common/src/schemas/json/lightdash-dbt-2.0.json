@@ -150,6 +150,13 @@
                                             },
                                             "percentile": {
                                                 "type": "number"
+                                            },
+                                            "groups": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                }
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -263,6 +270,13 @@
                                                         },
                                                         "percentile": {
                                                             "type": "number"
+                                                        }
+                                                    },
+                                                    "groups": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         }
                                                     },
                                                     "required": ["type"]
