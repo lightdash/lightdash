@@ -289,6 +289,7 @@ export class ProjectService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
+        let userWarehouseCredentialsUuid: string | undefined;
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -312,8 +313,12 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+            userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         }
-        return credentials;
+        return {
+            ...credentials,
+            userWarehouseCredentialsUuid,
+        };
     }
 
     private async _getWarehouseClient(
@@ -1990,7 +1995,6 @@ export class ProjectService extends BaseService {
 
     async streamResultsToLocalFile(
         projectUuid: string,
-
         callback: (writer: (data: ResultRow) => void) => Promise<void>,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
@@ -2861,6 +2865,13 @@ export class ProjectService extends BaseService {
             projectUuid,
             user.userUuid,
         );
+
+        // Check cache for tables depending on if credentials.userWarehouseCredentialsUuid is defined
+
+        // If it exists return it
+
+        // If it doesn't generate it (separate service endpoint?)
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
@@ -2873,7 +2884,7 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseTables = warehouseClient.getTables(schema, queryTags);
+        const warehouseTables = warehouseClient.getAllTables(schema, queryTags);
 
         await sshTunnel.disconnect();
 

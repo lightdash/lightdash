@@ -200,6 +200,10 @@ import {
     DbValidationTable,
     ValidationTableName,
 } from '../database/entities/validation';
+import {
+    WarehouseAvailableTablesTable,
+    WarehouseAvailableTablesTableName,
+} from '../database/entities/warehouseAvailableTables';
 
 declare module 'knex/types/tables' {
     interface Tables {
@@ -274,5 +278,6 @@ declare module 'knex/types/tables' {
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [CatalogTableName]: CatalogTable;
+        [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
     }
 }

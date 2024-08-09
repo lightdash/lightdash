@@ -455,11 +455,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND TABLE_SCHEMA ILIKE ?` : '';
+    async getAllTables() {
+        const databaseName = this.connectionOptions.database;
+        const whereSql = databaseName ? `AND TABLE_CATALOG ILIKE ?` : '';
         const query = `
             SELECT 
                 LOWER(TABLE_CATALOG) as "table_catalog", 
@@ -467,16 +465,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 LOWER(TABLE_NAME) as "table_name"
             FROM information_schema.tables
             WHERE TABLE_TYPE = 'BASE TABLE' 
-            ${schemaFilter}
+            ${whereSql}
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(
             query,
-            tags,
+            {},
             undefined,
-            schema ? [schema] : undefined,
+            databaseName ? [databaseName] : undefined,
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return rows.map((row: Record<string, any>) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
     }
 
     async getFields(
