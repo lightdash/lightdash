@@ -294,22 +294,25 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
     }
 
-    async getTables(schema: string): Promise<WarehouseCatalog> {
+    async getAllTables(
+        schema: string,
+    ): Promise<{ database: string; schema: string; table: string }[]> {
         const client = new BigQuery({
             projectId: this.credentials.project,
             location: this.credentials.location,
             maxRetries: this.credentials.retries,
             credentials: this.credentials.keyfileContents,
         });
-        const dataset = client.dataset(schema);
-        const tables = (await dataset.getTables())?.[0] ?? [];
-        return this.parseWarehouseCatalog(
-            tables.map((table) => ({
-                table_catalog: table.dataset.bigQuery.projectId,
-                table_schema: table.dataset.id,
-                table_name: table.id,
+        const [datasets] = await client.getDatasets();
+        const datasetTablesResponses = await Promise.all(
+            datasets.map((d) => d.getTables()),
+        );
+        return datasetTablesResponses.flatMap(([tables]) =>
+            tables.map((t) => ({
+                database: t.bigQuery.projectId,
+                schema: t.dataset.id!,
+                table: t.id!,
             })),
-            mapFieldType,
         );
     }
 
