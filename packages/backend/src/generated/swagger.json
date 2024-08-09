@@ -8615,6 +8615,10 @@
                 "required": ["label", "name"],
                 "type": "object"
             },
+            "SemanticLayerFieldType": {
+                "enum": ["time", "number", "string", "boolean"],
+                "type": "string"
+            },
             "SemanticLayerField": {
                 "properties": {
                     "aggType": {
@@ -8626,11 +8630,11 @@
                     "description": {
                         "type": "string"
                     },
-                    "fieldType": {
+                    "kind": {
                         "$ref": "#/components/schemas/FieldType"
                     },
                     "type": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/SemanticLayerFieldType"
                     },
                     "label": {
                         "type": "string"
@@ -8639,20 +8643,26 @@
                         "type": "string"
                     }
                 },
-                "required": ["fieldType", "type", "label", "name"],
+                "required": ["kind", "type", "label", "name"],
                 "type": "object"
             },
-            "Record_string._value-ResultValue--__": {
+            "Record_string.string-or-number-or-boolean-or-null_": {
                 "properties": {},
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "ResultRow": {
-                "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
+            "SemanticLayerResultRow": {
+                "$ref": "#/components/schemas/Record_string.string-or-number-or-boolean-or-null_"
             },
             "SemanticLayerQuery": {
                 "properties": {
                     "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "timeDimensions": {
                         "items": {
                             "type": "string"
                         },
@@ -8665,7 +8675,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["metrics", "dimensions"],
+                "required": ["metrics", "timeDimensions", "dimensions"],
                 "type": "object"
             },
             "ValidationTarget": {
@@ -8909,7 +8919,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1206.1",
+        "version": "0.1205.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -42,17 +42,6 @@ export class MetricFlowController extends BaseController {
     ): Promise<any> {
         this.setStatus(200);
 
-        // TODO: soon available via UI - https://github.com/lightdash/lightdash/issues/6767
-        const bearerToken = process.env.DBT_CLOUD_BEARER_TOKEN || undefined;
-        const environmentId = process.env.DBT_CLOUD_ENVIRONMENT_ID || undefined;
-        const domain =
-            process.env.DBT_CLOUD_DOMAIN ||
-            `https://semantic-layer.cloud.getdbt.com`;
-
-        if (!bearerToken || !environmentId) {
-            throw new Error('Dbt Cloud is not enabled');
-        }
-
         // TODO: soon to be moved to a service
         if (body.operationName === 'GetQueryResults') {
             // TODO: to be removed once this is refactored. https://github.com/lightdash/lightdash/issues/9099
@@ -82,12 +71,7 @@ export class MetricFlowController extends BaseController {
             status: 'ok',
             results: await req.clients
                 .getDbtCloudGraphqlClient()
-                .runGraphQlQuery({
-                    domain,
-                    bearerToken,
-                    environmentId,
-                    query: body.query,
-                }),
+                .runGraphQlQuery(body.query),
         };
     }
 }
