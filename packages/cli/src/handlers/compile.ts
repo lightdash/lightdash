@@ -25,10 +25,9 @@ import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
-    compileModelsAndJoins,
     DbtCompileOptions,
-    dbtList,
     getCompiledModels,
+    maybeCompileModelsAndJoins,
 } from './dbt/compile';
 import { getDbtVersion, isSupportedDbtVersion } from './dbt/getDbtVersion';
 
@@ -79,9 +78,6 @@ export const compile = async (options: CompileHandlerOptions) => {
         }
     }
 
-    // Skipping assumes manifest.json already exists.
-    let compiledModelIds: string[] | undefined;
-
     const absoluteProjectPath = path.resolve(options.projectDir);
     const absoluteProfilesPath = path.resolve(options.profilesDir);
 
@@ -90,14 +86,11 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     const context = await getDbtContext({ projectDir: absoluteProjectPath });
 
-    if (options.useDbtList) {
-        compiledModelIds = await dbtList(options);
-    } else if (!options.skipDbtCompile) {
-        // Compile selected models and their joined models
-        await compileModelsAndJoins({ targetDir: context.targetDir }, options);
-    } else {
-        GlobalState.debug('> Skipping dbt compile');
-    }
+    const compiledModelIds: string[] | undefined =
+        await maybeCompileModelsAndJoins(
+            { targetDir: context.targetDir },
+            options,
+        );
 
     const profileName = options.profile || context.profileName;
     const { target } = await loadDbtTarget({
