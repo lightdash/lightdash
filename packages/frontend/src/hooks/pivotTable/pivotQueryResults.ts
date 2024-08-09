@@ -218,7 +218,7 @@ const combinedRetrofit = (
     data.headerValues.forEach((headerRow) => {
         headerRow.forEach((headerColValue, colIndex) => {
             uniqueIdsForDataValueColumns[colIndex] =
-                uniqueIdsForDataValueColumns[colIndex] +
+                (uniqueIdsForDataValueColumns[colIndex] ?? '') + 
                 headerColValue.fieldId +
                 '__';
         });
