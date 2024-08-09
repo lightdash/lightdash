@@ -117,6 +117,18 @@ const drillDownExploreUrl = ({
     extraFilters,
     pivotReference,
 }: DrillDownExploreUrlArgs) => {
+    let metricQueryWithoutCustomDimensions = metricQuery;
+    const customDimensions = metricQuery.customDimensions;
+    if (customDimensions) {
+        const noncustomDimensions = metricQuery.dimensions
+            .filter(dim_id => !customDimensions.find(cd => cd.id === dim_id));
+        metricQueryWithoutCustomDimensions = {
+            ...metricQuery,
+            dimensions: noncustomDimensions,
+            customDimensions: [],
+        };
+    }
+
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
         metricQuery: {
@@ -125,7 +137,7 @@ const drillDownExploreUrl = ({
             dimensions: [drillByDimension],
             metrics: [drillByMetric],
             filters: combineFilters({
-                metricQuery,
+                metricQuery: metricQueryWithoutCustomDimensions,
                 fieldValues,
                 extraFilters,
                 pivotReference,
