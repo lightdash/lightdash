@@ -42,7 +42,6 @@ type Props = {
     isEditMode: boolean;
     onChange: (value: FilterGroup) => void;
     onDelete: () => void;
-    baseTable?: string;
 };
 
 const FilterGroupForm: FC<Props> = ({
@@ -54,7 +53,6 @@ const FilterGroupForm: FC<Props> = ({
     isEditMode,
     onChange,
     onDelete,
-    baseTable,
 }) => {
     const items = getItemsFromFilterGroup(filterGroup);
     const [conditionLabel, setConditionLabel] = useState('');
@@ -233,11 +231,9 @@ const FilterGroupForm: FC<Props> = ({
                                               )
                                         : undefined
                                 }
-                                baseTable={baseTable}
                             />
                         ) : (
                             <FilterGroupForm
-                                baseTable={baseTable}
                                 allowConvertToGroup={false}
                                 isEditMode={isEditMode}
                                 filterGroup={item}

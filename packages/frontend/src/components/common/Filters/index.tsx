@@ -40,7 +40,6 @@ type Props = {
     filters: Filters;
     setFilters: (value: Filters, shouldFetchResults: boolean) => void;
     isEditMode: boolean;
-    baseTable?: string;
 };
 
 const getInvalidFilterRules = (
@@ -59,13 +58,8 @@ const getInvalidFilterRules = (
         return accumulator;
     }, []);
 
-const FiltersForm: FC<Props> = ({
-    filters,
-    setFilters,
-    isEditMode,
-    baseTable,
-}) => {
-    const { itemsMap } = useFiltersContext<FieldsWithSuggestions>();
+const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
+    const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, toggleFieldInput] = useToggle(false);
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
@@ -180,7 +174,6 @@ const FiltersForm: FC<Props> = ({
                                 and: filterRules,
                             });
                         }}
-                        baseTable={baseTable}
                     />
                 ) : (
                     <>
@@ -195,7 +188,6 @@ const FiltersForm: FC<Props> = ({
 
                         {rootFilterGroup && (
                             <FilterGroupForm
-                                baseTable={baseTable}
                                 hideLine
                                 hideButtons
                                 filterGroup={rootFilterGroup}
