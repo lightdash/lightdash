@@ -10,6 +10,10 @@ const useDashboardStorage = () => {
     const [isEditingDashboardChart, setIsEditingDashboardChart] =
         useState(false);
 
+    const getDashboardUuid = useCallback(() => {
+        return sessionStorage.getItem('dashboardUuid');
+    }, []);
+
     const getIsEditingDashboardChart = useCallback(() => {
         return (
             !!sessionStorage.getItem('fromDashboard') ||
@@ -141,6 +145,7 @@ const useDashboardStorage = () => {
         storeDashboard,
         clearDashboardStorage,
         isEditingDashboardChart,
+        getDashboardUuid,
         getIsEditingDashboardChart,
         getEditingDashboardInfo,
         setDashboardChartInfo,
