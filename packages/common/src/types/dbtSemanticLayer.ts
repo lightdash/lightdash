@@ -115,16 +115,18 @@ export type DbtGraphQLRunQueryResponse =
         jsonResult: DbtGraphQLJsonResult | null;
     };
 
-type DbtGraphQLDimension = {
+export type DbtGraphQLDimension = {
     name: string;
-    description: string;
+    description: string | null;
+    label: string | null;
     type: DbtDimensionType;
     queryableGranularities: DbtTimeGranularity[];
 };
 
-type DbtGraphQLMetric = {
+export type DbtGraphQLMetric = {
     name: string;
-    description: string;
+    description: string | null;
+    label: string | null;
     type: DbtMetricType;
     dimensions: DbtGraphQLDimension[];
     queryableGranularities: DbtTimeGranularity[];

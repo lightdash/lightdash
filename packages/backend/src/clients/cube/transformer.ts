@@ -5,53 +5,81 @@ import {
     SqlQuery,
     TCubeDimension,
     TCubeMeasure,
+    TCubeMemberType,
 } from '@cubejs-client/core';
 import {
-    FieldType,
+    assertUnreachable,
+    FieldType as FieldKind,
     SemanticLayerField,
-    SemanticLayerQuery,
-    SemanticLayerView,
+    SemanticLayerFieldType,
+    SemanticLayerTransformer,
 } from '@lightdash/common';
 
-export const cubeTransfomers = {
-    cubeFieldsToSemanticLayerFields: (
-        cubeDimensions: TCubeDimension[] | TCubeMeasure[],
-        cubeMetrics: TCubeDimension[] | TCubeMeasure[],
-    ): SemanticLayerField[] => {
-        const dimensions: SemanticLayerField[] = cubeDimensions.map((d) => ({
+function getSemanticLayerTypeFromCubeType(
+    cubeType: TCubeMemberType,
+): SemanticLayerFieldType {
+    switch (cubeType) {
+        case 'string':
+            return SemanticLayerFieldType.STRING;
+        case 'number':
+            return SemanticLayerFieldType.NUMBER;
+        case 'boolean':
+            return SemanticLayerFieldType.BOOLEAN;
+        case 'time':
+            return SemanticLayerFieldType.TIME;
+        default:
+            return assertUnreachable(
+                cubeType,
+                `Unknown cube type: ${cubeType}`,
+            );
+    }
+}
+
+export const cubeTransfomers: SemanticLayerTransformer<
+    Cube,
+    CubeQuery,
+    TCubeDimension[] | TCubeMeasure[],
+    TCubeDimension[] | TCubeMeasure[],
+    ResultSet,
+    SqlQuery
+> = {
+    fieldsToSemanticLayerFields: (dimensions, metrics) => {
+        const semanticDimensions: SemanticLayerField[] = dimensions.map(
+            (d) => ({
+                name: d.name,
+                label: d.title,
+                type: getSemanticLayerTypeFromCubeType(d.type),
+                description: d.shortTitle,
+                visible: d.public,
+                kind: FieldKind.DIMENSION,
+            }),
+        );
+        const semanticMetrics: SemanticLayerField[] = metrics.map((d) => ({
             name: d.name,
             label: d.title,
-            type: d.type,
             description: d.shortTitle,
             visible: d.public,
-            fieldType: FieldType.DIMENSION,
-        }));
-        const metrics: SemanticLayerField[] = cubeMetrics.map((d) => ({
-            name: d.name,
-            label: d.title,
-            description: d.shortTitle,
-            visible: d.public,
-            type: d.type,
-            fieldType: FieldType.METRIC,
+            type: getSemanticLayerTypeFromCubeType(d.type),
+            kind: FieldKind.METRIC,
         }));
 
-        return [...dimensions, ...metrics];
+        return [...semanticDimensions, ...semanticMetrics];
     },
-    cubesToSemanticLayerViews: (cubeViews: Cube[]): SemanticLayerView[] =>
+    viewsToSemanticLayerViews: (cubeViews) =>
         cubeViews.map((view) => ({
             name: view.name,
             label: view.title,
             visible: view.public,
         })),
-    semanticLayerQueryToCubeQuery: (query: SemanticLayerQuery): CubeQuery => ({
+    semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
         dimensions: query.dimensions,
+        timeDimensions: query.timeDimensions.map((td) => ({
+            dimension: td,
+        })),
         filters: [],
-        timeDimensions: [],
         limit: 100,
     }),
-    cubeResultSetToResultRows: (cubeResultSet: any): Record<string, any>[] =>
-        cubeResultSet.loadResponse.results[0]?.data || [],
-
-    cubeSqlToString: (cubeSql: any): string => cubeSql.sqlQuery.sql.sql[0],
+    resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
+    sqlToString: (cubeSql) => cubeSql.sql(),
 };

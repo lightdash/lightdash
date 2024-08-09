@@ -1,11 +1,8 @@
 import {
     ApiErrorPayload,
-    CatalogField,
-    CatalogTable,
-    MetricQueryRequest,
-    ResultRow,
     SemanticLayerField,
     SemanticLayerQuery,
+    SemanticLayerResultRow,
     SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -84,7 +81,7 @@ export class SemanticLayerController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Body() body: SemanticLayerQuery,
-    ): Promise<{ status: 'ok'; results: ResultRow[] }> {
+    ): Promise<{ status: 'ok'; results: SemanticLayerResultRow[] }> {
         this.setStatus(200);
         return {
             status: 'ok',

@@ -1,12 +1,12 @@
 import {
     assertUnreachable,
-    FieldType,
+    FieldType as FieldKind,
+    SemanticLayerFieldType,
     type SemanticLayerField,
 } from '@lightdash/common';
 import {
     Icon123,
     IconAbc,
-    IconCalendar,
     IconClockHour4,
     IconToggleLeft,
 } from '@tabler/icons-react';
@@ -15,29 +15,27 @@ import MantineIcon, {
     type MantineIconProps,
 } from '../../../components/common/MantineIcon';
 
-const getFieldColor = (type: SemanticLayerField['fieldType']) => {
-    switch (type) {
-        case FieldType.DIMENSION:
+const getFieldColor = (kind: SemanticLayerField['kind']) => {
+    switch (kind) {
+        case FieldKind.DIMENSION:
             return 'blue';
-        case FieldType.METRIC:
+        case FieldKind.METRIC:
             return 'orange';
         default:
-            return assertUnreachable(type, `Unknown field type: ${type}`);
+            return assertUnreachable(kind, `Unknown field kind: ${kind}`);
     }
 };
 
-const getFieldIconName = (type: SemanticLayerField['type']) => {
+const getFieldIconName = (type: SemanticLayerFieldType) => {
     switch (type) {
-        case 'string':
+        case SemanticLayerFieldType.STRING:
             return 'citation';
-        case 'number':
+        case SemanticLayerFieldType.NUMBER:
             return 'numerical';
-        case 'date':
-            return 'calendar';
-        case 'boolean':
-            return 'segmented-control';
-        case 'time':
+        case SemanticLayerFieldType.TIME:
             return 'time';
+        case SemanticLayerFieldType.BOOLEAN:
+            return 'segmented-control';
         default:
             // FIXME: type should be FieldType
             // return assertUnreachable(type, `Unknown field type: ${type}`);
@@ -54,7 +52,7 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
     ({ field, size = 'lg', selected, ...iconProps }, ref) => {
         const iconColor = selected
             ? 'white'
-            : iconProps.color ?? getFieldColor(field.fieldType);
+            : iconProps.color ?? getFieldColor(field.kind);
 
         const props = {
             ...iconProps,
@@ -70,8 +68,6 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
                 return <MantineIcon icon={IconAbc} {...props} />;
             case 'numerical':
                 return <MantineIcon icon={Icon123} {...props} />;
-            case 'calendar':
-                return <MantineIcon icon={IconCalendar} {...props} />;
             case 'time':
                 return <MantineIcon icon={IconClockHour4} {...props} />;
             case 'segmented-control':
