@@ -34,7 +34,7 @@ function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
         string[][]
     >((acc, [key, value]) => {
         if (value.length > 0) {
-            acc.push([key, value.join(',')]);
+            acc.push(...value.map((v) => [key, v]));
         }
         return acc;
     }, []);
