@@ -66,22 +66,6 @@ export class SemanticLayerController extends BaseController {
         @Query() metrics: string[] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
-
-        console.log({
-            dimensions: {
-                type: typeof dimensions,
-                value: dimensions,
-            },
-            timeDimensions: {
-                type: typeof timeDimensions,
-                value: timeDimensions,
-            },
-            metrics: {
-                type: typeof metrics,
-                value: metrics,
-            },
-        });
-
         return {
             status: 'ok',
             results: await this.services

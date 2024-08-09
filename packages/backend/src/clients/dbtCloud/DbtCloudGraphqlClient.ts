@@ -3,12 +3,14 @@ import {
     DbtGraphQLCompileSqlResponse,
     DbtGraphQLCreateQueryArgs,
     DbtGraphQLCreateQueryResponse,
+    DbtGraphQLDimension,
     DbtGraphQLGetDimensionsArgs,
     DbtGraphQLGetDimensionsResponse,
     DbtGraphQLGetMetricsForDimensionsArgs,
     DbtGraphQLGetMetricsForDimensionsResponse,
     DbtGraphQLGetMetricsResponse,
     DbtGraphQLJsonResult,
+    DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
     SemanticLayerQuery,
     SemanticLayerView,
@@ -274,22 +276,31 @@ export default class DbtCloudGraphqlClient {
     ) {
         // Get all metrics and check which ones are available for the selected dimensions
         const { metrics: allMetrics } = await this.getMetrics();
-        const { metricsForDimensions: availableMetrics } =
-            await this.getMetricsForDimensions({
-                dimensions: [
-                    ...selectedDimensions.map((d) => ({ name: d })),
-                    ...selectedTimeDimensions.map((d) => ({ name: d })),
-                ],
-            });
+        let availableMetrics: DbtGraphQLMetric[] | undefined;
+
+        if (
+            selectedDimensions.length > 0 ||
+            selectedTimeDimensions.length > 0
+        ) {
+            availableMetrics = (
+                await this.getMetricsForDimensions({
+                    dimensions: [
+                        ...selectedDimensions.map((d) => ({ name: d })),
+                        ...selectedTimeDimensions.map((d) => ({ name: d })),
+                    ],
+                })
+            ).metricsForDimensions;
+        }
 
         const metrics = allMetrics.map((metric) => {
-            const availableMetric = availableMetrics.find(
-                (m) => m.name === metric.name,
-            );
+            // When available metrics is undefined, all metrics are visible
+            const isVisible = availableMetrics
+                ? availableMetrics.find((m) => m.name === metric.name)
+                : true;
 
             return {
                 ...metric,
-                visible: !!availableMetric,
+                visible: !!isVisible,
             };
         });
 
@@ -297,18 +308,28 @@ export default class DbtCloudGraphqlClient {
         const { dimensions: allDimensions } = await this.getDimensions({
             metrics: [],
         });
-        const { dimensions: availableDimensions } = await this.getDimensions({
-            metrics: selectedMetrics.map((metric) => ({ name: metric })),
-        });
+
+        let availableDimensions: DbtGraphQLDimension[] | undefined;
+
+        if (selectedMetrics.length > 0) {
+            availableDimensions = (
+                await this.getDimensions({
+                    metrics: selectedMetrics.map((metric) => ({
+                        name: metric,
+                    })),
+                })
+            ).dimensions;
+        }
 
         const dimensions = allDimensions.map((dimension) => {
-            const availableDimension = availableDimensions.find(
-                (d) => d.name === dimension.name,
-            );
+            // When available dimensions is undefined, all dimensions are visible
+            const isVisible = availableDimensions
+                ? availableDimensions.find((d) => d.name === dimension.name)
+                : true;
 
             return {
                 ...dimension,
-                visible: !!availableDimension,
+                visible: !!isVisible,
             };
         });
 
