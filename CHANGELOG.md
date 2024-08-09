@@ -1,3 +1,10 @@
+# [0.1207.0](https://github.com/lightdash/lightdash/compare/0.1206.1...0.1207.0) (2024-08-09)
+
+
+### Features
+
+* preview commands fail if there are compile errors ([#11045](https://github.com/lightdash/lightdash/issues/11045)) ([96ce406](https://github.com/lightdash/lightdash/commit/96ce406d47ea21fd10886b65bac537c53a0e1657))
+
 ## [0.1206.1](https://github.com/lightdash/lightdash/compare/0.1206.0...0.1206.1) (2024-08-08)
 
 
