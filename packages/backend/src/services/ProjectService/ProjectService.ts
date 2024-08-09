@@ -96,6 +96,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTables,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -2861,6 +2862,8 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        console.log('111111111111111111111111111111');
+
         const credentials = await this.getWarehouseCredentials(
             projectUuid,
             user.userUuid,
@@ -2884,11 +2887,38 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseTables = warehouseClient.getAllTables(schema, queryTags);
+        const warehouseTables = await warehouseClient.getAllTables(
+            schema,
+            queryTags,
+        );
 
         await sshTunnel.disconnect();
 
-        return warehouseTables;
+        console.log('==================', { warehouseTables });
+
+        // TODO: converting this type for now -- should we combine them?
+        const catalog = warehouseTables.reduce<WarehouseCatalog>(
+            (acc, { database, schema: tableSchema, table }) => {
+                if (!acc[database]) {
+                    acc[database] = {};
+                }
+
+                if (!acc[database][tableSchema]) {
+                    acc[database][tableSchema] = {};
+                }
+
+                acc[database][tableSchema][table] = {
+                    // nothing here yet
+                };
+
+                return acc;
+            },
+            {},
+        );
+
+        console.log('+++++++++++++++', { catalog });
+
+        return catalog;
     }
 
     async getWarehouseFields(

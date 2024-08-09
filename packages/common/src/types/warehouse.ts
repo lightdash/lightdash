@@ -6,6 +6,7 @@ import { type CreateWarehouseCredentials } from './projects';
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
 };
+
 export type WarehouseCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -13,6 +14,12 @@ export type WarehouseCatalog = {
         };
     };
 };
+
+export type WarehouseTables = {
+    database: string;
+    schema: string;
+    table: string;
+}[];
 
 export type WarehouseResults = {
     fields: Record<string, { type: DimensionType }>;
@@ -71,7 +78,7 @@ export interface WarehouseClient {
     getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<{ database: string; schema: string; table: string }[]>;
+    ): Promise<WarehouseTables>;
 
     getFields(
         tableName: string,
