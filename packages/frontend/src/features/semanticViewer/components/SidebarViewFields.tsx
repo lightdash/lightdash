@@ -50,8 +50,13 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
-    const { projectUuid, view, selectedDimensions, selectedMetrics } =
-        useAppSelector((state) => state.semanticViewer);
+    const {
+        projectUuid,
+        view,
+        selectedDimensions,
+        selectedTimeDimensions,
+        selectedMetrics,
+    } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -80,8 +85,10 @@ const SidebarViewFields = () => {
         );
     }
 
-    const handleFieldToggle = (field: string, kind: FieldKind) => {
-        dispatch(toggleField({ field, kind }));
+    const handleFieldToggle = (
+        field: Pick<SemanticLayerField, 'name' | 'kind' | 'type'>,
+    ) => {
+        dispatch(toggleField(field));
     };
 
     const searchedOrAllFields = searchedFields ?? fields.data;
@@ -139,11 +146,10 @@ const SidebarViewFields = () => {
                             active={
                                 // FIXME: not the best way to check if a field is selected
                                 selectedDimensions.includes(field.name) ||
+                                selectedTimeDimensions.includes(field.name) ||
                                 selectedMetrics.includes(field.name)
                             }
-                            onClick={() =>
-                                handleFieldToggle(field.name, field.kind)
-                            }
+                            onClick={() => handleFieldToggle(field)}
                         />
                     ))}
                 </Stack>
