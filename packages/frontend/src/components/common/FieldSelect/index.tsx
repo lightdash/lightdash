@@ -7,6 +7,7 @@ import {
     isField,
     isMetric,
     isTableCalculation,
+    sortTimeFrames,
     type Item,
 } from '@lightdash/common';
 import {
@@ -98,10 +99,22 @@ const FieldSelect = <T extends Item = Item>({
         const map = new Map<string, string>();
 
         const getTypePriority = (i: Item): number => {
-            if (isDimension(i)) return 1;
-            if (isCustomDimension(i)) return 2;
-            if (isMetric(i)) return 3; // Additional metrics are compiled as metrics
-            return 4; // Table calculations have the lowest priority
+            if (isDimension(i) || isCustomDimension(i)) return 1;
+            if (isMetric(i)) return 2; // Additional metrics are compiled as metrics
+            return 3; // Table calculations have the lowest priority
+        };
+
+        const getGroupKey = (i: Item): string => {
+            if (
+                isDimension(i) &&
+                'timeIntervalBaseDimensionName' in i &&
+                i.timeIntervalBaseDimensionName
+            ) {
+                return i.timeIntervalBaseDimensionName;
+            }
+
+            // TODO: We should handle group and group label ?
+            return i.name;
         };
 
         return [
@@ -111,10 +124,9 @@ const FieldSelect = <T extends Item = Item>({
                  * Sorting logic:
                  * Sorts by table first
                  * Then sorts by type
-                 * 1. Dimensions
-                 * 2. Custom dimensions
-                 * 3. Metrics & Additional metrics
-                 * 4. Table calculations
+                 * 1. Dimensions & Custom dimensions (interval-type dimensions are sorted by time frame, instead of label)
+                 * 2. Metrics & Additional metrics
+                 * 3. Table calculations
                  * Then sorts by label
                  */
                 if (
@@ -134,14 +146,41 @@ const FieldSelect = <T extends Item = Item>({
                     map.set(b.table, b.tableLabel);
                 }
 
+                // Prioritise items from the base table
                 if (baseTable) {
                     const aIsInTable = 'table' in a && a.table === baseTable;
                     const bIsInTable = 'table' in b && b.table === baseTable;
                     if (aIsInTable !== bIsInTable) return aIsInTable ? -1 : 1;
                 }
 
+                // Sort by table label for items from different tables
+                if (isField(a) && isField(b) && a.table !== b.table) {
+                    return (a.tableLabel || '').localeCompare(
+                        b.tableLabel || '',
+                    );
+                }
+
+                // Sort by item type priority (dimensions + custom dimensions > metrics + custom metrics > table calculations)
                 const priorityDiff = getTypePriority(a) - getTypePriority(b);
                 if (priorityDiff !== 0) return priorityDiff;
+
+                // Sort by group (timeIntervalBaseDimensionName or name)
+                const groupComparison = getGroupKey(a).localeCompare(
+                    getGroupKey(b),
+                );
+                if (groupComparison !== 0) return groupComparison;
+
+                // Within the same group, sort time-based dimensions by their time interval
+                if (
+                    isDimension(a) &&
+                    isDimension(b) &&
+                    'timeInterval' in a &&
+                    'timeInterval' in b &&
+                    a.timeInterval &&
+                    b.timeInterval
+                ) {
+                    return sortTimeFrames(a.timeInterval, b.timeInterval);
+                }
 
                 return getLabel(a, hasGrouping).localeCompare(
                     getLabel(b, hasGrouping),
