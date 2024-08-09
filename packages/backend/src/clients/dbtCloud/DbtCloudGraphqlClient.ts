@@ -261,10 +261,27 @@ export default class DbtCloudGraphqlClient {
         );
     }
 
-    async getFields() {
-        const { metrics } = await this.getMetrics();
+    async getFields(
+        _: unknown,
+        {
+            dimensions: selectedDimensions,
+            timeDimensions: selectedTimeDimensions,
+            metrics: selectedMetrics,
+        }: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
+    ) {
+        const { metricsForDimensions: metrics } =
+            await this.getMetricsForDimensions({
+                dimensions: [
+                    ...selectedDimensions.map((d) => ({ name: d })),
+                    ...selectedTimeDimensions.map((d) => ({ name: d })),
+                ],
+            });
+
         const { dimensions } = await this.getDimensions({
-            metrics: [],
+            metrics: selectedMetrics.map((metric) => ({ name: metric })),
         });
 
         return this.transformers.fieldsToSemanticLayerFields(
