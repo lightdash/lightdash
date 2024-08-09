@@ -608,11 +608,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                         )}
                                     >
                                         {cell.getIsGrouped() ? (
-                                            <Group spacing="xxs">
+                                            <Group spacing="two" noWrap>
                                                 <Button
                                                     compact
                                                     size="xs"
-                                                    ff="Inter"
                                                     variant="subtle"
                                                     styles={(theme) => ({
                                                         root: {
@@ -623,6 +622,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             paddingRight:
                                                                 theme.spacing
                                                                     .xxs,
+                                                            fontFamily:
+                                                                "'Inter', sans-serif",
+                                                            fontFeatureSettings:
+                                                                "'tnum'",
                                                         },
                                                         leftIcon: {
                                                             marginRight: 0,
