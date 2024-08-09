@@ -1,3 +1,10 @@
+# [0.1208.0](https://github.com/lightdash/lightdash/compare/0.1207.0...0.1208.0) (2024-08-09)
+
+
+### Features
+
+* add dbt semantic layer to service ([#11076](https://github.com/lightdash/lightdash/issues/11076)) ([673afab](https://github.com/lightdash/lightdash/commit/673afab4e6c2aa31971fca306457f89bc4caaace))
+
 # [0.1207.0](https://github.com/lightdash/lightdash/compare/0.1206.1...0.1207.0) (2024-08-09)
 
 
