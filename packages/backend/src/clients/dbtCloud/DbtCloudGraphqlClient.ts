@@ -262,7 +262,7 @@ export default class DbtCloudGraphqlClient {
     }
 
     async getFields(
-        _: unknown,
+        _: unknown, // there is no concept of views in dbt cloud
         {
             dimensions: selectedDimensions,
             timeDimensions: selectedTimeDimensions,
@@ -272,7 +272,9 @@ export default class DbtCloudGraphqlClient {
             'dimensions' | 'timeDimensions' | 'metrics'
         >,
     ) {
-        const { metricsForDimensions: metrics } =
+        // Get all metrics and check which ones are available for the selected dimensions
+        const { metrics: allMetrics } = await this.getMetrics();
+        const { metricsForDimensions: availableMetrics } =
             await this.getMetricsForDimensions({
                 dimensions: [
                     ...selectedDimensions.map((d) => ({ name: d })),
@@ -280,8 +282,34 @@ export default class DbtCloudGraphqlClient {
                 ],
             });
 
-        const { dimensions } = await this.getDimensions({
+        const metrics = allMetrics.map((metric) => {
+            const availableMetric = availableMetrics.find(
+                (m) => m.name === metric.name,
+            );
+
+            return {
+                ...metric,
+                visible: !!availableMetric,
+            };
+        });
+
+        // Get all dimensions and check which ones are available for the selected metrics
+        const { dimensions: allDimensions } = await this.getDimensions({
+            metrics: [],
+        });
+        const { dimensions: availableDimensions } = await this.getDimensions({
             metrics: selectedMetrics.map((metric) => ({ name: metric })),
+        });
+
+        const dimensions = allDimensions.map((dimension) => {
+            const availableDimension = availableDimensions.find(
+                (d) => d.name === dimension.name,
+            );
+
+            return {
+                ...dimension,
+                visible: !!availableDimension,
+            };
         });
 
         return this.transformers.fieldsToSemanticLayerFields(
