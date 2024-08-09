@@ -725,9 +725,20 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
     const { user } = useApp();
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
+    const { clearDashboardStorage, getDashboardUuid } = useDashboardStorage();
+
+    useEffect(() => {
+        if (dashboardUuid !== getDashboardUuid()) {
+            // Clear storage if the dashboardUuid in storage doesn't match the current dashboardUuid
+            clearDashboardStorage();
+        }
+    }, [dashboardUuid, clearDashboardStorage, getDashboardUuid]);
 
     useProfiler('Dashboard');
     return (
