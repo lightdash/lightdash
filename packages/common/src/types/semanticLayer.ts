@@ -67,6 +67,11 @@ export interface SemanticLayerClient {
     getResults: (
         query: SemanticLayerQuery,
     ) => Promise<SemanticLayerResultRow[]>;
+    streamResults: (
+        projectUuid: string,
+        query: SemanticLayerQuery,
+        callback: (results: SemanticLayerResultRow[]) => void,
+    ) => Promise<number>;
     getSql: (query: SemanticLayerQuery) => Promise<string>;
 }
 
