@@ -10,7 +10,6 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
-    SemanticLayerResultRow,
     SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -37,8 +36,8 @@ function getSemanticLayerTypeFromDbtType(
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
     DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs,
-    DbtGraphQLDimension[],
-    DbtGraphQLMetric[],
+    (DbtGraphQLDimension & Pick<SemanticLayerField, 'visible'>)[],
+    (DbtGraphQLMetric & Pick<SemanticLayerField, 'visible'>)[],
     DbtGraphQLJsonResult,
     string
 > = {
@@ -49,7 +48,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                 label: dimension.label ?? dimension.name,
                 description: dimension.description ?? '',
                 type: getSemanticLayerTypeFromDbtType(dimension.type),
-                visible: true,
+                visible: dimension.visible,
                 kind: FieldKind.DIMENSION,
             }),
         );
@@ -58,7 +57,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             name: metric.name,
             label: metric.label ?? metric.name,
             description: metric.description ?? '',
-            visible: true,
+            visible: metric.visible,
             type: getSemanticLayerTypeFromDbtType(metric.type),
             kind: FieldKind.METRIC,
         }));

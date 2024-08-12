@@ -40,6 +40,8 @@ services:
             - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
             - DBT_CLOUD_ENVIRONMENT_ID=${DBT_CLOUD_ENVIRONMENT_ID}
             - DBT_CLOUD_BEARER_TOKEN=${DBT_CLOUD_BEARER_TOKEN}
+            - CUBE_TOKEN=${CUBE_TOKEN}
+            - CUBE_DOMAIN=${CUBE_DOMAIN}
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'

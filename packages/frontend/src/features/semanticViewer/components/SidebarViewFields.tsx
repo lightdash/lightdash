@@ -65,7 +65,15 @@ const SidebarViewFields = () => {
         throw new Error('Impossible state');
     }
 
-    const fields = useSemanticLayerViewFields({ projectUuid, view });
+    const fields = useSemanticLayerViewFields({
+        projectUuid,
+        view,
+        selectedFields: {
+            dimensions: selectedDimensions,
+            timeDimensions: selectedTimeDimensions,
+            metrics: selectedMetrics,
+        },
+    });
 
     const searchedFields = useMemo(() => {
         if (!fields.data) return;

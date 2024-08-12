@@ -52,3 +52,18 @@ export interface SemanticLayerTransformer<
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
 }
+
+export interface SemanticLayerClient {
+    getViews: () => Promise<SemanticLayerView[]>;
+    getFields: (
+        viewName: string,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
+    ) => Promise<SemanticLayerField[]>;
+    getResults: (
+        query: SemanticLayerQuery,
+    ) => Promise<SemanticLayerResultRow[]>;
+    getSql: (query: SemanticLayerQuery) => Promise<string>;
+}
