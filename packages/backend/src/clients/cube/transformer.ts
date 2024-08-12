@@ -78,12 +78,13 @@ export const cubeTransfomers: SemanticLayerTransformer<
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
-        dimensions: query.dimensions,
+        dimensions: [...query.dimensions, ...query.timeDimensions],
         timeDimensions: query.timeDimensions.map((td) => ({
             dimension: td,
         })),
         filters: [],
-        limit: 100,
+        offset: query.offset,
+        limit: query.limit || 100,
     }),
     resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),

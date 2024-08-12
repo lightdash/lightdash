@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ApiJobScheduledResponse,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerResultRow,
@@ -78,25 +79,57 @@ export class SemanticLayerController extends BaseController {
         };
     }
 
-    /**
-     * Get results from semantic layer
-     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/results')
-    @OperationId('getSemanticLayerResults')
-    async getResults(
-        @Request() req: express.Request,
+    @Post('/run')
+    @OperationId('runSemanticLayerResults')
+    async runSemanticLayerResults(
         @Path() projectUuid: string,
         @Body() body: SemanticLayerQuery,
-    ): Promise<{ status: 'ok'; results: SemanticLayerResultRow[] }> {
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getResults(req.user!, projectUuid, body),
+                .getStreamingResults(req.user!, projectUuid, body),
         };
+    }
+
+    /**
+     * Get semantic layer results from a file
+     * @param fileId the fileId for the file
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('results/{fileId}')
+    @OperationId('getSemanticLayerResults')
+    async getSemanticLayerResults(
+        @Path() fileId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<any> {
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'application/json');
+
+        const readStream = await this.services
+            .getProjectService()
+            .getFileStream(req.user!, projectUuid, fileId);
+
+        const { res } = req;
+        if (res) {
+            readStream.pipe(res);
+            await new Promise<void>((resolve, reject) => {
+                readStream.on('end', () => {
+                    res.end();
+                    resolve();
+                });
+            });
+        }
     }
 
     /**

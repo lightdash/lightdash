@@ -143,6 +143,8 @@ export default class SchedulerApp {
                 validationService:
                     this.serviceRepository.getValidationService(),
                 userService: this.serviceRepository.getUserService(),
+                semanticLayerService:
+                    this.serviceRepository.getSemanticLayerService(),
             },
             ...{
                 emailClient: this.clients.getEmailClient(),

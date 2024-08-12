@@ -6640,7 +6640,8 @@
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
-                            "sqlRunner"
+                            "sqlRunner",
+                            "semanticLayer"
                         ]
                     }
                 },
@@ -8646,16 +8647,16 @@
                 "required": ["kind", "type", "label", "name"],
                 "type": "object"
             },
-            "Record_string.string-or-number-or-boolean-or-null_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "SemanticLayerResultRow": {
-                "$ref": "#/components/schemas/Record_string.string-or-number-or-boolean-or-null_"
-            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "offset": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -8919,7 +8920,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1208.1",
+        "version": "0.1210.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

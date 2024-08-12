@@ -27,7 +27,8 @@ describe.skip('Lightdash semantic layer', () => {
         });
     });
 
-    it('Should get all results from semantic-layer', () => {
+    // Now we get results only from streaming
+    it.skip('Should get all results from semantic-layer', () => {
         cy.request({
             url: `${apiUrl}/projects/${projectUuid}/semantic-layer/results`,
 
@@ -57,4 +58,5 @@ describe.skip('Lightdash semantic layer', () => {
             // TODO check response, it will depend on the client
         });
     });
+    // TODO test streaming results
 });
