@@ -165,10 +165,9 @@ export const useSqlQueryRun = ({
             return jsonObjects;
         },
         {
-            onError: (data) => {
+            onError: () => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
-                    subtitle: data.error.message,
                 });
             },
             enabled: Boolean(
