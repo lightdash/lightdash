@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FieldType as FieldKind,
     type SemanticLayerField,
+    type SemanticLayerTimeDimension,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -9,6 +10,7 @@ import {
     Center,
     Highlight,
     Loader,
+    LoadingOverlay,
     NavLink,
     Stack,
     TextInput,
@@ -20,7 +22,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleField } from '../store/semanticViewerSlice';
+import {
+    selectAllSelectedFieldNames,
+    selectAllSelectedFieldsByKind,
+} from '../store/selectors';
+import {
+    toggleDimension,
+    toggleMetric,
+    toggleTimeDimension,
+} from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
 
 const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
@@ -50,13 +60,13 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
-    const {
-        projectUuid,
-        view,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-    } = useAppSelector((state) => state.semanticViewer);
+    const { projectUuid, view } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+    const allSelectedFieldsBykind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,15 +75,16 @@ const SidebarViewFields = () => {
         throw new Error('Impossible state');
     }
 
-    const fields = useSemanticLayerViewFields({
-        projectUuid,
-        view,
-        selectedFields: {
-            dimensions: selectedDimensions,
-            timeDimensions: selectedTimeDimensions,
-            metrics: selectedMetrics,
+    const fields = useSemanticLayerViewFields(
+        {
+            projectUuid,
+            view,
+            selectedFields: allSelectedFieldsBykind,
         },
-    });
+        {
+            keepPreviousData: true,
+        },
+    );
 
     const searchedFields = useMemo(() => {
         if (!fields.data) return;
@@ -94,9 +105,22 @@ const SidebarViewFields = () => {
     }
 
     const handleFieldToggle = (
-        field: Pick<SemanticLayerField, 'name' | 'kind' | 'type'>,
+        field:
+            | Pick<SemanticLayerField, 'name' | 'kind'>
+            | Pick<SemanticLayerTimeDimension, 'name' | 'kind' | 'granularity'>,
     ) => {
-        dispatch(toggleField(field));
+        if ('granularity' in field) {
+            return dispatch(toggleTimeDimension(field));
+        }
+
+        switch (field.kind) {
+            case FieldKind.DIMENSION:
+                return dispatch(toggleDimension(field));
+            case FieldKind.METRIC:
+                return dispatch(toggleMetric(field));
+            default:
+                return assertUnreachable(field.kind, 'Unknown field kind');
+        }
     };
 
     const searchedOrAllFields = searchedFields ?? fields.data;
@@ -108,6 +132,12 @@ const SidebarViewFields = () => {
         />
     ) : (
         <Stack spacing="md" sx={{ flexGrow: 1 }}>
+            <LoadingOverlay
+                visible={fields.isFetching}
+                opacity={0.5}
+                loaderProps={{ color: 'gray', size: 'sm' }}
+            />
+
             <Box sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <TextInput
                     size="xs"
@@ -151,16 +181,7 @@ const SidebarViewFields = () => {
                             }
                             icon={<FieldIcon field={field} />}
                             disabled={!field.visible}
-                            active={
-                                // FIXME: not the best way to check if a field is selected
-                                selectedDimensions.includes(field.name) ||
-                                Boolean(
-                                    selectedTimeDimensions.find(
-                                        (td) => td.name === field.name,
-                                    ),
-                                ) ||
-                                selectedMetrics.includes(field.name)
-                            }
+                            active={allSelectedFieldNames.includes(field.name)}
                             onClick={() => handleFieldToggle(field)}
                         />
                     ))}

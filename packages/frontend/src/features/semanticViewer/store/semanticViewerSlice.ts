@@ -1,6 +1,4 @@
 import {
-    FieldType as FieldKind,
-    SemanticLayerFieldType,
     type ResultRow,
     type SemanticLayerField,
     type SemanticLayerSortBy,
@@ -14,9 +12,13 @@ export interface SemanticViewerState {
 
     view: string | undefined;
 
-    selectedDimensions: Array<string>;
-    selectedMetrics: Array<string>;
-    selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
+    selectedDimensions: Pick<SemanticLayerField, 'name'>[];
+    selectedTimeDimensions: Pick<
+        SemanticLayerTimeDimension,
+        'name' | 'granularity'
+    >[];
+    selectedMetrics: Pick<SemanticLayerField, 'name'>[];
+
     sortBy: SemanticLayerSortBy[];
 
     results: ResultRow[] | undefined;
@@ -57,62 +59,67 @@ export const semanticViewerSlice = createSlice({
         setResults: (state, action: PayloadAction<ResultRow[]>) => {
             state.results = action.payload;
         },
-        toggleField: (
+        toggleDimension: (
+            state,
+            action: PayloadAction<Pick<SemanticLayerField, 'name' | 'kind'>>,
+        ) => {
+            if (!state.view) {
+                throw new Error('Impossible state');
+            }
+
+            if (
+                state.selectedDimensions.some(
+                    (f) => f.name === action.payload.name,
+                )
+            ) {
+                state.selectedDimensions = state.selectedDimensions.filter(
+                    (f) => f.name !== action.payload.name,
+                );
+            } else {
+                state.selectedDimensions.push(action.payload);
+            }
+        },
+        toggleTimeDimension: (
             state,
             action: PayloadAction<
-                Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
+                Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>
             >,
         ) => {
             if (!state.view) {
                 throw new Error('Impossible state');
             }
 
-            console.log(action.payload);
+            if (
+                state.selectedTimeDimensions.some(
+                    (f) => f.name === action.payload.name,
+                )
+            ) {
+                state.selectedTimeDimensions =
+                    state.selectedTimeDimensions.filter(
+                        (f) => f.name !== action.payload.name,
+                    );
+            } else {
+                state.selectedTimeDimensions.push(action.payload);
+            }
+        },
+        toggleMetric: (
+            state,
+            action: PayloadAction<Pick<SemanticLayerField, 'name' | 'kind'>>,
+        ) => {
+            if (!state.view) {
+                throw new Error('Impossible state');
+            }
 
-            switch (action.payload.kind) {
-                case FieldKind.DIMENSION:
-                    if (action.payload.type === SemanticLayerFieldType.TIME) {
-                        if (
-                            state.selectedTimeDimensions.find(
-                                (field) => field.name === action.payload.name,
-                            )
-                        ) {
-                            state.selectedTimeDimensions =
-                                state.selectedTimeDimensions.filter(
-                                    (field) =>
-                                        field.name !== action.payload.name,
-                                );
-                        } else {
-                            state.selectedTimeDimensions.push({
-                                name: action.payload.name,
-                                granularity: undefined, // TODO: pass the selected granularity here
-                            });
-                        }
-                        break;
-                    }
-
-                    if (
-                        state.selectedDimensions.includes(action.payload.name)
-                    ) {
-                        state.selectedDimensions =
-                            state.selectedDimensions.filter(
-                                (field) => field !== action.payload.name,
-                            );
-                    } else {
-                        state.selectedDimensions.push(action.payload.name);
-                    }
-                    break;
-                case FieldKind.METRIC:
-                    if (state.selectedMetrics.includes(action.payload.name)) {
-                        state.selectedMetrics = state.selectedMetrics.filter(
-                            (field) => field !== action.payload.name,
-                        );
-                    } else {
-                        state.selectedMetrics.push(action.payload.name);
-                    }
-                    break;
-                default:
-                    throw new Error('Unknown field type');
+            if (
+                state.selectedMetrics.some(
+                    (f) => f.name === action.payload.name,
+                )
+            ) {
+                state.selectedMetrics = state.selectedMetrics.filter(
+                    (f) => f.name !== action.payload.name,
+                );
+            } else {
+                state.selectedMetrics.push(action.payload);
             }
         },
     },
@@ -123,6 +130,8 @@ export const {
     setProjectUuid,
     enterView,
     exitView,
-    toggleField,
+    toggleDimension,
+    toggleTimeDimension,
+    toggleMetric,
     setResults,
 } = semanticViewerSlice.actions;

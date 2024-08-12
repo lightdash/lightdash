@@ -32,11 +32,10 @@ type SemanticLayerViewFieldsParams = {
     >;
 };
 
-export const useSemanticLayerViewFields = ({
-    projectUuid,
-    view,
-    selectedFields,
-}: SemanticLayerViewFieldsParams) => {
+export const useSemanticLayerViewFields = (
+    { projectUuid, view, selectedFields }: SemanticLayerViewFieldsParams,
+    useQueryParams?: UseQueryOptions<SemanticLayerField[], ApiError>,
+) => {
     const selectedFieldsWithTimeDimensionNames = {
         ...selectedFields,
         timeDimensions: selectedFields.timeDimensions.map(
@@ -50,7 +49,7 @@ export const useSemanticLayerViewFields = ({
             'semanticLayer',
             view,
             'fields',
-            selectedFieldsWithTimeDimensionNames,
+            JSON.stringify(selectedFieldsWithTimeDimensionNames),
         ],
         queryFn: () =>
             apiGetSemanticLayerViewFields({
@@ -58,6 +57,7 @@ export const useSemanticLayerViewFields = ({
                 view,
                 selectedFields: selectedFieldsWithTimeDimensionNames,
             }),
+        ...useQueryParams,
     });
 };
 
