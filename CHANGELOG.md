@@ -1,3 +1,10 @@
+## [0.1212.1](https://github.com/lightdash/lightdash/compare/0.1212.0...0.1212.1) (2024-08-12)
+
+
+### Bug Fixes
+
+* ignore invalid color in condition formatting ([#11111](https://github.com/lightdash/lightdash/issues/11111)) ([8692a12](https://github.com/lightdash/lightdash/commit/8692a12d7f62648219a58f1637d4a5963b04e510))
+
 # [0.1212.0](https://github.com/lightdash/lightdash/compare/0.1211.1...0.1212.0) (2024-08-12)
 
 
