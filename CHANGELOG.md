@@ -1,3 +1,10 @@
+# [0.1212.0](https://github.com/lightdash/lightdash/compare/0.1211.1...0.1212.0) (2024-08-12)
+
+
+### Features
+
+* streaming semantic layer ([#11105](https://github.com/lightdash/lightdash/issues/11105)) ([4de4159](https://github.com/lightdash/lightdash/commit/4de4159900a04dd93564cdad3babc6c70afa783f))
+
 ## [0.1211.1](https://github.com/lightdash/lightdash/compare/0.1211.0...0.1211.1) (2024-08-12)
 
 
