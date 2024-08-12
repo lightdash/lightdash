@@ -28,6 +28,8 @@ export type SemanticLayerQuery = {
     dimensions: string[];
     timeDimensions: string[];
     metrics: string[];
+    offset?: number;
+    limit?: number;
 };
 
 export type SemanticLayerResultRow = Record<
@@ -67,3 +69,11 @@ export interface SemanticLayerClient {
     ) => Promise<SemanticLayerResultRow[]>;
     getSql: (query: SemanticLayerQuery) => Promise<string>;
 }
+
+export const semanticLayerQueryJob = 'semanticLayer';
+export type SemanticLayerQueryPayload = {
+    projectUuid: string;
+    userUuid: string;
+    query: SemanticLayerQuery;
+    context: 'semanticViewer';
+};

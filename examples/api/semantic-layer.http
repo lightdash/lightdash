@@ -21,7 +21,8 @@ Content-Type: application/json
 
 {
     "dimensions": ["organizations.demo_joins_orders_status"],
-    "metrics": ["organizations.total_acv"]
+    "metrics": ["organizations.total_acv"],
+    "timeDimensions": []
 } 
 
 #### Get sql

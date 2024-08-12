@@ -122,8 +122,10 @@ export default class CubeClient implements SemanticLayerClient {
     async getResults(query: SemanticLayerQuery) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
+
         const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
         const resultSet = await this.cubeApi.load(cubeQuery);
+
         return this.transformers.resultsToResultRows(resultSet);
     }
 
