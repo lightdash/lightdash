@@ -1,3 +1,10 @@
+# [0.1210.0](https://github.com/lightdash/lightdash/compare/0.1209.0...0.1210.0) (2024-08-12)
+
+
+### Features
+
+* add limit to sql charts ([#11087](https://github.com/lightdash/lightdash/issues/11087)) ([bfe9ddd](https://github.com/lightdash/lightdash/commit/bfe9ddd4f2fa9d64ac2e1ca00257034c8c980305))
+
 # [0.1209.0](https://github.com/lightdash/lightdash/compare/0.1208.3...0.1209.0) (2024-08-09)
 
 
