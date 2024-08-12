@@ -95,8 +95,6 @@ const schedulerWorkerFactory = (context: {
         projectService: context.serviceRepository.getProjectService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),
-        semanticLayerService:
-            context.serviceRepository.getSemanticLayerService(),
         userService: context.serviceRepository.getUserService(),
         emailClient: context.clients.getEmailClient(),
         googleDriveClient: context.clients.getGoogleDriveClient(),
