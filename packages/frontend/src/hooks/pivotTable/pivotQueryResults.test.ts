@@ -94,22 +94,22 @@ describe('Should pivot data', () => {
             retrofitData: {
                 allCombinedData: [
                     {
-                        undefinedpage__views__0: {
+                        page__views__0: {
                             value: { raw: 6, formatted: '6.0' },
                         },
-                        undefinedpage__devices__1: {
+                        page__devices__1: {
                             value: { raw: 7, formatted: '7.0' },
                         },
-                        undefinedpage__views__2: {
+                        page__views__2: {
                             value: { raw: 12, formatted: '12.0' },
                         },
-                        undefinedpage__devices__3: {
+                        page__devices__3: {
                             value: { raw: 0, formatted: '0.0' },
                         },
-                        undefinedpage__views__4: {
+                        page__views__4: {
                             value: { raw: 11, formatted: '11.0' },
                         },
-                        undefinedpage__devices__5: {
+                        page__devices__5: {
                             value: { raw: 1, formatted: '1.0' },
                         },
                     },
@@ -117,27 +117,27 @@ describe('Should pivot data', () => {
                 pivotColumnInfo: [
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedpage__views__0',
+                        fieldId: 'page__views__0',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefinedpage__devices__1',
+                        fieldId: 'page__devices__1',
                     },
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedpage__views__2',
+                        fieldId: 'page__views__2',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefinedpage__devices__3',
+                        fieldId: 'page__devices__3',
                     },
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedpage__views__4',
+                        fieldId: 'page__views__4',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefinedpage__devices__5',
+                        fieldId: 'page__devices__5',
                     },
                 ],
             },
@@ -222,19 +222,19 @@ describe('Should pivot data', () => {
                 allCombinedData: [
                     {
                         page: { value: { raw: '/home', formatted: '/home' } },
-                        undefinedviews__0: {
+                        views__0: {
                             value: { raw: 6, formatted: '6.0' },
                         },
-                        undefineddevices__1: {
+                        devices__1: {
                             value: { raw: 7, formatted: '7.0' },
                         },
                     },
                     {
                         page: { value: { raw: '/about', formatted: '/about' } },
-                        undefinedviews__0: {
+                        views__0: {
                             value: { raw: 12, formatted: '12.0' },
                         },
-                        undefineddevices__1: {
+                        devices__1: {
                             value: { raw: 0, formatted: '0.0' },
                         },
                     },
@@ -245,10 +245,10 @@ describe('Should pivot data', () => {
                                 formatted: '/first-post',
                             },
                         },
-                        undefinedviews__0: {
+                        views__0: {
                             value: { raw: 11, formatted: '11.0' },
                         },
-                        undefineddevices__1: {
+                        devices__1: {
                             value: { raw: 1, formatted: '1.0' },
                         },
                     },
@@ -260,11 +260,11 @@ describe('Should pivot data', () => {
                     },
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedviews__0',
+                        fieldId: 'views__0',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefineddevices__1',
+                        fieldId: 'devices__1',
                     },
                 ],
             },
@@ -340,13 +340,13 @@ describe('Should pivot data', () => {
                         'label-0': {
                             value: { raw: 'views', formatted: 'views' },
                         },
-                        undefinedpage__0: {
+                        page__0: {
                             value: { raw: 6, formatted: '6.0' },
                         },
-                        undefinedpage__1: {
+                        page__1: {
                             value: { raw: 12, formatted: '12.0' },
                         },
-                        undefinedpage__2: {
+                        page__2: {
                             value: { raw: 11, formatted: '11.0' },
                         },
                     },
@@ -354,13 +354,13 @@ describe('Should pivot data', () => {
                         'label-0': {
                             value: { raw: 'devices', formatted: 'devices' },
                         },
-                        undefinedpage__0: {
+                        page__0: {
                             value: { raw: 7, formatted: '7.0' },
                         },
-                        undefinedpage__1: {
+                        page__1: {
                             value: { raw: 0, formatted: '0.0' },
                         },
-                        undefinedpage__2: {
+                        page__2: {
                             value: { raw: 1, formatted: '1.0' },
                         },
                     },
@@ -372,15 +372,15 @@ describe('Should pivot data', () => {
                     },
                     {
                         baseId: 'page',
-                        fieldId: 'undefinedpage__0',
+                        fieldId: 'page__0',
                     },
                     {
                         baseId: 'page',
-                        fieldId: 'undefinedpage__1',
+                        fieldId: 'page__1',
                     },
                     {
                         baseId: 'page',
-                        fieldId: 'undefinedpage__2',
+                        fieldId: 'page__2',
                     },
                 ],
             },
@@ -501,31 +501,31 @@ describe('Should pivot data', () => {
                 allCombinedData: [
                     {
                         page: { value: { raw: '/home', formatted: '/home' } },
-                        undefinedsite__views__0: {
+                        site__views__0: {
                             value: { raw: 6, formatted: '6.0' },
                         },
-                        undefinedsite__devices__1: {
+                        site__devices__1: {
                             value: { raw: 7, formatted: '7.0' },
                         },
-                        undefinedsite__views__2: {
+                        site__views__2: {
                             value: { raw: 2, formatted: '2.0' },
                         },
-                        undefinedsite__devices__3: {
+                        site__devices__3: {
                             value: { raw: 10, formatted: '10.0' },
                         },
                     },
                     {
                         page: { value: { raw: '/about', formatted: '/about' } },
-                        undefinedsite__views__0: {
+                        site__views__0: {
                             value: { raw: 12, formatted: '12.0' },
                         },
-                        undefinedsite__devices__1: {
+                        site__devices__1: {
                             value: { raw: 0, formatted: '0.0' },
                         },
-                        undefinedsite__views__2: {
+                        site__views__2: {
                             value: { raw: 2, formatted: '2.0' },
                         },
-                        undefinedsite__devices__3: {
+                        site__devices__3: {
                             value: { raw: 13, formatted: '13.0' },
                         },
                     },
@@ -536,10 +536,10 @@ describe('Should pivot data', () => {
                                 formatted: '/first-post',
                             },
                         },
-                        undefinedsite__views__0: {
+                        site__views__0: {
                             value: { raw: 11, formatted: '11.0' },
                         },
-                        undefinedsite__devices__1: {
+                        site__devices__1: {
                             value: { raw: 1, formatted: '1.0' },
                         },
                     },
@@ -551,19 +551,19 @@ describe('Should pivot data', () => {
                     },
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedsite__views__0',
+                        fieldId: 'site__views__0',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefinedsite__devices__1',
+                        fieldId: 'site__devices__1',
                     },
                     {
                         baseId: 'views',
-                        fieldId: 'undefinedsite__views__2',
+                        fieldId: 'site__views__2',
                     },
                     {
                         baseId: 'devices',
-                        fieldId: 'undefinedsite__devices__3',
+                        fieldId: 'site__devices__3',
                     },
                 ],
             },
@@ -706,10 +706,10 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'views', formatted: 'views' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 6, formatted: '6.0' },
                         },
-                        undefinedsite__1: {
+                        site__1: {
                             value: { raw: 2, formatted: '2.0' },
                         },
                     },
@@ -718,10 +718,10 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'devices', formatted: 'devices' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 7, formatted: '7.0' },
                         },
-                        undefinedsite__1: {
+                        site__1: {
                             value: { raw: 10, formatted: '10.0' },
                         },
                     },
@@ -730,10 +730,10 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'views', formatted: 'views' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 12, formatted: '12.0' },
                         },
-                        undefinedsite__1: {
+                        site__1: {
                             value: { raw: 2, formatted: '2.0' },
                         },
                     },
@@ -742,10 +742,10 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'devices', formatted: 'devices' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 0, formatted: '0.0' },
                         },
-                        undefinedsite__1: {
+                        site__1: {
                             value: { raw: 13, formatted: '13.0' },
                         },
                     },
@@ -759,7 +759,7 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'views', formatted: 'views' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 11, formatted: '11.0' },
                         },
                     },
@@ -773,7 +773,7 @@ describe('Should pivot data', () => {
                         'label-1': {
                             value: { raw: 'devices', formatted: 'devices' },
                         },
-                        undefinedsite__0: {
+                        site__0: {
                             value: { raw: 1, formatted: '1.0' },
                         },
                     },
@@ -794,13 +794,13 @@ describe('Should pivot data', () => {
                     {
                         baseId: 'site',
                         columnType: undefined,
-                        fieldId: 'undefinedsite__0',
+                        fieldId: 'site__0',
                         underlyingId: undefined,
                     },
                     {
                         baseId: 'site',
                         columnType: undefined,
-                        fieldId: 'undefinedsite__1',
+                        fieldId: 'site__1',
                         underlyingId: undefined,
                     },
                     {
