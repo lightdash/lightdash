@@ -2862,8 +2862,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        console.log('111111111111111111111111111111');
-
         const credentials = await this.getWarehouseCredentials(
             projectUuid,
             user.userUuid,
@@ -2894,7 +2892,7 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        console.log('==================', { warehouseTables });
+        console.log('==================', { warehouseTables, warehouseClient });
 
         // TODO: converting this type for now -- should we combine them?
         const catalog = warehouseTables.reduce<WarehouseCatalog>(
@@ -3971,7 +3969,7 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-
+        // here
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );

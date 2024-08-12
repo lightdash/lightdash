@@ -15,6 +15,7 @@ import { TimeFrames } from '../types/timeFrames';
 import {
     type WarehouseCatalog,
     type WarehouseClient,
+    type WarehouseTables,
 } from '../types/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
@@ -59,7 +60,7 @@ export const warehouseClientMock: WarehouseClient = {
         }
     },
     concatString: (...args) => `CONCAT(${args.join(', ')})`,
-    getTables(): Promise<WarehouseCatalog> {
+    getAllTables(): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(): Promise<WarehouseCatalog> {
