@@ -895,7 +895,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SemanticLayerQueryPayload,
     ) {
-        await this.logWrapper<string | SqlColumn[]>(
+        await this.logWrapper(
             {
                 task: semanticLayerQueryJob,
                 jobId,

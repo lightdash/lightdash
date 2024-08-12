@@ -31,7 +31,7 @@ const ResultsViewer: FC = () => {
                                             value: {
                                                 raw: resultValue,
                                                 formatted:
-                                                    resultValue.toString(),
+                                                    resultValue?.toString(),
                                             },
                                         },
                                     };

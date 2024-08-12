@@ -4,8 +4,8 @@ import {
     type ApiError,
     type ApiJobScheduledResponse,
     type ApiSqlRunnerJobStatusResponse,
-    type ResultRow,
     type SemanticLayerQuery,
+    type SemanticLayerResultRow,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -28,7 +28,7 @@ const scheduleSemanticLayerJob = async ({
     });
 
 export type Results = {
-    results: Record<string, any>[];
+    results: SemanticLayerResultRow[];
 };
 
 /**
@@ -101,7 +101,7 @@ export const useSemanticViewerQueryRun = ({
         );
 
     const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
-        ResultRow[] | undefined,
+        SemanticLayerResultRow[] | undefined,
         ApiError,
         Results | undefined
     >(
@@ -149,7 +149,7 @@ export const useSemanticViewerQueryRun = ({
 
             // Split the JSON strings by newline
             const jsonStrings = result.trim().split('\n');
-            const jsonObjects: ResultRow[] = jsonStrings
+            const jsonObjects: SemanticLayerResultRow[] = jsonStrings
                 .map((jsonString) => {
                     try {
                         if (!jsonString) {
