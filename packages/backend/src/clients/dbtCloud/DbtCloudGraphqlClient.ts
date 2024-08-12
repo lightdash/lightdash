@@ -147,10 +147,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         let queryStatus: DbtQueryStatus | undefined;
         let rowCount = 0;
 
-        while (
-            queryStatus !== DbtQueryStatus.SUCCESSFUL &&
-            queryStatus !== DbtQueryStatus.FAILED
-        ) {
+        while (queryStatus !== DbtQueryStatus.SUCCESSFUL) {
             const getQueryResultsQuery = `
                 query GetQueryResults($environmentId: BigInt!) {
                     query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}", pageNum: ${pageNum}) {
@@ -170,7 +167,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     getQueryResultsQuery,
                 );
 
-            if (rawResponse.status !== DbtQueryStatus.FAILED) {
+            if (rawResponse.status === DbtQueryStatus.FAILED) {
                 throw new Error(
                     `DBT Query failed with error: ${rawResponse.error}`,
                 );
