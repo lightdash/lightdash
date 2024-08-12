@@ -318,7 +318,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             selectedDimensions.length > 0 || selectedTimeDimensions.length > 0;
         const hasSelectedMetrics = selectedMetrics.length > 0;
 
-        let metrics = allMetrics;
         let availableMetrics: DbtGraphQLMetric[] | undefined;
 
         if (hasSelectedDimensions) {
@@ -334,7 +333,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 getMetricsForDimensionsResult.metricsForDimensions;
         }
 
-        metrics = allMetrics.map((metric) => ({
+        const metrics = allMetrics.map((metric) => ({
             ...metric,
             // If no dimensions are selected, availableMetrics will be undefined and all metrics will be visible
             visible: availableMetrics
@@ -342,7 +341,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 : true,
         }));
 
-        let dimensions = allDimensions;
         let availableDimensions: DbtGraphQLDimension[] | undefined;
 
         if (hasSelectedMetrics) {
@@ -355,7 +353,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             availableDimensions = getDimensionsResult.dimensions;
         }
 
-        dimensions = allDimensions.map((dimension) => ({
+        const dimensions = allDimensions.map((dimension) => ({
             ...dimension,
             // If no metrics are selected, availableDimensions will be undefined and all dimensions will be visible
             visible: availableDimensions

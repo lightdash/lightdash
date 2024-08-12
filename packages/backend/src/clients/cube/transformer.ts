@@ -55,7 +55,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
                 label: d.title,
                 type: getSemanticLayerTypeFromCubeType(d.type),
                 description: d.shortTitle,
-                visible: d.public && d.visible,
+                visible: Boolean(d.public && d.visible),
                 kind: FieldKind.DIMENSION,
             }),
         );
@@ -63,7 +63,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             name: d.name,
             label: d.title,
             description: d.shortTitle,
-            visible: d.public && d.visible,
+            visible: Boolean(d.public && d.visible),
             type: getSemanticLayerTypeFromCubeType(d.type),
             kind: FieldKind.METRIC,
         }));
@@ -74,7 +74,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
         cubeViews.map((view) => ({
             name: view.name,
             label: view.title,
-            visible: view.public,
+            visible: Boolean(view.public),
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,

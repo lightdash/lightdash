@@ -4,7 +4,7 @@ export type SemanticLayerView = {
     name: string;
     label: string;
     description?: string;
-    visible?: boolean;
+    visible: boolean;
 };
 
 export enum SemanticLayerFieldType {
@@ -20,7 +20,7 @@ export type SemanticLayerField = {
     type: SemanticLayerFieldType;
     kind: FieldType;
     description?: string;
-    visible?: boolean;
+    visible: boolean;
     aggType?: string; // eg: count, sum
 };
 
