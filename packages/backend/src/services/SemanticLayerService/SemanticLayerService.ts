@@ -172,6 +172,7 @@ export class SemanticLayerService extends BaseService {
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
     }> {
+        // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
 

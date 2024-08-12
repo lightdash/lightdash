@@ -903,11 +903,11 @@ export default class SchedulerTask {
                 details: { createdByUserUuid: payload.userUuid },
             },
             async () => {
-                const { fileUrl, columns } =
+                const { fileUrl } =
                     await this.semanticLayerService.streamQueryIntoFile(
                         payload,
                     );
-                return { fileUrl, columns };
+                return { fileUrl };
             },
         );
     }
