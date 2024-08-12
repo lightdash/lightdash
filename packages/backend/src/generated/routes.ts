@@ -16056,10 +16056,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v2/projects/:projectUuid/semantic-layer/run',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getStreamingResults,
+            SemanticLayerController.prototype.runSemanticLayerResults,
         ),
 
-        async function SemanticLayerController_getStreamingResults(
+        async function SemanticLayerController_runSemanticLayerResults(
             request: any,
             response: any,
             next: any,
@@ -16104,7 +16104,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.getStreamingResults.apply(
+                const promise = controller.runSemanticLayerResults.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16119,10 +16119,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v2/projects/:projectUuid/semantic-layer/results/:fileId',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getLocalResults,
+            SemanticLayerController.prototype.getSemanticLayerResults,
         ),
 
-        async function SemanticLayerController_getLocalResults(
+        async function SemanticLayerController_getSemanticLayerResults(
             request: any,
             response: any,
             next: any,
@@ -16167,7 +16167,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.getLocalResults.apply(
+                const promise = controller.getSemanticLayerResults.apply(
                     controller,
                     validatedArgs as any,
                 );

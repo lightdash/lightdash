@@ -82,8 +82,8 @@ export class SemanticLayerController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/run')
-    @OperationId('getSemanticLayerStreamingResults')
-    async getStreamingResults(
+    @OperationId('runSemanticLayerResults')
+    async runSemanticLayerResults(
         @Path() projectUuid: string,
         @Body() body: SemanticLayerQuery,
         @Request() req: express.Request,
@@ -99,7 +99,7 @@ export class SemanticLayerController extends BaseController {
     }
 
     /**
-     * Get results from a file stored locally
+     * Get semantic layer results from a file
      * @param fileId the fileId for the file
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -107,8 +107,8 @@ export class SemanticLayerController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('results/{fileId}')
-    @OperationId('getLocalResults')
-    async getLocalResults(
+    @OperationId('getSemanticLayerResults')
+    async getSemanticLayerResults(
         @Path() fileId: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,

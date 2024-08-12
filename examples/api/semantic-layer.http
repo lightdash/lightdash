@@ -46,7 +46,7 @@ Content-Type: application/json
 } 
 
 ### Get job status
-GET http://localhost:8080/api/v1/schedulers/job/61921/status
+GET http://localhost:8080/api/v1/schedulers/job/61923/status
 
 #### Get streamed results
 GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/results/jOwc-2Bxh3cxODdi5moC9

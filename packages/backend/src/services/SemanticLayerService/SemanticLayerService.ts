@@ -182,12 +182,9 @@ export class SemanticLayerService extends BaseService {
         context,
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
-        columns: SqlColumn[];
     }> {
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
-
-        const columns: SqlColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -201,7 +198,7 @@ export class SemanticLayerService extends BaseService {
             this.s3Client,
         );
 
-        return { fileUrl, columns };
+        return { fileUrl };
     }
 
     async getSql(
