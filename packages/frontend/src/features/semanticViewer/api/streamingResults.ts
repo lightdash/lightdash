@@ -28,7 +28,7 @@ const scheduleSemanticLayerJob = async ({
     });
 
 export type Results = {
-    results: ResultRow[];
+    results: Record<string, any>[];
 };
 
 /**
@@ -158,7 +158,6 @@ export const useSemanticViewerQueryRun = ({
                     }
                 })
                 .filter((obj) => obj !== null);
-
             return jsonObjects;
         },
         {
@@ -177,15 +176,13 @@ export const useSemanticViewerQueryRun = ({
             select: (data) => {
                 if (
                     !data ||
-                    isErrorDetails(scheduledDeliveryJobStatus?.details) ||
-                    !scheduledDeliveryJobStatus?.details?.columns
+                    isErrorDetails(scheduledDeliveryJobStatus?.details)
                 ) {
                     return undefined;
                 }
 
                 return {
                     results: data,
-                    columns: scheduledDeliveryJobStatus.details.columns,
                 };
             },
             onSuccess: (data) => {

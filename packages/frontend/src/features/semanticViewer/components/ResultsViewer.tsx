@@ -1,7 +1,10 @@
+import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
 import { Box, LoadingOverlay } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { Table } from '../../sqlRunner/components/visualizations/Table';
 import { useSemanticViewerQueryRun } from '../api/streamingResults';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setResults } from '../store/semanticViewerSlice';
 
 const ResultsViewer: FC = () => {
     const {
@@ -9,17 +12,58 @@ const ResultsViewer: FC = () => {
         selectedDimensions,
         selectedTimeDimensions,
         selectedMetrics,
+        results,
     } = useAppSelector((state) => state.semanticViewer);
+    const dispatch = useAppDispatch();
 
     const { mutate: runSemanticViewerQuery, isLoading } =
         useSemanticViewerQueryRun({
             onSuccess: (data) => {
                 if (data) {
-                    //  dispatch(setSqlRunnerResults(data));
+                    const resultRows: ResultRow[] = data.results.map(
+                        (result) => {
+                            return Object.entries(result).reduce(
+                                (acc, entry) => {
+                                    const [key, resultValue] = entry;
+                                    return {
+                                        ...acc,
+                                        [key]: {
+                                            value: {
+                                                raw: resultValue,
+                                                formatted:
+                                                    resultValue.toString(),
+                                            },
+                                        },
+                                    };
+                                },
+                                {},
+                            );
+                        },
+                    );
+                    dispatch(setResults(resultRows));
                 }
             },
         });
 
+    const config: SqlTableConfig = useMemo(() => {
+        const columns = [
+            ...selectedTimeDimensions,
+            ...selectedDimensions,
+            ...selectedMetrics,
+        ].reduce((acc, dimension) => {
+            return {
+                ...acc,
+                [dimension]: {
+                    visible: true,
+                    reference: dimension,
+                    label: dimension,
+                    frozen: false,
+                    order: undefined,
+                },
+            };
+        }, {});
+        return { columns };
+    }, [selectedDimensions, selectedTimeDimensions, selectedMetrics]);
     return (
         <Box pos="relative">
             <LoadingOverlay
@@ -39,9 +83,9 @@ const ResultsViewer: FC = () => {
                     })
                 }
             >
-                {' '}
                 Run Query{' '}
             </button>
+            {results && <Table data={results} config={config} />}
         </Box>
     );
 };

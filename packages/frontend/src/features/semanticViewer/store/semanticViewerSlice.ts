@@ -1,6 +1,7 @@
 import {
     FieldType as FieldKind,
     SemanticLayerFieldType,
+    type ResultRow,
     type SemanticLayerField,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -14,6 +15,8 @@ export interface SemanticViewerState {
     selectedDimensions: Array<string>;
     selectedMetrics: Array<string>;
     selectedTimeDimensions: Array<string>;
+
+    results: ResultRow[] | undefined;
 }
 
 const initialState: SemanticViewerState = {
@@ -24,6 +27,8 @@ const initialState: SemanticViewerState = {
     selectedDimensions: [],
     selectedMetrics: [],
     selectedTimeDimensions: [],
+
+    results: undefined,
 };
 
 export const semanticViewerSlice = createSlice({
@@ -44,6 +49,9 @@ export const semanticViewerSlice = createSlice({
             state.selectedDimensions = [];
             state.selectedMetrics = [];
             state.selectedTimeDimensions = [];
+        },
+        setResults: (state, action: PayloadAction<ResultRow[]>) => {
+            state.results = action.payload;
         },
         toggleField: (
             state,
@@ -94,5 +102,11 @@ export const semanticViewerSlice = createSlice({
     },
 });
 
-export const { resetState, setProjectUuid, enterView, exitView, toggleField } =
-    semanticViewerSlice.actions;
+export const {
+    resetState,
+    setProjectUuid,
+    enterView,
+    exitView,
+    toggleField,
+    setResults,
+} = semanticViewerSlice.actions;
