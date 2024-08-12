@@ -7709,7 +7709,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                visible: { dataType: 'boolean' },
+                visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -7729,7 +7729,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 aggType: { dataType: 'string' },
-                visible: { dataType: 'boolean' },
+                visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 kind: { ref: 'FieldType', required: true },
                 type: { ref: 'SemanticLayerFieldType', required: true },
