@@ -55,8 +55,7 @@ export class DownloadFileModel {
     }
 
     async streamResultsToCloudStorage(
-        projectUuid: string,
-        siteUrl: string,
+        urlPrefix: string,
         callback: (
             writer: (data: ResultRow | SemanticLayerResultRow) => void,
         ) => Promise<void>,
@@ -90,20 +89,25 @@ export class DownloadFileModel {
         );
         Logger.debug('File has been uploaded to S3.');
 
-        const serverUrl = `${siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
+        const serverUrl = `${urlPrefix}/${downloadFileId}`;
         return serverUrl;
     }
 
-    async streamResultsToLocalFile(
-        projectUuid: string,
-        siteUrl: string,
+    streamFunction(s3Client: S3Client) {
+        return s3Client.isEnabled()
+            ? this.streamResultsToCloudStorage.bind(this)
+            : this.streamResultsToLocalFile.bind(this);
+    }
 
+    async streamResultsToLocalFile(
+        urlPrefix: string,
         callback: (
             writer: (data: ResultRow | SemanticLayerResultRow) => void,
         ) => Promise<void>,
     ): Promise<string> {
         const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
         const filePath = `/tmp/${downloadFileId}.jsonl`;
+
         await this.createDownloadFile(
             downloadFileId,
             filePath,
@@ -133,7 +137,7 @@ export class DownloadFileModel {
             });
         }
 
-        const serverUrl = `${siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
+        const serverUrl = `${urlPrefix}/${downloadFileId}`;
         return serverUrl;
     }
 }

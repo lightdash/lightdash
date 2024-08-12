@@ -670,6 +670,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
 
+                    schedulerClient: this.clients.getSchedulerClient(),
                     cubeClient: this.clients.getCubeClient(),
                     dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                     s3Client: this.clients.getS3Client(),

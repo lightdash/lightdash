@@ -16,8 +16,10 @@ import { S3Client } from '../../clients/Aws/s3';
 import CubeClient from '../../clients/cube/CubeClient';
 import DbtCloudGraphqlClient from '../../clients/dbtCloud/DbtCloudGraphqlClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
 type SearchServiceArguments = {
@@ -26,6 +28,7 @@ type SearchServiceArguments = {
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
     // Clients
+    schedulerClient: SchedulerClient;
     cubeClient: CubeClient;
     dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
@@ -40,6 +43,8 @@ export class SemanticLayerService extends BaseService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
+    private readonly schedulerClient: SchedulerClient;
+
     // Clients
     private readonly cubeClient: CubeClient;
 
@@ -53,6 +58,7 @@ export class SemanticLayerService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         this.downloadFileModel = args.downloadFileModel;
+        this.schedulerClient = args.schedulerClient;
         // Clients
         this.cubeClient = args.cubeClient;
         this.dbtCloudClient = args.dbtCloudClient;
@@ -151,6 +157,24 @@ export class SemanticLayerService extends BaseService {
         return client.getResults(query);
     }
 
+    async getStreamingResults(
+        user: SessionUser,
+        projectUuid: string,
+        query: SemanticLayerQuery,
+    ) {
+        await this.checkCanViewProject(user, projectUuid);
+        await this.getSemanticLayerClient(projectUuid); // Check if client is available
+
+        const jobId = await this.schedulerClient.semanticLayerStreamingResults({
+            projectUuid,
+            userUuid: user.userUuid,
+            query,
+            context: 'semanticViewer',
+        });
+
+        return { jobId };
+    }
+
     async streamQueryIntoFile({
         userUuid,
         projectUuid,
@@ -160,16 +184,15 @@ export class SemanticLayerService extends BaseService {
         fileUrl: string;
         columns: SqlColumn[];
     }> {
+        Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
-        const streamFunction = this.s3Client.isEnabled()
-            ? this.downloadFileModel.streamResultsToCloudStorage.bind(this)
-            : this.downloadFileModel.streamResultsToLocalFile.bind(this);
 
         const columns: SqlColumn[] = [];
 
-        const fileUrl = await streamFunction(
-            projectUuid,
-            this.lightdashConfig.siteUrl,
+        const fileUrl = await this.downloadFileModel.streamFunction(
+            this.s3Client,
+        )(
+            `${this.lightdashConfig.siteUrl}/api/v2/projects/${projectUuid}/semantic-layer/results`,
             async (writer) => {
                 await client.streamResults(projectUuid, query, async (rows) => {
                     rows.forEach(writer);

@@ -1991,15 +1991,12 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const streamFunction = this.s3Client.isEnabled()
-            ? this.downloadFileModel.streamResultsToCloudStorage.bind(this)
-            : this.downloadFileModel.streamResultsToLocalFile.bind(this);
-
         const columns: SqlColumn[] = [];
 
-        const fileUrl = await streamFunction(
-            projectUuid,
-            this.lightdashConfig.siteUrl,
+        const fileUrl = await this.downloadFileModel.streamFunction(
+            this.s3Client,
+        )(
+            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
                 await warehouseClient.streamQuery(
                     sql,
@@ -2050,7 +2047,6 @@ export class ProjectService extends BaseService {
         const downloadFile = await this.downloadFileModel.getDownloadFile(
             fileId,
         );
-
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);

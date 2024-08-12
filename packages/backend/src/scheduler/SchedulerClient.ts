@@ -16,6 +16,8 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
+    semanticLayerQueryJob,
+    SemanticLayerQueryPayload,
     SlackNotificationPayload,
     sqlRunnerJob,
     SqlRunnerPayload,
@@ -567,6 +569,28 @@ export class SchedulerClient {
                 projectUuid: payload.projectUuid,
                 organizationUuid: payload.organizationUuid,
                 context: payload.context,
+            },
+        });
+
+        return jobId;
+    }
+
+    async semanticLayerStreamingResults(payload: SemanticLayerQueryPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            semanticLayerQueryJob,
+            payload,
+            now,
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: semanticLayerQueryJob,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
             },
         });
 
