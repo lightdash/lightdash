@@ -2,14 +2,11 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     MissingConfigError,
-    ResultRow,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
-    SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
-    SqlColumn,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
