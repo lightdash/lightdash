@@ -1,4 +1,4 @@
-import { WarehouseCatalog } from '@lightdash/common';
+import { WarehouseCatalog, WarehouseTables } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DbWarehouseAvailableTables } from '../../database/entities/warehouseAvailableTables';
 
@@ -12,15 +12,11 @@ export class WarehouseAvailableTablesModel {
     static toWarehouseCatalog(
         rows: Pick<
             DbWarehouseAvailableTables,
-            'database_name' | 'schema_name' | 'table_name'
+            'database' | 'schema' | 'table'
         >[],
     ): WarehouseCatalog {
         return rows.reduce((acc, row) => {
-            const {
-                database_name: database,
-                schema_name: schema,
-                table_name: table,
-            } = row;
+            const { database, schema, table } = row;
             if (!acc[database]) {
                 acc[database] = {};
             }
@@ -42,7 +38,7 @@ export class WarehouseAvailableTablesModel {
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsId,
             )
-            .select(['database_name', 'schema_name', 'table_name']);
+            .select(['database', 'schema', 'table']);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -59,18 +55,18 @@ export class WarehouseAvailableTablesModel {
                 'warehouse_credentials_available_tables.project_warehouse_credentials_id',
             )
             .where('project_uuid', projectUuid)
-            .select(['database_name', 'schema_name', 'table_name']);
+            .select(['database', 'schema', 'table']);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
     async createAvailableTablesForProjectWarehouseCredentials(
         warehouseCredentialsId: number,
-        tables: { database: string; schema: string; table: string }[],
+        tables: WarehouseTables,
     ) {
         const rows = tables.map(({ database, schema, table }) => ({
-            database_name: database,
-            schema_name: schema,
-            table_name: table,
+            database,
+            schema,
+            table,
             project_warehouse_credentials_id: warehouseCredentialsId,
             user_warehouse_credentials_uuid: null,
         }));
@@ -81,12 +77,12 @@ export class WarehouseAvailableTablesModel {
 
     async createAvailableTablesForUserWarehouseCredentials(
         userWarehouseCredentialsUuid: string,
-        tables: { database: string; schema: string; table: string }[],
+        tables: WarehouseTables,
     ) {
         const rows = tables.map(({ database, schema, table }) => ({
-            database_name: database,
-            schema_name: schema,
-            table_name: table,
+            database,
+            schema,
+            table,
             project_warehouse_credentials_id: null,
             user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
         }));

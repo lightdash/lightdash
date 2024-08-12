@@ -1,9 +1,9 @@
 import { Knex } from 'knex';
 
 export type DbWarehouseAvailableTables = {
-    database_name: string;
-    schema_name: string;
-    table_name: string;
+    database: string;
+    schema: string;
+    table: string;
     project_warehouse_credentials_id: number | null;
     user_warehouse_credentials_uuid: string | null;
 };

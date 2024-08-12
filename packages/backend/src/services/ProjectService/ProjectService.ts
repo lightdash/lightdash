@@ -134,6 +134,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { buildQuery, CompiledQuery } from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -175,6 +176,7 @@ type ProjectServiceArguments = {
     dashboardModel: DashboardModel;
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     s3Client: S3Client;
@@ -211,6 +213,8 @@ export class ProjectService extends BaseService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
     emailModel: EmailModel;
 
     schedulerClient: SchedulerClient;
@@ -234,6 +238,7 @@ export class ProjectService extends BaseService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        warehouseAvailableTablesModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -255,6 +260,7 @@ export class ProjectService extends BaseService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
@@ -2885,36 +2891,41 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseTables = await warehouseClient.getAllTables(
-            schema,
-            queryTags,
-        );
+
+        let catalog: WarehouseCatalog | null = null;
+
+        if (credentials.userWarehouseCredentialsUuid) {
+            // Check cache for tables
+            catalog =
+                await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+                    credentials.userWarehouseCredentialsUuid,
+                );
+
+            if (!catalog) {
+                const warehouseTables = await warehouseClient.getAllTables(
+                    schema,
+                    queryTags,
+                );
+
+                catalog =
+                    WarehouseAvailableTablesModel.toWarehouseCatalog(
+                        warehouseTables,
+                    );
+
+                await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                    credentials.userWarehouseCredentialsUuid,
+                    warehouseTables,
+                );
+            }
+        }
 
         await sshTunnel.disconnect();
 
-        console.log('==================', { warehouseTables, warehouseClient });
-
-        // TODO: converting this type for now -- should we combine them?
-        const catalog = warehouseTables.reduce<WarehouseCatalog>(
-            (acc, { database, schema: tableSchema, table }) => {
-                if (!acc[database]) {
-                    acc[database] = {};
-                }
-
-                if (!acc[database][tableSchema]) {
-                    acc[database][tableSchema] = {};
-                }
-
-                acc[database][tableSchema][table] = {
-                    // nothing here yet
-                };
-
-                return acc;
-            },
-            {},
-        );
-
-        console.log('+++++++++++++++', { catalog });
+        if (!catalog) {
+            throw new NotFoundError(
+                'Warehouse tables not found in cache or warehouse credentials',
+            );
+        }
 
         return catalog;
     }

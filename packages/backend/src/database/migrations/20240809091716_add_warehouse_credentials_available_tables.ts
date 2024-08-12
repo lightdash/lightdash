@@ -4,9 +4,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.createTable(
         'warehouse_credentials_available_tables',
         (table) => {
-            table.string('database_name').notNullable();
-            table.string('schema_name').notNullable();
-            table.string('table_name').notNullable();
+            table.string('database').notNullable();
+            table.string('schema').notNullable();
+            table.string('table').notNullable();
             table
                 .integer('project_warehouse_credentials_id')
                 .references('warehouse_credentials_id')

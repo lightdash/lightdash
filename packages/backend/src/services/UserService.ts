@@ -57,6 +57,7 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
@@ -77,6 +78,7 @@ type UserServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 };
 
 export class UserService extends BaseService {
@@ -110,6 +112,8 @@ export class UserService extends BaseService {
 
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -130,6 +134,7 @@ export class UserService extends BaseService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
+        warehouseAvailableTablesModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -148,6 +153,7 @@ export class UserService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
     }
 
     private identifyUser(
