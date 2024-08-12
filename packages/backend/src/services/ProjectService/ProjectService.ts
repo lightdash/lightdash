@@ -1949,85 +1949,6 @@ export class ProjectService extends BaseService {
         return results;
     }
 
-    async streamResultsToCloudStorage(
-        projectUuid: string,
-        callback: (writer: (data: ResultRow) => void) => Promise<void>,
-    ): Promise<string> {
-        const downloadFileId = nanoid();
-        const passThrough = new PassThrough();
-        const s3FileId = `${downloadFileId}.jsonl`;
-        const endUpload = await this.s3Client.streamResults(
-            passThrough,
-            s3FileId,
-        );
-        try {
-            const writer = (data: ResultRow) => {
-                passThrough.write(`${JSON.stringify(data)}\n`);
-            };
-
-            await callback(writer);
-        } catch (err) {
-            this.logger.error('Error during streaming', err);
-            throw err;
-        } finally {
-            passThrough.end();
-        }
-
-        await endUpload();
-        // Instead of returning the s3 signed URL to download,
-        // we will store the fileId inside our downloadFile table
-        // and serve the s3 stream from the backend on the sqlRunner/results endpoint
-        await this.downloadFileModel.createDownloadFile(
-            downloadFileId,
-            s3FileId,
-            DownloadFileType.S3_JSONL,
-        );
-        this.logger.debug('File has been uploaded to S3.');
-
-        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
-        return serverUrl;
-    }
-
-    async streamResultsToLocalFile(
-        projectUuid: string,
-
-        callback: (writer: (data: ResultRow) => void) => Promise<void>,
-    ): Promise<string> {
-        const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-        const filePath = `/tmp/${downloadFileId}.jsonl`;
-        await this.downloadFileModel.createDownloadFile(
-            downloadFileId,
-            filePath,
-            DownloadFileType.JSONL,
-        );
-        const writeStream = fs.createWriteStream(filePath, {
-            encoding: 'utf8',
-        });
-
-        writeStream.on('error', (err) => {
-            this.logger.error('Error writing to file', err);
-            throw new UnexpectedServerError('Error writing to file');
-        });
-
-        const writer = (data: ResultRow) => {
-            writeStream.write(`${JSON.stringify(data)}\n`);
-        };
-
-        try {
-            await callback(writer);
-        } catch (err) {
-            this.logger.error('Error during streaming', err);
-            throw err;
-        } finally {
-            writeStream.end(() => {
-                this.logger.debug('File has been saved.');
-            });
-        }
-
-        const serverUrl = `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results/${downloadFileId}`;
-        return serverUrl;
-    }
-
     async streamSqlQueryIntoFile({
         userUuid,
         projectUuid,
@@ -2064,33 +1985,38 @@ export class ProjectService extends BaseService {
         };
 
         const streamFunction = this.s3Client.isEnabled()
-            ? this.streamResultsToCloudStorage.bind(this)
-            : this.streamResultsToLocalFile.bind(this);
+            ? this.downloadFileModel.streamResultsToCloudStorage.bind(this)
+            : this.downloadFileModel.streamResultsToLocalFile.bind(this);
 
         const columns: SqlColumn[] = [];
 
-        const fileUrl = await streamFunction(projectUuid, async (writer) => {
-            await warehouseClient.streamQuery(
-                sql,
-                async ({ rows, fields }) => {
-                    if (!columns.length) {
-                        // Get column types from first row of results
-                        columns.push(
-                            ...Object.keys(fields).map((fieldName) => ({
-                                reference: fieldName,
-                                type: fields[fieldName].type,
-                            })),
-                        );
-                    }
+        const fileUrl = await streamFunction(
+            projectUuid,
+            this.lightdashConfig.siteUrl,
+            async (writer) => {
+                await warehouseClient.streamQuery(
+                    sql,
+                    async ({ rows, fields }) => {
+                        if (!columns.length) {
+                            // Get column types from first row of results
+                            columns.push(
+                                ...Object.keys(fields).map((fieldName) => ({
+                                    reference: fieldName,
+                                    type: fields[fieldName].type,
+                                })),
+                            );
+                        }
 
-                    const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
-                    formattedRows.forEach(writer);
-                },
-                {
-                    tags: queryTags,
-                },
-            );
-        });
+                        const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
+                        formattedRows.forEach(writer);
+                    },
+                    {
+                        tags: queryTags,
+                    },
+                );
+            },
+            this.s3Client,
+        );
 
         await sshTunnel.disconnect();
 

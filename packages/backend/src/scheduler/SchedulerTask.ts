@@ -36,6 +36,8 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    semanticLayerQueryJob,
+    SemanticLayerQueryPayload,
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
@@ -72,6 +74,7 @@ import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import { UnfurlService } from '../services/UnfurlService/UnfurlService';
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
@@ -92,6 +95,7 @@ type SchedulerTaskArguments = {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    semanticLayerService: SemanticLayerService;
 };
 
 export default class SchedulerTask {
@@ -123,6 +127,8 @@ export default class SchedulerTask {
 
     protected readonly slackClient: SlackClient;
 
+    private readonly semanticLayerService: SemanticLayerService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -138,6 +144,7 @@ export default class SchedulerTask {
         this.s3Client = args.s3Client;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
+        this.semanticLayerService = args.semanticLayerService;
     }
 
     protected async getChartOrDashboard(
@@ -881,6 +888,28 @@ export default class SchedulerTask {
             Logger.error(`Error in scheduler task: ${e}`);
             throw e;
         }
+    }
+
+    protected async semanticLayerQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SemanticLayerQueryPayload,
+    ) {
+        await this.logWrapper<string | SqlColumn[]>(
+            {
+                task: semanticLayerQueryJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => {
+                const { fileUrl, columns } =
+                    await this.semanticLayerService.streamQueryIntoFile(
+                        payload,
+                    );
+                return { fileUrl, columns };
+            },
+        );
     }
 
     protected async sqlRunner(

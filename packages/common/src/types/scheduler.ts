@@ -48,7 +48,8 @@ export type SchedulerLog = {
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
-        | 'sqlRunner';
+        | 'sqlRunner'
+        | 'semanticLayer';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
