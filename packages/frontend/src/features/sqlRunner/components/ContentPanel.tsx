@@ -14,7 +14,13 @@ import {
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import { useDeferredValue, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useDeferredValue,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -26,6 +32,7 @@ import {
     EditorTabs,
     setActiveEditorTab,
     setSql,
+    setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
@@ -53,6 +60,9 @@ export const ContentPanel: FC = () => {
     );
 
     const sql = useAppSelector((state) => state.sqlRunner.sql);
+
+    const limit = useAppSelector((state) => state.sqlRunner.limit);
+
     const activeEditorTab = useAppSelector(
         (state) => state.sqlRunner.activeEditorTab,
     );
@@ -103,11 +113,23 @@ export const ContentPanel: FC = () => {
         [
             'mod + enter',
             () => {
-                if (sql) runSqlQuery({ sql });
+                if (sql) runSqlQuery({ sql, limit: 7 });
             },
             { preventDefault: true },
         ],
     ]);
+
+    const handleRunQuery = useCallback(
+        (limitOverride?: number) => {
+            if (!sql) return;
+            runSqlQuery({
+                sql,
+                limit: limitOverride || limit,
+            });
+            notifications.clean();
+        },
+        [runSqlQuery, sql, limit],
+    );
 
     return (
         <Stack
@@ -185,12 +207,11 @@ export const ContentPanel: FC = () => {
                             <RunSqlQueryButton
                                 isLoading={isLoading}
                                 disabled={!sql}
-                                onSubmit={() => {
-                                    if (!sql) return;
-                                    runSqlQuery({
-                                        sql,
-                                    });
-                                    notifications.clean();
+                                limit={limit}
+                                onSubmit={() => handleRunQuery()}
+                                onLimitChange={(newLimit) => {
+                                    dispatch(setSqlLimit(newLimit));
+                                    handleRunQuery(newLimit);
                                 }}
                             />
                         </Group>
@@ -226,7 +247,7 @@ export const ContentPanel: FC = () => {
                                 onSqlChange={(newSql) =>
                                     dispatch(setSql(newSql))
                                 }
-                                onSubmit={() => runSqlQuery({ sql })}
+                                onSubmit={() => handleRunQuery()}
                             />
                         </ConditionalVisibility>
 

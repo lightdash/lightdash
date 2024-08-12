@@ -134,7 +134,11 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
-import { buildQuery, CompiledQuery } from '../../queryBuilder';
+import {
+    applyLimitToSqlQuery,
+    buildQuery,
+    CompiledQuery,
+} from '../../queryBuilder';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectAdapter } from '../../types';
@@ -1953,6 +1957,7 @@ export class ProjectService extends BaseService {
         userUuid,
         projectUuid,
         sql,
+        limit,
         sqlChartUuid,
         context,
     }: SqlRunnerPayload): Promise<{
@@ -1962,6 +1967,8 @@ export class ProjectService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
+        const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
 
         this.analytics.track({
             userId: userUuid,

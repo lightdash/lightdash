@@ -6543,7 +6543,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { sql: { dataType: 'string', required: true } },
+            nestedProperties: {
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -6667,6 +6670,7 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 slug: { dataType: 'string', required: true },
                 description: {
@@ -6741,6 +6745,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
                     dataType: 'union',
@@ -6808,6 +6813,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
             validators: {},
@@ -15977,7 +15983,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/views/:table/fields',
+        '/api/v2/projects/:projectUuid/semantic-layer/views/:view/fields',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype.getFields,
@@ -16001,11 +16007,32 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                table: {
+                view: {
                     in: 'path',
-                    name: 'table',
+                    name: 'view',
                     required: true,
                     dataType: 'string',
+                },
+                dimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'dimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                timeDimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'timeDimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                metrics: {
+                    default: [],
+                    in: 'query',
+                    name: 'metrics',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
             };
 
