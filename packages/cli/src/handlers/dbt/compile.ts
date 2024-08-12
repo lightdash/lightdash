@@ -1,5 +1,6 @@
 import { DbtModelNode, ParseError } from '@lightdash/common';
 import execa from 'execa';
+import { xor } from 'lodash';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
 import { getModelsFromManifest } from '../../dbt/models';
 import GlobalState from '../../globalState';
@@ -120,48 +121,7 @@ const getJoinedModelsRecursively = (
     );
 };
 
-export const compileModelsAndJoins = async (
-    loadManifestOpts: LoadManifestArgs,
-    options: DbtCompileOptions,
-) => {
-    // do initial compilation so we can get the list of models that are compiled after this command (e.g. selecting/excluding by tags)
-    await dbtCompile(options);
-
-    // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
-    if (!options.select && !options.exclude) {
-        return;
-    }
-
-    // Load manifest and get all models
-    const manifest = await loadManifest(loadManifestOpts);
-    const allManifestModels = getModelsFromManifest(manifest);
-    const currCompiledModels = getCompiledModels(allManifestModels);
-
-    // Selected models and their joined models
-    const modelsToCompile = new Set(
-        currCompiledModels.reduce<string[]>((acc, model) => {
-            const joinedModelNames = getJoinedModelsRecursively(
-                model,
-                allManifestModels,
-                new Set(acc), // minimize recursion by passing already visited models in the current list
-            );
-            return [...acc, model.name, ...joinedModelNames];
-        }, []),
-    );
-
-    GlobalState.debug(
-        `> Models to compile: ${Array.from(modelsToCompile).join(', ')}`,
-    );
-
-    await dbtCompile({
-        ...options,
-        select: Array.from(modelsToCompile),
-    });
-};
-
-export const dbtList = async (
-    options: DbtCompileOptions,
-): Promise<string[]> => {
+async function dbtList(options: DbtCompileOptions): Promise<string[]> {
     try {
         const args = [
             ...optionsToArgs(options),
@@ -197,4 +157,73 @@ export const dbtList = async (
             `Error executing 'dbt ls':\n  ${msg}\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false`,
         );
     }
-};
+}
+
+export async function maybeCompileModelsAndJoins(
+    loadManifestOpts: LoadManifestArgs,
+    options: DbtCompileOptions,
+): Promise<string[] | undefined> {
+    // Skipping assumes manifest.json already exists.
+    if (options.skipDbtCompile) {
+        GlobalState.debug('> Skipping dbt compile');
+        return undefined;
+    }
+
+    // do initial compilation so we can get the list of models that are compiled after this command (e.g. selecting/excluding by tags)
+    let compiledModelIds: string[] | undefined;
+    if (options.useDbtList) {
+        compiledModelIds = await dbtList(options);
+    } else {
+        await dbtCompile(options);
+    }
+
+    // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
+    if (!options.select && !options.exclude) {
+        return compiledModelIds;
+    }
+
+    // Load manifest and get all models
+    const manifest = await loadManifest(loadManifestOpts);
+    const allManifestModels = getModelsFromManifest(manifest);
+    const currCompiledModels = getCompiledModels(
+        allManifestModels,
+        compiledModelIds,
+    );
+
+    // Get models and their joined models
+    const requiredModels = new Set(
+        currCompiledModels.reduce<string[]>((acc, model) => {
+            const joinedModelNames = getJoinedModelsRecursively(
+                model,
+                allManifestModels,
+                new Set(acc), // minimize recursion by passing already visited models in the current list
+            );
+            return [...acc, model.name, ...joinedModelNames];
+        }, []),
+    );
+
+    const requiredModelsNames = Array.from(requiredModels);
+    const missingJoinedModels = xor(
+        requiredModelsNames,
+        currCompiledModels.map((model) => model.name),
+    );
+    if (missingJoinedModels.length > 0) {
+        GlobalState.debug(
+            `> Recompile project with missing joined models: ${missingJoinedModels.join(
+                ', ',
+            )}`,
+        );
+        if (options.useDbtList) {
+            return dbtList({
+                ...options,
+                select: requiredModelsNames,
+            });
+        }
+        await dbtCompile({
+            ...options,
+            select: requiredModelsNames,
+        });
+        return undefined;
+    }
+    return compiledModelIds;
+}
