@@ -5,9 +5,12 @@ import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 
 const SqlViewer: FC = () => {
-    const { projectUuid, selectedDimensions, selectedMetrics } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const {
+        projectUuid,
+        selectedDimensions,
+        selectedTimeDimensions,
+        selectedMetrics,
+    } = useAppSelector((state) => state.semanticViewer);
 
     const sql = useSemanticLayerSql(
         {
@@ -15,6 +18,7 @@ const SqlViewer: FC = () => {
             payload: {
                 dimensions: selectedDimensions,
                 metrics: selectedMetrics,
+                timeDimensions: selectedTimeDimensions,
             },
         },
         {

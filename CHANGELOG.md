@@ -1,3 +1,45 @@
+# [0.1209.0](https://github.com/lightdash/lightdash/compare/0.1208.3...0.1209.0) (2024-08-09)
+
+
+### Features
+
+* sort field select similar to explore tree ([#11083](https://github.com/lightdash/lightdash/issues/11083)) ([5c758fb](https://github.com/lightdash/lightdash/commit/5c758fbbb5454de5164aefb39b5569dc69146f76))
+
+## [0.1208.3](https://github.com/lightdash/lightdash/compare/0.1208.2...0.1208.3) (2024-08-09)
+
+
+### Bug Fixes
+
+* process date additional_dimensions correctly ([#11100](https://github.com/lightdash/lightdash/issues/11100)) ([06ba4d9](https://github.com/lightdash/lightdash/commit/06ba4d915dc2e2a79ed538c116daa192b8d2e822))
+
+## [0.1208.2](https://github.com/lightdash/lightdash/compare/0.1208.1...0.1208.2) (2024-08-09)
+
+
+### Bug Fixes
+
+* auto join models ([#11098](https://github.com/lightdash/lightdash/issues/11098)) ([3aa0d85](https://github.com/lightdash/lightdash/commit/3aa0d858d050f531cde3dd1e97605f780806d31c))
+
+## [0.1208.1](https://github.com/lightdash/lightdash/compare/0.1208.0...0.1208.1) (2024-08-09)
+
+
+### Bug Fixes
+
+* add timeDimensions to frontend ([#11095](https://github.com/lightdash/lightdash/issues/11095)) ([a20800d](https://github.com/lightdash/lightdash/commit/a20800de9493dc419716e383e7bdce992ad156e6))
+
+# [0.1208.0](https://github.com/lightdash/lightdash/compare/0.1207.0...0.1208.0) (2024-08-09)
+
+
+### Features
+
+* add dbt semantic layer to service ([#11076](https://github.com/lightdash/lightdash/issues/11076)) ([673afab](https://github.com/lightdash/lightdash/commit/673afab4e6c2aa31971fca306457f89bc4caaace))
+
+# [0.1207.0](https://github.com/lightdash/lightdash/compare/0.1206.1...0.1207.0) (2024-08-09)
+
+
+### Features
+
+* preview commands fail if there are compile errors ([#11045](https://github.com/lightdash/lightdash/issues/11045)) ([96ce406](https://github.com/lightdash/lightdash/commit/96ce406d47ea21fd10886b65bac537c53a0e1657))
+
 ## [0.1206.1](https://github.com/lightdash/lightdash/compare/0.1206.0...0.1206.1) (2024-08-08)
 
 

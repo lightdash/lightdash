@@ -1,6 +1,6 @@
 import {
     assertUnreachable,
-    FieldType,
+    FieldType as FieldKind,
     type SemanticLayerField,
 } from '@lightdash/common';
 import {
@@ -23,19 +23,14 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleField } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
 
-const getNavbarColorByFieldType = (
-    fieldType: SemanticLayerField['fieldType'],
-) => {
-    switch (fieldType) {
-        case FieldType.DIMENSION:
+const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
+    switch (kind) {
+        case FieldKind.DIMENSION:
             return 'blue';
-        case FieldType.METRIC:
+        case FieldKind.METRIC:
             return 'orange';
         default:
-            return assertUnreachable(
-                fieldType,
-                `Unknown field type ${fieldType}`,
-            );
+            return assertUnreachable(kind, `Unknown field kind ${kind}`);
     }
 };
 
@@ -55,8 +50,13 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
-    const { projectUuid, view, selectedDimensions, selectedMetrics } =
-        useAppSelector((state) => state.semanticViewer);
+    const {
+        projectUuid,
+        view,
+        selectedDimensions,
+        selectedTimeDimensions,
+        selectedMetrics,
+    } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -85,8 +85,10 @@ const SidebarViewFields = () => {
         );
     }
 
-    const handleFieldToggle = (field: string, fieldType: FieldType) => {
-        dispatch(toggleField({ field, fieldType }));
+    const handleFieldToggle = (
+        field: Pick<SemanticLayerField, 'name' | 'kind' | 'type'>,
+    ) => {
+        dispatch(toggleField(field));
     };
 
     const searchedOrAllFields = searchedFields ?? fields.data;
@@ -130,7 +132,7 @@ const SidebarViewFields = () => {
                         <NavLink
                             key={field.name}
                             h="xxl"
-                            color={getNavbarColorByFieldType(field.fieldType)}
+                            color={getNavbarColorByFieldKind(field.kind)}
                             label={
                                 <Highlight
                                     highlight={searchQuery.split(' ')}
@@ -144,11 +146,10 @@ const SidebarViewFields = () => {
                             active={
                                 // FIXME: not the best way to check if a field is selected
                                 selectedDimensions.includes(field.name) ||
+                                selectedTimeDimensions.includes(field.name) ||
                                 selectedMetrics.includes(field.name)
                             }
-                            onClick={() =>
-                                handleFieldToggle(field.name, field.fieldType)
-                            }
+                            onClick={() => handleFieldToggle(field)}
                         />
                     ))}
                 </Stack>

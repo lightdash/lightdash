@@ -7711,6 +7711,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerFieldType: {
+        dataType: 'refEnum',
+        enums: ['time', 'number', 'string', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
         dataType: 'refAlias',
         type: {
@@ -7719,8 +7724,8 @@ const models: TsoaRoute.Models = {
                 aggType: { dataType: 'string' },
                 visible: { dataType: 'boolean' },
                 description: { dataType: 'string' },
-                fieldType: { ref: 'FieldType', required: true },
-                type: { dataType: 'string', required: true },
+                kind: { ref: 'FieldType', required: true },
+                type: { ref: 'SemanticLayerFieldType', required: true },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
             },
@@ -7728,7 +7733,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string._value-ResultValue--__': {
+    'Record_string.string-or-number-or-boolean-or-null_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7737,9 +7742,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultRow: {
+    SemanticLayerResultRow: {
         dataType: 'refAlias',
-        type: { ref: 'Record_string._value-ResultValue--__', validators: {} },
+        type: {
+            ref: 'Record_string.string-or-number-or-boolean-or-null_',
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerQuery: {
@@ -7748,6 +7756,11 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                timeDimensions: {
                     dataType: 'array',
                     array: { dataType: 'string' },
                     required: true,

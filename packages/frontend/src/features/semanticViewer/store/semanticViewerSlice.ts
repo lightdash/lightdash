@@ -1,4 +1,8 @@
-import { FieldType } from '@lightdash/common';
+import {
+    FieldType as FieldKind,
+    SemanticLayerFieldType,
+    type SemanticLayerField,
+} from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
@@ -9,6 +13,7 @@ export interface SemanticViewerState {
 
     selectedDimensions: Array<string>;
     selectedMetrics: Array<string>;
+    selectedTimeDimensions: Array<string>;
 }
 
 const initialState: SemanticViewerState = {
@@ -18,6 +23,7 @@ const initialState: SemanticViewerState = {
 
     selectedDimensions: [],
     selectedMetrics: [],
+    selectedTimeDimensions: [],
 };
 
 export const semanticViewerSlice = createSlice({
@@ -37,13 +43,13 @@ export const semanticViewerSlice = createSlice({
             state.view = undefined;
             state.selectedDimensions = [];
             state.selectedMetrics = [];
+            state.selectedTimeDimensions = [];
         },
         toggleField: (
             state,
-            action: PayloadAction<{
-                field: string;
-                fieldType: FieldType;
-            }>,
+            action: PayloadAction<
+                Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
+            >,
         ) => {
             if (!state.view) {
                 throw new Error('Impossible state');
@@ -51,26 +57,34 @@ export const semanticViewerSlice = createSlice({
 
             console.log(action.payload);
 
-            switch (action.payload.fieldType) {
-                case FieldType.DIMENSION:
+            switch (action.payload.kind) {
+                case FieldKind.DIMENSION:
+                    const stateSelectedDimensionsArrayName: keyof typeof state =
+                        action.payload.type === SemanticLayerFieldType.TIME
+                            ? 'selectedTimeDimensions'
+                            : 'selectedDimensions';
+
                     if (
-                        state.selectedDimensions.includes(action.payload.field)
+                        state[stateSelectedDimensionsArrayName].includes(
+                            action.payload.name,
+                        )
                     ) {
-                        state.selectedDimensions =
-                            state.selectedDimensions.filter(
-                                (field) => field !== action.payload.field,
-                            );
+                        state[stateSelectedDimensionsArrayName] = state[
+                            stateSelectedDimensionsArrayName
+                        ].filter((field) => field !== action.payload.name);
                     } else {
-                        state.selectedDimensions.push(action.payload.field);
+                        state[stateSelectedDimensionsArrayName].push(
+                            action.payload.name,
+                        );
                     }
                     break;
-                case FieldType.METRIC:
-                    if (state.selectedMetrics.includes(action.payload.field)) {
+                case FieldKind.METRIC:
+                    if (state.selectedMetrics.includes(action.payload.name)) {
                         state.selectedMetrics = state.selectedMetrics.filter(
-                            (field) => field !== action.payload.field,
+                            (field) => field !== action.payload.name,
                         );
                     } else {
-                        state.selectedMetrics.push(action.payload.field);
+                        state.selectedMetrics.push(action.payload.name);
                     }
                     break;
                 default:

@@ -151,4 +151,9 @@ export const lightdashConfigMock: LightdashConfig = {
     cube: {
         token: '',
     },
+    dbtCloud: {
+        domain: '',
+        bearerToken: '',
+        environmentId: '',
+    },
 };
