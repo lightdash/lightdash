@@ -28,6 +28,7 @@ export interface SqlRunnerState {
     name: string;
     description: string;
     sql: string;
+    limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
@@ -54,6 +55,7 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
+    limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
     selectedChartType: undefined,
@@ -120,6 +122,9 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
+        setSqlLimit: (state, action: PayloadAction<number>) => {
+            state.limit = action.payload;
+        },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
             if (action.payload === EditorTabs.VISUALIZATION) {
@@ -137,6 +142,7 @@ export const sqlRunnerSlice = createSlice({
             state.name = action.payload.name;
             state.description = action.payload.description || '';
             state.sql = action.payload.sql;
+            state.limit = action.payload.limit || 500;
             state.selectedChartType =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;
         },
@@ -168,6 +174,7 @@ export const {
     setSqlRunnerResults,
     updateName,
     setSql,
+    setSqlLimit,
     setActiveEditorTab,
     setSavedChartData,
     setSelectedChartType,

@@ -7278,6 +7278,10 @@
             },
             "SqlRunnerBody": {
                 "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     }
@@ -7407,6 +7411,10 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -7435,6 +7443,7 @@
                     "createdAt",
                     "chartKind",
                     "config",
+                    "limit",
                     "sql",
                     "slug",
                     "description",
@@ -7511,6 +7520,10 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -7525,6 +7538,7 @@
                 "required": [
                     "spaceUuid",
                     "config",
+                    "limit",
                     "sql",
                     "description",
                     "name"
@@ -7576,11 +7590,15 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     }
                 },
-                "required": ["config", "sql"],
+                "required": ["config", "limit", "sql"],
                 "type": "object"
             },
             "UpdateSqlChart": {
