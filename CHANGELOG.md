@@ -1,3 +1,10 @@
+# [0.1211.0](https://github.com/lightdash/lightdash/compare/0.1210.0...0.1211.0) (2024-08-12)
+
+
+### Features
+
+* hide semantic layer fields on toggle ([#11101](https://github.com/lightdash/lightdash/issues/11101)) ([18c78a9](https://github.com/lightdash/lightdash/commit/18c78a9bd8c734800946b0240e7452b81b0dfbb8))
+
 # [0.1210.0](https://github.com/lightdash/lightdash/compare/0.1209.0...0.1210.0) (2024-08-12)
 
 
