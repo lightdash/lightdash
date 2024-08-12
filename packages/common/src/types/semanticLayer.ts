@@ -64,9 +64,6 @@ export interface SemanticLayerClient {
             'dimensions' | 'timeDimensions' | 'metrics'
         >,
     ) => Promise<SemanticLayerField[]>;
-    getResults: (
-        query: SemanticLayerQuery,
-    ) => Promise<SemanticLayerResultRow[]>;
     streamResults: (
         projectUuid: string,
         query: SemanticLayerQuery,

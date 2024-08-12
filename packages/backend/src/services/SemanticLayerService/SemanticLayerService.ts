@@ -146,17 +146,6 @@ export class SemanticLayerService extends BaseService {
         return client.getFields(view, selectedFields);
     }
 
-    async getResults(
-        user: SessionUser,
-        projectUuid: string,
-        query: SemanticLayerQuery,
-    ): Promise<SemanticLayerResultRow[]> {
-        await this.checkCanViewProject(user, projectUuid);
-        const client = await this.getSemanticLayerClient(projectUuid);
-
-        return client.getResults(query);
-    }
-
     async getStreamingResults(
         user: SessionUser,
         projectUuid: string,
