@@ -195,64 +195,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         return rowCount;
     }
 
-    async getResults(query: SemanticLayerQuery) {
-        const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
-        const { limit } = graphqlArgs;
-        const { groupByString, metricsString, orderByString, whereString } =
-            await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
-
-        const createQuery = `
-            mutation CreateQuery($environmentId: BigInt!) {
-                createQuery(
-                    environmentId: $environmentId
-                    metrics: ${metricsString}
-                    groupBy: ${groupByString}
-                    limit: ${limit ?? null}
-                    where: ${whereString}
-                    orderBy: ${orderByString}
-                ) {
-                    queryId
-                }
-            }`;
-
-        const { createQuery: createQueryResponse } =
-            await this.runGraphQlQuery<DbtGraphQLCreateQueryResponse>(
-                createQuery,
-            );
-
-        const getQueryResultsQuery = `
-            query GetQueryResults($environmentId: BigInt!) {
-                query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}") {
-                    status
-                    sql
-                    jsonResult
-                    error
-                }
-            }
-        `;
-
-        const { query: rawResponse } =
-            await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
-                getQueryResultsQuery,
-            );
-
-        if (rawResponse.status !== DbtQueryStatus.FAILED) {
-            throw new Error(
-                `DBT Query failed with error: ${rawResponse.error}`,
-            );
-        }
-
-        const jsonResult = rawResponse.jsonResult
-            ? (JSON.parse(
-                  Buffer.from(rawResponse.jsonResult, 'base64').toString(),
-              ) as DbtGraphQLJsonResult)
-            : null;
-
-        return jsonResult
-            ? this.transformers.resultsToResultRows(jsonResult)
-            : [];
-    }
-
     async getSql(query: SemanticLayerQuery) {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
         const { limit } = graphqlArgs;
