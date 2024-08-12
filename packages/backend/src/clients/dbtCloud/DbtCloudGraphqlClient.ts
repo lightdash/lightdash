@@ -167,6 +167,12 @@ export default class DbtCloudGraphqlClient {
                     getQueryResultsQuery,
                 );
 
+            if (rawResponse.status !== DbtQueryStatus.FAILED) {
+                throw new Error(
+                    `DBT Query failed with error: ${rawResponse.error}`,
+                );
+            }
+
             pageNum += 1;
             queryStatus = rawResponse.status;
 
@@ -226,6 +232,12 @@ export default class DbtCloudGraphqlClient {
             await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
                 getQueryResultsQuery,
             );
+
+        if (rawResponse.status !== DbtQueryStatus.FAILED) {
+            throw new Error(
+                `DBT Query failed with error: ${rawResponse.error}`,
+            );
+        }
 
         const jsonResult = rawResponse.jsonResult
             ? (JSON.parse(
