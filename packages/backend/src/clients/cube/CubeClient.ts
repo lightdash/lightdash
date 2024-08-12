@@ -4,6 +4,7 @@ import {
     NotFoundError,
     SemanticLayerClient,
     SemanticLayerQuery,
+    SemanticLayerResultRow,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { cubeTransfomers } from './transformer';
@@ -127,6 +128,27 @@ export default class CubeClient implements SemanticLayerClient {
         const resultSet = await this.cubeApi.load(cubeQuery);
 
         return this.transformers.resultsToResultRows(resultSet);
+    }
+
+    async streamResults(
+        _projectUuid: string,
+        query: SemanticLayerQuery,
+        callback: (results: SemanticLayerResultRow[]) => void,
+    ): Promise<number> {
+        let offset = 0;
+        const limit = 100;
+        let partialResults: SemanticLayerResultRow[] = [];
+        do {
+            /* eslint-disable-next-line no-await-in-loop */
+            partialResults = await this.getResults({
+                ...query,
+                offset,
+                limit,
+            });
+            callback(partialResults);
+            offset += limit;
+        } while (partialResults.length === limit);
+        return offset + partialResults.length;
     }
 
     async getSql(query: SemanticLayerQuery) {

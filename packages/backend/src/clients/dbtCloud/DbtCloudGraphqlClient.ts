@@ -12,8 +12,10 @@ import {
     DbtGraphQLJsonResult,
     DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
+    DbtQueryStatus,
     SemanticLayerClient,
     SemanticLayerQuery,
+    SemanticLayerResultRow,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -110,6 +112,81 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         return this.getClient().request(query, {
             environmentId: this.environmentId,
         });
+    }
+
+    async streamResults(
+        _projectUuid: string,
+        query: SemanticLayerQuery,
+        callback: (results: SemanticLayerResultRow[]) => void,
+    ): Promise<number> {
+        const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
+        const { limit } = graphqlArgs;
+        const { groupByString, metricsString, orderByString, whereString } =
+            await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
+
+        const createQuery = `
+            mutation CreateQuery($environmentId: BigInt!) {
+                createQuery(
+                    environmentId: $environmentId
+                    metrics: ${metricsString}
+                    groupBy: ${groupByString}
+                    limit: ${limit ?? null}
+                    where: ${whereString}
+                    orderBy: ${orderByString}
+                ) {
+                    queryId
+                }
+            }`;
+
+        const { createQuery: createQueryResponse } =
+            await this.runGraphQlQuery<DbtGraphQLCreateQueryResponse>(
+                createQuery,
+            );
+
+        let pageNum = 1;
+        let queryStatus: DbtQueryStatus | undefined;
+        let rowCount = 0;
+
+        while (
+            queryStatus !== DbtQueryStatus.SUCCESSFUL &&
+            queryStatus !== DbtQueryStatus.FAILED
+        ) {
+            const getQueryResultsQuery = `
+                query GetQueryResults($environmentId: BigInt!) {
+                    query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}", pageNum: ${pageNum}) {
+                        status
+                        sql
+                        jsonResult
+                        totalPages
+                        error
+                    }
+                }
+            `;
+
+            // TODO: refactor to use Promise.all
+            const { query: rawResponse } =
+                // eslint-disable-next-line no-await-in-loop
+                await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
+                    getQueryResultsQuery,
+                );
+
+            pageNum += 1;
+            queryStatus = rawResponse.status;
+
+            const jsonResult = rawResponse.jsonResult
+                ? (JSON.parse(
+                      Buffer.from(rawResponse.jsonResult, 'base64').toString(),
+                  ) as DbtGraphQLJsonResult)
+                : null;
+
+            if (jsonResult) {
+                const rows = this.transformers.resultsToResultRows(jsonResult);
+                callback(rows);
+                rowCount += rows.length;
+            }
+        }
+
+        return rowCount;
     }
 
     async getResults(query: SemanticLayerQuery) {

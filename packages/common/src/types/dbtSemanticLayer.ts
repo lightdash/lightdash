@@ -92,6 +92,7 @@ export type DbtGraphQLRunQueryRawResponse = {
         sql: string | null;
         jsonResult: string | null; // base64 encoded;
         error: string | null;
+        totalPages: number | null;
     };
 };
 

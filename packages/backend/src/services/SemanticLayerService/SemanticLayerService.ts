@@ -151,28 +151,6 @@ export class SemanticLayerService extends BaseService {
         return client.getResults(query);
     }
 
-    private async streamResults(
-        projectUuid: string,
-        query: SemanticLayerQuery,
-        callback: (results: SemanticLayerResultRow[]) => void,
-    ): Promise<number> {
-        let offset = 0;
-        const limit = 100;
-        const client = await this.getSemanticLayerClient(projectUuid);
-        let partialResults: SemanticLayerResultRow[] = [];
-        do {
-            /* eslint-disable-next-line no-await-in-loop */
-            partialResults = await client.getResults({
-                ...query,
-                offset,
-                limit,
-            });
-            callback(partialResults);
-            offset += limit;
-        } while (partialResults.length === limit);
-        return offset + partialResults.length;
-    }
-
     async streamQueryIntoFile({
         userUuid,
         projectUuid,
@@ -182,6 +160,7 @@ export class SemanticLayerService extends BaseService {
         fileUrl: string;
         columns: SqlColumn[];
     }> {
+        const client = await this.getSemanticLayerClient(projectUuid);
         const streamFunction = this.s3Client.isEnabled()
             ? this.downloadFileModel.streamResultsToCloudStorage.bind(this)
             : this.downloadFileModel.streamResultsToLocalFile.bind(this);
@@ -192,7 +171,7 @@ export class SemanticLayerService extends BaseService {
             projectUuid,
             this.lightdashConfig.siteUrl,
             async (writer) => {
-                await this.streamResults(projectUuid, query, async (rows) => {
+                await client.streamResults(projectUuid, query, async (rows) => {
                     rows.forEach(writer);
                 });
             },
