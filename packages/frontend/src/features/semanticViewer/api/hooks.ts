@@ -32,18 +32,17 @@ type SemanticLayerViewFieldsParams = {
     >;
 };
 
-export const useSemanticLayerViewFields = ({
-    projectUuid,
-    view,
-    selectedFields,
-}: SemanticLayerViewFieldsParams) =>
+export const useSemanticLayerViewFields = (
+    { projectUuid, view, selectedFields }: SemanticLayerViewFieldsParams,
+    useQueryParams?: UseQueryOptions<SemanticLayerField[], ApiError>,
+) =>
     useQuery<SemanticLayerField[], ApiError>({
         queryKey: [
             projectUuid,
             'semanticLayer',
             view,
             'fields',
-            selectedFields,
+            JSON.stringify(selectedFields),
         ],
         queryFn: () =>
             apiGetSemanticLayerViewFields({
@@ -51,6 +50,7 @@ export const useSemanticLayerViewFields = ({
                 view,
                 selectedFields,
             }),
+        ...useQueryParams,
     });
 
 type SemanticLayerSqlParams = {

@@ -13,8 +13,8 @@ export interface SemanticViewerState {
     view: string | undefined;
 
     selectedDimensions: Array<string>;
-    selectedMetrics: Array<string>;
     selectedTimeDimensions: Array<string>;
+    selectedMetrics: Array<string>;
 
     results: ResultRow[] | undefined;
 }
@@ -63,40 +63,19 @@ export const semanticViewerSlice = createSlice({
                 throw new Error('Impossible state');
             }
 
-            console.log(action.payload);
+            const propertyName =
+                action.payload.kind === FieldKind.DIMENSION
+                    ? action.payload.type === SemanticLayerFieldType.TIME
+                        ? 'selectedTimeDimensions'
+                        : 'selectedDimensions'
+                    : 'selectedMetrics';
 
-            switch (action.payload.kind) {
-                case FieldKind.DIMENSION:
-                    const stateSelectedDimensionsArrayName: keyof typeof state =
-                        action.payload.type === SemanticLayerFieldType.TIME
-                            ? 'selectedTimeDimensions'
-                            : 'selectedDimensions';
-
-                    if (
-                        state[stateSelectedDimensionsArrayName].includes(
-                            action.payload.name,
-                        )
-                    ) {
-                        state[stateSelectedDimensionsArrayName] = state[
-                            stateSelectedDimensionsArrayName
-                        ].filter((field) => field !== action.payload.name);
-                    } else {
-                        state[stateSelectedDimensionsArrayName].push(
-                            action.payload.name,
-                        );
-                    }
-                    break;
-                case FieldKind.METRIC:
-                    if (state.selectedMetrics.includes(action.payload.name)) {
-                        state.selectedMetrics = state.selectedMetrics.filter(
-                            (field) => field !== action.payload.name,
-                        );
-                    } else {
-                        state.selectedMetrics.push(action.payload.name);
-                    }
-                    break;
-                default:
-                    throw new Error('Unknown field type');
+            if (state[propertyName].includes(action.payload.name)) {
+                state[propertyName] = state[propertyName].filter(
+                    (field) => field !== action.payload.name,
+                );
+            } else {
+                state[propertyName].push(action.payload.name);
             }
         },
     },

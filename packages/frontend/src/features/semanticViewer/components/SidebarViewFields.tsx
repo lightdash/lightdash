@@ -9,6 +9,7 @@ import {
     Center,
     Highlight,
     Loader,
+    LoadingOverlay,
     NavLink,
     Stack,
     TextInput,
@@ -20,6 +21,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+    selectAllSelectedFields,
+    selectSelectedFieldsByKind,
+} from '../store/selectors';
 import { toggleField } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
 
@@ -50,13 +55,11 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
-    const {
-        projectUuid,
-        view,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-    } = useAppSelector((state) => state.semanticViewer);
+    const { projectUuid, view } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+    const allSelectedFieldsBykind = useAppSelector(selectSelectedFieldsByKind);
+    const allSelectedFields = useAppSelector(selectAllSelectedFields);
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,15 +68,16 @@ const SidebarViewFields = () => {
         throw new Error('Impossible state');
     }
 
-    const fields = useSemanticLayerViewFields({
-        projectUuid,
-        view,
-        selectedFields: {
-            dimensions: selectedDimensions,
-            timeDimensions: selectedTimeDimensions,
-            metrics: selectedMetrics,
+    const fields = useSemanticLayerViewFields(
+        {
+            projectUuid,
+            view,
+            selectedFields: allSelectedFieldsBykind,
         },
-    });
+        {
+            keepPreviousData: true,
+        },
+    );
 
     const searchedFields = useMemo(() => {
         if (!fields.data) return;
@@ -108,6 +112,12 @@ const SidebarViewFields = () => {
         />
     ) : (
         <Stack spacing="md" sx={{ flexGrow: 1 }}>
+            <LoadingOverlay
+                visible={fields.isFetching}
+                opacity={0.5}
+                loaderProps={{ color: 'gray', size: 'sm' }}
+            />
+
             <Box sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <TextInput
                     size="xs"
@@ -151,12 +161,7 @@ const SidebarViewFields = () => {
                             }
                             icon={<FieldIcon field={field} />}
                             disabled={!field.visible}
-                            active={
-                                // FIXME: not the best way to check if a field is selected
-                                selectedDimensions.includes(field.name) ||
-                                selectedTimeDimensions.includes(field.name) ||
-                                selectedMetrics.includes(field.name)
-                            }
+                            active={allSelectedFields.includes(field.name)}
                             onClick={() => handleFieldToggle(field)}
                         />
                     ))}
