@@ -8,16 +8,16 @@ import {
     ActionIcon,
     Box,
     Center,
-    Highlight,
     Loader,
     LoadingOverlay,
-    NavLink,
+    Paper,
     Stack,
+    Text,
     TextInput,
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
@@ -31,18 +31,7 @@ import {
     toggleMetric,
     toggleTimeDimension,
 } from '../store/semanticViewerSlice';
-import FieldIcon from './FieldIcon';
-
-const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
-    switch (kind) {
-        case FieldKind.DIMENSION:
-            return 'blue';
-        case FieldKind.METRIC:
-            return 'orange';
-        default:
-            return assertUnreachable(kind, `Unknown field kind ${kind}`);
-    }
-};
+import SidebarViewFieldItem from './SidebarViewFieldItem';
 
 const getSearchResults = (
     fields: SemanticLayerField[],
@@ -57,6 +46,48 @@ const getSearchResults = (
     })
         .search(searchQuery)
         .map((result) => result.item);
+};
+
+type SidebarViewFieldsGroupProps = {
+    fields: SemanticLayerField[];
+    allSelectedFields: string[];
+    searchQuery: string;
+    handleFieldToggle: (field: SemanticLayerField) => void;
+};
+
+const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
+    fields,
+    allSelectedFields,
+    searchQuery,
+    handleFieldToggle,
+}) => {
+    return (
+        <Box>
+            <Text transform="uppercase" fz="xs">
+                Selected fields ({allSelectedFields.length})
+            </Text>
+
+            <Paper
+                display="flex"
+                radius="md"
+                sx={{
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    gap: 1,
+                }}
+            >
+                {fields.map((field) => (
+                    <SidebarViewFieldItem
+                        key={field.name}
+                        field={field}
+                        searchQuery={searchQuery}
+                        isActive={true}
+                        onFieldToggle={() => handleFieldToggle(field)}
+                    />
+                ))}
+            </Paper>
+        </Box>
+    );
 };
 
 const SidebarViewFields = () => {
@@ -165,26 +196,29 @@ const SidebarViewFields = () => {
                     description="No fields match the search query."
                 />
             ) : (
-                <Stack spacing="one">
-                    {searchedOrAllFields.map((field) => (
-                        <NavLink
-                            key={field.name}
-                            h="xxl"
-                            color={getNavbarColorByFieldKind(field.kind)}
-                            label={
-                                <Highlight
-                                    highlight={searchQuery.split(' ')}
-                                    truncate
-                                >
-                                    {field.label}
-                                </Highlight>
-                            }
-                            icon={<FieldIcon field={field} />}
-                            disabled={!field.visible}
-                            active={allSelectedFieldNames.includes(field.name)}
-                            onClick={() => handleFieldToggle(field)}
-                        />
-                    ))}
+                <Stack>
+                    <SidebarViewFieldsGroup
+                        allSelectedFields={allSelectedFieldNames}
+                        fields={searchedOrAllFields.filter((field) =>
+                            allSelectedFieldNames.includes(field.name),
+                        )}
+                        searchQuery={searchQuery}
+                        handleFieldToggle={handleFieldToggle}
+                    />
+
+                    <SidebarViewFieldsGroup
+                        allSelectedFields={allSelectedFieldNames}
+                        fields={searchedOrAllFields
+                            .filter(
+                                (field) =>
+                                    !allSelectedFieldNames.includes(field.name),
+                            )
+                            .sort(
+                                (a, b) => Number(b.visible) - Number(a.visible),
+                            )}
+                        searchQuery={searchQuery}
+                        handleFieldToggle={handleFieldToggle}
+                    />
                 </Stack>
             )}
         </Stack>

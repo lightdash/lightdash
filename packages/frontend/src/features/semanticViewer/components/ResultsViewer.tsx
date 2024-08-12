@@ -1,51 +1,89 @@
 import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
-import { Box, LoadingOverlay } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { Box, Button, Center, LoadingOverlay, Overlay } from '@mantine/core';
+import { IconPlayerPlay } from '@tabler/icons-react';
+import { isEqual } from 'lodash';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { Table } from '../../sqlRunner/components/visualizations/Table';
-import { useSemanticViewerQueryRun } from '../api/streamingResults';
+import {
+    useSemanticViewerQueryRun,
+    type SemanticLayerResults,
+} from '../api/streamingResults';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectAllSelectedFieldsByKind } from '../store/selectors';
 import { setResults } from '../store/semanticViewerSlice';
 
 const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
+
+const mapResultsToTableData = (results: SemanticLayerResults): ResultRow[] => {
+    return results.results.map((result) => {
+        return Object.entries(result).reduce((acc, entry) => {
+            const [key, resultValue] = entry;
+            return {
+                ...acc,
+                [sanitizeFieldId(key)]: {
+                    value: {
+                        raw: resultValue,
+                        formatted: resultValue?.toString(),
+                    },
+                },
+            };
+        }, {});
+    });
+};
+
 const ResultsViewer: FC = () => {
-    const {
-        projectUuid,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-        sortBy,
-        results,
-    } = useAppSelector((state) => state.semanticViewer);
+    const { projectUuid, sortBy, results } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
     const dispatch = useAppDispatch();
 
-    const { mutate: runSemanticViewerQuery, isLoading } =
+    const { showToastError } = useToaster();
+
+    const [lastQuery, setLastQuery] = useState<
+        typeof allSelectedFieldsByKind | null
+    >(null);
+
+    const { mutateAsync: runSemanticViewerQuery, isLoading } =
         useSemanticViewerQueryRun({
             onSuccess: (data) => {
-                if (data) {
-                    const resultRows: ResultRow[] = data.results.map(
-                        (result) => {
-                            return Object.entries(result).reduce(
-                                (acc, entry) => {
-                                    const [key, resultValue] = entry;
-                                    return {
-                                        ...acc,
-                                        [sanitizeFieldId(key)]: {
-                                            value: {
-                                                raw: resultValue,
-                                                formatted:
-                                                    resultValue?.toString(),
-                                            },
-                                        },
-                                    };
-                                },
-                                {},
-                            );
-                        },
-                    );
-                    dispatch(setResults(resultRows));
-                }
+                if (!data) return;
+                dispatch(setResults(mapResultsToTableData(data)));
+            },
+            onError: (data) => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                    subtitle: data.error.message,
+                });
             },
         });
+
+    const shouldRunNewQuery = useMemo(() => {
+        if (!lastQuery) return true;
+        return !isEqual(lastQuery, allSelectedFieldsByKind);
+    }, [lastQuery, allSelectedFieldsByKind]);
+
+    const handleRunQuery = useCallback(async () => {
+        if (!shouldRunNewQuery) return;
+
+        await runSemanticViewerQuery({
+            projectUuid,
+            query: { ...allSelectedFieldsByKind, sortBy },
+        });
+
+        setLastQuery(allSelectedFieldsByKind);
+    }, [
+        projectUuid,
+        sortBy,
+        allSelectedFieldsByKind,
+        shouldRunNewQuery,
+        runSemanticViewerQuery,
+    ]);
 
     const config: SqlTableConfig = useMemo(() => {
         const firstRow = results?.[0];
@@ -66,28 +104,33 @@ const ResultsViewer: FC = () => {
     }, [results]);
 
     return (
-        <Box pos="relative">
+        <Box pos="relative" h="100%">
             <LoadingOverlay
                 visible={isLoading}
                 overlayBlur={2}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
-            <button
-                onClick={() =>
-                    runSemanticViewerQuery({
-                        projectUuid,
-                        query: {
-                            dimensions: selectedDimensions,
-                            metrics: selectedMetrics,
-                            timeDimensions: selectedTimeDimensions,
-                            sortBy,
-                        },
-                    })
-                }
-            >
-                Run Query{' '}
-            </button>
-            {results && <Table data={results} config={config} />}
+
+            {shouldRunNewQuery && (
+                <Overlay blur={2} opacity={0}>
+                    <Center h="100%">
+                        <Button
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconPlayerPlay} />}
+                            loading={isLoading}
+                            onClick={handleRunQuery}
+                        >
+                            Run query
+                        </Button>
+                    </Center>
+                </Overlay>
+            )}
+
+            {results && (
+                <Box h="100%">
+                    <Table data={results} config={config} />
+                </Box>
+            )}
         </Box>
     );
 };

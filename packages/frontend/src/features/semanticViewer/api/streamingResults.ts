@@ -7,7 +7,11 @@ import {
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -27,7 +31,7 @@ const scheduleSemanticLayerJob = async ({
         body: JSON.stringify(query),
     });
 
-export type Results = {
+export type SemanticLayerResults = {
     results: SemanticLayerResultRow[];
 };
 
@@ -39,14 +43,17 @@ export type Results = {
  * 2. Get the status of the scheduled job
  * 3. Fetch the results of the job
  */
-export const useSemanticViewerQueryRun = ({
-    onSuccess,
-}: {
-    onSuccess: (data: Results | undefined) => void;
-}) => {
+export const useSemanticViewerQueryRun = (
+    useQueryOptions?: UseQueryOptions<
+        SemanticLayerResultRow[] | undefined,
+        ApiError,
+        SemanticLayerResults | undefined
+    >,
+) => {
     const { showToastError } = useToaster();
+
     const {
-        mutate,
+        mutateAsync,
         isLoading: isMutating,
         data: queryJob,
     } = useMutation<
@@ -103,7 +110,7 @@ export const useSemanticViewerQueryRun = ({
     const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
         SemanticLayerResultRow[] | undefined,
         ApiError,
-        Results | undefined
+        SemanticLayerResults | undefined
     >(
         ['semanticViewerQueryResults', queryJob?.jobId],
         async () => {
@@ -165,18 +172,14 @@ export const useSemanticViewerQueryRun = ({
             return jsonObjects;
         },
         {
-            onError: (data) => {
-                showToastError({
-                    title: 'Could not fetch SQL query results',
-                    subtitle: data.error.message,
-                });
-            },
             enabled: Boolean(
                 scheduledDeliveryJobStatus?.status ===
                     SchedulerJobStatus.COMPLETED &&
                     !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
                     scheduledDeliveryJobStatus?.details?.fileUrl !== undefined,
             ),
+            keepPreviousData: true,
+            ...useQueryOptions,
             select: (data) => {
                 if (
                     !data ||
@@ -189,10 +192,6 @@ export const useSemanticViewerQueryRun = ({
                     results: data,
                 };
             },
-            onSuccess: (data) => {
-                onSuccess(data);
-            },
-            keepPreviousData: true,
         },
     );
 
@@ -209,8 +208,9 @@ export const useSemanticViewerQueryRun = ({
             isResultsLoading,
         ],
     );
+
     return {
-        mutate,
+        mutateAsync,
         isLoading,
         data: sqlQueryResults,
     };
