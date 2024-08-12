@@ -1,3 +1,10 @@
+## [0.1211.1](https://github.com/lightdash/lightdash/compare/0.1211.0...0.1211.1) (2024-08-12)
+
+
+### Bug Fixes
+
+* display error toast on no sql runner results ([#11110](https://github.com/lightdash/lightdash/issues/11110)) ([26bf4c8](https://github.com/lightdash/lightdash/commit/26bf4c80327474dfccd8ca1d8ec2258de471904a))
+
 # [0.1211.0](https://github.com/lightdash/lightdash/compare/0.1210.0...0.1211.0) (2024-08-12)
 
 
