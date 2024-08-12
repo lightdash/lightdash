@@ -78,7 +78,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
-        dimensions: query.dimensions,
+        dimensions: [...query.dimensions, ...query.timeDimensions],
         timeDimensions: query.timeDimensions.map((td) => ({
             dimension: td,
         })),
