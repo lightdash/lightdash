@@ -152,6 +152,10 @@ export const useSemanticViewerQueryRun = ({
             const jsonObjects: ResultRow[] = jsonStrings
                 .map((jsonString) => {
                     try {
+                        if (!jsonString) {
+                            return {};
+                        }
+
                         return JSON.parse(jsonString);
                     } catch (e) {
                         throw new Error('Error parsing JSON');
