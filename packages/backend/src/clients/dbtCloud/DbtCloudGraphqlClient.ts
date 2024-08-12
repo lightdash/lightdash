@@ -144,10 +144,14 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             );
 
         let pageNum = 1;
+        let totalPages = 1; // Default to 1 page
         let queryStatus: DbtQueryStatus | undefined;
         let rowCount = 0;
 
-        while (queryStatus !== DbtQueryStatus.SUCCESSFUL) {
+        while (
+            queryStatus !== DbtQueryStatus.SUCCESSFUL ||
+            pageNum <= totalPages
+        ) {
             const getQueryResultsQuery = `
                 query GetQueryResults($environmentId: BigInt!) {
                     query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}", pageNum: ${pageNum}) {
@@ -173,9 +177,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 );
             }
 
-            pageNum += 1;
-            queryStatus = rawResponse.status;
-
             const jsonResult = rawResponse.jsonResult
                 ? (JSON.parse(
                       Buffer.from(rawResponse.jsonResult, 'base64').toString(),
@@ -186,7 +187,11 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 const rows = this.transformers.resultsToResultRows(jsonResult);
                 callback(rows);
                 rowCount += rows.length;
+                pageNum += 1;
             }
+
+            queryStatus = rawResponse.status;
+            totalPages = rawResponse.totalPages ?? 1;
         }
 
         return rowCount;
