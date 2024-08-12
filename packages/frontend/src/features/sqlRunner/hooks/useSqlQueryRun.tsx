@@ -105,7 +105,7 @@ export const useSqlQueryRun = ({
 
     const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
         ResultRow[] | undefined,
-        ApiError,
+        ApiError | unknown, // Error could be unknown when trying to parse the JSON
         ResultsAndColumns | undefined
     >(
         ['sqlQueryResults', sqlQueryJob?.jobId],
@@ -165,10 +165,9 @@ export const useSqlQueryRun = ({
             return jsonObjects;
         },
         {
-            onError: (data) => {
+            onError: () => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
-                    subtitle: data.error.message,
                 });
             },
             enabled: Boolean(
