@@ -17,7 +17,7 @@ import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { useCallback, useMemo, useRef, type FC } from 'react';
 import { isSummable } from '../../../hooks/useColumnTotals';
-import { getColorFromRange } from '../../../utils/colorUtils';
+import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/styles';
@@ -399,7 +399,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                             getColorFromRange,
                                         );
 
-                                    if (!conditionalFormattingColor) {
+                                    if (
+                                        !conditionalFormattingColor ||
+                                        !isHexCodeColor(
+                                            conditionalFormattingColor,
+                                        )
+                                    ) {
                                         return undefined;
                                     }
 
