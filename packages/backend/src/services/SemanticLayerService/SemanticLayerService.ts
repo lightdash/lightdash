@@ -5,6 +5,7 @@ import {
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
+    SemanticLayerSelectedFields,
     SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';
@@ -133,10 +134,7 @@ export class SemanticLayerService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         view: string,
-        selectedFields: Pick<
-            SemanticLayerQuery,
-            'dimensions' | 'timeDimensions' | 'metrics'
-        >,
+        selectedFields: SemanticLayerSelectedFields,
     ): Promise<SemanticLayerField[]> {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
