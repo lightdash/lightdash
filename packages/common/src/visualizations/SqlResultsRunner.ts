@@ -50,15 +50,15 @@ export type PivotLayoutOptions = {
 };
 
 export type SqlCartesianChartLayout = {
-    index: {
+    x: {
         reference: string;
         type: IndexType;
     };
-    values: {
+    y: {
         reference: string;
         aggregation: AggregationOptions;
     }[];
-    pivots: { reference: string }[] | undefined;
+    groupBy: { reference: string }[] | undefined;
 };
 
 export type PieChartDimensionOptions = IndexLayoutOptions;
@@ -271,7 +271,7 @@ export class SqlRunnerResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: SqlCartesianChartLayout['index'] = {
+        const x: SqlCartesianChartLayout['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
@@ -296,9 +296,9 @@ export class SqlRunnerResultsTransformer
         ];
 
         return {
-            index: x,
-            values: y,
-            pivots: undefined,
+            x,
+            y,
+            groupBy: undefined,
         };
     }
 
@@ -307,15 +307,15 @@ export class SqlRunnerResultsTransformer
     public async getPivotChartData(
         config: SqlCartesianChartLayout,
     ): Promise<PivotChartData> {
-        const groupByColumns = [config.index.reference];
+        const groupByColumns = [config.x.reference];
         const pivotsSql =
-            config.pivots === undefined
+            config.groupBy === undefined
                 ? []
-                : config.pivots.map((groupBy) => groupBy.reference);
-        const valuesSql = config.values.map(
+                : config.groupBy.map((groupBy) => groupBy.reference);
+        const valuesSql = config.y.map(
             (y) => `${y.aggregation}(${y.reference})`,
         );
-        const sortsSql = [`${config.index.reference} ASC`];
+        const sortsSql = [`${config.x.reference} ASC`];
 
         const pivotResults = await getPivotedResults({
             columns: this.columns,
@@ -331,7 +331,7 @@ export class SqlRunnerResultsTransformer
             results: pivotResults.results,
             indexColumn: {
                 reference: groupByColumns[0],
-                type: config.index.type,
+                type: config.x.type,
             },
             valuesColumns: pivotResults.valueColumns || [],
         };
@@ -430,11 +430,11 @@ export class SqlRunnerResultsTransformer
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
-            currentConfig?.fieldConfig?.index.reference ===
-                newDefaultLayout?.index.reference ||
+            currentConfig?.fieldConfig?.x.reference ===
+                newDefaultLayout?.x.reference ||
             intersectionBy(
-                currentConfig?.fieldConfig?.values || [],
-                newDefaultLayout?.values || [],
+                currentConfig?.fieldConfig?.y || [],
+                newDefaultLayout?.y || [],
                 'reference',
             ).length > 0;
 

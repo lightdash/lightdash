@@ -307,7 +307,11 @@ export class SqlRunnerResultsTransformer
     public async getPivotChartData(
         config: SqlCartesianChartLayout,
     ): Promise<PivotChartData> {
+<<<<<<<< HEAD:packages/common/src/visualizations/SemanticViewerResultsRunner.ts
         const groupByColumns = [config.index.reference];
+========
+        const groupByColumns = [config.x.reference];
+>>>>>>>> main:packages/common/src/visualizations/SqlResultsRunner.ts
         const pivotsSql =
             config.pivots === undefined
                 ? []
@@ -331,7 +335,11 @@ export class SqlRunnerResultsTransformer
             results: pivotResults.results,
             indexColumn: {
                 reference: groupByColumns[0],
+<<<<<<<< HEAD:packages/common/src/visualizations/SemanticViewerResultsRunner.ts
                 type: config.index.type,
+========
+                type: config.x.type,
+>>>>>>>> main:packages/common/src/visualizations/SqlResultsRunner.ts
             },
             valuesColumns: pivotResults.valueColumns || [],
         };
@@ -430,11 +438,19 @@ export class SqlRunnerResultsTransformer
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
+<<<<<<<< HEAD:packages/common/src/visualizations/SemanticViewerResultsRunner.ts
             currentConfig?.fieldConfig?.index.reference ===
                 newDefaultLayout?.index.reference ||
             intersectionBy(
                 currentConfig?.fieldConfig?.values || [],
                 newDefaultLayout?.values || [],
+========
+            currentConfig?.fieldConfig?.x.reference ===
+                newDefaultLayout?.x.reference ||
+            intersectionBy(
+                currentConfig?.fieldConfig?.y || [],
+                newDefaultLayout?.y || [],
+>>>>>>>> main:packages/common/src/visualizations/SqlResultsRunner.ts
                 'reference',
             ).length > 0;
 

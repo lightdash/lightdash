@@ -23,7 +23,7 @@ import { CartesianChartAggregationConfig } from './CartesianChartAggregationConf
 import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlCartesianChartLayout['values'][number];
+    field: SqlCartesianChartLayout['y'][number];
     yLayoutOptions: ValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -143,7 +143,7 @@ const XFieldAxisConfig = ({
     xLayoutOptions,
     actions,
 }: {
-    field: SqlCartesianChartLayout['index'];
+    field: SqlCartesianChartLayout['x'];
     xLayoutOptions: IndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
