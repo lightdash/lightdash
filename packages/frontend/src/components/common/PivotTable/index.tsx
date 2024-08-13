@@ -94,20 +94,29 @@ const PivotTable: FC<PivotTableProps> = ({
     const hasRowTotals = data.pivotConfig.rowTotals;
 
     const { columns, columnOrder } = useMemo(() => {
-        let headerInfoForColumns = data.headerValues[0].map(
-            () => ({} as Record<string, ResultValue>),
-        );
-        data.headerValues.forEach((headerRow) => {
-            headerRow.forEach((headerColValue, headerColIndex) => {
-                if ('value' in headerColValue) {
-                    headerInfoForColumns[headerColIndex][
-                        headerColValue.fieldId
-                    ] = headerColValue.value;
-                }
-            });
-        });
-        headerInfoForColumns = [
-            ...Array(data.indexValueTypes.length),
+        const indexPlaceholders: Record<string, ResultValue>[] = Array(
+            data.indexValueTypes.length,
+        ).fill({});
+
+        const headerPlaceholders: Record<string, ResultValue>[] = Array(
+            data.headerValues.length,
+        ).fill({});
+
+        const headerInfoForColumns = data.headerValues.reduce<
+            Array<Record<string, ResultValue>>
+        >((acc, headerRow) => {
+            return headerRow.map((headerColValue, headerColIndex) =>
+                'value' in headerColValue
+                    ? {
+                          ...acc[headerColIndex],
+                          [headerColValue.fieldId]: headerColValue.value,
+                      }
+                    : acc[headerColIndex],
+            );
+        }, headerPlaceholders);
+
+        const finalHeaderInfoForColumns = [
+            ...indexPlaceholders,
             ...headerInfoForColumns,
         ];
 
@@ -179,8 +188,8 @@ const PivotTable: FC<PivotTableProps> = ({
                             item: item,
                             type: col.columnType,
                             headerInfo:
-                                colIndex < headerInfoForColumns.length
-                                    ? headerInfoForColumns[colIndex]
+                                colIndex < finalHeaderInfoForColumns.length
+                                    ? finalHeaderInfoForColumns[colIndex]
                                     : undefined,
                         },
                         aggregationFn: aggregationFunction,
