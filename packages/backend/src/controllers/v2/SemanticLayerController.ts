@@ -61,9 +61,13 @@ export class SemanticLayerController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() view: string,
-        @Query() dimensions: string[] = [],
-        @Query() timeDimensions: string[] = [],
-        @Query() metrics: string[] = [],
+        @Query() dimensions: unknown[] = [],
+        @Query() timeDimensions: unknown[] = [],
+        @Query() metrics: unknown[] = [],
+        // FIXME: types: GenerateMetadataError: @Query('dimensions') Can't support array 'refAlias' type.
+        // @Query() dimensions: SemanticLayerQuery['dimensions'] = [],
+        // @Query() timeDimensions: SemanticLayerQuery['timeDimensions'] = [],
+        // @Query() metrics: SemanticLayerQuery['metrics'] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
 
@@ -75,7 +79,11 @@ export class SemanticLayerController extends BaseController {
                     dimensions,
                     timeDimensions,
                     metrics,
-                }),
+                } as unknown as Pick<
+                    SemanticLayerQuery,
+                    'dimensions' | 'timeDimensions' | 'metrics'
+                    // FIXME ^ types in the @Query above and remove this cast
+                >),
         };
     }
 

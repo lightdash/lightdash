@@ -95,7 +95,10 @@ export interface SemanticLayerClient {
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
         viewName: string,
-        selectedFields: SemanticLayerSelectedFields,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
     ) => Promise<SemanticLayerField[]>;
     streamResults: (
         projectUuid: string,

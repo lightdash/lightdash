@@ -20,20 +20,6 @@ export const apiGetSemanticLayerViews = ({
         body: undefined,
     });
 
-// Makes sure the selectedFields object is in the correct format for the Query Params
-function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
-    const selectedFieldsEntries = Object.entries(selectedFields).reduce<
-        string[][]
-    >((acc, [key, value]) => {
-        if (value.length > 0) {
-            acc.push(...value.map((v) => [key, v]));
-        }
-        return acc;
-    }, []);
-
-    return selectedFieldsEntries;
-}
-
 type GetSemanticLayerViewFieldsRequestParams = {
     projectUuid: string;
     view: string;
@@ -48,8 +34,25 @@ export const apiGetSemanticLayerViewFields = ({
     view,
     selectedFields,
 }: GetSemanticLayerViewFieldsRequestParams) => {
-    const selectedFieldsEntries = getQueryParamsReadyArrays(selectedFields);
-    const queryParams = new URLSearchParams(selectedFieldsEntries);
+    const queryParams = new URLSearchParams();
+
+    selectedFields.dimensions.forEach((dim, index) => {
+        queryParams.append(`dimensions[${index}][name]`, dim.name);
+    });
+
+    selectedFields.timeDimensions.forEach((timeDim, index) => {
+        queryParams.append(`timeDimensions[${index}][name]`, timeDim.name);
+        if (timeDim.granularity) {
+            queryParams.append(
+                `timeDimensions[${index}][granularity]`,
+                timeDim.granularity,
+            );
+        }
+    });
+
+    selectedFields.metrics.forEach((metric, index) => {
+        queryParams.append(`metrics[${index}][name]`, metric.name);
+    });
 
     return lightdashApi<SemanticLayerField[]>({
         version: 'v2',

@@ -5,10 +5,12 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
-    SemanticLayerSelectedFields,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
-import { cubeTransfomers } from './transformer';
+import {
+    cubeTransfomers,
+    getCubeTimeDimensionGranularity,
+} from './transformer';
 
 type CubeArgs = {
     lightdashConfig: LightdashConfig;
@@ -48,11 +50,10 @@ export default class CubeClient implements SemanticLayerClient {
 
     async getFields(
         viewName: string,
-        {
-            dimensions: selectedDimensions,
-            timeDimensions: selectedTimeDimensions,
-            metrics: selectedMetrics,
-        }: SemanticLayerSelectedFields,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
     ) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
@@ -69,9 +70,9 @@ export default class CubeClient implements SemanticLayerClient {
             view;
 
         if (
-            selectedDimensions.length === 0 &&
-            selectedTimeDimensions.length === 0 &&
-            selectedMetrics.length === 0
+            selectedFields.dimensions.length === 0 &&
+            selectedFields.timeDimensions.length === 0 &&
+            selectedFields.metrics.length === 0
         ) {
             // if no fields are selected, return all fields
             return this.transformers.fieldsToSemanticLayerFields(
@@ -80,14 +81,19 @@ export default class CubeClient implements SemanticLayerClient {
             );
         }
 
+        const cubeQueryObject: Query = {
+            dimensions: selectedFields.dimensions.map((d) => d.name),
+            timeDimensions: selectedFields.timeDimensions.map((td) => ({
+                dimension: td.name,
+                granularity:
+                    td.granularity &&
+                    getCubeTimeDimensionGranularity(td.granularity),
+            })),
+            measures: selectedFields.metrics.map((m) => m.name),
+        };
+
         const availableMetrics = cubeMetaApi.membersForQuery(
-            {
-                dimensions: selectedDimensions,
-                timeDimensions: selectedTimeDimensions.map((d) => ({
-                    dimension: d,
-                })),
-                measures: selectedMetrics,
-            },
+            cubeQueryObject,
             'measures',
         );
 
@@ -97,13 +103,7 @@ export default class CubeClient implements SemanticLayerClient {
         }));
 
         const availableDimensions = cubeMetaApi.membersForQuery(
-            {
-                dimensions: selectedDimensions,
-                timeDimensions: selectedTimeDimensions.map((d) => ({
-                    dimension: d,
-                })),
-                measures: selectedMetrics,
-            },
+            cubeQueryObject,
             'dimensions',
         );
 

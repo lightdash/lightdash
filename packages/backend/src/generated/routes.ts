@@ -7765,13 +7765,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerTimeDimension: {
+    'Pick_SemanticLayerField.name_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { name: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerTimeDimension.name-or-granularity_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                granularity: { ref: 'SemanticLayerTimeGranularity' },
                 name: { dataType: 'string', required: true },
+                granularity: { ref: 'SemanticLayerTimeGranularity' },
             },
             validators: {},
         },
@@ -7828,20 +7837,26 @@ const models: TsoaRoute.Models = {
                 },
                 metrics: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
                     required: true,
                 },
                 timeDimensions: {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'SemanticLayerTimeDimension',
+                        ref: 'Pick_SemanticLayerTimeDimension.name-or-granularity_',
                     },
                     required: true,
                 },
                 dimensions: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
                     required: true,
                 },
             },
@@ -16086,21 +16101,21 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'query',
                     name: 'dimensions',
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: { dataType: 'any' },
                 },
                 timeDimensions: {
                     default: [],
                     in: 'query',
                     name: 'timeDimensions',
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: { dataType: 'any' },
                 },
                 metrics: {
                     default: [],
                     in: 'query',
                     name: 'metrics',
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: { dataType: 'any' },
                 },
             };
 
