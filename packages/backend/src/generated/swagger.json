@@ -8620,8 +8620,30 @@
                 "enum": ["time", "number", "string", "boolean"],
                 "type": "string"
             },
+            "SemanticLayerTimeGranularity": {
+                "enum": [
+                    "NANOSECOND",
+                    "MICROSECOND",
+                    "MILLISECOND",
+                    "SECOND",
+                    "MINUTE",
+                    "HOUR",
+                    "DAY",
+                    "WEEK",
+                    "MONTH",
+                    "QUARTER",
+                    "YEAR"
+                ],
+                "type": "string"
+            },
             "SemanticLayerField": {
                 "properties": {
+                    "availableGranularities": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
+                        },
+                        "type": "array"
+                    },
                     "aggType": {
                         "type": "string"
                     },
@@ -8644,24 +8666,15 @@
                         "type": "string"
                     }
                 },
-                "required": ["visible", "kind", "type", "label", "name"],
-                "type": "object"
-            },
-            "SemanticLayerTimeGranularity": {
-                "enum": [
-                    "NANOSECOND",
-                    "MICROSECOND",
-                    "MILLISECOND",
-                    "SECOND",
-                    "MINUTE",
-                    "HOUR",
-                    "DAY",
-                    "WEEK",
-                    "MONTH",
-                    "QUARTER",
-                    "YEAR"
+                "required": [
+                    "availableGranularities",
+                    "visible",
+                    "kind",
+                    "type",
+                    "label",
+                    "name"
                 ],
-                "type": "string"
+                "type": "object"
             },
             "SemanticLayerTimeDimension": {
                 "properties": {

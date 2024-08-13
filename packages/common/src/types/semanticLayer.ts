@@ -36,11 +36,12 @@ export type SemanticLayerField = {
     description?: string;
     visible: boolean;
     aggType?: string; // eg: count, sum
+    availableGranularities: SemanticLayerTimeGranularity[];
 };
 
 export type SemanticLayerTimeDimension = {
     name: string;
-    granularity: SemanticLayerTimeGranularity | undefined;
+    granularity?: SemanticLayerTimeGranularity;
 };
 
 export type SemanticLayerQuery = {

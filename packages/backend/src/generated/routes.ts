@@ -7723,23 +7723,6 @@ const models: TsoaRoute.Models = {
         enums: ['time', 'number', 'string', 'boolean'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerField: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                aggType: { dataType: 'string' },
-                visible: { dataType: 'boolean', required: true },
-                description: { dataType: 'string' },
-                kind: { ref: 'FieldType', required: true },
-                type: { ref: 'SemanticLayerFieldType', required: true },
-                label: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerTimeGranularity: {
         dataType: 'refEnum',
         enums: [
@@ -7757,19 +7740,37 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                availableGranularities: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refEnum',
+                        ref: 'SemanticLayerTimeGranularity',
+                    },
+                    required: true,
+                },
+                aggType: { dataType: 'string' },
+                visible: { dataType: 'boolean', required: true },
+                description: { dataType: 'string' },
+                kind: { ref: 'FieldType', required: true },
+                type: { ref: 'SemanticLayerFieldType', required: true },
+                label: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerTimeDimension: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                granularity: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'SemanticLayerTimeGranularity' },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
+                granularity: { ref: 'SemanticLayerTimeGranularity' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
