@@ -1,5 +1,4 @@
 import {
-    type ResultRow,
     type SemanticLayerField,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
@@ -20,8 +19,6 @@ export interface SemanticViewerState {
     selectedMetrics: Pick<SemanticLayerField, 'name'>[];
 
     sortBy: SemanticLayerSortBy[];
-
-    results: ResultRow[] | undefined;
 }
 
 const initialState: SemanticViewerState = {
@@ -32,9 +29,8 @@ const initialState: SemanticViewerState = {
     selectedDimensions: [],
     selectedMetrics: [],
     selectedTimeDimensions: [],
-    sortBy: [],
 
-    results: undefined,
+    sortBy: [],
 };
 
 export const semanticViewerSlice = createSlice({
@@ -55,9 +51,6 @@ export const semanticViewerSlice = createSlice({
             state.selectedDimensions = [];
             state.selectedMetrics = [];
             state.selectedTimeDimensions = [];
-        },
-        setResults: (state, action: PayloadAction<ResultRow[]>) => {
-            state.results = action.payload;
         },
         toggleDimension: (
             state,
@@ -133,5 +126,4 @@ export const {
     toggleDimension,
     toggleTimeDimension,
     toggleMetric,
-    setResults,
 } = semanticViewerSlice.actions;

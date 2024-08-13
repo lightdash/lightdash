@@ -1,4 +1,8 @@
-import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
+import {
+    type ResultRow,
+    type SemanticLayerResultRow,
+    type SqlTableConfig,
+} from '@lightdash/common';
 import { Box, Button, Center, LoadingOverlay, Overlay } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { isEqual } from 'lodash';
@@ -6,18 +10,16 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { Table } from '../../sqlRunner/components/visualizations/Table';
-import {
-    useSemanticViewerQueryRun,
-    type SemanticLayerResults,
-} from '../api/streamingResults';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useSemanticViewerQueryRun } from '../api/streamingResults';
+import { useAppSelector } from '../store/hooks';
 import { selectAllSelectedFieldsByKind } from '../store/selectors';
-import { setResults } from '../store/semanticViewerSlice';
 
 const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 
-const mapResultsToTableData = (results: SemanticLayerResults): ResultRow[] => {
-    return results.results.map((result) => {
+const mapResultsToTableData = (
+    resultRows: SemanticLayerResultRow[],
+): ResultRow[] => {
+    return resultRows.map((result) => {
         return Object.entries(result).reduce((acc, entry) => {
             const [key, resultValue] = entry;
             return {
@@ -34,14 +36,13 @@ const mapResultsToTableData = (results: SemanticLayerResults): ResultRow[] => {
 };
 
 const ResultsViewer: FC = () => {
-    const { projectUuid, sortBy, results } = useAppSelector(
+    const { projectUuid, sortBy } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
-    const dispatch = useAppDispatch();
 
     const { showToastError } = useToaster();
 
@@ -49,19 +50,22 @@ const ResultsViewer: FC = () => {
         typeof allSelectedFieldsByKind | null
     >(null);
 
-    const { mutateAsync: runSemanticViewerQuery, isLoading } =
-        useSemanticViewerQueryRun({
-            onSuccess: (data) => {
-                if (!data) return;
-                dispatch(setResults(mapResultsToTableData(data)));
-            },
-            onError: (data) => {
-                showToastError({
-                    title: 'Could not fetch SQL query results',
-                    subtitle: data.error.message,
-                });
-            },
-        });
+    const {
+        data: resultsData,
+        mutateAsync: runSemanticViewerQuery,
+        isLoading,
+    } = useSemanticViewerQueryRun({
+        select: (data) => {
+            if (!data) return undefined;
+            return mapResultsToTableData(data);
+        },
+        onError: (data) => {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: data.error.message,
+            });
+        },
+    });
 
     const shouldRunNewQuery = useMemo(() => {
         if (!lastQuery) return true;
@@ -86,7 +90,7 @@ const ResultsViewer: FC = () => {
     ]);
 
     const config: SqlTableConfig = useMemo(() => {
-        const firstRow = results?.[0];
+        const firstRow = resultsData?.[0];
         const columns = Object.keys(firstRow || {}).reduce((acc, key) => {
             return {
                 ...acc,
@@ -101,7 +105,7 @@ const ResultsViewer: FC = () => {
         }, {});
 
         return { columns };
-    }, [results]);
+    }, [resultsData]);
 
     return (
         <Box pos="relative" h="100%">
@@ -112,7 +116,7 @@ const ResultsViewer: FC = () => {
             />
 
             {shouldRunNewQuery && (
-                <Overlay blur={2} opacity={0}>
+                <Overlay blur={3} color="#fff" opacity={0.33}>
                     <Center h="100%">
                         <Button
                             size="xs"
@@ -126,9 +130,12 @@ const ResultsViewer: FC = () => {
                 </Overlay>
             )}
 
-            {results && (
+            {resultsData && (
                 <Box h="100%">
-                    <Table data={results} config={config} />
+                    {/* TODO: dummy fix for table header stretching vertically */}
+                    <Box>
+                        <Table data={resultsData} config={config} />
+                    </Box>
                 </Box>
             )}
         </Box>
