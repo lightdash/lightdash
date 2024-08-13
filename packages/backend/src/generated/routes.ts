@@ -7723,17 +7723,54 @@ const models: TsoaRoute.Models = {
         enums: ['time', 'number', 'string', 'boolean'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerTimeGranularity: {
+        dataType: 'refEnum',
+        enums: [
+            'NANOSECOND',
+            'MICROSECOND',
+            'MILLISECOND',
+            'SECOND',
+            'MINUTE',
+            'HOUR',
+            'DAY',
+            'WEEK',
+            'MONTH',
+            'QUARTER',
+            'YEAR',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                availableGranularities: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refEnum',
+                        ref: 'SemanticLayerTimeGranularity',
+                    },
+                    required: true,
+                },
                 aggType: { dataType: 'string' },
                 visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 kind: { ref: 'FieldType', required: true },
                 type: { ref: 'SemanticLayerFieldType', required: true },
                 label: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                granularity: { ref: 'SemanticLayerTimeGranularity' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -7754,7 +7791,10 @@ const models: TsoaRoute.Models = {
                 },
                 timeDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'SemanticLayerTimeDimension',
+                    },
                     required: true,
                 },
                 dimensions: {

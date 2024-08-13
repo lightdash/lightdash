@@ -6,12 +6,14 @@ import {
     TCubeDimension,
     TCubeMeasure,
     TCubeMemberType,
+    TimeDimensionGranularity,
 } from '@cubejs-client/core';
 import {
     assertUnreachable,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
 } from '@lightdash/common';
 
@@ -35,6 +37,92 @@ function getSemanticLayerTypeFromCubeType(
     }
 }
 
+const getSemanticLayerTimeGranularity = (
+    cubeGranularity: TimeDimensionGranularity,
+): SemanticLayerTimeGranularity => {
+    switch (cubeGranularity) {
+        case 'second':
+            return SemanticLayerTimeGranularity.SECOND;
+        case 'minute':
+            return SemanticLayerTimeGranularity.MINUTE;
+        case 'hour':
+            return SemanticLayerTimeGranularity.HOUR;
+        case 'day':
+            return SemanticLayerTimeGranularity.DAY;
+        case 'week':
+            return SemanticLayerTimeGranularity.WEEK;
+        case 'month':
+            return SemanticLayerTimeGranularity.MONTH;
+        case 'quarter':
+            return SemanticLayerTimeGranularity.QUARTER;
+        case 'year':
+            return SemanticLayerTimeGranularity.YEAR;
+        default:
+            return assertUnreachable(
+                cubeGranularity,
+                `Unknown cube time granularity: ${cubeGranularity}`,
+            );
+    }
+};
+
+const getCubeTimeDimensionGranularity = (
+    semanticGranularity: SemanticLayerTimeGranularity,
+): TimeDimensionGranularity => {
+    switch (semanticGranularity) {
+        case SemanticLayerTimeGranularity.NANOSECOND:
+        case SemanticLayerTimeGranularity.MICROSECOND:
+        case SemanticLayerTimeGranularity.MILLISECOND:
+            throw new Error(
+                'Nano, micro and millisecond granularities are not supported by cube',
+            );
+        case SemanticLayerTimeGranularity.SECOND:
+            return 'second';
+        case SemanticLayerTimeGranularity.MINUTE:
+            return 'minute';
+        case SemanticLayerTimeGranularity.HOUR:
+            return 'hour';
+        case SemanticLayerTimeGranularity.DAY:
+            return 'day';
+        case SemanticLayerTimeGranularity.WEEK:
+            return 'week';
+        case SemanticLayerTimeGranularity.MONTH:
+            return 'month';
+        case SemanticLayerTimeGranularity.QUARTER:
+            return 'quarter';
+        case SemanticLayerTimeGranularity.YEAR:
+            return 'year';
+        default:
+            return assertUnreachable(
+                semanticGranularity,
+                `Unknown semantic time granularity: ${semanticGranularity}`,
+            );
+    }
+};
+
+const allAvailableGranularities = [
+    'second',
+    'minute',
+    'hour',
+    'day',
+    'week',
+    'month',
+    'quarter',
+    'year',
+] as const;
+
+// The following lines ensure that all available granularities from the cube
+// are covered by an exhaustiveness check
+type AllAvailableGranularities = typeof allAvailableGranularities[number];
+type EnsureExhaustive = Exclude<
+    TimeDimensionGranularity,
+    AllAvailableGranularities
+> extends never
+    ? true
+    : false;
+// DO NOT REMOVE
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ensureExhaustiveCheck: EnsureExhaustive = true;
+
 type DimensionsWithVisibility = (TCubeDimension &
     Pick<SemanticLayerField, 'visible'>)[];
 type MeasuresWithVisibility = (TCubeMeasure &
@@ -49,16 +137,28 @@ export const cubeTransfomers: SemanticLayerTransformer<
     SqlQuery
 > = {
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
-        const semanticDimensions: SemanticLayerField[] = dimensions.map(
-            (d) => ({
+        const semanticDimensions: SemanticLayerField[] = dimensions.map((d) => {
+            const type = getSemanticLayerTypeFromCubeType(d.type);
+
+            // TODO: check if cube has a function to get available granularities
+            const availableGranularities =
+                type === SemanticLayerFieldType.TIME
+                    ? allAvailableGranularities.map(
+                          getSemanticLayerTimeGranularity,
+                      )
+                    : [];
+
+            return {
                 name: d.name,
                 label: d.title,
-                type: getSemanticLayerTypeFromCubeType(d.type),
+                type,
                 description: d.shortTitle,
                 visible: Boolean(d.public && d.visible),
                 kind: FieldKind.DIMENSION,
-            }),
-        );
+                availableGranularities,
+            };
+        });
+
         const semanticMetrics: SemanticLayerField[] = metrics.map((d) => ({
             name: d.name,
             label: d.title,
@@ -66,6 +166,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             visible: Boolean(d.public && d.visible),
             type: getSemanticLayerTypeFromCubeType(d.type),
             kind: FieldKind.METRIC,
+            availableGranularities: [],
         }));
 
         return [...semanticDimensions, ...semanticMetrics];
@@ -78,9 +179,15 @@ export const cubeTransfomers: SemanticLayerTransformer<
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
-        dimensions: [...query.dimensions, ...query.timeDimensions],
+        dimensions: [
+            ...query.dimensions,
+            ...query.timeDimensions.map((td) => td.name),
+        ],
         timeDimensions: query.timeDimensions.map((td) => ({
-            dimension: td,
+            dimension: td.name,
+            granularity:
+                td.granularity &&
+                getCubeTimeDimensionGranularity(td.granularity),
         })),
         filters: [],
         offset: query.offset,

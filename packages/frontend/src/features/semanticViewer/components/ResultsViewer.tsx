@@ -47,24 +47,23 @@ const ResultsViewer: FC = () => {
         });
 
     const config: SqlTableConfig = useMemo(() => {
-        const columns = [
-            ...selectedTimeDimensions,
-            ...selectedDimensions,
-            ...selectedMetrics,
-        ].reduce((acc, dimension) => {
+        const firstRow = results?.[0];
+        const columns = Object.keys(firstRow || {}).reduce((acc, key) => {
             return {
                 ...acc,
-                [sanitizeFieldId(dimension)]: {
+                [sanitizeFieldId(key)]: {
                     visible: true,
-                    reference: sanitizeFieldId(dimension),
-                    label: dimension,
+                    reference: sanitizeFieldId(key),
+                    label: key,
                     frozen: false,
                     order: undefined,
                 },
             };
         }, {});
+
         return { columns };
-    }, [selectedDimensions, selectedTimeDimensions, selectedMetrics]);
+    }, [results]);
+
     return (
         <Box pos="relative">
             <LoadingOverlay

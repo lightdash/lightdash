@@ -7,9 +7,11 @@ import {
     DbtGraphQLJsonResult,
     DbtGraphQLMetric,
     DbtMetricType,
+    DbtTimeGranularity,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -33,6 +35,40 @@ function getSemanticLayerTypeFromDbtType(
     }
 }
 
+const getSemanticLayerTimeGranularityFromDbtTimeGranularity = (
+    granularity: DbtTimeGranularity,
+): SemanticLayerTimeGranularity => {
+    switch (granularity) {
+        case DbtTimeGranularity.NANOSECOND:
+            return SemanticLayerTimeGranularity.NANOSECOND;
+        case DbtTimeGranularity.MICROSECOND:
+            return SemanticLayerTimeGranularity.MICROSECOND;
+        case DbtTimeGranularity.MILLISECOND:
+            return SemanticLayerTimeGranularity.MILLISECOND;
+        case DbtTimeGranularity.SECOND:
+            return SemanticLayerTimeGranularity.SECOND;
+        case DbtTimeGranularity.MINUTE:
+            return SemanticLayerTimeGranularity.MINUTE;
+        case DbtTimeGranularity.HOUR:
+            return SemanticLayerTimeGranularity.HOUR;
+        case DbtTimeGranularity.DAY:
+            return SemanticLayerTimeGranularity.DAY;
+        case DbtTimeGranularity.WEEK:
+            return SemanticLayerTimeGranularity.WEEK;
+        case DbtTimeGranularity.MONTH:
+            return SemanticLayerTimeGranularity.MONTH;
+        case DbtTimeGranularity.QUARTER:
+            return SemanticLayerTimeGranularity.QUARTER;
+        case DbtTimeGranularity.YEAR:
+            return SemanticLayerTimeGranularity.YEAR;
+        default:
+            return assertUnreachable(
+                granularity,
+                `Unknown dbt time granularity: ${granularity}`,
+            );
+    }
+};
+
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
     DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs,
@@ -50,6 +86,9 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                 type: getSemanticLayerTypeFromDbtType(dimension.type),
                 visible: dimension.visible,
                 kind: FieldKind.DIMENSION,
+                availableGranularities: dimension.queryableGranularities.map(
+                    getSemanticLayerTimeGranularityFromDbtTimeGranularity,
+                ),
             }),
         );
 
@@ -60,6 +99,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             visible: metric.visible,
             type: getSemanticLayerTypeFromDbtType(metric.type),
             kind: FieldKind.METRIC,
+            availableGranularities: [],
         }));
 
         return [...semanticDimensions, ...semanticMetrics];
@@ -71,9 +111,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             metrics: metrics.map((metric) => ({ name: metric })),
             groupBy: [
                 ...dimensions.map((dimension) => ({ name: dimension })),
-                ...timeDimensions.map((timeDimension) => ({
-                    name: timeDimension,
-                })),
+                ...timeDimensions,
             ],
             where: [],
             orderBy: [],

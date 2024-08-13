@@ -36,22 +36,30 @@ export const useSemanticLayerViewFields = ({
     projectUuid,
     view,
     selectedFields,
-}: SemanticLayerViewFieldsParams) =>
-    useQuery<SemanticLayerField[], ApiError>({
+}: SemanticLayerViewFieldsParams) => {
+    const selectedFieldsWithTimeDimensionNames = {
+        ...selectedFields,
+        timeDimensions: selectedFields.timeDimensions.map(
+            (timeDimension) => timeDimension.name,
+        ),
+    };
+
+    return useQuery<SemanticLayerField[], ApiError>({
         queryKey: [
             projectUuid,
             'semanticLayer',
             view,
             'fields',
-            selectedFields,
+            selectedFieldsWithTimeDimensionNames,
         ],
         queryFn: () =>
             apiGetSemanticLayerViewFields({
                 projectUuid,
                 view,
-                selectedFields,
+                selectedFields: selectedFieldsWithTimeDimensionNames,
             }),
     });
+};
 
 type SemanticLayerSqlParams = {
     projectUuid: string;

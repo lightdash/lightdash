@@ -1,6 +1,7 @@
 import {
     type SemanticLayerField,
     type SemanticLayerQuery,
+    type SemanticLayerSelectedFields,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -22,10 +23,7 @@ export const apiGetSemanticLayerViews = ({
 type GetSemanticLayerViewFieldsRequestParams = {
     projectUuid: string;
     view: string;
-    selectedFields: Pick<
-        SemanticLayerQuery,
-        'dimensions' | 'timeDimensions' | 'metrics'
-    >;
+    selectedFields: SemanticLayerSelectedFields;
 };
 
 // Makes sure the selectedFields object is in the correct format for the Query Params
