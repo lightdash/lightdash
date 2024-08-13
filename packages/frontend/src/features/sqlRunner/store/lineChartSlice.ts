@@ -1,8 +1,4 @@
-import {
-    CartesianChartDataTransformer,
-    ChartKind,
-    isLineChartSQLConfig,
-} from '@lightdash/common';
+import { ChartKind, isLineChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -26,12 +22,8 @@ export const lineChartConfigSlice = createSlice({
                 state.options =
                     sqlRunnerResultsTransformer.getCartesianLayoutOptions();
 
-                const chartDataTransformer = new CartesianChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
-                });
-
                 const { newConfig, newDefaultLayout } =
-                    chartDataTransformer.getChartConfig({
+                    sqlRunnerResultsTransformer.getChartConfig({
                         chartType: ChartKind.LINE,
                         currentConfig: state.config,
                     });

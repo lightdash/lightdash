@@ -1,8 +1,4 @@
-import {
-    CartesianChartDataTransformer,
-    ChartKind,
-    isBarChartSQLConfig,
-} from '@lightdash/common';
+import { ChartKind, isBarChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -26,12 +22,8 @@ export const barChartConfigSlice = createSlice({
                 state.options =
                     sqlRunnerResultsTransformer.getCartesianLayoutOptions();
 
-                const chartDataTransformer = new CartesianChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
-                });
-
                 const { newConfig, newDefaultLayout } =
-                    chartDataTransformer.getChartConfig({
+                    sqlRunnerResultsTransformer.getChartConfig({
                         chartType: ChartKind.VERTICAL_BAR,
                         currentConfig: state.config,
                     });

@@ -1,9 +1,9 @@
 import {
     DimensionType,
-    type GroupByLayoutOptions,
+    type IndexLayoutOptions,
+    type PivotLayoutOptions,
     type SqlCartesianChartLayout,
-    type XLayoutOptions,
-    type YLayoutOptions,
+    type ValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
@@ -23,8 +23,8 @@ import { CartesianChartAggregationConfig } from './CartesianChartAggregationConf
 import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlCartesianChartLayout['y'][number];
-    yLayoutOptions: YLayoutOptions[];
+    field: SqlCartesianChartLayout['values'][number];
+    yLayoutOptions: ValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
@@ -143,8 +143,8 @@ const XFieldAxisConfig = ({
     xLayoutOptions,
     actions,
 }: {
-    field: SqlCartesianChartLayout['x'];
-    xLayoutOptions: XLayoutOptions[];
+    field: SqlCartesianChartLayout['index'];
+    xLayoutOptions: IndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
@@ -180,7 +180,7 @@ const GroupByFieldAxisConfig = ({
     actions,
 }: {
     field: undefined | { reference: string };
-    groupByOptions?: GroupByLayoutOptions[];
+    groupByOptions?: PivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();

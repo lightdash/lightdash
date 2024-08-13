@@ -1,49 +1,19 @@
-import { ChartKind } from '../types/savedCharts';
 import {
     isPieChartSQLConfig,
-    type PieChartSqlConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
-import { type ResultsTransformerBase } from './ResultsTransformerBase';
+import { type ResultsRunnerBase } from './ResultsRunnerBase';
 
 export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
-    private readonly transformer: ResultsTransformerBase<
+    private readonly transformer: ResultsRunnerBase<
         TBarChartLayout,
         TPieChartConfig
     >;
 
     constructor(args: {
-        transformer: ResultsTransformerBase<TBarChartLayout, TPieChartConfig>;
+        transformer: ResultsRunnerBase<TBarChartLayout, TPieChartConfig>;
     }) {
         this.transformer = args.transformer;
-    }
-
-    getChartConfig({ currentConfig }: { currentConfig?: PieChartSqlConfig }) {
-        const newDefaultConfig = this.transformer.defaultPieChartFieldConfig();
-
-        let newConfig = currentConfig;
-
-        if (!currentConfig) {
-            newConfig = {
-                metadata: {
-                    version: 1,
-                },
-                type: ChartKind.PIE,
-                fieldConfig: newDefaultConfig,
-                display: {
-                    isDonut: false,
-                },
-            };
-        } else {
-            newConfig = {
-                ...currentConfig,
-                fieldConfig: newDefaultConfig,
-            };
-        }
-
-        return {
-            newConfig,
-        };
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
@@ -54,7 +24,7 @@ export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
         const { fieldConfig, display } = config;
 
         const transformedData = fieldConfig
-            ? await this.transformer.transformPieChartData(
+            ? await this.transformer.getPieChartData(
                   fieldConfig as TPieChartConfig,
               )
             : undefined;

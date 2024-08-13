@@ -1,71 +1,25 @@
-import { intersectionBy } from 'lodash';
 import { friendlyName } from '../types/field';
 import { ChartKind } from '../types/savedCharts';
 import {
     isCartesianChartSQLConfig,
-    type CartesianChartSqlConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
-import { type ResultsTransformerBase } from './ResultsTransformerBase';
+import { type ResultsRunnerBase } from './ResultsRunnerBase';
+import { type IndexType } from './SqlResultsRunner';
 
 export class CartesianChartDataTransformer<
     TCartesianChartLayout,
     TPieChartConfig,
 > {
-    private readonly transformer: ResultsTransformerBase<
+    private readonly transformer: ResultsRunnerBase<
         TCartesianChartLayout,
         TPieChartConfig
     >;
 
     constructor(args: {
-        transformer: ResultsTransformerBase<
-            TCartesianChartLayout,
-            TPieChartConfig
-        >;
+        transformer: ResultsRunnerBase<TCartesianChartLayout, TPieChartConfig>;
     }) {
         this.transformer = args.transformer;
-    }
-
-    getChartConfig({
-        chartType,
-        currentConfig,
-    }: {
-        chartType: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-        currentConfig?: CartesianChartSqlConfig;
-    }) {
-        const newDefaultLayout = this.transformer.defaultCartesianChartLayout();
-
-        const someFieldsMatch =
-            currentConfig?.fieldConfig?.x.reference ===
-                newDefaultLayout?.x.reference ||
-            intersectionBy(
-                currentConfig?.fieldConfig?.y || [],
-                newDefaultLayout?.y || [],
-                'reference',
-            ).length > 0;
-
-        let newConfig = currentConfig;
-
-        if (!currentConfig) {
-            newConfig = {
-                metadata: {
-                    version: 1,
-                },
-                type: chartType,
-                fieldConfig: newDefaultLayout,
-                display: undefined,
-            };
-        } else if (currentConfig && !someFieldsMatch) {
-            newConfig = {
-                ...currentConfig,
-                fieldConfig: newDefaultLayout,
-            };
-        }
-
-        return {
-            newConfig,
-            newDefaultLayout,
-        };
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
@@ -76,7 +30,7 @@ export class CartesianChartDataTransformer<
         const { fieldConfig, display, type } = config;
 
         const transformedData = fieldConfig
-            ? await this.transformer.transformCartesianChartData(
+            ? await this.transformer.getPivotChartData(
                   fieldConfig as TCartesianChartLayout,
               )
             : undefined;
@@ -96,13 +50,13 @@ export class CartesianChartDataTransformer<
                 // TODO: display should always be defined and defaults should be applied in the transformer
                 type:
                     display?.xAxis?.type ||
-                    transformedData?.xAxisColumn.type ||
+                    transformedData?.indexColumn.type ||
                     DEFAULT_X_AXIS_TYPE,
                 name:
                     // TODO: display should always be defined and defaults should be applied in the transformer
                     display?.xAxis?.label ||
                     friendlyName(
-                        transformedData?.xAxisColumn.reference || 'xAxisColumn',
+                        transformedData?.indexColumn.reference || 'xAxisColumn',
                     ),
                 nameLocation: 'center',
                 nameGap: 30,
@@ -117,8 +71,8 @@ export class CartesianChartDataTransformer<
                     name:
                         (display?.yAxis && display.yAxis[0].label) ||
                         friendlyName(
-                            transformedData?.seriesColumns.length === 1
-                                ? transformedData.seriesColumns[0]
+                            transformedData?.valuesColumns.length === 1
+                                ? transformedData.valuesColumns[0]
                                 : '',
                         ),
                     nameLocation: 'center',
@@ -133,9 +87,9 @@ export class CartesianChartDataTransformer<
                 id: 'dataset',
                 source: transformedData?.results,
             },
-            series: transformedData?.seriesColumns.map((seriesColumn) => ({
+            series: transformedData?.valuesColumns.map((seriesColumn) => ({
                 dimensions: [
-                    transformedData.xAxisColumn.reference,
+                    transformedData?.indexColumn.reference,
                     seriesColumn,
                 ],
                 type: defaultSeriesType,
@@ -143,7 +97,7 @@ export class CartesianChartDataTransformer<
                     (display?.series && display.series[seriesColumn]?.label) ||
                     friendlyName(seriesColumn),
                 encode: {
-                    x: transformedData.xAxisColumn.reference,
+                    x: transformedData?.indexColumn.reference,
                     y: seriesColumn,
                 },
                 yAxisIndex:
@@ -154,3 +108,19 @@ export class CartesianChartDataTransformer<
         };
     }
 }
+
+export type CartesianChartDisplay = {
+    xAxis?: {
+        label?: string;
+        type: IndexType;
+    };
+    yAxis?: {
+        label?: string;
+        position?: string;
+    }[];
+    series?: Record<string, { label?: string; yAxisIndex?: number }>;
+    legend?: {
+        position: 'top' | 'bottom' | 'left' | 'right';
+        align: 'start' | 'center' | 'end';
+    };
+};

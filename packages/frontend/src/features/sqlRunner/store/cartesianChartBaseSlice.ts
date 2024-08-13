@@ -1,14 +1,14 @@
 import {
     DEFAULT_AGGREGATION,
-    XLayoutType,
+    IndexType,
     type AggregationOptions,
     type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type GroupByLayoutOptions,
+    type IndexLayoutOptions,
     type LineChartSqlConfig,
+    type PivotLayoutOptions,
     type SqlCartesianChartLayout,
-    type XLayoutOptions,
-    type YLayoutOptions,
+    type ValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -17,9 +17,9 @@ type InitialState = {
     defaultLayout: SqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
-        xLayoutOptions: XLayoutOptions[];
-        yLayoutOptions: YLayoutOptions[];
-        groupByOptions: GroupByLayoutOptions[];
+        xLayoutOptions: IndexLayoutOptions[];
+        yLayoutOptions: ValuesLayoutOptions[];
+        groupByOptions: PivotLayoutOptions[];
     };
 };
 
@@ -39,14 +39,16 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             state,
-            action: PayloadAction<SqlCartesianChartLayout['x']['reference']>,
+            action: PayloadAction<
+                SqlCartesianChartLayout['index']['reference']
+            >,
         ) => {
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;
                 state.config.fieldConfig.x.type =
                     state.options.xLayoutOptions.find(
                         (x) => x.reference === action.payload,
-                    )?.type ?? XLayoutType.CATEGORY;
+                    )?.type ?? IndexType.CATEGORY;
             }
         },
         setGroupByReference: (
@@ -172,7 +174,7 @@ export const cartesianChartConfigSlice = createSlice({
 
             const yAxisFieldsAvailable = state.options.yLayoutOptions.filter(
                 (option) =>
-                    !state.config?.fieldConfig?.y
+                    !state.config?.fieldConfig?.values
                         .map((y) => y.reference)
                         .includes(option.reference),
             );
