@@ -8647,6 +8647,34 @@
                 "required": ["visible", "kind", "type", "label", "name"],
                 "type": "object"
             },
+            "SemanticLayerTimeGranularity": {
+                "enum": [
+                    "NANOSECOND",
+                    "MICROSECOND",
+                    "MILLISECOND",
+                    "SECOND",
+                    "MINUTE",
+                    "HOUR",
+                    "DAY",
+                    "WEEK",
+                    "MONTH",
+                    "QUARTER",
+                    "YEAR"
+                ],
+                "type": "string"
+            },
+            "SemanticLayerTimeDimension": {
+                "properties": {
+                    "granularity": {
+                        "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["granularity", "name"],
+                "type": "object"
+            },
             "SemanticLayerQuery": {
                 "properties": {
                     "limit": {
@@ -8665,7 +8693,7 @@
                     },
                     "timeDimensions": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/SemanticLayerTimeDimension"
                         },
                         "type": "array"
                     },
@@ -8920,7 +8948,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1211.1",
+        "version": "0.1212.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

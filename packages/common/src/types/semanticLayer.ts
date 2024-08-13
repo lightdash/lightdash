@@ -14,6 +14,20 @@ export enum SemanticLayerFieldType {
     BOOLEAN = 'boolean',
 }
 
+export enum SemanticLayerTimeGranularity {
+    NANOSECOND = 'NANOSECOND',
+    MICROSECOND = 'MICROSECOND',
+    MILLISECOND = 'MILLISECOND',
+    SECOND = 'SECOND',
+    MINUTE = 'MINUTE',
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    QUARTER = 'QUARTER',
+    YEAR = 'YEAR',
+}
+
 export type SemanticLayerField = {
     name: string;
     label: string;
@@ -24,9 +38,14 @@ export type SemanticLayerField = {
     aggType?: string; // eg: count, sum
 };
 
+export type SemanticLayerTimeDimension = {
+    name: string;
+    granularity: SemanticLayerTimeGranularity;
+};
+
 export type SemanticLayerQuery = {
     dimensions: string[];
-    timeDimensions: string[];
+    timeDimensions: SemanticLayerTimeDimension[];
     metrics: string[];
     offset?: number;
     limit?: number;

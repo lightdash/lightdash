@@ -1,9 +1,11 @@
 import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
+    ParameterError,
     SemanticLayerField,
     SemanticLayerQuery,
-    SemanticLayerResultRow,
+    SemanticLayerTimeDimension,
+    SemanticLayerTimeGranularity,
     SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -63,10 +65,26 @@ export class SemanticLayerController extends BaseController {
         @Path() projectUuid: string,
         @Path() view: string,
         @Query() dimensions: string[] = [],
-        @Query() timeDimensions: string[] = [],
+        @Query() timeDimensionNames: string[] = [],
+        @Query()
+        timeDimensionGranularities: SemanticLayerTimeGranularity[] = [],
         @Query() metrics: string[] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
+
+        if (timeDimensionNames.length !== timeDimensionGranularities.length) {
+            throw new ParameterError(
+                'timeDimensionNames and timeDimensionGranularities must be the same length',
+            );
+        }
+
+        // Time dimensions are a special case where we need to pair the name with the granularity
+        const timeDimensions: SemanticLayerTimeDimension[] =
+            timeDimensionNames.map((name, index) => ({
+                name,
+                granularity: timeDimensionGranularities[index],
+            }));
+
         return {
             status: 'ok',
             results: await this.services

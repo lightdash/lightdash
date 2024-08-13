@@ -7740,6 +7740,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerTimeGranularity: {
+        dataType: 'refEnum',
+        enums: [
+            'NANOSECOND',
+            'MICROSECOND',
+            'MILLISECOND',
+            'SECOND',
+            'MINUTE',
+            'HOUR',
+            'DAY',
+            'WEEK',
+            'MONTH',
+            'QUARTER',
+            'YEAR',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                granularity: {
+                    ref: 'SemanticLayerTimeGranularity',
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerQuery: {
         dataType: 'refAlias',
         type: {
@@ -7754,7 +7786,10 @@ const models: TsoaRoute.Models = {
                 },
                 timeDimensions: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'SemanticLayerTimeDimension',
+                    },
                     required: true,
                 },
                 dimensions: {
@@ -16006,12 +16041,22 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
-                timeDimensions: {
+                timeDimensionNames: {
                     default: [],
                     in: 'query',
-                    name: 'timeDimensions',
+                    name: 'timeDimensionNames',
                     dataType: 'array',
                     array: { dataType: 'string' },
+                },
+                timeDimensionGranularities: {
+                    default: [],
+                    in: 'query',
+                    name: 'timeDimensionGranularities',
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refEnum',
+                        ref: 'SemanticLayerTimeGranularity',
+                    },
                 },
                 metrics: {
                     default: [],

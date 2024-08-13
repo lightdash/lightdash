@@ -7,7 +7,10 @@ import {
     SemanticLayerResultRow,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
-import { cubeTransfomers } from './transformer';
+import {
+    cubeTransfomers,
+    getCubeTimeDimensionGranularity,
+} from './transformer';
 
 type CubeArgs = {
     lightdashConfig: LightdashConfig;
@@ -86,7 +89,8 @@ export default class CubeClient implements SemanticLayerClient {
             {
                 dimensions: selectedDimensions,
                 timeDimensions: selectedTimeDimensions.map((d) => ({
-                    dimension: d,
+                    dimension: d.name,
+                    granularity: getCubeTimeDimensionGranularity(d.granularity),
                 })),
                 measures: selectedMetrics,
             },
@@ -102,7 +106,8 @@ export default class CubeClient implements SemanticLayerClient {
             {
                 dimensions: selectedDimensions,
                 timeDimensions: selectedTimeDimensions.map((d) => ({
-                    dimension: d,
+                    dimension: d.name,
+                    granularity: getCubeTimeDimensionGranularity(d.granularity),
                 })),
                 measures: selectedMetrics,
             },

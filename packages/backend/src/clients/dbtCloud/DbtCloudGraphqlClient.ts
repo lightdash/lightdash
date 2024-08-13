@@ -325,7 +325,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 await this.getMetricsForDimensions({
                     dimensions: [
                         ...selectedDimensions.map((d) => ({ name: d })),
-                        ...selectedTimeDimensions.map((d) => ({ name: d })),
+                        ...selectedTimeDimensions,
                     ],
                 });
 

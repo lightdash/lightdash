@@ -7,9 +7,11 @@ import {
     DbtGraphQLJsonResult,
     DbtGraphQLMetric,
     DbtMetricType,
+    DbtTimeGranularity,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -71,9 +73,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             metrics: metrics.map((metric) => ({ name: metric })),
             groupBy: [
                 ...dimensions.map((dimension) => ({ name: dimension })),
-                ...timeDimensions.map((timeDimension) => ({
-                    name: timeDimension,
-                })),
+                ...timeDimensions,
             ],
             where: [],
             orderBy: [],

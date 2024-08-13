@@ -6,12 +6,14 @@ import {
     TCubeDimension,
     TCubeMeasure,
     TCubeMemberType,
+    TimeDimensionGranularity,
 } from '@cubejs-client/core';
 import {
     assertUnreachable,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
 } from '@lightdash/common';
 
@@ -31,6 +33,38 @@ function getSemanticLayerTypeFromCubeType(
             return assertUnreachable(
                 cubeType,
                 `Unknown cube type: ${cubeType}`,
+            );
+    }
+}
+
+export function getCubeTimeDimensionGranularity(
+    granularity: SemanticLayerTimeGranularity,
+): TimeDimensionGranularity {
+    switch (granularity) {
+        case SemanticLayerTimeGranularity.NANOSECOND:
+        case SemanticLayerTimeGranularity.MICROSECOND:
+        case SemanticLayerTimeGranularity.MILLISECOND:
+            throw new Error('Granularity not supported by cube');
+        case SemanticLayerTimeGranularity.SECOND:
+            return 'second';
+        case SemanticLayerTimeGranularity.MINUTE:
+            return 'minute';
+        case SemanticLayerTimeGranularity.HOUR:
+            return 'hour';
+        case SemanticLayerTimeGranularity.DAY:
+            return 'day';
+        case SemanticLayerTimeGranularity.WEEK:
+            return 'week';
+        case SemanticLayerTimeGranularity.MONTH:
+            return 'month';
+        case SemanticLayerTimeGranularity.QUARTER:
+            return 'quarter';
+        case SemanticLayerTimeGranularity.YEAR:
+            return 'year';
+        default:
+            return assertUnreachable(
+                granularity,
+                `Unknown time granularity: ${granularity}`,
             );
     }
 }
@@ -78,9 +112,13 @@ export const cubeTransfomers: SemanticLayerTransformer<
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
-        dimensions: [...query.dimensions, ...query.timeDimensions],
+        dimensions: [
+            ...query.dimensions,
+            ...query.timeDimensions.map((td) => td.name),
+        ],
         timeDimensions: query.timeDimensions.map((td) => ({
-            dimension: td,
+            dimension: td.name,
+            granularity: getCubeTimeDimensionGranularity(td.granularity),
         })),
         filters: [],
         offset: query.offset,
