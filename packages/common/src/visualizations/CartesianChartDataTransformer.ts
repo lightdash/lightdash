@@ -40,6 +40,8 @@ export class CartesianChartDataTransformer<
         const defaultSeriesType =
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
+        const shouldStack = display?.stack === true;
+
         return {
             tooltip: {},
             legend: {
@@ -69,7 +71,7 @@ export class CartesianChartDataTransformer<
                     type: 'value',
                     position: display?.yAxis?.[0]?.position || 'left',
                     name:
-                        (display?.yAxis && display.yAxis[0].label) ||
+                        (display?.yAxis && display.yAxis[0]?.label) ||
                         friendlyName(
                             transformedData?.valuesColumns.length === 1
                                 ? transformedData.valuesColumns[0]
@@ -93,6 +95,7 @@ export class CartesianChartDataTransformer<
                     seriesColumn,
                 ],
                 type: defaultSeriesType,
+                stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                 name:
                     (display?.series && display.series[seriesColumn]?.label) ||
                     friendlyName(seriesColumn),
@@ -123,4 +126,5 @@ export type CartesianChartDisplay = {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';
     };
+    stack?: boolean;
 };
