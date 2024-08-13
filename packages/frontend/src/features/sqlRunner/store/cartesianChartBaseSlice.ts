@@ -39,9 +39,7 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             state,
-            action: PayloadAction<
-                SqlCartesianChartLayout['index']['reference']
-            >,
+            action: PayloadAction<SqlCartesianChartLayout['x']['reference']>,
         ) => {
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;
@@ -174,7 +172,7 @@ export const cartesianChartConfigSlice = createSlice({
 
             const yAxisFieldsAvailable = state.options.yLayoutOptions.filter(
                 (option) =>
-                    !state.config?.fieldConfig?.values
+                    !state.config?.fieldConfig?.y
                         .map((y) => y.reference)
                         .includes(option.reference),
             );
