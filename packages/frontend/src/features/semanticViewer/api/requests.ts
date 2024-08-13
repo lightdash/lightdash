@@ -1,4 +1,5 @@
 import {
+    type ApiJobScheduledResponse,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerView,
@@ -19,15 +20,6 @@ export const apiGetSemanticLayerViews = ({
         body: undefined,
     });
 
-type GetSemanticLayerViewFieldsRequestParams = {
-    projectUuid: string;
-    view: string;
-    selectedFields: Pick<
-        SemanticLayerQuery,
-        'dimensions' | 'timeDimensions' | 'metrics'
-    >;
-};
-
 // Makes sure the selectedFields object is in the correct format for the Query Params
 function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
     const selectedFieldsEntries = Object.entries(selectedFields).reduce<
@@ -41,6 +33,15 @@ function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
 
     return selectedFieldsEntries;
 }
+
+type GetSemanticLayerViewFieldsRequestParams = {
+    projectUuid: string;
+    view: string;
+    selectedFields: Pick<
+        SemanticLayerQuery,
+        'dimensions' | 'timeDimensions' | 'metrics'
+    >;
+};
 
 export const apiGetSemanticLayerViewFields = ({
     projectUuid,
@@ -60,7 +61,7 @@ export const apiGetSemanticLayerViewFields = ({
     });
 };
 
-type GetSemanticLayerSqlRequestParams = {
+type PostSemanticLayerSqlRequestParams = {
     projectUuid: string;
     payload: SemanticLayerQuery;
 };
@@ -68,10 +69,26 @@ type GetSemanticLayerSqlRequestParams = {
 export const apiPostSemanticLayerSql = ({
     projectUuid,
     payload,
-}: GetSemanticLayerSqlRequestParams) =>
+}: PostSemanticLayerSqlRequestParams) =>
     lightdashApi<string>({
         version: 'v2',
         method: 'POST',
         url: `/projects/${projectUuid}/semantic-layer/sql`,
         body: JSON.stringify(payload),
+    });
+
+type PostSemanticLayerQueryRequestParams = {
+    projectUuid: string;
+    query: SemanticLayerQuery;
+};
+
+export const apiPostSemanticLayerRun = ({
+    projectUuid,
+    query,
+}: PostSemanticLayerQueryRequestParams) =>
+    lightdashApi<ApiJobScheduledResponse['results']>({
+        version: 'v2',
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/run`,
+        body: JSON.stringify(query),
     });

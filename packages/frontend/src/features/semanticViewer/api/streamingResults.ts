@@ -13,27 +13,9 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
-
-const scheduleSemanticLayerJob = async ({
-    projectUuid,
-    query,
-}: {
-    projectUuid: string;
-    query: SemanticLayerQuery;
-}) =>
-    lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/semantic-layer/run`,
-        method: 'POST',
-        version: 'v2',
-        body: JSON.stringify(query),
-    });
-
-export type SemanticLayerResults = {
-    results: SemanticLayerResultRow[];
-};
+import { apiPostSemanticLayerRun } from './requests';
 
 /**
  * Gets the SQL query results from the server
@@ -43,11 +25,11 @@ export type SemanticLayerResults = {
  * 2. Get the status of the scheduled job
  * 3. Fetch the results of the job
  */
-export const useSemanticViewerQueryRun = (
+export const useSemanticViewerQueryRun = <UseQuerySelectType>(
     useQueryOptions?: UseQueryOptions<
         SemanticLayerResultRow[] | undefined,
         ApiError,
-        SemanticLayerResults | undefined
+        UseQuerySelectType
     >,
 ) => {
     const { showToastError } = useToaster();
@@ -65,7 +47,7 @@ export const useSemanticViewerQueryRun = (
         }
     >(
         ({ projectUuid, query }) =>
-            scheduleSemanticLayerJob({ projectUuid, query }),
+            apiPostSemanticLayerRun({ projectUuid, query }),
         {
             mutationKey: ['semanticViewer', 'run'],
         },
@@ -107,10 +89,10 @@ export const useSemanticViewerQueryRun = (
             },
         );
 
-    const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
+    const semanticViewerQueryResults = useQuery<
         SemanticLayerResultRow[] | undefined,
         ApiError,
-        SemanticLayerResults | undefined
+        UseQuerySelectType
     >(
         ['semanticViewerQueryResults', queryJob?.jobId],
         async () => {
@@ -180,18 +162,6 @@ export const useSemanticViewerQueryRun = (
             ),
             keepPreviousData: true,
             ...useQueryOptions,
-            select: (data) => {
-                if (
-                    !data ||
-                    isErrorDetails(scheduledDeliveryJobStatus?.details)
-                ) {
-                    return undefined;
-                }
-
-                return {
-                    results: data,
-                };
-            },
         },
     );
 
@@ -200,18 +170,14 @@ export const useSemanticViewerQueryRun = (
             isMutating ||
             jobIsLoading ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED ||
-            isResultsLoading,
+            semanticViewerQueryResults.isFetching,
         [
             isMutating,
             jobIsLoading,
             scheduledDeliveryJobStatus?.status,
-            isResultsLoading,
+            semanticViewerQueryResults,
         ],
     );
 
-    return {
-        mutateAsync,
-        isLoading,
-        data: sqlQueryResults,
-    };
+    return { ...semanticViewerQueryResults, isLoading, mutateAsync };
 };
