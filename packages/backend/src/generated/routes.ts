@@ -16046,22 +16046,12 @@ export function RegisterRoutes(app: express.Router) {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
-                timeDimensionNames: {
+                timeDimensions: {
                     default: [],
                     in: 'query',
-                    name: 'timeDimensionNames',
+                    name: 'timeDimensions',
                     dataType: 'array',
                     array: { dataType: 'string' },
-                },
-                timeDimensionGranularities: {
-                    default: [],
-                    in: 'query',
-                    name: 'timeDimensionGranularities',
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refEnum',
-                        ref: 'SemanticLayerTimeGranularity',
-                    },
                 },
                 metrics: {
                     default: [],
