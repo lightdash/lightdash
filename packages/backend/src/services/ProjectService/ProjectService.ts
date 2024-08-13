@@ -3942,7 +3942,6 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-        // here
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
