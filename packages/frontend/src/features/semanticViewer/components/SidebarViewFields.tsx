@@ -49,22 +49,33 @@ const getSearchResults = (
 };
 
 type SidebarViewFieldsGroupProps = {
+    groupLabel: string;
+    isActive?: boolean;
     fields: SemanticLayerField[];
-    allSelectedFields: string[];
     searchQuery: string;
     handleFieldToggle: (field: SemanticLayerField) => void;
 };
 
 const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
+    groupLabel,
+    isActive = false,
     fields,
-    allSelectedFields,
     searchQuery,
     handleFieldToggle,
 }) => {
+    if (fields.length === 0) return null;
+
     return (
-        <Box>
-            <Text transform="uppercase" fz="xs">
-                Selected fields ({allSelectedFields.length})
+        <Stack spacing="xxs">
+            <Text
+                transform="uppercase"
+                fz="xs"
+                fw={600}
+                color="dimmed"
+                ff="'Inter', sans-serif"
+                sx={{ fontFeatureSettings: '"tnum"' }}
+            >
+                {groupLabel} ({fields.length})
             </Text>
 
             <Paper
@@ -81,12 +92,12 @@ const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
                         key={field.name}
                         field={field}
                         searchQuery={searchQuery}
-                        isActive={true}
+                        isActive={isActive}
                         onFieldToggle={() => handleFieldToggle(field)}
                     />
                 ))}
             </Paper>
-        </Box>
+        </Stack>
     );
 };
 
@@ -198,7 +209,8 @@ const SidebarViewFields = () => {
             ) : (
                 <Stack>
                     <SidebarViewFieldsGroup
-                        allSelectedFields={allSelectedFieldNames}
+                        groupLabel="Selected fields"
+                        isActive
                         fields={searchedOrAllFields.filter((field) =>
                             allSelectedFieldNames.includes(field.name),
                         )}
@@ -207,15 +219,23 @@ const SidebarViewFields = () => {
                     />
 
                     <SidebarViewFieldsGroup
-                        allSelectedFields={allSelectedFieldNames}
-                        fields={searchedOrAllFields
-                            .filter(
-                                (field) =>
-                                    !allSelectedFieldNames.includes(field.name),
-                            )
-                            .sort(
-                                (a, b) => Number(b.visible) - Number(a.visible),
-                            )}
+                        groupLabel="Available fields"
+                        fields={searchedOrAllFields.filter(
+                            (field) =>
+                                !allSelectedFieldNames.includes(field.name) &&
+                                field.visible,
+                        )}
+                        searchQuery={searchQuery}
+                        handleFieldToggle={handleFieldToggle}
+                    />
+
+                    <SidebarViewFieldsGroup
+                        groupLabel="Unavailable fields"
+                        fields={searchedOrAllFields.filter(
+                            (field) =>
+                                !allSelectedFieldNames.includes(field.name) &&
+                                !field.visible,
+                        )}
                         searchQuery={searchQuery}
                         handleFieldToggle={handleFieldToggle}
                     />
