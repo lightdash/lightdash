@@ -8672,7 +8672,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["granularity", "name"],
+                "required": ["name"],
                 "type": "object"
             },
             "SemanticLayerQuery": {

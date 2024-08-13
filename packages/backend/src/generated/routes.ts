@@ -7763,7 +7763,11 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 granularity: {
-                    ref: 'SemanticLayerTimeGranularity',
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'SemanticLayerTimeGranularity' },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
                 name: { dataType: 'string', required: true },

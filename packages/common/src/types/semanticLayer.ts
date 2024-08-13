@@ -40,7 +40,7 @@ export type SemanticLayerField = {
 
 export type SemanticLayerTimeDimension = {
     name: string;
-    granularity: SemanticLayerTimeGranularity;
+    granularity: SemanticLayerTimeGranularity | undefined;
 };
 
 export type SemanticLayerQuery = {

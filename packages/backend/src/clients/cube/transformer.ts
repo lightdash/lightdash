@@ -38,8 +38,12 @@ function getSemanticLayerTypeFromCubeType(
 }
 
 export function getCubeTimeDimensionGranularity(
-    granularity: SemanticLayerTimeGranularity,
-): TimeDimensionGranularity {
+    granularity: SemanticLayerTimeGranularity | undefined,
+): TimeDimensionGranularity | undefined {
+    if (!granularity) {
+        return undefined;
+    }
+
     switch (granularity) {
         case SemanticLayerTimeGranularity.NANOSECOND:
         case SemanticLayerTimeGranularity.MICROSECOND:
