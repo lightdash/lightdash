@@ -1,10 +1,10 @@
+import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
 import {
-    type CartesianChartDisplay,
     type PieChartDisplay,
     type SqlCartesianChartLayout,
     type SqlColumn,
     type SqlPieChartConfig,
-} from '../visualizations/SqlRunnerResultsTransformer';
+} from '../visualizations/SqlResultsRunner';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';

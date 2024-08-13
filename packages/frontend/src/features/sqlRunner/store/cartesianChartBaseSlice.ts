@@ -1,14 +1,14 @@
 import {
     DEFAULT_AGGREGATION,
-    XLayoutType,
+    IndexType,
     type AggregationOptions,
     type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type GroupByLayoutOptions,
+    type IndexLayoutOptions,
     type LineChartSqlConfig,
+    type PivotLayoutOptions,
     type SqlCartesianChartLayout,
-    type XLayoutOptions,
-    type YLayoutOptions,
+    type ValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -17,9 +17,9 @@ type InitialState = {
     defaultLayout: SqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
-        xLayoutOptions: XLayoutOptions[];
-        yLayoutOptions: YLayoutOptions[];
-        groupByOptions: GroupByLayoutOptions[];
+        xLayoutOptions: IndexLayoutOptions[];
+        yLayoutOptions: ValuesLayoutOptions[];
+        groupByOptions: PivotLayoutOptions[];
     };
 };
 
@@ -46,7 +46,7 @@ export const cartesianChartConfigSlice = createSlice({
                 state.config.fieldConfig.x.type =
                     state.options.xLayoutOptions.find(
                         (x) => x.reference === action.payload,
-                    )?.type ?? XLayoutType.CATEGORY;
+                    )?.type ?? IndexType.CATEGORY;
             }
         },
         setGroupByReference: (

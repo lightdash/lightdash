@@ -1,10 +1,16 @@
+import { intersectionBy } from 'lodash';
 import { DimensionType, MetricType } from '../types/field';
+import { ChartKind } from '../types/savedCharts';
+import type {
+    CartesianChartSqlConfig,
+    PieChartSqlConfig,
+} from '../types/sqlRunner';
 import {
-    type CartesianChartData,
     type PieChartData,
-    type ResultsTransformerBase,
+    type PivotChartData,
+    type ResultsRunnerBase,
     type RowData,
-} from './ResultsTransformerBase';
+} from './ResultsRunnerBase';
 
 export const aggregationOptions = [
     // TODO: Change these to strings
@@ -24,45 +30,29 @@ export type SqlColumn = {
     type: DimensionType;
 };
 
-export enum XLayoutType {
+export enum IndexType {
     TIME = 'time',
     CATEGORY = 'category',
 }
 
-export type XLayoutOptions = {
-    type: XLayoutType;
+export type IndexLayoutOptions = {
+    type: IndexType;
     reference: string;
 };
 
-export type YLayoutOptions = {
+export type ValuesLayoutOptions = {
     reference: string;
     aggregationOptions: AggregationOptions[];
 };
 
-export type GroupByLayoutOptions = {
+export type PivotLayoutOptions = {
     reference: string;
-};
-
-export type CartesianChartDisplay = {
-    xAxis?: {
-        label?: string;
-        type: XLayoutType;
-    };
-    yAxis?: {
-        label?: string;
-        position?: string;
-    }[];
-    series?: Record<string, { label?: string; yAxisIndex?: number }>;
-    legend?: {
-        position: 'top' | 'bottom' | 'left' | 'right';
-        align: 'start' | 'center' | 'end';
-    };
 };
 
 export type SqlCartesianChartLayout = {
     x: {
         reference: string;
-        type: XLayoutType;
+        type: IndexType;
     };
     y: {
         reference: string;
@@ -71,7 +61,7 @@ export type SqlCartesianChartLayout = {
     groupBy: { reference: string }[] | undefined;
 };
 
-export type PieChartDimensionOptions = XLayoutOptions;
+export type PieChartDimensionOptions = IndexLayoutOptions;
 
 export type PieChartMetricOptions = {
     reference: string;
@@ -152,9 +142,9 @@ type SqlRunnerResultsTransformerDeps = {
     rows: RowData[];
     columns: SqlColumn[];
 };
+
 export class SqlRunnerResultsTransformer
-    implements
-        ResultsTransformerBase<SqlCartesianChartLayout, SqlPieChartConfig>
+    implements ResultsRunnerBase<SqlCartesianChartLayout, SqlPieChartConfig>
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
@@ -169,8 +159,8 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    cartesianChartGroupByLayoutOptions(): GroupByLayoutOptions[] {
-        const options: GroupByLayoutOptions[] = [];
+    cartesianChartGroupByLayoutOptions(): PivotLayoutOptions[] {
+        const options: PivotLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.STRING:
@@ -188,20 +178,20 @@ export class SqlRunnerResultsTransformer
 
     // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
     // The output 'category' | 'time' is echarts specific. or is this more general?
-    cartesianChartXLayoutOptions(): XLayoutOptions[] {
-        const options: XLayoutOptions[] = [];
+    cartesianChartXLayoutOptions(): IndexLayoutOptions[] {
+        const options: IndexLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.DATE:
                     options.push({
                         reference: column.reference,
-                        type: XLayoutType.TIME,
+                        type: IndexType.TIME,
                     });
                     break;
                 case DimensionType.TIMESTAMP:
                     options.push({
                         reference: column.reference,
-                        type: XLayoutType.TIME,
+                        type: IndexType.TIME,
                     });
                     break;
                 case DimensionType.STRING:
@@ -209,7 +199,7 @@ export class SqlRunnerResultsTransformer
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
-                        type: XLayoutType.CATEGORY,
+                        type: IndexType.CATEGORY,
                     });
                     break;
                 default:
@@ -219,8 +209,8 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    cartesianChartYLayoutOptions(): YLayoutOptions[] {
-        const options: YLayoutOptions[] = [];
+    cartesianChartYLayoutOptions(): ValuesLayoutOptions[] {
+        const options: ValuesLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.NUMBER:
@@ -248,9 +238,9 @@ export class SqlRunnerResultsTransformer
     }
 
     getCartesianLayoutOptions(): {
-        xLayoutOptions: XLayoutOptions[];
-        yLayoutOptions: YLayoutOptions[];
-        groupByOptions: GroupByLayoutOptions[];
+        xLayoutOptions: IndexLayoutOptions[];
+        yLayoutOptions: ValuesLayoutOptions[];
+        groupByOptions: PivotLayoutOptions[];
     } {
         return {
             xLayoutOptions: this.cartesianChartXLayoutOptions(),
@@ -259,7 +249,7 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    defaultCartesianChartLayout(): SqlCartesianChartLayout | undefined {
+    defaultPivotChartLayout(): SqlCartesianChartLayout | undefined {
         const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
@@ -286,8 +276,8 @@ export class SqlRunnerResultsTransformer
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
             )
-                ? XLayoutType.TIME
-                : XLayoutType.CATEGORY,
+                ? IndexType.TIME
+                : IndexType.CATEGORY,
         };
 
         const yColumn =
@@ -312,9 +302,11 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    public async transformCartesianChartData(
+    // args should be rows, columns, values
+    // return type should be rows, columns, values too.
+    public async getPivotChartData(
         config: SqlCartesianChartLayout,
-    ): Promise<CartesianChartData> {
+    ): Promise<PivotChartData> {
         const groupByColumns = [config.x.reference];
         const pivotsSql =
             config.groupBy === undefined
@@ -337,8 +329,11 @@ export class SqlRunnerResultsTransformer
 
         return {
             results: pivotResults.results,
-            xAxisColumn: { reference: groupByColumns[0], type: config.x.type },
-            seriesColumns: pivotResults.valueColumns || [],
+            indexColumn: {
+                reference: groupByColumns[0],
+                type: config.x.type,
+            },
+            valuesColumns: pivotResults.valueColumns || [],
         };
     }
 
@@ -354,7 +349,7 @@ export class SqlRunnerResultsTransformer
         return this.cartesianChartYLayoutOptions();
     }
 
-    defaultPieChartFieldConfig(): SqlPieChartConfig | undefined {
+    defaultPieChartLayout(): SqlPieChartConfig | undefined {
         const firstCategoricalColumn = this.columns.find(
             (column) => column.type === DimensionType.STRING,
         );
@@ -383,11 +378,87 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    public async transformPieChartData(): // config: SqlTransformPieChartConfig,
+    public async getPieChartData(): // config: SqlTransformPieChartConfig,
     Promise<PieChartData> {
         // TODO: NYI
         return {
             results: this.rows,
+        };
+    }
+
+    // TODO: merge with function below
+    getPieChartConfig({
+        currentConfig,
+    }: {
+        currentConfig?: PieChartSqlConfig;
+    }) {
+        const newDefaultConfig = this.defaultPieChartLayout();
+
+        let newConfig = currentConfig;
+
+        if (!currentConfig) {
+            newConfig = {
+                metadata: {
+                    version: 1,
+                },
+                type: ChartKind.PIE,
+                fieldConfig: newDefaultConfig,
+                display: {
+                    isDonut: false,
+                },
+            };
+        } else {
+            newConfig = {
+                ...currentConfig,
+                fieldConfig: newDefaultConfig,
+            };
+        }
+
+        return {
+            newConfig,
+        };
+    }
+
+    // TODO: rename
+    getChartConfig({
+        chartType,
+        currentConfig,
+    }: {
+        chartType: ChartKind.VERTICAL_BAR | ChartKind.LINE;
+        currentConfig?: CartesianChartSqlConfig;
+    }) {
+        const newDefaultLayout = this.defaultPivotChartLayout();
+
+        const someFieldsMatch =
+            currentConfig?.fieldConfig?.x.reference ===
+                newDefaultLayout?.x.reference ||
+            intersectionBy(
+                currentConfig?.fieldConfig?.y || [],
+                newDefaultLayout?.y || [],
+                'reference',
+            ).length > 0;
+
+        let newConfig = currentConfig;
+
+        if (!currentConfig) {
+            newConfig = {
+                metadata: {
+                    version: 1,
+                },
+                type: chartType,
+                fieldConfig: newDefaultLayout,
+                display: undefined,
+            };
+        } else if (currentConfig && !someFieldsMatch) {
+            newConfig = {
+                ...currentConfig,
+                fieldConfig: newDefaultLayout,
+            };
+        }
+
+        return {
+            newConfig,
+            newDefaultLayout,
         };
     }
 }

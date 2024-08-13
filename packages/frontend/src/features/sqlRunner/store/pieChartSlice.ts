@@ -1,6 +1,5 @@
 import {
     isPieChartSQLConfig,
-    PieChartDataTransformer,
     type PieChartDimensionOptions,
     type PieChartMetricOptions,
     type PieChartSqlConfig,
@@ -60,13 +59,11 @@ export const pieChartConfigSlice = createSlice({
                     };
                 }
 
-                const dataTransformer = new PieChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
-                });
-
-                const { newConfig } = dataTransformer.getChartConfig({
-                    currentConfig: state.config,
-                });
+                // TODO: should use cartesian chart
+                const { newConfig } =
+                    sqlRunnerResultsTransformer.getPieChartConfig({
+                        currentConfig: state.config,
+                    });
 
                 state.config = newConfig;
             }

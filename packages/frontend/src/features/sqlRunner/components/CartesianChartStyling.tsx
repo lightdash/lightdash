@@ -1,4 +1,4 @@
-import { XLayoutType } from '@lightdash/common';
+import { IndexType } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
@@ -28,7 +28,7 @@ export const CartesianChartStyling = ({
     const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
 
     const onXAxisLabelChange = debounce((label: string) => {
-        dispatch(actions.setXAxisLabel({ label, type: XLayoutType.CATEGORY }));
+        dispatch(actions.setXAxisLabel({ label, type: IndexType.CATEGORY }));
     }, DEBOUNCE_TIME);
 
     const onYAxisLabelChange = debounce((label: string) => {
