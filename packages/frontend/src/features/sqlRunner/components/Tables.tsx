@@ -37,16 +37,13 @@ const TableItem: FC<TableItemProps> = memo(
         const dispatch = useAppDispatch();
         const sql = useAppSelector((state) => state.sqlRunner.sql);
         const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
-
         const quotedTable = `${quoteChar}${database}${quoteChar}.${quoteChar}${schema}${quoteChar}.${quoteChar}${table}${quoteChar}`;
         return (
             <Box ref={hoverRef} pos="relative" {...rest}>
                 <UnstyledButton
                     onClick={() => {
-                        if (!sql || sql.match(/SELECT \* FROM (.+) LIMIT 10/)) {
-                            dispatch(
-                                setSql(`SELECT * FROM ${quotedTable} LIMIT 10`),
-                            );
+                        if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
+                            dispatch(setSql(`SELECT * FROM ${quotedTable}`));
                         }
 
                         dispatch(toggleActiveTable(table));

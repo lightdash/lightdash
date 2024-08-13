@@ -1,3 +1,38 @@
+## [0.1212.1](https://github.com/lightdash/lightdash/compare/0.1212.0...0.1212.1) (2024-08-12)
+
+
+### Bug Fixes
+
+* ignore invalid color in condition formatting ([#11111](https://github.com/lightdash/lightdash/issues/11111)) ([8692a12](https://github.com/lightdash/lightdash/commit/8692a12d7f62648219a58f1637d4a5963b04e510))
+
+# [0.1212.0](https://github.com/lightdash/lightdash/compare/0.1211.1...0.1212.0) (2024-08-12)
+
+
+### Features
+
+* streaming semantic layer ([#11105](https://github.com/lightdash/lightdash/issues/11105)) ([4de4159](https://github.com/lightdash/lightdash/commit/4de4159900a04dd93564cdad3babc6c70afa783f))
+
+## [0.1211.1](https://github.com/lightdash/lightdash/compare/0.1211.0...0.1211.1) (2024-08-12)
+
+
+### Bug Fixes
+
+* display error toast on no sql runner results ([#11110](https://github.com/lightdash/lightdash/issues/11110)) ([26bf4c8](https://github.com/lightdash/lightdash/commit/26bf4c80327474dfccd8ca1d8ec2258de471904a))
+
+# [0.1211.0](https://github.com/lightdash/lightdash/compare/0.1210.0...0.1211.0) (2024-08-12)
+
+
+### Features
+
+* hide semantic layer fields on toggle ([#11101](https://github.com/lightdash/lightdash/issues/11101)) ([18c78a9](https://github.com/lightdash/lightdash/commit/18c78a9bd8c734800946b0240e7452b81b0dfbb8))
+
+# [0.1210.0](https://github.com/lightdash/lightdash/compare/0.1209.0...0.1210.0) (2024-08-12)
+
+
+### Features
+
+* add limit to sql charts ([#11087](https://github.com/lightdash/lightdash/issues/11087)) ([bfe9ddd](https://github.com/lightdash/lightdash/commit/bfe9ddd4f2fa9d64ac2e1ca00257034c8c980305))
+
 # [0.1209.0](https://github.com/lightdash/lightdash/compare/0.1208.3...0.1209.0) (2024-08-09)
 
 

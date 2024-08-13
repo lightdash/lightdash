@@ -15,14 +15,6 @@ GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/s
 #### Get fields
 GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/views/organizations/fields
 
-#### Get results
-POST http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/results 
-Content-Type: application/json
-
-{
-    "dimensions": ["organizations.demo_joins_orders_status"],
-    "metrics": ["organizations.total_acv"]
-} 
 
 #### Get sql
 POST http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/sql 
@@ -32,3 +24,20 @@ Content-Type: application/json
     "dimensions": ["organizations.demo_joins_orders_status"],
     "metrics": ["organizations.total_acv"]
 } 
+
+
+#### Run streaming results
+POST http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/run
+Content-Type: application/json
+
+{
+    "dimensions": ["organizations.demo_joins_orders_status"],
+    "metrics": ["organizations.total_acv"],
+    "timeDimensions": []
+} 
+
+### Get job status
+GET http://localhost:8080/api/v1/schedulers/job/61943/status
+
+#### Get streamed results
+GET http://localhost:8080/api/v2/projects/3675b69e-8324-4110-bdca-059031aa8da3/semantic-layer/results/jOwc-2Bxh3cxODdi5moC9

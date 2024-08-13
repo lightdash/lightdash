@@ -1,4 +1,8 @@
-import { SchedulerJobStatus, sqlRunnerJob } from '@lightdash/common';
+import {
+    SchedulerJobStatus,
+    semanticLayerQueryJob,
+    sqlRunnerJob,
+} from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
@@ -427,6 +431,40 @@ export class SchedulerWorker extends SchedulerTask {
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
                             task: sqlRunnerJob,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
+                    },
+                );
+            },
+            [semanticLayerQueryJob]: async (
+                payload: any,
+                helpers: JobHelpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        semanticLayerQueryJob,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.semanticLayerQuery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: semanticLayerQueryJob,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,

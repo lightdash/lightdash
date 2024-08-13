@@ -5963,6 +5963,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['testAndCompileProject'] },
                         { dataType: 'enum', enums: ['validateProject'] },
                         { dataType: 'enum', enums: ['sqlRunner'] },
+                        { dataType: 'enum', enums: ['semanticLayer'] },
                     ],
                     required: true,
                 },
@@ -6543,7 +6544,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { sql: { dataType: 'string', required: true } },
+            nestedProperties: {
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -6667,6 +6671,7 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 slug: { dataType: 'string', required: true },
                 description: {
@@ -6741,6 +6746,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
                     dataType: 'union',
@@ -6808,6 +6814,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 config: { ref: 'SqlRunnerChartConfig', required: true },
+                limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
             validators: {},
@@ -7702,7 +7709,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                visible: { dataType: 'boolean' },
+                visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -7722,7 +7729,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 aggType: { dataType: 'string' },
-                visible: { dataType: 'boolean' },
+                visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 kind: { ref: 'FieldType', required: true },
                 type: { ref: 'SemanticLayerFieldType', required: true },
@@ -7733,28 +7740,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-number-or-boolean-or-null_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerResultRow: {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Record_string.string-or-number-or-boolean-or-null_',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                limit: { dataType: 'double' },
+                offset: { dataType: 'double' },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -15977,7 +15969,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/views/:table/fields',
+        '/api/v2/projects/:projectUuid/semantic-layer/views/:view/fields',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype.getFields,
@@ -16001,11 +15993,32 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                table: {
+                view: {
                     in: 'path',
-                    name: 'table',
+                    name: 'view',
                     required: true,
                     dataType: 'string',
+                },
+                dimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'dimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                timeDimensions: {
+                    default: [],
+                    in: 'query',
+                    name: 'timeDimensions',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                metrics: {
+                    default: [],
+                    in: 'query',
+                    name: 'metrics',
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
             };
 
@@ -16040,24 +16053,18 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v2/projects/:projectUuid/semantic-layer/results',
+        '/api/v2/projects/:projectUuid/semantic-layer/run',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getResults,
+            SemanticLayerController.prototype.runSemanticLayerResults,
         ),
 
-        async function SemanticLayerController_getResults(
+        async function SemanticLayerController_runSemanticLayerResults(
             request: any,
             response: any,
             next: any,
         ) {
             const args = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
                 projectUuid: {
                     in: 'path',
                     name: 'projectUuid',
@@ -16069,6 +16076,12 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'body',
                     required: true,
                     ref: 'SemanticLayerQuery',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
                 },
             };
 
@@ -16091,7 +16104,70 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.getResults.apply(
+                const promise = controller.runSemanticLayerResults.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v2/projects/:projectUuid/semantic-layer/results/:fileId',
+        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticLayerController.prototype.getSemanticLayerResults,
+        ),
+
+        async function SemanticLayerController_getSemanticLayerResults(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                fileId: {
+                    in: 'path',
+                    name: 'fileId',
+                    required: true,
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticLayerController>(
+                        SemanticLayerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getSemanticLayerResults.apply(
                     controller,
                     validatedArgs as any,
                 );

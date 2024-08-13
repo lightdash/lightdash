@@ -4,7 +4,7 @@ export type SemanticLayerView = {
     name: string;
     label: string;
     description?: string;
-    visible?: boolean;
+    visible: boolean;
 };
 
 export enum SemanticLayerFieldType {
@@ -20,7 +20,7 @@ export type SemanticLayerField = {
     type: SemanticLayerFieldType;
     kind: FieldType;
     description?: string;
-    visible?: boolean;
+    visible: boolean;
     aggType?: string; // eg: count, sum
 };
 
@@ -28,6 +28,8 @@ export type SemanticLayerQuery = {
     dimensions: string[];
     timeDimensions: string[];
     metrics: string[];
+    offset?: number;
+    limit?: number;
 };
 
 export type SemanticLayerResultRow = Record<
@@ -52,3 +54,28 @@ export interface SemanticLayerTransformer<
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
 }
+
+export interface SemanticLayerClient {
+    getViews: () => Promise<SemanticLayerView[]>;
+    getFields: (
+        viewName: string,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
+    ) => Promise<SemanticLayerField[]>;
+    streamResults: (
+        projectUuid: string,
+        query: SemanticLayerQuery,
+        callback: (results: SemanticLayerResultRow[]) => void,
+    ) => Promise<number>;
+    getSql: (query: SemanticLayerQuery) => Promise<string>;
+}
+
+export const semanticLayerQueryJob = 'semanticLayer';
+export type SemanticLayerQueryPayload = {
+    projectUuid: string;
+    userUuid: string;
+    query: SemanticLayerQuery;
+    context: 'semanticViewer';
+};

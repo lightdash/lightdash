@@ -1,6 +1,7 @@
 import { Box } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../store/hooks';
+import ResultsViewer from './ResultsViewer';
 import SqlViewer from './SqlViewer';
 
 const Content: FC = () => {
@@ -18,6 +19,8 @@ const Content: FC = () => {
 
     return (
         <Box w="100%" maw="100%">
+            <ResultsViewer />
+
             <SqlViewer />
 
             <div>pinned Result table.</div>

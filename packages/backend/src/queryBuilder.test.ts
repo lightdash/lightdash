@@ -6,6 +6,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import {
+    applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
     buildQuery,
     getCustomBinDimensionSql,
@@ -972,5 +973,50 @@ describe('Time frame sorting', () => {
             END
         )`),
         );
+    });
+});
+
+describe('applyLimitToSqlQuery', () => {
+    it('should return the original query if limit is undefined', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = undefined;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(sqlQuery);
+    });
+
+    it('should return a query with a limit applied when limit is provided', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = 10;
+
+        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should return a query with a limit of 0 applied correctly', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = 0;
+
+        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle complex SQL queries correctly', () => {
+        const sqlQuery = `
+            SELECT name, age FROM users
+            WHERE age > 18
+            ORDER BY age DESC
+        `;
+        const limit = 5;
+
+        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
     });
 });

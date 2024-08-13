@@ -4,35 +4,31 @@ import {
     type ApiError,
     type ApiJobScheduledResponse,
     type ApiSqlRunnerJobStatusResponse,
-    type ResultRow,
-    type SqlColumn,
-    type SqlRunnerBody,
+    type SemanticLayerQuery,
+    type SemanticLayerResultRow,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
-import { useAppSelector } from '../store/hooks';
 
-const scheduleSqlJob = async ({
+const scheduleSemanticLayerJob = async ({
     projectUuid,
-    sql,
-    limit,
+    query,
 }: {
     projectUuid: string;
-    sql: SqlRunnerBody['sql'];
-    limit: SqlRunnerBody['limit'];
+    query: SemanticLayerQuery;
 }) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/run`,
+        url: `/projects/${projectUuid}/semantic-layer/run`,
         method: 'POST',
-        body: JSON.stringify({ sql, limit }),
+        version: 'v2',
+        body: JSON.stringify(query),
     });
 
-export type ResultsAndColumns = {
-    results: ResultRow[];
-    columns: SqlColumn[];
+export type Results = {
+    results: SemanticLayerResultRow[];
 };
 
 /**
@@ -43,38 +39,41 @@ export type ResultsAndColumns = {
  * 2. Get the status of the scheduled job
  * 3. Fetch the results of the job
  */
-export const useSqlQueryRun = ({
+export const useSemanticViewerQueryRun = ({
     onSuccess,
 }: {
-    onSuccess: (data: ResultsAndColumns | undefined) => void;
+    onSuccess: (data: Results | undefined) => void;
 }) => {
     const { showToastError } = useToaster();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const {
         mutate,
         isLoading: isMutating,
-        data: sqlQueryJob,
+        data: queryJob,
     } = useMutation<
         ApiJobScheduledResponse['results'],
         ApiError,
         {
-            sql: SqlRunnerBody['sql'];
-            limit: SqlRunnerBody['limit'];
+            projectUuid: string;
+            query: SemanticLayerQuery;
         }
-    >(({ sql, limit }) => scheduleSqlJob({ projectUuid, sql, limit }), {
-        mutationKey: ['sqlRunner', 'run'],
-    });
+    >(
+        ({ projectUuid, query }) =>
+            scheduleSemanticLayerJob({ projectUuid, query }),
+        {
+            mutationKey: ['semanticViewer', 'run'],
+        },
+    );
 
     const { data: scheduledDeliveryJobStatus, isFetching: jobIsLoading } =
         useQuery<
             ApiSqlRunnerJobStatusResponse['results'] | undefined,
             ApiError
         >(
-            ['jobStatus', sqlQueryJob?.jobId],
+            ['jobStatus', queryJob?.jobId],
             () => {
-                if (!sqlQueryJob?.jobId) return;
+                if (!queryJob?.jobId) return;
                 return getSchedulerJobStatus<ApiSqlRunnerJobStatusResponse>(
-                    sqlQueryJob.jobId,
+                    queryJob.jobId,
                 );
             },
             {
@@ -97,18 +96,16 @@ export const useSqlQueryRun = ({
                         }
                     }
                 },
-                enabled: Boolean(
-                    sqlQueryJob && sqlQueryJob?.jobId !== undefined,
-                ),
+                enabled: Boolean(queryJob && queryJob?.jobId !== undefined),
             },
         );
 
     const { data: sqlQueryResults, isFetching: isResultsLoading } = useQuery<
-        ResultRow[] | undefined,
-        ApiError | unknown, // Error could be unknown when trying to parse the JSON
-        ResultsAndColumns | undefined
+        SemanticLayerResultRow[] | undefined,
+        ApiError,
+        Results | undefined
     >(
-        ['sqlQueryResults', sqlQueryJob?.jobId],
+        ['semanticViewerQueryResults', queryJob?.jobId],
         async () => {
             const url =
                 !isErrorDetails(scheduledDeliveryJobStatus?.details) &&
@@ -152,22 +149,26 @@ export const useSqlQueryRun = ({
 
             // Split the JSON strings by newline
             const jsonStrings = result.trim().split('\n');
-            const jsonObjects: ResultRow[] = jsonStrings
+            const jsonObjects: SemanticLayerResultRow[] = jsonStrings
                 .map((jsonString) => {
                     try {
+                        if (!jsonString) {
+                            return {};
+                        }
+
                         return JSON.parse(jsonString);
                     } catch (e) {
                         throw new Error('Error parsing JSON');
                     }
                 })
                 .filter((obj) => obj !== null);
-
             return jsonObjects;
         },
         {
-            onError: () => {
+            onError: (data) => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
+                    subtitle: data.error.message,
                 });
             },
             enabled: Boolean(
@@ -179,15 +180,13 @@ export const useSqlQueryRun = ({
             select: (data) => {
                 if (
                     !data ||
-                    isErrorDetails(scheduledDeliveryJobStatus?.details) ||
-                    !scheduledDeliveryJobStatus?.details?.columns
+                    isErrorDetails(scheduledDeliveryJobStatus?.details)
                 ) {
                     return undefined;
                 }
 
                 return {
                     results: data,
-                    columns: scheduledDeliveryJobStatus.details.columns,
                 };
             },
             onSuccess: (data) => {

@@ -35,11 +35,16 @@ function getSemanticLayerTypeFromCubeType(
     }
 }
 
+type DimensionsWithVisibility = (TCubeDimension &
+    Pick<SemanticLayerField, 'visible'>)[];
+type MeasuresWithVisibility = (TCubeMeasure &
+    Pick<SemanticLayerField, 'visible'>)[];
+
 export const cubeTransfomers: SemanticLayerTransformer<
     Cube,
     CubeQuery,
-    TCubeDimension[] | TCubeMeasure[],
-    TCubeDimension[] | TCubeMeasure[],
+    DimensionsWithVisibility | MeasuresWithVisibility,
+    DimensionsWithVisibility | MeasuresWithVisibility,
     ResultSet,
     SqlQuery
 > = {
@@ -50,7 +55,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
                 label: d.title,
                 type: getSemanticLayerTypeFromCubeType(d.type),
                 description: d.shortTitle,
-                visible: d.public,
+                visible: Boolean(d.public && d.visible),
                 kind: FieldKind.DIMENSION,
             }),
         );
@@ -58,7 +63,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             name: d.name,
             label: d.title,
             description: d.shortTitle,
-            visible: d.public,
+            visible: Boolean(d.public && d.visible),
             type: getSemanticLayerTypeFromCubeType(d.type),
             kind: FieldKind.METRIC,
         }));
@@ -69,16 +74,17 @@ export const cubeTransfomers: SemanticLayerTransformer<
         cubeViews.map((view) => ({
             name: view.name,
             label: view.title,
-            visible: view.public,
+            visible: Boolean(view.public),
         })),
     semanticLayerQueryToQuery: (query) => ({
         measures: query.metrics,
-        dimensions: query.dimensions,
+        dimensions: [...query.dimensions, ...query.timeDimensions],
         timeDimensions: query.timeDimensions.map((td) => ({
             dimension: td,
         })),
         filters: [],
-        limit: 100,
+        offset: query.offset,
+        limit: query.limit || 100,
     }),
     resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),

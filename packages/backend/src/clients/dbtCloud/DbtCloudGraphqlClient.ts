@@ -3,14 +3,19 @@ import {
     DbtGraphQLCompileSqlResponse,
     DbtGraphQLCreateQueryArgs,
     DbtGraphQLCreateQueryResponse,
+    DbtGraphQLDimension,
     DbtGraphQLGetDimensionsArgs,
     DbtGraphQLGetDimensionsResponse,
     DbtGraphQLGetMetricsForDimensionsArgs,
     DbtGraphQLGetMetricsForDimensionsResponse,
     DbtGraphQLGetMetricsResponse,
     DbtGraphQLJsonResult,
+    DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
+    DbtQueryStatus,
+    SemanticLayerClient,
     SemanticLayerQuery,
+    SemanticLayerResultRow,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -25,7 +30,7 @@ type DbtCloudGraphqlClientArgs = {
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
 type GetMetricsForDimensionsFnArgs = DbtGraphQLGetMetricsForDimensionsArgs;
 
-export default class DbtCloudGraphqlClient {
+export default class DbtCloudGraphqlClient implements SemanticLayerClient {
     transformers = dbtCloudTransfomers;
 
     domain: string;
@@ -109,7 +114,11 @@ export default class DbtCloudGraphqlClient {
         });
     }
 
-    async getResults(query: SemanticLayerQuery) {
+    async streamResults(
+        _projectUuid: string,
+        query: SemanticLayerQuery,
+        callback: (results: SemanticLayerResultRow[]) => void,
+    ): Promise<number> {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
         const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
@@ -134,31 +143,58 @@ export default class DbtCloudGraphqlClient {
                 createQuery,
             );
 
-        const getQueryResultsQuery = `
-            query GetQueryResults($environmentId: BigInt!) {
-                query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}") {
-                    status
-                    sql
-                    jsonResult
-                    error
+        let pageNum = 1;
+        let totalPages = 1; // Default to 1 page
+        let queryStatus: DbtQueryStatus | undefined;
+        let rowCount = 0;
+
+        while (
+            queryStatus !== DbtQueryStatus.SUCCESSFUL ||
+            pageNum <= totalPages
+        ) {
+            const getQueryResultsQuery = `
+                query GetQueryResults($environmentId: BigInt!) {
+                    query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}", pageNum: ${pageNum}) {
+                        status
+                        sql
+                        jsonResult
+                        totalPages
+                        error
+                    }
                 }
+            `;
+
+            // TODO: refactor to use Promise.all
+            const { query: rawResponse } =
+                // eslint-disable-next-line no-await-in-loop
+                await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
+                    getQueryResultsQuery,
+                );
+
+            if (rawResponse.status === DbtQueryStatus.FAILED) {
+                throw new Error(
+                    `DBT Query failed with error: ${rawResponse.error}`,
+                );
             }
-        `;
 
-        const { query: rawResponse } =
-            await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
-                getQueryResultsQuery,
-            );
+            const jsonResult = rawResponse.jsonResult
+                ? (JSON.parse(
+                      Buffer.from(rawResponse.jsonResult, 'base64').toString(),
+                  ) as DbtGraphQLJsonResult)
+                : null;
 
-        const jsonResult = rawResponse.jsonResult
-            ? (JSON.parse(
-                  Buffer.from(rawResponse.jsonResult, 'base64').toString(),
-              ) as DbtGraphQLJsonResult)
-            : null;
+            if (jsonResult) {
+                const rows = this.transformers.resultsToResultRows(jsonResult);
+                callback(rows);
+                rowCount += rows.length;
+                pageNum += 1;
+            }
 
-        return jsonResult
-            ? this.transformers.resultsToResultRows(jsonResult)
-            : [];
+            queryStatus = rawResponse.status;
+            totalPages = rawResponse.totalPages ?? 1;
+        }
+
+        return rowCount;
     }
 
     async getSql(query: SemanticLayerQuery) {
@@ -261,11 +297,69 @@ export default class DbtCloudGraphqlClient {
         );
     }
 
-    async getFields() {
-        const { metrics } = await this.getMetrics();
-        const { dimensions } = await this.getDimensions({
+    async getFields(
+        _: unknown, // there is no concept of views in dbt cloud
+        {
+            dimensions: selectedDimensions,
+            timeDimensions: selectedTimeDimensions,
+            metrics: selectedMetrics,
+        }: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
+    ) {
+        // Get all metrics and check which ones are available for the selected dimensions
+        const { metrics: allMetrics } = await this.getMetrics();
+        const { dimensions: allDimensions } = await this.getDimensions({
             metrics: [],
         });
+
+        const hasSelectedDimensions =
+            selectedDimensions.length > 0 || selectedTimeDimensions.length > 0;
+        const hasSelectedMetrics = selectedMetrics.length > 0;
+
+        let availableMetrics: DbtGraphQLMetric[] | undefined;
+
+        if (hasSelectedDimensions) {
+            const getMetricsForDimensionsResult =
+                await this.getMetricsForDimensions({
+                    dimensions: [
+                        ...selectedDimensions.map((d) => ({ name: d })),
+                        ...selectedTimeDimensions.map((d) => ({ name: d })),
+                    ],
+                });
+
+            availableMetrics =
+                getMetricsForDimensionsResult.metricsForDimensions;
+        }
+
+        const metrics = allMetrics.map((metric) => ({
+            ...metric,
+            // If no dimensions are selected, availableMetrics will be undefined and all metrics will be visible
+            visible: availableMetrics
+                ? !!availableMetrics.find((m) => m.name === metric.name)
+                : true,
+        }));
+
+        let availableDimensions: DbtGraphQLDimension[] | undefined;
+
+        if (hasSelectedMetrics) {
+            const getDimensionsResult = await this.getDimensions({
+                metrics: selectedMetrics.map((metric) => ({
+                    name: metric,
+                })),
+            });
+
+            availableDimensions = getDimensionsResult.dimensions;
+        }
+
+        const dimensions = allDimensions.map((dimension) => ({
+            ...dimension,
+            // If no metrics are selected, availableDimensions will be undefined and all dimensions will be visible
+            visible: availableDimensions
+                ? !!availableDimensions.find((d) => d.name === dimension.name)
+                : true,
+        }));
 
         return this.transformers.fieldsToSemanticLayerFields(
             dimensions,

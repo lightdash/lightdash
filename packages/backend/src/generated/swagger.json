@@ -6640,7 +6640,8 @@
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
-                            "sqlRunner"
+                            "sqlRunner",
+                            "semanticLayer"
                         ]
                     }
                 },
@@ -7278,6 +7279,10 @@
             },
             "SqlRunnerBody": {
                 "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     }
@@ -7407,6 +7412,10 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -7435,6 +7444,7 @@
                     "createdAt",
                     "chartKind",
                     "config",
+                    "limit",
                     "sql",
                     "slug",
                     "description",
@@ -7511,6 +7521,10 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     },
@@ -7525,6 +7539,7 @@
                 "required": [
                     "spaceUuid",
                     "config",
+                    "limit",
                     "sql",
                     "description",
                     "name"
@@ -7576,11 +7591,15 @@
                     "config": {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "sql": {
                         "type": "string"
                     }
                 },
-                "required": ["config", "sql"],
+                "required": ["config", "limit", "sql"],
                 "type": "object"
             },
             "UpdateSqlChart": {
@@ -8594,7 +8613,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["label", "name"],
+                "required": ["visible", "label", "name"],
                 "type": "object"
             },
             "SemanticLayerFieldType": {
@@ -8625,19 +8644,19 @@
                         "type": "string"
                     }
                 },
-                "required": ["kind", "type", "label", "name"],
+                "required": ["visible", "kind", "type", "label", "name"],
                 "type": "object"
-            },
-            "Record_string.string-or-number-or-boolean-or-null_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "SemanticLayerResultRow": {
-                "$ref": "#/components/schemas/Record_string.string-or-number-or-boolean-or-null_"
             },
             "SemanticLayerQuery": {
                 "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "offset": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -8901,7 +8920,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1205.1",
+        "version": "0.1211.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
