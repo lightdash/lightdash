@@ -38,27 +38,26 @@ function getSemanticLayerTypeFromCubeType(
 }
 
 const granularityMap: Record<
-    SemanticLayerTimeGranularity,
-    TimeDimensionGranularity | undefined
+    TimeDimensionGranularity,
+    SemanticLayerTimeGranularity
 > = {
-    // ! This is a partial mapping, not all supported granularities are supported by Cube
-    [SemanticLayerTimeGranularity.NANOSECOND]: undefined,
-    [SemanticLayerTimeGranularity.MICROSECOND]: undefined,
-    [SemanticLayerTimeGranularity.MILLISECOND]: undefined,
-    [SemanticLayerTimeGranularity.SECOND]: 'second',
-    [SemanticLayerTimeGranularity.MINUTE]: 'minute',
-    [SemanticLayerTimeGranularity.HOUR]: 'hour',
-    [SemanticLayerTimeGranularity.DAY]: 'day',
-    [SemanticLayerTimeGranularity.WEEK]: 'week',
-    [SemanticLayerTimeGranularity.MONTH]: 'month',
-    [SemanticLayerTimeGranularity.QUARTER]: 'quarter',
-    [SemanticLayerTimeGranularity.YEAR]: 'year',
+    second: SemanticLayerTimeGranularity.SECOND,
+    minute: SemanticLayerTimeGranularity.MINUTE,
+    hour: SemanticLayerTimeGranularity.HOUR,
+    day: SemanticLayerTimeGranularity.DAY,
+    week: SemanticLayerTimeGranularity.WEEK,
+    month: SemanticLayerTimeGranularity.MONTH,
+    quarter: SemanticLayerTimeGranularity.QUARTER,
+    year: SemanticLayerTimeGranularity.YEAR,
 };
 
+// TODO: should we just have a reverse map here to avoid the need for looping?
 export function getCubeTimeDimensionGranularity(
     granularity?: SemanticLayerTimeGranularity,
 ) {
-    return granularity ? granularityMap[granularity] : undefined;
+    return Object.entries(granularityMap).find(
+        ([_, value]) => value === granularity,
+    )?.[0] as TimeDimensionGranularity | undefined;
 }
 
 type DimensionsWithVisibility = (TCubeDimension &
@@ -81,9 +80,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
             // TODO: check if cube has a function to get available granularities
             const availableGranularities =
                 type === SemanticLayerFieldType.TIME
-                    ? Object.entries(granularityMap)
-                          .filter(([_, v]) => !!v)
-                          .map(([k, _]) => k as SemanticLayerTimeGranularity)
+                    ? Object.values(granularityMap)
                     : [];
 
             return {
