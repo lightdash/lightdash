@@ -110,16 +110,16 @@ const allAvailableGranularities = [
     'year',
 ] as const;
 
+// The following lines ensure that all available granularities from the cube
+// are covered by an exhaustiveness check
 type AllAvailableGranularities = typeof allAvailableGranularities[number];
-
 type EnsureExhaustive = Exclude<
     TimeDimensionGranularity,
     AllAvailableGranularities
 > extends never
     ? true
     : false;
-
-// The next line checks that all available granularities are covered in the switch statement
+// DO NOT REMOVE
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ensureExhaustiveCheck: EnsureExhaustive = true;
 
