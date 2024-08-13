@@ -5,15 +5,22 @@ import ResultsViewer from './ResultsViewer';
 import SqlViewer from './SqlViewer';
 
 const Content: FC = () => {
-    const { view, selectedDimensions, selectedMetrics } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const {
+        view,
+        selectedDimensions,
+        selectedTimeDimensions,
+        selectedMetrics,
+    } = useAppSelector((state) => state.semanticViewer);
 
     if (!view) {
         return null;
     }
 
-    if (selectedDimensions.length === 0 && selectedMetrics.length === 0) {
+    if (
+        selectedDimensions.length === 0 &&
+        selectedTimeDimensions.length === 0 &&
+        selectedMetrics.length === 0
+    ) {
         return null;
     }
 
