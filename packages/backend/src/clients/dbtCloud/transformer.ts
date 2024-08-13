@@ -35,23 +35,39 @@ function getSemanticLayerTypeFromDbtType(
     }
 }
 
-const granularityMap: Record<DbtTimeGranularity, SemanticLayerTimeGranularity> =
-    {
-        [DbtTimeGranularity.NANOSECOND]:
-            SemanticLayerTimeGranularity.NANOSECOND,
-        [DbtTimeGranularity.MICROSECOND]:
-            SemanticLayerTimeGranularity.MICROSECOND,
-        [DbtTimeGranularity.MILLISECOND]:
-            SemanticLayerTimeGranularity.MILLISECOND,
-        [DbtTimeGranularity.SECOND]: SemanticLayerTimeGranularity.SECOND,
-        [DbtTimeGranularity.MINUTE]: SemanticLayerTimeGranularity.MINUTE,
-        [DbtTimeGranularity.HOUR]: SemanticLayerTimeGranularity.HOUR,
-        [DbtTimeGranularity.DAY]: SemanticLayerTimeGranularity.DAY,
-        [DbtTimeGranularity.WEEK]: SemanticLayerTimeGranularity.WEEK,
-        [DbtTimeGranularity.MONTH]: SemanticLayerTimeGranularity.MONTH,
-        [DbtTimeGranularity.QUARTER]: SemanticLayerTimeGranularity.QUARTER,
-        [DbtTimeGranularity.YEAR]: SemanticLayerTimeGranularity.YEAR,
-    };
+const getSemanticLayerTimeGranularityFromDbtTimeGranularity = (
+    granularity: DbtTimeGranularity,
+): SemanticLayerTimeGranularity => {
+    switch (granularity) {
+        case DbtTimeGranularity.NANOSECOND:
+            return SemanticLayerTimeGranularity.NANOSECOND;
+        case DbtTimeGranularity.MICROSECOND:
+            return SemanticLayerTimeGranularity.MICROSECOND;
+        case DbtTimeGranularity.MILLISECOND:
+            return SemanticLayerTimeGranularity.MILLISECOND;
+        case DbtTimeGranularity.SECOND:
+            return SemanticLayerTimeGranularity.SECOND;
+        case DbtTimeGranularity.MINUTE:
+            return SemanticLayerTimeGranularity.MINUTE;
+        case DbtTimeGranularity.HOUR:
+            return SemanticLayerTimeGranularity.HOUR;
+        case DbtTimeGranularity.DAY:
+            return SemanticLayerTimeGranularity.DAY;
+        case DbtTimeGranularity.WEEK:
+            return SemanticLayerTimeGranularity.WEEK;
+        case DbtTimeGranularity.MONTH:
+            return SemanticLayerTimeGranularity.MONTH;
+        case DbtTimeGranularity.QUARTER:
+            return SemanticLayerTimeGranularity.QUARTER;
+        case DbtTimeGranularity.YEAR:
+            return SemanticLayerTimeGranularity.YEAR;
+        default:
+            return assertUnreachable(
+                granularity,
+                `Unknown dbt time granularity: ${granularity}`,
+            );
+    }
+};
 
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
@@ -71,7 +87,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                 visible: dimension.visible,
                 kind: FieldKind.DIMENSION,
                 availableGranularities: dimension.queryableGranularities.map(
-                    (g) => granularityMap[g],
+                    getSemanticLayerTimeGranularityFromDbtTimeGranularity,
                 ),
             }),
         );

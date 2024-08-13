@@ -8,10 +8,7 @@ import {
     SemanticLayerSelectedFields,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
-import {
-    cubeTransfomers,
-    getCubeTimeDimensionGranularity,
-} from './transformer';
+import { cubeTransfomers } from './transformer';
 
 type CubeArgs = {
     lightdashConfig: LightdashConfig;

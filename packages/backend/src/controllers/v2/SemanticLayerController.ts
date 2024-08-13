@@ -1,11 +1,8 @@
 import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
-    ParameterError,
     SemanticLayerField,
     SemanticLayerQuery,
-    SemanticLayerTimeDimension,
-    SemanticLayerTimeGranularity,
     SemanticLayerView,
 } from '@lightdash/common';
 import {

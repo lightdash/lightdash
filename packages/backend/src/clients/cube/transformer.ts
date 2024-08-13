@@ -37,28 +37,91 @@ function getSemanticLayerTypeFromCubeType(
     }
 }
 
-const granularityMap: Record<
-    TimeDimensionGranularity,
-    SemanticLayerTimeGranularity
-> = {
-    second: SemanticLayerTimeGranularity.SECOND,
-    minute: SemanticLayerTimeGranularity.MINUTE,
-    hour: SemanticLayerTimeGranularity.HOUR,
-    day: SemanticLayerTimeGranularity.DAY,
-    week: SemanticLayerTimeGranularity.WEEK,
-    month: SemanticLayerTimeGranularity.MONTH,
-    quarter: SemanticLayerTimeGranularity.QUARTER,
-    year: SemanticLayerTimeGranularity.YEAR,
+const getSemanticLayerTimeGranularity = (
+    cubeGranularity: TimeDimensionGranularity,
+): SemanticLayerTimeGranularity => {
+    switch (cubeGranularity) {
+        case 'second':
+            return SemanticLayerTimeGranularity.SECOND;
+        case 'minute':
+            return SemanticLayerTimeGranularity.MINUTE;
+        case 'hour':
+            return SemanticLayerTimeGranularity.HOUR;
+        case 'day':
+            return SemanticLayerTimeGranularity.DAY;
+        case 'week':
+            return SemanticLayerTimeGranularity.WEEK;
+        case 'month':
+            return SemanticLayerTimeGranularity.MONTH;
+        case 'quarter':
+            return SemanticLayerTimeGranularity.QUARTER;
+        case 'year':
+            return SemanticLayerTimeGranularity.YEAR;
+        default:
+            return assertUnreachable(
+                cubeGranularity,
+                `Unknown cube time granularity: ${cubeGranularity}`,
+            );
+    }
 };
 
-// TODO: should we just have a reverse map here to avoid the need for looping?
-export function getCubeTimeDimensionGranularity(
-    granularity?: SemanticLayerTimeGranularity,
-) {
-    return Object.entries(granularityMap).find(
-        ([_, value]) => value === granularity,
-    )?.[0] as TimeDimensionGranularity | undefined;
-}
+const getCubeTimeDimensionGranularity = (
+    semanticGranularity: SemanticLayerTimeGranularity,
+): TimeDimensionGranularity => {
+    switch (semanticGranularity) {
+        case SemanticLayerTimeGranularity.NANOSECOND:
+        case SemanticLayerTimeGranularity.MICROSECOND:
+        case SemanticLayerTimeGranularity.MILLISECOND:
+            throw new Error(
+                'Nano, micro and millisecond granularities are not supported by cube',
+            );
+        case SemanticLayerTimeGranularity.SECOND:
+            return 'second';
+        case SemanticLayerTimeGranularity.MINUTE:
+            return 'minute';
+        case SemanticLayerTimeGranularity.HOUR:
+            return 'hour';
+        case SemanticLayerTimeGranularity.DAY:
+            return 'day';
+        case SemanticLayerTimeGranularity.WEEK:
+            return 'week';
+        case SemanticLayerTimeGranularity.MONTH:
+            return 'month';
+        case SemanticLayerTimeGranularity.QUARTER:
+            return 'quarter';
+        case SemanticLayerTimeGranularity.YEAR:
+            return 'year';
+        default:
+            return assertUnreachable(
+                semanticGranularity,
+                `Unknown semantic time granularity: ${semanticGranularity}`,
+            );
+    }
+};
+
+const allAvailableGranularities = [
+    'second',
+    'minute',
+    'hour',
+    'day',
+    'week',
+    'month',
+    'quarter',
+    'year',
+] as const;
+
+type AllAvailableGranularities = typeof allAvailableGranularities[number];
+
+type EnsureExhaustive = Exclude<
+    TimeDimensionGranularity,
+    AllAvailableGranularities
+> extends never
+    ? true
+    : false;
+
+// The next line checks that all available granularities are covered in the switch statement
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ensureExhaustiveCheck: EnsureExhaustive = true;
 
 type DimensionsWithVisibility = (TCubeDimension &
     Pick<SemanticLayerField, 'visible'>)[];
@@ -80,7 +143,9 @@ export const cubeTransfomers: SemanticLayerTransformer<
             // TODO: check if cube has a function to get available granularities
             const availableGranularities =
                 type === SemanticLayerFieldType.TIME
-                    ? Object.values(granularityMap)
+                    ? allAvailableGranularities.map(
+                          getSemanticLayerTimeGranularity,
+                      )
                     : [];
 
             return {
@@ -120,7 +185,9 @@ export const cubeTransfomers: SemanticLayerTransformer<
         ],
         timeDimensions: query.timeDimensions.map((td) => ({
             dimension: td.name,
-            granularity: getCubeTimeDimensionGranularity(td.granularity),
+            granularity:
+                td.granularity &&
+                getCubeTimeDimensionGranularity(td.granularity),
         })),
         filters: [],
         offset: query.offset,
