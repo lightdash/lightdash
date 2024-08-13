@@ -31,7 +31,7 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative">
+        <Box pos="relative" sx={{height: '300px'}}>
             <LoadingOverlay
                 visible={sql.isFetching}
                 overlayBlur={2}

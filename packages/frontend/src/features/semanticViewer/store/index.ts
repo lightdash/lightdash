@@ -3,10 +3,18 @@
 import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { semanticViewerSlice } from './semanticViewerSlice';
+import { barChartConfigSlice } from './barChartSlice';
+import { lineChartConfigSlice } from './lineChartSlice';
+import { pieChartConfigSlice } from './pieChartSlice';
+import { tableVisSlice } from './tableVisSlice';
 
 export const store = configureStore({
     reducer: {
         semanticViewer: semanticViewerSlice.reducer,
+        barChartConfig: barChartConfigSlice.reducer,
+        lineChartConfig: lineChartConfigSlice.reducer,
+        pieChartConfig: pieChartConfigSlice.reducer,
+        tableVisConfig: tableVisSlice.reducer,
     },
     devTools: process.env.NODE_ENV === 'development',
 });
