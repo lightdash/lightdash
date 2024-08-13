@@ -1,18 +1,15 @@
 import { type SemanticLayerField } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Center,
     Loader,
     LoadingOverlay,
-    Paper,
     Stack,
-    Text,
     TextInput,
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
@@ -22,7 +19,7 @@ import {
     selectSelectedFieldsByKind,
 } from '../store/selectors';
 import { toggleField } from '../store/semanticViewerSlice';
-import SidebarViewFieldItem from './SidebarViewFieldItem';
+import SidebarViewFieldsGroup from './SidebarViewFieldsGroup';
 
 const getSearchResults = (
     fields: SemanticLayerField[],
@@ -37,59 +34,6 @@ const getSearchResults = (
     })
         .search(searchQuery)
         .map((result) => result.item);
-};
-
-type SidebarViewFieldsGroupProps = {
-    groupLabel: string;
-    isActive?: boolean;
-    fields: SemanticLayerField[];
-    searchQuery: string;
-    handleFieldToggle: (field: SemanticLayerField) => void;
-};
-
-const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
-    groupLabel,
-    isActive = false,
-    fields,
-    searchQuery,
-    handleFieldToggle,
-}) => {
-    if (fields.length === 0) return null;
-
-    return (
-        <Stack spacing="xxs">
-            <Text
-                transform="uppercase"
-                fz="xs"
-                fw={600}
-                color="dimmed"
-                ff="'Inter', sans-serif"
-                sx={{ fontFeatureSettings: '"tnum"' }}
-            >
-                {groupLabel} ({fields.length})
-            </Text>
-
-            <Paper
-                display="flex"
-                radius="md"
-                sx={{
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    gap: 1,
-                }}
-            >
-                {fields.map((field) => (
-                    <SidebarViewFieldItem
-                        key={field.name}
-                        field={field}
-                        searchQuery={searchQuery}
-                        isActive={isActive}
-                        onFieldToggle={() => handleFieldToggle(field)}
-                    />
-                ))}
-            </Paper>
-        </Stack>
-    );
 };
 
 const SidebarViewFields = () => {
@@ -149,42 +93,45 @@ const SidebarViewFields = () => {
             description="No fields have been created in this view yet."
         />
     ) : (
-        <Stack spacing="md" sx={{ flexGrow: 1 }}>
+        <>
             <LoadingOverlay
                 visible={fields.isFetching}
                 opacity={0.5}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 
-            <Box sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                <TextInput
-                    size="xs"
-                    type="search"
-                    icon={<MantineIcon icon={IconSearch} />}
-                    rightSection={
-                        searchQuery ? (
-                            <ActionIcon
-                                size="xs"
-                                onClick={() => setSearchQuery('')}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search fields"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </Box>
+            <Stack sx={{ flexGrow: 1 }}>
+                <Stack
+                    bg="white"
+                    sx={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 1,
+                    }}
+                >
+                    <TextInput
+                        size="xs"
+                        type="search"
+                        icon={<MantineIcon icon={IconSearch} />}
+                        rightSection={
+                            searchQuery ? (
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={() => setSearchQuery('')}
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            ) : null
+                        }
+                        placeholder="Search fields"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
 
-            {searchedFields && searchedOrAllFields.length === 0 ? (
-                <SuboptimalState
-                    title="No fields match search"
-                    description="No fields match the search query."
-                />
-            ) : (
-                <Stack>
                     <SidebarViewFieldsGroup
+                        containerProps={{
+                            sx: { boxShadow: '0 3px 0 0 white' },
+                        }}
                         groupLabel="Selected fields"
                         isActive
                         fields={searchedOrAllFields.filter((field) =>
@@ -193,7 +140,9 @@ const SidebarViewFields = () => {
                         searchQuery={searchQuery}
                         handleFieldToggle={handleFieldToggle}
                     />
+                </Stack>
 
+                <Stack>
                     <SidebarViewFieldsGroup
                         groupLabel="Available fields"
                         fields={searchedOrAllFields.filter(
@@ -216,8 +165,15 @@ const SidebarViewFields = () => {
                         handleFieldToggle={handleFieldToggle}
                     />
                 </Stack>
-            )}
-        </Stack>
+
+                {searchedFields && searchedOrAllFields.length === 0 ? (
+                    <SuboptimalState
+                        title="No fields match search"
+                        description="No fields match the search query."
+                    />
+                ) : null}
+            </Stack>
+        </>
     );
 };
 

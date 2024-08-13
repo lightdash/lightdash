@@ -7,7 +7,7 @@ import { Highlight, NavLink } from '@mantine/core';
 import { type FC } from 'react';
 import FieldIcon from './FieldIcon';
 
-type SidebarViewFieldItemProps = {
+type SidebarViewFieldGroupItemProps = {
     field: SemanticLayerField;
     searchQuery: string;
     isActive: boolean;
@@ -25,7 +25,7 @@ const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
     }
 };
 
-const SidebarViewFieldItem: FC<SidebarViewFieldItemProps> = ({
+const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
     field,
     onFieldToggle,
     isActive,
@@ -51,4 +51,4 @@ const SidebarViewFieldItem: FC<SidebarViewFieldItemProps> = ({
     );
 };
 
-export default SidebarViewFieldItem;
+export default SidebarViewFieldGroupItem;
