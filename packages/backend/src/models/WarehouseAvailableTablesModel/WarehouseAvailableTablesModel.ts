@@ -1,6 +1,13 @@
-import { WarehouseCatalog, WarehouseTables } from '@lightdash/common';
+import {
+    NotFoundError,
+    WarehouseCatalog,
+    WarehouseTables,
+} from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbWarehouseAvailableTables } from '../../database/entities/warehouseAvailableTables';
+import {
+    DbWarehouseAvailableTables,
+    WarehouseAvailableTablesTableName,
+} from '../../database/entities/warehouseAvailableTables';
 
 export class WarehouseAvailableTablesModel {
     database: Knex;
@@ -31,9 +38,7 @@ export class WarehouseAvailableTablesModel {
     async getTablesForUserWarehouseCredentials(
         userWarehouseCredentialsId: string,
     ) {
-        const rows = await this.database(
-            'warehouse_credentials_available_tables',
-        )
+        const rows = await this.database(WarehouseAvailableTablesTableName)
             .where(
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsId,
@@ -50,9 +55,9 @@ export class WarehouseAvailableTablesModel {
                 'warehouse_credentials.project_id',
             )
             .join(
-                'warehouse_credentials_available_tables',
+                WarehouseAvailableTablesTableName,
                 'warehouse_credentials.warehouse_credentials_id',
-                'warehouse_credentials_available_tables.project_warehouse_credentials_id',
+                `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
             )
             .where('project_uuid', projectUuid)
             .select(['database', 'schema', 'table']);
@@ -60,19 +65,43 @@ export class WarehouseAvailableTablesModel {
     }
 
     async createAvailableTablesForProjectWarehouseCredentials(
-        warehouseCredentialsId: number,
+        projectUuid: string,
         tables: WarehouseTables,
     ) {
+        const warehouseCredentialsId = await this.database(
+            'warehouse_credentials',
+        )
+            .join(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .where('project_uuid', projectUuid)
+            .select('warehouse_credentials_id')
+            .first();
+
+        if (!warehouseCredentialsId) {
+            throw new NotFoundError('Warehouse credentials not found');
+        }
         const rows = tables.map(({ database, schema, table }) => ({
             database,
             schema,
             table,
-            project_warehouse_credentials_id: warehouseCredentialsId,
+            project_warehouse_credentials_id:
+                warehouseCredentialsId.warehouse_credentials_id,
             user_warehouse_credentials_uuid: null,
         }));
-        await this.database('warehouse_credentials_available_tables').insert(
-            rows,
-        );
+
+        await this.database.transaction(async (trx) => {
+            await trx(WarehouseAvailableTablesTableName)
+                .where(
+                    'project_warehouse_credentials_id',
+                    warehouseCredentialsId.warehouse_credentials_id,
+                )
+                .del();
+
+            await trx(WarehouseAvailableTablesTableName).insert(rows);
+        });
     }
 
     async createAvailableTablesForUserWarehouseCredentials(
@@ -86,8 +115,14 @@ export class WarehouseAvailableTablesModel {
             project_warehouse_credentials_id: null,
             user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
         }));
-        await this.database('warehouse_credentials_available_tables').insert(
-            rows,
-        );
+        await this.database.transaction(async (trx) => {
+            await trx(WarehouseAvailableTablesTableName)
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                )
+                .del();
+            await trx(WarehouseAvailableTablesTableName).insert(rows);
+        });
     }
 }

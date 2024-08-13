@@ -2782,6 +2782,57 @@ export class ProjectService extends BaseService {
         }
     }
 
+    // TODO: set up an API call to hit this
+    async populateWarehouseTablesCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<WarehouseCatalog> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const schema = ProjectService.getWarehouseSchema(credentials);
+
+        const warehouseTables = await warehouseClient.getAllTables(schema);
+
+        const catalog =
+            WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
+
+        if (credentials.userWarehouseCredentialsUuid) {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                credentials.userWarehouseCredentialsUuid,
+                warehouseTables,
+            );
+        } else {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                projectUuid,
+                warehouseTables,
+            );
+        }
+
+        await sshTunnel.disconnect();
+
+        return catalog;
+    }
+
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
@@ -2803,12 +2854,6 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        // Check cache for tables depending on if credentials.userWarehouseCredentialsUuid is defined
-
-        // If it exists return it
-
-        // If it doesn't generate it (separate service endpoint?)
-
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
@@ -2816,45 +2861,32 @@ export class ProjectService extends BaseService {
 
         const schema = ProjectService.getWarehouseSchema(credentials);
 
-        const queryTags: RunQueryTags = {
-            organization_uuid: user.organizationUuid,
-            project_uuid: projectUuid,
-            user_uuid: user.userUuid,
-        };
-
         let catalog: WarehouseCatalog | null = null;
-
+        // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
-            // Check cache for tables
             catalog =
                 await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
                     credentials.userWarehouseCredentialsUuid,
                 );
-
-            if (!catalog) {
-                const warehouseTables = await warehouseClient.getAllTables(
-                    schema,
-                    queryTags,
+        } else {
+            catalog =
+                await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                    projectUuid,
                 );
+        }
 
-                catalog =
-                    WarehouseAvailableTablesModel.toWarehouseCatalog(
-                        warehouseTables,
-                    );
-
-                await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                    credentials.userWarehouseCredentialsUuid,
-                    warehouseTables,
-                );
-            }
+        // If there was no cached catalog, generate it
+        if (!catalog || Object.keys(catalog).length === 0) {
+            catalog = await this.populateWarehouseTablesCache(
+                user,
+                projectUuid,
+            );
         }
 
         await sshTunnel.disconnect();
 
         if (!catalog) {
-            throw new NotFoundError(
-                'Warehouse tables not found in cache or warehouse credentials',
-            );
+            throw new NotFoundError('Warehouse tables not found');
         }
 
         return catalog;
