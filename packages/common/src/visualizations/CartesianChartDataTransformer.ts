@@ -1,5 +1,5 @@
 import { friendlyName } from '../types/field';
-import { ChartKind } from '../types/savedCharts';
+import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import {
     isCartesianChartSQLConfig,
     type SqlRunnerChartConfig,
@@ -16,10 +16,44 @@ export class CartesianChartDataTransformer<
         TPieChartConfig
     >;
 
+    private colorMap: Map<string, string>;
+
     constructor(args: {
         transformer: ResultsRunnerBase<TCartesianChartLayout, TPieChartConfig>;
     }) {
         this.transformer = args.transformer;
+
+        this.colorMap = new Map();
+    }
+
+    private getSeriesColor(
+        seriesIdentifier: string,
+        possibleXAxisValues: string[] | undefined,
+    ): string | undefined {
+        // Go through the possibleXAxisValues and check if the seriesIdentifier is in the value - "completed_sum(order_id)" is the identifier and "completed" is one of the possible values
+        const foundValue = possibleXAxisValues?.find((value) =>
+            seriesIdentifier.startsWith(value),
+        );
+        if (!foundValue) {
+            return undefined;
+        }
+
+        // Remove foundValue from the seriesIdentifier - "completed_sum(order_id)" becomes "sum(order_id)"
+        const genericIdentifier = seriesIdentifier.replace(
+            `${foundValue}_`,
+            '',
+        );
+
+        if (genericIdentifier && !this.colorMap.has(genericIdentifier)) {
+            // This code assigns a color to a series in the chart
+            const color =
+                // TODO: Update this to support the organization color palette
+                ECHARTS_DEFAULT_COLORS[
+                    this.colorMap.size % ECHARTS_DEFAULT_COLORS.length // This ensures we cycle through the colors if we have more series than colors
+                ];
+            this.colorMap.set(genericIdentifier, color);
+        }
+        return this.colorMap.get(genericIdentifier)!;
     }
 
     async getEchartsSpec(config: SqlRunnerChartConfig) {
@@ -42,6 +76,10 @@ export class CartesianChartDataTransformer<
 
         const shouldStack = display?.stack === true;
 
+        const possibleXAxisValues = transformedData?.results.map(
+            (row) => `${row[transformedData?.indexColumn.reference]}`,
+        );
+
         return {
             tooltip: {},
             legend: {
@@ -49,13 +87,11 @@ export class CartesianChartDataTransformer<
                 type: 'scroll',
             },
             xAxis: {
-                // TODO: display should always be defined and defaults should be applied in the transformer
                 type:
                     display?.xAxis?.type ||
                     transformedData?.indexColumn.type ||
                     DEFAULT_X_AXIS_TYPE,
                 name:
-                    // TODO: display should always be defined and defaults should be applied in the transformer
                     display?.xAxis?.label ||
                     friendlyName(
                         transformedData?.indexColumn.reference || 'xAxisColumn',
@@ -107,6 +143,7 @@ export class CartesianChartDataTransformer<
                     (display?.series &&
                         display.series[seriesColumn]?.yAxisIndex) ||
                     0,
+                color: this.getSeriesColor(seriesColumn, possibleXAxisValues),
             })),
         };
     }
