@@ -199,5 +199,12 @@ export const cartesianChartConfigSlice = createSlice({
 
             state.config.fieldConfig.y.splice(action.payload, 1);
         },
+        setStacked: ({ config }, action: PayloadAction<boolean>) => {
+            if (!config) return;
+
+            config.display = config.display || {};
+
+            config.display.stack = action.payload;
+        },
     },
 });
