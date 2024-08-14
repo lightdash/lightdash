@@ -1,7 +1,7 @@
 import {
+    type ApiJobScheduledResponse,
     type SemanticLayerField,
     type SemanticLayerQuery,
-    type SemanticLayerSelectedFields,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -20,45 +20,29 @@ export const apiGetSemanticLayerViews = ({
         body: undefined,
     });
 
-type GetSemanticLayerViewFieldsRequestParams = {
+type PostSemanticLayerViewFieldsRequestParams = {
     projectUuid: string;
     view: string;
-    selectedFields: SemanticLayerSelectedFields;
+    selectedFields: Pick<
+        SemanticLayerQuery,
+        'dimensions' | 'timeDimensions' | 'metrics'
+    >;
 };
 
-// Makes sure the selectedFields object is in the correct format for the Query Params
-function getQueryParamsReadyArrays(selectedFields: Record<string, string[]>) {
-    const selectedFieldsEntries = Object.entries(selectedFields).reduce<
-        string[][]
-    >((acc, [key, value]) => {
-        if (value.length > 0) {
-            acc.push(...value.map((v) => [key, v]));
-        }
-        return acc;
-    }, []);
-
-    return selectedFieldsEntries;
-}
-
-export const apiGetSemanticLayerViewFields = ({
+export const apiPostSemanticLayerViewFields = ({
     projectUuid,
     view,
     selectedFields,
-}: GetSemanticLayerViewFieldsRequestParams) => {
-    const selectedFieldsEntries = getQueryParamsReadyArrays(selectedFields);
-    const queryParams = new URLSearchParams(selectedFieldsEntries);
-
+}: PostSemanticLayerViewFieldsRequestParams) => {
     return lightdashApi<SemanticLayerField[]>({
         version: 'v2',
-        method: 'GET',
-        url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields${
-            queryParams ? `?${queryParams}` : ''
-        }`,
-        body: undefined,
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/views/${view}/query-fields`,
+        body: JSON.stringify(selectedFields),
     });
 };
 
-type GetSemanticLayerSqlRequestParams = {
+type PostSemanticLayerSqlRequestParams = {
     projectUuid: string;
     payload: SemanticLayerQuery;
 };
@@ -66,10 +50,26 @@ type GetSemanticLayerSqlRequestParams = {
 export const apiPostSemanticLayerSql = ({
     projectUuid,
     payload,
-}: GetSemanticLayerSqlRequestParams) =>
+}: PostSemanticLayerSqlRequestParams) =>
     lightdashApi<string>({
         version: 'v2',
         method: 'POST',
         url: `/projects/${projectUuid}/semantic-layer/sql`,
         body: JSON.stringify(payload),
+    });
+
+type PostSemanticLayerQueryRequestParams = {
+    projectUuid: string;
+    query: SemanticLayerQuery;
+};
+
+export const apiPostSemanticLayerRun = ({
+    projectUuid,
+    query,
+}: PostSemanticLayerQueryRequestParams) =>
+    lightdashApi<ApiJobScheduledResponse['results']>({
+        version: 'v2',
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/run`,
+        body: JSON.stringify(query),
     });

@@ -300,11 +300,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     async getFields(
         _: unknown, // there is no concept of views in dbt cloud
-        {
-            dimensions: selectedDimensions,
-            timeDimensions: selectedTimeDimensions,
-            metrics: selectedMetrics,
-        }: SemanticLayerSelectedFields,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
     ) {
         // Get all metrics and check which ones are available for the selected dimensions
         const { metrics: allMetrics } = await this.getMetrics();
@@ -313,8 +312,9 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         });
 
         const hasSelectedDimensions =
-            selectedDimensions.length > 0 || selectedTimeDimensions.length > 0;
-        const hasSelectedMetrics = selectedMetrics.length > 0;
+            selectedFields.dimensions.length > 0 ||
+            selectedFields.timeDimensions.length > 0;
+        const hasSelectedMetrics = selectedFields.metrics.length > 0;
 
         let availableMetrics: DbtGraphQLMetric[] | undefined;
 
@@ -322,8 +322,12 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             const getMetricsForDimensionsResult =
                 await this.getMetricsForDimensions({
                     dimensions: [
-                        ...selectedDimensions.map((d) => ({ name: d })),
-                        ...selectedTimeDimensions.map((d) => ({ name: d })),
+                        ...selectedFields.dimensions.map((d) => ({
+                            name: d.name,
+                        })),
+                        ...selectedFields.timeDimensions.map((d) => ({
+                            name: d.name,
+                        })),
                     ],
                 });
 
@@ -343,8 +347,8 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
         if (hasSelectedMetrics) {
             const getDimensionsResult = await this.getDimensions({
-                metrics: selectedMetrics.map((metric) => ({
-                    name: metric,
+                metrics: selectedFields.metrics.map((metric) => ({
+                    name: metric.name,
                 })),
             });
 

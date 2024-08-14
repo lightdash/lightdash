@@ -33,10 +33,10 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative">
+        <Box pos="relative" h="100%">
             <LoadingOverlay
                 visible={sql.isFetching}
-                overlayBlur={2}
+                opacity={1}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 

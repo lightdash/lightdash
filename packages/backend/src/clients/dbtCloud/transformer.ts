@@ -109,11 +109,8 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query) => {
         const { metrics, dimensions, timeDimensions } = query;
         return {
-            metrics: metrics.map((metric) => ({ name: metric })),
-            groupBy: [
-                ...dimensions.map((dimension) => ({ name: dimension })),
-                ...timeDimensions,
-            ],
+            metrics,
+            groupBy: [...dimensions, ...timeDimensions],
             where: [],
             orderBy: query.sortBy.map((sort) => {
                 const { name, kind, direction } = sort;

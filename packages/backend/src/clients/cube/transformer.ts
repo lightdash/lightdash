@@ -70,7 +70,7 @@ const getSemanticLayerTimeGranularity = (
     }
 };
 
-const getCubeTimeDimensionGranularity = (
+export const getCubeTimeDimensionGranularity = (
     semanticGranularity: SemanticLayerTimeGranularity,
 ): TimeDimensionGranularity => {
     switch (semanticGranularity) {
@@ -199,9 +199,9 @@ export const cubeTransfomers: SemanticLayerTransformer<
             visible: Boolean(view.public),
         })),
     semanticLayerQueryToQuery: (query) => ({
-        measures: query.metrics,
+        measures: query.metrics.map((m) => m.name),
         dimensions: [
-            ...query.dimensions,
+            ...query.dimensions.map((d) => d.name),
             ...query.timeDimensions.map((td) => td.name),
         ],
         timeDimensions: query.timeDimensions.map((td) => ({
