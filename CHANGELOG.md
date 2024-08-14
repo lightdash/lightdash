@@ -1,3 +1,10 @@
+# [0.1215.0](https://github.com/lightdash/lightdash/compare/0.1214.0...0.1215.0) (2024-08-14)
+
+
+### Features
+
+* semantic layer sorting backend ([#11143](https://github.com/lightdash/lightdash/issues/11143)) ([374f619](https://github.com/lightdash/lightdash/commit/374f619d88fb753736aa7ded31d60a79039c76ef))
+
 # [0.1214.0](https://github.com/lightdash/lightdash/compare/0.1213.0...0.1214.0) (2024-08-14)
 
 
