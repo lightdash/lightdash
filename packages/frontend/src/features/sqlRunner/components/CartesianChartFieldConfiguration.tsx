@@ -225,10 +225,10 @@ export const CartesianChartFieldConfiguration = ({
 }) => {
     const dispatch = useAppDispatch();
     const xLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getXLayoutOptions,
+        cartesianChartSelectors.getIndexLayoutOptions,
     );
     const yLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getYLayoutOptions,
+        cartesianChartSelectors.getValuesLayoutOptions,
     );
     const xAxisField = useAppSelector(cartesianChartSelectors.getXAxisField);
     const yAxisFields = useAppSelector(cartesianChartSelectors.getYAxisFields);
@@ -236,7 +236,7 @@ export const CartesianChartFieldConfiguration = ({
         cartesianChartSelectors.getGroupByField,
     );
     const groupByLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getGroupByLayoutOptions,
+        cartesianChartSelectors.getPivotLayoutOptions,
     );
 
     return (

@@ -1,27 +1,29 @@
 import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
-import {
-    isCartesianChartSQLConfig,
-    type SqlRunnerChartConfig,
-} from '../types/sqlRunner';
 import { applyCustomFormat } from '../utils/formatting';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
 import { type IndexType } from './SqlResultsRunner';
 
-export class CartesianChartDataTransformer<
-    TCartesianChartLayout,
-    TPieChartConfig,
-> {
-    private readonly transformer: ResultsRunnerBase<
-        TCartesianChartLayout,
-        TPieChartConfig
-    >;
+type CartesianChartKind = Extract<
+    ChartKind,
+    ChartKind.LINE | ChartKind.VERTICAL_BAR
+>;
+
+type CartesianChartConfig<TPivotChartLayout> = {
+    metadata: {
+        version: number;
+    };
+    type: CartesianChartKind;
+    fieldConfig: TPivotChartLayout | undefined;
+    display: CartesianChartDisplay | undefined;
+};
+
+export class CartesianChartDataTransformer<TPivotChartLayout> {
+    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: {
-        transformer: ResultsRunnerBase<TCartesianChartLayout, TPieChartConfig>;
-    }) {
+    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
         this.transformer = args.transformer;
 
         this.colorMap = new Map();
@@ -67,18 +69,33 @@ export class CartesianChartDataTransformer<
         return undefined;
     }
 
-    async getEchartsSpec(config: SqlRunnerChartConfig) {
-        if (!isCartesianChartSQLConfig(config)) {
+    mergeConfig(
+        type: CartesianChartKind,
+        existingConfig?: CartesianChartConfig<TPivotChartLayout>,
+    ): CartesianChartConfig<TPivotChartLayout> {
+        return {
+            metadata: {
+                version: 1,
+            },
+            type,
+            fieldConfig: this.transformer.mergePivotChartLayout(
+                existingConfig?.fieldConfig,
+            ),
+            display: existingConfig?.display,
+        };
+    }
+
+    async getEchartsSpec(
+        layout: TPivotChartLayout | undefined,
+        display: CartesianChartDisplay | undefined,
+        type: ChartKind,
+    ) {
+        if (!layout) {
             return {};
         }
-
-        const { fieldConfig, display, type } = config;
-
-        const transformedData = fieldConfig
-            ? await this.transformer.getPivotChartData(
-                  fieldConfig as TCartesianChartLayout,
-              )
-            : undefined;
+        const transformedData = await this.transformer.getPivotChartData(
+            layout,
+        );
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 

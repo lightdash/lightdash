@@ -1,33 +1,48 @@
-import {
-    isPieChartSQLConfig,
-    type SqlRunnerChartConfig,
-} from '../types/sqlRunner';
+import { ChartKind } from '../types/savedCharts';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
+import { type PieChartDisplay } from './SqlResultsRunner';
 
-export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
-    private readonly transformer: ResultsRunnerBase<
-        TBarChartLayout,
-        TPieChartConfig
-    >;
+type PieChartConfig<TPivotChartLayout> = {
+    metadata: {
+        version: number;
+    };
+    type: ChartKind.PIE;
+    fieldConfig: TPivotChartLayout | undefined;
+    display: PieChartDisplay | undefined;
+};
 
-    constructor(args: {
-        transformer: ResultsRunnerBase<TBarChartLayout, TPieChartConfig>;
-    }) {
+export class PieChartDataTransformer<TPivotChartLayout> {
+    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
+
+    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
         this.transformer = args.transformer;
     }
 
-    async getEchartsSpec(config: SqlRunnerChartConfig) {
-        if (!isPieChartSQLConfig(config)) {
+    mergeConfig(
+        existingConfig?: PieChartConfig<TPivotChartLayout>,
+    ): PieChartConfig<TPivotChartLayout> {
+        return {
+            metadata: {
+                version: 1,
+            },
+            type: ChartKind.PIE as ChartKind.PIE, // without this cast, TS will complain
+            fieldConfig: this.transformer.mergePivotChartLayout(
+                existingConfig?.fieldConfig,
+            ),
+            display: existingConfig?.display,
+        };
+    }
+
+    async getEchartsSpec(
+        layout: TPivotChartLayout | undefined,
+        display: PieChartDisplay | undefined,
+    ) {
+        if (!layout) {
             return {};
         }
-
-        const { fieldConfig, display } = config;
-
-        const transformedData = fieldConfig
-            ? await this.transformer.getPieChartData(
-                  fieldConfig as TPieChartConfig,
-              )
-            : undefined;
+        const transformedData = await this.transformer.getPivotChartData(
+            layout,
+        );
 
         return {
             legend: {
@@ -47,11 +62,9 @@ export class PieChartDataTransformer<TBarChartLayout, TPieChartConfig> {
                     radius: display?.isDonut ? ['30%', '70%'] : '50%',
                     center: ['50%', '50%'],
                     data: transformedData?.results.map((result) => ({
-                        name: result[
-                            fieldConfig?.groupFieldIds?.[0] || ''
-                        ] as string,
-                        groupId: fieldConfig?.groupFieldIds?.[0] || '',
-                        value: result[fieldConfig?.metricId || ''] as number,
+                        name: result[transformedData.indexColumn.reference],
+                        groupId: transformedData.indexColumn.reference,
+                        value: result[transformedData.valuesColumns[0]],
                     })),
                 },
             ],
