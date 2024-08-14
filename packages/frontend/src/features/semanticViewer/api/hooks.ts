@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import {
-    apiGetSemanticLayerViewFields,
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
+    apiPostSemanticLayerViewFields,
 } from './requests';
 
 type useGetSemanticLayerViewsParams = {
@@ -45,7 +45,7 @@ export const useSemanticLayerViewFields = (
             JSON.stringify(selectedFields),
         ],
         queryFn: () =>
-            apiGetSemanticLayerViewFields({
+            apiPostSemanticLayerViewFields({
                 projectUuid,
                 view,
                 selectedFields,

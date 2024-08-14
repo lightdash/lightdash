@@ -8699,6 +8699,31 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_": {
+                "properties": {
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
+                        },
+                        "type": "array"
+                    },
+                    "timeDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dimensions", "timeDimensions", "metrics"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_SemanticLayerField.name-or-kind_": {
                 "properties": {
                     "name": {

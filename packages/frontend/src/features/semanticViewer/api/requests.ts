@@ -20,7 +20,7 @@ export const apiGetSemanticLayerViews = ({
         body: undefined,
     });
 
-type GetSemanticLayerViewFieldsRequestParams = {
+type PostSemanticLayerViewFieldsRequestParams = {
     projectUuid: string;
     view: string;
     selectedFields: Pick<
@@ -29,38 +29,16 @@ type GetSemanticLayerViewFieldsRequestParams = {
     >;
 };
 
-export const apiGetSemanticLayerViewFields = ({
+export const apiPostSemanticLayerViewFields = ({
     projectUuid,
     view,
     selectedFields,
-}: GetSemanticLayerViewFieldsRequestParams) => {
-    const queryParams = new URLSearchParams();
-
-    selectedFields.dimensions.forEach((dim, index) => {
-        queryParams.append(`dimensions[${index}][name]`, dim.name);
-    });
-
-    selectedFields.timeDimensions.forEach((timeDim, index) => {
-        queryParams.append(`timeDimensions[${index}][name]`, timeDim.name);
-        if (timeDim.granularity) {
-            queryParams.append(
-                `timeDimensions[${index}][granularity]`,
-                timeDim.granularity,
-            );
-        }
-    });
-
-    selectedFields.metrics.forEach((metric, index) => {
-        queryParams.append(`metrics[${index}][name]`, metric.name);
-    });
-
+}: PostSemanticLayerViewFieldsRequestParams) => {
     return lightdashApi<SemanticLayerField[]>({
         version: 'v2',
-        method: 'GET',
-        url: `/projects/${projectUuid}/semantic-layer/views/${view}/fields${
-            queryParams ? `?${queryParams}` : ''
-        }`,
-        body: undefined,
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/views/${view}/query-fields`,
+        body: JSON.stringify(selectedFields),
     });
 };
 

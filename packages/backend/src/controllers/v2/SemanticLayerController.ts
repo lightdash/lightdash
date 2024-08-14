@@ -55,19 +55,17 @@ export class SemanticLayerController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/views/{view}/fields')
-    @OperationId('getSemanticLayerFields')
-    async getFields(
+    @Post('/views/{view}/query-fields')
+    @OperationId('querySemanticLayerFields')
+    async querySemanticLayerFields(
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() view: string,
-        @Query() dimensions: unknown[] = [],
-        @Query() timeDimensions: unknown[] = [],
-        @Query() metrics: unknown[] = [],
-        // FIXME: types: GenerateMetadataError: @Query('dimensions') Can't support array 'refAlias' type.
-        // @Query() dimensions: SemanticLayerQuery['dimensions'] = [],
-        // @Query() timeDimensions: SemanticLayerQuery['timeDimensions'] = [],
-        // @Query() metrics: SemanticLayerQuery['metrics'] = [],
+        @Body()
+        body: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
 
@@ -75,15 +73,7 @@ export class SemanticLayerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getFields(req.user!, projectUuid, view, {
-                    dimensions,
-                    timeDimensions,
-                    metrics,
-                } as unknown as Pick<
-                    SemanticLayerQuery,
-                    'dimensions' | 'timeDimensions' | 'metrics'
-                    // FIXME ^ types in the @Query above and remove this cast
-                >),
+                .getFields(req.user!, projectUuid, view, body),
         };
     }
 
