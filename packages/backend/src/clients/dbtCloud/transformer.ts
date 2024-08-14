@@ -11,6 +11,7 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
     SemanticLayerView,
@@ -114,7 +115,33 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                 ...timeDimensions,
             ],
             where: [],
-            orderBy: [],
+            orderBy: query.sortBy.map((sort) => {
+                const { name, kind, direction } = sort;
+                const descending =
+                    direction === SemanticLayerSortByDirection.DESC;
+
+                switch (kind) {
+                    case FieldKind.DIMENSION:
+                        return {
+                            descending,
+                            groupBy: {
+                                name,
+                            },
+                        };
+                    case FieldKind.METRIC:
+                        return {
+                            descending,
+                            metric: {
+                                name,
+                            },
+                        };
+                    default:
+                        return assertUnreachable(
+                            kind,
+                            `Unknown field kind: ${kind}`,
+                        );
+                }
+            }),
             limit: 100, // Let this be 100 for now
         };
     },
