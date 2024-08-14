@@ -430,10 +430,10 @@ export class SqlRunnerResultsTransformer
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
-            currentConfig?.fieldConfig?.index.reference ===
+            currentConfig?.fieldConfig?.x.reference ===
                 newDefaultLayout?.index.reference ||
             intersectionBy(
-                currentConfig?.fieldConfig?.values || [],
+                currentConfig?.fieldConfig?.y || [],
                 newDefaultLayout?.values || [],
                 'reference',
             ).length > 0;
@@ -446,13 +446,13 @@ export class SqlRunnerResultsTransformer
                     version: 1,
                 },
                 type: chartType,
-                fieldConfig: newDefaultLayout,
+                fieldConfig: undefined, // newDefaultLayout, // TODO Fix
                 display: undefined,
             };
         } else if (currentConfig && !someFieldsMatch) {
             newConfig = {
                 ...currentConfig,
-                fieldConfig: newDefaultLayout,
+                fieldConfig: undefined,
             };
         }
 
