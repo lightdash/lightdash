@@ -23,7 +23,7 @@ type Props = {
     onChangeFormat: (value: string) => void;
 };
 
-const AggregationItem = forwardRef<
+const FormatItem = forwardRef<
     HTMLDivElement,
     ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
 >(({ value, ...others }, ref) => (
@@ -48,7 +48,7 @@ export const CartesianChartFormatConfig: FC<Props> = ({
                 value: option,
                 label: capitalize(option),
             }))}
-            itemComponent={AggregationItem}
+            itemComponent={FormatItem}
             icon={format && <FormatIcon format={format} />}
             value={format ?? formatOptionsWithNone?.[0]}
             onChange={(value) => value && onChangeFormat(value)}
