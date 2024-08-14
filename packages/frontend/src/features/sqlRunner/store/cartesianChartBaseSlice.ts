@@ -195,33 +195,31 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
         removeYAxisField: (state, action: PayloadAction<number>) => {
-            if (!state.config) return;
-            if (!state.config.fieldConfig) return;
+            if (!state.config?.fieldConfig?.y) return;
 
-            state.config.fieldConfig.y.splice(action.payload, 1);
+            const index = action.payload;
+            state.config.fieldConfig.y.splice(index, 1);
+
             if (state.config.display) {
-                state.config.display.yAxis = state.config.display.yAxis?.filter(
-                    (_, index) => index !== action.payload,
-                );
+                if (state.config.display.yAxis) {
+                    state.config.display.yAxis.splice(index, 1);
+                }
 
                 if (state.config.display.series) {
-                    if (state.config.fieldConfig.y.length === 1) {
-                        // If there is only one y axis, we can remove the series specific styling
-                        state.config.display.series = undefined;
-                    } else {
-                        // Otherwise, we need to remove the series specific styling for the y axis that was removed
-                        Object.keys(state.config.display.series).forEach(
-                            (key) => {
-                                if (
-                                    state.config?.display?.series &&
-                                    state.config.display.series[key]
-                                        .yAxisIndex === action.payload
-                                ) {
-                                    delete state.config.display.series[key];
-                                }
-                            },
-                        );
-                    }
+                    Object.entries(state.config.display.series).forEach(
+                        ([key, series]) => {
+                            if (series.yAxisIndex === index) {
+                                // NOTE: Delete series from display object when it's removed from yAxis
+                                delete state.config?.display?.series?.[key];
+                            } else if (
+                                // NOTE: Decrease yAxisIndex for series that are after the removed yAxis
+                                series.yAxisIndex &&
+                                series.yAxisIndex > index
+                            ) {
+                                series.yAxisIndex--;
+                            }
+                        },
+                    );
                 }
             }
         },
@@ -235,25 +233,27 @@ export const cartesianChartConfigSlice = createSlice({
 
         setYAxisFormat: (
             { config },
-            action: PayloadAction<{
-                format: string;
-            }>,
+            action: PayloadAction<{ format: string }>,
         ) => {
-            if (!config) return;
+            if (!config?.display) return;
 
-            config.display = config.display || {};
+            const validFormat = isFormat(action.payload.format)
+                ? action.payload.format
+                : undefined;
+
             config.display.yAxis = config.display.yAxis || [];
+            config.display.yAxis[0] = {
+                ...config.display.yAxis[0],
+                format: validFormat,
+            };
 
-            if (config.display.yAxis[0] === undefined) {
-                config.display.yAxis[0] = {
-                    format: isFormat(action.payload.format)
-                        ? action.payload.format
-                        : undefined,
-                };
-            } else {
-                config.display.yAxis[0].format = isFormat(action.payload.format)
-                    ? action.payload.format
-                    : undefined;
+            // Update the format for series with yAxisIndex 0
+            if (config.display.series) {
+                Object.values(config.display.series).forEach((series) => {
+                    if (series.yAxisIndex === 0) {
+                        series.format = validFormat;
+                    }
+                });
             }
         },
         setSeriesFormat: (
@@ -264,33 +264,24 @@ export const cartesianChartConfigSlice = createSlice({
                 reference: string;
             }>,
         ) => {
-            if (!config) return;
+            if (!config?.display) return;
 
-            config.display = config.display || {};
+            const { index, format, reference } = action.payload;
+            const validFormat = isFormat(format) ? format : undefined;
+
             config.display.series = config.display.series || {};
-
-            config.display.series[action.payload.reference] = {
-                format: isFormat(action.payload.format)
-                    ? action.payload.format
-                    : undefined,
-                yAxisIndex: action.payload.index,
+            config.display.series[reference] = {
+                ...config.display.series[reference],
+                format: validFormat,
+                yAxisIndex: index,
             };
 
-            if (action.payload.index === 0) {
+            if (index === 0) {
                 config.display.yAxis = config.display.yAxis || [];
-                if (config.display.yAxis[0] === undefined) {
-                    config.display.yAxis[0] = {
-                        format: isFormat(action.payload.format)
-                            ? action.payload.format
-                            : undefined,
-                    };
-                } else {
-                    config.display.yAxis[0].format = isFormat(
-                        action.payload.format,
-                    )
-                        ? action.payload.format
-                        : undefined;
-                }
+                config.display.yAxis[0] = {
+                    ...config.display.yAxis[0],
+                    format: validFormat,
+                };
             }
         },
     },
