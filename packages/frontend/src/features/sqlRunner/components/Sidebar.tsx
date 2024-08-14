@@ -1,14 +1,21 @@
 import {
     ActionIcon,
     Group,
+    LoadingOverlay,
     ScrollArea,
     Stack,
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutSidebarLeftCollapse } from '@tabler/icons-react';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
+import {
+    useCallback,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useRefreshTables } from '../hooks/useTables';
 import { useAppSelector } from '../store/hooks';
 import { SidebarTabs } from '../store/sqlRunnerSlice';
 import { TablesPanel } from './TablesPanel';
@@ -22,15 +29,39 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     const activeSidebarTab = useAppSelector(
         (state) => state.sqlRunner.activeSidebarTab,
     );
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+
+    const {
+        mutate,
+        // TODO: unify this loading with the one in TablesPanel, handle error
+        isLoading,
+    } = useRefreshTables({ projectUuid });
+
+    const handleRefresh = useCallback(() => {
+        mutate();
+    }, [mutate]);
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart">
-                <Title order={5} fz="sm" c="gray.6">
-                    {activeSidebarTab === SidebarTabs.TABLES
-                        ? 'TABLES'
-                        : 'VISUALIZATION'}
-                </Title>
+                <Group noWrap spacing="xs">
+                    <Title order={5} fz="sm" c="gray.6">
+                        {activeSidebarTab === SidebarTabs.TABLES
+                            ? 'TABLES'
+                            : 'VISUALIZATION'}
+                    </Title>
+                    {activeSidebarTab === SidebarTabs.TABLES && (
+                        <Tooltip
+                            variant="xs"
+                            label="Refresh tables"
+                            position="right"
+                        >
+                            <ActionIcon size="xs" onClick={handleRefresh}>
+                                <MantineIcon icon={IconReload}></MantineIcon>
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
                 <Tooltip variant="xs" label="Close sidebar" position="left">
                     <ActionIcon size="xs">
                         <MantineIcon
@@ -47,6 +78,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 }
                 sx={{ flex: 1, overflow: 'hidden' }}
             >
+                <LoadingOverlay visible={isLoading} />
                 <TablesPanel />
             </Stack>
 

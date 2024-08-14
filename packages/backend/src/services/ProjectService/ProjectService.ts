@@ -2782,7 +2782,6 @@ export class ProjectService extends BaseService {
         }
     }
 
-    // TODO: set up an API call to hit this
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,

@@ -14988,14 +14988,14 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.delete(
-        '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid',
+    app.post(
+        '/api/v1/projects/:projectUuid/sqlRunner/refresh-catalog',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
-            SqlRunnerController.prototype.deleteSqlChart,
+            SqlRunnerController.prototype.refreshSqlRunnerCatalog,
         ),
 
-        async function SqlRunnerController_deleteSqlChart(
+        async function SqlRunnerController_refreshSqlRunnerCatalog(
             request: any,
             response: any,
             next: any,
@@ -15004,12 +15004,6 @@ export function RegisterRoutes(app: express.Router) {
                 projectUuid: {
                     in: 'path',
                     name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
                     required: true,
                     dataType: 'string',
                 },
@@ -15040,7 +15034,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.deleteSqlChart.apply(
+                const promise = controller.refreshSqlRunnerCatalog.apply(
                     controller,
                     validatedArgs as any,
                 );
