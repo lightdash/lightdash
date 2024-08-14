@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     FieldType as FieldKind,
+    SemanticLayerFieldType,
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
 } from '@lightdash/common';
@@ -92,20 +93,34 @@ const SidebarViewFields = () => {
 
     const handleFieldToggle = (
         field:
-            | Pick<SemanticLayerField, 'name' | 'kind'>
-            | Pick<SemanticLayerTimeDimension, 'name' | 'kind' | 'granularity'>,
+            | Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
+            | Pick<
+                  SemanticLayerTimeDimension,
+                  'name' | 'kind' | 'type' | 'granularity'
+              >,
     ) => {
-        if ('granularity' in field) {
-            return dispatch(toggleTimeDimension(field));
-        }
-
         switch (field.kind) {
             case FieldKind.DIMENSION:
-                return dispatch(toggleDimension(field));
+                switch (field.type) {
+                    case SemanticLayerFieldType.TIME:
+                        return dispatch(toggleTimeDimension(field));
+                    case SemanticLayerFieldType.NUMBER:
+                    case SemanticLayerFieldType.STRING:
+                    case SemanticLayerFieldType.BOOLEAN:
+                        return dispatch(toggleDimension(field));
+                    default:
+                        return assertUnreachable(
+                            field.type,
+                            `Unknown field type: ${field.type}`,
+                        );
+                }
             case FieldKind.METRIC:
                 return dispatch(toggleMetric(field));
             default:
-                return assertUnreachable(field.kind, 'Unknown field kind');
+                return assertUnreachable(
+                    field.kind,
+                    `Unknown field kind: ${field.kind}`,
+                );
         }
     };
 

@@ -70,7 +70,6 @@ const getSemanticLayerTimeGranularity = (
     }
 };
 
-// FIXME: we should not export from here. maybe common?
 export const getCubeTimeDimensionGranularity = (
     semanticGranularity: SemanticLayerTimeGranularity,
 ): TimeDimensionGranularity => {
