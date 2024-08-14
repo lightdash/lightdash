@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
+import { Button, Group, Paper } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -37,22 +37,18 @@ export const HeaderCreate: FC = () => {
                             }
                         />
                     </Group>
-                    <Group spacing="md">
-                        <Tooltip
-                            variant="xs"
-                            label="Save chart"
-                            position="bottom"
-                        >
-                            <ActionIcon size="xs" disabled={!loadedColumns}>
-                                <MantineIcon
-                                    icon={IconDeviceFloppy}
-                                    onClick={() => {
-                                        dispatch(toggleModal('saveChartModal'));
-                                    }}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
+
+                    <Button
+                        variant="default"
+                        size="xs"
+                        disabled={!loadedColumns}
+                        onClick={() => {
+                            dispatch(toggleModal('saveChartModal'));
+                        }}
+                        leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
+                    >
+                        Save
+                    </Button>
                 </Group>
             </Paper>
             <SaveSqlChartModal
