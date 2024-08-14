@@ -28,6 +28,11 @@ export enum SemanticLayerTimeGranularity {
     YEAR = 'YEAR',
 }
 
+export enum SemanticLayerSortByDirection {
+    ASC = 'ASC',
+    DESC = 'DESC',
+}
+
 export type SemanticLayerField = {
     name: string;
     label: string;
@@ -44,10 +49,15 @@ export type SemanticLayerTimeDimension = {
     granularity?: SemanticLayerTimeGranularity;
 };
 
+export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
+    direction: SemanticLayerSortByDirection;
+};
+
 export type SemanticLayerQuery = {
     dimensions: string[];
     timeDimensions: SemanticLayerTimeDimension[];
     metrics: string[];
+    sortBy: SemanticLayerSortBy[];
     offset?: number;
     limit?: number;
 };

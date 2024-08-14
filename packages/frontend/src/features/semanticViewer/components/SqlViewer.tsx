@@ -10,6 +10,7 @@ const SqlViewer: FC = () => {
         selectedDimensions,
         selectedTimeDimensions,
         selectedMetrics,
+        sortBy,
     } = useAppSelector((state) => state.semanticViewer);
 
     const sql = useSemanticLayerSql(
@@ -19,6 +20,7 @@ const SqlViewer: FC = () => {
                 dimensions: selectedDimensions,
                 metrics: selectedMetrics,
                 timeDimensions: selectedTimeDimensions,
+                sortBy,
             },
         },
         {

@@ -3,6 +3,7 @@ import {
     SemanticLayerFieldType,
     type ResultRow,
     type SemanticLayerField,
+    type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -16,6 +17,7 @@ export interface SemanticViewerState {
     selectedDimensions: Array<string>;
     selectedMetrics: Array<string>;
     selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
+    sortBy: SemanticLayerSortBy[];
 
     results: ResultRow[] | undefined;
 }
@@ -28,6 +30,7 @@ const initialState: SemanticViewerState = {
     selectedDimensions: [],
     selectedMetrics: [],
     selectedTimeDimensions: [],
+    sortBy: [],
 
     results: undefined,
 };
