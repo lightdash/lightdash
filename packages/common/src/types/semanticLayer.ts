@@ -85,12 +85,6 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
-export type SemanticLayerSelectedFields = {
-    dimensions: string[];
-    timeDimensions: string[];
-    metrics: string[];
-};
-
 export interface SemanticLayerClient {
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
