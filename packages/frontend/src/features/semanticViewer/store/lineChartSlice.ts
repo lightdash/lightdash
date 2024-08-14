@@ -1,8 +1,8 @@
-import { ChartKind, isLineChartSQLConfig } from '@lightdash/common';
+import { ChartKind } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
-import { setResults } from './semanticViewerSlice';
+import { SemanticViewerResultsTransformerFE } from '../transformers/SemanticViewerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
+import { setResults } from './semanticViewerSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
@@ -12,11 +12,11 @@ export const lineChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setResults, (state, action) => {
-            if (action.payload ) {
+            if (action.payload) {
                 const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformerFE({
-                        rows: action.payload,
-                        columns: [],
+                    new SemanticViewerResultsTransformerFE({
+                        rows: action.payload.results,
+                        columns: action.payload.columns,
                     });
 
                 state.options =

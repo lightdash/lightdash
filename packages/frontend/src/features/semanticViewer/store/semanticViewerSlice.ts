@@ -5,6 +5,7 @@ import {
     type ResultRow,
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
+    type SqlColumn,
     type SqlTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -37,6 +38,7 @@ export interface SemanticViewerState {
     selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
 
     results: ResultRow[] | undefined;
+    sqlColumns: SqlColumn[] | undefined;
     columns: SemanticLayerField[] | undefined;
 }
 
@@ -59,6 +61,12 @@ const initialState: SemanticViewerState = {
 
     results: undefined,
     columns: undefined,
+    sqlColumns: undefined, //TOdo merge with columns
+};
+
+export type ResultsAndColumns = {
+    results: ResultRow[];
+    columns: SqlColumn[];
 };
 
 export const semanticViewerSlice = createSlice({
@@ -80,8 +88,12 @@ export const semanticViewerSlice = createSlice({
             state.selectedMetrics = [];
             state.selectedTimeDimensions = [];
         },
-        setResults: (state, action: PayloadAction<ResultRow[]>) => {
-            state.results = action.payload;
+        setResults: (state, action: PayloadAction<ResultsAndColumns>) => {
+            if (!action.payload.results || !action.payload.columns) {
+                return;
+            }
+            state.results = action.payload.results;
+            state.sqlColumns = action.payload.columns;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;

@@ -4,7 +4,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
-import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
+import { type ResultsAndColumns } from '../../store/semanticViewerSlice';
 import { useSqlChart } from '../../transformers/useSqlChart';
 
 type SqlRunnerChartProps = {
@@ -27,6 +27,7 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
             ? 'Some specified columns do not exist in the data'
             : error?.message;
 
+        console.error('error', error);
         if (error) {
             return (
                 <SuboptimalState

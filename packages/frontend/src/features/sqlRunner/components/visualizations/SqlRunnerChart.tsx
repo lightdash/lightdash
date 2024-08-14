@@ -21,7 +21,6 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
             value: spec,
         } = useSqlChart(data.results, data.columns, config);
         const loading = isLoadingProp || transformLoading;
-
         // TODO: this could be more robust
         const errorMessage = error?.message.includes('Binder Error')
             ? 'Some specified columns do not exist in the data'

@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
+import { SemanticViewerResultsTransformerFE } from '../transformers/SemanticViewerResultsTransformerFE';
 import { setResults, setSavedChartData } from './semanticViewerSlice';
 
 type InitialState = {
@@ -46,9 +46,9 @@ export const pieChartConfigSlice = createSlice({
         builder.addCase(setResults, (state, action) => {
             if (action.payload) {
                 const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformerFE({
-                        rows: action.payload,
-                        columns: [],
+                    new SemanticViewerResultsTransformerFE({
+                        rows: action.payload.results,
+                        columns: action.payload.columns,
                     });
                 /*if (action.payload.columns) {
                     state.options = {

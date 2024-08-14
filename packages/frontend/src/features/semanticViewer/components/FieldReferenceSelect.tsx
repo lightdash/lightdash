@@ -1,10 +1,10 @@
-import { type DimensionType } from '@lightdash/common';
+import { type SemanticLayerFieldType } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import { type FC } from 'react';
 import { TableFieldIcon } from './TableFields';
 
 type Props = SelectProps & {
-    fieldType: DimensionType;
+    fieldType: SemanticLayerFieldType;
 };
 
 export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {

@@ -28,7 +28,7 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
     });
 };
 
-export class SqlRunnerResultsTransformerFE extends SqlRunnerResultsTransformer {
+export class SemanticViewerResultsTransformerFE extends SqlRunnerResultsTransformer {
     constructor(args: { rows: (RowData | ResultRow)[]; columns: SqlColumn[] }) {
         super({
             rows: isResultRows(args.rows)

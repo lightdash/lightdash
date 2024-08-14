@@ -1,4 +1,9 @@
-import { isTableChartSQLConfig, type ResultRow } from '@lightdash/common';
+import {
+    DimensionType,
+    isTableChartSQLConfig,
+    type ResultRow,
+    type SqlColumn,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -96,7 +101,18 @@ const ResultsViewer: FC = () => {
                         };
                     }, {});
                 });
-                dispatch(setResults(resultRows));
+                const columns: SqlColumn[] = [
+                    ...selectedDimensions,
+                    // ...selectedTimeDimensions,
+                    ...selectedMetrics,
+                ].map((field) => ({
+                    reference: sanitizeFieldId(field),
+                    type:
+                        sanitizeFieldId(field) === 'users_count'
+                            ? DimensionType.NUMBER
+                            : DimensionType.STRING,
+                }));
+                dispatch(setResults({ results: resultRows, columns: columns }));
             }
         },
     });

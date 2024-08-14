@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { SqlRunnerResultsTransformerFE } from './SqlRunnerResultsTransformerFE';
+import { SemanticViewerResultsTransformerFE } from './SemanticViewerResultsTransformerFE';
 
 export const useSqlChart = (
     rows: ResultRow[],
@@ -18,7 +18,7 @@ export const useSqlChart = (
 ) => {
     const transformer = useMemo(
         () =>
-            new SqlRunnerResultsTransformerFE({
+            new SemanticViewerResultsTransformerFE({
                 rows,
                 columns,
             }),
