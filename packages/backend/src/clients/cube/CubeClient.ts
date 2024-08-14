@@ -22,8 +22,11 @@ export default class CubeClient implements SemanticLayerClient {
 
     transformers = cubeTransfomers;
 
+    maxQueryLimit: number;
+
     constructor({ lightdashConfig }: CubeArgs) {
         const { token, domain } = lightdashConfig.cube;
+        this.maxQueryLimit = lightdashConfig.query.maxLimit;
         // In development mode, the token is not required for authorization
 
         if (domain === undefined) {
@@ -133,20 +136,41 @@ export default class CubeClient implements SemanticLayerClient {
         query: SemanticLayerQuery,
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
+        const queryLimit = query.limit ?? this.maxQueryLimit;
+        let partialResultsLimit = Math.min(100, queryLimit);
+        let prevLimit = partialResultsLimit;
         let offset = 0;
-        const limit = 100;
         let partialResults: SemanticLayerResultRow[] = [];
+
         do {
             /* eslint-disable-next-line no-await-in-loop */
             partialResults = await this.getResults({
                 ...query,
                 offset,
-                limit,
+                limit: partialResultsLimit,
             });
+
             callback(partialResults);
-            offset += limit;
-        } while (partialResults.length === limit);
-        return offset + partialResults.length;
+
+            // update the offset
+            offset += partialResults.length;
+
+            // keep track of the previous limit so that we can stop when result count is less than it
+            prevLimit = partialResultsLimit;
+
+            // decrease the limit if we are close to the query limit
+            partialResultsLimit = Math.min(
+                partialResultsLimit,
+                queryLimit - offset,
+            );
+        } while (
+            partialResults.length > 0 &&
+            partialResults.length >= prevLimit &&
+            offset < queryLimit
+        );
+
+        // return the total number of results
+        return offset;
     }
 
     async getSql(query: SemanticLayerQuery) {

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     MissingConfigError,
+    ParameterError,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
@@ -60,6 +61,14 @@ export class SemanticLayerService extends BaseService {
         this.cubeClient = args.cubeClient;
         this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
+    }
+
+    private validateQueryLimit(query: SemanticLayerQuery) {
+        if (query.limit && query.limit > this.lightdashConfig.query.maxLimit) {
+            throw new ParameterError(
+                `Limit cannot be greater than ${this.lightdashConfig.query.maxLimit}`,
+            );
+        }
     }
 
     private async checkCanViewProject(user: SessionUser, projectUuid: string) {
@@ -148,13 +157,18 @@ export class SemanticLayerService extends BaseService {
         projectUuid: string,
         query: SemanticLayerQuery,
     ) {
+        this.validateQueryLimit(query);
+
         await this.checkCanViewProject(user, projectUuid);
         await this.getSemanticLayerClient(projectUuid); // Check if client is available
 
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
             projectUuid,
             userUuid: user.userUuid,
-            query,
+            query: {
+                ...query,
+                limit: query.limit ?? this.lightdashConfig.query.maxLimit,
+            },
             context: 'semanticViewer',
         });
 
@@ -173,14 +187,24 @@ export class SemanticLayerService extends BaseService {
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
 
+        this.validateQueryLimit(query);
+
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
         )(
             `${this.lightdashConfig.siteUrl}/api/v2/projects/${projectUuid}/semantic-layer/results`,
             async (writer) => {
-                await client.streamResults(projectUuid, query, async (rows) => {
-                    rows.forEach(writer);
-                });
+                await client.streamResults(
+                    projectUuid,
+                    {
+                        ...query,
+                        limit:
+                            query.limit ?? this.lightdashConfig.query.maxLimit,
+                    },
+                    async (rows) => {
+                        rows.forEach(writer);
+                    },
+                );
             },
             this.s3Client,
         );
@@ -195,6 +219,10 @@ export class SemanticLayerService extends BaseService {
     ): Promise<string> {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
-        return client.getSql(query);
+        this.validateQueryLimit(query);
+        return client.getSql({
+            ...query,
+            limit: query.limit ?? this.lightdashConfig.query.maxLimit,
+        });
     }
 }

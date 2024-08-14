@@ -39,10 +39,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     environmentId?: string;
 
+    maxQueryLimit: number;
+
     constructor({ lightdashConfig }: DbtCloudGraphqlClientArgs) {
         this.domain = lightdashConfig.dbtCloud.domain;
         this.bearerToken = lightdashConfig.dbtCloud.bearerToken;
         this.environmentId = lightdashConfig.dbtCloud.environmentId;
+        this.maxQueryLimit = lightdashConfig.query.maxLimit;
     }
 
     private getClient() {
@@ -130,7 +133,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? null}
+                    limit: ${limit ?? this.maxQueryLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {
@@ -210,7 +213,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? null}
+                    limit: ${limit ?? this.maxQueryLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {
