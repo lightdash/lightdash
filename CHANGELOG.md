@@ -1,3 +1,10 @@
+# [0.1214.0](https://github.com/lightdash/lightdash/compare/0.1213.0...0.1214.0) (2024-08-14)
+
+
+### Features
+
+* allow stacking cartesian charts ([#11131](https://github.com/lightdash/lightdash/issues/11131)) ([4aade07](https://github.com/lightdash/lightdash/commit/4aade070d0da8bde0df4f9213735b1d16f69314b))
+
 # [0.1213.0](https://github.com/lightdash/lightdash/compare/0.1212.2...0.1213.0) (2024-08-13)
 
 
