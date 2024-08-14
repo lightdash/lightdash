@@ -37,6 +37,7 @@ import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
+import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 
 /**
  * Interface outlining all models. Add new models to
@@ -76,6 +77,7 @@ export type ModelManifest = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -440,6 +442,13 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getWarehouseAvailableTablesModel(): WarehouseAvailableTablesModel {
+        return this.getModel(
+            'warehouseAvailableTablesModel',
+            () => new WarehouseAvailableTablesModel(this.database),
         );
     }
 

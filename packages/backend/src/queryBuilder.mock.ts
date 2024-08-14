@@ -17,6 +17,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
 } from '@lightdash/common';
 
@@ -59,10 +60,10 @@ export const warehouseClientMock: WarehouseClient = {
     },
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
-    getTables(
+    getAllTables(
         schema?: string | undefined,
         tags?: Record<string, string> | undefined,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(
@@ -112,10 +113,10 @@ export const bigqueryClientMock: WarehouseClient = {
     getMetricSql: () => '',
     getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
     concatString: (...args) => `CONCAT(${args.join(', ')})`,
-    getTables(
+    getAllTables(
         schema?: string | undefined,
         tags?: Record<string, string> | undefined,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(

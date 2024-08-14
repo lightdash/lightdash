@@ -362,25 +362,27 @@ export class PostgresClient<
         return catalog;
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = $1` : '';
+    async getAllTables() {
+        const databaseName = this.config.database;
+        const whereSql = databaseName ? `AND table_catalog = $1` : '';
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
             WHERE table_type = 'BASE TABLE'
-                ${schemaFilter}
+                ${whereSql}
             ORDER BY 1, 2, 3
         `;
         const { rows } = await this.runQuery(
             query,
-            tags,
+            {},
             undefined,
-            schema ? [schema] : undefined,
+            databaseName ? [databaseName] : [],
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return rows.map((row) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
     }
 
     async getFields(
