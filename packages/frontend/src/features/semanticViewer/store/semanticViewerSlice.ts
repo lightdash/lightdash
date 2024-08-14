@@ -5,7 +5,6 @@ import {
     type ResultRow,
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
-    type SqlColumn,
     type SqlTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -38,7 +37,7 @@ export interface SemanticViewerState {
     selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
 
     results: ResultRow[] | undefined;
-    columns: SqlColumn[] | undefined;
+    columns: SemanticLayerField[] | undefined;
 }
 
 const initialState: SemanticViewerState = {
@@ -175,6 +174,9 @@ export const semanticViewerSlice = createSlice({
             state.selectedChartType =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;*/
         },
+        setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
+            state.selectedChartType = action.payload;
+        },
     },
 });
 
@@ -190,4 +192,5 @@ export const {
     updateName,
     setSql,
     setSqlLimit,
+    setSelectedChartType,
 } = semanticViewerSlice.actions;
