@@ -1,6 +1,7 @@
 import {
     DEFAULT_AGGREGATION,
     IndexType,
+    isFormat,
     type AggregationOptions,
     type BarChartSqlConfig,
     type CartesianChartDisplay,
@@ -198,6 +199,31 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config.fieldConfig) return;
 
             state.config.fieldConfig.y.splice(action.payload, 1);
+            if (state.config.display) {
+                state.config.display.yAxis = state.config.display.yAxis?.filter(
+                    (_, index) => index !== action.payload,
+                );
+
+                if (state.config.display.series) {
+                    if (state.config.fieldConfig.y.length === 1) {
+                        // If there is only one y axis, we can remove the series specific styling
+                        state.config.display.series = undefined;
+                    } else {
+                        // Otherwise, we need to remove the series specific styling for the y axis that was removed
+                        Object.keys(state.config.display.series).forEach(
+                            (key) => {
+                                if (
+                                    state.config?.display?.series &&
+                                    state.config.display.series[key]
+                                        .yAxisIndex === action.payload
+                                ) {
+                                    delete state.config.display.series[key];
+                                }
+                            },
+                        );
+                    }
+                }
+            }
         },
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
@@ -205,6 +231,67 @@ export const cartesianChartConfigSlice = createSlice({
             config.display = config.display || {};
 
             config.display.stack = action.payload;
+        },
+
+        setYAxisFormat: (
+            { config },
+            action: PayloadAction<{
+                format: string;
+            }>,
+        ) => {
+            if (!config) return;
+
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+
+            if (config.display.yAxis[0] === undefined) {
+                config.display.yAxis[0] = {
+                    format: isFormat(action.payload.format)
+                        ? action.payload.format
+                        : undefined,
+                };
+            } else {
+                config.display.yAxis[0].format = isFormat(action.payload.format)
+                    ? action.payload.format
+                    : undefined;
+            }
+        },
+        setSeriesFormat: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                format: string;
+                reference: string;
+            }>,
+        ) => {
+            if (!config) return;
+
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+
+            config.display.series[action.payload.reference] = {
+                format: isFormat(action.payload.format)
+                    ? action.payload.format
+                    : undefined,
+                yAxisIndex: action.payload.index,
+            };
+
+            if (action.payload.index === 0) {
+                config.display.yAxis = config.display.yAxis || [];
+                if (config.display.yAxis[0] === undefined) {
+                    config.display.yAxis[0] = {
+                        format: isFormat(action.payload.format)
+                            ? action.payload.format
+                            : undefined,
+                    };
+                } else {
+                    config.display.yAxis[0].format = isFormat(
+                        action.payload.format,
+                    )
+                        ? action.payload.format
+                        : undefined;
+                }
+            }
         },
     },
 });

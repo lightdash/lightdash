@@ -1,9 +1,10 @@
-import { friendlyName } from '../types/field';
+import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import {
     isCartesianChartSQLConfig,
     type SqlRunnerChartConfig,
 } from '../types/sqlRunner';
+import { applyCustomFormat } from '../utils/formatting';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
 import { type IndexType } from './SqlResultsRunner';
 
@@ -56,6 +57,16 @@ export class CartesianChartDataTransformer<
         return this.colorMap.get(genericIdentifier)!;
     }
 
+    static getTooltipFormatter(format: Format | undefined) {
+        if (format === Format.PERCENT) {
+            return (value: number) =>
+                applyCustomFormat(value, {
+                    type: CustomFormatType.PERCENT,
+                });
+        }
+        return undefined;
+    }
+
     async getEchartsSpec(config: SqlRunnerChartConfig) {
         if (!isCartesianChartSQLConfig(config)) {
             return {};
@@ -80,8 +91,51 @@ export class CartesianChartDataTransformer<
             (row) => `${row[transformedData?.indexColumn.reference]}`,
         );
 
+        const series = transformedData?.valuesColumns.map(
+            (seriesColumn, index) => {
+                const seriesFormat = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.format;
+
+                return {
+                    dimensions: [
+                        transformedData?.indexColumn.reference,
+                        seriesColumn,
+                    ],
+                    type: defaultSeriesType,
+                    stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
+                    name:
+                        (display?.series &&
+                            display.series[seriesColumn]?.label) ||
+                        friendlyName(seriesColumn),
+                    encode: {
+                        x: transformedData?.indexColumn.reference,
+                        y: seriesColumn,
+                    },
+                    yAxisIndex:
+                        (display?.series &&
+                            display.series[seriesColumn]?.yAxisIndex) ||
+                        0,
+                    tooltip: {
+                        valueFormatter: seriesFormat
+                            ? CartesianChartDataTransformer.getTooltipFormatter(
+                                  seriesFormat,
+                              )
+                            : undefined,
+                    },
+                    color: this.getSeriesColor(
+                        seriesColumn,
+                        possibleXAxisValues,
+                    ),
+                };
+            },
+        );
+
         return {
-            tooltip: {},
+            tooltip: {
+                trigger: 'axis',
+                appendToBody: true, // Similar to rendering a tooltip in a Portal
+            },
             legend: {
                 show: true,
                 type: 'scroll',
@@ -119,32 +173,23 @@ export class CartesianChartDataTransformer<
                     nameTextStyle: {
                         fontWeight: 'bold',
                     },
+                    ...(display?.yAxis?.[0].format
+                        ? {
+                              axisLabel: {
+                                  formatter:
+                                      CartesianChartDataTransformer.getTooltipFormatter(
+                                          display?.yAxis?.[0].format,
+                                      ),
+                              },
+                          }
+                        : {}),
                 },
             ],
             dataset: {
                 id: 'dataset',
                 source: transformedData?.results,
             },
-            series: transformedData?.valuesColumns.map((seriesColumn) => ({
-                dimensions: [
-                    transformedData?.indexColumn.reference,
-                    seriesColumn,
-                ],
-                type: defaultSeriesType,
-                stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
-                name:
-                    (display?.series && display.series[seriesColumn]?.label) ||
-                    friendlyName(seriesColumn),
-                encode: {
-                    x: transformedData?.indexColumn.reference,
-                    y: seriesColumn,
-                },
-                yAxisIndex:
-                    (display?.series &&
-                        display.series[seriesColumn]?.yAxisIndex) ||
-                    0,
-                color: this.getSeriesColor(seriesColumn, possibleXAxisValues),
-            })),
+            series,
         };
     }
 }
@@ -157,8 +202,12 @@ export type CartesianChartDisplay = {
     yAxis?: {
         label?: string;
         position?: string;
+        format?: Format;
     }[];
-    series?: Record<string, { label?: string; yAxisIndex?: number }>;
+    series?: Record<
+        string,
+        { label?: string; format?: Format; yAxisIndex?: number }
+    >;
     legend?: {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';

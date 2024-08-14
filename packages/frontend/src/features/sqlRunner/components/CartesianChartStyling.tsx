@@ -7,6 +7,7 @@ import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentCartesianChartState } from '../store/selectors';
+import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
 const DEBOUNCE_TIME = 500;
 
@@ -18,6 +19,24 @@ export const CartesianChartStyling = ({
     const dispatch = useAppDispatch();
 
     const currentConfig = useAppSelector(selectCurrentCartesianChartState);
+
+    const series = useAppSelector((state) => {
+        if (
+            !state.barChartConfig.config?.fieldConfig?.y ||
+            state.barChartConfig.config.fieldConfig.y.length <= 1
+        ) {
+            return [];
+        }
+        return state.barChartConfig.config.fieldConfig.y.map((f) => {
+            const format =
+                state.barChartConfig.config?.display?.series?.[f.reference]
+                    ?.format;
+            return {
+                reference: f.reference,
+                format,
+            };
+        });
+    });
 
     const xAxisLabel =
         currentConfig?.config?.display?.xAxis?.label ??
@@ -85,12 +104,54 @@ export const CartesianChartStyling = ({
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`Y-axis label`}</Config.Heading>
-                    <TextInput
-                        defaultValue={yAxisLabel}
-                        radius="md"
-                        onChange={(e) => onYAxisLabelChange(e.target.value)}
-                    />
+                    <Config.Heading>{`Y-axis`}</Config.Heading>
+                    <Config.Group>
+                        <Config.Label>{`Label`}</Config.Label>
+                        <TextInput
+                            defaultValue={yAxisLabel}
+                            radius="md"
+                            onChange={(e) => onYAxisLabelChange(e.target.value)}
+                        />
+                    </Config.Group>
+                    {series.length < 1 && (
+                        <Config.Group>
+                            <Config.Label>{`Format`}</Config.Label>
+                            <CartesianChartFormatConfig
+                                format={
+                                    currentConfig?.config?.display?.yAxis?.[0]
+                                        ?.format
+                                }
+                                onChangeFormat={(value) => {
+                                    dispatch(
+                                        actions.setYAxisFormat({
+                                            format: value,
+                                        }),
+                                    );
+                                }}
+                            />
+                        </Config.Group>
+                    )}
+                    {series.length > 1 && (
+                        <Config.Subheading>Series</Config.Subheading>
+                    )}
+                    {series.map((s, index) => (
+                        <Config.Group key={index}>
+                            <Config.Label>{`Series ${index + 1}`}</Config.Label>
+                            <CartesianChartFormatConfig
+                                format={s.format}
+                                onChangeFormat={(value) => {
+                                    dispatch(
+                                        actions.setSeriesFormat({
+                                            index,
+                                            format: value,
+                                            reference: s.reference,
+                                        }),
+                                    );
+                                }}
+                            />
+                        </Config.Group>
+                    ))}
+
                     <Config.Group>
                         <Config.Label>{`Position`}</Config.Label>
                         <SegmentedControl
