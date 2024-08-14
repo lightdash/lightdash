@@ -8,7 +8,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
-import { setResults } from './semanticViewerSlice';
+import { setResults, setSavedChartData } from './semanticViewerSlice';
 
 type InitialState = {
     defaultFieldConfig: SqlPieChartConfig | undefined;
@@ -44,7 +44,7 @@ export const pieChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(setResults, (state, action) => {
-            if (action.payload ) {
+            if (action.payload) {
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({
                         rows: action.payload,
@@ -68,11 +68,11 @@ export const pieChartConfigSlice = createSlice({
                 state.config = newConfig;
             }
         });
-      /*  builder.addCase(setSavedChartData, (state, action) => {
+        builder.addCase(setSavedChartData, (state, action) => {
             if (isPieChartSQLConfig(action.payload.config)) {
                 state.config = action.payload.config;
             }
-        });*/
+        });
     },
 });
 

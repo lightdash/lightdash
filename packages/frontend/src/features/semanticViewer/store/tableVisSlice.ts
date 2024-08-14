@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setResults } from './semanticViewerSlice';
+import { setResults, setSavedChartData } from './semanticViewerSlice';
 
 type InitialState = {
     defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
@@ -84,12 +84,11 @@ export const tableVisSlice = createSlice({
                 }
             }
         });
-        //TODO implement
-        /*builder.addCase(setSavedChartData, (state, action) => {
+        builder.addCase(setSavedChartData, (state, action) => {
             if (isTableChartSQLConfig(action.payload.config)) {
                 state.config = action.payload.config;
             }
-        });*/
+        });
     },
 });
 

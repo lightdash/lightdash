@@ -21,10 +21,10 @@ export const CartesianChartStyling = ({
 
     const xAxisLabel =
         currentConfig?.config?.display?.xAxis?.label ??
-        currentConfig?.config?.fieldConfig?.index?.reference;
+        currentConfig?.config?.fieldConfig?.x?.reference;
     const yAxisLabel =
         currentConfig?.config?.display?.yAxis?.[0]?.label ??
-        currentConfig?.config?.fieldConfig?.values?.[0]?.reference;
+        currentConfig?.config?.fieldConfig?.y?.[0]?.reference;
     const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
 
     const onXAxisLabelChange = debounce((label: string) => {

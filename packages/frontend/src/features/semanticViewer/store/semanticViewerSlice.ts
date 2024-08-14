@@ -2,9 +2,10 @@ import {
     ChartKind,
     FieldType as FieldKind,
     SemanticLayerFieldType,
-    SqlTableConfig,
     type ResultRow,
     type SemanticLayerField,
+    type SqlColumn,
+    type SqlTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -20,6 +21,10 @@ export enum SidebarTabs {
 }
 export interface SemanticViewerState {
     projectUuid: string;
+    name: string;
+    description: string;
+    sql: string;
+    limit: number;
 
     view: string | undefined;
     activeEditorTab: EditorTabs;
@@ -32,6 +37,7 @@ export interface SemanticViewerState {
     resultsTableConfig: SqlTableConfig | undefined;
 
     results: ResultRow[] | undefined;
+    columns: SqlColumn[] | undefined;
 }
 
 const initialState: SemanticViewerState = {
@@ -40,6 +46,10 @@ const initialState: SemanticViewerState = {
     activeSidebarTab: SidebarTabs.TABLES,
     selectedChartType: ChartKind.TABLE,
     resultsTableConfig: undefined,
+    name: '',
+    description: '',
+    sql: '',
+    limit: 500,
 
     view: undefined,
 
@@ -48,6 +58,7 @@ const initialState: SemanticViewerState = {
     selectedTimeDimensions: [],
 
     results: undefined,
+    columns: undefined,
 };
 
 export const semanticViewerSlice = createSlice({
@@ -71,6 +82,15 @@ export const semanticViewerSlice = createSlice({
         },
         setResults: (state, action: PayloadAction<ResultRow[]>) => {
             state.results = action.payload;
+        },
+        updateName: (state, action: PayloadAction<string>) => {
+            state.name = action.payload;
+        },
+        setSql: (state, action: PayloadAction<string>) => {
+            state.sql = action.payload;
+        },
+        setSqlLimit: (state, action: PayloadAction<number>) => {
+            state.limit = action.payload;
         },
         toggleField: (
             state,
@@ -130,17 +150,18 @@ export const semanticViewerSlice = createSlice({
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
         },
-        //TODO implement
-        /*
-        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedSqlChart = action.payload;
+
+        setSavedChartData: (state, action: PayloadAction<any>) => {
+            console.debug('setSavedChartData state', state, action);
+            throw new Error('Not implemented');
+            /*state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
             state.sql = action.payload.sql;
             state.limit = action.payload.limit || 500;
             state.selectedChartType =
-                action.payload.config.type || ChartKind.VERTICAL_BAR;
-        },*/
+                action.payload.config.type || ChartKind.VERTICAL_BAR;*/
+        },
     },
 });
 
@@ -152,4 +173,8 @@ export const {
     toggleField,
     setResults,
     setActiveEditorTab,
+    setSavedChartData,
+    updateName,
+    setSql,
+    setSqlLimit,
 } = semanticViewerSlice.actions;
