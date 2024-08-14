@@ -434,6 +434,7 @@ export const useDashboardDeleteMutation = () => {
             await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
             ]);
+            await queryClient.invalidateQueries(['content']);
             showToastSuccess({
                 title: `Deleted! Dashboard was deleted.`,
             });
