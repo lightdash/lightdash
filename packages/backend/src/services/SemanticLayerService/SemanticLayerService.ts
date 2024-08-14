@@ -5,7 +5,6 @@ import {
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
-    SemanticLayerSelectedFields,
     SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';

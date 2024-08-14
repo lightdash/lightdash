@@ -16,7 +16,6 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
-    SemanticLayerSelectedFields,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -74,7 +73,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         const groupByString =
             groupBy?.map((g) => {
                 if ('grain' in g) {
-                    return `{ name: "${g.name}", grain: ${g.grain} }`;
+                    return `{ name: "${g.name}", grain: ${g.grain ?? null} }`;
                 }
 
                 return `{ name: "${g.name}" }`;
