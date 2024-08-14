@@ -1,10 +1,4 @@
-import {
-    assertUnreachable,
-    FieldType as FieldKind,
-    SemanticLayerFieldType,
-    type SemanticLayerField,
-    type SemanticLayerTimeDimension,
-} from '@lightdash/common';
+import { type SemanticLayerField } from '@lightdash/common';
 import {
     ActionIcon,
     Center,
@@ -24,12 +18,7 @@ import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
 } from '../store/selectors';
-import {
-    setFields,
-    toggleDimension,
-    toggleMetric,
-    toggleTimeDimension,
-} from '../store/semanticViewerSlice';
+import { setFields } from '../store/semanticViewerSlice';
 import SidebarViewFieldsGroup from './SidebarViewFieldsGroup';
 
 const getSearchResults = (
@@ -55,6 +44,7 @@ const SidebarViewFields = () => {
         selectAllSelectedFieldsByKind,
     );
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +75,7 @@ const SidebarViewFields = () => {
             dispatch(setFields(fields.data));
         }
     }, [dispatch, fields.data]);
+
     if (fields.isError) {
         throw fields.error;
     }
@@ -96,39 +87,6 @@ const SidebarViewFields = () => {
             </Center>
         );
     }
-
-    const handleFieldToggle = (
-        field:
-            | Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
-            | Pick<
-                  SemanticLayerTimeDimension,
-                  'name' | 'kind' | 'type' | 'granularity'
-              >,
-    ) => {
-        switch (field.kind) {
-            case FieldKind.DIMENSION:
-                switch (field.type) {
-                    case SemanticLayerFieldType.TIME:
-                        return dispatch(toggleTimeDimension(field));
-                    case SemanticLayerFieldType.NUMBER:
-                    case SemanticLayerFieldType.STRING:
-                    case SemanticLayerFieldType.BOOLEAN:
-                        return dispatch(toggleDimension(field));
-                    default:
-                        return assertUnreachable(
-                            field.type,
-                            `Unknown field type: ${field.type}`,
-                        );
-                }
-            case FieldKind.METRIC:
-                return dispatch(toggleMetric(field));
-            default:
-                return assertUnreachable(
-                    field.kind,
-                    `Unknown field kind: ${field.kind}`,
-                );
-        }
-    };
 
     const searchedOrAllFields = searchedFields ?? fields.data;
 
@@ -170,7 +128,6 @@ const SidebarViewFields = () => {
                         }
                         placeholder="Search fields"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
                     <SidebarViewFieldsGroup
@@ -178,12 +135,10 @@ const SidebarViewFields = () => {
                             sx: { boxShadow: '0 3px 0 0 white' },
                         }}
                         groupLabel="Selected fields"
-                        isActive
                         fields={searchedOrAllFields.filter((field) =>
                             allSelectedFieldNames.includes(field.name),
                         )}
                         searchQuery={searchQuery}
-                        handleFieldToggle={handleFieldToggle}
                     />
                 </Stack>
 
@@ -196,7 +151,6 @@ const SidebarViewFields = () => {
                                 field.visible,
                         )}
                         searchQuery={searchQuery}
-                        handleFieldToggle={handleFieldToggle}
                     />
 
                     <SidebarViewFieldsGroup
@@ -207,7 +161,6 @@ const SidebarViewFields = () => {
                                 !field.visible,
                         )}
                         searchQuery={searchQuery}
-                        handleFieldToggle={handleFieldToggle}
                     />
                 </Stack>
 

@@ -126,11 +126,29 @@ export const selectAllSelectedFieldsByKind = createSelector(
         selectSelectedMetrics,
     ],
     (dimensions, timeDimensions, metrics) => ({
-        dimensions,
-        timeDimensions,
-        metrics,
+        dimensions: Object.values(dimensions),
+        timeDimensions: Object.values(timeDimensions),
+        metrics: Object.values(metrics),
     }),
 );
+
+export const getSelectedField = (name: string) =>
+    createSelector(
+        [
+            selectSelectedDimensions,
+            selectSelectedTimeDimensions,
+            selectSelectedMetrics,
+        ],
+        (dimensions, timeDimensions, metrics) => {
+            return name in dimensions
+                ? dimensions[name]
+                : null ?? name in timeDimensions
+                ? timeDimensions[name]
+                : null ?? name in metrics
+                ? metrics[name]
+                : null ?? null;
+        },
+    );
 
 export const selectAllSelectedFieldNames = createSelector(
     [selectAllSelectedFieldsByKind],

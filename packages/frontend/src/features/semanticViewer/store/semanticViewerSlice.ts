@@ -1,5 +1,8 @@
 import {
+    assertUnreachable,
     ChartKind,
+    FieldType,
+    SemanticLayerFieldType,
     type DimensionType,
     type ResultRow,
     type SemanticLayerField,
@@ -21,6 +24,35 @@ export enum SidebarTabs {
     VISUALIZATION = 'visualization',
 }
 const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
+type SemanticLayerStatePayloadDimension = Pick<
+    SemanticLayerField,
+    'name' | 'kind' | 'type'
+>;
+type SemanticLayerStatePayloadTimeDimension = Pick<
+    SemanticLayerTimeDimension,
+    'name' | 'kind' | 'type' | 'granularity'
+>;
+type SemanticLayerStatePayloadMetric = Pick<
+    SemanticLayerField,
+    'name' | 'kind' | 'type'
+>;
+
+type SemanticLayerStatePayloadField =
+    | SemanticLayerStatePayloadDimension
+    | SemanticLayerStatePayloadTimeDimension
+    | SemanticLayerStatePayloadMetric;
+
+type SemanticLayerStateDimension = Pick<SemanticLayerField, 'name'>;
+type SemanticLayerStateMetric = Pick<SemanticLayerField, 'name'>;
+type SemanticLayerStateTimeDimension = Pick<
+    SemanticLayerTimeDimension,
+    'name' | 'granularity'
+>;
+
+type SemanticLayerStateField =
+    | SemanticLayerStateDimension
+    | SemanticLayerStateMetric
+    | SemanticLayerStateTimeDimension;
 
 export interface SemanticViewerState {
     projectUuid: string;
@@ -34,15 +66,19 @@ export interface SemanticViewerState {
 
     results: ResultRow[];
     columns: SqlColumn[];
-    selectedDimensions: Pick<SemanticLayerField, 'name'>[];
-    selectedTimeDimensions: Pick<
-        SemanticLayerTimeDimension,
-        'name' | 'granularity'
-    >[];
-    selectedMetrics: Pick<SemanticLayerField, 'name'>[];
+
+    selectedDimensions: Record<string, SemanticLayerStateDimension>;
+    selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
+    selectedMetrics: Record<string, SemanticLayerStateMetric>;
 
     sortBy: SemanticLayerSortBy[];
 }
+
+export const isSemanticLayerStateTimeDimension = (
+    field: SemanticLayerStateField,
+): field is SemanticLayerStateTimeDimension => {
+    return 'granularity' in field;
+};
 
 const initialState: SemanticViewerState = {
     projectUuid: '',
@@ -53,13 +89,45 @@ const initialState: SemanticViewerState = {
 
     view: undefined,
 
-    selectedDimensions: [],
-    selectedMetrics: [],
-    selectedTimeDimensions: [],
+    selectedDimensions: {},
+    selectedMetrics: {},
+    selectedTimeDimensions: {},
 
     results: [],
     columns: [],
     sortBy: [],
+};
+const getKeyByField = (
+    field:
+        | Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
+        | Pick<
+              SemanticLayerTimeDimension,
+              'name' | 'kind' | 'type' | 'granularity'
+          >,
+): 'selectedDimensions' | 'selectedTimeDimensions' | 'selectedMetrics' => {
+    switch (field.kind) {
+        case FieldType.DIMENSION:
+            switch (field.type) {
+                case SemanticLayerFieldType.TIME:
+                    return 'selectedTimeDimensions';
+                case SemanticLayerFieldType.STRING:
+                case SemanticLayerFieldType.NUMBER:
+                case SemanticLayerFieldType.BOOLEAN:
+                    return 'selectedDimensions';
+                default:
+                    return assertUnreachable(
+                        field.type,
+                        `Unknown field type: ${field.type}`,
+                    );
+            }
+        case FieldType.METRIC:
+            return 'selectedMetrics';
+        default:
+            return assertUnreachable(
+                field.kind,
+                `Unknown field kind: ${field.kind}`,
+            );
+    }
 };
 
 export type ResultsAndColumns = {
@@ -81,12 +149,6 @@ export const semanticViewerSlice = createSlice({
         enterView: (state, action: PayloadAction<string>) => {
             state.view = action.payload;
         },
-        exitView: (state) => {
-            state.view = undefined;
-            state.selectedDimensions = [];
-            state.selectedMetrics = [];
-            state.selectedTimeDimensions = [];
-        },
         setResults: (
             state,
             action: PayloadAction<{
@@ -97,69 +159,28 @@ export const semanticViewerSlice = createSlice({
             state.results = action.payload.results || [];
         },
 
-        toggleDimension: (
+        selectField: (
             state,
-            action: PayloadAction<Pick<SemanticLayerField, 'name' | 'kind'>>,
+            action: PayloadAction<SemanticLayerStatePayloadField>,
         ) => {
-            if (!state.view) {
-                throw new Error('Impossible state');
-            }
-
-            if (
-                state.selectedDimensions.some(
-                    (f) => f.name === action.payload.name,
-                )
-            ) {
-                state.selectedDimensions = state.selectedDimensions.filter(
-                    (f) => f.name !== action.payload.name,
-                );
-            } else {
-                state.selectedDimensions.push(action.payload);
-            }
+            const key = getKeyByField(action.payload);
+            state[key][action.payload.name] = action.payload;
         },
-        toggleTimeDimension: (
+        deselectField: (
             state,
-            action: PayloadAction<
-                Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>
-            >,
+            action: PayloadAction<SemanticLayerStatePayloadField>,
         ) => {
-            if (!state.view) {
-                throw new Error('Impossible state');
-            }
-
-            if (
-                state.selectedTimeDimensions.some(
-                    (f) => f.name === action.payload.name,
-                )
-            ) {
-                state.selectedTimeDimensions =
-                    state.selectedTimeDimensions.filter(
-                        (f) => f.name !== action.payload.name,
-                    );
-            } else {
-                state.selectedTimeDimensions.push(action.payload);
-            }
+            const key = getKeyByField(action.payload);
+            delete state[key][action.payload.name];
         },
-        toggleMetric: (
+        updateTimeDimensionGranularity: (
             state,
-            action: PayloadAction<Pick<SemanticLayerField, 'name' | 'kind'>>,
+            action: PayloadAction<SemanticLayerStatePayloadTimeDimension>,
         ) => {
-            if (!state.view) {
-                throw new Error('Impossible state');
-            }
-
-            if (
-                state.selectedMetrics.some(
-                    (f) => f.name === action.payload.name,
-                )
-            ) {
-                state.selectedMetrics = state.selectedMetrics.filter(
-                    (f) => f.name !== action.payload.name,
-                );
-            } else {
-                state.selectedMetrics.push(action.payload);
-            }
+            const key = getKeyByField(action.payload);
+            state[key][action.payload.name] = action.payload;
         },
+
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
             if (action.payload === EditorTabs.VISUALIZATION) {
@@ -202,13 +223,12 @@ export const {
     resetState,
     setProjectUuid,
     enterView,
-    exitView,
     setResults,
     setActiveEditorTab,
     setSavedChartData,
     setSelectedChartType,
     setFields,
-    toggleDimension,
-    toggleTimeDimension,
-    toggleMetric,
+    selectField,
+    deselectField,
+    updateTimeDimensionGranularity,
 } = semanticViewerSlice.actions;

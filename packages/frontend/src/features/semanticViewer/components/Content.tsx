@@ -1,27 +1,13 @@
 import { Flex } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../store/hooks';
+import { selectAllSelectedFieldNames } from '../store/selectors';
 import ResultsViewer from './ResultsViewer';
 
 const Content: FC = () => {
-    const {
-        view,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-    } = useAppSelector((state) => state.semanticViewer);
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
 
-    if (!view) {
-        return null;
-    }
-
-    if (
-        selectedDimensions.length === 0 &&
-        selectedTimeDimensions.length === 0 &&
-        selectedMetrics.length === 0
-    ) {
-        return null;
-    }
+    if (allSelectedFieldNames.length === 0) return null;
 
     return (
         <Flex direction="column" w="100%" maw="100%" h="100%" mah="100%">

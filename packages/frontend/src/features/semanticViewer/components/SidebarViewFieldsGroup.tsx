@@ -6,19 +6,15 @@ import SidebarViewFieldGroupItem from './SidebarViewFieldsGroupItem';
 type SidebarViewFieldsGroupProps = {
     containerProps?: StackProps;
     groupLabel: string;
-    isActive?: boolean;
     fields: SemanticLayerField[];
     searchQuery: string;
-    handleFieldToggle: (field: SemanticLayerField) => void;
 };
 
 const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
     containerProps = {},
     groupLabel,
-    isActive = false,
     fields,
     searchQuery,
-    handleFieldToggle,
 }) => {
     if (fields.length === 0) return null;
 
@@ -49,8 +45,6 @@ const SidebarViewFieldsGroup: FC<SidebarViewFieldsGroupProps> = ({
                         key={field.name}
                         field={field}
                         searchQuery={searchQuery}
-                        isActive={isActive}
-                        onFieldToggle={() => handleFieldToggle(field)}
                     />
                 ))}
             </Paper>
