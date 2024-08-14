@@ -5,6 +5,7 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    SemanticLayerSelectedFields,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { cubeTransfomers } from './transformer';
@@ -51,10 +52,7 @@ export default class CubeClient implements SemanticLayerClient {
             dimensions: selectedDimensions,
             timeDimensions: selectedTimeDimensions,
             metrics: selectedMetrics,
-        }: Pick<
-            SemanticLayerQuery,
-            'dimensions' | 'timeDimensions' | 'metrics'
-        >,
+        }: SemanticLayerSelectedFields,
     ) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');

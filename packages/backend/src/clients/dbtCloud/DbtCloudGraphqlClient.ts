@@ -16,6 +16,7 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    SemanticLayerSelectedFields,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -303,10 +304,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             dimensions: selectedDimensions,
             timeDimensions: selectedTimeDimensions,
             metrics: selectedMetrics,
-        }: Pick<
-            SemanticLayerQuery,
-            'dimensions' | 'timeDimensions' | 'metrics'
-        >,
+        }: SemanticLayerSelectedFields,
     ) {
         // Get all metrics and check which ones are available for the selected dimensions
         const { metrics: allMetrics } = await this.getMetrics();

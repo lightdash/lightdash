@@ -3,7 +3,6 @@ import {
     ApiJobScheduledResponse,
     SemanticLayerField,
     SemanticLayerQuery,
-    SemanticLayerResultRow,
     SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -67,6 +66,7 @@ export class SemanticLayerController extends BaseController {
         @Query() metrics: string[] = [],
     ): Promise<{ status: 'ok'; results: SemanticLayerField[] }> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: await this.services

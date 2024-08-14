@@ -154,7 +154,11 @@ const SidebarViewFields = () => {
                             active={
                                 // FIXME: not the best way to check if a field is selected
                                 selectedDimensions.includes(field.name) ||
-                                selectedTimeDimensions.includes(field.name) ||
+                                Boolean(
+                                    selectedTimeDimensions.find(
+                                        (td) => td.name === field.name,
+                                    ),
+                                ) ||
                                 selectedMetrics.includes(field.name)
                             }
                             onClick={() => handleFieldToggle(field)}

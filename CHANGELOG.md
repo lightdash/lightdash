@@ -1,3 +1,17 @@
+# [0.1213.0](https://github.com/lightdash/lightdash/compare/0.1212.2...0.1213.0) (2024-08-13)
+
+
+### Features
+
+* add semantic layer time granularities backend ([#11130](https://github.com/lightdash/lightdash/issues/11130)) ([c433b02](https://github.com/lightdash/lightdash/commit/c433b02f1e3eddf99779ae35d813c73e33f04c9c))
+
+## [0.1212.2](https://github.com/lightdash/lightdash/compare/0.1212.1...0.1212.2) (2024-08-13)
+
+
+### Bug Fixes
+
+* reference to join alias ([#11128](https://github.com/lightdash/lightdash/issues/11128)) ([6842be0](https://github.com/lightdash/lightdash/commit/6842be0c95e34ac95a267018e45ec41cf3557c53))
+
 ## [0.1212.1](https://github.com/lightdash/lightdash/compare/0.1212.0...0.1212.1) (2024-08-12)
 
 

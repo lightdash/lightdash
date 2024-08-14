@@ -14,6 +14,20 @@ export enum SemanticLayerFieldType {
     BOOLEAN = 'boolean',
 }
 
+export enum SemanticLayerTimeGranularity {
+    NANOSECOND = 'NANOSECOND',
+    MICROSECOND = 'MICROSECOND',
+    MILLISECOND = 'MILLISECOND',
+    SECOND = 'SECOND',
+    MINUTE = 'MINUTE',
+    HOUR = 'HOUR',
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    QUARTER = 'QUARTER',
+    YEAR = 'YEAR',
+}
+
 export type SemanticLayerField = {
     name: string;
     label: string;
@@ -22,11 +36,17 @@ export type SemanticLayerField = {
     description?: string;
     visible: boolean;
     aggType?: string; // eg: count, sum
+    availableGranularities: SemanticLayerTimeGranularity[];
+};
+
+export type SemanticLayerTimeDimension = {
+    name: string;
+    granularity?: SemanticLayerTimeGranularity;
 };
 
 export type SemanticLayerQuery = {
     dimensions: string[];
-    timeDimensions: string[];
+    timeDimensions: SemanticLayerTimeDimension[];
     metrics: string[];
     offset?: number;
     limit?: number;
@@ -55,14 +75,17 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
+export type SemanticLayerSelectedFields = {
+    dimensions: string[];
+    timeDimensions: string[];
+    metrics: string[];
+};
+
 export interface SemanticLayerClient {
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
         viewName: string,
-        selectedFields: Pick<
-            SemanticLayerQuery,
-            'dimensions' | 'timeDimensions' | 'metrics'
-        >,
+        selectedFields: SemanticLayerSelectedFields,
     ) => Promise<SemanticLayerField[]>;
     streamResults: (
         projectUuid: string,

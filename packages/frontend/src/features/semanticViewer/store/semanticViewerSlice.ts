@@ -4,6 +4,7 @@ import {
     SemanticLayerFieldType,
     type ResultRow,
     type SemanticLayerField,
+    type SemanticLayerTimeDimension,
     type SqlColumn,
     type SqlTableConfig,
 } from '@lightdash/common';
@@ -33,8 +34,8 @@ export interface SemanticViewerState {
 
     selectedDimensions: Array<string>;
     selectedMetrics: Array<string>;
-    selectedTimeDimensions: Array<string>;
     resultsTableConfig: SqlTableConfig | undefined;
+    selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
 
     results: ResultRow[] | undefined;
     columns: SqlColumn[] | undefined;
@@ -106,23 +107,35 @@ export const semanticViewerSlice = createSlice({
 
             switch (action.payload.kind) {
                 case FieldKind.DIMENSION:
-                    const stateSelectedDimensionsArrayName: keyof typeof state =
-                        action.payload.type === SemanticLayerFieldType.TIME
-                            ? 'selectedTimeDimensions'
-                            : 'selectedDimensions';
+                    if (action.payload.type === SemanticLayerFieldType.TIME) {
+                        if (
+                            state.selectedTimeDimensions.find(
+                                (field) => field.name === action.payload.name,
+                            )
+                        ) {
+                            state.selectedTimeDimensions =
+                                state.selectedTimeDimensions.filter(
+                                    (field) =>
+                                        field.name !== action.payload.name,
+                                );
+                        } else {
+                            state.selectedTimeDimensions.push({
+                                name: action.payload.name,
+                                granularity: undefined, // TODO: pass the selected granularity here
+                            });
+                        }
+                        break;
+                    }
 
                     if (
-                        state[stateSelectedDimensionsArrayName].includes(
-                            action.payload.name,
-                        )
+                        state.selectedDimensions.includes(action.payload.name)
                     ) {
-                        state[stateSelectedDimensionsArrayName] = state[
-                            stateSelectedDimensionsArrayName
-                        ].filter((field) => field !== action.payload.name);
+                        state.selectedDimensions =
+                            state.selectedDimensions.filter(
+                                (field) => field !== action.payload.name,
+                            );
                     } else {
-                        state[stateSelectedDimensionsArrayName].push(
-                            action.payload.name,
-                        );
+                        state.selectedDimensions.push(action.payload.name);
                     }
                     break;
                 case FieldKind.METRIC:
