@@ -1,3 +1,10 @@
+## [0.1216.1](https://github.com/lightdash/lightdash/compare/0.1216.0...0.1216.1) (2024-08-14)
+
+
+### Bug Fixes
+
+* pass granularity as null to graphql query ([#11151](https://github.com/lightdash/lightdash/issues/11151)) ([f137b51](https://github.com/lightdash/lightdash/commit/f137b512811a54d36868055b49eacc1254a7f341))
+
 # [0.1216.0](https://github.com/lightdash/lightdash/compare/0.1215.0...0.1216.0) (2024-08-14)
 
 
