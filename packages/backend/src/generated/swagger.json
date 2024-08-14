@@ -8688,6 +8688,39 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "Pick_SemanticLayerField.name-or-kind_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
+            },
             "SemanticLayerQuery": {
                 "properties": {
                     "limit": {
@@ -8697,6 +8730,12 @@
                     "offset": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerSortBy"
+                        },
+                        "type": "array"
                     },
                     "metrics": {
                         "items": {
@@ -8717,7 +8756,12 @@
                         "type": "array"
                     }
                 },
-                "required": ["metrics", "timeDimensions", "dimensions"],
+                "required": [
+                    "sortBy",
+                    "metrics",
+                    "timeDimensions",
+                    "dimensions"
+                ],
                 "type": "object"
             },
             "ValidationTarget": {
@@ -8961,7 +9005,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1212.1",
+        "version": "0.1213.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

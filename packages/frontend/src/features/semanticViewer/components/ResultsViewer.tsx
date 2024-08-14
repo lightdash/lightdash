@@ -13,6 +13,7 @@ const ResultsViewer: FC = () => {
         selectedDimensions,
         selectedTimeDimensions,
         selectedMetrics,
+        sortBy,
         results,
     } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
@@ -79,6 +80,7 @@ const ResultsViewer: FC = () => {
                             dimensions: selectedDimensions,
                             metrics: selectedMetrics,
                             timeDimensions: selectedTimeDimensions,
+                            sortBy,
                         },
                     })
                 }
