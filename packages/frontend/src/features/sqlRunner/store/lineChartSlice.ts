@@ -1,4 +1,8 @@
-import { ChartKind, isLineChartSQLConfig } from '@lightdash/common';
+import {
+    CartesianChartDataTransformer,
+    ChartKind,
+    isLineChartSQLConfig,
+} from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -18,18 +22,17 @@ export const lineChartConfigSlice = createSlice({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });
+                const lineChartModel = new CartesianChartDataTransformer({
+                    transformer: sqlRunnerResultsTransformer,
+                });
 
                 state.options =
-                    sqlRunnerResultsTransformer.getCartesianLayoutOptions();
+                    sqlRunnerResultsTransformer.getPivotChartLayoutOptions();
 
-                const { newConfig, newDefaultLayout } =
-                    sqlRunnerResultsTransformer.getChartConfig({
-                        chartType: ChartKind.LINE,
-                        currentConfig: state.config,
-                    });
-
-                state.config = newConfig;
-                state.defaultLayout = newDefaultLayout;
+                state.config = lineChartModel.mergeConfig(
+                    ChartKind.LINE,
+                    state.config,
+                );
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {
