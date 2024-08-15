@@ -3,23 +3,22 @@ import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
+import { selectAllSelectedFieldsByKind } from '../store/selectors';
 
 const SqlViewer: FC = () => {
-    const {
-        projectUuid,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-        sortBy,
-    } = useAppSelector((state) => state.semanticViewer);
+    const { projectUuid, sortBy } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
 
     const sql = useSemanticLayerSql(
         {
             projectUuid,
             payload: {
-                dimensions: selectedDimensions,
-                metrics: selectedMetrics,
-                timeDimensions: selectedTimeDimensions,
+                ...allSelectedFieldsByKind,
                 sortBy,
             },
         },
