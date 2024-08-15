@@ -50,14 +50,14 @@ export const pieChartConfigSlice = createSlice({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });
-                /*if (action.payload.columns) {
+                if (action.payload.columns) {
                     state.options = {
                         groupFieldOptions:
                             sqlRunnerResultsTransformer.pieChartGroupFieldOptions(),
                         metricFieldOptions:
                             sqlRunnerResultsTransformer.pieChartMetricFieldOptions(),
                     };
-                }*/
+                }
 
                 // TODO: should use cartesian chart
                 const { newConfig } =
