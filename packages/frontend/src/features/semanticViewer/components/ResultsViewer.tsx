@@ -19,7 +19,11 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticViewerQueryRun } from '../api/streamingResults';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
+import {
+    selectAllSelectedFieldNames,
+    selectAllSelectedFieldsByKind,
+    selectCurrentChartConfig,
+} from '../store/selectors';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -52,21 +56,20 @@ const mapResultsToTableData = (
 };
 
 const ResultsViewer: FC = () => {
-    const {
-        projectUuid,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-        activeEditorTab,
-        results,
-        columns,
-        sortBy,
-    } = useAppSelector((state) => state.semanticViewer);
-    const dispatch = useAppDispatch();
     const { showToastError } = useToaster();
 
     const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
     const mantineTheme = useMantineTheme();
+
+    const dispatch = useAppDispatch();
+
+    const { projectUuid, activeEditorTab, results, columns, sortBy } =
+        useAppSelector((state) => state.semanticViewer);
+
+    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
 
     const selectedChartType = useAppSelector(
         (state) => state.semanticViewer.selectedChartType,
@@ -106,11 +109,8 @@ const ResultsViewer: FC = () => {
 
     useEffect(() => {
         if (resultsData) {
-            const allReferencedColumns = [
-                ...selectedDimensions.map((d) => d.name),
-                ...selectedTimeDimensions.map((d) => d.name),
-                ...selectedMetrics.map((d) => d.name),
-            ].map(sanitizeFieldId);
+            const allReferencedColumns = allSelectedFields.map(sanitizeFieldId);
+
             const usedColumns = columns.filter((c) =>
                 allReferencedColumns.includes(c.reference),
             );
@@ -121,14 +121,7 @@ const ResultsViewer: FC = () => {
                 }),
             );
         }
-    }, [
-        resultsData,
-        columns,
-        dispatch,
-        selectedDimensions,
-        selectedTimeDimensions,
-        selectedMetrics,
-    ]);
+    }, [resultsData, columns, dispatch, allSelectedFields]);
 
     return (
         <>
@@ -204,17 +197,15 @@ const ResultsViewer: FC = () => {
                                 runSemanticViewerQuery({
                                     projectUuid,
                                     query: {
-                                        dimensions: selectedDimensions,
-                                        metrics: selectedMetrics,
-                                        timeDimensions: selectedTimeDimensions,
+                                        ...allSelectedFieldsByKind,
                                         sortBy,
                                     },
                                 })
                             }
                             /*onLimitChange={(newLimit) => {
-                    dispatch(setSqlLimit(newLimit));
-                    handleRunQuery(newLimit);
-                }}*/
+                                dispatch(setSqlLimit(newLimit));
+                                handleRunQuery(newLimit);
+                            }}*/
                         />
                     </Group>
                 </Group>
