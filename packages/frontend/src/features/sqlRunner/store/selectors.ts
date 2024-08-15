@@ -135,3 +135,22 @@ export const cartesianChartSelectors = {
     getGroupByLayoutOptions,
     getSqlColumns,
 };
+
+export const tableVisSelectors = {
+    getColumnFieldTypes: createSelector(
+        [selectTableVisConfigState, getSqlColumns],
+        (tableVisConfig, sqlColumns) => {
+            if (!tableVisConfig.config || !sqlColumns) return {};
+
+            return Object.keys(tableVisConfig.config.columns).reduce(
+                (acc, reference) => {
+                    acc[reference] =
+                        sqlColumns.find((c) => c.reference === reference)
+                            ?.type ?? DimensionType.STRING;
+                    return acc;
+                },
+                {} as Record<string, DimensionType>,
+            );
+        },
+    ),
+};

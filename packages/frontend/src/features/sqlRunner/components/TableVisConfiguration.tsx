@@ -4,15 +4,18 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { tableVisSelectors } from '../store/selectors';
 import {
     updateColumnVisibility,
     updateFieldLabel,
 } from '../store/tableVisSlice';
 import { TableFieldIcon } from './TableFields';
 
-const TableVisConfiguration: FC = ({}) => {
+const TableVisConfiguration: FC = () => {
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const columnFieldTypes = useAppSelector(
+        tableVisSelectors.getColumnFieldTypes,
+    );
 
     const tableVisConfig = useAppSelector(
         (state) => state.tableVisConfig.config,
@@ -36,20 +39,14 @@ const TableVisConfiguration: FC = ({}) => {
                     <Config.Heading>Column labels</Config.Heading>
 
                     {Object.keys(tableVisConfig.columns).map((reference) => {
-                        const fieldType = sqlColumns?.find(
-                            (c) => c.reference === reference,
-                        )?.type;
+                        const fieldType = columnFieldTypes[reference];
 
                         return (
                             <TextInput
                                 key={reference}
                                 radius="md"
                                 value={tableVisConfig.columns[reference].label}
-                                icon={
-                                    fieldType && (
-                                        <TableFieldIcon fieldType={fieldType} />
-                                    )
-                                }
+                                icon={<TableFieldIcon fieldType={fieldType} />}
                                 rightSection={
                                     <ActionIcon
                                         onClick={() =>
