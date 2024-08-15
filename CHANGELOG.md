@@ -1,3 +1,10 @@
+# [0.1218.0](https://github.com/lightdash/lightdash/compare/0.1217.0...0.1218.0) (2024-08-15)
+
+
+### Features
+
+* Semantic viewer results runner ([#11132](https://github.com/lightdash/lightdash/issues/11132)) ([490ffb6](https://github.com/lightdash/lightdash/commit/490ffb6c2ba7168d4a9c2844bcd98d32ad77d8fe))
+
 # [0.1217.0](https://github.com/lightdash/lightdash/compare/0.1216.1...0.1217.0) (2024-08-14)
 
 
