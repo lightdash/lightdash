@@ -91,6 +91,3 @@ export const tableVisSlice = createSlice({
         });
     },
 });
-
-export const { updateFieldLabel, updateColumnVisibility } =
-    tableVisSlice.actions;

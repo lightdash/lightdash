@@ -75,5 +75,3 @@ export const pieChartConfigSlice = createSlice({
         });
     },
 });
-
-export const { setGroupFieldIds } = pieChartConfigSlice.actions;

@@ -1,11 +1,15 @@
-import { DimensionType } from '@lightdash/common';
+import { DimensionType, type SqlColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { Config } from '../../../components/VisualizationConfigs/common/Config';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setGroupFieldIds } from '../store/pieChartSlice';
 import { FieldReferenceSelect } from './FieldReferenceSelect';
 
-export const PieChartConfiguration = () => {
+export const PieChartConfiguration = ({
+    sqlColumns,
+}: {
+    sqlColumns: SqlColumn[];
+}) => {
     const dispatch = useAppDispatch();
 
     const groupField = useAppSelector(
@@ -14,8 +18,6 @@ export const PieChartConfiguration = () => {
     const groupFieldOptions = useAppSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
     );
-
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
         <Stack spacing="xs" mb="lg">

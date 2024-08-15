@@ -6,10 +6,10 @@ import {
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import SqlRunnerChart from '../../features/sqlRunner/components/visualizations/SqlRunnerChart';
-import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import SqlRunnerChart from '../DataViz/visualizations/ChartView';
+import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
 
 interface Props

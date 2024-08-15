@@ -6,16 +6,16 @@ import {
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
-import { SMALL_TEXT_LENGTH } from '../../../../components/common/LightTable';
-import BodyCell from '../../../../components/common/Table/ScrollableTable/BodyCell';
-import { VirtualizedArea } from '../../../../components/common/Table/ScrollableTable/TableBody';
+import { useTableDataTransformer } from '../../../features/sqlRunner/transformers/useTableDataTransformer';
+import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
+import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
+import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import {
     Table as TableStyled,
     TableContainer,
     TABLE_HEADER_BG,
     Tr,
-} from '../../../../components/common/Table/Table.styles';
-import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
+} from '../../common/Table/Table.styles';
 
 type Props = {
     data: ResultRow[];

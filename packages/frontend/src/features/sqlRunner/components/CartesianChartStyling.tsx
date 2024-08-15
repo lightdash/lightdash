@@ -19,7 +19,6 @@ export const CartesianChartStyling = ({
     const dispatch = useAppDispatch();
 
     const currentConfig = useAppSelector(selectCurrentCartesianChartState);
-
     const series = useAppSelector((state) => {
         if (
             !state.barChartConfig.config?.fieldConfig?.y ||

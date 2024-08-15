@@ -9,10 +9,8 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../components/common/ResourceIcon';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { setSelectedChartType } from '../store/semanticViewerSlice';
+import MantineIcon from '../common/MantineIcon';
+import { getChartIcon } from '../common/ResourceIcon';
 
 type VisualizationActionIconProps = {
     chartKind: ChartKind;
@@ -78,19 +76,19 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
     },
 );
 
-export const VisualizationSwitcher = () => {
-    const dispatch = useAppDispatch();
-
+export const VisualizationSwitcher = ({
+    selectedChartType,
+    setSelectedChartType,
+}: {
+    selectedChartType: ChartKind;
+    setSelectedChartType: (chartKind: ChartKind) => void;
+}) => {
     const AVAILABLE_VISUALIZATIONS = [
         { label: 'Table', value: ChartKind.TABLE },
         { label: 'Bar chart', value: ChartKind.VERTICAL_BAR },
         { label: 'Line chart', value: ChartKind.LINE },
         { label: 'Pie chart', value: ChartKind.PIE },
     ];
-
-    const selectedChartType = useAppSelector(
-        (state) => state.semanticViewer.selectedChartType,
-    );
 
     return (
         <Group spacing="xs">
@@ -99,7 +97,7 @@ export const VisualizationSwitcher = () => {
                     key={vis.label}
                     chartKind={vis.value}
                     label={vis.label}
-                    onClick={() => dispatch(setSelectedChartType(vis.value))}
+                    onClick={() => setSelectedChartType(vis.value)}
                     selected={selectedChartType === vis.value}
                 />
             ))}

@@ -4,18 +4,18 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { barChartConfigSlice } from '../store/barChartSlice';
-import { useAppSelector } from '../store/hooks';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
 import { CartesianChartStyling } from './CartesianChartStyling';
 
-export const CartesianChartConfig = () => {
+export const CartesianChartConfig = ({
+    selectedChartType,
+}: {
+    selectedChartType: ChartKind;
+}) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
     const [isStylingOpen, setIsStylingOpen] = useState(true);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
 
     const actions =
         selectedChartType === ChartKind.LINE
