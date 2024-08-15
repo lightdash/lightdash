@@ -252,7 +252,11 @@ models:
 
 **Every joined field that you reference in a YAML file adds a dependency that you'll have to include in all future references to that model.**
 
-For example, you might define `unique_enterprise_deals` in a `deals` model by using a joined field in a filter: `${accounts.segment} = 'Enterprise'`. Then later you need to join `deals` to a `marketing_attribution` model, the `unique_enterprise_deals` metric must be excluded from the join unless you also join `accounts` to get the `accounts.segment` field. 
+For example, you might define `deals.unique_enterprise_deals` by using a joined field in a filter: `${accounts.segment} = 'Enterprise'`. 
+
+Then later you need to join `deals` to a `marketing_attribution` model.
+
+The `unique_enterprise_deals` metric must be excluded from the join unless you also join `accounts` to get the `accounts.segment` field. 
 
 :::
 
