@@ -141,7 +141,7 @@ export default class CubeClient implements SemanticLayerClient {
         // if the query limit is not set, use the default limit from the config (LIGHTDASH_QUERY_MAX_LIMIT || 5000)
         const queryLimit = query.limit ?? this.maxQueryLimit;
 
-        // if the query limit is less than the max partial results limit, use the query limit
+        // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
         let partialResultsLimit = Math.min(
             this.maxPartialResultsLimit,
             queryLimit,
@@ -164,10 +164,10 @@ export default class CubeClient implements SemanticLayerClient {
             // update the offset
             offset += partialResults.length;
 
-            // keep track of the previous limit so that we can stop when result count is less than it
+            // keep track of the previous partial results limit so that we can stop when result count is less than it
             prevPartialResultsLimit = partialResultsLimit;
 
-            // decrease the limit if we are close to the query limit so we don't exceed it
+            // decrease the amount of results to fetch if the limit is less than the query limit so that we don't fetch more than the query limit
             partialResultsLimit = Math.min(
                 partialResultsLimit,
                 queryLimit - offset,
