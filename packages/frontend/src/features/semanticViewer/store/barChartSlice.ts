@@ -1,4 +1,8 @@
-import { ChartKind, isBarChartSQLConfig } from '@lightdash/common';
+import {
+    CartesianChartDataTransformer,
+    ChartKind,
+    isBarChartSQLConfig,
+} from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { SemanticViewerResultsTransformerFE } from '../transformers/SemanticViewerResultsTransformerFE';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -18,18 +22,17 @@ export const barChartConfigSlice = createSlice({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });
+                const barChartModel = new CartesianChartDataTransformer({
+                    transformer: sqlRunnerResultsTransformer,
+                });
 
                 state.options =
-                    sqlRunnerResultsTransformer.getCartesianLayoutOptions();
+                    sqlRunnerResultsTransformer.getPivotChartLayoutOptions();
 
-                const { newConfig, newDefaultLayout } =
-                    sqlRunnerResultsTransformer.getChartConfig({
-                        chartType: ChartKind.VERTICAL_BAR,
-                        currentConfig: state.config,
-                    });
-
-                state.config = newConfig;
-                state.defaultLayout = newDefaultLayout;
+                state.config = barChartModel.mergeConfig(
+                    ChartKind.VERTICAL_BAR,
+                    state.config,
+                );
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {

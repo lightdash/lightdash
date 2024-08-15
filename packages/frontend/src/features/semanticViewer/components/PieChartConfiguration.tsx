@@ -9,7 +9,7 @@ export const PieChartConfiguration = () => {
     const dispatch = useAppDispatch();
 
     const groupField = useAppSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.groupFieldIds?.[0],
+        (state) => state.pieChartConfig.config?.fieldConfig?.x.reference,
     );
     const groupFieldOptions = useAppSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
@@ -35,7 +35,11 @@ export const PieChartConfiguration = () => {
                     placeholder="Select group by"
                     onChange={(value) => {
                         if (!value) return;
-                        dispatch(setGroupFieldIds(value));
+                        const field = groupFieldOptions.find(
+                            (x) => x.reference === value,
+                        );
+                        if (!field) return;
+                        dispatch(setGroupFieldIds(field));
                     }}
                     error={
                         !!groupField &&

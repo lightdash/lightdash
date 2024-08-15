@@ -1,5 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import { createSelector } from '@reduxjs/toolkit';
+import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
 const selectSemanticViewerRunnerState = (
@@ -14,7 +14,7 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
-const selectTableVisConfigState = (
+export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
@@ -73,14 +73,14 @@ export const selectCurrentCartesianChartState = createSelector(
     },
 );
 
-const getXLayoutOptions = createSelector(
+const getIndexLayoutOptions = createSelector(
     [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.xLayoutOptions,
+    (chartConfig) => chartConfig?.options?.indexLayoutOptions,
 );
 
-const getYLayoutOptions = createSelector(
+const getValuesLayoutOptions = createSelector(
     [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.yLayoutOptions,
+    (chartConfig) => chartConfig?.options?.valuesLayoutOptions,
 );
 
 const getXAxisField = createSelector(
@@ -98,18 +98,18 @@ const getGroupByField = createSelector(
     (chartConfig) => chartConfig?.config?.fieldConfig?.groupBy?.[0],
 );
 
-const getGroupByLayoutOptions = createSelector(
+const getPivotLayoutOptions = createSelector(
     [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.groupByOptions,
+    (chartConfig) => chartConfig?.options?.pivotLayoutOptions,
 );
 
 export const cartesianChartSelectors = {
-    getXLayoutOptions,
-    getYLayoutOptions,
+    getIndexLayoutOptions,
+    getValuesLayoutOptions,
     getXAxisField,
     getYAxisFields,
     getGroupByField,
-    getGroupByLayoutOptions,
+    getPivotLayoutOptions,
 };
 
 const selectSelectedDimensions = (state: RootState) =>
