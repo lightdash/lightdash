@@ -1,4 +1,4 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, DimensionType, type SqlColumn } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
@@ -82,19 +82,43 @@ const getYLayoutOptions = createSelector(
     (chartConfig) => chartConfig?.options?.yLayoutOptions,
 );
 
+const getSqlColumns = (state: RootState): SqlColumn[] | undefined =>
+    state.sqlRunner.sqlColumns;
+
 const getXAxisField = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.x,
+    [selectCurrentCartesianChartState, getSqlColumns],
+    (chartConfig, sqlColumns) => {
+        const field = chartConfig?.config?.fieldConfig?.x;
+        if (!field) return undefined;
+        const fieldType =
+            sqlColumns?.find((x) => x.reference === field.reference)?.type ??
+            DimensionType.STRING;
+        return { ...field, fieldType };
+    },
 );
 
 const getYAxisFields = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.y,
+    [selectCurrentCartesianChartState, getSqlColumns],
+    (chartConfig, sqlColumns) => {
+        return chartConfig?.config?.fieldConfig?.y.map((field) => {
+            const fieldType =
+                sqlColumns?.find((x) => x.reference === field.reference)
+                    ?.type ?? DimensionType.STRING;
+            return { ...field, fieldType };
+        });
+    },
 );
 
 const getGroupByField = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.groupBy?.[0],
+    [selectCurrentCartesianChartState, getSqlColumns],
+    (chartConfig, sqlColumns) => {
+        const field = chartConfig?.config?.fieldConfig?.groupBy?.[0];
+        if (!field) return undefined;
+        const fieldType =
+            sqlColumns?.find((x) => x.reference === field.reference)?.type ??
+            DimensionType.STRING;
+        return { ...field, fieldType };
+    },
 );
 
 const getGroupByLayoutOptions = createSelector(
@@ -109,4 +133,5 @@ export const cartesianChartSelectors = {
     getYAxisFields,
     getGroupByField,
     getGroupByLayoutOptions,
+    getSqlColumns,
 };

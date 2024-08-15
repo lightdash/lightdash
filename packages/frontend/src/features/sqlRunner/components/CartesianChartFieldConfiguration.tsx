@@ -1,8 +1,6 @@
 import {
-    DimensionType,
     type IndexLayoutOptions,
     type PivotLayoutOptions,
-    type SqlCartesianChartLayout,
     type ValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
@@ -23,7 +21,9 @@ import { CartesianChartAggregationConfig } from './CartesianChartAggregationConf
 import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlCartesianChartLayout['y'][number];
+    field: NonNullable<
+        ReturnType<typeof cartesianChartSelectors.getYAxisFields>
+    >[number];
     yLayoutOptions: ValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -31,7 +31,6 @@ const YFieldsAxisConfig: FC<{
 }> = ({ field, yLayoutOptions, isSingle, index, actions }) => {
     const { hovered, ref } = useHover();
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -102,11 +101,7 @@ const YFieldsAxisConfig: FC<{
                                     }),
                                 );
                             }}
-                            fieldType={
-                                sqlColumns?.find(
-                                    (x) => x.reference === field.reference,
-                                )?.type ?? DimensionType.STRING
-                            }
+                            fieldType={field.fieldType}
                         />
 
                         <Config.Group>
@@ -143,12 +138,13 @@ const XFieldAxisConfig = ({
     xLayoutOptions,
     actions,
 }: {
-    field: SqlCartesianChartLayout['x'];
+    field: NonNullable<
+        ReturnType<typeof cartesianChartSelectors.getXAxisField>
+    >;
     xLayoutOptions: IndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
         <FieldReferenceSelect
@@ -166,10 +162,7 @@ const XFieldAxisConfig = ({
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
                     undefined && `Column "${field.reference}" not in SQL query`
             }
-            fieldType={
-                sqlColumns?.find((x) => x.reference === field.reference)
-                    ?.type ?? DimensionType.STRING
-            }
+            fieldType={field.fieldType}
         />
     );
 };
@@ -179,12 +172,11 @@ const GroupByFieldAxisConfig = ({
     groupByOptions = [],
     actions,
 }: {
-    field: undefined | { reference: string };
+    field: ReturnType<typeof cartesianChartSelectors.getGroupByField>;
     groupByOptions?: PivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     return (
         <FieldReferenceSelect
             clearable
@@ -210,10 +202,7 @@ const GroupByFieldAxisConfig = ({
                     );
                 }
             }}
-            fieldType={
-                sqlColumns?.find((x) => x.reference === field?.reference)
-                    ?.type ?? DimensionType.STRING
-            }
+            fieldType={field?.fieldType}
         />
     );
 };
