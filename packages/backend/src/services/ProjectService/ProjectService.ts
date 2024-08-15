@@ -2011,7 +2011,7 @@ export class ProjectService extends BaseService {
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
                 await warehouseClient.streamQuery(
-                    sql,
+                    query,
                     async ({ rows, fields }) => {
                         if (!columns.length) {
                             // Get column types from first row of results

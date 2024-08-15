@@ -11,7 +11,7 @@ import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { exitView, SidebarTabs } from '../store/semanticViewerSlice';
+import { resetState, SidebarTabs } from '../store/semanticViewerSlice';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 import { VisualizationConfigPanel } from './VisualizationConfigPanel';
@@ -21,7 +21,7 @@ const Sidebar: FC = () => {
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
-        dispatch(exitView());
+        dispatch(resetState());
     };
     const activeSidebarTab = useAppSelector(
         (state) => state.semanticViewer.activeSidebarTab,
