@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
@@ -25,6 +25,7 @@ import {
     selectAllSelectedFieldsByKind,
 } from '../store/selectors';
 import {
+    setFields,
     toggleDimension,
     toggleMetric,
     toggleTimeDimension,
@@ -79,6 +80,11 @@ const SidebarViewFields = () => {
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
 
+    useEffect(() => {
+        if (fields.data) {
+            dispatch(setFields(fields.data));
+        }
+    }, [dispatch, fields.data]);
     if (fields.isError) {
         throw fields.error;
     }

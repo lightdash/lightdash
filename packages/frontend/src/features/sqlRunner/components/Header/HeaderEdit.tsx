@@ -1,4 +1,12 @@
-import { ActionIcon, Group, Paper, Stack, Title, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Title,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconArrowBackUp,
     IconDeviceFloppy,
@@ -91,28 +99,25 @@ export const HeaderEdit: FC = () => {
                     </Stack>
 
                     <Group spacing="md">
-                        <Tooltip
-                            variant="xs"
-                            label="Save chart"
-                            position="bottom"
+                        <Button
+                            variant="default"
+                            size="xs"
+                            disabled={!config || !sql}
+                            onClick={() => {
+                                if (config && sql) {
+                                    mutate({
+                                        versionedData: {
+                                            config,
+                                            sql,
+                                            limit,
+                                        },
+                                    });
+                                }
+                            }}
+                            leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                         >
-                            <ActionIcon size="xs" disabled={!config || !sql}>
-                                <MantineIcon
-                                    icon={IconDeviceFloppy}
-                                    onClick={() => {
-                                        if (config && sql) {
-                                            mutate({
-                                                versionedData: {
-                                                    config,
-                                                    sql,
-                                                    limit,
-                                                },
-                                            });
-                                        }
-                                    }}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
+                            Save
+                        </Button>
                         <Tooltip
                             variant="xs"
                             label="Back to view page"

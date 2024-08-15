@@ -54,6 +54,7 @@ export const ContentPanel: FC = () => {
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
     const mantineTheme = useMantineTheme();
     const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
+    const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
         [resultsHeight, maxResultsHeight],
@@ -312,7 +313,7 @@ export const ContentPanel: FC = () => {
                 </Paper>
 
                 <ResizableBox
-                    height={resultsHeight}
+                    height={deferredResultsHeight}
                     minConstraints={[50, 50]}
                     maxConstraints={[Infinity, maxResultsHeight]}
                     resizeHandles={['n']}

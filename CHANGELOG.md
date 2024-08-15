@@ -1,3 +1,31 @@
+# [0.1219.0](https://github.com/lightdash/lightdash/compare/0.1218.1...0.1219.0) (2024-08-15)
+
+
+### Features
+
+* allow formatting by percentage ([#11152](https://github.com/lightdash/lightdash/issues/11152)) ([79586af](https://github.com/lightdash/lightdash/commit/79586afab4fffc37db879e31dfb05d705884fbef))
+
+## [0.1218.1](https://github.com/lightdash/lightdash/compare/0.1218.0...0.1218.1) (2024-08-15)
+
+
+### Bug Fixes
+
+* move groups property to valid structure ([#11158](https://github.com/lightdash/lightdash/issues/11158)) ([29a891a](https://github.com/lightdash/lightdash/commit/29a891a4b635337e883dfacfbd2eea4ec20fee04))
+
+# [0.1218.0](https://github.com/lightdash/lightdash/compare/0.1217.0...0.1218.0) (2024-08-15)
+
+
+### Features
+
+* Semantic viewer results runner ([#11132](https://github.com/lightdash/lightdash/issues/11132)) ([490ffb6](https://github.com/lightdash/lightdash/commit/490ffb6c2ba7168d4a9c2844bcd98d32ad77d8fe))
+
+# [0.1217.0](https://github.com/lightdash/lightdash/compare/0.1216.1...0.1217.0) (2024-08-14)
+
+
+### Features
+
+* improved warehouse schemas ([#11099](https://github.com/lightdash/lightdash/issues/11099)) ([9091999](https://github.com/lightdash/lightdash/commit/9091999b929995c8d7f419c2fb7310d65a30dc70))
+
 ## [0.1216.1](https://github.com/lightdash/lightdash/compare/0.1216.0...0.1216.1) (2024-08-14)
 
 
