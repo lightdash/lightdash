@@ -42,6 +42,13 @@ const getSqlChartAndResults = async ({
     };
 };
 
+/**
+ * Fetches the chart and results of a SQL query from the SQL runner.
+ * This is a hook that is used to get the chart and results of a saved SQL query - used in dashboards
+ * @param savedSqlUuid - The UUID of the saved SQL query.
+ * @param projectUuid - The UUID of the project.
+ * @returns The chart and results of the SQL query
+ */
 export const useSqlChartAndResults = ({
     savedSqlUuid,
     projectUuid,
