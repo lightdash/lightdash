@@ -1,11 +1,11 @@
 import {
     ActionIcon,
+    Box,
     Burger,
     Divider,
     Drawer,
     getDefaultZIndex,
     Group,
-    Header,
     MantineProvider,
     Stack,
     Title,
@@ -62,15 +62,15 @@ const MobileNavBar: FC = () => {
 
     return (
         <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
-            <Header
-                height={50}
+            <Box
+                h={50}
                 display="flex"
                 px="md"
-                zIndex={getDefaultZIndex('app')}
-                sx={{
-                    alignItems: 'center',
-                    boxShadow: 'lg',
-                }}
+                // zIndex={getDefaultZIndex('app')}
+                // sx={{
+                //     alignItems: 'center',
+                //     boxShadow: 'lg',
+                // }}
             >
                 <Group align="center" position="apart" sx={{ flex: 1 }}>
                     <ActionIcon
@@ -83,7 +83,7 @@ const MobileNavBar: FC = () => {
                     </ActionIcon>
                     <Burger opened={isMenuOpen} onClick={toggleMenu} />
                 </Group>
-            </Header>
+            </Box>
 
             <Drawer opened={isMenuOpen} onClose={toggleMenu} size="75%">
                 <Title order={6} fw={600} mb="xs">

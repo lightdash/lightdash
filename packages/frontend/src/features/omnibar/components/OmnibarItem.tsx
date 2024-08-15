@@ -1,11 +1,5 @@
-import {
-    Box,
-    createStyles,
-    Group,
-    Stack,
-    Text,
-    type CSSObject,
-} from '@mantine/core';
+import { Box, Group, Stack, Text } from '@mantine/core';
+import { createStyles } from '@mantine/emotion';
 import { type FC, type MutableRefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';
 import {

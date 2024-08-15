@@ -8,7 +8,7 @@ import {
     Table,
     Text,
 } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
@@ -173,9 +173,9 @@ const CustomMetricsTable: FC<Props> = ({
                             </Group>
                             <Collapse in={isOpen}>
                                 <Stack spacing="md">
-                                    <Prism ta="left" language="yaml">
+                                    {/* <Prism ta="left" language="yaml">
                                         {data.yml}
-                                    </Prism>
+                                    </Prism> */}
                                 </Stack>
                             </Collapse>
                         </Stack>

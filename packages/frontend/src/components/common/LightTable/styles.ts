@@ -1,5 +1,6 @@
 import { assertUnreachable } from '@lightdash/common';
-import { createStyles, type MantineTheme } from '@mantine/core';
+import { type MantineTheme } from '@mantine/core';
+import { createStyles } from '@mantine/emotion';
 import { darken, rgba } from 'polished';
 import { CellType, SectionType } from '.';
 

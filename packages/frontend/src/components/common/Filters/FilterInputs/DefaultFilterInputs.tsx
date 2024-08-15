@@ -8,7 +8,6 @@ import {
 } from '@lightdash/common';
 import isString from 'lodash/isString';
 import { type FilterInputsProps } from '.';
-import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import FilterMultiStringInput from './FilterMultiStringInput';
@@ -86,24 +85,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
 
                 case FilterType.NUMBER:
                 case FilterType.BOOLEAN:
-                case FilterType.DATE:
-                    return (
-                        <TagInput
-                            w="100%"
-                            clearable
-                            size="xs"
-                            disabled={disabled}
-                            placeholder={placeholder}
-                            allowDuplicates={false}
-                            validationRegex={
-                                filterType === FilterType.NUMBER
-                                    ? /^-?\d+(\.\d+)?$/
-                                    : undefined
-                            }
-                            value={rule.values?.map(String)}
-                            onChange={(values) => onChange({ ...rule, values })}
-                        />
-                    );
+
                 default:
                     return assertUnreachable(
                         filterType,

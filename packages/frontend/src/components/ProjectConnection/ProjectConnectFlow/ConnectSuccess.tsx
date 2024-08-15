@@ -1,4 +1,5 @@
-import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
+import { Box, Button, Stack } from '@mantine/core';
+import { createStyles, keyframes } from '@mantine/emotion';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';

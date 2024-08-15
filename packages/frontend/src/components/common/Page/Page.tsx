@@ -1,8 +1,10 @@
-import { Box, createStyles } from '@mantine/core';
+import { Box } from '@mantine/core';
+
 import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
+import { createStyles } from '@mantine/emotion';
 import { useElementSize } from '@mantine/hooks';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -192,26 +194,23 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             project.type === ProjectType.PREVIEW,
     );
 
-    const { classes } = usePageStyles(
-        {
-            withCenteredContent,
-            withFitContent,
-            withFixedContent,
-            withLargeContent,
-            withFooter,
-            withFullHeight,
-            withHeader: !!header,
-            withNavbar,
-            withPaddedContent,
-            withSidebar: !!sidebar,
-            withSidebarFooter,
-            withRightSidebar: !!rightSidebar,
-            hasBanner: isCurrentProjectPreview,
-            noContentPadding,
-            flexContent,
-        },
-        { name: 'Page' },
-    );
+    const { classes } = usePageStyles({
+        withCenteredContent,
+        withFitContent,
+        withFixedContent,
+        withLargeContent,
+        withFooter,
+        withFullHeight,
+        withHeader: !!header,
+        withNavbar,
+        withPaddedContent,
+        withSidebar: !!sidebar,
+        withSidebarFooter,
+        withRightSidebar: !!rightSidebar,
+        hasBanner: isCurrentProjectPreview,
+        noContentPadding,
+        flexContent,
+    });
 
     return (
         <>

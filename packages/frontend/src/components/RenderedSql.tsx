@@ -1,5 +1,5 @@
 import { Alert, Loader, Stack, Title } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 
@@ -53,8 +53,8 @@ export const RenderedSql = () => {
     }
 
     return (
-        <Prism m="sm" language="sql" withLineNumbers>
-            {data || ''}
-        </Prism>
+        <>{data || ''}</>
+        // <Prism m="sm" language="sql" withLineNumbers>
+        // </Prism>
     );
 };

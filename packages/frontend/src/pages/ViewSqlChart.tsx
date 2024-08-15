@@ -7,7 +7,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import {
     IconChartHistogram,
     IconCodeCircle,
@@ -187,11 +187,11 @@ const ViewSqlChart = () => {
                                     config={resultsTableConfig}
                                 />
                             )}
-                            {activeTab === TabOption.SQL && (
+                            {/* {activeTab === TabOption.SQL && (
                                 <Prism language="sql" withLineNumbers>
                                     {sql || ''}
                                 </Prism>
-                            )}
+                            )} */}
                         </Box>
                     )}
                 </Stack>

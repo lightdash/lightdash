@@ -1,5 +1,5 @@
 import { Box, LoadingOverlay } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
@@ -38,9 +38,9 @@ const SqlViewer: FC = () => {
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 
-            <Prism m={0} radius={0} language="sql" withLineNumbers>
+            {/* <Prism m={0} radius={0} language="sql" withLineNumbers>
                 {sql.data ?? ''}
-            </Prism>
+            </Prism> */}
         </Box>
     );
 };

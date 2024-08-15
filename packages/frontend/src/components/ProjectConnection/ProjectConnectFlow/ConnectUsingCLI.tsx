@@ -4,7 +4,7 @@ import {
     type OrganizationProject,
 } from '@lightdash/common';
 import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -138,37 +138,37 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         <Stack spacing="xs">
                             <Text fw={500}>1. Install lightdash CLI:</Text>
 
-                            <Prism
+                            {/* <Prism
                                 language="bash"
                                 onCopy={handleCopy}
                                 styles={{ copy: { right: 0 } }}
                             >
                                 {`npm install -g @lightdash/cli@${version}`}
-                            </Prism>
+                            </Prism> */}
                         </Stack>
 
                         <Stack spacing="xs">
                             <Text fw={500}>2. Login to lightdash:</Text>
-
+                            {/* 
                             <Prism
                                 language="bash"
                                 onCopy={handleCopy}
                                 styles={{ copy: { right: 0 } }}
                             >
                                 {`lightdash login ${siteUrl} --token ${tokenData?.token}`}
-                            </Prism>
+                            </Prism> */}
                         </Stack>
 
                         <Stack spacing="xs">
                             <Text fw={500}>3. Create project:</Text>
 
-                            <Prism
+                            {/* <Prism
                                 language="bash"
                                 onCopy={handleCopy}
                                 styles={{ copy: { right: 0 } }}
                             >
                                 lightdash deploy --create
-                            </Prism>
+                            </Prism> */}
                         </Stack>
                     </Stack>
                 </Stack>

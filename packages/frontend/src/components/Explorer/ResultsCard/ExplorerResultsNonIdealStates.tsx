@@ -1,4 +1,5 @@
-import { createStyles, keyframes, Loader, Text } from '@mantine/core';
+import { Loader, Text } from '@mantine/core';
+import { createStyles, keyframes } from '@mantine/emotion';
 import { type FC } from 'react';
 import { TrackSection } from '../../../providers/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';

@@ -1,5 +1,5 @@
 import { Button, Stack, Text, Tooltip } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useTracking } from '../../../../providers/TrackingProvider';
@@ -54,9 +54,9 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                         .yml to see a table in Lightdash. eg:
                     </Text>
 
-                    <Prism ta="left" noCopy language="yaml">
+                    {/* <Prism ta="left" noCopy language="yaml">
                         {codeBlock}
-                    </Prism>
+                    </Prism> */}
 
                     <Stack spacing="xs">
                         <Tooltip

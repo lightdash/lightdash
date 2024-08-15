@@ -1,4 +1,4 @@
-import { createStyles } from '@mantine/core';
+import { createStyles } from '@mantine/emotion';
 
 export const useTableStyles = createStyles((theme) => ({
     root: {
@@ -17,10 +17,10 @@ export const useTableStyles = createStyles((theme) => ({
             padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
         },
 
-        '&[data-hover] tbody tr': theme.fn.hover({
-            cursor: 'pointer',
-            backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
-        }),
+        // '&[data-hover] tbody tr': theme.fn.hover({
+        //     cursor: 'pointer',
+        //     backgroundColor: theme.fn.rgba(theme.colors.gray[0], 0.5),
+        // }),
     },
     alignLastTdRight: {
         '& tr td:last-child': {

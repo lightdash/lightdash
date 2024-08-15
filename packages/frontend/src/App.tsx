@@ -1,4 +1,6 @@
 import { Ability } from '@casl/ability';
+import '@mantine/core/styles.css';
+import { emotionTransform, MantineEmotionProvider } from '@mantine/emotion';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import { BrowserRouter as Router } from 'react-router-dom';
@@ -33,35 +35,37 @@ const App = () => (
         </Helmet>
 
         <ReactQueryProvider>
-            <MantineProvider>
-                <Router>
-                    <AppProvider>
-                        <VersionAutoUpdater />
-                        <ThirdPartyProvider
-                            enabled={isMobile || !isMinimalPage}
-                        >
-                            <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                <TrackingProvider
-                                    enabled={isMobile || !isMinimalPage}
-                                >
-                                    <AbilityContext.Provider
-                                        value={defaultAbility}
+            <MantineProvider stylesTransform={emotionTransform}>
+                <MantineEmotionProvider>
+                    <Router>
+                        <AppProvider>
+                            <VersionAutoUpdater />
+                            <ThirdPartyProvider
+                                enabled={isMobile || !isMinimalPage}
+                            >
+                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                    <TrackingProvider
+                                        enabled={isMobile || !isMinimalPage}
                                     >
-                                        <ActiveJobProvider>
-                                            <ChartColorMappingContextProvider>
-                                                {isMobile ? (
-                                                    <MobileRoutes />
-                                                ) : (
-                                                    <Routes />
-                                                )}
-                                            </ChartColorMappingContextProvider>
-                                        </ActiveJobProvider>
-                                    </AbilityContext.Provider>
-                                </TrackingProvider>
-                            </ErrorBoundary>
-                        </ThirdPartyProvider>
-                    </AppProvider>
-                </Router>
+                                        <AbilityContext.Provider
+                                            value={defaultAbility}
+                                        >
+                                            <ActiveJobProvider>
+                                                <ChartColorMappingContextProvider>
+                                                    {isMobile ? (
+                                                        <MobileRoutes />
+                                                    ) : (
+                                                        <Routes />
+                                                    )}
+                                                </ChartColorMappingContextProvider>
+                                            </ActiveJobProvider>
+                                        </AbilityContext.Provider>
+                                    </TrackingProvider>
+                                </ErrorBoundary>
+                            </ThirdPartyProvider>
+                        </AppProvider>
+                    </Router>
+                </MantineEmotionProvider>
             </MantineProvider>
 
             <ReactQueryDevtools initialIsOpen={false} />

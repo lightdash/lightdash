@@ -26,7 +26,7 @@ const MetricFlowSqlCode: FC<Props> = ({ status, sql, error }) => {
         return <ErrorState error={error?.error} />;
     }
 
-    return <Prism language="sql">{sql || '# no sql available'}</Prism>;
+    // return <Prism language="sql">{sql || '# no sql available'}</Prism>;
 };
 
 export default MetricFlowSqlCode;

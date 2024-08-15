@@ -1,5 +1,5 @@
 import { Box, Flex, Text, type FlexProps } from '@mantine/core';
-import { Prism } from '@mantine/prism';
+// import { Prism } from '@mantine/prism';
 import * as Sentry from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
@@ -33,7 +33,7 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                     You can contact support with the following
                                     error ID
                                 </Text>
-                                <Prism
+                                {/* <Prism
                                     language="javascript"
                                     ta="left"
                                     maw="400"
@@ -44,7 +44,7 @@ export const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
                                             ? error.toString()
                                             : ''
                                     }`}
-                                </Prism>
+                                </Prism> */}
                             </Box>
                         }
                     />

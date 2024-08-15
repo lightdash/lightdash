@@ -2,7 +2,6 @@ import { assertUnreachable, ProjectType } from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
-    Header,
     MantineProvider,
     type MantineTheme,
 } from '@mantine/core';
@@ -94,8 +93,8 @@ const NavBar = memo(() => {
             {isCurrentProjectPreview && <PreviewBanner />}
             {/* hack to make navbar fixed and maintain space */}
             <Box h={!isFullscreen ? headerContainerHeight : 0} />
-            <Header
-                height={NAVBAR_HEIGHT}
+            <Box
+                h={NAVBAR_HEIGHT}
                 fixed
                 mt={isCurrentProjectPreview ? BANNER_HEIGHT : 0}
                 display={isFullscreen ? 'none' : 'flex'}
@@ -104,7 +103,7 @@ const NavBar = memo(() => {
                 styles={(theme) => ({ root: getHeaderStyles(theme) })}
             >
                 {renderNavBarContent()}
-            </Header>
+            </Box>
         </MantineProvider>
     );
 });

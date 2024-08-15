@@ -52,7 +52,6 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
@@ -785,46 +784,7 @@ const SchedulerForm: FC<Props> = ({
                                         shadow="md"
                                     >
                                         <HoverCard.Target>
-                                            <Box w="100%">
-                                                <TagInput
-                                                    clearable
-                                                    error={
-                                                        emailValidationError ||
-                                                        null
-                                                    }
-                                                    placeholder="Enter email addresses"
-                                                    disabled={
-                                                        isAddEmailDisabled
-                                                    }
-                                                    value={
-                                                        form.values.emailTargets
-                                                    }
-                                                    allowDuplicates={false}
-                                                    splitChars={[',', ' ']}
-                                                    validationFunction={
-                                                        validateEmail
-                                                    }
-                                                    onBlur={() =>
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        )
-                                                    }
-                                                    onValidationReject={(val) =>
-                                                        setEmailValidationError(
-                                                            `'${val}' doesn't appear to be an email address`,
-                                                        )
-                                                    }
-                                                    onChange={(val) => {
-                                                        setEmailValidationError(
-                                                            undefined,
-                                                        );
-                                                        form.setFieldValue(
-                                                            'emailTargets',
-                                                            val,
-                                                        );
-                                                    }}
-                                                />
-                                            </Box>
+                                            <Box w="100%"></Box>
                                         </HoverCard.Target>
                                         <HoverCard.Dropdown>
                                             <>
