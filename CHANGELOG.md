@@ -1,3 +1,15 @@
+# [0.1220.0](https://github.com/lightdash/lightdash/compare/0.1219.0...0.1220.0) (2024-08-15)
+
+
+### Bug Fixes
+
+* apply limit to sql query ([3f3b7fa](https://github.com/lightdash/lightdash/commit/3f3b7fa6f1350bbcf79e006ffe73522ce22cb2ee))
+
+
+### Features
+
+* semantic viewer field granularity selector ([#11155](https://github.com/lightdash/lightdash/issues/11155)) ([4fc526c](https://github.com/lightdash/lightdash/commit/4fc526cdec27f9da1660cab10c2b3fe10e336707))
+
 # [0.1219.0](https://github.com/lightdash/lightdash/compare/0.1218.1...0.1219.0) (2024-08-15)
 
 
