@@ -252,6 +252,7 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
 export const sortMonthName = (
     dimension: CompiledDimension,
     fieldQuoteChar: string,
+    descending: Boolean,
 ) => {
     const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
 
@@ -271,12 +272,13 @@ export const sortMonthName = (
             WHEN ${fieldId} = 'December' THEN 12
             ELSE 0
         END
-        )`;
+        )${descending ? ' DESC' : ''}`;
 };
 export const sortDayOfWeekName = (
     dimension: CompiledDimension,
     startOfWeek: WeekDay | null | undefined,
     fieldQuoteChar: string,
+    descending: Boolean,
 ) => {
     const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
@@ -294,7 +296,7 @@ export const sortDayOfWeekName = (
             WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
-    )`;
+    )${descending ? ' DESC' : ''}`;
 };
 
 export const applyLimitToSqlQuery = ({
@@ -949,6 +951,7 @@ export const buildQuery = ({
             return sortMonthName(
                 sortedDimension,
                 getFieldQuoteChar(warehouseClient.credentials.type),
+                sort.descending,
             );
         }
         if (
@@ -963,6 +966,7 @@ export const buildQuery = ({
                 sortedDimension,
                 startOfWeek,
                 getFieldQuoteChar(warehouseClient.credentials.type),
+                sort.descending,
             );
         }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
