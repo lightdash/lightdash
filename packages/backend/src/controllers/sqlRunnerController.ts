@@ -11,6 +11,7 @@ import {
     CreateSqlChart,
     SqlRunnerBody,
     UpdateSqlChart,
+    WarehouseCatalog,
 } from '@lightdash/common';
 import {
     Body,
@@ -326,6 +327,33 @@ export class SqlRunnerController extends BaseController {
         await this.services
             .getSavedSqlService()
             .deleteSqlChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Refresh the catalog cache
+     * @param uuid the uuid for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('refresh-catalog')
+    @OperationId('refreshSqlRunnerCatalog')
+    async refreshSqlRunnerCatalog(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .populateWarehouseTablesCache(req.user!, projectUuid);
         return {
             status: 'ok',
             results: undefined,
