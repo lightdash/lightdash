@@ -95,10 +95,7 @@ const getYAxisFields = createSelector(
 
 const getGroupByField = createSelector(
     [selectCurrentCartesianChartState],
-    (chartConfig) => {
-        console.warn('group by not used', chartConfig);
-        return []; //chartConfig?.config?.fieldConfig?.pivots?.[0],
-    },
+    (chartConfig) => chartConfig?.config?.fieldConfig?.groupBy?.[0],
 );
 
 const getGroupByLayoutOptions = createSelector(

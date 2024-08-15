@@ -308,7 +308,6 @@ export class SqlRunnerResultsTransformer
         config: SqlCartesianChartLayout,
     ): Promise<PivotChartData> {
         const groupByColumns = [config.x.reference];
-
         const pivotsSql =
             config.groupBy === undefined
                 ? []
