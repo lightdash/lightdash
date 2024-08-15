@@ -1,3 +1,10 @@
+## [0.1221.2](https://github.com/lightdash/lightdash/compare/0.1221.1...0.1221.2) (2024-08-15)
+
+
+### Bug Fixes
+
+* okta state mismatch ([#11164](https://github.com/lightdash/lightdash/issues/11164)) ([741d182](https://github.com/lightdash/lightdash/commit/741d18252282528cfd21fc902d9605b2ab01eacb))
+
 ## [0.1221.1](https://github.com/lightdash/lightdash/compare/0.1221.0...0.1221.1) (2024-08-15)
 
 
