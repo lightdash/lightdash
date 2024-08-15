@@ -1,3 +1,10 @@
+# [0.1219.0](https://github.com/lightdash/lightdash/compare/0.1218.1...0.1219.0) (2024-08-15)
+
+
+### Features
+
+* allow formatting by percentage ([#11152](https://github.com/lightdash/lightdash/issues/11152)) ([79586af](https://github.com/lightdash/lightdash/commit/79586afab4fffc37db879e31dfb05d705884fbef))
+
 ## [0.1218.1](https://github.com/lightdash/lightdash/compare/0.1218.0...0.1218.1) (2024-08-15)
 
 
