@@ -1,3 +1,10 @@
+## [0.1221.1](https://github.com/lightdash/lightdash/compare/0.1221.0...0.1221.1) (2024-08-15)
+
+
+### Bug Fixes
+
+* chart queries to get last version ([#11150](https://github.com/lightdash/lightdash/issues/11150)) ([39410f2](https://github.com/lightdash/lightdash/commit/39410f2e0a8b9263f4a61aacb8d51e36f624634d))
+
 # [0.1221.0](https://github.com/lightdash/lightdash/compare/0.1220.0...0.1221.0) (2024-08-15)
 
 
