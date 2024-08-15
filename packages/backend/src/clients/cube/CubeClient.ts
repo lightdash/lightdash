@@ -167,7 +167,7 @@ export default class CubeClient implements SemanticLayerClient {
             // keep track of the previous limit so that we can stop when result count is less than it
             prevPartialResultsLimit = partialResultsLimit;
 
-            // decrease the limit if we are close to the query limit
+            // decrease the limit if we are close to the query limit so we don't exceed it
             partialResultsLimit = Math.min(
                 partialResultsLimit,
                 queryLimit - offset,
