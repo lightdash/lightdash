@@ -365,7 +365,7 @@ export class PostgresClient<
     async getAllTables() {
         const databaseName = this.config.database;
         const whereSql = databaseName ? `AND table_catalog = $1` : '';
-        const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog', 'public', 'graphile_worker')`;
+        const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
