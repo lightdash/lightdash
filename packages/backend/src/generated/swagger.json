@@ -8676,17 +8676,86 @@
                 ],
                 "type": "object"
             },
-            "SemanticLayerTimeDimension": {
+            "Pick_SemanticLayerField.name_": {
                 "properties": {
-                    "granularity": {
-                        "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
-                    },
                     "name": {
                         "type": "string"
                     }
                 },
                 "required": ["name"],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SemanticLayerTimeDimension.name-or-granularity_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "granularity": {
+                        "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_": {
+                "properties": {
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
+                        },
+                        "type": "array"
+                    },
+                    "timeDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dimensions", "timeDimensions", "metrics"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SemanticLayerField.name-or-kind_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
             },
             "SemanticLayerQuery": {
                 "properties": {
@@ -8698,26 +8767,37 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerSortBy"
+                        },
+                        "type": "array"
+                    },
                     "metrics": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
                         "type": "array"
                     },
                     "timeDimensions": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerTimeDimension"
+                            "$ref": "#/components/schemas/Pick_SemanticLayerTimeDimension.name-or-granularity_"
                         },
                         "type": "array"
                     },
                     "dimensions": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/Pick_SemanticLayerField.name_"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["metrics", "timeDimensions", "dimensions"],
+                "required": [
+                    "sortBy",
+                    "metrics",
+                    "timeDimensions",
+                    "dimensions"
+                ],
                 "type": "object"
             },
             "ValidationTarget": {
@@ -8961,7 +9041,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1212.1",
+        "version": "0.1215.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

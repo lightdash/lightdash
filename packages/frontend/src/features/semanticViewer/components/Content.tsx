@@ -1,4 +1,4 @@
-import { Box } from '@mantine/core';
+import { Flex } from '@mantine/core';
 import { type FC } from 'react';
 import { useAppSelector } from '../store/hooks';
 import ResultsViewer from './ResultsViewer';
@@ -24,9 +24,9 @@ const Content: FC = () => {
     }
 
     return (
-        <Box w="100%" maw="100%">
+        <Flex direction="column" w="100%" maw="100%" h="100%" mah="100%">
             <ResultsViewer />
-        </Box>
+        </Flex>
     );
 };
 

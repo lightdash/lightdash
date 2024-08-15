@@ -39,8 +39,39 @@ export const CartesianChartStyling = ({
         dispatch(actions.setYAxisPosition({ index: 0, position }));
     }, DEBOUNCE_TIME);
 
+    const onStackedChange = debounce((isStacked: boolean) => {
+        dispatch(actions.setStacked(isStacked));
+    }, DEBOUNCE_TIME);
+
     return (
         <Stack spacing="xs">
+            <Config>
+                <Config.Group>
+                    <Config.Label>{`Stacking`}</Config.Label>
+                    <SegmentedControl
+                        radius="md"
+                        disabled={!currentConfig?.config?.fieldConfig?.groupBy}
+                        data={[
+                            {
+                                value: 'None',
+                                label: 'None',
+                            },
+                            {
+                                value: 'Stacked',
+                                label: 'Stacked',
+                            },
+                        ]}
+                        defaultValue={
+                            currentConfig?.config?.display?.stack
+                                ? 'Stacked'
+                                : 'None'
+                        }
+                        onChange={(value) =>
+                            onStackedChange(value === 'Stacked')
+                        }
+                    />
+                </Config.Group>
+            </Config>
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis label`}</Config.Heading>

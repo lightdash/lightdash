@@ -10,6 +10,7 @@ const SqlViewer: FC = () => {
         selectedDimensions,
         selectedTimeDimensions,
         selectedMetrics,
+        sortBy,
     } = useAppSelector((state) => state.semanticViewer);
 
     const sql = useSemanticLayerSql(
@@ -19,6 +20,7 @@ const SqlViewer: FC = () => {
                 dimensions: selectedDimensions,
                 metrics: selectedMetrics,
                 timeDimensions: selectedTimeDimensions,
+                sortBy,
             },
         },
         {
@@ -31,10 +33,10 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative" sx={{height: '300px'}}>
+        <Box pos="relative" h="100%">
             <LoadingOverlay
                 visible={sql.isFetching}
-                overlayBlur={2}
+                opacity={1}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 

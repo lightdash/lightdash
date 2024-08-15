@@ -28,6 +28,12 @@ export enum SemanticLayerTimeGranularity {
     YEAR = 'YEAR',
 }
 
+export enum SemanticLayerSortByDirection {
+    ASC = 'ASC',
+    DESC = 'DESC',
+}
+
+// TODO: should we separate metric and dimension fields?
 export type SemanticLayerField = {
     name: string;
     label: string;
@@ -39,15 +45,19 @@ export type SemanticLayerField = {
     availableGranularities: SemanticLayerTimeGranularity[];
 };
 
-export type SemanticLayerTimeDimension = {
-    name: string;
+export type SemanticLayerTimeDimension = SemanticLayerField & {
     granularity?: SemanticLayerTimeGranularity;
 };
 
+export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
+    direction: SemanticLayerSortByDirection;
+};
+
 export type SemanticLayerQuery = {
-    dimensions: string[];
-    timeDimensions: SemanticLayerTimeDimension[];
-    metrics: string[];
+    dimensions: Pick<SemanticLayerField, 'name'>[];
+    timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
+    metrics: Pick<SemanticLayerField, 'name'>[];
+    sortBy: SemanticLayerSortBy[];
     offset?: number;
     limit?: number;
 };
@@ -75,17 +85,14 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
-export type SemanticLayerSelectedFields = {
-    dimensions: string[];
-    timeDimensions: string[];
-    metrics: string[];
-};
-
 export interface SemanticLayerClient {
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
         viewName: string,
-        selectedFields: SemanticLayerSelectedFields,
+        selectedFields: Pick<
+            SemanticLayerQuery,
+            'dimensions' | 'timeDimensions' | 'metrics'
+        >,
     ) => Promise<SemanticLayerField[]>;
     streamResults: (
         projectUuid: string,

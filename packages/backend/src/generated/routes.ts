@@ -7765,14 +7765,94 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerTimeDimension: {
+    'Pick_SemanticLayerField.name_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { name: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerTimeDimension.name-or-granularity_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                granularity: { ref: 'SemanticLayerTimeGranularity' },
                 name: { dataType: 'string', required: true },
+                granularity: { ref: 'SemanticLayerTimeGranularity' },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dimensions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
+                    required: true,
+                },
+                timeDimensions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerTimeDimension.name-or-granularity_',
+                    },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerField.name-or-kind_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                kind: { ref: 'FieldType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSortByDirection: {
+        dataType: 'refEnum',
+        enums: ['ASC', 'DESC'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_SemanticLayerField.name-or-kind_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        direction: {
+                            ref: 'SemanticLayerSortByDirection',
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -7784,22 +7864,33 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 limit: { dataType: 'double' },
                 offset: { dataType: 'double' },
+                sortBy: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SemanticLayerSortBy' },
+                    required: true,
+                },
                 metrics: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
                     required: true,
                 },
                 timeDimensions: {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'SemanticLayerTimeDimension',
+                        ref: 'Pick_SemanticLayerTimeDimension.name-or-granularity_',
                     },
                     required: true,
                 },
                 dimensions: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Pick_SemanticLayerField.name_',
+                    },
                     required: true,
                 },
             },
@@ -16008,14 +16099,14 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/views/:view/fields',
+    app.post(
+        '/api/v2/projects/:projectUuid/semantic-layer/views/:view/query-fields',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getFields,
+            SemanticLayerController.prototype.querySemanticLayerFields,
         ),
 
-        async function SemanticLayerController_getFields(
+        async function SemanticLayerController_querySemanticLayerFields(
             request: any,
             response: any,
             next: any,
@@ -16039,26 +16130,11 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                dimensions: {
-                    default: [],
-                    in: 'query',
-                    name: 'dimensions',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                timeDimensions: {
-                    default: [],
-                    in: 'query',
-                    name: 'timeDimensions',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                },
-                metrics: {
-                    default: [],
-                    in: 'query',
-                    name: 'metrics',
-                    dataType: 'array',
-                    array: { dataType: 'string' },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'Pick_SemanticLayerQuery.dimensions-or-timeDimensions-or-metrics_',
                 },
             };
 
@@ -16081,7 +16157,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.getFields.apply(
+                const promise = controller.querySemanticLayerFields.apply(
                     controller,
                     validatedArgs as any,
                 );

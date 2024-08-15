@@ -423,6 +423,8 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
@@ -581,6 +583,8 @@ export class ServiceRepository
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
                 }),
         );
     }

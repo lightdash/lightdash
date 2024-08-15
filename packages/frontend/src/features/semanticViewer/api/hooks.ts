@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import {
-    apiGetSemanticLayerViewFields,
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
+    apiPostSemanticLayerViewFields,
 } from './requests';
 
 type useGetSemanticLayerViewsParams = {
@@ -32,32 +32,25 @@ type SemanticLayerViewFieldsParams = {
     >;
 };
 
-export const useSemanticLayerViewFields = ({
-    projectUuid,
-    view,
-    selectedFields,
-}: SemanticLayerViewFieldsParams) => {
-    const selectedFieldsWithTimeDimensionNames = {
-        ...selectedFields,
-        timeDimensions: selectedFields.timeDimensions.map(
-            (timeDimension) => timeDimension.name,
-        ),
-    };
-
+export const useSemanticLayerViewFields = (
+    { projectUuid, view, selectedFields }: SemanticLayerViewFieldsParams,
+    useQueryParams?: UseQueryOptions<SemanticLayerField[], ApiError>,
+) => {
     return useQuery<SemanticLayerField[], ApiError>({
         queryKey: [
             projectUuid,
             'semanticLayer',
             view,
             'fields',
-            selectedFieldsWithTimeDimensionNames,
+            JSON.stringify(selectedFields),
         ],
         queryFn: () =>
-            apiGetSemanticLayerViewFields({
+            apiPostSemanticLayerViewFields({
                 projectUuid,
                 view,
-                selectedFields: selectedFieldsWithTimeDimensionNames,
+                selectedFields,
             }),
+        ...useQueryParams,
     });
 };
 

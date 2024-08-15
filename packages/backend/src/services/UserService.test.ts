@@ -15,6 +15,7 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -84,6 +85,7 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
     });
 
 jest.spyOn(analyticsMock, 'track');

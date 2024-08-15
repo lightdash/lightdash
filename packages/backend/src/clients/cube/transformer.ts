@@ -1,21 +1,26 @@
 import {
     Cube,
     Query as CubeQuery,
+    QueryOrder,
     ResultSet,
     SqlQuery,
     TCubeDimension,
     TCubeMeasure,
     TCubeMemberType,
     TimeDimensionGranularity,
+    TQueryOrderArray,
 } from '@cubejs-client/core';
 import {
     assertUnreachable,
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerSortBy,
+    SemanticLayerSortByDirection,
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
 } from '@lightdash/common';
+import { Query } from '@tsoa/runtime';
 
 function getSemanticLayerTypeFromCubeType(
     cubeType: TCubeMemberType,
@@ -65,7 +70,7 @@ const getSemanticLayerTimeGranularity = (
     }
 };
 
-const getCubeTimeDimensionGranularity = (
+export const getCubeTimeDimensionGranularity = (
     semanticGranularity: SemanticLayerTimeGranularity,
 ): TimeDimensionGranularity => {
     switch (semanticGranularity) {
@@ -98,6 +103,22 @@ const getCubeTimeDimensionGranularity = (
             );
     }
 };
+
+function getCubeQueryOrder(
+    direction: SemanticLayerSortByDirection,
+): QueryOrder {
+    switch (direction) {
+        case SemanticLayerSortByDirection.ASC:
+            return 'asc';
+        case SemanticLayerSortByDirection.DESC:
+            return 'desc';
+        default:
+            return assertUnreachable(
+                direction,
+                `Unknown order direction: ${direction}`,
+            );
+    }
+}
 
 const allAvailableGranularities = [
     'second',
@@ -178,9 +199,9 @@ export const cubeTransfomers: SemanticLayerTransformer<
             visible: Boolean(view.public),
         })),
     semanticLayerQueryToQuery: (query) => ({
-        measures: query.metrics,
+        measures: query.metrics.map((m) => m.name),
         dimensions: [
-            ...query.dimensions,
+            ...query.dimensions.map((d) => d.name),
             ...query.timeDimensions.map((td) => td.name),
         ],
         timeDimensions: query.timeDimensions.map((td) => ({
@@ -189,6 +210,10 @@ export const cubeTransfomers: SemanticLayerTransformer<
                 td.granularity &&
                 getCubeTimeDimensionGranularity(td.granularity),
         })),
+        order: query.sortBy.map((sort): TQueryOrderArray[number] => [
+            sort.name,
+            getCubeQueryOrder(sort.direction),
+        ]),
         filters: [],
         offset: query.offset,
         limit: query.limit || 100,

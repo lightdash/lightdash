@@ -96,6 +96,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTables,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -133,6 +134,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
     applyLimitToSqlQuery,
@@ -178,6 +180,7 @@ type ProjectServiceArguments = {
     dashboardModel: DashboardModel;
     emailModel: EmailModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     s3Client: S3Client;
@@ -214,6 +217,8 @@ export class ProjectService extends BaseService {
 
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
     emailModel: EmailModel;
 
     schedulerClient: SchedulerClient;
@@ -237,6 +242,7 @@ export class ProjectService extends BaseService {
         analyticsModel,
         dashboardModel,
         userWarehouseCredentialsModel,
+        warehouseAvailableTablesModel,
         emailModel,
         schedulerClient,
         downloadFileModel,
@@ -258,6 +264,7 @@ export class ProjectService extends BaseService {
         this.analyticsModel = analyticsModel;
         this.dashboardModel = dashboardModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.emailModel = emailModel;
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
@@ -293,6 +300,7 @@ export class ProjectService extends BaseService {
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
             );
+        let userWarehouseCredentialsUuid: string | undefined;
         if (credentials.requireUserCredentials) {
             const userWarehouseCredentials =
                 await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
@@ -316,8 +324,12 @@ export class ProjectService extends BaseService {
                     'User warehouse credentials are not compatible',
                 );
             }
+            userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
         }
-        return credentials;
+        return {
+            ...credentials,
+            userWarehouseCredentialsUuid,
+        };
     }
 
     private async _getWarehouseClient(
@@ -2770,6 +2782,57 @@ export class ProjectService extends BaseService {
         }
     }
 
+    // TODO: set up an API call to hit this
+    async populateWarehouseTablesCache(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<WarehouseCatalog> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const credentials = await this.getWarehouseCredentials(
+            projectUuid,
+            user.userUuid,
+        );
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            credentials,
+        );
+
+        const schema = ProjectService.getWarehouseSchema(credentials);
+
+        const warehouseTables = await warehouseClient.getAllTables(schema);
+
+        const catalog =
+            WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
+
+        if (credentials.userWarehouseCredentialsUuid) {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                credentials.userWarehouseCredentialsUuid,
+                warehouseTables,
+            );
+        } else {
+            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                projectUuid,
+                warehouseTables,
+            );
+        }
+
+        await sshTunnel.disconnect();
+
+        return catalog;
+    }
+
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
@@ -2790,6 +2853,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             user.userUuid,
         );
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,
@@ -2797,16 +2861,35 @@ export class ProjectService extends BaseService {
 
         const schema = ProjectService.getWarehouseSchema(credentials);
 
-        const queryTags: RunQueryTags = {
-            organization_uuid: user.organizationUuid,
-            project_uuid: projectUuid,
-            user_uuid: user.userUuid,
-        };
-        const warehouseTables = warehouseClient.getTables(schema, queryTags);
+        let catalog: WarehouseCatalog | null = null;
+        // Check the cache for catalog
+        if (credentials.userWarehouseCredentialsUuid) {
+            catalog =
+                await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+                    credentials.userWarehouseCredentialsUuid,
+                );
+        } else {
+            catalog =
+                await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+                    projectUuid,
+                );
+        }
+
+        // If there was no cached catalog, generate it
+        if (!catalog || Object.keys(catalog).length === 0) {
+            catalog = await this.populateWarehouseTablesCache(
+                user,
+                projectUuid,
+            );
+        }
 
         await sshTunnel.disconnect();
 
-        return warehouseTables;
+        if (!catalog) {
+            throw new NotFoundError('Warehouse tables not found');
+        }
+
+        return catalog;
     }
 
     async getWarehouseFields(
@@ -3859,7 +3942,6 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );

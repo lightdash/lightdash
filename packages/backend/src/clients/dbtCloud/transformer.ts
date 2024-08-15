@@ -11,6 +11,7 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
     SemanticLayerView,
@@ -35,7 +36,7 @@ function getSemanticLayerTypeFromDbtType(
     }
 }
 
-const getSemanticLayerTimeGranularityFromDbtTimeGranularity = (
+const getSemanticLayerTimeGranularity = (
     granularity: DbtTimeGranularity,
 ): SemanticLayerTimeGranularity => {
     switch (granularity) {
@@ -69,6 +70,38 @@ const getSemanticLayerTimeGranularityFromDbtTimeGranularity = (
     }
 };
 
+const getDbtTimeGranularity = (granularity: SemanticLayerTimeGranularity) => {
+    switch (granularity) {
+        case SemanticLayerTimeGranularity.NANOSECOND:
+            return DbtTimeGranularity.NANOSECOND;
+        case SemanticLayerTimeGranularity.MICROSECOND:
+            return DbtTimeGranularity.MICROSECOND;
+        case SemanticLayerTimeGranularity.MILLISECOND:
+            return DbtTimeGranularity.MILLISECOND;
+        case SemanticLayerTimeGranularity.SECOND:
+            return DbtTimeGranularity.SECOND;
+        case SemanticLayerTimeGranularity.MINUTE:
+            return DbtTimeGranularity.MINUTE;
+        case SemanticLayerTimeGranularity.HOUR:
+            return DbtTimeGranularity.HOUR;
+        case SemanticLayerTimeGranularity.DAY:
+            return DbtTimeGranularity.DAY;
+        case SemanticLayerTimeGranularity.WEEK:
+            return DbtTimeGranularity.WEEK;
+        case SemanticLayerTimeGranularity.MONTH:
+            return DbtTimeGranularity.MONTH;
+        case SemanticLayerTimeGranularity.QUARTER:
+            return DbtTimeGranularity.QUARTER;
+        case SemanticLayerTimeGranularity.YEAR:
+            return DbtTimeGranularity.YEAR;
+        default:
+            return assertUnreachable(
+                granularity,
+                `Unknown semantic layer time granularity: ${granularity}`,
+            );
+    }
+};
+
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
     DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs,
@@ -87,7 +120,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                 visible: dimension.visible,
                 kind: FieldKind.DIMENSION,
                 availableGranularities: dimension.queryableGranularities.map(
-                    getSemanticLayerTimeGranularityFromDbtTimeGranularity,
+                    getSemanticLayerTimeGranularity,
                 ),
             }),
         );
@@ -108,13 +141,43 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query) => {
         const { metrics, dimensions, timeDimensions } = query;
         return {
-            metrics: metrics.map((metric) => ({ name: metric })),
+            metrics,
             groupBy: [
-                ...dimensions.map((dimension) => ({ name: dimension })),
-                ...timeDimensions,
+                ...dimensions,
+                ...timeDimensions.map((td) => ({
+                    name: td.name,
+                    grain:
+                        td.granularity && getDbtTimeGranularity(td.granularity),
+                })),
             ],
             where: [],
-            orderBy: [],
+            orderBy: query.sortBy.map((sort) => {
+                const { name, kind, direction } = sort;
+                const descending =
+                    direction === SemanticLayerSortByDirection.DESC;
+
+                switch (kind) {
+                    case FieldKind.DIMENSION:
+                        return {
+                            descending,
+                            groupBy: {
+                                name,
+                            },
+                        };
+                    case FieldKind.METRIC:
+                        return {
+                            descending,
+                            metric: {
+                                name,
+                            },
+                        };
+                    default:
+                        return assertUnreachable(
+                            kind,
+                            `Unknown field kind: ${kind}`,
+                        );
+                }
+            }),
             limit: 100, // Let this be 100 for now
         };
     },

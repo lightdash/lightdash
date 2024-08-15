@@ -19,9 +19,16 @@ describe.skip('Lightdash semantic layer', () => {
         });
     });
     it('Should get all fields from semantic-layer', () => {
-        cy.request(
-            `${apiUrl}/projects/${projectUuid}/semantic-layer/views/${views[0].name}/fields`,
-        ).then((resp) => {
+        cy.request({
+            url: `${apiUrl}/projects/${projectUuid}/semantic-layer/views/${views[0].name}/query-fields`,
+            headers: { 'Content-type': 'application/json' },
+            method: 'POST',
+            body: JSON.stringify({
+                dimensions: [],
+                metrics: [],
+                timeDimensions: [],
+            }),
+        }).then((resp) => {
             expect(resp.status).to.eq(200);
             // TODO check response, it will depend on the client
         });

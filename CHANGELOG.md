@@ -1,3 +1,38 @@
+# [0.1217.0](https://github.com/lightdash/lightdash/compare/0.1216.1...0.1217.0) (2024-08-14)
+
+
+### Features
+
+* improved warehouse schemas ([#11099](https://github.com/lightdash/lightdash/issues/11099)) ([9091999](https://github.com/lightdash/lightdash/commit/9091999b929995c8d7f419c2fb7310d65a30dc70))
+
+## [0.1216.1](https://github.com/lightdash/lightdash/compare/0.1216.0...0.1216.1) (2024-08-14)
+
+
+### Bug Fixes
+
+* pass granularity as null to graphql query ([#11151](https://github.com/lightdash/lightdash/issues/11151)) ([f137b51](https://github.com/lightdash/lightdash/commit/f137b512811a54d36868055b49eacc1254a7f341))
+
+# [0.1216.0](https://github.com/lightdash/lightdash/compare/0.1215.0...0.1216.0) (2024-08-14)
+
+
+### Features
+
+* semantic viewer layout and UI ([#11136](https://github.com/lightdash/lightdash/issues/11136)) ([5027984](https://github.com/lightdash/lightdash/commit/5027984cbee754f7ebec2857cb1d286ec59da8d2))
+
+# [0.1215.0](https://github.com/lightdash/lightdash/compare/0.1214.0...0.1215.0) (2024-08-14)
+
+
+### Features
+
+* semantic layer sorting backend ([#11143](https://github.com/lightdash/lightdash/issues/11143)) ([374f619](https://github.com/lightdash/lightdash/commit/374f619d88fb753736aa7ded31d60a79039c76ef))
+
+# [0.1214.0](https://github.com/lightdash/lightdash/compare/0.1213.0...0.1214.0) (2024-08-14)
+
+
+### Features
+
+* allow stacking cartesian charts ([#11131](https://github.com/lightdash/lightdash/issues/11131)) ([4aade07](https://github.com/lightdash/lightdash/commit/4aade070d0da8bde0df4f9213735b1d16f69314b))
+
 # [0.1213.0](https://github.com/lightdash/lightdash/compare/0.1212.2...0.1213.0) (2024-08-13)
 
 

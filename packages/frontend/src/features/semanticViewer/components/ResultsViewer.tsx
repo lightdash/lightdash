@@ -1,4 +1,8 @@
-import { isTableChartSQLConfig, type ResultRow } from '@lightdash/common';
+import {
+    isTableChartSQLConfig,
+    type ResultRow,
+    type SemanticLayerResultRow,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -9,9 +13,10 @@ import {
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticViewerQueryRun } from '../api/streamingResults';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectCurrentChartConfig } from '../store/selectors';
@@ -26,6 +31,26 @@ import SqlRunnerChart from './visualizations/SqlRunnerChart';
 import { Table } from './visualizations/Table';
 
 const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
+
+const mapResultsToTableData = (
+    resultRows: SemanticLayerResultRow[],
+): ResultRow[] => {
+    return resultRows.map((result) => {
+        return Object.entries(result).reduce((acc, entry) => {
+            const [key, resultValue] = entry;
+            return {
+                ...acc,
+                [sanitizeFieldId(key)]: {
+                    value: {
+                        raw: resultValue,
+                        formatted: resultValue?.toString(),
+                    },
+                },
+            };
+        }, {});
+    });
+};
+
 const ResultsViewer: FC = () => {
     const {
         projectUuid,
@@ -35,8 +60,10 @@ const ResultsViewer: FC = () => {
         activeEditorTab,
         results,
         columns,
+        sortBy,
     } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
+    const { showToastError } = useToaster();
 
     const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
     const mantineTheme = useMantineTheme();
@@ -60,47 +87,48 @@ const ResultsViewer: FC = () => {
         (state) => state.pieChartConfig.config,
     );
 
-    const { mutate: runSemanticViewerQuery, isLoading } =
-        useSemanticViewerQueryRun({
-            onSuccess: (data) => {
-                if (data) {
-                    const resultRows: ResultRow[] = data.results.map(
-                        (result) => {
-                            return Object.entries(result).reduce(
-                                (acc, entry) => {
-                                    const [key, resultValue] = entry;
-                                    return {
-                                        ...acc,
-                                        [sanitizeFieldId(key)]: {
-                                            value: {
-                                                raw: resultValue,
-                                                formatted:
-                                                    resultValue?.toString(),
-                                            },
-                                        },
-                                    };
-                                },
-                                {},
-                            );
-                        },
-                    );
-                    const allReferencedColumns = [
-                        ...selectedDimensions,
-                        ...selectedTimeDimensions.map((d) => d.name),
-                        ...selectedMetrics,
-                    ].map(sanitizeFieldId);
-                    const usedColumns = columns.filter((c) =>
-                        allReferencedColumns.includes(c.reference),
-                    );
-                    dispatch(
-                        setResults({
-                            results: resultRows,
-                            columns: usedColumns,
-                        }),
-                    );
-                }
-            },
-        });
+    const {
+        data: resultsData,
+        mutateAsync: runSemanticViewerQuery,
+        isLoading,
+    } = useSemanticViewerQueryRun({
+        select: (data) => {
+            if (!data) return undefined;
+            return mapResultsToTableData(data);
+        },
+        onError: (data) => {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: data.error.message,
+            });
+        },
+    });
+
+    useEffect(() => {
+        if (resultsData) {
+            const allReferencedColumns = [
+                ...selectedDimensions.map((d) => d.name),
+                ...selectedTimeDimensions.map((d) => d.name),
+                ...selectedMetrics.map((d) => d.name),
+            ].map(sanitizeFieldId);
+            const usedColumns = columns.filter((c) =>
+                allReferencedColumns.includes(c.reference),
+            );
+            dispatch(
+                setResults({
+                    results: resultsData,
+                    columns: usedColumns,
+                }),
+            );
+        }
+    }, [
+        resultsData,
+        columns,
+        dispatch,
+        selectedDimensions,
+        selectedTimeDimensions,
+        selectedMetrics,
+    ]);
 
     return (
         <>
@@ -179,6 +207,7 @@ const ResultsViewer: FC = () => {
                                         dimensions: selectedDimensions,
                                         metrics: selectedMetrics,
                                         timeDimensions: selectedTimeDimensions,
+                                        sortBy,
                                     },
                                 })
                             }
@@ -239,7 +268,11 @@ const ResultsViewer: FC = () => {
                                             }
                                         >
                                             <SqlRunnerChart
-                                                data={{ results, columns }}
+                                                data={{
+                                                    results,
+                                                    columns,
+                                                    sortBy: [],
+                                                }}
                                                 config={config}
                                                 isLoading={isLoading}
                                                 style={{
