@@ -1,3 +1,15 @@
+# [0.1221.0](https://github.com/lightdash/lightdash/compare/0.1220.0...0.1221.0) (2024-08-15)
+
+
+### Bug Fixes
+
+* filter out postgres tables ([#11163](https://github.com/lightdash/lightdash/issues/11163)) ([2983fab](https://github.com/lightdash/lightdash/commit/2983fab7d4ed038f6d2ad5d3c0efb4e3735b03fb))
+
+
+### Features
+
+* add catalog refresh button ([#11154](https://github.com/lightdash/lightdash/issues/11154)) ([73a87f8](https://github.com/lightdash/lightdash/commit/73a87f8a03beb19b8bca86b12ffb2d998b2fb55c))
+
 # [0.1220.0](https://github.com/lightdash/lightdash/compare/0.1219.0...0.1220.0) (2024-08-15)
 
 
