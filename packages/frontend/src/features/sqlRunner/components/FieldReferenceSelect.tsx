@@ -4,7 +4,7 @@ import { type FC } from 'react';
 import { TableFieldIcon } from './TableFields';
 
 type Props = SelectProps & {
-    fieldType: DimensionType;
+    fieldType: DimensionType | undefined;
 };
 
 export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
@@ -12,7 +12,7 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
         <Select
             radius="md"
             {...props}
-            icon={<TableFieldIcon fieldType={fieldType} />}
+            icon={fieldType && <TableFieldIcon fieldType={fieldType} />}
             styles={{
                 input: {
                     fontWeight: 500,
