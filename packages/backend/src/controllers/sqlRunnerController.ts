@@ -305,6 +305,35 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Delete sql chart
+     * @param uuid the uuid for the saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('saved/{uuid}')
+    @OperationId('deleteSqlChart')
+    async deleteSqlChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSavedSqlService()
+            .deleteSqlChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Refresh the catalog cache
      * @param uuid the uuid for the saved sql chart
      * @param req express request

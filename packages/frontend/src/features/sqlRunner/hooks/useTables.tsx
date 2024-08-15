@@ -6,7 +6,6 @@ import { lightdashApi } from '../../../api';
 export type GetTablesParams = {
     projectUuid: string;
     search: string | undefined;
-    refresh?: boolean;
 };
 
 const fetchTables = async ({

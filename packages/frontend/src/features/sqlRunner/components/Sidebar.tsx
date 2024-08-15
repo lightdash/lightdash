@@ -8,12 +8,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
-import {
-    useCallback,
-    type Dispatch,
-    type FC,
-    type SetStateAction,
-} from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useRefreshTables } from '../hooks/useTables';
 import { useAppSelector } from '../store/hooks';
@@ -32,14 +27,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const {
-        mutate,
+        mutate: updateTables,
         // TODO: unify this loading with the one in TablesPanel, handle error
         isLoading,
     } = useRefreshTables({ projectUuid });
-
-    const handleRefresh = useCallback(() => {
-        mutate();
-    }, [mutate]);
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
@@ -56,7 +47,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             label="Refresh tables"
                             position="right"
                         >
-                            <ActionIcon size="xs" onClick={handleRefresh}>
+                            <ActionIcon
+                                size="xs"
+                                onClick={() => updateTables()}
+                            >
                                 <MantineIcon icon={IconReload}></MantineIcon>
                             </ActionIcon>
                         </Tooltip>
