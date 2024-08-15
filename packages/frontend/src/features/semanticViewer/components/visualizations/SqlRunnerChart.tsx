@@ -27,8 +27,9 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
             ? 'Some specified columns do not exist in the data'
             : error?.message;
 
-        console.error('error', error);
         if (error) {
+            console.error('error', error);
+
             return (
                 <SuboptimalState
                     title="Error generating chart"

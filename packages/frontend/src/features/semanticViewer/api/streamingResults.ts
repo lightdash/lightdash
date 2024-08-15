@@ -30,7 +30,6 @@ const scheduleSemanticLayerJob = async ({
 export type Results = {
     results: SemanticLayerResultRow[];
 };
-
 /**
  * Gets the SQL query results from the server
  *

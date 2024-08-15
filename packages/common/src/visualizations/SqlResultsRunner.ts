@@ -309,15 +309,6 @@ export class SqlRunnerResultsTransformer
     ): Promise<PivotChartData> {
         const groupByColumns = [config.x.reference];
 
-        if (!config.groupBy)
-            return {
-                results: [],
-                indexColumn: {
-                    reference: groupByColumns[0],
-                    type: config.x.type,
-                },
-                valuesColumns: [],
-            };
         const pivotsSql =
             config.groupBy === undefined
                 ? []

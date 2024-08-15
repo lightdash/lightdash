@@ -20,6 +20,7 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
+
 export interface SemanticViewerState {
     projectUuid: string;
     name: string;
@@ -37,7 +38,7 @@ export interface SemanticViewerState {
     resultsTableConfig: SqlTableConfig | undefined;
     selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
 
-    results: ResultRow[] | undefined;
+    results: ResultsAndColumns | undefined;
     sqlColumns: SqlColumn[] | undefined;
     columns: SemanticLayerField[] | undefined;
 }
@@ -90,10 +91,10 @@ export const semanticViewerSlice = createSlice({
         },
         setResults: (state, action: PayloadAction<ResultsAndColumns>) => {
             if (!action.payload.results || !action.payload.columns) {
+                console.warn('Missing columns on setResults');
                 return;
             }
-            state.results = action.payload.results;
-            state.sqlColumns = action.payload.columns;
+            state.results = action.payload;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;

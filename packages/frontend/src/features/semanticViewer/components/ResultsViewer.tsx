@@ -80,42 +80,47 @@ const ResultsViewer: FC = () => {
         (state) => state.pieChartConfig.config,
     );
 
-    const {
-        mutate: runSemanticViewerQuery,
-        data: queryResults,
-        isLoading,
-    } = useSemanticViewerQueryRun({
-        onSuccess: (data) => {
-            if (data) {
-                const resultRows: ResultRow[] = data.results.map((result) => {
-                    return Object.entries(result).reduce((acc, entry) => {
-                        const [key, resultValue] = entry;
-                        return {
-                            ...acc,
-                            [sanitizeFieldId(key)]: {
-                                value: {
-                                    raw: resultValue,
-                                    formatted: resultValue?.toString(),
+    const { mutate: runSemanticViewerQuery, isLoading } =
+        useSemanticViewerQueryRun({
+            onSuccess: (data) => {
+                if (data) {
+                    const resultRows: ResultRow[] = data.results.map(
+                        (result) => {
+                            return Object.entries(result).reduce(
+                                (acc, entry) => {
+                                    const [key, resultValue] = entry;
+                                    return {
+                                        ...acc,
+                                        [sanitizeFieldId(key)]: {
+                                            value: {
+                                                raw: resultValue,
+                                                formatted:
+                                                    resultValue?.toString(),
+                                            },
+                                        },
+                                    };
                                 },
-                            },
-                        };
-                    }, {});
-                });
-                const columns: SqlColumn[] = [
-                    ...selectedDimensions,
-                    // ...selectedTimeDimensions,
-                    ...selectedMetrics,
-                ].map((field) => ({
-                    reference: sanitizeFieldId(field),
-                    type:
-                        sanitizeFieldId(field) === 'users_count'
-                            ? DimensionType.NUMBER
-                            : DimensionType.STRING,
-                }));
-                dispatch(setResults({ results: resultRows, columns: columns }));
-            }
-        },
-    });
+                                {},
+                            );
+                        },
+                    );
+                    const columns: SqlColumn[] = [
+                        ...selectedDimensions,
+                        // ...selectedTimeDimensions,
+                        ...selectedMetrics,
+                    ].map((field) => ({
+                        reference: sanitizeFieldId(field),
+                        type:
+                            sanitizeFieldId(field) === 'users_count'
+                                ? DimensionType.NUMBER
+                                : DimensionType.STRING,
+                    }));
+                    dispatch(
+                        setResults({ results: resultRows, columns: columns }),
+                    );
+                }
+            },
+        });
     /*
     const config: SqlTableConfig = useMemo(() => {
         const firstRow = results?.[0];
@@ -193,7 +198,7 @@ const ResultsViewer: FC = () => {
                                             <Text>Chart</Text>
                                         </Group>
                                     ),
-                                    disabled: !queryResults?.results,
+                                    disabled: results?.results.length === 0,
                                 },
                                 {
                                     value: 'sql',
@@ -282,7 +287,7 @@ const ResultsViewer: FC = () => {
                     <ConditionalVisibility
                         isVisible={activeEditorTab === EditorTabs.VISUALIZATION}
                     >
-                        {queryResults?.results &&
+                        {results &&
                             currentVisConfig &&
                             [
                                 barChartConfig,
@@ -299,7 +304,7 @@ const ResultsViewer: FC = () => {
                                             }
                                         >
                                             <SqlRunnerChart
-                                                data={queryResults}
+                                                data={results}
                                                 config={config}
                                                 isLoading={isLoading}
                                                 style={{
@@ -326,7 +331,7 @@ const ResultsViewer: FC = () => {
                                 })}
                             >
                                 <Table
-                                    data={results || []}
+                                    data={results.results || []}
                                     config={currentVisConfig}
                                 />
                             </Paper>
