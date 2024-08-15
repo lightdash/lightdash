@@ -2,8 +2,9 @@ import { ChartKind } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
-const selectSemanticViewerRunnerState = (state: RootState): RootState['semanticViewer'] =>
-    state.semanticViewer;
+const selectSemanticViewerRunnerState = (
+    state: RootState,
+): RootState['semanticViewer'] => state.semanticViewer;
 const selectBarChartConfigState = (
     state: RootState,
 ): RootState['barChartConfig'] => state.barChartConfig;
@@ -13,7 +14,7 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
-export const selectTableVisConfigState = (
+const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 

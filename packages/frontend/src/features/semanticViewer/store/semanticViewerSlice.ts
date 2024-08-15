@@ -25,10 +25,6 @@ const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 
 export interface SemanticViewerState {
     projectUuid: string;
-    name: string;
-    description: string;
-    sql: string;
-    limit: number;
 
     view: string | undefined;
     activeEditorTab: EditorTabs;
@@ -50,10 +46,6 @@ const initialState: SemanticViewerState = {
     activeSidebarTab: SidebarTabs.TABLES,
     selectedChartType: ChartKind.TABLE,
     resultsTableConfig: undefined,
-    name: '',
-    description: '',
-    sql: '',
-    limit: 500,
 
     view: undefined,
 
@@ -98,15 +90,7 @@ export const semanticViewerSlice = createSlice({
         ) => {
             state.results = action.payload.results || [];
         },
-        updateName: (state, action: PayloadAction<string>) => {
-            state.name = action.payload;
-        },
-        setSql: (state, action: PayloadAction<string>) => {
-            state.sql = action.payload;
-        },
-        setSqlLimit: (state, action: PayloadAction<number>) => {
-            state.limit = action.payload;
-        },
+
         toggleField: (
             state,
             action: PayloadAction<
@@ -212,9 +196,6 @@ export const {
     setResults,
     setActiveEditorTab,
     setSavedChartData,
-    updateName,
-    setSql,
-    setSqlLimit,
     setSelectedChartType,
     setFields,
 } = semanticViewerSlice.actions;
