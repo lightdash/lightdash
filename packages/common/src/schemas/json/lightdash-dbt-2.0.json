@@ -273,16 +273,16 @@
                                                         },
                                                         "percentile": {
                                                             "type": "number"
-                                                        }
-                                                    },
-                                                    "groups": {
-                                                        "type": "array",
-                                                        "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
-                                                        "items": {
-                                                            "type": "string",
-                                                            "minLength": 1
                                                         },
-                                                        "maxItems": 2
+                                                        "groups": {
+                                                            "type": "array",
+                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                            "items": {
+                                                                "type": "string",
+                                                                "minLength": 1
+                                                            },
+                                                            "maxItems": 2
+                                                        }
                                                     },
                                                     "required": ["type"]
                                                 }
