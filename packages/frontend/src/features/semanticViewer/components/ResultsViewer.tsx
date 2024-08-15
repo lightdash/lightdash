@@ -1,9 +1,4 @@
-import {
-    DimensionType,
-    isTableChartSQLConfig,
-    type ResultRow,
-    type SqlColumn,
-} from '@lightdash/common';
+import { isTableChartSQLConfig, type ResultRow } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -14,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useSemanticViewerQueryRun } from '../api/streamingResults';
@@ -30,8 +25,6 @@ import SqlViewer from './SqlViewer';
 import SqlRunnerChart from './visualizations/SqlRunnerChart';
 import { Table } from './visualizations/Table';
 
-const MIN_RESULTS_HEIGHT = 10;
-
 const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 const ResultsViewer: FC = () => {
     const {
@@ -41,30 +34,17 @@ const ResultsViewer: FC = () => {
         selectedMetrics,
         activeEditorTab,
         results,
+        columns,
     } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
 
-    const {
-        ref: inputSectionRef,
-        width: inputSectionWidth,
-        //  height: inputSectionHeight,
-    } = useElementSize();
-    const { /*ref: wrapperRef, */ height: wrapperHeight } = useElementSize();
-    const [resultsHeight /*, setResultsHeight*/] = useState(MIN_RESULTS_HEIGHT);
-    const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
+    const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
     const mantineTheme = useMantineTheme();
-    const isResultsPanelFullHeight = useMemo(
-        () => resultsHeight === maxResultsHeight,
-        [resultsHeight, maxResultsHeight],
-    );
 
     const selectedChartType = useAppSelector(
         (state) => state.semanticViewer.selectedChartType,
     );
-    // Static results table
-    /*  const resultsTableConfig = useAppSelector(
-        (state) => state.semanticViewer.resultsTableConfig,
-    );*/
+
     // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
         selectCurrentChartConfig(state),
@@ -104,66 +84,23 @@ const ResultsViewer: FC = () => {
                             );
                         },
                     );
-                    const columns: SqlColumn[] = [
+                    const allReferencedColumns = [
                         ...selectedDimensions,
-                        // ...selectedTimeDimensions,
+                        ...selectedTimeDimensions.map((d) => d.name),
                         ...selectedMetrics,
-                    ].map((field) => ({
-                        reference: sanitizeFieldId(field),
-                        type:
-                            sanitizeFieldId(field) === 'users_count'
-                                ? DimensionType.NUMBER
-                                : DimensionType.STRING,
-                    }));
+                    ].map(sanitizeFieldId);
+                    const usedColumns = columns.filter((c) =>
+                        allReferencedColumns.includes(c.reference),
+                    );
                     dispatch(
-                        setResults({ results: resultRows, columns: columns }),
+                        setResults({
+                            results: resultRows,
+                            columns: usedColumns,
+                        }),
                     );
                 }
             },
         });
-    /*
-    const config: SqlTableConfig = useMemo(() => {
-        const firstRow = results?.[0];
-        const columns = Object.keys(firstRow || {}).reduce((acc, key) => {
-            return {
-                ...acc,
-                [sanitizeFieldId(key)]: {
-                    visible: true,
-                    reference: sanitizeFieldId(key),
-                    label: key,
-                    frozen: false,
-                    order: undefined,
-                },
-            };
-        }, {});
-
-        return { columns };
-    }, [results]);
-
-    return (
-        <Box pos="relative">
-            <LoadingOverlay
-                visible={isLoading}
-                overlayBlur={2}
-                loaderProps={{ color: 'gray', size: 'sm' }}
-            />
-            <button
-                onClick={() =>
-                    runSemanticViewerQuery({
-                        projectUuid,
-                        query: {
-                            dimensions: selectedDimensions,
-                            metrics: selectedMetrics,
-                            timeDimensions: selectedTimeDimensions,
-                        },
-                    })
-                }
-            >
-                Run Query{' '}
-            </button>
-            {results && <Table data={results} config={config} />}
-        </Box>
-    );*/
 
     return (
         <>
@@ -174,9 +111,7 @@ const ResultsViewer: FC = () => {
                 py={6}
                 bg="gray.1"
                 sx={(theme) => ({
-                    borderWidth: isResultsPanelFullHeight
-                        ? '0 0 0 1px'
-                        : '0 0 1px 1px',
+                    borderWidth: '0 0 0 1px',
                     borderStyle: 'solid',
                     borderColor: theme.colors.gray[3],
                 })}
@@ -198,7 +133,7 @@ const ResultsViewer: FC = () => {
                                             <Text>Chart</Text>
                                         </Group>
                                     ),
-                                    disabled: results?.results.length === 0,
+                                    disabled: results.length === 0,
                                 },
                                 {
                                     value: 'sql',
@@ -304,7 +239,7 @@ const ResultsViewer: FC = () => {
                                             }
                                         >
                                             <SqlRunnerChart
-                                                data={results}
+                                                data={{ results, columns }}
                                                 config={config}
                                                 isLoading={isLoading}
                                                 style={{
@@ -331,7 +266,7 @@ const ResultsViewer: FC = () => {
                                 })}
                             >
                                 <Table
-                                    data={results.results || []}
+                                    data={results || []}
                                     config={currentVisConfig}
                                 />
                             </Paper>

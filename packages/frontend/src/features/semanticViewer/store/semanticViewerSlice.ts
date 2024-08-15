@@ -2,6 +2,7 @@ import {
     ChartKind,
     FieldType as FieldKind,
     SemanticLayerFieldType,
+    type DimensionType,
     type ResultRow,
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
@@ -20,6 +21,7 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
+const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 
 export interface SemanticViewerState {
     projectUuid: string;
@@ -38,9 +40,8 @@ export interface SemanticViewerState {
     resultsTableConfig: SqlTableConfig | undefined;
     selectedTimeDimensions: Array<SemanticLayerTimeDimension>;
 
-    results: ResultsAndColumns | undefined;
-    sqlColumns: SqlColumn[] | undefined;
-    columns: SemanticLayerField[] | undefined;
+    results: ResultRow[];
+    columns: SqlColumn[];
 }
 
 const initialState: SemanticViewerState = {
@@ -60,9 +61,8 @@ const initialState: SemanticViewerState = {
     selectedMetrics: [],
     selectedTimeDimensions: [],
 
-    results: undefined,
-    columns: undefined,
-    sqlColumns: undefined, //TOdo merge with columns
+    results: [],
+    columns: [],
 };
 
 export type ResultsAndColumns = {
@@ -89,12 +89,14 @@ export const semanticViewerSlice = createSlice({
             state.selectedMetrics = [];
             state.selectedTimeDimensions = [];
         },
-        setResults: (state, action: PayloadAction<ResultsAndColumns>) => {
-            if (!action.payload.results || !action.payload.columns) {
-                console.warn('Missing columns on setResults');
-                return;
-            }
-            state.results = action.payload;
+        setResults: (
+            state,
+            action: PayloadAction<{
+                results: ResultRow[];
+                columns: SqlColumn[];
+            }>,
+        ) => {
+            state.results = action.payload.results || [];
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -190,6 +192,14 @@ export const semanticViewerSlice = createSlice({
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
         },
+        setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
+            const sqlColumns: SqlColumn[] = action.payload.map((field) => ({
+                reference: sanitizeFieldId(field.name),
+                type: field.type as unknown as DimensionType,
+            }));
+
+            state.columns = sqlColumns;
+        },
     },
 });
 
@@ -206,4 +216,5 @@ export const {
     setSql,
     setSqlLimit,
     setSelectedChartType,
+    setFields,
 } = semanticViewerSlice.actions;

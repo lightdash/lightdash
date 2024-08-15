@@ -15,12 +15,12 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { toggleField } from '../store/semanticViewerSlice';
+import { setFields, toggleField } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
 
 const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
@@ -81,6 +81,11 @@ const SidebarViewFields = () => {
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
 
+    useEffect(() => {
+        if (fields.data) {
+            dispatch(setFields(fields.data));
+        }
+    }, [dispatch, fields.data]);
     if (fields.isError) {
         throw fields.error;
     }

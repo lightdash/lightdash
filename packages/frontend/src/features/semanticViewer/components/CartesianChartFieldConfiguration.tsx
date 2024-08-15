@@ -1,5 +1,5 @@
 import {
-    SemanticLayerFieldType,
+    DimensionType,
     type IndexLayoutOptions,
     type PivotLayoutOptions,
     type SqlCartesianChartLayout,
@@ -104,8 +104,8 @@ const YFieldsAxisConfig: FC<{
                             }}
                             fieldType={
                                 sqlColumns?.find(
-                                    (x) => x.name === field.reference,
-                                )?.type ?? SemanticLayerFieldType.STRING
+                                    (x) => x.reference === field.reference,
+                                )?.type ?? DimensionType.STRING
                             }
                         />
 
@@ -167,8 +167,8 @@ const XFieldAxisConfig = ({
                     undefined && `Column "${field.reference}" not in SQL query`
             }
             fieldType={
-                sqlColumns?.find((x) => x.name === field.reference)?.type ??
-                SemanticLayerFieldType.STRING
+                sqlColumns?.find((x) => x.reference === field.reference)
+                    ?.type ?? DimensionType.STRING
             }
         />
     );
@@ -211,8 +211,8 @@ const GroupByFieldAxisConfig = ({
                 }
             }}
             fieldType={
-                sqlColumns?.find((x) => x.name === field?.reference)?.type ??
-                SemanticLayerFieldType.STRING
+                sqlColumns?.find((x) => x.reference === field?.reference)
+                    ?.type ?? DimensionType.STRING
             }
         />
     );

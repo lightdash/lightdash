@@ -1,7 +1,4 @@
-import {
-    type SemanticLayerField,
-    type SemanticLayerFieldType,
-} from '@lightdash/common';
+import { type DimensionType, type SemanticLayerField } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -17,19 +14,42 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconAbc, IconCopy, IconSearch, IconX } from '@tabler/icons-react';
-import { memo, useState, type FC } from 'react';
+import {
+    Icon123,
+    IconAbc,
+    IconCalendar,
+    IconClockHour4,
+    IconCopy,
+    IconQuestionMark,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
+import { memo, useMemo, useState, type FC } from 'react';
+import { getItemIconName } from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 
 export const TableFieldIcon: FC<{
-    fieldType: SemanticLayerFieldType;
+    fieldType: DimensionType;
 }> = memo(({ fieldType }) => {
-    console.warn('warning table field icon field not implemented', fieldType);
+    const Icon = useMemo(() => {
+        switch (getItemIconName(fieldType)) {
+            case 'citation':
+                return IconAbc;
+            case 'numerical':
+                return Icon123;
+            case 'calendar':
+                return IconCalendar;
+            case 'time':
+                return IconClockHour4;
+            default:
+                return IconQuestionMark;
+        }
+    }, [fieldType]);
 
-    return <MantineIcon icon={IconAbc} color="gray.5" />;
+    return <MantineIcon icon={Icon} color="gray.5" />;
 });
 
 const TableField: FC<{
@@ -56,7 +76,9 @@ const TableField: FC<{
                     </CopyButton>
                 </Box>
             ) : (
-                <TableFieldIcon fieldType={field.type} />
+                <TableFieldIcon
+                    fieldType={field.type as unknown as DimensionType}
+                />
             )}
 
             <Tooltip
