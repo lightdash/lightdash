@@ -235,17 +235,20 @@ export const cartesianChartConfigSlice = createSlice({
             { config },
             action: PayloadAction<{ format: string }>,
         ) => {
-            if (!config?.display) return;
+            if (!config) return;
+            config.display = config.display || {};
 
             const validFormat = isFormat(action.payload.format)
                 ? action.payload.format
                 : undefined;
 
             config.display.yAxis = config.display.yAxis || [];
-            config.display.yAxis[0] = {
-                ...config.display.yAxis[0],
-                format: validFormat,
-            };
+
+            if (config.display.yAxis.length === 0) {
+                config.display.yAxis.push({ format: validFormat });
+            } else {
+                config.display.yAxis[0].format = validFormat;
+            }
 
             // Update the format for series with yAxisIndex 0
             if (config.display.series) {
@@ -254,6 +257,13 @@ export const cartesianChartConfigSlice = createSlice({
                         series.format = validFormat;
                     }
                 });
+            } else if (config.fieldConfig?.y[0].reference) {
+                config.display.series = {
+                    [config.fieldConfig?.y[0].reference]: {
+                        format: validFormat,
+                        yAxisIndex: 0,
+                    },
+                };
             }
         },
         setSeriesFormat: (
