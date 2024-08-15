@@ -24,6 +24,8 @@ export default class CubeClient implements SemanticLayerClient {
 
     maxQueryLimit: number;
 
+    maxPartialResultsLimit = 100;
+
     constructor({ lightdashConfig }: CubeArgs) {
         const { token, domain } = lightdashConfig.cube;
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
@@ -137,8 +139,11 @@ export default class CubeClient implements SemanticLayerClient {
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
         const queryLimit = query.limit ?? this.maxQueryLimit;
-        let partialResultsLimit = Math.min(100, queryLimit);
-        let prevLimit = partialResultsLimit;
+        let partialResultsLimit = Math.min(
+            this.maxPartialResultsLimit,
+            queryLimit,
+        );
+        let prevPartialResultsLimit = partialResultsLimit;
         let offset = 0;
         let partialResults: SemanticLayerResultRow[] = [];
 
@@ -156,7 +161,7 @@ export default class CubeClient implements SemanticLayerClient {
             offset += partialResults.length;
 
             // keep track of the previous limit so that we can stop when result count is less than it
-            prevLimit = partialResultsLimit;
+            prevPartialResultsLimit = partialResultsLimit;
 
             // decrease the limit if we are close to the query limit
             partialResultsLimit = Math.min(
@@ -165,7 +170,7 @@ export default class CubeClient implements SemanticLayerClient {
             );
         } while (
             partialResults.length > 0 &&
-            partialResults.length >= prevLimit &&
+            partialResults.length >= prevPartialResultsLimit &&
             offset < queryLimit
         );
 
