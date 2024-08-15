@@ -1,3 +1,10 @@
+## [0.1218.1](https://github.com/lightdash/lightdash/compare/0.1218.0...0.1218.1) (2024-08-15)
+
+
+### Bug Fixes
+
+* move groups property to valid structure ([#11158](https://github.com/lightdash/lightdash/issues/11158)) ([29a891a](https://github.com/lightdash/lightdash/commit/29a891a4b635337e883dfacfbd2eea4ec20fee04))
+
 # [0.1218.0](https://github.com/lightdash/lightdash/compare/0.1217.0...0.1218.0) (2024-08-15)
 
 
