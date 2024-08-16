@@ -1,21 +1,23 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, type SqlColumn } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 import { barChartConfigSlice } from '../store/barChartSlice';
-import { useAppSelector } from '../store/hooks';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
 import { CartesianChartStyling } from './CartesianChartStyling';
 
-export const CartesianChartConfig = () => {
+export const CartesianChartConfig = ({
+    selectedChartType,
+    sqlColumns,
+}: {
+    selectedChartType: ChartKind;
+    sqlColumns: SqlColumn[];
+}) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
     const [isStylingOpen, setIsStylingOpen] = useState(true);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
 
     const actions =
         selectedChartType === ChartKind.LINE
@@ -51,7 +53,11 @@ export const CartesianChartConfig = () => {
             </Group>
 
             {isFieldConfigurationOpen && (
-                <CartesianChartFieldConfiguration actions={actions} />
+                <CartesianChartFieldConfiguration
+                    actions={actions}
+                    sqlColumns={sqlColumns}
+                    selectedChartType={selectedChartType}
+                />
             )}
 
             <Divider my="sm" />
@@ -70,7 +76,12 @@ export const CartesianChartConfig = () => {
                 </ActionIcon>
             </Group>
 
-            {isStylingOpen && <CartesianChartStyling actions={actions} />}
+            {isStylingOpen && (
+                <CartesianChartStyling
+                    actions={actions}
+                    selectedChartType={selectedChartType}
+                />
+            )}
         </Stack>
     );
 };

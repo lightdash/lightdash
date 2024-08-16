@@ -1,26 +1,33 @@
-import { IndexType } from '@lightdash/common';
+import { IndexType, type ChartKind } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import { type CartesianChartActionsType } from '../store';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import MantineIcon from '../../common/MantineIcon';
+import { Config } from '../../VisualizationConfigs/common/Config';
+import {
+    useVizDispatch,
+    useVizSelector,
+    type CartesianChartActionsType,
+} from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
 const DEBOUNCE_TIME = 500;
 
 export const CartesianChartStyling = ({
+    selectedChartType,
     actions,
 }: {
+    selectedChartType: ChartKind;
     actions: CartesianChartActionsType;
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
 
-    const currentConfig = useAppSelector(selectCurrentCartesianChartState);
+    const currentConfig = useVizSelector((state) =>
+        selectCurrentCartesianChartState(state, selectedChartType),
+    );
 
-    const series = useAppSelector((state) => {
+    const series = useVizSelector((state) => {
         if (
             !state.barChartConfig.config?.fieldConfig?.y ||
             state.barChartConfig.config.fieldConfig.y.length <= 1

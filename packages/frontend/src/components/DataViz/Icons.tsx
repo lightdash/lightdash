@@ -7,8 +7,8 @@ import {
     IconQuestionMark,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { getItemIconName } from '../../../components/common/Filters/FieldIcon';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { getItemIconName } from '../common/Filters/FieldIcon';
+import MantineIcon from '../common/MantineIcon';
 
 export const TableFieldIcon: FC<{
     fieldType: DimensionType;

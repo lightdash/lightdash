@@ -6,23 +6,23 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
-import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
-import { type ResultsAndColumns } from '../../hooks/useSqlQueryRun';
-import { useSqlChart } from '../../transformers/useSqlChart';
+import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
+import { type ResultsAndColumns } from '../Results';
+import { useChart } from '../transformers/useChart';
 
-type SqlRunnerChartProps = {
+type ChartViewProps = {
     data: ResultsAndColumns;
     config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
+const ChartView: FC<ChartViewProps> = memo(
     ({ data, config, style, isLoading: isLoadingProp }) => {
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useSqlChart(data.results, data.columns, config);
+        } = useChart(data.results, data.columns, config);
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust
@@ -60,4 +60,4 @@ const SqlRunnerChart: FC<SqlRunnerChartProps> = memo(
     },
 );
 
-export default SqlRunnerChart;
+export default ChartView;

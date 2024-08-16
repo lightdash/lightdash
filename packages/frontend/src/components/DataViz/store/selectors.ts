@@ -2,11 +2,11 @@ import { ChartKind } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
-const selectSqlRunnerState = (state: RootState): RootState['sqlRunner'] =>
-    state.sqlRunner;
 const selectBarChartConfigState = (
     state: RootState,
-): RootState['barChartConfig'] => state.barChartConfig;
+): RootState['barChartConfig'] => {
+    return state.barChartConfig;
+};
 const selectLineChartConfigState = (
     state: RootState,
 ): RootState['lineChartConfig'] => state.lineChartConfig;
@@ -17,7 +17,7 @@ export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
-const selectChartConfigByKind = createSelector(
+export const selectChartConfigByKind = createSelector(
     [
         (state, chartKind) => chartKind,
         selectBarChartConfigState,
@@ -47,22 +47,13 @@ const selectChartConfigByKind = createSelector(
     },
 );
 
-export const selectCurrentChartConfig = createSelector(
-    [selectSqlRunnerState, (state) => state],
-    (sqlRunnerState, state) => {
-        const { selectedChartType } = sqlRunnerState;
-        return selectChartConfigByKind(state, selectedChartType);
-    },
-);
-
 export const selectCurrentCartesianChartState = createSelector(
     [
-        selectSqlRunnerState,
+        (state, chartKind) => chartKind,
         selectBarChartConfigState,
         selectLineChartConfigState,
     ],
-    (sqlRunnerState, barChartConfig, lineChartConfig) => {
-        const { selectedChartType } = sqlRunnerState;
+    (selectedChartType, barChartConfig, lineChartConfig) => {
         if (selectedChartType === ChartKind.VERTICAL_BAR) {
             return barChartConfig;
         } else if (selectedChartType === ChartKind.LINE) {
@@ -73,33 +64,33 @@ export const selectCurrentCartesianChartState = createSelector(
 );
 
 const getIndexLayoutOptions = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.indexLayoutOptions,
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.options?.indexLayoutOptions,
 );
 
 const getValuesLayoutOptions = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.valuesLayoutOptions,
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.options?.valuesLayoutOptions,
 );
 
 const getXAxisField = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.x,
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.config?.fieldConfig?.x,
 );
 
 const getYAxisFields = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.y,
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.config?.fieldConfig?.y,
 );
 
 const getGroupByField = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.config?.fieldConfig?.groupBy?.[0],
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.config?.fieldConfig?.groupBy?.[0],
 );
 
 const getPivotLayoutOptions = createSelector(
-    [selectCurrentCartesianChartState],
-    (chartConfig) => chartConfig?.options?.pivotLayoutOptions,
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.options?.pivotLayoutOptions,
 );
 
 export const cartesianChartSelectors = {

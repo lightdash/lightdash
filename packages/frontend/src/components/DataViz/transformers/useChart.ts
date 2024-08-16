@@ -11,9 +11,9 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { SqlRunnerResultsTransformerFE } from './SqlRunnerResultsTransformerFE';
+import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
 
-export const useSqlChart = (
+export const useChart = (
     rows: ResultRow[],
     columns: SqlColumn[],
     config: CartesianChartSqlConfig | PieChartSqlConfig,

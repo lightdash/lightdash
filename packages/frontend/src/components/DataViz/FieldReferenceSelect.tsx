@@ -1,7 +1,7 @@
 import { type DimensionType } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import { type FC } from 'react';
-import { TableFieldIcon } from './TableFields';
+import { TableFieldIcon } from './Icons';
 
 type Props = SelectProps & {
     fieldType: DimensionType;

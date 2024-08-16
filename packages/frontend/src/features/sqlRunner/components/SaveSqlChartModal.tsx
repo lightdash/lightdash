@@ -24,10 +24,11 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+
 import {
-    selectCurrentChartConfig,
+    selectChartConfigByKind,
     selectTableVisConfigState,
-} from '../store/selectors';
+} from '../../../components/DataViz/store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -71,9 +72,13 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [name, form, description, spaces, isFormPopulated]);
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const { sql, selectedChartType } = useAppSelector(
+        (state) => state.sqlRunner,
+    );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
-    const selectedChartConfig = useAppSelector(selectCurrentChartConfig);
+    const selectedChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
+    );
     const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
     const {

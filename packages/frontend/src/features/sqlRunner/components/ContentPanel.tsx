@@ -24,10 +24,15 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useVizSelector as useChartSelector } from '../../../components/DataViz/store';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
+
+import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -36,8 +41,6 @@ import {
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor } from './SqlEditor';
-import SqlRunnerChart from './visualizations/SqlRunnerChart';
-import { Table } from './visualizations/Table';
 
 const MIN_RESULTS_HEIGHT = 10;
 
@@ -60,36 +63,27 @@ export const ContentPanel: FC = () => {
         [resultsHeight, maxResultsHeight],
     );
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-
-    const limit = useAppSelector((state) => state.sqlRunner.limit);
-
-    const activeEditorTab = useAppSelector(
-        (state) => state.sqlRunner.activeEditorTab,
-    );
-
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-
-    // Static results table
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
-    );
+    const {
+        sql,
+        limit,
+        activeEditorTab,
+        selectedChartType,
+        resultsTableConfig,
+    } = useAppSelector((state) => state.sqlRunner);
 
     // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
-        selectCurrentChartConfig(state),
+        selectChartConfigByKind(state, selectedChartType),
     );
 
     // Select these configs so we can keep the charts mounted
-    const barChartConfig = useAppSelector(
+    const barChartConfig = useChartSelector(
         (state) => state.barChartConfig.config,
     );
-    const lineChartConfig = useAppSelector(
+    const lineChartConfig = useChartSelector(
         (state) => state.lineChartConfig.config,
     );
-    const pieChartConfig = useAppSelector(
+    const pieChartConfig = useChartSelector(
         (state) => state.pieChartConfig.config,
     );
 
@@ -101,7 +95,7 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-
+                dispatch(onResults(data));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -275,7 +269,7 @@ export const ContentPanel: FC = () => {
                                                     config?.type
                                                 }
                                             >
-                                                <SqlRunnerChart
+                                                <ChartView
                                                     data={queryResults}
                                                     config={config}
                                                     isLoading={isLoading}

@@ -23,7 +23,7 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
-const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
+export const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 type SemanticLayerStatePayloadDimension = Pick<
     SemanticLayerField,
     'name' | 'kind' | 'type'
@@ -225,7 +225,6 @@ export const {
     enterView,
     setResults,
     setActiveEditorTab,
-    setSavedChartData,
     setSelectedChartType,
     setFields,
     selectField,

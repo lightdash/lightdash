@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -10,20 +11,19 @@ import {
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useRefreshTables } from '../hooks/useTables';
-import { useAppSelector } from '../store/hooks';
-import { SidebarTabs } from '../store/sqlRunnerSlice';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
 import { TablesPanel } from './TablesPanel';
-import { VisualizationConfigPanel } from './VisualizationConfigPanel';
 
 type Props = {
     setSidebarOpen: Dispatch<SetStateAction<boolean>>;
 };
 
 export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
-    const activeSidebarTab = useAppSelector(
-        (state) => state.sqlRunner.activeSidebarTab,
-    );
+    const dispatch = useAppDispatch();
+
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const {
@@ -32,6 +32,9 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
         isLoading,
     } = useRefreshTables({ projectUuid });
 
+    const { selectedChartType, activeSidebarTab, sqlColumns } = useAppSelector(
+        (state) => state.sqlRunner,
+    );
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart">
@@ -89,7 +92,13 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 }}
             >
                 <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <VisualizationConfigPanel />
+                    <VisualizationConfigPanel
+                        selectedChartType={selectedChartType || ChartKind.TABLE}
+                        setSelectedChartType={(value) =>
+                            dispatch(setSelectedChartType(value))
+                        }
+                        sqlColumns={sqlColumns || []}
+                    />
                 </Stack>
             </ScrollArea>
         </Stack>

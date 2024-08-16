@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Flex,
@@ -10,11 +11,15 @@ import {
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { resetState, SidebarTabs } from '../store/semanticViewerSlice';
+import {
+    resetState,
+    setSelectedChartType,
+    SidebarTabs,
+} from '../store/semanticViewerSlice';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
-import { VisualizationConfigPanel } from './VisualizationConfigPanel';
 
 const Sidebar: FC = () => {
     const { view } = useAppSelector((state) => state.semanticViewer);
@@ -23,8 +28,8 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
-    const activeSidebarTab = useAppSelector(
-        (state) => state.semanticViewer.activeSidebarTab,
+    const { activeSidebarTab, selectedChartType, columns } = useAppSelector(
+        (state) => state.semanticViewer,
     );
 
     return (
@@ -74,7 +79,15 @@ const Sidebar: FC = () => {
                 }}
             >
                 <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <VisualizationConfigPanel />
+                    <VisualizationConfigPanel
+                        selectedChartType={
+                            selectedChartType || ChartKind.VERTICAL_BAR
+                        }
+                        setSelectedChartType={(value) =>
+                            dispatch(setSelectedChartType(value))
+                        }
+                        sqlColumns={columns}
+                    />
                 </Stack>
             </ScrollArea>
         </Stack>

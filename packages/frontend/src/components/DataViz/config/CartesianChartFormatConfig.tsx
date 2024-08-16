@@ -3,7 +3,7 @@ import { Box, Group, Select, Text } from '@mantine/core';
 import { IconClearAll, IconPercentage } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 
 const FormatIcon: FC<{ format: string | undefined }> = ({ format }) => {
     let icon;

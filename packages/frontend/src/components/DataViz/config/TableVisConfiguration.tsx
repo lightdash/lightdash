@@ -1,20 +1,22 @@
+import { type SqlColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { Config } from '../../../components/VisualizationConfigs/common/Config';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import MantineIcon from '../../common/MantineIcon';
+import { Config } from '../../VisualizationConfigs/common/Config';
+import { TableFieldIcon } from '../Icons';
+import { useVizDispatch, useVizSelector } from '../store';
 import {
     updateColumnVisibility,
     updateFieldLabel,
 } from '../store/tableVisSlice';
-import { TableFieldIcon } from './TableFields';
 
-const TableVisConfiguration: FC = ({}) => {
-    const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+const TableVisConfiguration: FC<{ sqlColumns: SqlColumn[] }> = ({
+    sqlColumns,
+}) => {
+    const dispatch = useVizDispatch();
 
-    const tableVisConfig = useAppSelector(
+    const tableVisConfig = useVizSelector(
         (state) => state.tableVisConfig.config,
     );
 

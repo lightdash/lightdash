@@ -20,9 +20,10 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
+import ChartView from '../components/DataViz/visualizations/ChartView';
+import { Table } from '../components/DataViz/visualizations/Table';
 import { Header } from '../features/sqlRunner/components/Header';
-import SqlRunnerChart from '../features/sqlRunner/components/visualizations/SqlRunnerChart';
-import { Table } from '../features/sqlRunner/components/visualizations/Table';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
 import { store } from '../features/sqlRunner/store';
@@ -30,7 +31,6 @@ import {
     useAppDispatch,
     useAppSelector,
 } from '../features/sqlRunner/store/hooks';
-import { selectCurrentChartConfig } from '../features/sqlRunner/store/selectors';
 import {
     resetState,
     setProjectUuid,
@@ -48,13 +48,13 @@ const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+    const { resultsTableConfig, selectedChartType, sql } = useAppSelector(
+        (state) => state.sqlRunner,
     );
+
     const currentVisConfig = useAppSelector((state) =>
-        selectCurrentChartConfig(state),
+        selectChartConfigByKind(state, selectedChartType),
     );
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
     const { error: chartError, data: sqlChart } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
@@ -169,7 +169,7 @@ const ViewSqlChart = () => {
                                     )}
                                     {!isTableChartSQLConfig(currentVisConfig) &&
                                         data && (
-                                            <SqlRunnerChart
+                                            <ChartView
                                                 isLoading={isLoading}
                                                 data={data}
                                                 config={currentVisConfig}

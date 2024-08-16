@@ -6,7 +6,8 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setResults, setSavedChartData } from './semanticViewerSlice';
+import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {
     defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
@@ -43,7 +44,7 @@ export const tableVisSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(setResults, (state, action) => {
+        builder.addCase(onResults, (state, action) => {
             if (action.payload.results && action.payload.columns) {
                 // TODO: this should come from the transformer
                 const columns = Object.keys(action.payload.results[0]).reduce<

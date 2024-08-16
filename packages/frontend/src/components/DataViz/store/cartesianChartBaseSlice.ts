@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { type ResultsAndColumns } from '../Results';
 
 type InitialState = {
     defaultLayout: SqlCartesianChartLayout | undefined;
@@ -295,5 +296,17 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+        onResults: (
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+            state,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+            action: PayloadAction<ResultsAndColumns>,
+        ) => {
+            // This should be called from the sqlRunner or semanticViewer on results
+            // When this is called, this method will update the options and config on the different chat slices
+            // See extraReducers for more details
+        },
     },
 });
+
+export const { onResults } = cartesianChartConfigSlice.actions;

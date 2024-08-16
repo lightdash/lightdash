@@ -1,4 +1,3 @@
-import { type DimensionType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -14,46 +13,16 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import {
-    Icon123,
-    IconAbc,
-    IconCalendar,
-    IconClockHour4,
-    IconCopy,
-    IconQuestionMark,
-    IconSearch,
-    IconX,
-} from '@tabler/icons-react';
-import { memo, useMemo, useState, type FC } from 'react';
-import { getItemIconName } from '../../../components/common/Filters/FieldIcon';
+import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import {
     useTableFields,
     type WarehouseTableField,
 } from '../hooks/useTableFields';
 import { useAppSelector } from '../store/hooks';
-
-export const TableFieldIcon: FC<{
-    fieldType: DimensionType;
-}> = memo(({ fieldType }) => {
-    const Icon = useMemo(() => {
-        switch (getItemIconName(fieldType)) {
-            case 'citation':
-                return IconAbc;
-            case 'numerical':
-                return Icon123;
-            case 'calendar':
-                return IconCalendar;
-            case 'time':
-                return IconClockHour4;
-            default:
-                return IconQuestionMark;
-        }
-    }, [fieldType]);
-
-    return <MantineIcon icon={Icon} color="gray.5" />;
-});
 
 const TableField: FC<{
     activeTable: string;

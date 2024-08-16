@@ -17,10 +17,10 @@ import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
+import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectCurrentChartConfig } from '../../store/selectors';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
@@ -32,10 +32,14 @@ export const HeaderEdit: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const { sql, selectedChartType } = useAppSelector(
+        (state) => state.sqlRunner,
+    );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
-    const config = useAppSelector((state) => selectCurrentChartConfig(state));
+    const config = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
+    );
     const { mutate } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
