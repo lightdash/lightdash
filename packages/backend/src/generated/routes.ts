@@ -7862,6 +7862,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 offset: { dataType: 'double' },
                 sortBy: {
