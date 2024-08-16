@@ -85,43 +85,67 @@ const getValuesLayoutOptions = createSelector(
 );
 
 const getXAxisField = createSelector(
-    [(state, chartKind) => chartKind],
-    (selectedChartType) =>
-        useAppSelector(
-            (state) =>
-                selectCurrentCartesianChartState(state, selectedChartType)
-                    ?.config?.fieldConfig?.x,
-        ),
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+    ],
+    (selectedChartType, barChartConfig, lineChartConfig) => {
+        if (selectedChartType === ChartKind.VERTICAL_BAR) {
+            return barChartConfig.config?.fieldConfig?.x;
+        } else if (selectedChartType === ChartKind.LINE) {
+            return lineChartConfig.config?.fieldConfig?.x;
+        }
+        return null;
+    },
 );
 
 const getYAxisFields = createSelector(
-    [(state, chartKind) => chartKind],
-    (selectedChartType) =>
-        useAppSelector(
-            (state) =>
-                selectCurrentCartesianChartState(state, selectedChartType)
-                    ?.config?.fieldConfig?.y,
-        ),
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+    ],
+    (selectedChartType, barChartConfig, lineChartConfig) => {
+        if (selectedChartType === ChartKind.VERTICAL_BAR) {
+            return barChartConfig.config?.fieldConfig?.y;
+        } else if (selectedChartType === ChartKind.LINE) {
+            return lineChartConfig.config?.fieldConfig?.y;
+        }
+        return null;
+    },
 );
 
 const getGroupByField = createSelector(
-    [(state, chartKind) => chartKind],
-    (selectedChartType) =>
-        useAppSelector(
-            (state) =>
-                selectCurrentCartesianChartState(state, selectedChartType)
-                    ?.config?.fieldConfig?.groupBy?.[0],
-        ),
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+    ],
+    (selectedChartType, barChartConfig, lineChartConfig) => {
+        if (selectedChartType === ChartKind.VERTICAL_BAR) {
+            return barChartConfig.config?.fieldConfig?.groupBy?.[0];
+        } else if (selectedChartType === ChartKind.LINE) {
+            return lineChartConfig.config?.fieldConfig?.groupBy?.[0];
+        }
+        return null;
+    },
 );
 
 const getPivotLayoutOptions = createSelector(
-    [(state, chartKind) => chartKind],
-    (selectedChartType) =>
-        useAppSelector(
-            (state) =>
-                selectCurrentCartesianChartState(state, selectedChartType)
-                    ?.options?.pivotLayoutOptions,
-        ),
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+    ],
+    (selectedChartType, barChartConfig, lineChartConfig) => {
+        if (selectedChartType === ChartKind.VERTICAL_BAR) {
+            return barChartConfig.options.pivotLayoutOptions;
+        } else if (selectedChartType === ChartKind.LINE) {
+            return lineChartConfig.options.pivotLayoutOptions;
+        }
+        return null;
+    },
 );
 
 export const cartesianChartSelectors = {
