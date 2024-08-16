@@ -53,18 +53,20 @@ export const useSqlChart = (
     const chartSpec = useMemo(() => {
         if (!transformedData.value) return undefined;
 
-        if (chartType === ChartKind.PIE) {
-            return (
-                chartTransformer as PieChartDataTransformer<any>
-            ).getEchartsSpec(
+        if (
+            chartType === ChartKind.PIE &&
+            chartTransformer instanceof PieChartDataTransformer
+        ) {
+            return chartTransformer.getEchartsSpec(
                 transformedData.value,
                 config.display as PieChartDisplay,
             );
         }
-        if (chartType === ChartKind.VERTICAL_BAR) {
-            return (
-                chartTransformer as CartesianChartDataTransformer<any>
-            ).getEchartsSpec(
+        if (
+            chartType === ChartKind.VERTICAL_BAR &&
+            chartTransformer instanceof CartesianChartDataTransformer
+        ) {
+            return chartTransformer.getEchartsSpec(
                 transformedData.value,
                 config.display as CartesianChartDisplay,
                 config.type,
