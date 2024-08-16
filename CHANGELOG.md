@@ -1,3 +1,10 @@
+## [0.1222.4](https://github.com/lightdash/lightdash/compare/0.1222.3...0.1222.4) (2024-08-16)
+
+
+### Bug Fixes
+
+* update x y labels if undefined ([#11175](https://github.com/lightdash/lightdash/issues/11175)) ([3992cad](https://github.com/lightdash/lightdash/commit/3992cad90085e3660dc87b0567142a763054ae52))
+
 ## [0.1222.3](https://github.com/lightdash/lightdash/compare/0.1222.2...0.1222.3) (2024-08-16)
 
 
