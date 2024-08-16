@@ -64,9 +64,11 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    MONTH_NAME_SORT_DESCENDING_SQL,
     MONTH_NAME_SORT_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
+    WEEK_NAME_SORT_DESCENDING_SQL,
     WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
 
@@ -927,16 +929,28 @@ describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
             ignoreIndentation(
-                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"'),
+                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', false),
             ),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
-    it('sortDayOfWeekName SQL for undefined startOfWeek', () => {
+    it('sortMonthName Descending SQL', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined, `"`),
+                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', true),
             ),
-        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL));
+        ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_DESCENDING_SQL));
+    });
+    it('sortDayOfWeekName SQL for Saturday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(
+                    COMPILED_WEEK_NAME_DIMENSION,
+                    undefined,
+                    `"`,
+                    true,
+                ),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
@@ -945,6 +959,7 @@ describe('Time frame sorting', () => {
                     COMPILED_WEEK_NAME_DIMENSION,
                     WeekDay.SUNDAY,
                     `"`,
+                    false,
                 ),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
@@ -957,6 +972,7 @@ describe('Time frame sorting', () => {
                     COMPILED_WEEK_NAME_DIMENSION,
                     WeekDay.WEDNESDAY,
                     `"`,
+                    false,
                 ),
             ),
         ).toStrictEqual(
