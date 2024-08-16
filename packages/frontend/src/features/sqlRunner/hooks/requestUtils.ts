@@ -1,8 +1,10 @@
 import {
+    isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     SchedulerJobStatus,
     type ApiError,
     type ApiSqlRunnerJobStatusResponse,
+    type ApiSqlRunnerJobSuccessResponse,
     type ResultRow,
 } from '@lightdash/common';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
@@ -77,7 +79,7 @@ export const getResultsFromStream = async (url: string | undefined) => {
 // recursively check job status until it's complete
 export const getSqlRunnerCompleteJob = async (
     jobId: string,
-): Promise<ApiSqlRunnerJobStatusResponse['results']> => {
+): Promise<ApiSqlRunnerJobSuccessResponse['results'] | ApiError> => {
     const job = await getSchedulerJobStatus<
         ApiSqlRunnerJobStatusResponse['results']
     >(jobId);
@@ -91,11 +93,11 @@ export const getSqlRunnerCompleteJob = async (
             }, 1000);
         });
     }
-    if (job.status === SchedulerJobStatus.COMPLETED) {
+    if (isApiSqlRunnerJobSuccessResponse(job)) {
         return job;
     } else {
-        throw <ApiError>{
-            status: 'error',
+        return <ApiError>{
+            status: SchedulerJobStatus.ERROR,
             error: {
                 name: 'Error',
                 statusCode: 500,

@@ -1,6 +1,6 @@
 import {
+    isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
-    SchedulerJobStatus,
     type ApiError,
     type ApiJobScheduledResponse,
     type ResultRow,
@@ -66,30 +66,23 @@ export const useSqlQueryRun = ({
             });
 
             const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
-
-            if (job.status === SchedulerJobStatus.ERROR) {
-                if (isErrorDetails(job.details)) {
-                    showToastError({
-                        title: 'Could not run SQL query',
-                        subtitle: job.details.error,
-                    });
-                }
-                return undefined;
-            }
-
-            const url =
-                job.details && !isErrorDetails(job.details)
-                    ? job.details.fileUrl
-                    : undefined;
-            const results = await getResultsFromStream(url);
-
-            return {
-                results,
-                columns:
+            if (isApiSqlRunnerJobSuccessResponse(job)) {
+                const url =
                     job.details && !isErrorDetails(job.details)
-                        ? job.details.columns
-                        : [],
-            };
+                        ? job.details.fileUrl
+                        : undefined;
+                const results = await getResultsFromStream(url);
+
+                return {
+                    results,
+                    columns:
+                        job.details && !isErrorDetails(job.details)
+                            ? job.details.columns
+                            : [],
+                };
+            } else {
+                throw job;
+            }
         },
         {
             mutationKey: ['sqlRunner', 'run'],
