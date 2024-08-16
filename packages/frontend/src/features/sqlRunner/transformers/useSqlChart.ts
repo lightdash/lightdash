@@ -1,10 +1,10 @@
 import {
     CartesianChartDataTransformer,
     ChartKind,
+    isCartesianChartSQLConfig,
+    isPieChartSQLConfig,
     PieChartDataTransformer,
-    type CartesianChartDisplay,
     type CartesianChartSqlConfig,
-    type PieChartDisplay,
     type PieChartSqlConfig,
     type ResultRow,
     type SqlColumn,
@@ -23,23 +23,17 @@ export const useSqlChart = (
         [rows, columns],
     );
 
-    const { chartTransformer, chartType } = useMemo(() => {
+    const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {
-            return {
-                chartTransformer: new PieChartDataTransformer({ transformer }),
-                chartType: ChartKind.PIE,
-            };
+            return new PieChartDataTransformer({ transformer });
         }
         if (
             config.type === ChartKind.VERTICAL_BAR ||
             config.type === ChartKind.LINE
         ) {
-            return {
-                chartTransformer: new CartesianChartDataTransformer({
-                    transformer,
-                }),
-                chartType: ChartKind.VERTICAL_BAR,
-            };
+            return new CartesianChartDataTransformer({
+                transformer,
+            });
         }
         throw new Error('Unknown chart type');
     }, [transformer, config.type]);
@@ -54,32 +48,26 @@ export const useSqlChart = (
         if (!transformedData.value) return undefined;
 
         if (
-            chartType === ChartKind.PIE &&
+            isPieChartSQLConfig(config) &&
             chartTransformer instanceof PieChartDataTransformer
         ) {
             return chartTransformer.getEchartsSpec(
                 transformedData.value,
-                config.display as PieChartDisplay,
+                config.display,
             );
         }
         if (
-            chartType === ChartKind.VERTICAL_BAR &&
+            isCartesianChartSQLConfig(config) &&
             chartTransformer instanceof CartesianChartDataTransformer
         ) {
             return chartTransformer.getEchartsSpec(
                 transformedData.value,
-                config.display as CartesianChartDisplay,
+                config.display,
                 config.type,
             );
         }
         throw new Error('Unknown chart type');
-    }, [
-        chartTransformer,
-        chartType,
-        config.display,
-        config.type,
-        transformedData.value,
-    ]);
+    }, [chartTransformer, config, transformedData.value]);
 
     return {
         ...transformedData,
