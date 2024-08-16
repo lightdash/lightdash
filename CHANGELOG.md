@@ -1,3 +1,10 @@
+## [0.1222.1](https://github.com/lightdash/lightdash/compare/0.1222.0...0.1222.1) (2024-08-16)
+
+
+### Performance Improvements
+
+* improve sql chart display changes ([#11170](https://github.com/lightdash/lightdash/issues/11170)) ([b512d76](https://github.com/lightdash/lightdash/commit/b512d76891fec3db793f5de6b13cca0e99464e06))
+
 # [0.1222.0](https://github.com/lightdash/lightdash/compare/0.1221.2...0.1222.0) (2024-08-16)
 
 
