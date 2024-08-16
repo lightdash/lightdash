@@ -2,7 +2,7 @@ import { DimensionType, type SqlColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useVizDispatch, useVizSelector } from '../store';
 import { setGroupFieldIds } from '../store/pieChartSlice';
 
 export const PieChartConfiguration = ({
@@ -10,12 +10,12 @@ export const PieChartConfiguration = ({
 }: {
     sqlColumns: SqlColumn[];
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
 
-    const groupField = useAppSelector(
+    const groupField = useVizSelector(
         (state) => state.pieChartConfig.config?.fieldConfig?.x.reference,
     );
-    const groupFieldOptions = useAppSelector(
+    const groupFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
     );
 

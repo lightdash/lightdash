@@ -5,7 +5,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { TableFieldIcon } from '../Icons';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useVizDispatch, useVizSelector } from '../store';
 import {
     updateColumnVisibility,
     updateFieldLabel,
@@ -14,9 +14,9 @@ import {
 const TableVisConfiguration: FC<{ sqlColumns: SqlColumn[] }> = ({
     sqlColumns,
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
 
-    const tableVisConfig = useAppSelector(
+    const tableVisConfig = useVizSelector(
         (state) => state.tableVisConfig.config,
     );
 

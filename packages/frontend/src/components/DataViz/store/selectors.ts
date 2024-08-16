@@ -1,7 +1,6 @@
 import { ChartKind } from '@lightdash/common';
 import { createSelector } from 'reselect';
-import { type RootState } from '.';
-import { useAppSelector } from './hooks';
+import { useVizSelector, type RootState } from '.';
 
 const selectBarChartConfigState = (
     state: RootState,
@@ -67,7 +66,7 @@ export const selectCurrentCartesianChartState = createSelector(
 const getIndexLayoutOptions = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.options?.indexLayoutOptions,
@@ -77,7 +76,7 @@ const getIndexLayoutOptions = createSelector(
 const getValuesLayoutOptions = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.options?.valuesLayoutOptions,
@@ -87,7 +86,7 @@ const getValuesLayoutOptions = createSelector(
 const getXAxisField = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.config?.fieldConfig?.x,
@@ -97,7 +96,7 @@ const getXAxisField = createSelector(
 const getYAxisFields = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.config?.fieldConfig?.y,
@@ -107,7 +106,7 @@ const getYAxisFields = createSelector(
 const getGroupByField = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.config?.fieldConfig?.groupBy?.[0],
@@ -117,7 +116,7 @@ const getGroupByField = createSelector(
 const getPivotLayoutOptions = createSelector(
     [(state, chartKind) => chartKind],
     (selectedChartType) =>
-        useAppSelector(
+        useVizSelector(
             (state) =>
                 selectCurrentCartesianChartState(state, selectedChartType)
                     ?.options?.pivotLayoutOptions,
