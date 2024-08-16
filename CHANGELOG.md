@@ -1,3 +1,10 @@
+# [0.1222.0](https://github.com/lightdash/lightdash/compare/0.1221.2...0.1222.0) (2024-08-16)
+
+
+### Features
+
+* add time zone to SemanticLayerQuery ([#11172](https://github.com/lightdash/lightdash/issues/11172)) ([fe8e219](https://github.com/lightdash/lightdash/commit/fe8e2198c09df57263340cfa1859825c75a06d86))
+
 ## [0.1221.2](https://github.com/lightdash/lightdash/compare/0.1221.1...0.1221.2) (2024-08-15)
 
 
