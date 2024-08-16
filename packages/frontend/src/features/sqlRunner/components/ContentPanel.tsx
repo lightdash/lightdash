@@ -24,12 +24,15 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useAppSelector as useChartSelector } from '../../../components/DataViz/store/hooks';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+
+import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -70,17 +73,17 @@ export const ContentPanel: FC = () => {
 
     // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(selectedChartType, state),
+        selectChartConfigByKind(state, selectedChartType),
     );
 
     // Select these configs so we can keep the charts mounted
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig?.config,
+    const barChartConfig = useChartSelector(
+        (state) => state.barChartConfig.config,
     );
-    const lineChartConfig = useAppSelector(
+    const lineChartConfig = useChartSelector(
         (state) => state.lineChartConfig.config,
     );
-    const pieChartConfig = useAppSelector(
+    const pieChartConfig = useChartSelector(
         (state) => state.pieChartConfig.config,
     );
 
@@ -92,7 +95,7 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-
+                dispatch(onResults(data));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }

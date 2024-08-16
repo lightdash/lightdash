@@ -4,12 +4,12 @@ import {
     isLineChartSQLConfig,
 } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import {
-    setSavedChartData,
-    setSqlRunnerResults,
-} from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
 import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
-import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
+import {
+    cartesianChartConfigSlice,
+    onResults,
+} from './cartesianChartBaseSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
@@ -18,7 +18,7 @@ export const lineChartConfigSlice = createSlice({
         ...cartesianChartConfigSlice.caseReducers,
     },
     extraReducers: (builder) => {
-        builder.addCase(setSqlRunnerResults, (state, action) => {
+        builder.addCase(onResults, (state, action) => {
             if (action.payload) {
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({

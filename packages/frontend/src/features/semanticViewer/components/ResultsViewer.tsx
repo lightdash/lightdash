@@ -17,7 +17,7 @@ const ResultsViewer: FC = () => {
     // currently editing chart config
 
     const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(selectedChartType, state),
+        selectChartConfigByKind(state, selectedChartType),
     );
     // Select these configs so we can keep the charts mounted
     //TODO - refactor to use selector from dataviz slice

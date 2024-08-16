@@ -53,7 +53,7 @@ const ViewSqlChart = () => {
     );
 
     const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(selectedChartType, state),
+        selectChartConfigByKind(state, selectedChartType),
     );
     const { error: chartError, data: sqlChart } = useSavedSqlChart({
         projectUuid,

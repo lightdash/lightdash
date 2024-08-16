@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    type ChartKind,
     type IndexLayoutOptions,
     type PivotLayoutOptions,
     type SqlCartesianChartLayout,
@@ -226,25 +227,34 @@ const GroupByFieldAxisConfig = ({
 export const CartesianChartFieldConfiguration = ({
     sqlColumns,
     actions,
+    selectedChartType,
 }: {
+    selectedChartType: ChartKind;
     sqlColumns: SqlColumn[];
 
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
-    const xLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getIndexLayoutOptions,
+    const xLayoutOptions = useAppSelector((state) =>
+        cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
     );
-    const yLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getValuesLayoutOptions,
+    const yLayoutOptions = useAppSelector((state) =>
+        cartesianChartSelectors.getValuesLayoutOptions(
+            state,
+            selectedChartType,
+        ),
     );
-    const xAxisField = useAppSelector(cartesianChartSelectors.getXAxisField);
-    const yAxisFields = useAppSelector(cartesianChartSelectors.getYAxisFields);
-    const groupByField = useAppSelector(
-        cartesianChartSelectors.getGroupByField,
+    const xAxisField = useAppSelector((state) =>
+        cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
-    const groupByLayoutOptions = useAppSelector(
-        cartesianChartSelectors.getPivotLayoutOptions,
+    const yAxisFields = useAppSelector((state) =>
+        cartesianChartSelectors.getYAxisFields(state, selectedChartType),
+    );
+    const groupByField = useAppSelector((state) =>
+        cartesianChartSelectors.getGroupByField(state, selectedChartType),
+    );
+    const groupByLayoutOptions = useAppSelector((state) =>
+        cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
 
     return (

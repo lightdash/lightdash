@@ -38,7 +38,7 @@ export const HeaderEdit: FC = () => {
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
     const config = useAppSelector((state) =>
-        selectChartConfigByKind(selectedChartType, state),
+        selectChartConfigByKind(state, selectedChartType),
     );
     const { mutate } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',

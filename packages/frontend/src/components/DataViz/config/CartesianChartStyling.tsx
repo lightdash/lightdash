@@ -21,7 +21,7 @@ export const CartesianChartStyling = ({
     const dispatch = useAppDispatch();
 
     const currentConfig = useAppSelector((state) =>
-        selectCurrentCartesianChartState(selectedChartType, state),
+        selectCurrentCartesianChartState(state, selectedChartType),
     );
 
     const series = useAppSelector((state) => {

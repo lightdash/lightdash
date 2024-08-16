@@ -56,6 +56,7 @@ export const CartesianChartConfig = ({
                 <CartesianChartFieldConfiguration
                     actions={actions}
                     sqlColumns={sqlColumns}
+                    selectedChartType={selectedChartType}
                 />
             )}
 

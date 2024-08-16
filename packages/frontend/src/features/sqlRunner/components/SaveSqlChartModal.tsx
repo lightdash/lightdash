@@ -77,7 +77,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(selectedChartType, state),
+        selectChartConfigByKind(state, selectedChartType),
     );
     const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 

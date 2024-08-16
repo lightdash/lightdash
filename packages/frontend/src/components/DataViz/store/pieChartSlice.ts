@@ -8,11 +8,9 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import {
-    setSavedChartData,
-    setSqlRunnerResults,
-} from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
 import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
+import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {
     defaultFieldConfig: SqlPivotChartLayout | undefined;
@@ -49,7 +47,7 @@ export const pieChartConfigSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(setSqlRunnerResults, (state, action) => {
+        builder.addCase(onResults, (state, action) => {
             if (action.payload) {
                 const sqlRunnerResultsTransformer =
                     new SqlRunnerResultsTransformerFE({

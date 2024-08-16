@@ -3,6 +3,8 @@ import { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticViewerQueryRun } from '../api/streamingResults';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+
+import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
@@ -67,6 +69,13 @@ export const RunSemanticQueryButton: FC = () => {
             );
             dispatch(
                 setResults({
+                    results: resultsData,
+                    columns: usedColumns,
+                }),
+            );
+
+            dispatch(
+                onResults({
                     results: resultsData,
                     columns: usedColumns,
                 }),

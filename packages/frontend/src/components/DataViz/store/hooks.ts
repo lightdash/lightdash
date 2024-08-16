@@ -3,10 +3,7 @@
 import type * as rtk from '@reduxjs/toolkit';
 
 import { useDispatch, useSelector } from 'react-redux';
-import {
-    type AppDispatch,
-    type RootState,
-} from '../../../features/sqlRunner/store';
+import { type AppDispatch, type RootState } from '.';
 
 // NOTE: Use these throughout the app instead of plain `useDispatch` and `useSelector`
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
