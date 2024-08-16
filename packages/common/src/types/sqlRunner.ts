@@ -140,7 +140,8 @@ export type SqlChart = {
     slug: string;
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig;
+    config: SqlRunnerChartConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
     chartKind: ChartKind;
     createdAt: Date;
     createdBy: Pick<
@@ -163,7 +164,8 @@ export type CreateSqlChart = {
     description: string | null;
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig;
+    config: SqlRunnerChartConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
     spaceUuid: string;
 };
 
@@ -176,7 +178,8 @@ export type UpdateUnversionedSqlChart = {
 export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig;
+    config: SqlRunnerChartConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
 };
 
 export type UpdateSqlChart = {
