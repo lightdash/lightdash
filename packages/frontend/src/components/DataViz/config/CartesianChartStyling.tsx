@@ -1,12 +1,16 @@
 import { IndexType, type ChartKind } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
-import { type CartesianChartActionsType, useVizDispatch, useVizSelector } from '../store';
-import { selectCurrentCartesianChartState } from '../store/selectors';
-import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import { useMemo } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
+import {
+    useVizDispatch,
+    useVizSelector,
+    type CartesianChartActionsType,
+} from '../store';
+import { selectCurrentCartesianChartState } from '../store/selectors';
+import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
 export const CartesianChartStyling = ({
     selectedChartType,
