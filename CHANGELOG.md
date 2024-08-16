@@ -1,3 +1,10 @@
+## [0.1222.3](https://github.com/lightdash/lightdash/compare/0.1222.2...0.1222.3) (2024-08-16)
+
+
+### Bug Fixes
+
+* let query run hook handle error ([#11183](https://github.com/lightdash/lightdash/issues/11183)) ([ab73554](https://github.com/lightdash/lightdash/commit/ab735543f7ea9c238c686336c4c62ab353327eac))
+
 ## [0.1222.2](https://github.com/lightdash/lightdash/compare/0.1222.1...0.1222.2) (2024-08-16)
 
 
