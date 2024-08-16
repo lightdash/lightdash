@@ -1,3 +1,10 @@
+## [0.1222.2](https://github.com/lightdash/lightdash/compare/0.1222.1...0.1222.2) (2024-08-16)
+
+
+### Bug Fixes
+
+* day of week does not work with desc sorts ([#11168](https://github.com/lightdash/lightdash/issues/11168)) ([0461391](https://github.com/lightdash/lightdash/commit/0461391d465039d5b2e57779d8edd2fbbf6d030e))
+
 ## [0.1222.1](https://github.com/lightdash/lightdash/compare/0.1222.0...0.1222.1) (2024-08-16)
 
 
