@@ -9,27 +9,33 @@ Joins let you connect different models to each other so that you can explore mor
 
 ## Adding joins in your models
 
-Joins are defined at the same level as your model parameters in your YAML file.
+Joins are defined at the same level as the model parameters in your YAML file.
 
 ```yaml
 version: 2
 models:
-  - name: users
+  - name: accounts
     meta:
       joins:
-        - join: web_sessions
-          sql_on: ${web_sessions.user_id} = ${users.user_id}
-          fields: [user_id, email, name]
-        - join: subscriptions
-          sql_on: ${subscriptions.user_id} = ${users.user_id} AND ${subscriptions.is_active}
-          type: inner
+        - join: deals
+          type: left
+          sql_on: ${accounts.id} = ${deals.account_id}
+          fields: [unique_deals, new_deals, won_deals, lost_deals, stage]
 ```
 
-When you open Lightdash, your joined models' dimensions and metrics will appear below the ones in your selected model.
+When you open Lightdash, the dimensions and metrics from your joined model will appear below the ones in your selected model.
 
 ![screenshot-joined-table](assets/screenshot-joined-table.png)
 
-Note that `sql_on` can include references to [user attributes](./user-attributes.mdx)
+:::tip
+
+- You can omit `fields` to include all metrics and dimensions defined in the joined table.
+- When joined fields reference other fields, those other fields must also be included.
+- The `sql_on` statement can include references to [user attributes](./user-attributes.mdx) for row-level filtering.
+
+:::
+
+
 
 ## Rename a joined model
 
@@ -189,7 +195,7 @@ models:
           fields: [user_id, email, name]
 ```
 
-## Using joined dimensions or metrics in your .yml
+## Using joined dimensions or metrics in your YAML
 
 Once you've joined a model, you can reference the metrics and dimensions from your joined model in your configurations.
 
@@ -241,6 +247,18 @@ models:
               type: count_distinct
               sql: IF(${subscriptions.plan} = 'premium', ${user_id}, NULL)
 ```
+
+:::warning
+
+**Every joined field that you reference in a YAML file adds a dependency that you'll have to include in all future references to that model.**
+
+For example, you might define `deals.unique_enterprise_deals` by using a joined field in a filter: `${accounts.segment} = 'Enterprise'`. 
+
+Then later you need to join `deals` to a `marketing_attribution` model.
+
+The `unique_enterprise_deals` metric must be excluded from the join unless you also join `accounts` to get the `accounts.segment` field. 
+
+:::
 
 Check out our [dimensions](/references/dimensions) and [metrics](/references/metrics) reference docs to see all of the other configurations you can use with your joined fields.
 
