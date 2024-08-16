@@ -1,4 +1,5 @@
 import {
+    isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiError,
     type ApiSqlChartWithResults,
@@ -24,8 +25,11 @@ const getSqlChartAndResults = async ({
         body: undefined,
     });
     const job = await getSqlRunnerCompleteJob(chartAndScheduledJob.jobId);
+
     const url =
-        job?.details && !isErrorDetails(job.details)
+        isApiSqlRunnerJobSuccessResponse(job) &&
+        job?.details &&
+        !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
     const results = await getResultsFromStream(url);
@@ -35,7 +39,9 @@ const getSqlChartAndResults = async ({
         resultsAndColumns: {
             results,
             columns:
-                job?.details && !isErrorDetails(job.details)
+                isApiSqlRunnerJobSuccessResponse(job) &&
+                job?.details &&
+                !isErrorDetails(job.details)
                     ? job.details.columns
                     : [],
         },

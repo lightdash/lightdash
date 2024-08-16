@@ -1,3 +1,4 @@
+import { type ApiError } from '..';
 import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
 import {
     type PieChartDisplay,
@@ -10,10 +11,7 @@ import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
 import { ChartKind } from './savedCharts';
-import {
-    type ApiJobScheduledResponse,
-    type SchedulerJobStatus,
-} from './scheduler';
+import { SchedulerJobStatus, type ApiJobScheduledResponse } from './scheduler';
 import { type SpaceSummary } from './space';
 import { type LightdashUser } from './user';
 
@@ -61,6 +59,18 @@ export type ApiSqlRunnerJobStatusResponse = {
             | SqlRunnerJobStatusErrorDetails;
     };
 };
+
+export type ApiSqlRunnerJobSuccessResponse = ApiSqlRunnerJobStatusResponse & {
+    results: {
+        status: SchedulerJobStatus.COMPLETED;
+        details: SqlRunnerJobStatusSuccessDetails;
+    };
+};
+
+export const isApiSqlRunnerJobSuccessResponse = (
+    response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
+): response is ApiSqlRunnerJobSuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;
 
 export type SqlRunnerChartConfig = {
     metadata: {
