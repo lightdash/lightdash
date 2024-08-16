@@ -4,8 +4,11 @@ import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
-import { type CartesianChartActionsType } from '../store';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+    useVizDispatch,
+    useVizSelector,
+    type CartesianChartActionsType,
+} from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
@@ -18,13 +21,13 @@ export const CartesianChartStyling = ({
     selectedChartType: ChartKind;
     actions: CartesianChartActionsType;
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
 
-    const currentConfig = useAppSelector((state) =>
+    const currentConfig = useVizSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
-    const series = useAppSelector((state) => {
+    const series = useVizSelector((state) => {
         if (
             !state.barChartConfig.config?.fieldConfig?.y ||
             state.barChartConfig.config.fieldConfig.y.length <= 1

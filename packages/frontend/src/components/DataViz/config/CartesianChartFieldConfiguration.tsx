@@ -19,8 +19,11 @@ import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
-import { type CartesianChartActionsType } from '../store';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+    useVizDispatch,
+    useVizSelector,
+    type CartesianChartActionsType,
+} from '../store';
 import { cartesianChartSelectors } from '../store/selectors';
 import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
 
@@ -33,7 +36,7 @@ const YFieldsAxisConfig: FC<{
     sqlColumns: SqlColumn[];
 }> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
     const { hovered, ref } = useHover();
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -152,7 +155,7 @@ const XFieldAxisConfig = ({
     xLayoutOptions: IndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
 
     return (
         <FieldReferenceSelect
@@ -190,7 +193,7 @@ const GroupByFieldAxisConfig = ({
     groupByOptions?: PivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
-    const dispatch = useAppDispatch();
+    const dispatch = useVizDispatch();
     return (
         <FieldReferenceSelect
             clearable
@@ -234,26 +237,26 @@ export const CartesianChartFieldConfiguration = ({
 
     actions: CartesianChartActionsType;
 }) => {
-    const dispatch = useAppDispatch();
-    const xLayoutOptions = useAppSelector((state) =>
+    const dispatch = useVizDispatch();
+    const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
     );
-    const yLayoutOptions = useAppSelector((state) =>
+    const yLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getValuesLayoutOptions(
             state,
             selectedChartType,
         ),
     );
-    const xAxisField = useAppSelector((state) =>
+    const xAxisField = useVizSelector((state) =>
         cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
-    const yAxisFields = useAppSelector((state) =>
+    const yAxisFields = useVizSelector((state) =>
         cartesianChartSelectors.getYAxisFields(state, selectedChartType),
     );
-    const groupByField = useAppSelector((state) =>
+    const groupByField = useVizSelector((state) =>
         cartesianChartSelectors.getGroupByField(state, selectedChartType),
     );
-    const groupByLayoutOptions = useAppSelector((state) =>
+    const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
 
