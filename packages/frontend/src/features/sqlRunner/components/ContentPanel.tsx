@@ -1,4 +1,7 @@
-import { isTableChartSQLConfig } from '@lightdash/common';
+import {
+    isTableChartSQLConfig,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -24,15 +27,13 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useVizSelector as useChartSelector } from '../../../components/DataViz/store';
+import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-
-import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -76,17 +77,6 @@ export const ContentPanel: FC = () => {
         selectChartConfigByKind(state, selectedChartType),
     );
 
-    // Select these configs so we can keep the charts mounted
-    const barChartConfig = useChartSelector(
-        (state) => state.barChartConfig.config,
-    );
-    const lineChartConfig = useChartSelector(
-        (state) => state.lineChartConfig.config,
-    );
-    const pieChartConfig = useChartSelector(
-        (state) => state.pieChartConfig.config,
-    );
-
     const {
         mutate: runSqlQuery,
         data: queryResults,
@@ -125,6 +115,30 @@ export const ContentPanel: FC = () => {
         },
         [runSqlQuery, sql, limit],
     );
+
+    const activeConfigs = useAppSelector((state) => {
+        const configsWithTable = state.sqlRunner.activeConfigs
+            .map((type) => selectChartConfigByKind(state, type))
+            .filter(
+                (config): config is NonNullable<typeof config> =>
+                    config !== undefined,
+            );
+
+        const tableConfig = configsWithTable.find(isTableChartSQLConfig);
+        const chartConfigs = configsWithTable.filter(
+            (
+                c,
+            ): c is Exclude<
+                NonNullable<ReturnType<typeof selectChartConfigByKind>>,
+                TableChartSqlConfig
+            > => !isTableChartSQLConfig(c),
+        );
+
+        return {
+            chartConfigs,
+            tableConfig,
+        };
+    });
 
     return (
         <Stack
@@ -253,57 +267,50 @@ export const ContentPanel: FC = () => {
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results &&
-                                currentVisConfig &&
-                                [
-                                    barChartConfig,
-                                    lineChartConfig,
-                                    pieChartConfig,
-                                ].map(
-                                    (config, idx) =>
-                                        config && (
-                                            <ConditionalVisibility
-                                                key={idx}
-                                                isVisible={
-                                                    selectedChartType ===
-                                                    config?.type
-                                                }
-                                            >
-                                                <ChartView
-                                                    data={queryResults}
-                                                    config={config}
-                                                    isLoading={isLoading}
-                                                    style={{
-                                                        // NOTE: Ensures the chart is always full height
-                                                        height: deferredInputSectionHeight,
-                                                        width: '100%',
-                                                        flex: 1,
-                                                        marginTop:
-                                                            mantineTheme.spacing
-                                                                .sm,
-                                                    }}
-                                                />
-                                            </ConditionalVisibility>
-                                        ),
-                                )}
+                            {queryResults?.results && currentVisConfig && (
+                                <>
+                                    {activeConfigs.chartConfigs.map((c) => (
+                                        <ConditionalVisibility
+                                            key={c.type}
+                                            isVisible={
+                                                selectedChartType === c.type
+                                            }
+                                        >
+                                            <ChartView
+                                                data={queryResults}
+                                                config={c}
+                                                isLoading={isLoading}
+                                                style={{
+                                                    height: deferredInputSectionHeight,
+                                                    width: '100%',
+                                                    flex: 1,
+                                                    marginTop:
+                                                        mantineTheme.spacing.sm,
+                                                }}
+                                            />
+                                        </ConditionalVisibility>
+                                    ))}
 
-                            {queryResults?.results &&
-                                isTableChartSQLConfig(currentVisConfig) && (
-                                    <Paper
-                                        shadow="none"
-                                        radius={0}
-                                        px="sm"
-                                        pb="sm"
-                                        sx={() => ({
-                                            flex: 1,
-                                        })}
-                                    >
-                                        <Table
-                                            data={queryResults.results}
-                                            config={currentVisConfig}
-                                        />
-                                    </Paper>
-                                )}
+                                    {activeConfigs.tableConfig && (
+                                        <Paper
+                                            shadow="none"
+                                            radius={0}
+                                            px="sm"
+                                            pb="sm"
+                                            sx={() => ({
+                                                flex: 1,
+                                            })}
+                                        >
+                                            <Table
+                                                data={queryResults.results}
+                                                config={
+                                                    activeConfigs.tableConfig
+                                                }
+                                            />
+                                        </Paper>
+                                    )}
+                                </>
+                            )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>
