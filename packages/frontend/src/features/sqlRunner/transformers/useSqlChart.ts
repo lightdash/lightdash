@@ -38,9 +38,10 @@ export const useSqlChart = (
         throw new Error('Unknown chart type');
     }, [transformer, config.type]);
 
-    const getTransformedData = useCallback(async () => {
-        return chartTransformer.getTransformedData(config.fieldConfig);
-    }, [chartTransformer, config.fieldConfig]);
+    const getTransformedData = useCallback(
+        async () => chartTransformer.getTransformedData(config.fieldConfig),
+        [chartTransformer, config.fieldConfig],
+    );
 
     const transformedData = useAsync(getTransformedData, [getTransformedData]);
 
