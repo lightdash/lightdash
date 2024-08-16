@@ -60,6 +60,7 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
 export type SemanticLayerPivotConfig = {
     x: string[];
     y: string[];
+    metricsAsRows?: boolean;
 };
 
 export type SemanticLayerQuery = {

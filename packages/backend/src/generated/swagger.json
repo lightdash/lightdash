@@ -9055,6 +9055,9 @@
             },
             "SemanticLayerPivotConfig": {
                 "properties": {
+                    "metricsAsRows": {
+                        "type": "boolean"
+                    },
                     "y": {
                         "items": {
                             "type": "string"

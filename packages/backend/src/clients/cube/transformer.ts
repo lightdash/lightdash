@@ -221,7 +221,25 @@ export const cubeTransfomers: SemanticLayerTransformer<
         timezone: query.timezone,
         limit: query.limit,
     }),
-    semanticLayerPivotConfigToPivotConfig: (pivotConfig) => pivotConfig,
+    semanticLayerPivotConfigToPivotConfig: (pivotConfig) => {
+        if (!pivotConfig) {
+            return undefined;
+        }
+
+        const { x, y } = pivotConfig;
+
+        if (pivotConfig.metricsAsRows) {
+            x.push('measures');
+        } else {
+            y.push('measures');
+        }
+
+        return {
+            x,
+            y,
+            subtotals: [],
+        };
+    },
     resultsToResultRows: (results) => results,
     sqlToString: (cubeSql) => cubeSql.sql(),
 };

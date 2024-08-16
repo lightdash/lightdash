@@ -8181,6 +8181,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metricsAsRows: { dataType: 'boolean' },
                 y: {
                     dataType: 'array',
                     array: { dataType: 'string' },
