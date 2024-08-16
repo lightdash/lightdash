@@ -2,27 +2,25 @@ import { isTableChartSQLConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
 import { type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import { useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
 import SqlRunnerChart from './visualizations/SqlRunnerChart';
 import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();
 
-    const { results, columns } = useAppSelector(
+    const { results, columns, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
-    const selectedChartType = useAppSelector(
-        (state) => state.semanticViewer.selectedChartType,
-    );
-
     // currently editing chart config
+
     const currentVisConfig = useAppSelector((state) =>
-        selectCurrentChartConfig(state),
+        selectChartConfigByKind(selectedChartType, state),
     );
     // Select these configs so we can keep the charts mounted
+    //TODO - refactor to use selector from dataviz slice
     const barChartConfig = useAppSelector(
         (state) => state.barChartConfig.config,
     );

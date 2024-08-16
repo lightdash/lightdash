@@ -24,12 +24,12 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import SqlRunnerChart from '../../../components/DataViz/visualizations/ChartView';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectCurrentChartConfig } from '../store/selectors';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -60,31 +60,22 @@ export const ContentPanel: FC = () => {
         [resultsHeight, maxResultsHeight],
     );
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-
-    const limit = useAppSelector((state) => state.sqlRunner.limit);
-
-    const activeEditorTab = useAppSelector(
-        (state) => state.sqlRunner.activeEditorTab,
-    );
-
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-
-    // Static results table
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
-    );
+    const {
+        sql,
+        limit,
+        activeEditorTab,
+        selectedChartType,
+        resultsTableConfig,
+    } = useAppSelector((state) => state.sqlRunner);
 
     // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
-        selectCurrentChartConfig(state),
+        selectChartConfigByKind(selectedChartType, state),
     );
 
     // Select these configs so we can keep the charts mounted
     const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
+        (state) => state.barChartConfig?.config,
     );
     const lineChartConfig = useAppSelector(
         (state) => state.lineChartConfig.config,
@@ -275,7 +266,7 @@ export const ContentPanel: FC = () => {
                                                     config?.type
                                                 }
                                             >
-                                                <SqlRunnerChart
+                                                <ChartView
                                                     data={queryResults}
                                                     config={config}
                                                     isLoading={isLoading}

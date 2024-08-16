@@ -2,16 +2,16 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
+import { barChartConfigSlice, type BarChartActionsType } from './barChartSlice';
+import {
+    lineChartConfigSlice,
+    type LineChartActionsType,
+} from './lineChartSlice';
+import { pieChartConfigSlice } from './pieChartSlice';
+import { tableVisSlice } from './tableVisSlice';
 
-import { barChartConfigSlice } from '../../../components/DataViz/store/barChartSlice';
-import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
-import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
-import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
-import { semanticViewerSlice } from './semanticViewerSlice';
-
-export const store = configureStore({
+const store = configureStore({
     reducer: {
-        semanticViewer: semanticViewerSlice.reducer,
         barChartConfig: barChartConfigSlice.reducer,
         lineChartConfig: lineChartConfigSlice.reducer,
         pieChartConfig: pieChartConfigSlice.reducer,
@@ -23,3 +23,7 @@ export const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 
 export type AppDispatch = typeof store.dispatch;
+
+export type CartesianChartActionsType =
+    | BarChartActionsType
+    | LineChartActionsType;

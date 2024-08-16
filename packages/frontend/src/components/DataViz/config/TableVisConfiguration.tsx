@@ -2,9 +2,9 @@ import { type SqlColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { TableFieldIcon } from '../../../components/DataViz/Icons';
-import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import MantineIcon from '../../common/MantineIcon';
+import { Config } from '../../VisualizationConfigs/common/Config';
+import { TableFieldIcon } from '../Icons';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     updateColumnVisibility,

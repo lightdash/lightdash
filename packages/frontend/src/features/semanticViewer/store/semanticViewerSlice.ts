@@ -225,7 +225,6 @@ export const {
     enterView,
     setResults,
     setActiveEditorTab,
-    setSavedChartData,
     setSelectedChartType,
     setFields,
     selectField,

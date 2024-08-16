@@ -1,9 +1,9 @@
 import { DimensionType, type SqlColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
-import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import { Config } from '../../VisualizationConfigs/common/Config';
+import { FieldReferenceSelect } from '../FieldReferenceSelect';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setGroupFieldIds } from '../store/pieChartSlice';
-import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 export const PieChartConfiguration = ({
     sqlColumns,

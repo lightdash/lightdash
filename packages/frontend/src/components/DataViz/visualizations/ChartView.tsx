@@ -13,7 +13,7 @@ type ChartViewProps = {
     isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const SqlRunnerChart: FC<ChartViewProps> = memo(
+const ChartView: FC<ChartViewProps> = memo(
     ({ data, config, style, isLoading: isLoadingProp }) => {
         const {
             loading: transformLoading,
@@ -57,4 +57,4 @@ const SqlRunnerChart: FC<ChartViewProps> = memo(
     },
 );
 
-export default SqlRunnerChart;
+export default ChartView;

@@ -11,7 +11,7 @@ import {
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineIcon from '../../common/MantineIcon';
 
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
     aggregation,

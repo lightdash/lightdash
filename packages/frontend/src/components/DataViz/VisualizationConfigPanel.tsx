@@ -1,11 +1,11 @@
 import { ChartKind, type SqlColumn } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
-import { CartesianChartConfig } from '../../features/sqlRunner/components/CartesianChartConfiguration';
-import { PieChartConfiguration } from '../../features/sqlRunner/components/PieChartConfiguration';
-import TableVisConfiguration from '../../features/sqlRunner/components/TableVisConfiguration';
 import { Config } from '../VisualizationConfigs/common/Config';
 import { themeOverride } from '../VisualizationConfigs/mantineTheme';
+import { CartesianChartConfig } from './config/CartesianChartConfiguration';
+import { PieChartConfiguration } from './config/PieChartConfiguration';
+import TableVisConfiguration from './config/TableVisConfiguration';
 import { VisualizationSwitcher } from './VisualizationSwitcher';
 
 export const VisualizationConfigPanel: FC<{
@@ -29,10 +29,16 @@ export const VisualizationConfigPanel: FC<{
                 <TableVisConfiguration sqlColumns={sqlColumns} />
             )}
             {selectedChartType === ChartKind.VERTICAL_BAR && (
-                <CartesianChartConfig selectedChartType={selectedChartType} />
+                <CartesianChartConfig
+                    selectedChartType={selectedChartType}
+                    sqlColumns={sqlColumns}
+                />
             )}
             {selectedChartType === ChartKind.LINE && (
-                <CartesianChartConfig selectedChartType={selectedChartType} />
+                <CartesianChartConfig
+                    selectedChartType={selectedChartType}
+                    sqlColumns={sqlColumns}
+                />
             )}
             {selectedChartType === ChartKind.PIE && (
                 <PieChartConfiguration sqlColumns={sqlColumns} />

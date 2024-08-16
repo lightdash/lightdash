@@ -1,9 +1,7 @@
 import { ChartKind } from '@lightdash/common';
 import { createSelector } from 'reselect';
-import { type RootState } from '.';
+import { type RootState } from '../../../features/sqlRunner/store';
 
-const selectSqlRunnerState = (state: RootState): RootState['sqlRunner'] =>
-    state.sqlRunner;
 const selectBarChartConfigState = (
     state: RootState,
 ): RootState['barChartConfig'] => state.barChartConfig;
@@ -17,7 +15,7 @@ export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
-const selectChartConfigByKind = createSelector(
+export const selectChartConfigByKind = createSelector(
     [
         (state, chartKind) => chartKind,
         selectBarChartConfigState,
@@ -47,22 +45,13 @@ const selectChartConfigByKind = createSelector(
     },
 );
 
-export const selectCurrentChartConfig = createSelector(
-    [selectSqlRunnerState, (state) => state],
-    (sqlRunnerState, state) => {
-        const { selectedChartType } = sqlRunnerState;
-        return selectChartConfigByKind(state, selectedChartType);
-    },
-);
-
 export const selectCurrentCartesianChartState = createSelector(
     [
-        selectSqlRunnerState,
+        (state, chartKind) => chartKind,
         selectBarChartConfigState,
         selectLineChartConfigState,
     ],
-    (sqlRunnerState, barChartConfig, lineChartConfig) => {
-        const { selectedChartType } = sqlRunnerState;
+    (selectedChartType, barChartConfig, lineChartConfig) => {
         if (selectedChartType === ChartKind.VERTICAL_BAR) {
             return barChartConfig;
         } else if (selectedChartType === ChartKind.LINE) {

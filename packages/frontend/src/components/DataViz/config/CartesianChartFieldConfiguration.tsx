@@ -3,6 +3,7 @@ import {
     type IndexLayoutOptions,
     type PivotLayoutOptions,
     type SqlCartesianChartLayout,
+    type SqlColumn,
     type ValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
@@ -13,14 +14,14 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { AddButton } from '../../../components/VisualizationConfigs/common/AddButton';
-import { Config } from '../../../components/VisualizationConfigs/common/Config';
+import MantineIcon from '../../common/MantineIcon';
+import { AddButton } from '../../VisualizationConfigs/common/AddButton';
+import { Config } from '../../VisualizationConfigs/common/Config';
+import { FieldReferenceSelect } from '../FieldReferenceSelect';
 import { type CartesianChartActionsType } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { cartesianChartSelectors } from '../store/selectors';
 import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
-import { FieldReferenceSelect } from './FieldReferenceSelect';
 
 const YFieldsAxisConfig: FC<{
     field: SqlCartesianChartLayout['y'][number];
@@ -28,10 +29,10 @@ const YFieldsAxisConfig: FC<{
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
-}> = ({ field, yLayoutOptions, isSingle, index, actions }) => {
+    sqlColumns: SqlColumn[];
+}> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
     const { hovered, ref } = useHover();
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -142,13 +143,15 @@ const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
     actions,
+    sqlColumns,
 }: {
+    sqlColumns: SqlColumn[];
+
     field: SqlCartesianChartLayout['x'];
     xLayoutOptions: IndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
         <FieldReferenceSelect
@@ -178,13 +181,15 @@ const GroupByFieldAxisConfig = ({
     field,
     groupByOptions = [],
     actions,
+    sqlColumns,
 }: {
+    sqlColumns: SqlColumn[];
+
     field: undefined | { reference: string };
     groupByOptions?: PivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
-    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     return (
         <FieldReferenceSelect
             clearable
@@ -219,8 +224,11 @@ const GroupByFieldAxisConfig = ({
 };
 
 export const CartesianChartFieldConfiguration = ({
+    sqlColumns,
     actions,
 }: {
+    sqlColumns: SqlColumn[];
+
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useAppDispatch();
@@ -246,6 +254,7 @@ export const CartesianChartFieldConfiguration = ({
                     <Config.Heading>{`X-axis`}</Config.Heading>
                     {xAxisField && xLayoutOptions && (
                         <XFieldAxisConfig
+                            sqlColumns={sqlColumns}
                             field={xAxisField}
                             xLayoutOptions={xLayoutOptions}
                             actions={actions}
@@ -271,6 +280,7 @@ export const CartesianChartFieldConfiguration = ({
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}
+                                sqlColumns={sqlColumns}
                             />
                         ))}
                 </Config.Section>
@@ -279,6 +289,7 @@ export const CartesianChartFieldConfiguration = ({
                 <Config.Section>
                     <Config.Heading>Group by</Config.Heading>
                     <GroupByFieldAxisConfig
+                        sqlColumns={sqlColumns}
                         field={groupByField}
                         groupByOptions={groupByLayoutOptions}
                         actions={actions}
