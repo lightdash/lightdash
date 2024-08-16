@@ -1,4 +1,7 @@
-import { type SqlRunnerChartConfig } from '@lightdash/common';
+import {
+    type CartesianChartSqlConfig,
+    type PieChartSqlConfig,
+} from '@lightdash/common';
 import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
@@ -9,7 +12,7 @@ import { useChart } from '../transformers/useChart';
 
 type ChartViewProps = {
     data: ResultsAndColumns;
-    config: SqlRunnerChartConfig;
+    config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 

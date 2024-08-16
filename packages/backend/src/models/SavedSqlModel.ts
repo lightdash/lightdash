@@ -87,7 +87,7 @@ export class SavedSqlModel {
                 : null,
             sql: row.sql,
             limit: row.limit,
-            config: row.config as SqlRunnerChartConfig,
+            config: row.config as SqlChart['config'],
             chartKind: row.chart_kind,
             space: {
                 uuid: row.space_uuid,

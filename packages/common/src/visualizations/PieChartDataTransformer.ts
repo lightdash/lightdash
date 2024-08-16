@@ -1,5 +1,8 @@
 import { ChartKind } from '../types/savedCharts';
-import { type ResultsRunnerBase } from './ResultsRunnerBase';
+import {
+    type PivotChartData,
+    type ResultsRunnerBase,
+} from './ResultsRunnerBase';
 import { type PieChartDisplay } from './SqlResultsRunner';
 
 type PieChartConfig<TPivotChartLayout> = {
@@ -33,16 +36,22 @@ export class PieChartDataTransformer<TPivotChartLayout> {
         };
     }
 
-    async getEchartsSpec(
+    async getTransformedData(
         layout: TPivotChartLayout | undefined,
+    ): Promise<PivotChartData | undefined> {
+        if (!layout) {
+            return undefined;
+        }
+        return this.transformer.getPivotChartData(layout);
+    }
+
+    getEchartsSpec(
+        transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
         display: PieChartDisplay | undefined,
     ) {
-        if (!layout) {
+        if (!transformedData) {
             return {};
         }
-        const transformedData = await this.transformer.getPivotChartData(
-            layout,
-        );
 
         return {
             legend: {
@@ -61,7 +70,7 @@ export class PieChartDataTransformer<TPivotChartLayout> {
                     type: 'pie',
                     radius: display?.isDonut ? ['30%', '70%'] : '50%',
                     center: ['50%', '50%'],
-                    data: transformedData?.results.map((result) => ({
+                    data: transformedData.results.map((result) => ({
                         name: result[transformedData.indexColumn.reference],
                         groupId: transformedData.indexColumn.reference,
                         value: result[transformedData.valuesColumns[0]],

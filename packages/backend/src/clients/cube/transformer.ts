@@ -217,6 +217,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
         filters: [],
         offset: query.offset,
         limit: query.limit || 100,
+        timezone: query.timezone,
     }),
     resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),

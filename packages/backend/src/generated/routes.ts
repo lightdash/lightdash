@@ -6570,6 +6570,283 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.VERTICAL_BAR': {
+        dataType: 'refEnum',
+        enums: ['vertical_bar'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.LINE': {
+        dataType: 'refEnum',
+        enums: ['line'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    IndexType: {
+        dataType: 'refEnum',
+        enums: ['time', 'category'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AggregationOptions: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SqlCartesianChartLayout: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                groupBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    reference: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                y: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            aggregation: {
+                                ref: 'AggregationOptions',
+                                required: true,
+                            },
+                            reference: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                x: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'IndexType', required: true },
+                        reference: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CartesianChartDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                stack: { dataType: 'boolean' },
+                legend: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        align: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['start'] },
+                                { dataType: 'enum', enums: ['center'] },
+                                { dataType: 'enum', enums: ['end'] },
+                            ],
+                            required: true,
+                        },
+                        position: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['top'] },
+                                { dataType: 'enum', enums: ['bottom'] },
+                                { dataType: 'enum', enums: ['left'] },
+                                { dataType: 'enum', enums: ['right'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                series: {
+                    ref: 'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__',
+                },
+                yAxis: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            format: { ref: 'Format' },
+                            position: { dataType: 'string' },
+                            label: { dataType: 'string' },
+                        },
+                    },
+                },
+                xAxis: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'IndexType', required: true },
+                        label: { dataType: 'string' },
+                    },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CartesianChartSqlConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SqlRunnerChartConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'SqlCartesianChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ChartKind.VERTICAL_BAR' },
+                                { ref: 'ChartKind.LINE' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.PIE': {
+        dataType: 'refEnum',
+        enums: ['pie'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SqlPivotChartLayout: {
+        dataType: 'refAlias',
+        type: { ref: 'SqlCartesianChartLayout', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChartDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { isDonut: { dataType: 'boolean' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PieChartSqlConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SqlRunnerChartConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'PieChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'SqlPivotChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.PIE', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SqlTableConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                columns: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            order: { dataType: 'double' },
+                            frozen: { dataType: 'boolean', required: true },
+                            label: { dataType: 'string', required: true },
+                            reference: { dataType: 'string', required: true },
+                            visible: { dataType: 'boolean', required: true },
+                        },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.TABLE': {
+        dataType: 'refEnum',
+        enums: ['table'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TableChartSqlConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SqlRunnerChartConfig' },
+                { ref: 'SqlTableConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'ChartKind.TABLE', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_': {
         dataType: 'refAlias',
         type: {
@@ -6670,7 +6947,21 @@ const models: TsoaRoute.Models = {
                 },
                 createdAt: { dataType: 'datetime', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
-                config: { ref: 'SqlRunnerChartConfig', required: true },
+                config: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'SqlRunnerChartConfig' },
+                        {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartSqlConfig' },
+                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'TableChartSqlConfig' },
+                            ],
+                        },
+                    ],
+                    required: true,
+                },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 slug: { dataType: 'string', required: true },
@@ -6745,7 +7036,21 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
-                config: { ref: 'SqlRunnerChartConfig', required: true },
+                config: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'SqlRunnerChartConfig' },
+                        {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartSqlConfig' },
+                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'TableChartSqlConfig' },
+                            ],
+                        },
+                    ],
+                    required: true,
+                },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
@@ -6813,7 +7118,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                config: { ref: 'SqlRunnerChartConfig', required: true },
+                config: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'SqlRunnerChartConfig' },
+                        {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartSqlConfig' },
+                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'TableChartSqlConfig' },
+                            ],
+                        },
+                    ],
+                    required: true,
+                },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
@@ -7862,6 +8181,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 offset: { dataType: 'double' },
                 sortBy: {
