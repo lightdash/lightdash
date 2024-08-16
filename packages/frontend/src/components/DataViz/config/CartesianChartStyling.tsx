@@ -1,7 +1,7 @@
 import { IndexType, type ChartKind } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
-import debounce from 'lodash/debounce';
+import { useMemo } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import {
@@ -11,8 +11,6 @@ import {
 } from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
-
-const DEBOUNCE_TIME = 500;
 
 export const CartesianChartStyling = ({
     selectedChartType,
@@ -45,29 +43,19 @@ export const CartesianChartStyling = ({
         });
     });
 
-    const xAxisLabel =
-        currentConfig?.config?.display?.xAxis?.label ??
-        currentConfig?.config?.fieldConfig?.x?.reference;
-    const yAxisLabel =
-        currentConfig?.config?.display?.yAxis?.[0]?.label ??
-        currentConfig?.config?.fieldConfig?.y?.[0]?.reference;
+    const xAxisLabel = useMemo(() => {
+        return (
+            currentConfig?.config?.display?.xAxis?.label ??
+            currentConfig?.config?.fieldConfig?.x?.reference
+        );
+    }, [currentConfig]);
+    const yAxisLabel = useMemo(() => {
+        return (
+            currentConfig?.config?.display?.yAxis?.[0]?.label ??
+            currentConfig?.config?.fieldConfig?.y?.[0]?.reference
+        );
+    }, [currentConfig]);
     const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
-
-    const onXAxisLabelChange = debounce((label: string) => {
-        dispatch(actions.setXAxisLabel({ label, type: IndexType.CATEGORY }));
-    }, DEBOUNCE_TIME);
-
-    const onYAxisLabelChange = debounce((label: string) => {
-        dispatch(actions.setYAxisLabel({ index: 0, label }));
-    }, DEBOUNCE_TIME);
-
-    const onYAxisPositionChange = debounce((position: string | undefined) => {
-        dispatch(actions.setYAxisPosition({ index: 0, position }));
-    }, DEBOUNCE_TIME);
-
-    const onStackedChange = debounce((isStacked: boolean) => {
-        dispatch(actions.setStacked(isStacked));
-    }, DEBOUNCE_TIME);
 
     return (
         <Stack spacing="xs">
@@ -93,7 +81,7 @@ export const CartesianChartStyling = ({
                                 : 'None'
                         }
                         onChange={(value) =>
-                            onStackedChange(value === 'Stacked')
+                            dispatch(actions.setStacked(value === 'Stacked'))
                         }
                     />
                 </Config.Group>
@@ -103,9 +91,16 @@ export const CartesianChartStyling = ({
                     <Config.Heading>{`X-axis label`}</Config.Heading>
 
                     <TextInput
-                        defaultValue={xAxisLabel}
+                        value={xAxisLabel}
                         radius="md"
-                        onChange={(e) => onXAxisLabelChange(e.target.value)}
+                        onChange={(e) =>
+                            dispatch(
+                                actions.setXAxisLabel({
+                                    label: e.target.value,
+                                    type: IndexType.CATEGORY,
+                                }),
+                            )
+                        }
                     />
                 </Config.Section>
             </Config>
@@ -115,9 +110,16 @@ export const CartesianChartStyling = ({
                     <Config.Group>
                         <Config.Label>{`Label`}</Config.Label>
                         <TextInput
-                            defaultValue={yAxisLabel}
+                            value={yAxisLabel}
                             radius="md"
-                            onChange={(e) => onYAxisLabelChange(e.target.value)}
+                            onChange={(e) =>
+                                dispatch(
+                                    actions.setYAxisLabel({
+                                        index: 0,
+                                        label: e.target.value,
+                                    }),
+                                )
+                            }
                         />
                     </Config.Group>
                     {series.length < 1 && (
@@ -185,9 +187,14 @@ export const CartesianChartStyling = ({
                                     ),
                                 },
                             ]}
-                            defaultValue={yAxisPosition}
+                            value={yAxisPosition}
                             onChange={(value) =>
-                                onYAxisPositionChange(value || undefined)
+                                dispatch(
+                                    actions.setYAxisPosition({
+                                        index: 0,
+                                        position: value || undefined,
+                                    }),
+                                )
                             }
                         />
                     </Config.Group>
