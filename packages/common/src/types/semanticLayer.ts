@@ -64,6 +64,7 @@ export type SemanticLayerQuery = {
     sortBy: SemanticLayerSortBy[];
     offset?: number;
     limit?: number;
+    timezone?: string;
 };
 
 export type SemanticLayerResultRow = Record<
