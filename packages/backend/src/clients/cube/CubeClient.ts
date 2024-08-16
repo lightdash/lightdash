@@ -130,7 +130,14 @@ export default class CubeClient implements SemanticLayerClient {
         const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
         const resultSet = await this.cubeApi.load(cubeQuery);
 
-        return this.transformers.resultsToResultRows(resultSet);
+        const cubePivotConfig =
+            this.transformers.semanticLayerPivotConfigToPivotConfig(
+                query.pivotConfig,
+            );
+
+        const pivotedResults = resultSet.tablePivot(cubePivotConfig);
+
+        return this.transformers.resultsToResultRows(pivotedResults);
     }
 
     async streamResults(

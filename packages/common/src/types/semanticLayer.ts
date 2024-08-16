@@ -57,6 +57,11 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
     direction: SemanticLayerSortByDirection;
 };
 
+export type SemanticLayerPivotConfig = {
+    x: string[];
+    y: string[];
+};
+
 export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
@@ -65,6 +70,7 @@ export type SemanticLayerQuery = {
     offset?: number;
     limit?: number;
     timezone?: string;
+    pivotConfig?: SemanticLayerPivotConfig;
 };
 
 export type SemanticLayerResultRow = Record<
@@ -79,6 +85,7 @@ export interface SemanticLayerTransformer<
     MetricsType,
     ResultsType,
     SqlType,
+    PivotConfig,
 > {
     fieldsToSemanticLayerFields: (
         dimensions: DimensionsType,
@@ -86,6 +93,9 @@ export interface SemanticLayerTransformer<
     ) => SemanticLayerField[];
     viewsToSemanticLayerViews: (views: ViewType[]) => SemanticLayerView[];
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
+    semanticLayerPivotConfigToPivotConfig: (
+        pivotConfig?: SemanticLayerPivotConfig,
+    ) => PivotConfig | undefined;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
 }

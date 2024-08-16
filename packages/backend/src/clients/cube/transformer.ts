@@ -1,5 +1,6 @@
 import {
     Cube,
+    PivotConfig,
     Query as CubeQuery,
     QueryOrder,
     ResultSet,
@@ -15,7 +16,7 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
-    SemanticLayerSortBy,
+    SemanticLayerResultRow,
     SemanticLayerSortByDirection,
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
@@ -154,8 +155,9 @@ export const cubeTransfomers: SemanticLayerTransformer<
     CubeQuery,
     DimensionsWithVisibility | MeasuresWithVisibility,
     DimensionsWithVisibility | MeasuresWithVisibility,
-    ResultSet,
-    SqlQuery
+    Array<{ [k: string]: number | string | boolean }>,
+    SqlQuery,
+    PivotConfig
 > = {
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
         const semanticDimensions: SemanticLayerField[] = dimensions.map((d) => {
@@ -219,6 +221,7 @@ export const cubeTransfomers: SemanticLayerTransformer<
         timezone: query.timezone,
         limit: query.limit,
     }),
-    resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
+    semanticLayerPivotConfigToPivotConfig: (pivotConfig) => pivotConfig,
+    resultsToResultRows: (results) => results,
     sqlToString: (cubeSql) => cubeSql.sql(),
 };
