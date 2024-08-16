@@ -7309,6 +7309,251 @@
                 "required": ["type", "metadata"],
                 "type": "object"
             },
+            "ChartKind.VERTICAL_BAR": {
+                "enum": ["vertical_bar"],
+                "type": "string"
+            },
+            "ChartKind.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "IndexType": {
+                "enum": ["time", "category"],
+                "type": "string"
+            },
+            "AggregationOptions": {
+                "type": "string"
+            },
+            "SqlCartesianChartLayout": {
+                "properties": {
+                    "groupBy": {
+                        "items": {
+                            "properties": {
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "y": {
+                        "items": {
+                            "properties": {
+                                "aggregation": {
+                                    "$ref": "#/components/schemas/AggregationOptions"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["aggregation", "reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "x": {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/IndexType"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type", "reference"],
+                        "type": "object"
+                    }
+                },
+                "required": ["y", "x"],
+                "type": "object"
+            },
+            "Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "CartesianChartDisplay": {
+                "properties": {
+                    "stack": {
+                        "type": "boolean"
+                    },
+                    "legend": {
+                        "properties": {
+                            "align": {
+                                "type": "string",
+                                "enum": ["start", "center", "end"]
+                            },
+                            "position": {
+                                "type": "string",
+                                "enum": ["top", "bottom", "left", "right"]
+                            }
+                        },
+                        "required": ["align", "position"],
+                        "type": "object"
+                    },
+                    "series": {
+                        "$ref": "#/components/schemas/Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "properties": {
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "position": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/IndexType"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "CartesianChartSqlConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/SqlCartesianChartLayout"
+                            },
+                            "type": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind.LINE"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.PIE": {
+                "enum": ["pie"],
+                "type": "string"
+            },
+            "SqlPivotChartLayout": {
+                "$ref": "#/components/schemas/SqlCartesianChartLayout"
+            },
+            "PieChartDisplay": {
+                "properties": {
+                    "isDonut": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "PieChartSqlConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/PieChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/SqlPivotChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.PIE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SqlTableConfig": {
+                "properties": {
+                    "columns": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "order": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "frozen": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                },
+                                "visible": {
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "frozen",
+                                "label",
+                                "reference",
+                                "visible"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": ["columns"],
+                "type": "object"
+            },
+            "ChartKind.TABLE": {
+                "enum": ["table"],
+                "type": "string"
+            },
+            "TableChartSqlConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SqlTableConfig"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.TABLE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
             "Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_": {
                 "properties": {
                     "name": {
@@ -7410,7 +7655,24 @@
                         "$ref": "#/components/schemas/ChartKind"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                    }
+                                ]
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "number",
@@ -7519,7 +7781,24 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                    }
+                                ]
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "number",
@@ -7589,7 +7868,24 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                            },
+                            {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                    }
+                                ]
+                            }
+                        ]
                     },
                     "limit": {
                         "type": "number",

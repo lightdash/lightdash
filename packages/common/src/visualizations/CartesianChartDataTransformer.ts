@@ -85,17 +85,21 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         };
     }
 
-    async getEchartsSpec(
-        layout: TPivotChartLayout | undefined,
+    async getTransformedData(layout: TPivotChartLayout | undefined) {
+        if (!layout) {
+            return undefined;
+        }
+        return this.transformer.getPivotChartData(layout);
+    }
+
+    getEchartsSpec(
+        transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
         display: CartesianChartDisplay | undefined,
         type: ChartKind,
     ) {
-        if (!layout) {
+        if (!transformedData) {
             return {};
         }
-        const transformedData = await this.transformer.getPivotChartData(
-            layout,
-        );
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 
@@ -104,11 +108,11 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
 
         const shouldStack = display?.stack === true;
 
-        const possibleXAxisValues = transformedData?.results.map(
-            (row) => `${row[transformedData?.indexColumn.reference]}`,
+        const possibleXAxisValues = transformedData.results.map(
+            (row) => `${row[transformedData.indexColumn.reference]}`,
         );
 
-        const series = transformedData?.valuesColumns.map(
+        const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
                 const seriesFormat = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
@@ -116,7 +120,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
 
                 return {
                     dimensions: [
-                        transformedData?.indexColumn.reference,
+                        transformedData.indexColumn.reference,
                         seriesColumn,
                     ],
                     type: defaultSeriesType,
@@ -126,7 +130,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                             display.series[seriesColumn]?.label) ||
                         friendlyName(seriesColumn),
                     encode: {
-                        x: transformedData?.indexColumn.reference,
+                        x: transformedData.indexColumn.reference,
                         y: seriesColumn,
                     },
                     yAxisIndex:
@@ -160,12 +164,12 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
             xAxis: {
                 type:
                     display?.xAxis?.type ||
-                    transformedData?.indexColumn.type ||
+                    transformedData.indexColumn.type ||
                     DEFAULT_X_AXIS_TYPE,
                 name:
                     display?.xAxis?.label ||
                     friendlyName(
-                        transformedData?.indexColumn.reference || 'xAxisColumn',
+                        transformedData.indexColumn.reference || 'xAxisColumn',
                     ),
                 nameLocation: 'center',
                 nameGap: 30,
@@ -180,7 +184,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                     name:
                         (display?.yAxis && display.yAxis[0]?.label) ||
                         friendlyName(
-                            transformedData?.valuesColumns.length === 1
+                            transformedData.valuesColumns.length === 1
                                 ? transformedData.valuesColumns[0]
                                 : '',
                         ),
@@ -204,7 +208,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
             ],
             dataset: {
                 id: 'dataset',
-                source: transformedData?.results,
+                source: transformedData.results,
             },
             series,
         };

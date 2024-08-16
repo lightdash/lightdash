@@ -1,9 +1,4 @@
 import {
-    CartesianChartDataTransformer,
-    isBarChartSQLConfig,
-    isLineChartSQLConfig,
-    isPieChartSQLConfig,
-    PieChartDataTransformer,
     type ResultRow,
     type SqlColumn,
     type SqlRunnerChartConfig,
@@ -26,22 +21,24 @@ export const useSqlChart = (
         [rows, columns],
     );
     return useAsync(async () => {
-        if (isPieChartSQLConfig(config)) {
-            return new PieChartDataTransformer({ transformer }).getEchartsSpec(
-                config.fieldConfig,
-                config.display,
-            );
-        }
-        if (isLineChartSQLConfig(config)) {
-            return new CartesianChartDataTransformer({
-                transformer,
-            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
-        }
-        if (isBarChartSQLConfig(config)) {
-            return new CartesianChartDataTransformer({
-                transformer,
-            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
-        }
-        throw new Error('Unknown chart type');
+        // TODO: implement this
+        return undefined;
+        // if (isPieChartSQLConfig(config)) {
+        //     return new PieChartDataTransformer({ transformer }).getEchartsSpec(
+        //         config.fieldConfig,
+        //         config.display,
+        //     );
+        // }
+        // if (isLineChartSQLConfig(config)) {
+        //     return new CartesianChartDataTransformer({
+        //         transformer,
+        //     }).getEchartsSpec(config.fieldConfig, config.display, config.type);
+        // }
+        // if (isBarChartSQLConfig(config)) {
+        //     return new CartesianChartDataTransformer({
+        //         transformer,
+        //     }).getEchartsSpec(config.fieldConfig, config.display, config.type);
+        // }
+        // throw new Error('Unknown chart type');
     }, [config, transformer]);
 };
