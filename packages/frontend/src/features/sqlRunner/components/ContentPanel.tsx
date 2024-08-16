@@ -235,7 +235,9 @@ export const ContentPanel: FC = () => {
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
-                            overflowY: 'hidden',
+                            overflowY: isTableChartSQLConfig(currentVisConfig)
+                                ? 'auto'
+                                : 'hidden',
                             height: inputSectionHeight,
                             width: inputSectionWidth,
                         }}
@@ -296,10 +298,10 @@ export const ContentPanel: FC = () => {
                                     <Paper
                                         shadow="none"
                                         radius={0}
-                                        p="sm"
+                                        px="sm"
+                                        pb="sm"
                                         sx={() => ({
                                             flex: 1,
-                                            overflow: 'auto',
                                         })}
                                     >
                                         <Table

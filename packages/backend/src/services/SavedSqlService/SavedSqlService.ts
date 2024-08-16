@@ -88,8 +88,7 @@ export class SavedSqlService extends BaseService {
                 : undefined,
             pieChart: isPieChartSQLConfig(config)
                 ? {
-                      groupByCount: (config.fieldConfig?.groupFieldIds ?? [])
-                          .length,
+                      groupByCount: config.fieldConfig?.x ? 1 : 0,
                   }
                 : undefined,
         };

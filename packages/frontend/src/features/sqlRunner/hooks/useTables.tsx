@@ -1,5 +1,5 @@
 import { type ApiError, type ApiWarehouseCatalog } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
 
@@ -14,6 +14,15 @@ const fetchTables = async ({
     lightdashApi<ApiWarehouseCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/tables`,
         method: 'GET',
+        body: undefined,
+    });
+
+const refreshTables = async ({
+    projectUuid,
+}: Pick<GetTablesParams, 'projectUuid'>) =>
+    lightdashApi<ApiWarehouseCatalog>({
+        url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
+        method: 'POST',
         body: undefined,
     });
 
@@ -86,6 +95,23 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
                     database: Object.keys(data)[0],
                     tablesBySchema: searchResults,
                 };
+        },
+    });
+};
+
+export const useRefreshTables = ({
+    projectUuid,
+}: Pick<GetTablesParams, 'projectUuid'>) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => refreshTables({ projectUuid }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([
+                'sqlRunner',
+                'tables',
+                projectUuid,
+            ]);
         },
     });
 };

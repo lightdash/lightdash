@@ -1,5 +1,5 @@
 import { ChartKind } from '@lightdash/common';
-import { createSelector } from '@reduxjs/toolkit';
+import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
 const selectSemanticViewerRunnerState = (
@@ -14,6 +14,7 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
+
 const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
@@ -50,8 +51,8 @@ const selectChartConfigByKind = createSelector(
 
 export const selectCurrentChartConfig = createSelector(
     [selectSemanticViewerRunnerState, (state) => state],
-    (semanticViewerState, state) => {
-        const { selectedChartType } = semanticViewerState;
+    (sqlRunnerState, state) => {
+        const { selectedChartType } = sqlRunnerState;
         return selectChartConfigByKind(state, selectedChartType);
     },
 );

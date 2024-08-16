@@ -1,12 +1,6 @@
 import { intersectionBy } from 'lodash';
 import { DimensionType, MetricType } from '../types/field';
-import { ChartKind } from '../types/savedCharts';
-import type {
-    CartesianChartSqlConfig,
-    PieChartSqlConfig,
-} from '../types/sqlRunner';
 import {
-    type PieChartData,
     type PivotChartData,
     type ResultsRunnerBase,
     type RowData,
@@ -61,20 +55,12 @@ export type SqlCartesianChartLayout = {
     groupBy: { reference: string }[] | undefined;
 };
 
-export type PieChartDimensionOptions = IndexLayoutOptions;
-
-export type PieChartMetricOptions = {
-    reference: string;
-    aggregationOptions: AggregationOptions[];
-};
+// Temporary - this type was used for runner-specific **and** cartesian specific config
+// now we have distinct types for each, even though they are identical
+export type SqlPivotChartLayout = SqlCartesianChartLayout;
 
 export type PieChartDisplay = {
     isDonut?: boolean;
-};
-
-export type SqlPieChartConfig = {
-    groupFieldIds?: string[];
-    metricId?: string;
 };
 
 export type DuckDBSqlFunction = (
@@ -144,7 +130,7 @@ type SqlRunnerResultsTransformerDeps = {
 };
 
 export class SqlRunnerResultsTransformer
-    implements ResultsRunnerBase<SqlCartesianChartLayout, SqlPieChartConfig>
+    implements ResultsRunnerBase<SqlPivotChartLayout>
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
@@ -159,7 +145,7 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    cartesianChartGroupByLayoutOptions(): PivotLayoutOptions[] {
+    pivotChartLayoutOptions(): PivotLayoutOptions[] {
         const options: PivotLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -178,7 +164,7 @@ export class SqlRunnerResultsTransformer
 
     // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
     // The output 'category' | 'time' is echarts specific. or is this more general?
-    cartesianChartXLayoutOptions(): IndexLayoutOptions[] {
+    pivotChartIndexLayoutOptions(): IndexLayoutOptions[] {
         const options: IndexLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -209,7 +195,7 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    cartesianChartYLayoutOptions(): ValuesLayoutOptions[] {
+    pivotChartValuesLayoutOptions(): ValuesLayoutOptions[] {
         const options: ValuesLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
@@ -237,37 +223,37 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    getCartesianLayoutOptions(): {
-        xLayoutOptions: IndexLayoutOptions[];
-        yLayoutOptions: ValuesLayoutOptions[];
-        groupByOptions: PivotLayoutOptions[];
+    getPivotChartLayoutOptions(): {
+        indexLayoutOptions: IndexLayoutOptions[];
+        valuesLayoutOptions: ValuesLayoutOptions[];
+        pivotLayoutOptions: PivotLayoutOptions[];
     } {
         return {
-            xLayoutOptions: this.cartesianChartXLayoutOptions(),
-            yLayoutOptions: this.cartesianChartYLayoutOptions(),
-            groupByOptions: this.cartesianChartGroupByLayoutOptions(),
+            indexLayoutOptions: this.pivotChartIndexLayoutOptions(),
+            valuesLayoutOptions: this.pivotChartValuesLayoutOptions(),
+            pivotLayoutOptions: this.pivotChartLayoutOptions(),
         };
     }
 
-    defaultPivotChartLayout(): SqlCartesianChartLayout | undefined {
-        const firstCategoricalColumn = this.columns.find(
+    defaultPivotChartLayout(): SqlPivotChartLayout | undefined {
+        const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
         );
-        const firstBooleanColumn = this.columns.find(
+        const booleanColumns = this.columns.filter(
             (column) => column.type === DimensionType.BOOLEAN,
         );
-        const firstDateColumn = this.columns.find((column) =>
+        const dateColumns = this.columns.filter((column) =>
             [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
         );
-        const firstNumericColumn = this.columns.find(
+        const numericColumns = this.columns.filter(
             (column) => column.type === DimensionType.NUMBER,
         );
 
         const xColumn =
-            firstCategoricalColumn ||
-            firstBooleanColumn ||
-            firstDateColumn ||
-            firstNumericColumn;
+            categoricalColumns[0] ||
+            booleanColumns[0] ||
+            dateColumns[0] ||
+            numericColumns[0];
         if (xColumn === undefined) {
             return undefined;
         }
@@ -281,7 +267,19 @@ export class SqlRunnerResultsTransformer
         };
 
         const yColumn =
-            firstNumericColumn || firstBooleanColumn || firstCategoricalColumn;
+            numericColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            booleanColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            categoricalColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            numericColumns[0] ||
+            booleanColumns[0] ||
+            categoricalColumns[0];
+
         if (yColumn === undefined) {
             return undefined;
         }
@@ -302,10 +300,9 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    // args should be rows, columns, values
-    // return type should be rows, columns, values too.
+    // args should be rows, columns, values (blocked by db migration)
     public async getPivotChartData(
-        config: SqlCartesianChartLayout,
+        config: SqlPivotChartLayout,
     ): Promise<PivotChartData> {
         const groupByColumns = [config.x.reference];
         const pivotsSql =
@@ -337,128 +334,23 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    pieChartGroupFieldOptions(): PieChartDimensionOptions[] {
-        // TODO: Either make these option getters more generic or
-        // do something specific for pie charts
-        return this.cartesianChartXLayoutOptions();
-    }
-
-    pieChartMetricFieldOptions(): PieChartMetricOptions[] {
-        // TODO: Either make these option getters more generic or
-        // do something specific for pie charts
-        return this.cartesianChartYLayoutOptions();
-    }
-
-    defaultPieChartLayout(): SqlPieChartConfig | undefined {
-        const firstCategoricalColumn = this.columns.find(
-            (column) => column.type === DimensionType.STRING,
-        );
-
-        const firstNumericColumn = this.columns.find(
-            (column) => column.type === DimensionType.NUMBER,
-        );
-
-        const groupFieldIds = firstCategoricalColumn?.reference
-            ? [firstCategoricalColumn.reference]
-            : undefined;
-
-        const metricId = firstNumericColumn?.reference || undefined;
-
-        if (
-            !groupFieldIds ||
-            groupFieldIds.length === 0 ||
-            metricId === undefined
-        ) {
-            return undefined;
-        }
-
-        return {
-            groupFieldIds,
-            metricId,
-        };
-    }
-
-    public async getPieChartData(): // config: SqlTransformPieChartConfig,
-    Promise<PieChartData> {
-        // TODO: NYI
-        return {
-            results: this.rows,
-        };
-    }
-
-    // TODO: merge with function below
-    getPieChartConfig({
-        currentConfig,
-    }: {
-        currentConfig?: PieChartSqlConfig;
-    }) {
-        const newDefaultConfig = this.defaultPieChartLayout();
-
-        let newConfig = currentConfig;
-
-        if (!currentConfig) {
-            newConfig = {
-                metadata: {
-                    version: 1,
-                },
-                type: ChartKind.PIE,
-                fieldConfig: newDefaultConfig,
-                display: {
-                    isDonut: false,
-                },
-            };
-        } else {
-            newConfig = {
-                ...currentConfig,
-                fieldConfig: newDefaultConfig,
-            };
-        }
-
-        return {
-            newConfig,
-        };
-    }
-
-    // TODO: rename
-    getChartConfig({
-        chartType,
-        currentConfig,
-    }: {
-        chartType: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-        currentConfig?: CartesianChartSqlConfig;
-    }) {
+    mergePivotChartLayout(currentConfig?: SqlPivotChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
-            currentConfig?.fieldConfig?.x.reference ===
-                newDefaultLayout?.x.reference ||
+            currentConfig?.x.reference === newDefaultLayout?.x.reference ||
             intersectionBy(
-                currentConfig?.fieldConfig?.y || [],
+                currentConfig?.y || [],
                 newDefaultLayout?.y || [],
                 'reference',
             ).length > 0;
 
-        let newConfig = currentConfig;
+        let mergedLayout = currentConfig;
 
-        if (!currentConfig) {
-            newConfig = {
-                metadata: {
-                    version: 1,
-                },
-                type: chartType,
-                fieldConfig: newDefaultLayout,
-                display: undefined,
-            };
-        } else if (currentConfig && !someFieldsMatch) {
-            newConfig = {
-                ...currentConfig,
-                fieldConfig: newDefaultLayout,
-            };
+        if (!currentConfig || !someFieldsMatch) {
+            mergedLayout = newDefaultLayout;
         }
 
-        return {
-            newConfig,
-            newDefaultLayout,
-        };
+        return mergedLayout;
     }
 }

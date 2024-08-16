@@ -1,9 +1,10 @@
 import {
     isPieChartSQLConfig,
-    type PieChartDimensionOptions,
-    type PieChartMetricOptions,
+    PieChartDataTransformer,
+    type IndexLayoutOptions,
     type PieChartSqlConfig,
-    type SqlPieChartConfig,
+    type SqlPivotChartLayout,
+    type ValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -11,11 +12,11 @@ import { SemanticViewerResultsTransformerFE } from '../transformers/SemanticView
 import { setResults, setSavedChartData } from './semanticViewerSlice';
 
 type InitialState = {
-    defaultFieldConfig: SqlPieChartConfig | undefined;
+    defaultFieldConfig: SqlPivotChartLayout | undefined;
     config: PieChartSqlConfig | undefined;
     options: {
-        groupFieldOptions: PieChartDimensionOptions[];
-        metricFieldOptions: PieChartMetricOptions[];
+        groupFieldOptions: IndexLayoutOptions[];
+        metricFieldOptions: ValuesLayoutOptions[];
     };
 };
 
@@ -32,14 +33,16 @@ export const pieChartConfigSlice = createSlice({
     name: 'pieChartConfig',
     initialState,
     reducers: {
-        setGroupFieldIds: ({ config }, action: PayloadAction<string>) => {
-            if (!config) return;
-
-            if (!config.fieldConfig) {
-                config.fieldConfig = {};
+        setGroupFieldIds: (
+            { config },
+            action: PayloadAction<SqlPivotChartLayout['x']>,
+        ) => {
+            if (config?.fieldConfig?.x) {
+                config.fieldConfig.x = {
+                    reference: action.payload.reference,
+                    type: action.payload.type,
+                };
             }
-
-            config.fieldConfig.groupFieldIds = [action.payload];
         },
     },
     extraReducers: (builder) => {
@@ -50,22 +53,19 @@ export const pieChartConfigSlice = createSlice({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });
+                const pieChartModel = new PieChartDataTransformer({
+                    transformer: sqlRunnerResultsTransformer,
+                });
                 if (action.payload.columns) {
                     state.options = {
                         groupFieldOptions:
-                            sqlRunnerResultsTransformer.pieChartGroupFieldOptions(),
+                            sqlRunnerResultsTransformer.pivotChartIndexLayoutOptions(),
                         metricFieldOptions:
-                            sqlRunnerResultsTransformer.pieChartMetricFieldOptions(),
+                            sqlRunnerResultsTransformer.pivotChartValuesLayoutOptions(),
                     };
                 }
 
-                // TODO: should use cartesian chart
-                const { newConfig } =
-                    sqlRunnerResultsTransformer.getPieChartConfig({
-                        currentConfig: state.config,
-                    });
-
-                state.config = newConfig;
+                state.config = pieChartModel.mergeConfig(state.config);
             }
         });
         builder.addCase(setSavedChartData, (state, action) => {

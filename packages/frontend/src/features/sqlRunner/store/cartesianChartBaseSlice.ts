@@ -18,9 +18,9 @@ type InitialState = {
     defaultLayout: SqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
-        xLayoutOptions: IndexLayoutOptions[];
-        yLayoutOptions: ValuesLayoutOptions[];
-        groupByOptions: PivotLayoutOptions[];
+        indexLayoutOptions: IndexLayoutOptions[];
+        valuesLayoutOptions: ValuesLayoutOptions[];
+        pivotLayoutOptions: PivotLayoutOptions[];
     };
 };
 
@@ -28,9 +28,9 @@ const initialState: InitialState = {
     defaultLayout: undefined,
     config: undefined,
     options: {
-        xLayoutOptions: [],
-        yLayoutOptions: [],
-        groupByOptions: [],
+        indexLayoutOptions: [],
+        valuesLayoutOptions: [],
+        pivotLayoutOptions: [],
     },
 };
 
@@ -45,7 +45,7 @@ export const cartesianChartConfigSlice = createSlice({
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;
                 state.config.fieldConfig.x.type =
-                    state.options.xLayoutOptions.find(
+                    state.options.indexLayoutOptions.find(
                         (x) => x.reference === action.payload,
                     )?.type ?? IndexType.CATEGORY;
             }
@@ -79,7 +79,7 @@ export const cartesianChartConfigSlice = createSlice({
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation =
-                        state.options.yLayoutOptions.find(
+                        state.options.valuesLayoutOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
                         )?.aggregationOptions[0] ?? DEFAULT_AGGREGATION;
@@ -171,12 +171,13 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config) return;
             if (!state.config.fieldConfig) return;
 
-            const yAxisFieldsAvailable = state.options.yLayoutOptions.filter(
-                (option) =>
-                    !state.config?.fieldConfig?.y
-                        .map((y) => y.reference)
-                        .includes(option.reference),
-            );
+            const yAxisFieldsAvailable =
+                state.options.valuesLayoutOptions.filter(
+                    (option) =>
+                        !state.config?.fieldConfig?.y
+                            .map((y) => y.reference)
+                            .includes(option.reference),
+                );
             const yAxisFields = state.config.fieldConfig.y;
 
             let defaultYAxisField: string | undefined;

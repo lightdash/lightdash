@@ -1,6 +1,7 @@
 import {
     CartesianChartDataTransformer,
-    isCartesianChartSQLConfig,
+    isBarChartSQLConfig,
+    isLineChartSQLConfig,
     isPieChartSQLConfig,
     PieChartDataTransformer,
     type ResultRow,
@@ -24,23 +25,23 @@ export const useChart = (
             }),
         [rows, columns],
     );
-
-    const visTransformer = useMemo(() => {
-        if (isCartesianChartSQLConfig(config)) {
+    return useAsync(async () => {
+        if (isPieChartSQLConfig(config)) {
+            return new PieChartDataTransformer({ transformer }).getEchartsSpec(
+                config.fieldConfig,
+                config.display,
+            );
+        }
+        if (isLineChartSQLConfig(config)) {
             return new CartesianChartDataTransformer({
                 transformer,
-            });
-        } else if (isPieChartSQLConfig(config)) {
-            return new PieChartDataTransformer({
-                transformer,
-            });
-        } else {
-            throw new Error('Unknown chart type');
+            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
         }
+        if (isBarChartSQLConfig(config)) {
+            return new CartesianChartDataTransformer({
+                transformer,
+            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
+        }
+        throw new Error('Unknown chart type');
     }, [config, transformer]);
-
-    return useAsync(
-        async () => visTransformer.getEchartsSpec(config),
-        [config, visTransformer],
-    );
 };

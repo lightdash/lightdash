@@ -86,6 +86,9 @@ const Login: FC<{}> = () => {
     // Disable fetch once it has succeeded
     useEffect(() => {
         if (loginOptions && loginOptionsSuccess) {
+            if (loginOptions.forceRedirect && loginOptions.redirectUri) {
+                window.location.href = loginOptions.redirectUri;
+            }
             setFetchOptionsEnabled(false);
         }
     }, [loginOptionsSuccess, loginOptions]);
@@ -165,14 +168,6 @@ const Login: FC<{}> = () => {
     }
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={redirectUrl} />;
-    }
-
-    if (
-        loginOptionsSuccess &&
-        loginOptions.forceRedirect === true &&
-        loginOptions.redirectUri
-    ) {
-        window.location.href = loginOptions.redirectUri;
     }
 
     return (

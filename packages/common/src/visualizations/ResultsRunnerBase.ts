@@ -6,21 +6,15 @@ export type PivotChartData = {
     valuesColumns: string[];
 };
 
-export type PieChartData = {
-    results: RowData[];
-};
-
-// TODO: combine pivot chart + pie chart methods
-export interface ResultsRunnerBase<TPivotChartLayout, TPieChartLayout> {
+export interface ResultsRunnerBase<TPivotChartLayout> {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
     getPivotChartData(config: TPivotChartLayout): Promise<PivotChartData>;
 
     defaultPivotChartLayout(): TPivotChartLayout | undefined;
 
-    // TODO: remove these - can use getPivotChartData
-    getPieChartData(config: TPieChartLayout): Promise<PieChartData>;
-
-    defaultPieChartLayout(): TPieChartLayout | undefined;
+    mergePivotChartLayout(
+        existingConfig?: TPivotChartLayout,
+    ): TPivotChartLayout | undefined;
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.
