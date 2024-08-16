@@ -1,47 +1,86 @@
 import {
     CartesianChartDataTransformer,
-    isBarChartSQLConfig,
-    isLineChartSQLConfig,
-    isPieChartSQLConfig,
+    ChartKind,
     PieChartDataTransformer,
+    type CartesianChartDisplay,
+    type CartesianChartSqlConfig,
+    type PieChartDisplay,
+    type PieChartSqlConfig,
     type ResultRow,
     type SqlColumn,
-    type SqlRunnerChartConfig,
 } from '@lightdash/common';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
 import { SqlRunnerResultsTransformerFE } from './SqlRunnerResultsTransformerFE';
 
 export const useSqlChart = (
     rows: ResultRow[],
     columns: SqlColumn[],
-    config: SqlRunnerChartConfig,
+    config: CartesianChartSqlConfig | PieChartSqlConfig,
 ) => {
     const transformer = useMemo(
-        () =>
-            new SqlRunnerResultsTransformerFE({
-                rows,
-                columns,
-            }),
+        () => new SqlRunnerResultsTransformerFE({ rows, columns }),
         [rows, columns],
     );
-    return useAsync(async () => {
-        if (isPieChartSQLConfig(config)) {
-            return new PieChartDataTransformer({ transformer }).getEchartsSpec(
-                config.fieldConfig,
-                config.display,
-            );
+
+    const { chartTransformer, chartType } = useMemo(() => {
+        if (config.type === ChartKind.PIE) {
+            return {
+                chartTransformer: new PieChartDataTransformer({ transformer }),
+                chartType: ChartKind.PIE,
+            };
         }
-        if (isLineChartSQLConfig(config)) {
-            return new CartesianChartDataTransformer({
-                transformer,
-            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
-        }
-        if (isBarChartSQLConfig(config)) {
-            return new CartesianChartDataTransformer({
-                transformer,
-            }).getEchartsSpec(config.fieldConfig, config.display, config.type);
+        if (
+            config.type === ChartKind.VERTICAL_BAR ||
+            config.type === ChartKind.LINE
+        ) {
+            return {
+                chartTransformer: new CartesianChartDataTransformer({
+                    transformer,
+                }),
+                chartType: ChartKind.VERTICAL_BAR,
+            };
         }
         throw new Error('Unknown chart type');
-    }, [config, transformer]);
+    }, [transformer, config.type]);
+
+    const getTransformedData = useCallback(async () => {
+        return chartTransformer.getTransformedData(config.fieldConfig);
+    }, [chartTransformer, config.fieldConfig]);
+
+    const transformedData = useAsync(getTransformedData, [getTransformedData]);
+
+    const chartSpec = useMemo(() => {
+        if (!transformedData.value) return undefined;
+
+        if (chartType === ChartKind.PIE) {
+            return (
+                chartTransformer as PieChartDataTransformer<any>
+            ).getEchartsSpec(
+                transformedData.value,
+                config.display as PieChartDisplay,
+            );
+        }
+        if (chartType === ChartKind.VERTICAL_BAR) {
+            return (
+                chartTransformer as CartesianChartDataTransformer<any>
+            ).getEchartsSpec(
+                transformedData.value,
+                config.display as CartesianChartDisplay,
+                config.type,
+            );
+        }
+        throw new Error('Unknown chart type');
+    }, [
+        chartTransformer,
+        chartType,
+        config.display,
+        config.type,
+        transformedData.value,
+    ]);
+
+    return {
+        ...transformedData,
+        value: chartSpec,
+    };
 };
