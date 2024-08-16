@@ -6,8 +6,10 @@ import {
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
+    SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
+    SqlRunnerResultsTransformer,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
@@ -189,23 +191,45 @@ export class SemanticLayerService extends BaseService {
 
         this.validateQueryLimit(query);
 
+        // Default stream function, just streams results into a file
+        let streamFunctionCallback: (
+            writer: (data: SemanticLayerResultRow) => void,
+        ) => Promise<void> = async (writer) => {
+            await client.streamResults(
+                projectUuid,
+                {
+                    ...query,
+                    limit: query.limit ?? this.lightdashConfig.query.maxLimit,
+                },
+                async (rows) => {
+                    rows.forEach(writer);
+                },
+            );
+        };
+
+        // When pivotConfig is present, we need to pivot the results
+        // To do this we first need to fetch all the results and then pivot them
+        if (query.pivotConfig) {
+            const results = [] as SemanticLayerResultRow[];
+
+            // Wait for all results to be fetched
+            await client.streamResults(projectUuid, query, async (rows) => {
+                results.push(...rows);
+            });
+
+            // Pivot results
+            const pivotedResults = results; // TODO: pivot results
+
+            streamFunctionCallback = async (writer) => {
+                pivotedResults.forEach(writer);
+            };
+        }
+
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
         )(
             `${this.lightdashConfig.siteUrl}/api/v2/projects/${projectUuid}/semantic-layer/results`,
-            async (writer) => {
-                await client.streamResults(
-                    projectUuid,
-                    {
-                        ...query,
-                        limit:
-                            query.limit ?? this.lightdashConfig.query.maxLimit,
-                    },
-                    async (rows) => {
-                        rows.forEach(writer);
-                    },
-                );
-            },
+            streamFunctionCallback,
             this.s3Client,
         );
 
