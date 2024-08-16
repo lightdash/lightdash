@@ -108,8 +108,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
     (DbtGraphQLDimension & Pick<SemanticLayerField, 'visible'>)[],
     (DbtGraphQLMetric & Pick<SemanticLayerField, 'visible'>)[],
     DbtGraphQLJsonResult,
-    string,
-    never
+    string
 > = {
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
         const semanticDimensions: SemanticLayerField[] = dimensions.map(
@@ -181,9 +180,6 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             }),
             limit: query.limit,
         };
-    },
-    semanticLayerPivotConfigToPivotConfig: (_pivotConfig) => {
-        throw new Error('Not implemented');
     },
     resultsToResultRows: (results) => {
         const { data } = results;

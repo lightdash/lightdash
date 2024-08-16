@@ -86,7 +86,6 @@ export interface SemanticLayerTransformer<
     MetricsType,
     ResultsType,
     SqlType,
-    PivotConfig,
 > {
     fieldsToSemanticLayerFields: (
         dimensions: DimensionsType,
@@ -94,9 +93,6 @@ export interface SemanticLayerTransformer<
     ) => SemanticLayerField[];
     viewsToSemanticLayerViews: (views: ViewType[]) => SemanticLayerView[];
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
-    semanticLayerPivotConfigToPivotConfig: (
-        pivotConfig?: SemanticLayerPivotConfig,
-    ) => PivotConfig | undefined;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
 }
