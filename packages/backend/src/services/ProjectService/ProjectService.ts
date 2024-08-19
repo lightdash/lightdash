@@ -1956,7 +1956,7 @@ export class ProjectService extends BaseService {
 
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
         const cteWithLimit = `
-            WITH cte AS (${sql})
+            WITH cte AS (${sql.replace(/;$/, '')})
             SELECT *
             FROM cte LIMIT ${this.lightdashConfig.query.maxLimit}`;
 
