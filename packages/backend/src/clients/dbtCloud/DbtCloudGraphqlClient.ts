@@ -123,9 +123,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
-        const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
+        const { limit } = graphqlArgs;
+        const queryLimit = Math.min(limit || 500, this.maxQueryLimit);
 
         const createQuery = `
             mutation CreateQuery($environmentId: BigInt!) {
@@ -133,7 +134,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? this.maxQueryLimit}
+                    limit: ${queryLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {

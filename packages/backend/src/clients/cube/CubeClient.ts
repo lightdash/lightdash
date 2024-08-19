@@ -139,7 +139,7 @@ export default class CubeClient implements SemanticLayerClient {
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
         // if the query limit is not set, use the default limit from the config (LIGHTDASH_QUERY_MAX_LIMIT || 5000)
-        const queryLimit = query.limit ?? this.maxQueryLimit;
+        const queryLimit = Math.min(query.limit || 500, this.maxQueryLimit);
 
         // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
         let partialResultsLimit = Math.min(
