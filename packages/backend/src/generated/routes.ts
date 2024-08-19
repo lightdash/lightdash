@@ -8225,7 +8225,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                pivotConfig: { ref: 'SemanticLayerPivot' },
+                pivot: { ref: 'SemanticLayerPivot' },
                 timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 offset: { dataType: 'double' },

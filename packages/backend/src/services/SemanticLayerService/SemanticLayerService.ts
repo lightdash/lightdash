@@ -208,9 +208,9 @@ export class SemanticLayerService extends BaseService {
             );
         };
 
-        // When pivotConfig is present, we need to pivot the results
+        // When pivot is present, we need to pivot the results
         // To do this we first need to fetch all the results and then pivot them
-        if (query.pivotConfig) {
+        if (query.pivot) {
             const results = [] as SemanticLayerResultRow[];
 
             // Wait for all results to be fetched
@@ -219,7 +219,7 @@ export class SemanticLayerService extends BaseService {
             });
 
             // Pivot results
-            const pivotedResults = pivotResults(results, query.pivotConfig);
+            const pivotedResults = pivotResults(results, query.pivot);
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);

@@ -83,7 +83,7 @@ export type SemanticLayerQuery = {
     offset?: number; // ! Needed for cube results
     limit?: number;
     timezone?: string;
-    pivotConfig?: SemanticLayerPivot;
+    pivot?: SemanticLayerPivot;
 };
 
 export type SemanticLayerResultRow = Record<

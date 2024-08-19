@@ -9095,7 +9095,7 @@
             },
             "SemanticLayerQuery": {
                 "properties": {
-                    "pivotConfig": {
+                    "pivot": {
                         "$ref": "#/components/schemas/SemanticLayerPivot"
                     },
                     "timezone": {
