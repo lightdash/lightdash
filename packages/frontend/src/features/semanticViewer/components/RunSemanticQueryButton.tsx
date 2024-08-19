@@ -93,6 +93,12 @@ export const RunSemanticQueryButton: FC = () => {
                     query: {
                         ...allSelectedFieldsByKind,
                         sortBy,
+                        pivotConfig: {
+                            on: ['organizations.demo_joins_orders_status'],
+                            aggFunc: 'sum',
+                            index: ['organizations.name'],
+                            values: ['organizations.count'],
+                        },
                     },
                 })
             }

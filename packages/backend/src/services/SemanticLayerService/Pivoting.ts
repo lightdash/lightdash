@@ -11,5 +11,7 @@ export function pivotResults(
     const df = pl.DataFrame(results, {
         columns: Object.keys(results[0]),
     });
-    return df.pivot(pivotConfig).toRecords();
+
+    const { values, ...options } = pivotConfig;
+    return df.pivot(values, options).toRecords();
 }
