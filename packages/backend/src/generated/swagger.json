@@ -9066,7 +9066,7 @@
                     "count"
                 ]
             },
-            "SemanticLayerPivotConfig": {
+            "SemanticLayerPivot": {
                 "properties": {
                     "aggFunc": {
                         "$ref": "#/components/schemas/SemanticLayerAggFunc"
@@ -9096,7 +9096,7 @@
             "SemanticLayerQuery": {
                 "properties": {
                     "pivotConfig": {
-                        "$ref": "#/components/schemas/SemanticLayerPivotConfig"
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
                     },
                     "timezone": {
                         "type": "string"

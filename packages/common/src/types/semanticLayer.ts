@@ -68,7 +68,7 @@ export type SemanticLayerAggFunc =
     | 'last'
     | 'count';
 
-export type SemanticLayerPivotConfig = {
+export type SemanticLayerPivot = {
     values: string[];
     on: string[];
     index: string[];
@@ -83,7 +83,7 @@ export type SemanticLayerQuery = {
     offset?: number; // ! Needed for cube results
     limit?: number;
     timezone?: string;
-    pivotConfig?: SemanticLayerPivotConfig;
+    pivotConfig?: SemanticLayerPivot;
 };
 
 export type SemanticLayerResultRow = Record<
