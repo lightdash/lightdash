@@ -50,10 +50,25 @@ async function prepareDuckDbConnection(
 
 export async function pivotResults(
     results: RowData[],
-    pivotConfig: SemanticLayerPivot,
+    pivot: SemanticLayerPivot,
 ): Promise<SemanticLayerResultRow[]> {
     const tableName = 'results_data';
     const conn = await prepareDuckDbConnection(tableName, results);
+    let query = 'PIVOT results_data';
+    if (pivot.on.length > 0) {
+        query += ` ON ${pivot.on.join(', ')}`;
+    }
+    if (pivot.values.length > 0) {
+        query += ` USING ${pivot.values
+            .map((v) => `${pivot.aggFunc}(${v})`)
+            .join(', ')}`;
+    } else {
+        return [];
+    }
 
-    return runDuckDbQuery(conn, `SELECT * FROM ${tableName}`);
+    console.log('Running query:', query);
+
+    const data = await runDuckDbQuery(conn, query);
+
+    return data;
 }
