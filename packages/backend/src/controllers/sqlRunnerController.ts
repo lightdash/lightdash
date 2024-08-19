@@ -11,7 +11,6 @@ import {
     CreateSqlChart,
     SqlRunnerBody,
     UpdateSqlChart,
-    WarehouseCatalog,
 } from '@lightdash/common';
 import {
     Body,
