@@ -2,9 +2,22 @@
 sidebar_label: SSO and auth
 ---
 
-# Configure Lightdash to use SSO for authentication
+# Configure Lightdash to use passwords or SSO for authentication
 
-## Password
+## Passwords
+
+We recommend [adding the SMTP environment variables](/references/environmentVariables#smtp-environment-variables) so Lightdash can display a `Forgot your password?` button in the login page and send emails to reset passwords.
+
+You can override a user password in just a few steps:
+
+1. Open the bash terminal for the docker Lightdash container
+2. Override user password with this command:
+
+```shell
+cd ./packages/backend && node ./dist/overrideUserPassword.js <user email> <new password>
+```
+
+## SSO setup
 
 To enforce SSO, it's recommended to disable password authentication. This can be done by setting the following environment variable:
 
