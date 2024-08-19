@@ -37,7 +37,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSql,
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
@@ -253,13 +252,7 @@ export const ContentPanel: FC = () => {
                         <ConditionalVisibility
                             isVisible={activeEditorTab === EditorTabs.SQL}
                         >
-                            <SqlEditor
-                                sql={sql}
-                                onSqlChange={(newSql) =>
-                                    dispatch(setSql(newSql))
-                                }
-                                onSubmit={() => handleRunQuery()}
-                            />
+                            <SqlEditor onSubmit={() => handleRunQuery()} />
                         </ConditionalVisibility>
 
                         <ConditionalVisibility
