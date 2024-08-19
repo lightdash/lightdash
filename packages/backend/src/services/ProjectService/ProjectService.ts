@@ -1955,10 +1955,10 @@ export class ProjectService extends BaseService {
         };
 
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
-        const cteWithLimit = `
-            WITH cte AS (\n${sql.replace(/;$/, '')}\n)
-            SELECT *
-            FROM cte LIMIT ${this.lightdashConfig.query.maxLimit}`;
+        const cteWithLimit = applyLimitToSqlQuery({
+            sqlQuery: sql,
+            limit: this.lightdashConfig.query.maxLimit,
+        });
 
         const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
         await sshTunnel.disconnect();
