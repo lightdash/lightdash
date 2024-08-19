@@ -219,7 +219,7 @@ export class SemanticLayerService extends BaseService {
             });
 
             // Pivot results
-            const pivotedResults = pivotResults(results, query.pivot);
+            const pivotedResults = await pivotResults(results, query.pivot);
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);
