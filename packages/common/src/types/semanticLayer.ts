@@ -57,10 +57,22 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
     direction: SemanticLayerSortByDirection;
 };
 
+// These agg functions match 1:1 to polars' agg functions, they're not typed
+export type SemanticLayerAggFunc =
+    | 'sum'
+    | 'max'
+    | 'min'
+    | 'mean'
+    | 'median'
+    | 'first'
+    | 'last'
+    | 'count';
+
 export type SemanticLayerPivotConfig = {
-    x: string[];
-    y: string[];
-    metricsAsRows?: boolean;
+    values: string[];
+    on: string[];
+    index: string[];
+    aggFunc: SemanticLayerAggFunc;
 };
 
 export type SemanticLayerQuery = {

@@ -15764,6 +15764,60 @@ node-source-walk@^6.0.0, node-source-walk@^6.0.1, node-source-walk@^6.0.2:
   dependencies:
     "@babel/parser" "^7.21.8"
 
+nodejs-polars-android-arm64@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-android-arm64/-/nodejs-polars-android-arm64-0.14.0.tgz#f3a36c38bd6c81feb450cb9703064e5e0c3f487e"
+  integrity sha512-hDavOX5ZMGha1srkgRA6xXfB5ZBmLbWu4rjH/SIrS7wewtr+j23F8ivOCSXYVV5QIkEyihQN8An7Er3Ap2n5lA==
+
+nodejs-polars-darwin-arm64@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-darwin-arm64/-/nodejs-polars-darwin-arm64-0.14.0.tgz#32b1b991052fb6444a576272cf5fb4d2c1b20e80"
+  integrity sha512-UGIRIqzLte1fPA+5acoAflo9eT7Rja2xRnbcoz9TqlPIe7iYYWJXc0kBgVnDT9eWy9JuC4UWRh4K3zJAOxDjnA==
+
+nodejs-polars-darwin-x64@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-darwin-x64/-/nodejs-polars-darwin-x64-0.14.0.tgz#16e5138c25ab4f5ab11c0ea4a4dc72d421037f1b"
+  integrity sha512-Ao+ztykpXX+0WJ0pRjlrXleAxXZJhIPpa2g61kiTKWLfZ2kh9sDikDslG+TUOQwV80NqUcVIm+eWxvu+ESD+jw==
+
+nodejs-polars-linux-arm64-gnu@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-linux-arm64-gnu/-/nodejs-polars-linux-arm64-gnu-0.14.0.tgz#634be69a2a5b26285fc49390640ec2b6f19a23bd"
+  integrity sha512-3anqiqPu3nvx4ktIbOj8Wt5MIIRc1NKGKhzE4DQoPlBm2HxRz9o0thOYi6KinpcrCcxswbEtS6aSAb4I0jABYQ==
+
+nodejs-polars-linux-arm64-musl@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-linux-arm64-musl/-/nodejs-polars-linux-arm64-musl-0.14.0.tgz#69def80fbb834934a8414f2aa3ec9031eb65059e"
+  integrity sha512-vOaWubVSqDW291Wxcw3d1bbH1hgvMSEWw0yEaBNC3x2ataTpOt2UNDUJMceMf08uJOpxeZsd55DhzCJfHDVeUA==
+
+nodejs-polars-linux-x64-gnu@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-linux-x64-gnu/-/nodejs-polars-linux-x64-gnu-0.14.0.tgz#36997864fded838fab01da14978de5ddcfe6ee6c"
+  integrity sha512-DNqSjG2BGuXIYH1WhNKN/0NHnQM7aYdcSsll9azgBkZ3n2C4WRdXadrMKvHuU3g8DoNv/7pkJoUVS2CUez2iMg==
+
+nodejs-polars-linux-x64-musl@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-linux-x64-musl/-/nodejs-polars-linux-x64-musl-0.14.0.tgz#17639ff4e2a4f997ac0903b16b0d9915bd34e738"
+  integrity sha512-CjAAxAdAC+Fbp8VpyrRmRgjviO0gESVXjTASLuST0x4ulG4H9uChQL3Xnev2XdaSu31uIXFdFHDu6jIXx/e2nw==
+
+nodejs-polars-win32-x64-msvc@0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars-win32-x64-msvc/-/nodejs-polars-win32-x64-msvc-0.14.0.tgz#69c1dbf6c0a784a0f4c6a4c1c303a0d5501993d5"
+  integrity sha512-X2WpHfudcYTAu9/OZS82FpMCSuKtFCoBgDaWEy2hZNfQG0W+AaMh6ro9K8QDbYyZYDEMrjbUdQEuLYNl84ZSXg==
+
+nodejs-polars@^0.14.0:
+  version "0.14.0"
+  resolved "https://registry.yarnpkg.com/nodejs-polars/-/nodejs-polars-0.14.0.tgz#9206b6066f02f4374fab0a912ea742ca14281fd2"
+  integrity sha512-2wORrx9Ipi2TinZOGVk4HtOFpeIoZwILZPxd7oqFj2eLhkz7QJYKu9vRjohvUtyi5HG55EybZ9dQDpy5KybRrA==
+  optionalDependencies:
+    nodejs-polars-android-arm64 "0.14.0"
+    nodejs-polars-darwin-arm64 "0.14.0"
+    nodejs-polars-darwin-x64 "0.14.0"
+    nodejs-polars-linux-arm64-gnu "0.14.0"
+    nodejs-polars-linux-arm64-musl "0.14.0"
+    nodejs-polars-linux-x64-gnu "0.14.0"
+    nodejs-polars-linux-x64-musl "0.14.0"
+    nodejs-polars-win32-x64-msvc "0.14.0"
+
 nodemailer-express-handlebars@^6.1.0:
   version "6.1.0"
   resolved "https://registry.yarnpkg.com/nodemailer-express-handlebars/-/nodemailer-express-handlebars-6.1.0.tgz#8c7eaec0a695f19ebb4fcf31b86d7b47fbec1b47"
