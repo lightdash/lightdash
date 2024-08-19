@@ -22,8 +22,13 @@ export default class CubeClient implements SemanticLayerClient {
 
     transformers = cubeTransfomers;
 
+    maxQueryLimit: number;
+
+    maxPartialResultsLimit = 100;
+
     constructor({ lightdashConfig }: CubeArgs) {
         const { token, domain } = lightdashConfig.cube;
+        this.maxQueryLimit = lightdashConfig.query.maxLimit;
         // In development mode, the token is not required for authorization
 
         if (domain === undefined) {
@@ -133,20 +138,48 @@ export default class CubeClient implements SemanticLayerClient {
         query: SemanticLayerQuery,
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
+        // if the query limit is not set, use the default limit from the config (LIGHTDASH_QUERY_MAX_LIMIT || 5000)
+        const queryLimit = Math.min(query.limit || 500, this.maxQueryLimit);
+
+        // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
+        let partialResultsLimit = Math.min(
+            this.maxPartialResultsLimit,
+            queryLimit,
+        );
+
+        let prevPartialResultsLimit = partialResultsLimit;
         let offset = 0;
-        const limit = 100;
         let partialResults: SemanticLayerResultRow[] = [];
+
         do {
             /* eslint-disable-next-line no-await-in-loop */
             partialResults = await this.getResults({
                 ...query,
                 offset,
-                limit,
+                limit: partialResultsLimit,
             });
+
             callback(partialResults);
-            offset += limit;
-        } while (partialResults.length === limit);
-        return offset + partialResults.length;
+
+            // update the offset
+            offset += partialResults.length;
+
+            // keep track of the previous partial results limit so that we can stop when result count is less than it
+            prevPartialResultsLimit = partialResultsLimit;
+
+            // decrease the amount of results to fetch if the limit is less than the query limit so that we don't fetch more than the query limit
+            partialResultsLimit = Math.min(
+                partialResultsLimit,
+                queryLimit - offset,
+            );
+        } while (
+            partialResults.length > 0 &&
+            partialResults.length >= prevPartialResultsLimit &&
+            offset < queryLimit
+        );
+
+        // return the total number of results
+        return offset;
     }
 
     async getSql(query: SemanticLayerQuery) {

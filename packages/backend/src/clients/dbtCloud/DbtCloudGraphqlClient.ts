@@ -39,10 +39,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     environmentId?: string;
 
+    maxQueryLimit: number;
+
     constructor({ lightdashConfig }: DbtCloudGraphqlClientArgs) {
         this.domain = lightdashConfig.dbtCloud.domain;
         this.bearerToken = lightdashConfig.dbtCloud.bearerToken;
         this.environmentId = lightdashConfig.dbtCloud.environmentId;
+        this.maxQueryLimit = lightdashConfig.query.maxLimit;
     }
 
     private getClient() {
@@ -120,9 +123,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
-        const { limit } = graphqlArgs;
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
+        const { limit } = graphqlArgs;
+        const queryLimit = Math.min(limit || 500, this.maxQueryLimit);
 
         const createQuery = `
             mutation CreateQuery($environmentId: BigInt!) {
@@ -130,7 +134,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? null}
+                    limit: ${queryLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {
@@ -210,7 +214,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? null}
+                    limit: ${limit ?? this.maxQueryLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {

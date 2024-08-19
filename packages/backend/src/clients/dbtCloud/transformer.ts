@@ -178,7 +178,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                         );
                 }
             }),
-            limit: 100, // Let this be 100 for now
+            limit: query.limit,
         };
     },
     resultsToResultRows: (results) => {

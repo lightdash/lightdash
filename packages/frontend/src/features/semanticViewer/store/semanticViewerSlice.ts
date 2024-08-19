@@ -71,6 +71,8 @@ export interface SemanticViewerState {
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
     selectedMetrics: Record<string, SemanticLayerStateMetric>;
 
+    limit: number | undefined;
+
     sortBy: SemanticLayerSortBy[];
 }
 
@@ -95,6 +97,8 @@ const initialState: SemanticViewerState = {
 
     results: [],
     columns: [],
+    limit: undefined,
+
     sortBy: [],
 };
 const getKeyByField = (

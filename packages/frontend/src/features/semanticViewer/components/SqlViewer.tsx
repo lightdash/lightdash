@@ -6,7 +6,7 @@ import { useAppSelector } from '../store/hooks';
 import { selectAllSelectedFieldsByKind } from '../store/selectors';
 
 const SqlViewer: FC = () => {
-    const { projectUuid, sortBy } = useAppSelector(
+    const { projectUuid, sortBy, limit } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -20,6 +20,7 @@ const SqlViewer: FC = () => {
             payload: {
                 ...allSelectedFieldsByKind,
                 sortBy,
+                limit,
             },
         },
         {
