@@ -1,5 +1,4 @@
 import {
-    SemanticLayerAggFunc,
     SemanticLayerPivotConfig,
     SemanticLayerResultRow,
 } from '@lightdash/common';
