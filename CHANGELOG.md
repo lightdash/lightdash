@@ -1,3 +1,15 @@
+## [0.1223.3](https://github.com/lightdash/lightdash/compare/0.1223.2...0.1223.3) (2024-08-19)
+
+
+### Bug Fixes
+
+* Modified sqlRunner to have a clearer message when error is thrown ([#11188](https://github.com/lightdash/lightdash/issues/11188)) ([2082e04](https://github.com/lightdash/lightdash/commit/2082e04021742c1888a5d1d88bedeb39c202a8df))
+
+
+### Performance Improvements
+
+* debounce on sql change ([#11193](https://github.com/lightdash/lightdash/issues/11193)) ([0882efd](https://github.com/lightdash/lightdash/commit/0882efdaa7398561e387631b06d93eb2f90a7da6))
+
 ## [0.1223.2](https://github.com/lightdash/lightdash/compare/0.1223.1...0.1223.2) (2024-08-19)
 
 
