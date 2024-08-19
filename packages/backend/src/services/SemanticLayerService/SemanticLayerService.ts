@@ -21,7 +21,7 @@ import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { pivotResults } from './pivoting';
+import { pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
     lightdashConfig: LightdashConfig;

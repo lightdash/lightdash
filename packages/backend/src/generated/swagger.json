@@ -9053,25 +9053,44 @@
                     }
                 ]
             },
+            "SemanticLayerAggFunc": {
+                "type": "string",
+                "enum": [
+                    "sum",
+                    "max",
+                    "min",
+                    "mean",
+                    "median",
+                    "first",
+                    "last",
+                    "count"
+                ]
+            },
             "SemanticLayerPivotConfig": {
                 "properties": {
-                    "metricsAsRows": {
-                        "type": "boolean"
+                    "aggFunc": {
+                        "$ref": "#/components/schemas/SemanticLayerAggFunc"
                     },
-                    "y": {
+                    "index": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     },
-                    "x": {
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "values": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
                     }
                 },
-                "required": ["y", "x"],
+                "required": ["aggFunc", "index", "on", "values"],
                 "type": "object"
             },
             "SemanticLayerQuery": {
@@ -9364,7 +9383,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1222.0",
+        "version": "0.1222.4",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
