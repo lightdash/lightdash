@@ -1,3 +1,10 @@
+# [0.1223.0](https://github.com/lightdash/lightdash/compare/0.1222.4...0.1223.0) (2024-08-19)
+
+
+### Features
+
+* add limit to semantic layer service ([#11145](https://github.com/lightdash/lightdash/issues/11145)) ([9fcdd03](https://github.com/lightdash/lightdash/commit/9fcdd030c767291e2143742e1a5eb0789a239757))
+
 ## [0.1222.4](https://github.com/lightdash/lightdash/compare/0.1222.3...0.1222.4) (2024-08-16)
 
 
