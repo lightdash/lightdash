@@ -1,13 +1,13 @@
 import { SemanticLayerPivot, SemanticLayerResultRow } from '@lightdash/common';
-import { tableFromArrays, tableToIPC } from 'apache-arrow';
-import duckdb from 'duckdb';
+import { tableFromJSON, tableToIPC } from 'apache-arrow';
+import duckdb, { RowData, TableData } from 'duckdb';
 
-const duckDbCrap = async <T>(
+async function runDuckDbQuery(
     conn: duckdb.Connection,
     sql: string,
-): Promise<T> =>
-    new Promise((resolve, reject) => {
-        conn.all(sql, (err: any, res: any) => {
+): Promise<TableData> {
+    return new Promise((resolve, reject) => {
+        conn.all(sql, (err, res) => {
             if (err) {
                 reject(err);
             } else {
@@ -15,47 +15,45 @@ const duckDbCrap = async <T>(
             }
         });
     });
+}
+
+async function prepareDuckDbConnection(
+    tableName: string,
+    results: SemanticLayerResultRow[],
+): Promise<duckdb.Connection> {
+    const db = new duckdb.Database(':memory:');
+    const conn = db.connect();
+    return new Promise((resolve, reject) => {
+        conn.exec(`INSTALL arrow; LOAD arrow;`, (err: unknown) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            const arrowTable = tableFromJSON(results);
+            conn.register_buffer(
+                tableName,
+                [tableToIPC(arrowTable)],
+                true,
+                (error: unknown, _res: unknown) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+
+                    resolve(conn);
+                },
+            );
+        });
+    });
+}
 
 export async function pivotResults(
-    results: SemanticLayerResultRow[],
-    pivot: SemanticLayerPivot,
+    results: RowData[],
+    pivotConfig: SemanticLayerPivot,
 ): Promise<SemanticLayerResultRow[]> {
-    const columns = Object.keys(results[0]);
+    const tableName = 'results_data';
+    const conn = await prepareDuckDbConnection(tableName, results);
 
-    const typedArrays = columns.reduce((acc, c) => {
-        const col = results.map((r) => r[c]);
-        return {
-            ...acc,
-            [c]: col,
-        };
-    }, {});
-
-    console.log({ typedArrays });
-
-    // const arrowTable = tableFromArrays(typedArrays);
-
-    const db = new duckdb.Database(':memory:');
-    db.run(
-        `
-        INSTALL arrow;
-        LOAD arrow;
-`,
-    );
-    const conn = db.connect();
-
-    const arrowTable = tableFromArrays(typedArrays);
-    await conn.arrowIPCStream(tableToIPC(arrowTable), {
-        name: 'results_data',
-    });
-
-    const arrowResult = await conn.query<any>(sql);
-    const { schema } = arrowResult;
-
-    return [];
-
-    // const data = await duckDbCrap(conn, `SELECT * FROM results_data`);
-
-    // console.log(data);
-
-    // return data as any;
+    return runDuckDbQuery(conn, `SELECT * FROM ${tableName}`);
 }
