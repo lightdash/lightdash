@@ -1,3 +1,10 @@
+## [0.1223.1](https://github.com/lightdash/lightdash/compare/0.1223.0...0.1223.1) (2024-08-19)
+
+
+### Performance Improvements
+
+* track active configs and render on selection ([#11184](https://github.com/lightdash/lightdash/issues/11184)) ([a497d66](https://github.com/lightdash/lightdash/commit/a497d663970956b5a75b282c2fdb384c12da18db))
+
 # [0.1223.0](https://github.com/lightdash/lightdash/compare/0.1222.4...0.1223.0) (2024-08-19)
 
 
