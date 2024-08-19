@@ -1,3 +1,10 @@
+## [0.1223.2](https://github.com/lightdash/lightdash/compare/0.1223.1...0.1223.2) (2024-08-19)
+
+
+### Bug Fixes
+
+* strip trailing semicolon on sql runners ([#11190](https://github.com/lightdash/lightdash/issues/11190)) ([bd97fa1](https://github.com/lightdash/lightdash/commit/bd97fa1864765390434bb18af68bdb2b8a831508))
+
 ## [0.1223.1](https://github.com/lightdash/lightdash/compare/0.1223.0...0.1223.1) (2024-08-19)
 
 
