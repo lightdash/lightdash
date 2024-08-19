@@ -8199,18 +8199,21 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                aggFunc: { ref: 'SemanticLayerAggFunc', required: true },
-                index: {
+                values: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            aggFunc: {
+                                ref: 'SemanticLayerAggFunc',
+                                required: true,
+                            },
+                            field: { dataType: 'string', required: true },
+                        },
+                    },
                     required: true,
                 },
                 on: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                values: {
                     dataType: 'array',
                     array: { dataType: 'string' },
                     required: true,

@@ -60,7 +60,7 @@ export async function pivotResults(
     }
     if (pivot.values.length > 0) {
         query += ` USING ${pivot.values
-            .map((v) => `${pivot.aggFunc}(${v})`)
+            .map(({ field, aggFunc }) => `${aggFunc}(${field})`)
             .join(', ')}`;
     } else {
         return [];

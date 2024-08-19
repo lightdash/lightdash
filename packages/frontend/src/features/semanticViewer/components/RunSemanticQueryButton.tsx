@@ -95,9 +95,13 @@ export const RunSemanticQueryButton: FC = () => {
                         sortBy,
                         pivot: {
                             on: ['product__product_type'],
-                            index: ['product__product_price'],
-                            values: ['product__product_price'],
-                            aggFunc: 'sum',
+                            // index: ['product__product_price'],
+                            values: [
+                                {
+                                    field: 'product__product_price',
+                                    aggFunc: 'sum',
+                                },
+                            ],
                         },
                     },
                 })

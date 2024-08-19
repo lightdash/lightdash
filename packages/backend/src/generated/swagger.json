@@ -9068,12 +9068,18 @@
             },
             "SemanticLayerPivot": {
                 "properties": {
-                    "aggFunc": {
-                        "$ref": "#/components/schemas/SemanticLayerAggFunc"
-                    },
-                    "index": {
+                    "values": {
                         "items": {
-                            "type": "string"
+                            "properties": {
+                                "aggFunc": {
+                                    "$ref": "#/components/schemas/SemanticLayerAggFunc"
+                                },
+                                "field": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["aggFunc", "field"],
+                            "type": "object"
                         },
                         "type": "array"
                     },
@@ -9082,15 +9088,9 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
                     }
                 },
-                "required": ["aggFunc", "index", "on", "values"],
+                "required": ["values", "on"],
                 "type": "object"
             },
             "SemanticLayerQuery": {

@@ -110,7 +110,11 @@ export const getPivotedResults = async ({
         query += ` ORDER BY ${sortsSql.join(', ')}`;
     }
 
+    console.log({ query });
+
     const pivoted = await duckDBSqlFunction(query, rows, columns);
+
+    console.log({ pivoted });
 
     const fieldNames = Object.keys(pivoted[0]);
 
