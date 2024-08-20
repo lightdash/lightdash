@@ -9,11 +9,11 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
+import { type ResultsTransformer } from './ResultsTransformer';
 
-export const useChart = (
+export const useChart = <T extends ResultsTransformer>(
     config: CartesianChartSqlConfig | PieChartSqlConfig,
-    transformer: SqlRunnerResultsTransformer,
+    transformer: T,
 ) => {
     const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {

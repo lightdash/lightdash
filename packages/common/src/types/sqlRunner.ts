@@ -71,6 +71,7 @@ export const isApiSqlRunnerJobSuccessResponse = (
 ): response is ApiSqlRunnerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
 
+// TODO: common type with semantic viewer and should be abstracted
 export type SqlRunnerChartConfig = {
     metadata: {
         version: number;

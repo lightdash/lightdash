@@ -1,10 +1,11 @@
 import { isTableChartSQLConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { useAppSelector } from '../store/hooks';
-import SqlRunnerChart from './visualizations/SqlRunnerChart';
+import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
@@ -31,6 +32,15 @@ const ResultsViewer: FC = () => {
         (state) => state.pieChartConfig.config,
     );
 
+    const transformer = useMemo(
+        () =>
+            new SemanticViewerResultsTransformer({
+                rows: results ?? [],
+                columns: columns ?? [],
+            }),
+        [results, columns],
+    );
+
     return (
         <>
             {results &&
@@ -42,12 +52,9 @@ const ResultsViewer: FC = () => {
                                 key={idx}
                                 isVisible={selectedChartType === config?.type}
                             >
-                                <SqlRunnerChart
-                                    data={{
-                                        results,
-                                        columns,
-                                        sortBy: [],
-                                    }}
+                                <ChartView
+                                    transformer={transformer}
+                                    data={{ results, columns }}
                                     config={config}
                                     isLoading={false}
                                     style={{

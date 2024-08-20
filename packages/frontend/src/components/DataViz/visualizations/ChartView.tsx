@@ -5,21 +5,28 @@ import {
 import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
-import { memo, type FC } from 'react';
-import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
+import { memo } from 'react';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
+import { type ResultsTransformer } from '../transformers/ResultsTransformer';
 import { useChart } from '../transformers/useChart';
 
-type ChartViewProps = {
+type ChartViewProps<T extends ResultsTransformer> = {
+    // TODO: we probably can remove this prop
     data: ResultsAndColumns;
     config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
-    transformer: SqlRunnerResultsTransformer;
+    transformer: T;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const ChartView: FC<ChartViewProps> = memo(
-    ({ transformer, config, style, isLoading: isLoadingProp }) => {
+const ChartView = memo(
+    <T extends ResultsTransformer>({
+        data: _data,
+        config,
+        isLoading: isLoadingProp,
+        transformer,
+        style,
+    }: ChartViewProps<T>) => {
         const {
             loading: transformLoading,
             error,
