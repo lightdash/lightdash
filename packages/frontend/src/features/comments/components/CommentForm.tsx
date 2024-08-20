@@ -94,7 +94,7 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
-                        {isSuccess && userNames && (
+                        {isSuccess && userNames && userNames.length > 0 && (
                             <CommentWithMentions
                                 suggestions={userNames}
                                 shouldClearEditor={shouldClearEditor}
