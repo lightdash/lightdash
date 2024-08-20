@@ -26,7 +26,6 @@ import { Table } from '../components/DataViz/visualizations/Table';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
-import { SqlRunnerResultsTransformer } from '../features/sqlRunner/SqlResultsRunner';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -37,6 +36,7 @@ import {
     setProjectUuid,
     setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 
 enum TabOption {
     CHART = 'chart',

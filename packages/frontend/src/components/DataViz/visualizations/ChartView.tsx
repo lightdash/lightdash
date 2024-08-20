@@ -6,7 +6,7 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
-import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/SqlResultsRunner';
+import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
 import { useChart } from '../transformers/useChart';

@@ -7,7 +7,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
-import { SqlRunnerResultsTransformer } from '../../features/sqlRunner/SqlResultsRunner';
+import { SqlRunnerResultsTransformer } from '../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';

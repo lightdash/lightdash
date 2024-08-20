@@ -8,8 +8,8 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { SqlRunnerResultsTransformer } from '../../../features/sqlRunner/SqlResultsRunner';
 import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {

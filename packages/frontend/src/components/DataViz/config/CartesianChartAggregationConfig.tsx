@@ -1,4 +1,8 @@
-import { MetricType, type VizValuesLayoutOptions } from '@lightdash/common';
+import {
+    MetricType,
+    type VizAggregationOptions,
+    type VizValuesLayoutOptions,
+} from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import {
     IconMathFunction,
@@ -13,6 +17,7 @@ import { capitalize } from 'lodash';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
+// TODO: this should be a typed enum (VizAggregationOptions) and exhaustive switch case
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
     aggregation,
 }) => {
@@ -82,7 +87,9 @@ export const CartesianChartAggregationConfig: FC<Props> = ({
             itemComponent={AggregationItem}
             icon={aggregation && <AggregationIcon aggregation={aggregation} />}
             value={aggregation ?? aggregationOptionsWithNone?.[0]}
-            onChange={(value) => value && onChangeAggregation(value)}
+            onChange={(value: VizAggregationOptions | null) =>
+                value && onChangeAggregation(value)
+            }
             styles={(theme) => ({
                 input: {
                     width: '110px',

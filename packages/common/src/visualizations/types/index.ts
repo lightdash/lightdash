@@ -1,17 +1,22 @@
-import { MetricType, type DimensionType } from '../../types/field';
+import { type DimensionType } from '../../types/field';
+
+export enum VizAggregationOptions {
+    SUM = 'sum',
+    COUNT = 'count',
+    MIN = 'min',
+    MAX = 'max',
+    FIRST = 'first',
+}
 
 export const vizAggregationOptions = [
-    // TODO: Change these to strings
-    MetricType.SUM,
-    MetricType.COUNT,
-    MetricType.MIN,
-    MetricType.MAX,
-    'first',
+    VizAggregationOptions.SUM,
+    VizAggregationOptions.COUNT,
+    VizAggregationOptions.MIN,
+    VizAggregationOptions.MAX,
+    VizAggregationOptions.FIRST,
 ];
 
-export const VIZ_DEFAULT_AGGREGATION = MetricType.COUNT;
-
-export type VizAggregationOptions = typeof vizAggregationOptions[number];
+export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
 export type VizSqlColumn = {
     reference: string;
@@ -56,6 +61,7 @@ export type VizPieChartDisplay = {
 // ! TODO: Rename
 export type RowData = Record<string, unknown>;
 
+// TODO: what is `type`?
 export type PivotChartData = {
     results: RowData[];
     indexColumn: { reference: string; type: string };

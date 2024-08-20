@@ -33,7 +33,6 @@ import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
-import { SqlRunnerResultsTransformer } from '../SqlResultsRunner';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -41,6 +40,7 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;

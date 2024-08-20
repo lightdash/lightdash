@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/SqlResultsRunner';
+import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 
 export const useChart = (
     config: CartesianChartSqlConfig | PieChartSqlConfig,

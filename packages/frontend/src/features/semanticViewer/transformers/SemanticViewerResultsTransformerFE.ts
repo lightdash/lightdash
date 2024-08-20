@@ -3,7 +3,7 @@ import {
     type RowData,
     type VizSqlColumn,
 } from '@lightdash/common';
-import { SqlRunnerResultsTransformer } from '../../sqlRunner/SqlResultsRunner';
+import { SemanticViewerResultsTransformer } from './SemanticViewerResultsTransformer';
 
 const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
     if (rows.length === 0) return false;
@@ -27,7 +27,7 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
     });
 };
 
-export class SemanticViewerResultsTransformerFE extends SqlRunnerResultsTransformer {
+export class SemanticViewerResultsTransformerFE extends SemanticViewerResultsTransformer {
     constructor(args: {
         rows: (RowData | ResultRow)[];
         columns: VizSqlColumn[];
