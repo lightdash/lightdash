@@ -6,6 +6,13 @@ export enum OpenIdIdentityIssuerType {
     GENERIC_OIDC = 'oidc',
 }
 
+export const isOpenIdIdentityIssuerType = (
+    value: string,
+): value is OpenIdIdentityIssuerType =>
+    Object.values(OpenIdIdentityIssuerType).includes(
+        value as OpenIdIdentityIssuerType,
+    );
+
 export type CreateOpenIdIdentity = {
     subject: string;
     issuer: string;

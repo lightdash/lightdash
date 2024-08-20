@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 
 import {
     getEmailSchema,
+    isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
     OpenIdIdentityIssuerType,
@@ -143,15 +144,33 @@ const Login: FC<{}> = () => {
         isLoading ||
         isSuccess;
 
-    const googleAuthAvailable = health.data?.auth.google.enabled;
+    const ssoOptions = useMemo(() => {
+        const options = new Set<OpenIdIdentityIssuerType>();
 
-    const otherSsoLogins = loginOptions?.showOptions
-        ? loginOptions.showOptions.filter(
-              (option) =>
-                  option !== LocalIssuerTypes.EMAIL &&
-                  option !== OpenIdIdentityIssuerType.GOOGLE,
-          )
-        : [];
+        if (health.data?.auth.google.enabled) {
+            options.add(OpenIdIdentityIssuerType.GOOGLE);
+        }
+        if (health.data?.auth.azuread.enabled) {
+            options.add(OpenIdIdentityIssuerType.AZUREAD);
+        }
+        if (health.data?.auth.oneLogin.enabled) {
+            options.add(OpenIdIdentityIssuerType.ONELOGIN);
+        }
+        if (health.data?.auth.okta.enabled) {
+            options.add(OpenIdIdentityIssuerType.OKTA);
+        }
+        if (health.data?.auth.oidc.enabled) {
+            options.add(OpenIdIdentityIssuerType.GENERIC_OIDC);
+        }
+        if (loginOptions) {
+            const userSsoOptions = loginOptions.showOptions.filter(
+                isOpenIdIdentityIssuerType,
+            );
+            userSsoOptions.forEach((option) => options.add(option));
+        }
+
+        return Array.from(options);
+    }, [health.data, loginOptions]);
 
     if (health.isInitialLoading || isDemo) {
         return <PageSpinner />;
@@ -221,44 +240,29 @@ const Login: FC<{}> = () => {
                                 ? 'Sign in'
                                 : 'Continue'}
                         </Button>
-                        {(googleAuthAvailable || otherSsoLogins.length > 0) && (
-                            <Divider
-                                my="sm"
-                                labelPosition="center"
-                                label={
-                                    <Text color="gray.5" size="sm" fw={500}>
-                                        OR
-                                    </Text>
-                                }
-                            />
-                        )}
-
-                        <Stack>
-                            {otherSsoLogins?.length > 0 &&
-                                Object.values(OpenIdIdentityIssuerType).reduce<
-                                    React.ReactNode[]
-                                >((acc, providerName) => {
-                                    if (otherSsoLogins.includes(providerName))
-                                        acc.push(
-                                            <ThirdPartySignInButton
-                                                key={providerName}
-                                                providerName={providerName}
-                                                redirect={redirectUrl}
-                                            />,
-                                        );
-                                    return acc;
-                                }, [])}
-
-                            {googleAuthAvailable && (
-                                <ThirdPartySignInButton
-                                    key={OpenIdIdentityIssuerType.GOOGLE}
-                                    providerName={
-                                        OpenIdIdentityIssuerType.GOOGLE
+                        {ssoOptions.length > 0 && (
+                            <>
+                                <Divider
+                                    my="sm"
+                                    labelPosition="center"
+                                    label={
+                                        <Text color="gray.5" size="sm" fw={500}>
+                                            OR
+                                        </Text>
                                     }
-                                    redirect={redirectUrl}
                                 />
-                            )}
-                        </Stack>
+                                <Stack>
+                                    {ssoOptions.map((providerName) => (
+                                        <ThirdPartySignInButton
+                                            key={providerName}
+                                            providerName={providerName}
+                                            redirect={redirectUrl}
+                                            disabled={disableControls}
+                                        />
+                                    ))}
+                                </Stack>
+                            </>
+                        )}
                         <Text mx="auto" mt="md">
                             Don't have an account?{' '}
                             <Anchor href="/register">Sign up</Anchor>
