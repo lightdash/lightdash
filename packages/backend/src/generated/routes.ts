@@ -8199,7 +8199,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                aggFunc: { ref: 'SemanticLayerAggFunc', required: true },
                 index: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -8212,7 +8211,16 @@ const models: TsoaRoute.Models = {
                 },
                 values: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            aggFunction: {
+                                ref: 'SemanticLayerAggFunc',
+                                required: true,
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
                     required: true,
                 },
             },

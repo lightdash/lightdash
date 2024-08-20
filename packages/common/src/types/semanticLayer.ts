@@ -69,10 +69,9 @@ export type SemanticLayerAggFunc =
     | 'count';
 
 export type SemanticLayerPivot = {
-    values: string[];
+    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
     on: string[];
     index: string[];
-    aggFunc: SemanticLayerAggFunc;
 };
 
 export type SemanticLayerQuery = {

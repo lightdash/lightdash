@@ -5,5 +5,21 @@ export function pivotResults(
     results: SemanticLayerResultRow[],
     { values, ...options }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
-    return pl.DataFrame(results).pivot(values, options).toRecords();
+    const df = pl.DataFrame(results);
+    const aggs: Record<string, keyof pl.Expr> = values.reduce(
+        (acc, value) => ({
+            ...acc,
+            [value.name]: value.aggFunction,
+        }),
+        {},
+    );
+
+    return df
+        .groupBy(options.on)
+        .agg(aggs)
+        .pivot(
+            values.map((v) => v.name),
+            options,
+        )
+        .toRecords();
 }
