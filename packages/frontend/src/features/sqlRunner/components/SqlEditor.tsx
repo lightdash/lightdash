@@ -22,7 +22,7 @@ import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
 
-const DEBOUNCE_TIME = 1000;
+const DEBOUNCE_TIME = 500;
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -245,14 +245,9 @@ export const SqlEditor: FC<{
         });
     }, []);
 
-    const onChange: OnChange = useCallback(
-        (value: string | undefined) => {
-            debounce(() => {
-                dispatch(setSql(value ?? ''));
-            }, DEBOUNCE_TIME);
-        },
-        [dispatch],
-    );
+    const onChange: OnChange = debounce((value: string | undefined) => {
+        dispatch(setSql(value ?? ''));
+    }, DEBOUNCE_TIME);
 
     if (isLoading || isTablesDataLoading) {
         return (
