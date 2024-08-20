@@ -3,6 +3,7 @@ import {
     Box,
     Center,
     CopyButton,
+    Group,
     Highlight,
     Loader,
     ScrollArea,
@@ -14,11 +15,17 @@ import {
     type BoxProps,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconCopy,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
-import { useTables } from '../hooks/useTables';
+import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
 interface TableItemProps extends BoxProps {
@@ -114,6 +121,42 @@ const TableItem: FC<TableItemProps> = memo(
     },
 );
 
+const Table: FC<{
+    schema: NonNullable<TablesBySchema>[number]['schema'];
+    tables: NonNullable<TablesBySchema>[number]['tables'];
+    search: string;
+    activeTable: string | undefined;
+    database: string;
+}> = ({ schema, tables, search, activeTable, database }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    return (
+        <Stack spacing={0}>
+            <Group noWrap spacing="two">
+                <Text p={6} fw={700} fz="md" c="gray.7">
+                    {schema}
+                </Text>
+                <ActionIcon onClick={() => setIsExpanded(!isExpanded)}>
+                    <MantineIcon
+                        icon={isExpanded ? IconChevronDown : IconChevronRight}
+                    />
+                </ActionIcon>
+            </Group>
+            {isExpanded &&
+                Object.keys(tables).map((table) => (
+                    <TableItem
+                        key={table}
+                        search={search}
+                        isActive={activeTable === table}
+                        table={table}
+                        schema={`${schema}`}
+                        database={database}
+                        ml="sm"
+                    />
+                ))}
+        </Stack>
+    );
+};
+
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
@@ -169,22 +212,14 @@ export const Tables: FC = () => {
                 {isSuccess &&
                     data &&
                     data.tablesBySchema?.map(({ schema, tables }) => (
-                        <Stack spacing={0} key={schema}>
-                            <Text p={6} fw={700} fz="md" c="gray.7">
-                                {schema}
-                            </Text>
-                            {Object.keys(tables).map((table) => (
-                                <TableItem
-                                    key={table}
-                                    search={search}
-                                    isActive={activeTable === table}
-                                    table={table}
-                                    schema={`${schema}`}
-                                    database={data.database}
-                                    ml="sm"
-                                />
-                            ))}
-                        </Stack>
+                        <Table
+                            key={schema}
+                            schema={schema}
+                            tables={tables}
+                            search={search}
+                            activeTable={activeTable}
+                            database={data.database}
+                        />
                     ))}
             </ScrollArea>
 

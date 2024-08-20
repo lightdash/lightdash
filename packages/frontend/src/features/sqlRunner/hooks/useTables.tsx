@@ -26,7 +26,7 @@ const refreshTables = async ({
         body: undefined,
     });
 
-type TablesBySchema =
+export type TablesBySchema =
     | {
           schema: keyof ApiWarehouseCatalog['results'][0];
           tables: ApiWarehouseCatalog['results'][0]['tables'];
