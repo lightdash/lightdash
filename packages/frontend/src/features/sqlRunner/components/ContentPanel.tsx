@@ -428,10 +428,7 @@ export const ContentPanel: FC = () => {
                     <Paper
                         shadow="none"
                         radius={0}
-                        // p="sm"
-                        // mt="sm"
                         sx={(theme) => ({
-                            // flex: 1,
                             overflow: 'auto',
                             borderWidth: '0 0 1px 1px',
                             borderStyle: 'solid',
