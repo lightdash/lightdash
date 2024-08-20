@@ -1264,12 +1264,31 @@ export class UserService extends BaseService {
             refresh.requestNewAccessToken(
                 'google',
                 refreshToken,
-                (err: any, accessToken: string) => {
+                (err: any, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+
+                    const scopes =
+                        result &&
+                        typeof result.scope === 'string' &&
+                        result.scope.split(' ');
+                    if (
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/drive.file',
+                        ) &&
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/spreadsheets',
+                        )
+                    ) {
+                        resolve(accessToken);
+                    }
+                    reject(
+                        new AuthorizationError(
+                            'Missing authorization to access Google Drive',
+                        ),
+                    );
                 },
             );
         });

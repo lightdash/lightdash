@@ -1,7 +1,7 @@
 import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Loader, Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { memo, useState, type FC } from 'react';
+import { memo, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
@@ -22,18 +22,13 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
             health.data?.auth.google.oauth2ClientId !== undefined &&
             health.data?.auth.google.googleDriveApiKey !== undefined;
 
-        const [isGoogleAuthQueryEnabled, setIsGoogleAuthQueryEnabled] =
-            useState(false);
-
         const { startExporting, isExporting } = useExportToGoogleSheet({
             getGsheetLink,
         });
 
-        useGdriveAccessToken({
-            enabled: isGoogleAuthQueryEnabled,
+        const { mutate } = useGdriveAccessToken({
             onSuccess: () => {
                 startExporting();
-                setIsGoogleAuthQueryEnabled(false);
             },
         });
 
@@ -54,7 +49,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                         )
                     }
                     disabled={isExporting || disabled}
-                    onClick={() => setIsGoogleAuthQueryEnabled(true)}
+                    onClick={() => mutate()}
                     closeMenuOnClick={false}
                 >
                     Export Google Sheets
@@ -68,7 +63,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                 variant="default"
                 loading={isExporting}
                 leftIcon={<MantineIcon icon={GSheetsIcon} />}
-                onClick={() => setIsGoogleAuthQueryEnabled(true)}
+                onClick={() => mutate()}
                 disabled={disabled}
             >
                 Google Sheets
