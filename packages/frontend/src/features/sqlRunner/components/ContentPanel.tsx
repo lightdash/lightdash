@@ -77,6 +77,13 @@ export const ContentPanel: FC = () => {
         selectChartConfigByKind(state, selectedChartType),
     );
 
+    const hideResultsPanel = useMemo(
+        () =>
+            activeEditorTab === EditorTabs.VISUALIZATION &&
+            isTableChartSQLConfig(currentVisConfig),
+        [activeEditorTab, currentVisConfig],
+    );
+
     const {
         mutate: runSqlQuery,
         data: queryResults,
@@ -331,71 +338,73 @@ export const ContentPanel: FC = () => {
                     </Box>
                 </Paper>
 
-                <ResizableBox
-                    height={deferredResultsHeight}
-                    minConstraints={[50, 50]}
-                    maxConstraints={[Infinity, maxResultsHeight]}
-                    resizeHandles={['n']}
-                    axis="y"
-                    handle={
+                {!hideResultsPanel && (
+                    <ResizableBox
+                        height={deferredResultsHeight}
+                        minConstraints={[50, 50]}
+                        maxConstraints={[Infinity, maxResultsHeight]}
+                        resizeHandles={['n']}
+                        axis="y"
+                        handle={
+                            <Paper
+                                pos="absolute"
+                                top={0}
+                                left={0}
+                                right={0}
+                                shadow="none"
+                                radius={0}
+                                px="md"
+                                py={6}
+                                withBorder
+                                bg="gray.1"
+                                sx={(theme) => ({
+                                    zIndex: getDefaultZIndex('modal') - 1,
+                                    borderWidth: isResultsPanelFullHeight
+                                        ? '0 0 0 1px'
+                                        : '0 0 1px 1px',
+                                    borderStyle: 'solid',
+                                    borderColor: theme.colors.gray[3],
+                                    cursor: 'ns-resize',
+                                })}
+                            />
+                        }
+                        style={{
+                            position: 'relative',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                        onResizeStop={(e, data) =>
+                            setResultsHeight(data.size.height)
+                        }
+                    >
                         <Paper
-                            pos="absolute"
-                            top={0}
-                            left={0}
-                            right={0}
                             shadow="none"
                             radius={0}
-                            px="md"
-                            py={6}
-                            withBorder
-                            bg="gray.1"
+                            p="sm"
+                            mt="sm"
                             sx={(theme) => ({
-                                zIndex: getDefaultZIndex('modal') - 1,
-                                borderWidth: isResultsPanelFullHeight
-                                    ? '0 0 0 1px'
-                                    : '0 0 1px 1px',
+                                flex: 1,
+                                overflow: 'auto',
+                                borderWidth: '0 0 1px 1px',
                                 borderStyle: 'solid',
                                 borderColor: theme.colors.gray[3],
-                                cursor: 'ns-resize',
                             })}
-                        />
-                    }
-                    style={{
-                        position: 'relative',
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                    onResizeStop={(e, data) =>
-                        setResultsHeight(data.size.height)
-                    }
-                >
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        p="sm"
-                        mt="sm"
-                        sx={(theme) => ({
-                            flex: 1,
-                            overflow: 'auto',
-                            borderWidth: '0 0 1px 1px',
-                            borderStyle: 'solid',
-                            borderColor: theme.colors.gray[3],
-                        })}
-                    >
-                        <LoadingOverlay
-                            loaderProps={{
-                                size: 'xs',
-                            }}
-                            visible={isLoading}
-                        />
-                        {queryResults?.results && (
-                            <Table
-                                data={queryResults.results}
-                                config={resultsTableConfig}
+                        >
+                            <LoadingOverlay
+                                loaderProps={{
+                                    size: 'xs',
+                                }}
+                                visible={isLoading}
                             />
-                        )}
-                    </Paper>
-                </ResizableBox>
+                            {queryResults?.results && (
+                                <Table
+                                    data={queryResults.results}
+                                    config={resultsTableConfig}
+                                />
+                            )}
+                        </Paper>
+                    </ResizableBox>
+                )}
             </Tooltip.Group>
         </Stack>
     );
