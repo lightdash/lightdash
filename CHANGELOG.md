@@ -1,3 +1,10 @@
+## [0.1223.4](https://github.com/lightdash/lightdash/compare/0.1223.3...0.1223.4) (2024-08-20)
+
+
+### Bug Fixes
+
+* amend debounce callback ([#11204](https://github.com/lightdash/lightdash/issues/11204)) ([4bfa3f8](https://github.com/lightdash/lightdash/commit/4bfa3f8330f8d732d2947ac5594a8e78e1eb6d83))
+
 ## [0.1223.3](https://github.com/lightdash/lightdash/compare/0.1223.2...0.1223.3) (2024-08-19)
 
 
