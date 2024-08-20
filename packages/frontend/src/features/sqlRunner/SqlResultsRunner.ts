@@ -5,6 +5,7 @@ import {
     VizIndexType,
     type DuckDBSqlFunction,
     type PivotChartData,
+    type ResultRow,
     type ResultsRunnerBase,
     type RowData,
     type VizIndexLayoutOptions,
@@ -14,6 +15,7 @@ import {
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
+import { duckDBFE } from './duckDBQuery';
 
 type GetPivotedResultsArgs = {
     columns: VizSqlColumn[];
@@ -23,6 +25,28 @@ type GetPivotedResultsArgs = {
     groupByColumns: string[];
     sortsSql: string[];
     duckDBSqlFunction: DuckDBSqlFunction;
+};
+
+const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
+    if (rows.length === 0) return false;
+
+    const firstRow = rows[0];
+    if (typeof firstRow !== 'object' || firstRow === null) return false;
+
+    const firstValue = Object.values(firstRow)[0];
+    if (typeof firstValue !== 'object' || firstValue === null) return false;
+
+    return 'value' in firstValue;
+};
+
+const convertToRowData = (data: ResultRow[]): RowData[] => {
+    return data.map((row) => {
+        return Object.fromEntries(
+            Object.entries(row).map(([key, value]) => {
+                return [key, value.value.raw];
+            }),
+        );
+    });
 };
 
 const getPivotedResults = async ({
@@ -69,12 +93,6 @@ const getPivotedResults = async ({
     };
 };
 
-type SqlRunnerResultsTransformerDeps = {
-    duckDBSqlFunction: DuckDBSqlFunction;
-    rows: RowData[];
-    columns: VizSqlColumn[];
-};
-
 export class SqlRunnerResultsTransformer
     implements ResultsRunnerBase<VizSqlCartesianChartLayout>
 {
@@ -84,10 +102,15 @@ export class SqlRunnerResultsTransformer
 
     private readonly columns: VizSqlColumn[];
 
-    constructor(args: SqlRunnerResultsTransformerDeps) {
-        this.duckDBSqlFunction = args.duckDBSqlFunction;
+    constructor(args: {
+        rows: (RowData | ResultRow)[];
+        columns: VizSqlColumn[];
+    }) {
+        this.duckDBSqlFunction = duckDBFE;
 
-        this.rows = args.rows;
+        this.rows = isResultRows(args.rows)
+            ? convertToRowData(args.rows)
+            : args.rows;
         this.columns = args.columns;
     }
 

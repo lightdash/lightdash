@@ -4,7 +4,6 @@ import {
     type VizSqlColumn,
 } from '@lightdash/common';
 import { SqlRunnerResultsTransformer } from '../../sqlRunner/SqlResultsRunner';
-import { duckDBFE } from '../duckDBQuery';
 
 const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
     if (rows.length === 0) return false;
@@ -38,7 +37,6 @@ export class SemanticViewerResultsTransformerFE extends SqlRunnerResultsTransfor
                 ? convertToRowData(args.rows)
                 : args.rows,
             columns: args.columns,
-            duckDBSqlFunction: duckDBFE,
         });
     }
 }

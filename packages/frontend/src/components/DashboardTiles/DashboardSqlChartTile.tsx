@@ -7,7 +7,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
-import { SqlRunnerResultsTransformerFE } from '../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
+import { SqlRunnerResultsTransformer } from '../../features/sqlRunner/SqlResultsRunner';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
@@ -52,7 +52,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
 
     const transformer = useMemo(
         () =>
-            new SqlRunnerResultsTransformerFE({
+            new SqlRunnerResultsTransformer({
                 rows: sqlRunnerChartData.results,
                 columns: sqlRunnerChartData.columns,
             }),

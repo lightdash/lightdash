@@ -4,8 +4,8 @@ import {
     isBarChartSQLConfig,
 } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
+import { SqlRunnerResultsTransformer } from '../../../features/sqlRunner/SqlResultsRunner';
 import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
 import {
     cartesianChartConfigSlice,
     onResults,
@@ -21,7 +21,7 @@ export const barChartConfigSlice = createSlice({
         builder.addCase(onResults, (state, action) => {
             if (action.payload.results && action.payload.columns) {
                 const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformerFE({
+                    new SqlRunnerResultsTransformer({
                         rows: action.payload.results,
                         columns: action.payload.columns,
                     });

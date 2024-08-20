@@ -33,6 +33,7 @@ import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
+import { SqlRunnerResultsTransformer } from '../SqlResultsRunner';
 import {
     EditorTabs,
     setActiveEditorTab,
@@ -40,7 +41,6 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -129,7 +129,7 @@ export const ContentPanel: FC = () => {
 
     const transformer = useMemo(
         () =>
-            new SqlRunnerResultsTransformerFE({
+            new SqlRunnerResultsTransformer({
                 rows: queryResults?.results ?? [],
                 columns: queryResults?.columns ?? [],
             }),
