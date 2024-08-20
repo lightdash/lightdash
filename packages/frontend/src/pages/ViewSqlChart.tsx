@@ -13,7 +13,7 @@ import {
     IconCodeCircle,
     IconTable,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
@@ -36,6 +36,7 @@ import {
     setProjectUuid,
     setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformerFE } from '../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
 
 enum TabOption {
     CHART = 'chart',
@@ -80,6 +81,15 @@ const ViewSqlChart = () => {
             dispatch(setSavedChartData(sqlChart));
         }
     }, [dispatch, sqlChart]);
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformerFE({
+                rows: data?.results ?? [],
+                columns: data?.columns ?? [],
+            }),
+        [data],
+    );
 
     if (chartError) {
         return <ErrorState error={chartError.error} />;
@@ -170,6 +180,7 @@ const ViewSqlChart = () => {
                                     {!isTableChartSQLConfig(currentVisConfig) &&
                                         data && (
                                             <ChartView
+                                                transformer={transformer}
                                                 isLoading={isLoading}
                                                 data={data}
                                                 config={currentVisConfig}

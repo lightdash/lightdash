@@ -1,9 +1,9 @@
 import {
-    SqlRunnerResultsTransformer,
     type ResultRow,
     type RowData,
-    type SqlColumn,
+    type VizSqlColumn,
 } from '@lightdash/common';
+import { SqlRunnerResultsTransformer } from '../../sqlRunner/SqlResultsRunner';
 import { duckDBFE } from '../duckDBQuery';
 
 const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
@@ -29,7 +29,10 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
 };
 
 export class SemanticViewerResultsTransformerFE extends SqlRunnerResultsTransformer {
-    constructor(args: { rows: (RowData | ResultRow)[]; columns: SqlColumn[] }) {
+    constructor(args: {
+        rows: (RowData | ResultRow)[];
+        columns: VizSqlColumn[];
+    }) {
         super({
             rows: isResultRows(args.rows)
                 ? convertToRowData(args.rows)

@@ -1,11 +1,11 @@
 import {
     DimensionType,
     type ChartKind,
-    type IndexLayoutOptions,
-    type PivotLayoutOptions,
-    type SqlCartesianChartLayout,
-    type SqlColumn,
-    type ValuesLayoutOptions,
+    type VizIndexLayoutOptions,
+    type VizPivotLayoutOptions,
+    type VizSqlCartesianChartLayout,
+    type VizSqlColumn,
+    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
@@ -28,12 +28,12 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlCartesianChartLayout['y'][number];
-    yLayoutOptions: ValuesLayoutOptions[];
+    field: VizSqlCartesianChartLayout['y'][number];
+    yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 }> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
     const { hovered, ref } = useHover();
     const dispatch = useVizDispatch();
@@ -149,10 +149,10 @@ const XFieldAxisConfig = ({
     actions,
     sqlColumns,
 }: {
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 
-    field: SqlCartesianChartLayout['x'];
-    xLayoutOptions: IndexLayoutOptions[];
+    field: VizSqlCartesianChartLayout['x'];
+    xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
@@ -187,10 +187,10 @@ const GroupByFieldAxisConfig = ({
     actions,
     sqlColumns,
 }: {
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 
     field: undefined | { reference: string };
-    groupByOptions?: PivotLayoutOptions[];
+    groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
@@ -233,7 +233,7 @@ export const CartesianChartFieldConfiguration = ({
     selectedChartType,
 }: {
     selectedChartType: ChartKind;
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 
     actions: CartesianChartActionsType;
 }) => {

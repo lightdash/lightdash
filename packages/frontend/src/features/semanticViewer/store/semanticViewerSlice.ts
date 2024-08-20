@@ -8,8 +8,8 @@ import {
     type SemanticLayerField,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
-    type SqlColumn,
     type SqlTableConfig,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -65,7 +65,7 @@ export interface SemanticViewerState {
     resultsTableConfig: SqlTableConfig | undefined;
 
     results: ResultRow[];
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
@@ -136,7 +136,7 @@ const getKeyByField = (
 
 export type ResultsAndColumns = {
     results: ResultRow[];
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
     sortBy: [];
 };
 
@@ -157,7 +157,7 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 results: ResultRow[];
-                columns: SqlColumn[];
+                columns: VizSqlColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];
@@ -213,7 +213,7 @@ export const semanticViewerSlice = createSlice({
             state.selectedChartType = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
-            const sqlColumns: SqlColumn[] = action.payload.map((field) => ({
+            const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
                 reference: sanitizeFieldId(field.name),
                 type: field.type as unknown as DimensionType,
             }));

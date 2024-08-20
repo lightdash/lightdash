@@ -1,4 +1,4 @@
-import { MetricType, type ValuesLayoutOptions } from '@lightdash/common';
+import { MetricType, type VizValuesLayoutOptions } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import {
     IconMathFunction,
@@ -44,10 +44,12 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
 };
 
 type Props = {
-    options: ValuesLayoutOptions['aggregationOptions'] | undefined;
-    aggregation: ValuesLayoutOptions['aggregationOptions'][number] | undefined;
+    options: VizValuesLayoutOptions['aggregationOptions'] | undefined;
+    aggregation:
+        | VizValuesLayoutOptions['aggregationOptions'][number]
+        | undefined;
     onChangeAggregation: (
-        value: ValuesLayoutOptions['aggregationOptions'][number],
+        value: VizValuesLayoutOptions['aggregationOptions'][number],
     ) => void;
 };
 

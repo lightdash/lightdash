@@ -1,10 +1,10 @@
 import {
-    SqlRunnerResultsTransformer,
     type ResultRow,
     type RowData,
-    type SqlColumn,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import { duckDBFE } from '../duckDBQuery';
+import { SqlRunnerResultsTransformer } from '../SqlResultsRunner';
 
 const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
     if (rows.length === 0) return false;
@@ -29,7 +29,10 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
 };
 
 export class SqlRunnerResultsTransformerFE extends SqlRunnerResultsTransformer {
-    constructor(args: { rows: (RowData | ResultRow)[]; columns: SqlColumn[] }) {
+    constructor(args: {
+        rows: (RowData | ResultRow)[];
+        columns: VizSqlColumn[];
+    }) {
         super({
             rows: isResultRows(args.rows)
                 ? convertToRowData(args.rows)

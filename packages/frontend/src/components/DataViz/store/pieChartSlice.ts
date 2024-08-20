@@ -1,10 +1,10 @@
 import {
     isPieChartSQLConfig,
     PieChartDataTransformer,
-    type IndexLayoutOptions,
     type PieChartSqlConfig,
-    type SqlPivotChartLayout,
-    type ValuesLayoutOptions,
+    type VizIndexLayoutOptions,
+    type VizSqlCartesianChartLayout,
+    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -13,11 +13,11 @@ import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/trans
 import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {
-    defaultFieldConfig: SqlPivotChartLayout | undefined;
+    defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
     config: PieChartSqlConfig | undefined;
     options: {
-        groupFieldOptions: IndexLayoutOptions[];
-        metricFieldOptions: ValuesLayoutOptions[];
+        groupFieldOptions: VizIndexLayoutOptions[];
+        metricFieldOptions: VizValuesLayoutOptions[];
     };
 };
 
@@ -36,7 +36,7 @@ export const pieChartConfigSlice = createSlice({
     reducers: {
         setGroupFieldIds: (
             { config },
-            action: PayloadAction<SqlPivotChartLayout['x']>,
+            action: PayloadAction<VizSqlCartesianChartLayout['x']>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = {

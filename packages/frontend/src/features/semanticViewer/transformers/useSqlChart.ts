@@ -1,7 +1,7 @@
 import {
     type ResultRow,
-    type SqlColumn,
     type SqlRunnerChartConfig,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useAsync } from 'react-use';
@@ -9,7 +9,7 @@ import { SemanticViewerResultsTransformerFE } from './SemanticViewerResultsTrans
 
 export const useSqlChart = (
     rows: ResultRow[],
-    columns: SqlColumn[],
+    columns: VizSqlColumn[],
     config: SqlRunnerChartConfig,
 ) => {
     const transformer = useMemo(

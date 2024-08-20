@@ -7317,14 +7317,14 @@
                 "enum": ["line"],
                 "type": "string"
             },
-            "IndexType": {
+            "VizIndexType": {
                 "enum": ["time", "category"],
                 "type": "string"
             },
-            "AggregationOptions": {
+            "VizAggregationOptions": {
                 "type": "string"
             },
-            "SqlCartesianChartLayout": {
+            "VizSqlCartesianChartLayout": {
                 "properties": {
                     "groupBy": {
                         "items": {
@@ -7342,7 +7342,7 @@
                         "items": {
                             "properties": {
                                 "aggregation": {
-                                    "$ref": "#/components/schemas/AggregationOptions"
+                                    "$ref": "#/components/schemas/VizAggregationOptions"
                                 },
                                 "reference": {
                                     "type": "string"
@@ -7356,7 +7356,7 @@
                     "x": {
                         "properties": {
                             "type": {
-                                "$ref": "#/components/schemas/IndexType"
+                                "$ref": "#/components/schemas/VizIndexType"
                             },
                             "reference": {
                                 "type": "string"
@@ -7416,7 +7416,7 @@
                     "xAxis": {
                         "properties": {
                             "type": {
-                                "$ref": "#/components/schemas/IndexType"
+                                "$ref": "#/components/schemas/VizIndexType"
                             },
                             "label": {
                                 "type": "string"
@@ -7439,7 +7439,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/SqlCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7461,10 +7461,7 @@
                 "enum": ["pie"],
                 "type": "string"
             },
-            "SqlPivotChartLayout": {
-                "$ref": "#/components/schemas/SqlCartesianChartLayout"
-            },
-            "PieChartDisplay": {
+            "VizPieChartDisplay": {
                 "properties": {
                     "isDonut": {
                         "type": "boolean"
@@ -7480,10 +7477,10 @@
                     {
                         "properties": {
                             "display": {
-                                "$ref": "#/components/schemas/PieChartDisplay"
+                                "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/SqlPivotChartLayout"
+                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"

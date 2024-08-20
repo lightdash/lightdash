@@ -9,7 +9,6 @@ import {
     SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
-    SqlRunnerResultsTransformer,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';

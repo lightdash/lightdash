@@ -82,7 +82,6 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
-    SqlColumn,
     SqlRunnerPayload,
     SummaryExplore,
     TablesConfiguration,
@@ -93,6 +92,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    VizSqlColumn,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
@@ -1974,7 +1974,7 @@ export class ProjectService extends BaseService {
         context,
     }: SqlRunnerPayload): Promise<{
         fileUrl: string;
-        columns: SqlColumn[];
+        columns: VizSqlColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2003,7 +2003,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: SqlColumn[] = [];
+        const columns: VizSqlColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,

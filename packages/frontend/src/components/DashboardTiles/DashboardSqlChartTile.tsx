@@ -7,6 +7,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
+import { SqlRunnerResultsTransformerFE } from '../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
@@ -47,6 +48,15 @@ export const DashboardSqlChartTile: FC<Props> = ({
             columns: data?.resultsAndColumns.columns ?? [],
         }),
         [data],
+    );
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformerFE({
+                rows: sqlRunnerChartData.results,
+                columns: sqlRunnerChartData.columns,
+            }),
+        [sqlRunnerChartData],
     );
 
     if (isLoading) {
@@ -106,6 +116,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                         height: '100%',
                         width: '100%',
                     }}
+                    transformer={transformer}
                     isLoading={isLoading}
                 />
             )}

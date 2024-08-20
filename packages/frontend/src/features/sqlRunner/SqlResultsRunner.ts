@@ -1,76 +1,22 @@
-import { intersectionBy } from 'lodash';
-import { DimensionType, MetricType } from '../types/field';
 import {
+    DimensionType,
+    MetricType,
+    vizAggregationOptions,
+    VizIndexType,
+    type DuckDBSqlFunction,
     type PivotChartData,
     type ResultsRunnerBase,
     type RowData,
-} from './ResultsRunnerBase';
-
-export const aggregationOptions = [
-    // TODO: Change these to strings
-    MetricType.SUM,
-    MetricType.COUNT,
-    MetricType.MIN,
-    MetricType.MAX,
-    'first',
-];
-
-export const DEFAULT_AGGREGATION = MetricType.COUNT;
-
-export type AggregationOptions = typeof aggregationOptions[number];
-
-export type SqlColumn = {
-    reference: string;
-    type: DimensionType;
-};
-
-export enum IndexType {
-    TIME = 'time',
-    CATEGORY = 'category',
-}
-
-export type IndexLayoutOptions = {
-    type: IndexType;
-    reference: string;
-};
-
-export type ValuesLayoutOptions = {
-    reference: string;
-    aggregationOptions: AggregationOptions[];
-};
-
-export type PivotLayoutOptions = {
-    reference: string;
-};
-
-export type SqlCartesianChartLayout = {
-    x: {
-        reference: string;
-        type: IndexType;
-    };
-    y: {
-        reference: string;
-        aggregation: AggregationOptions;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-};
-
-// Temporary - this type was used for runner-specific **and** cartesian specific config
-// now we have distinct types for each, even though they are identical
-export type SqlPivotChartLayout = SqlCartesianChartLayout;
-
-export type PieChartDisplay = {
-    isDonut?: boolean;
-};
-
-export type DuckDBSqlFunction = (
-    sql: string,
-    rowData: RowData[],
-    columns: SqlColumn[],
-) => Promise<RowData[]>;
+    type VizIndexLayoutOptions,
+    type VizPivotLayoutOptions,
+    type VizSqlCartesianChartLayout,
+    type VizSqlColumn,
+    type VizValuesLayoutOptions,
+} from '@lightdash/common';
+import { intersectionBy } from 'lodash';
 
 type GetPivotedResultsArgs = {
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
     rows: RowData[];
     valuesSql: string[];
     pivotsSql: string[];
@@ -79,7 +25,7 @@ type GetPivotedResultsArgs = {
     duckDBSqlFunction: DuckDBSqlFunction;
 };
 
-export const getPivotedResults = async ({
+const getPivotedResults = async ({
     columns,
     rows,
     valuesSql,
@@ -126,17 +72,17 @@ export const getPivotedResults = async ({
 type SqlRunnerResultsTransformerDeps = {
     duckDBSqlFunction: DuckDBSqlFunction;
     rows: RowData[];
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
 };
 
 export class SqlRunnerResultsTransformer
-    implements ResultsRunnerBase<SqlPivotChartLayout>
+    implements ResultsRunnerBase<VizSqlCartesianChartLayout>
 {
     private readonly duckDBSqlFunction: DuckDBSqlFunction;
 
     private readonly rows: RowData[];
 
-    private readonly columns: SqlColumn[];
+    private readonly columns: VizSqlColumn[];
 
     constructor(args: SqlRunnerResultsTransformerDeps) {
         this.duckDBSqlFunction = args.duckDBSqlFunction;
@@ -145,8 +91,8 @@ export class SqlRunnerResultsTransformer
         this.columns = args.columns;
     }
 
-    pivotChartLayoutOptions(): PivotLayoutOptions[] {
-        const options: PivotLayoutOptions[] = [];
+    pivotChartLayoutOptions(): VizPivotLayoutOptions[] {
+        const options: VizPivotLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.STRING:
@@ -164,20 +110,20 @@ export class SqlRunnerResultsTransformer
 
     // should the conversion from DimensionType to XLayoutType actually be done in an echarts specific function?
     // The output 'category' | 'time' is echarts specific. or is this more general?
-    pivotChartIndexLayoutOptions(): IndexLayoutOptions[] {
-        const options: IndexLayoutOptions[] = [];
+    pivotChartIndexLayoutOptions(): VizIndexLayoutOptions[] {
+        const options: VizIndexLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.DATE:
                     options.push({
                         reference: column.reference,
-                        type: IndexType.TIME,
+                        type: VizIndexType.TIME,
                     });
                     break;
                 case DimensionType.TIMESTAMP:
                     options.push({
                         reference: column.reference,
-                        type: IndexType.TIME,
+                        type: VizIndexType.TIME,
                     });
                     break;
                 case DimensionType.STRING:
@@ -185,7 +131,7 @@ export class SqlRunnerResultsTransformer
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
-                        type: IndexType.CATEGORY,
+                        type: VizIndexType.CATEGORY,
                     });
                     break;
                 default:
@@ -195,21 +141,21 @@ export class SqlRunnerResultsTransformer
         return options;
     }
 
-    pivotChartValuesLayoutOptions(): ValuesLayoutOptions[] {
-        const options: ValuesLayoutOptions[] = [];
+    pivotChartValuesLayoutOptions(): VizValuesLayoutOptions[] {
+        const options: VizValuesLayoutOptions[] = [];
         for (const column of this.columns) {
             switch (column.type) {
                 case DimensionType.NUMBER:
                     options.push({
                         reference: column.reference,
-                        aggregationOptions,
+                        aggregationOptions: vizAggregationOptions,
                     });
                     break;
                 case DimensionType.STRING:
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
-                        aggregationOptions: aggregationOptions.filter(
+                        aggregationOptions: vizAggregationOptions.filter(
                             (option) =>
                                 option === MetricType.COUNT ||
                                 option === MetricType.COUNT_DISTINCT,
@@ -224,9 +170,9 @@ export class SqlRunnerResultsTransformer
     }
 
     getPivotChartLayoutOptions(): {
-        indexLayoutOptions: IndexLayoutOptions[];
-        valuesLayoutOptions: ValuesLayoutOptions[];
-        pivotLayoutOptions: PivotLayoutOptions[];
+        indexLayoutOptions: VizIndexLayoutOptions[];
+        valuesLayoutOptions: VizValuesLayoutOptions[];
+        pivotLayoutOptions: VizPivotLayoutOptions[];
     } {
         return {
             indexLayoutOptions: this.pivotChartIndexLayoutOptions(),
@@ -235,7 +181,7 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    defaultPivotChartLayout(): SqlPivotChartLayout | undefined {
+    defaultPivotChartLayout(): VizSqlCartesianChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
         );
@@ -257,13 +203,13 @@ export class SqlRunnerResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: SqlCartesianChartLayout['x'] = {
+        const x: VizSqlCartesianChartLayout['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
             )
-                ? IndexType.TIME
-                : IndexType.CATEGORY,
+                ? VizIndexType.TIME
+                : VizIndexType.CATEGORY,
         };
 
         const yColumn =
@@ -302,7 +248,7 @@ export class SqlRunnerResultsTransformer
 
     // args should be rows, columns, values (blocked by db migration)
     public async getPivotChartData(
-        config: SqlPivotChartLayout,
+        config: VizSqlCartesianChartLayout,
     ): Promise<PivotChartData> {
         const groupByColumns = [config.x.reference];
         const pivotsSql =
@@ -334,7 +280,7 @@ export class SqlRunnerResultsTransformer
         };
     }
 
-    mergePivotChartLayout(currentConfig?: SqlPivotChartLayout) {
+    mergePivotChartLayout(currentConfig?: VizSqlCartesianChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =

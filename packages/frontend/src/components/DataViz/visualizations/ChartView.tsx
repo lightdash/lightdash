@@ -6,6 +6,7 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo, type FC } from 'react';
+import { type SqlRunnerResultsTransformer } from '../../../features/sqlRunner/SqlResultsRunner';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
 import { useChart } from '../transformers/useChart';
@@ -14,15 +15,16 @@ type ChartViewProps = {
     data: ResultsAndColumns;
     config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
+    transformer: SqlRunnerResultsTransformer;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView: FC<ChartViewProps> = memo(
-    ({ data, config, style, isLoading: isLoadingProp }) => {
+    ({ transformer, config, style, isLoading: isLoadingProp }) => {
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useChart(data.results, data.columns, config);
+        } = useChart(config, transformer);
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust

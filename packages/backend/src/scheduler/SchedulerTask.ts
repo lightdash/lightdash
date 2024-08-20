@@ -41,13 +41,13 @@ import {
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
-    SqlColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    VizSqlColumn,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -917,7 +917,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | SqlColumn[]>(
+        await this.logWrapper<string | VizSqlColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,

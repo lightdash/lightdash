@@ -40,6 +40,7 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformerFE } from '../transformers/SqlRunnerResultsTransformerFE';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -124,6 +125,15 @@ export const ContentPanel: FC = () => {
             notifications.clean();
         },
         [runSqlQuery, sql, limit],
+    );
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformerFE({
+                rows: queryResults?.results ?? [],
+                columns: queryResults?.columns ?? [],
+            }),
+        [queryResults],
     );
 
     return (
@@ -273,6 +283,7 @@ export const ContentPanel: FC = () => {
                                                     data={queryResults}
                                                     config={config}
                                                     isLoading={isLoading}
+                                                    transformer={transformer}
                                                     style={{
                                                         // NOTE: Ensures the chart is always full height
                                                         height: deferredInputSectionHeight,

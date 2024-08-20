@@ -1,4 +1,4 @@
-import { DimensionType, type SqlColumn } from '@lightdash/common';
+import { DimensionType, type VizSqlColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -8,7 +8,7 @@ import { setGroupFieldIds } from '../store/pieChartSlice';
 export const PieChartConfiguration = ({
     sqlColumns,
 }: {
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 }) => {
     const dispatch = useVizDispatch();
 

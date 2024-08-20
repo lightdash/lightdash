@@ -1,27 +1,27 @@
 import {
-    DEFAULT_AGGREGATION,
-    IndexType,
     isFormat,
-    type AggregationOptions,
+    VizIndexType,
+    VIZ_DEFAULT_AGGREGATION,
     type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type IndexLayoutOptions,
     type LineChartSqlConfig,
-    type PivotLayoutOptions,
-    type SqlCartesianChartLayout,
-    type ValuesLayoutOptions,
+    type VizAggregationOptions,
+    type VizIndexLayoutOptions,
+    type VizPivotLayoutOptions,
+    type VizSqlCartesianChartLayout,
+    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type ResultsAndColumns } from '../Results';
 
 type InitialState = {
-    defaultLayout: SqlCartesianChartLayout | undefined;
+    defaultLayout: VizSqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {
-        indexLayoutOptions: IndexLayoutOptions[];
-        valuesLayoutOptions: ValuesLayoutOptions[];
-        pivotLayoutOptions: PivotLayoutOptions[];
+        indexLayoutOptions: VizIndexLayoutOptions[];
+        valuesLayoutOptions: VizValuesLayoutOptions[];
+        pivotLayoutOptions: VizPivotLayoutOptions[];
     };
 };
 
@@ -41,14 +41,14 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             state,
-            action: PayloadAction<SqlCartesianChartLayout['x']['reference']>,
+            action: PayloadAction<VizSqlCartesianChartLayout['x']['reference']>,
         ) => {
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;
                 state.config.fieldConfig.x.type =
                     state.options.indexLayoutOptions.find(
                         (x) => x.reference === action.payload,
-                    )?.type ?? IndexType.CATEGORY;
+                    )?.type ?? VizIndexType.CATEGORY;
             }
         },
         setGroupByReference: (
@@ -83,7 +83,7 @@ export const cartesianChartConfigSlice = createSlice({
                         state.options.valuesLayoutOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
-                        )?.aggregationOptions[0] ?? DEFAULT_AGGREGATION;
+                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
                 }
             }
         },
@@ -91,7 +91,7 @@ export const cartesianChartConfigSlice = createSlice({
             { config },
             action: PayloadAction<{
                 index: number;
-                aggregation: AggregationOptions;
+                aggregation: VizAggregationOptions;
             }>,
         ) => {
             if (!config) return;
@@ -192,7 +192,7 @@ export const cartesianChartConfigSlice = createSlice({
             if (yAxisFields) {
                 state.config.fieldConfig.y.push({
                     reference: defaultYAxisField,
-                    aggregation: DEFAULT_AGGREGATION,
+                    aggregation: VIZ_DEFAULT_AGGREGATION,
                 });
             }
         },
