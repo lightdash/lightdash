@@ -1,6 +1,5 @@
 import {
     isTableChartSQLConfig,
-    type ChartKind,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 import {
@@ -14,7 +13,6 @@ import {
     Text,
     Tooltip,
     Transition,
-    useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -22,7 +20,6 @@ import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
     useCallback,
     useDeferredValue,
-    useEffect,
     useMemo,
     useState,
     type FC,
@@ -59,8 +56,6 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const mantineTheme = useMantineTheme();
-    const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
     const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
@@ -168,19 +163,10 @@ export const ContentPanel: FC = () => {
     });
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
-    const [showTable, setShowTable] = useState(false);
-    const [activeChartTypes, setActiveChartTypes] = useState<Set<ChartKind>>(
-        new Set(),
+    const showTable = useMemo(
+        () => isTableChartSQLConfig(currentVisConfig),
+        [currentVisConfig],
     );
-
-    useEffect(() => {
-        if (isTableChartSQLConfig(currentVisConfig)) {
-            setShowTable(true);
-        } else {
-            setShowTable(false);
-            setActiveChartTypes((prev) => new Set(prev).add(selectedChartType));
-        }
-    }, [currentVisConfig, selectedChartType]);
 
     return (
         <Stack
@@ -309,17 +295,14 @@ export const ContentPanel: FC = () => {
                                         keepMounted
                                         mounted={!showTable}
                                         transition="fade"
-                                        duration={300}
+                                        duration={400}
                                         timingFunction="ease"
                                     >
                                         {(styles) => (
-                                            <Paper
-                                                shadow="none"
-                                                radius={0}
+                                            <Box
                                                 px="sm"
                                                 pb="sm"
                                                 style={{
-                                                    flex: 1,
                                                     ...styles,
                                                 }}
                                             >
@@ -354,33 +337,28 @@ export const ContentPanel: FC = () => {
                                                                         limit
                                                                     }
                                                                     style={{
-                                                                        height: deferredInputSectionHeight,
+                                                                        height: inputSectionHeight,
                                                                         width: '100%',
-                                                                        flex: 1,
-                                                                        marginTop:
-                                                                            mantineTheme
-                                                                                .spacing
-                                                                                .sm,
                                                                     }}
                                                                 />
                                                             )}
                                                         </ConditionalVisibility>
                                                     ),
                                                 )}
-                                            </Paper>
+                                            </Box>
                                         )}
                                     </Transition>
 
                                     <Transition
+                                        keepMounted
                                         mounted={showTable}
                                         transition="fade"
                                         duration={300}
                                         timingFunction="ease"
                                     >
                                         {(styles) => (
-                                            <Paper
-                                                shadow="none"
-                                                radius={0}
+                                            <Box
+                                                pt="xs"
                                                 px="sm"
                                                 pb="sm"
                                                 style={{
@@ -388,7 +366,9 @@ export const ContentPanel: FC = () => {
                                                     ...styles,
                                                 }}
                                             >
-                                                {activeConfigs.tableConfig && (
+                                                <ConditionalVisibility
+                                                    isVisible={showTable}
+                                                >
                                                     <Table
                                                         data={
                                                             queryResults.results
@@ -397,8 +377,8 @@ export const ContentPanel: FC = () => {
                                                             activeConfigs.tableConfig
                                                         }
                                                     />
-                                                )}
-                                            </Paper>
+                                                </ConditionalVisibility>
+                                            </Box>
                                         )}
                                     </Transition>
                                 </>
@@ -407,73 +387,71 @@ export const ContentPanel: FC = () => {
                     </Box>
                 </Paper>
 
-                {!hideResultsPanel && (
-                    <ResizableBox
-                        height={deferredResultsHeight}
-                        minConstraints={[50, 50]}
-                        maxConstraints={[Infinity, maxResultsHeight]}
-                        resizeHandles={['n']}
-                        axis="y"
-                        handle={
-                            <Paper
-                                pos="absolute"
-                                top={0}
-                                left={0}
-                                right={0}
-                                shadow="none"
-                                radius={0}
-                                px="md"
-                                py={6}
-                                withBorder
-                                bg="gray.1"
-                                sx={(theme) => ({
-                                    zIndex: getDefaultZIndex('modal') - 1,
-                                    borderWidth: isResultsPanelFullHeight
-                                        ? '0 0 0 1px'
-                                        : '0 0 1px 1px',
-                                    borderStyle: 'solid',
-                                    borderColor: theme.colors.gray[3],
-                                    cursor: 'ns-resize',
-                                })}
-                            />
-                        }
-                        style={{
-                            position: 'relative',
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
-                        onResizeStop={(e, data) =>
-                            setResultsHeight(data.size.height)
-                        }
-                    >
+                <ResizableBox
+                    height={deferredResultsHeight}
+                    minConstraints={[50, 50]}
+                    maxConstraints={[Infinity, maxResultsHeight]}
+                    resizeHandles={['n']}
+                    axis="y"
+                    handle={
                         <Paper
+                            pos="absolute"
+                            top={0}
+                            left={0}
+                            right={0}
                             shadow="none"
                             radius={0}
-                            p="sm"
-                            mt="sm"
+                            px="md"
+                            py={6}
+                            withBorder
+                            bg="gray.1"
                             sx={(theme) => ({
-                                flex: 1,
-                                overflow: 'auto',
-                                borderWidth: '0 0 1px 1px',
+                                zIndex: getDefaultZIndex('modal') - 1,
+                                borderWidth: isResultsPanelFullHeight
+                                    ? '0 0 0 1px'
+                                    : '0 0 1px 1px',
                                 borderStyle: 'solid',
                                 borderColor: theme.colors.gray[3],
+                                cursor: 'ns-resize',
                             })}
-                        >
-                            <LoadingOverlay
-                                loaderProps={{
-                                    size: 'xs',
-                                }}
-                                visible={isLoading}
+                        />
+                    }
+                    style={{
+                        position: 'relative',
+                        display: hideResultsPanel ? 'none' : 'flex',
+                        flexDirection: 'column',
+                    }}
+                    onResizeStop={(e, data) =>
+                        setResultsHeight(data.size.height)
+                    }
+                >
+                    <Paper
+                        shadow="none"
+                        radius={0}
+                        // p="sm"
+                        // mt="sm"
+                        sx={(theme) => ({
+                            // flex: 1,
+                            overflow: 'auto',
+                            borderWidth: '0 0 1px 1px',
+                            borderStyle: 'solid',
+                            borderColor: theme.colors.gray[3],
+                        })}
+                    >
+                        <LoadingOverlay
+                            loaderProps={{
+                                size: 'xs',
+                            }}
+                            visible={isLoading}
+                        />
+                        {queryResults?.results && (
+                            <Table
+                                data={queryResults.results}
+                                config={resultsTableConfig}
                             />
-                            {queryResults?.results && (
-                                <Table
-                                    data={queryResults.results}
-                                    config={resultsTableConfig}
-                                />
-                            )}
-                        </Paper>
-                    </ResizableBox>
-                )}
+                        )}
+                    </Paper>
+                </ResizableBox>
             </Tooltip.Group>
         </Stack>
     );
