@@ -1,5 +1,6 @@
 import {
     isTableChartSQLConfig,
+    type ChartKind,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 import {
@@ -12,6 +13,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    Transition,
     useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
@@ -20,6 +22,7 @@ import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
     useCallback,
     useDeferredValue,
+    useEffect,
     useMemo,
     useState,
     type FC,
@@ -165,6 +168,20 @@ export const ContentPanel: FC = () => {
     });
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
+    const [showTable, setShowTable] = useState(false);
+    const [activeChartTypes, setActiveChartTypes] = useState<Set<ChartKind>>(
+        new Set(),
+    );
+
+    useEffect(() => {
+        if (isTableChartSQLConfig(currentVisConfig)) {
+            setShowTable(true);
+        } else {
+            setShowTable(false);
+            setActiveChartTypes((prev) => new Set(prev).add(selectedChartType));
+        }
+    }, [currentVisConfig, selectedChartType]);
+
     return (
         <Stack
             spacing="none"
@@ -288,50 +305,102 @@ export const ContentPanel: FC = () => {
                         >
                             {queryResults?.results && currentVisConfig && (
                                 <>
-                                    {activeConfigs.chartConfigs.map((c) => (
-                                        <ConditionalVisibility
-                                            key={c.type}
-                                            isVisible={
-                                                selectedChartType === c.type
-                                            }
-                                        >
-                                            <ChartView
-                                                data={queryResults}
-                                                config={c}
-                                                isLoading={isLoading}
-                                                transformer={transformer}
+                                    <Transition
+                                        keepMounted
+                                        mounted={!showTable}
+                                        transition="fade"
+                                        duration={300}
+                                        timingFunction="ease"
+                                    >
+                                        {(styles) => (
+                                            <Paper
+                                                shadow="none"
+                                                radius={0}
+                                                px="sm"
+                                                pb="sm"
                                                 style={{
-                                                    height: deferredInputSectionHeight,
-                                                    width: '100%',
                                                     flex: 1,
-                                                    marginTop:
-                                                        mantineTheme.spacing.sm,
+                                                    ...styles,
                                                 }}
-                                                sql={sql}
-                                                projectUuid={projectUuid}
-                                                limit={limit}
-                                            />
-                                        </ConditionalVisibility>
-                                    ))}
+                                            >
+                                                {activeConfigs.chartConfigs.map(
+                                                    (c) => (
+                                                        <ConditionalVisibility
+                                                            key={c.type}
+                                                            isVisible={
+                                                                selectedChartType ===
+                                                                c.type
+                                                            }
+                                                        >
+                                                            {activeChartTypes.has(
+                                                                c.type,
+                                                            ) && (
+                                                                <ChartView
+                                                                    data={
+                                                                        queryResults
+                                                                    }
+                                                                    transformer={
+                                                                        transformer
+                                                                    }
+                                                                    config={c}
+                                                                    isLoading={
+                                                                        isLoading
+                                                                    }
+                                                                    sql={sql}
+                                                                    projectUuid={
+                                                                        projectUuid
+                                                                    }
+                                                                    limit={
+                                                                        limit
+                                                                    }
+                                                                    style={{
+                                                                        height: deferredInputSectionHeight,
+                                                                        width: '100%',
+                                                                        flex: 1,
+                                                                        marginTop:
+                                                                            mantineTheme
+                                                                                .spacing
+                                                                                .sm,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </ConditionalVisibility>
+                                                    ),
+                                                )}
+                                            </Paper>
+                                        )}
+                                    </Transition>
 
-                                    {activeConfigs.tableConfig && (
-                                        <Paper
-                                            shadow="none"
-                                            radius={0}
-                                            px="sm"
-                                            pb="sm"
-                                            sx={() => ({
-                                                flex: 1,
-                                            })}
-                                        >
-                                            <Table
-                                                data={queryResults.results}
-                                                config={
-                                                    activeConfigs.tableConfig
-                                                }
-                                            />
-                                        </Paper>
-                                    )}
+                                    <Transition
+                                        mounted={showTable}
+                                        transition="fade"
+                                        duration={300}
+                                        timingFunction="ease"
+                                    >
+                                        {(styles) => (
+                                            <Paper
+                                                shadow="none"
+                                                radius={0}
+                                                px="sm"
+                                                pb="sm"
+                                                style={{
+                                                    flex: 1,
+                                                    ...styles,
+                                                }}
+                                            >
+                                                {activeConfigs.tableConfig && (
+                                                    <Table
+                                                        data={
+                                                            queryResults.results
+                                                        }
+                                                        config={
+                                                            activeConfigs.tableConfig
+                                                        }
+                                                    />
+                                                )}
+                                            </Paper>
+                                        )}
+                                    </Transition>
                                 </>
                             )}
                         </ConditionalVisibility>
