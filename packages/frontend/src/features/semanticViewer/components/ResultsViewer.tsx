@@ -5,13 +5,14 @@ import { ConditionalVisibility } from '../../../components/common/ConditionalVis
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { useAppSelector } from '../store/hooks';
+import { selectAllSelectedFieldsByKind } from '../store/selectors';
 import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();
 
-    const { results, columns, selectedChartType } = useAppSelector(
+    const { results, columns, selectedChartType, projectUuid } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -32,13 +33,22 @@ const ResultsViewer: FC = () => {
         (state) => state.pieChartConfig.config,
     );
 
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
+
     const transformer = useMemo(
         () =>
             new SemanticViewerResultsTransformer({
                 rows: results ?? [],
                 columns: columns ?? [],
+                query: {
+                    ...allSelectedFieldsByKind,
+                    sortBy: [],
+                },
+                projectUuid,
             }),
-        [results, columns],
+        [results, columns, allSelectedFieldsByKind, projectUuid],
     );
 
     return (
