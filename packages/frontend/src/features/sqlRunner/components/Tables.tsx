@@ -22,12 +22,13 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useState, type FC } from 'react';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+
 interface TableItemProps extends BoxProps {
     table: string;
     search: string;
@@ -129,6 +130,24 @@ const Table: FC<{
     database: string;
 }> = ({ schema, tables, search, activeTable, database }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const hasMatchingTable = useMemo(() => {
+        if (!search || search.trim().length <= 2) return false;
+        return Object.keys(tables).some(
+            (table) =>
+                table.toLowerCase().includes(search.toLowerCase()) ||
+                schema.toString().toLowerCase().includes(search.toLowerCase()),
+        );
+    }, [tables, schema, search]);
+
+    useEffect(() => {
+        if (activeTable && Object.keys(tables).includes(activeTable)) {
+            setIsExpanded(true);
+        }
+        if (hasMatchingTable) {
+            setIsExpanded(true);
+        }
+    }, [activeTable, tables, hasMatchingTable]);
     return (
         <Stack spacing={0}>
             <Group noWrap spacing="two">
@@ -162,7 +181,7 @@ export const Tables: FC = () => {
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [debouncedSearch] = useDebouncedValue(search, 500);
     const isValidSearch = Boolean(
         debouncedSearch && debouncedSearch.trim().length > 2,
     );
@@ -176,7 +195,7 @@ export const Tables: FC = () => {
         <>
             <TextInput
                 size="xs"
-                disabled={!data && !isValidSearch}
+                disabled={!data && !debouncedSearch}
                 icon={
                     isLoading ? (
                         <Loader size="xs" />
