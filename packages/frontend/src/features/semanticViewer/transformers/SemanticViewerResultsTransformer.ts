@@ -8,13 +8,15 @@ import {
     type VizSqlColumn,
 } from '@lightdash/common';
 import { ResultsTransformer } from '../../../components/DataViz/transformers/ResultsTransformer';
-import { apiPostSemanticLayerRun } from '../api/requests';
+import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
     config: VizSqlCartesianChartLayout,
 ): SemanticLayerPivot => {
     return {
-        on: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
+        on: config.groupBy?.map((groupBy) => groupBy.reference) ?? [
+            config.x.reference,
+        ],
         index: [config.x.reference],
         values: config.y.map((y) => ({
             name: y.reference,
@@ -48,8 +50,7 @@ export class SemanticViewerResultsTransformer extends ResultsTransformer {
         config: VizSqlCartesianChartLayout,
     ): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
-
-        const pivotedResults = await apiPostSemanticLayerRun({
+        const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
@@ -57,10 +58,11 @@ export class SemanticViewerResultsTransformer extends ResultsTransformer {
             },
         });
 
-        console.log({
-            pivotedResults,
-        });
-
-        throw new Error('Not implemented');
+        // TODO: confirm if it is correct
+        return {
+            indexColumn: config.x,
+            results: pivotedResults ?? [],
+            valuesColumns: pivotConfig.values.map((v) => v.name),
+        };
     }
 }
