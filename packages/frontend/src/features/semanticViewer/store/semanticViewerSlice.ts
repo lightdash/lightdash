@@ -1,9 +1,9 @@
 import {
     assertUnreachable,
     ChartKind,
+    DimensionType,
     FieldType,
     SemanticLayerFieldType,
-    type DimensionType,
     type ResultRow,
     type SemanticLayerField,
     type SemanticLayerSortBy,
@@ -23,7 +23,6 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
-export const sanitizeFieldId = (fieldId: string) => fieldId.replace('.', '_');
 type SemanticLayerStatePayloadDimension = Pick<
     SemanticLayerField,
     'name' | 'kind' | 'type'
@@ -134,6 +133,23 @@ const getKeyByField = (
     }
 };
 
+function getDimensionTypeFromSemanticLayerFieldType(
+    type: SemanticLayerFieldType,
+): DimensionType {
+    switch (type) {
+        case SemanticLayerFieldType.TIME:
+            return DimensionType.TIMESTAMP;
+        case SemanticLayerFieldType.STRING:
+            return DimensionType.STRING;
+        case SemanticLayerFieldType.NUMBER:
+            return DimensionType.NUMBER;
+        case SemanticLayerFieldType.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        default:
+            return assertUnreachable(type, `Unknown field type: ${type}`);
+    }
+}
+
 export type ResultsAndColumns = {
     results: ResultRow[];
     columns: VizSqlColumn[];
@@ -214,8 +230,8 @@ export const semanticViewerSlice = createSlice({
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
             const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
-                reference: sanitizeFieldId(field.name),
-                type: field.type as unknown as DimensionType,
+                reference: field.name,
+                type: getDimensionTypeFromSemanticLayerFieldType(field.type),
             }));
 
             state.columns = sqlColumns;

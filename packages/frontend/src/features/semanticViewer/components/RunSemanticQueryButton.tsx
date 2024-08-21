@@ -9,7 +9,7 @@ import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
 } from '../store/selectors';
-import { sanitizeFieldId, setResults } from '../store/semanticViewerSlice';
+import { setResults } from '../store/semanticViewerSlice';
 import RunQueryButton from './RunSqlQueryButton';
 
 const mapResultsToTableData = (
@@ -20,7 +20,7 @@ const mapResultsToTableData = (
             const [key, resultValue] = entry;
             return {
                 ...acc,
-                [sanitizeFieldId(key)]: {
+                [key]: {
                     value: {
                         raw: resultValue,
                         formatted: resultValue?.toString(),
@@ -62,10 +62,8 @@ export const RunSemanticQueryButton: FC = () => {
 
     useEffect(() => {
         if (resultsData) {
-            const allReferencedColumns = allSelectedFields.map(sanitizeFieldId);
-
             const usedColumns = columns.filter((c) =>
-                allReferencedColumns.includes(c.reference),
+                allSelectedFields.includes(c.reference),
             );
             dispatch(
                 setResults({

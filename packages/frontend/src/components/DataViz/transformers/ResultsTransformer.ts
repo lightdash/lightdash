@@ -112,7 +112,7 @@ export class ResultsTransformer
                         ...acc,
                         {
                             reference: column.reference,
-                            aggregationOptions: vizAggregationOptions as any,
+                            aggregationOptions: vizAggregationOptions,
                         },
                     ];
 

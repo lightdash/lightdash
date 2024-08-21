@@ -62,7 +62,10 @@ export class SemanticViewerResultsTransformer extends ResultsTransformer {
         return {
             indexColumn: config.x,
             results: pivotedResults ?? [],
-            valuesColumns: Object.keys(pivotedResults?.[0] ?? {}),
+            valuesColumns: Object.keys(pivotedResults?.[0] ?? {}).filter(
+                (name) =>
+                    !config.groupBy?.map((r) => r.reference).includes(name),
+            ),
         };
     }
 }
