@@ -67,6 +67,7 @@ import {
     NotExistsError,
     NotFoundError,
     ParameterError,
+    PivotChartData,
     Project,
     ProjectCatalog,
     ProjectGroupAccess,
@@ -83,6 +84,7 @@ import {
     SpaceQuery,
     SpaceSummary,
     SqlRunnerPayload,
+    SqlRunnerPivotQueryPayload,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -102,6 +104,7 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { log } from 'console';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
@@ -289,6 +292,8 @@ export class ProjectService extends BaseService {
         }
         return args;
     }
+
+    // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
 
     private async getWarehouseCredentials(
         projectUuid: string,
@@ -1963,6 +1968,7 @@ export class ProjectService extends BaseService {
         return results;
     }
 
+    // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
         userUuid,
         projectUuid,
@@ -2035,6 +2041,189 @@ export class ProjectService extends BaseService {
         await sshTunnel.disconnect();
 
         return { fileUrl, columns };
+    }
+
+    static applyPivotToSqlQuery({
+        sql,
+        limit,
+        indexColumn,
+        valuesColumns,
+        groupByColumns,
+    }: Pick<
+        SqlRunnerPivotQueryPayload,
+        'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
+    >): string {
+        const userSql = sql.replace(/;\s*$/, '');
+        const groupBySelectDimensions = [
+            ...(groupByColumns || []).map((col) => col.reference),
+            indexColumn.reference,
+        ];
+        const groupBySelectMetrics = [
+            ...(valuesColumns ?? []).map(
+                (col) =>
+                    `${col.aggregation}(${col.reference}) as ${col.reference}`,
+            ),
+        ];
+        const groupByQuery = `SELECT ${[
+            ...groupBySelectDimensions,
+            ...groupBySelectMetrics,
+        ].join(
+            ', ',
+        )} FROM original_query group by ${groupBySelectDimensions.join(', ')}`;
+
+        const selectReferences = [
+            indexColumn.reference,
+            ...(groupByColumns || []).map((col) => col.reference),
+            ...(valuesColumns || []).map((col) => col.reference),
+        ];
+
+        const pivotQuery = `SELECT ${selectReferences.join(
+            ', ',
+        )}, dense_rank() over (order by ${
+            indexColumn.reference
+        }) as row_index, dense_rank() over (order by ${
+            groupByColumns?.[0]?.reference
+        }) as column_index FROM group_by_query`;
+
+        if (groupByColumns && groupByColumns.length > 0) {
+            // Wrap the original query in a CTE
+            let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
+
+            pivotedSql += `\nSELECT * FROM pivot_query WHERE row_index < ${
+                limit ?? 500
+            } and column_index < 10 order by row_index, column_index`;
+
+            return pivotedSql;
+        }
+
+        let sqlQuery = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery})`;
+        sqlQuery += `\nSELECT * FROM group_by_query LIMIT ${limit ?? 500} `;
+
+        return sqlQuery;
+    }
+
+    async pivotQueryWorkerTask({
+        userUuid,
+        projectUuid,
+        sql,
+        limit,
+        sqlChartUuid,
+        context,
+        indexColumn,
+        valuesColumns,
+        groupByColumns,
+    }: SqlRunnerPivotQueryPayload): Promise<
+        {
+            fileUrl: string;
+        } & Omit<PivotChartData, 'results'>
+    > {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        // Apply limit and pivot to the SQL query
+        const pivotedSql = ProjectService.applyPivotToSqlQuery({
+            sql,
+            limit,
+            indexColumn,
+            valuesColumns,
+            groupByColumns,
+        });
+
+        this.analytics.track({
+            userId: userUuid,
+            event: 'query.executed',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context: context as QueryExecutionContext,
+                sqlChartId: sqlChartUuid,
+                usingStreaming: true,
+            },
+        });
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, userUuid),
+        );
+        this.logger.debug(`Stream query against warehouse`);
+        const queryTags: RunQueryTags = {
+            organization_uuid: organizationUuid,
+            user_uuid: userUuid,
+        };
+
+        const columns: SqlColumn[] = [];
+
+        let currentRowIndex = 0;
+        let currentTransformedRow: ResultRow | undefined;
+        const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
+
+        const fileUrl = await this.downloadFileModel.streamFunction(
+            this.s3Client,
+        )(
+            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+            async (writer) => {
+                await warehouseClient.streamQuery(
+                    pivotedSql,
+                    async ({ rows, fields }) => {
+                        if (!groupByColumns) {
+                            rows.forEach(writer);
+                            return;
+                        }
+                        if (!columns.length) {
+                            // Get column types from first row of results
+                            columns.push(
+                                ...Object.keys(fields).map((fieldName) => ({
+                                    reference: fieldName,
+                                    type: fields[fieldName].type,
+                                })),
+                            );
+                        }
+
+                        rows.forEach((row) => {
+                            // Write rows to file in order of row_index. This is so that we can pivot the data later
+                            if (currentRowIndex !== row.row_index) {
+                                if (currentTransformedRow) {
+                                    writer(currentTransformedRow);
+                                }
+                                currentTransformedRow = {
+                                    [indexColumn.reference]:
+                                        row[indexColumn.reference],
+                                };
+                                currentRowIndex = row.row_index;
+                            }
+                            // Suffix the value column with the group by columns to avoid collisions. E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'], then the value column will be 'value_1_a_b'
+                            const valueSuffix = groupByColumns
+                                ?.map((col) => row[col.reference])
+                                .join('_');
+                            valuesColumns.forEach((col) => {
+                                const valueColumnReference = `${col.reference}_${valueSuffix}`;
+                                valuesColumnReferences.add(
+                                    valueColumnReference,
+                                );
+                                currentTransformedRow =
+                                    currentTransformedRow ?? {};
+                                currentTransformedRow[valueColumnReference] =
+                                    row[col.reference];
+                            });
+                        });
+                    },
+                    {
+                        tags: queryTags,
+                    },
+                );
+            },
+            this.s3Client,
+        );
+
+        await sshTunnel.disconnect();
+
+        return {
+            fileUrl,
+            valuesColumns: groupByColumns
+                ? Array.from(valuesColumnReferences)
+                : valuesColumns.map((col) => col.reference),
+            indexColumn,
+        };
     }
 
     async getFileStream(
@@ -2851,13 +3040,6 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            credentials,
-        );
-
-        const schema = ProjectService.getWarehouseSchema(credentials);
-
         let catalog: WarehouseCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
@@ -2879,8 +3061,6 @@ export class ProjectService extends BaseService {
                 projectUuid,
             );
         }
-
-        await sshTunnel.disconnect();
 
         if (!catalog) {
             throw new NotFoundError('Warehouse tables not found');

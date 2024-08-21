@@ -43,6 +43,8 @@ import {
     SlackNotificationPayload,
     sqlRunnerJob,
     SqlRunnerPayload,
+    sqlRunnerPivotQueryJob,
+    SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
@@ -929,6 +931,22 @@ export default class SchedulerTask {
                     await this.projectService.streamSqlQueryIntoFile(payload);
                 return { fileUrl, columns };
             },
+        );
+    }
+
+    protected async sqlRunnerPivotQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SqlRunnerPivotQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: sqlRunnerPivotQueryJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => this.projectService.pivotQueryWorkerTask(payload),
         );
     }
 

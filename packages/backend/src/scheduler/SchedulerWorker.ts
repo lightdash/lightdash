@@ -2,6 +2,7 @@ import {
     SchedulerJobStatus,
     semanticLayerQueryJob,
     sqlRunnerJob,
+    sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
@@ -431,6 +432,40 @@ export class SchedulerWorker extends SchedulerTask {
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
                             task: sqlRunnerJob,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
+                    },
+                );
+            },
+            [sqlRunnerPivotQueryJob]: async (
+                payload: any,
+                helpers: JobHelpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        sqlRunnerPivotQueryJob,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.sqlRunnerPivotQuery(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: sqlRunnerPivotQueryJob,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,

@@ -156,6 +156,7 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     return (
         <Stack
@@ -299,6 +300,9 @@ export const ContentPanel: FC = () => {
                                                     marginTop:
                                                         mantineTheme.spacing.sm,
                                                 }}
+                                                sql={sql}
+                                                projectUuid={projectUuid}
+                                                limit={limit}
                                             />
                                         </ConditionalVisibility>
                                     ))}

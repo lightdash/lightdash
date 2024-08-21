@@ -6641,6 +6641,7 @@
                             "testAndCompileProject",
                             "validateProject",
                             "sqlRunner",
+                            "sqlRunnerPivotQuery",
                             "semanticLayer"
                         ]
                     }
@@ -7289,6 +7290,64 @@
                 },
                 "required": ["sql"],
                 "type": "object"
+            },
+            "AggregationOptions": {
+                "type": "string"
+            },
+            "ApiSqlRunnerPivotQueryPayload": {
+                "properties": {
+                    "groupByColumns": {
+                        "items": {
+                            "properties": {
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "valuesColumns": {
+                        "items": {
+                            "properties": {
+                                "aggregation": {
+                                    "$ref": "#/components/schemas/AggregationOptions"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["aggregation", "reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "indexColumn": {
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["type", "reference"],
+                        "type": "object"
+                    }
+                },
+                "required": ["valuesColumns", "indexColumn"],
+                "type": "object"
+            },
+            "SqlRunnerPivotQueryBody": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlRunnerBody"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApiSqlRunnerPivotQueryPayload"
+                    }
+                ]
             },
             "SqlRunnerChartConfig": {
                 "properties": {

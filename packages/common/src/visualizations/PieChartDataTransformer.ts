@@ -35,11 +35,19 @@ export class PieChartDataTransformer<TPivotChartLayout> {
 
     async getTransformedData(
         layout: TPivotChartLayout | undefined,
+        sql?: string,
+        projectUuid?: string,
+        limit?: number,
     ): Promise<PivotChartData | undefined> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(layout);
+        return this.transformer.getPivotChartData(
+            layout,
+            sql,
+            projectUuid,
+            limit,
+        );
     }
 
     getEchartsSpec(

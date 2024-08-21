@@ -308,7 +308,7 @@ export const applyLimitToSqlQuery = ({
 }): string => {
     if (limit === undefined) return sqlQuery;
     return `WITH user_sql AS (\n${sqlQuery.replace(
-        /;$/,
+        /;\s*$/,
         '',
     )}\n) select * from user_sql limit ${limit}`;
 };
