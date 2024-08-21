@@ -5,7 +5,15 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    JobResponse,
 } from '@google-cloud/bigquery';
+import {
+    common as bigqueryCommon,
+    JobsQueryResponse,
+    QueryResultsResponse,
+    SimpleQueryRowsCallback,
+    SimpleQueryRowsResponse,
+} from '@google-cloud/bigquery/build/src/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     CreateBigqueryCredentials,
@@ -197,7 +205,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             await streamPromise;
         } catch (e) {
-            throw new WarehouseQueryError(e.message);
+            const response = e?.response as bigquery.IJob;
+            const responseError = response?.status?.errorResult || e;
+            throw this.parseError(responseError, query);
         }
     }
 
@@ -339,5 +349,61 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             })),
             mapFieldType,
         );
+    }
+
+    parseError(error: bigquery.IErrorProto, query: string = '') {
+        // if the error has no reason, return a generic error
+        if (!error?.reason) {
+            return new WarehouseQueryError(error?.message || 'Unknown error');
+        }
+        switch (error?.reason) {
+            // if query is mistyped
+            case 'invalidQuery':
+                // if the location is in query and the end of the message looks like "at [line:char]"
+                if (error?.message && error?.location === 'query') {
+                    // the query will look something like this:
+                    // 'WITH user_sql AS (SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;) select * from user_sql limit 500';
+                    // we want to strip the characters from the first part before the inner query
+                    const queryMatch = query.match(
+                        /(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i,
+                    );
+                    // also match the line number and character number in the error message
+                    const lineMatch = error.message.match(/at \[(\d+):(\d+)\]/);
+                    if (lineMatch) {
+                        // get length of first part of query to strip
+                        const firstPartLength = queryMatch
+                            ? queryMatch[0].length
+                            : 0;
+                        // parse out line number and character number
+                        const lineNumber = Number(lineMatch[1]) || undefined;
+                        let charNumber = Number(lineMatch[2]) || undefined;
+                        // subtract the length of the first part of the query from the character number
+                        // so long as the charnumber ends up > 0
+                        if (
+                            charNumber && // only do this if we found a char number
+                            firstPartLength && // only do this if we found the inner query
+                            lineNumber === 1 // only do this if the error is on the first line
+                        ) {
+                            const n = charNumber - firstPartLength;
+                            if (n > 0) {
+                                charNumber = n; // set the new char number
+                            }
+                        }
+                        // return a new error with the line and character number in data object
+                        return new WarehouseQueryError(error.message, {
+                            lineNumber,
+                            charNumber,
+                        });
+                    }
+                    break;
+                }
+                break;
+            // case: 'accessDenied':
+            //     break
+            default:
+                break;
+        }
+        // otherwise return a generic error
+        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }

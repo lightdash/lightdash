@@ -104,7 +104,7 @@ export const getSqlRunnerCompleteJob = async (
                 message: isErrorDetails(job.details)
                     ? job.details.error
                     : 'Job failed',
-                data: {},
+                data: isErrorDetails(job.details) ? job.details : {},
             },
         };
     }

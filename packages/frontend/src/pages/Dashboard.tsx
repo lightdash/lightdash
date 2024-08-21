@@ -40,6 +40,7 @@ import {
     DashboardProvider,
     useDashboardContext,
 } from '../providers/DashboardProvider';
+import '../styles/monaco.css';
 import '../styles/react-grid.css';
 
 export const getReactGridLayoutConfig = (

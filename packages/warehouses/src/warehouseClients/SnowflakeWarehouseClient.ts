@@ -16,6 +16,8 @@ import {
     Connection,
     ConnectionOptions,
     createConnection,
+    SnowflakeError,
+    SnowflakeErrorExternal,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
@@ -241,7 +243,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 options,
             );
         } catch (e) {
-            throw new WarehouseQueryError(e.message);
+            const error = e as SnowflakeError;
+            throw this.parseError(error, sql);
         } finally {
             await new Promise((resolve, reject) => {
                 connection.destroy((err, conn) => {
@@ -269,7 +272,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 streamResult: true,
                 complete: (err, stmt) => {
                     if (err) {
-                        reject(new WarehouseQueryError(err.message));
+                        reject(err);
                     }
 
                     const columns = stmt.getColumns();
@@ -304,7 +307,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         }),
                         (error) => {
                             if (error) {
-                                reject(new WarehouseQueryError(error.message));
+                                reject(error);
                             } else {
                                 resolve();
                             }
@@ -459,12 +462,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const databaseName = this.connectionOptions.database;
         const whereSql = databaseName ? `AND TABLE_CATALOG ILIKE ?` : '';
         const query = `
-            SELECT 
-                LOWER(TABLE_CATALOG) as "table_catalog", 
+            SELECT
+                LOWER(TABLE_CATALOG) as "table_catalog",
                 LOWER(TABLE_SCHEMA) as "table_schema",
                 LOWER(TABLE_NAME) as "table_name"
             FROM information_schema.tables
-            WHERE TABLE_TYPE = 'BASE TABLE' 
+            WHERE TABLE_TYPE = 'BASE TABLE'
             ${whereSql}
             ORDER BY 1,2,3
         `;
@@ -505,5 +508,65 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             schema ? [tableName, schema] : [tableName],
         );
         return this.parseWarehouseCatalog(rows, mapFieldType);
+    }
+
+    parseError(error: SnowflakeError, query: string = '') {
+        // if the error has no code or data, return a generic error
+        if (!error?.code && !error.data) {
+            return new WarehouseQueryError(error?.message || 'Unknown error');
+        }
+        // pull error type from data object
+        const errorType = error.data?.type || error.code;
+        switch (errorType) {
+            // if query is mistyped (compilation error)
+            case 'COMPILATION':
+                // the query will look something like this:
+                // 'WITH user_sql AS (SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;) select * from user_sql limit 500';
+                // we want to take the inner query and count the number of characters in the first part
+                const queryMatch = query.match(
+                    /WITH\s+[a-zA-Z_]+\s+AS\s*\(\s*([\s\S]*?)\s*\)\s*select\s+\*\s+from\s+[a-zA-Z_]+\s+limit\s+\d+/i,
+                );
+                // also match the line number and character number in the error message
+                const lineMatch = error.message.match(
+                    /syntax error line\s+(\d+)\s+at\s+position\s+(\d+)/,
+                );
+                if (lineMatch) {
+                    // Find the position of the inner query within the full query
+                    const innerQuery =
+                        queryMatch && queryMatch.length > 0
+                            ? queryMatch[1]
+                            : query;
+                    const innerQueryStartIndex = query.indexOf(innerQuery);
+                    // parse out line number and character number
+                    const lineNumber = Number(lineMatch[1]) || undefined;
+                    let charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
+                    console.log('index', innerQueryStartIndex);
+                    // subtract the length of the first part of the query from the character number
+                    // so long as the charnumber ends up > 0
+                    if (
+                        charNumber && // only do this if we found a char number
+                        innerQueryStartIndex > -1 && // only do this if we found the inner query
+                        lineNumber === 1 // only do this if the error is on the first line
+                    ) {
+                        const n = charNumber - innerQueryStartIndex;
+                        if (n > 0) {
+                            charNumber = n; // set the new char number
+                        }
+                        // if char number is greater than the length of the inner query, set it to the end of the inner query
+                        if (charNumber > innerQuery.length) {
+                            charNumber = innerQuery.length;
+                        }
+                    }
+                    return new WarehouseQueryError(error.message, {
+                        lineNumber,
+                        charNumber,
+                    });
+                }
+                break;
+            default:
+                break;
+        }
+        // otherwise return a generic error
+        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }

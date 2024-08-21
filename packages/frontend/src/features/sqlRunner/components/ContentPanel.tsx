@@ -1,5 +1,6 @@
 import {
     isTableChartSQLConfig,
+    type MonacoHighlightChar,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 import {
@@ -48,6 +49,11 @@ const MIN_RESULTS_HEIGHT = 10;
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
 
+    // state for helping highlight errors in the editor
+    const [hightlightError, setHightlightError] = useState<
+        MonacoHighlightChar | undefined
+    >(undefined);
+
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -88,6 +94,21 @@ export const ContentPanel: FC = () => {
                 dispatch(onResults(data));
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
+                }
+            }
+            // reset error highlighting
+            setHightlightError(undefined);
+        },
+        onError: ({ error }) => {
+            if (error?.data) {
+                // highlight error in editor
+                const line = error?.data?.lineNumber;
+                const char = error?.data?.charNumber;
+                if (line && char) {
+                    setHightlightError({
+                        line: Number(error.data.lineNumber),
+                        char: Number(error.data.charNumber),
+                    });
                 }
             }
         },
@@ -255,10 +276,21 @@ export const ContentPanel: FC = () => {
                         >
                             <SqlEditor
                                 sql={sql}
-                                onSqlChange={(newSql) =>
-                                    dispatch(setSql(newSql))
-                                }
+                                onSqlChange={(newSql) => {
+                                    dispatch(setSql(newSql));
+                                    // reset error highlighting on change
+                                    setHightlightError(undefined);
+                                }}
                                 onSubmit={() => handleRunQuery()}
+                                highlightText={
+                                    hightlightError
+                                        ? {
+                                              // set set single character highlight (no end/range defined)
+                                              start: hightlightError,
+                                              end: undefined,
+                                          }
+                                        : undefined
+                                }
                             />
                         </ConditionalVisibility>
 

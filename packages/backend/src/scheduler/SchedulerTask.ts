@@ -883,7 +883,11 @@ export default class SchedulerTask {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
-                details: { ...baseLog.details, error: e.message },
+                details: {
+                    ...baseLog.details,
+                    error: e.message,
+                    ...(e?.data ?? {}),
+                },
             });
             Logger.error(`Error in scheduler task: ${e}`);
             throw e;

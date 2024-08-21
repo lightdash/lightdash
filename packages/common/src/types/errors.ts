@@ -239,12 +239,12 @@ export class WarehouseConnectionError extends LightdashError {
 }
 
 export class WarehouseQueryError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: any } = {}) {
         super({
             message,
             name: 'WarehouseQueryError',
             statusCode: 400,
-            data: {},
+            data,
         });
     }
 }

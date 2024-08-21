@@ -41,6 +41,8 @@ type SqlRunnerJobStatusSuccessDetails = {
 
 type SqlRunnerJobStatusErrorDetails = {
     error: string;
+    charNumber?: number;
+    lineNumber?: number;
     createdByUserUuid: string;
 };
 
@@ -224,4 +226,16 @@ export type ApiSqlChartWithResults = {
         jobId: ApiJobScheduledResponse['results']['jobId'];
         chart: SqlChart;
     };
+};
+
+// monaco highlight character
+export type MonacoHighlightChar = {
+    line: number;
+    char: number;
+};
+
+// monaco highlight line
+export type MonacoHighlightLine = {
+    start: MonacoHighlightChar;
+    end?: MonacoHighlightChar;
 };
