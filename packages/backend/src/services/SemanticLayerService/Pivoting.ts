@@ -6,20 +6,21 @@ export function pivotResults(
     { values, ...options }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
     const df = pl.DataFrame(results);
-    const aggs: Record<string, keyof pl.Expr> = values.reduce(
-        (acc, value) => ({
-            ...acc,
-            [value.name]: value.aggFunction,
-        }),
-        {},
-    );
+    const aggExp = values.reduce<undefined | pl.Expr>((acc, val) => {
+        if (acc === undefined) {
+            return pl.col(val.name)[val.aggFunction]();
+        }
+
+        return acc.and(pl.col(val.name)[val.aggFunction]());
+    }, undefined);
 
     return df
-        .groupBy(options.on)
-        .agg(aggs)
         .pivot(
             values.map((v) => v.name),
-            options,
+            {
+                ...options,
+                aggregateFunc: aggExp,
+            },
         )
         .toRecords();
 }
