@@ -96,7 +96,15 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-                dispatch(onResults(data));
+                dispatch(
+                    onResults({
+                        ...data,
+                        transformer: new SqlRunnerResultsTransformer({
+                            rows: data.results,
+                            columns: data.columns,
+                        }),
+                    }),
+                );
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }

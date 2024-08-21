@@ -11,7 +11,6 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {
@@ -85,20 +84,15 @@ export const pieChartConfigSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
             if (action.payload) {
-                const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformer({
-                        rows: action.payload.results,
-                        columns: action.payload.columns,
-                    });
                 const pieChartModel = new PieChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
+                    transformer: action.payload.transformer,
                 });
-                if (action.payload.columns) {
+                if (action.payload) {
                     state.options = {
                         groupFieldOptions:
-                            sqlRunnerResultsTransformer.pivotChartIndexLayoutOptions(),
+                            action.payload.transformer.pivotChartIndexLayoutOptions(),
                         metricFieldOptions:
-                            sqlRunnerResultsTransformer.pivotChartValuesLayoutOptions(),
+                            action.payload.transformer.pivotChartValuesLayoutOptions(),
                     };
                 }
 

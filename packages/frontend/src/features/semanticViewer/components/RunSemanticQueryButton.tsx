@@ -10,6 +10,7 @@ import {
     selectAllSelectedFieldsByKind,
 } from '../store/selectors';
 import { setResults } from '../store/semanticViewerSlice';
+import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import RunQueryButton from './RunSqlQueryButton';
 
 const mapResultsToTableData = (
@@ -76,10 +77,27 @@ export const RunSemanticQueryButton: FC = () => {
                 onResults({
                     results: resultsData,
                     columns: usedColumns,
+                    transformer: new SemanticViewerResultsTransformer({
+                        rows: resultsData,
+                        columns: usedColumns,
+                        query: {
+                            ...allSelectedFieldsByKind,
+                            sortBy,
+                        },
+                        projectUuid,
+                    }),
                 }),
             );
         }
-    }, [resultsData, columns, dispatch, allSelectedFields]);
+    }, [
+        resultsData,
+        columns,
+        dispatch,
+        allSelectedFields,
+        allSelectedFieldsByKind,
+        projectUuid,
+        sortBy,
+    ]);
 
     return (
         <RunQueryButton

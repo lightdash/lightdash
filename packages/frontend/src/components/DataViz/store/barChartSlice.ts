@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformer } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import {
     cartesianChartConfigSlice,
     onResults,
@@ -19,18 +18,13 @@ export const barChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload.results && action.payload.columns) {
-                const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformer({
-                        rows: action.payload.results,
-                        columns: action.payload.columns,
-                    });
+            if (action.payload) {
                 const barChartModel = new CartesianChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
+                    transformer: action.payload.transformer,
                 });
 
                 state.options =
-                    sqlRunnerResultsTransformer.getPivotChartLayoutOptions();
+                    action.payload.transformer.getPivotChartLayoutOptions();
 
                 state.config = barChartModel.mergeConfig(
                     ChartKind.VERTICAL_BAR,

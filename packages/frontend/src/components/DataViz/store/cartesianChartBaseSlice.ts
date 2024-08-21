@@ -14,6 +14,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type ResultsAndColumns } from '../Results';
+import { type ResultsTransformer } from '../transformers/ResultsTransformer';
 
 type InitialState = {
     defaultLayout: VizSqlCartesianChartLayout | undefined;
@@ -300,7 +301,9 @@ export const cartesianChartConfigSlice = createSlice({
             // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
             state,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            action: PayloadAction<ResultsAndColumns>,
+            action: PayloadAction<
+                ResultsAndColumns & { transformer: ResultsTransformer }
+            >,
         ) => {
             // This should be called from the sqlRunner or semanticViewer on results
             // When this is called, this method will update the options and config on the different chat slices
