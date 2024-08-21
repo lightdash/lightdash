@@ -25,7 +25,7 @@ import {
     type CartesianChartActionsType,
 } from '../store';
 import { cartesianChartSelectors } from '../store/selectors';
-import { CartesianChartAggregationConfig } from './CartesianChartAggregationConfig';
+import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
     field: VizSqlCartesianChartLayout['y'][number];
@@ -117,7 +117,7 @@ const YFieldsAxisConfig: FC<{
                         <Config.Group>
                             <Config.Label>Aggregation</Config.Label>
 
-                            <CartesianChartAggregationConfig
+                            <DataVizAggregationConfig
                                 options={
                                     yLayoutOptions.find(
                                         (layout) =>

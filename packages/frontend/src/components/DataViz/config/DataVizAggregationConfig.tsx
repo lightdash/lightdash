@@ -70,7 +70,7 @@ const AggregationItem = forwardRef<
     </Box>
 ));
 
-export const CartesianChartAggregationConfig: FC<Props> = ({
+export const DataVizAggregationConfig: FC<Props> = ({
     options,
     onChangeAggregation,
     aggregation,
