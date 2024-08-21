@@ -35,7 +35,7 @@ const ChartView = memo(
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust
-        const errorMessage = error?.message.includes('Binder Error')
+        const errorMessage = error?.message?.includes('Binder Error')
             ? 'Some specified columns do not exist in the data'
             : error?.message;
 

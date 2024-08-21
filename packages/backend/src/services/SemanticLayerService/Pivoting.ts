@@ -15,13 +15,7 @@ export function pivotResults(
     console.info('OG data frame ----------------------');
     console.info(df);
 
-    const aggs: Record<string, keyof pl.Expr> = values.reduce(
-        (acc, value) => ({
-            ...acc,
-            [value.name]: value.aggFunction,
-        }),
-        {},
-    );
+    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
 
     const dimensionsToGroupBy = uniq([
         ...options.on,
@@ -32,12 +26,12 @@ export function pivotResults(
     console.info({ on: options.on, index: options.index, allDimensions });
     console.info({ dimensionsToGroupBy });
 
-    const groupedByDf = df.groupBy(dimensionsToGroupBy).agg(aggs);
+    const groupedByDf = df.groupBy(dimensionsToGroupBy).agg(...aggs);
 
     console.info('Grouped by data frame ----------------------');
     console.info(groupedByDf);
 
-    const pivotedDf = groupedByDf.pivot(
+    const pivotedDf = groupedByDf.fillNull('zero').pivot(
         values.map((v) => v.name),
         options,
     );

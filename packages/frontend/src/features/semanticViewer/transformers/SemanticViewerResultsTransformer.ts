@@ -14,10 +14,10 @@ const transformChartLayoutToSemanticPivot = (
     config: VizSqlCartesianChartLayout,
 ): SemanticLayerPivot => {
     return {
-        on: config.groupBy?.map((groupBy) => groupBy.reference) ?? [
+        on: [config.x.reference],
+        index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [
             config.x.reference,
         ],
-        index: [config.x.reference],
         values: config.y.map((y) => ({
             name: y.reference,
             aggFunction: y.aggregation,
@@ -64,7 +64,7 @@ export class SemanticViewerResultsTransformer extends ResultsTransformer {
             results: pivotedResults ?? [],
             valuesColumns: Object.keys(pivotedResults?.[0] ?? {}).filter(
                 (name) =>
-                    !config.groupBy?.map((r) => r.reference).includes(name),
+                    ![...pivotConfig.index, ...pivotConfig.on].includes(name),
             ),
         };
     }
