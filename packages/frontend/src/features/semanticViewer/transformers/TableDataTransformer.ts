@@ -32,7 +32,10 @@ export class TableDataTransformer {
             )
             .map((column) => ({
                 id: column,
-                accessorKey: column,
+                // react table has a bug with accessors that has dots in them
+                // we found the fix here -> https://github.com/TanStack/table/issues/1671
+                // do not remove the line below
+                accessorFn: (data) => data[column],
                 header: this.config?.columns[column].label || column,
                 cell: getRawValueCell,
             }));
