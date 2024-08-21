@@ -9,6 +9,9 @@ export function pivotResults(
 ): SemanticLayerResultRow[] {
     const df = pl.DataFrame(results);
 
+    console.info('og pivot config ----------------------');
+    console.info({ values, ...options });
+
     console.info('OG data frame ----------------------');
     console.info(df);
 
