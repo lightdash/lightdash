@@ -1270,10 +1270,10 @@ export class UserService extends BaseService {
                         return;
                     }
 
-                    const scopes =
-                        result &&
-                        typeof result.scope === 'string' &&
-                        result.scope.split(' ');
+                    const scopes: string[] =
+                        result && typeof result.scope === 'string'
+                            ? result.scope.split(' ')
+                            : [];
                     if (
                         scopes.includes(
                             'https://www.googleapis.com/auth/drive.file',
