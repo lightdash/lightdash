@@ -171,7 +171,6 @@ module.exports = {
                 'references/the-sql-runner',
                 'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
-                'references/ip_addresses',
                 'references/usage-analytics',
                 {
                     type: 'doc',
