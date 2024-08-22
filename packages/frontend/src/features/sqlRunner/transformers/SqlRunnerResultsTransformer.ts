@@ -46,7 +46,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
             job.details && !isErrorDetails(job.details)
                 ? job.details.fileUrl
                 : undefined;
-        const results = await getResultsFromStream(url);
+        const results = await getResultsFromStream<RowData>(url);
 
         return {
             results,
