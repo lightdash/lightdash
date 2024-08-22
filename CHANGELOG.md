@@ -1,3 +1,10 @@
+# [0.1226.0](https://github.com/lightdash/lightdash/compare/0.1225.0...0.1226.0) (2024-08-22)
+
+
+### Features
+
+* preview projects as upstream project ([#11234](https://github.com/lightdash/lightdash/issues/11234)) ([c01670a](https://github.com/lightdash/lightdash/commit/c01670a5cbe8c7001d39b2de8be60ee941cae554))
+
 # [0.1225.0](https://github.com/lightdash/lightdash/compare/0.1224.0...0.1225.0) (2024-08-22)
 
 
