@@ -240,7 +240,8 @@ const Login: FC<{}> = () => {
                         )}
                         {ssoOptions.length > 0 && (
                             <>
-                                {isEmailLoginAvailable && (
+                                {(isEmailLoginAvailable ||
+                                    formStage === 'precheck') && (
                                     <Divider
                                         my="sm"
                                         labelPosition="center"
