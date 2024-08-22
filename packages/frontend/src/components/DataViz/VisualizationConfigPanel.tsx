@@ -1,4 +1,4 @@
-import { ChartKind, type SqlColumn } from '@lightdash/common';
+import { ChartKind, type VizSqlColumn } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
@@ -11,7 +11,7 @@ import { VisualizationSwitcher } from './VisualizationSwitcher';
 export const VisualizationConfigPanel: FC<{
     selectedChartType: ChartKind;
     setSelectedChartType: (chartKind: ChartKind) => void;
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 }> = ({ selectedChartType, setSelectedChartType, sqlColumns }) => {
     return (
         <MantineProvider inherit theme={themeOverride}>

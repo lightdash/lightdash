@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
@@ -47,6 +48,9 @@ import ViewSqlChart from './pages/ViewSqlChart';
 const Routes: FC = () => {
     return (
         <Switch>
+            <Route path="/auth/popup/:status">
+                <AuthPopupResult />
+            </Route>
             <PrivateRoute path="/minimal">
                 <Switch>
                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">

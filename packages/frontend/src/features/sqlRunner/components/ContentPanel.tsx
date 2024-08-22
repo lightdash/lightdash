@@ -38,10 +38,10 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSql,
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -91,7 +91,15 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-                dispatch(onResults(data));
+                dispatch(
+                    onResults({
+                        ...data,
+                        transformer: new SqlRunnerResultsTransformer({
+                            rows: data.results,
+                            columns: data.columns,
+                        }),
+                    }),
+                );
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -137,6 +145,15 @@ export const ContentPanel: FC = () => {
         [runSqlQuery, sql, limit],
     );
 
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformer({
+                rows: queryResults?.results ?? [],
+                columns: queryResults?.columns ?? [],
+            }),
+        [queryResults],
+    );
+
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
             .map((type) => selectChartConfigByKind(state, type))
@@ -160,6 +177,7 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     return (
         <Stack
@@ -275,12 +293,9 @@ export const ContentPanel: FC = () => {
                             isVisible={activeEditorTab === EditorTabs.SQL}
                         >
                             <SqlEditor
-                                sql={sql}
-                                onSqlChange={(newSql) => {
-                                    dispatch(setSql(newSql));
-                                    // reset error highlighting on change
-                                    setHightlightError(undefined);
-                                }}
+                                resetHighlightError={() =>
+                                    setHightlightError(undefined)
+                                }
                                 onSubmit={() => handleRunQuery()}
                                 highlightText={
                                     hightlightError
@@ -312,6 +327,7 @@ export const ContentPanel: FC = () => {
                                                 data={queryResults}
                                                 config={c}
                                                 isLoading={isLoading}
+                                                transformer={transformer}
                                                 style={{
                                                     height: deferredInputSectionHeight,
                                                     width: '100%',
@@ -319,6 +335,9 @@ export const ContentPanel: FC = () => {
                                                     marginTop:
                                                         mantineTheme.spacing.sm,
                                                 }}
+                                                sql={sql}
+                                                projectUuid={projectUuid}
+                                                limit={limit}
                                             />
                                         </ConditionalVisibility>
                                     ))}

@@ -1,23 +1,24 @@
 import {
     isPieChartSQLConfig,
     PieChartDataTransformer,
-    type IndexLayoutOptions,
+    VIZ_DEFAULT_AGGREGATION,
     type PieChartSqlConfig,
-    type SqlPivotChartLayout,
-    type ValuesLayoutOptions,
+    type VizAggregationOptions,
+    type VizIndexLayoutOptions,
+    type VizSqlCartesianChartLayout,
+    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
 import { onResults } from './cartesianChartBaseSlice';
 
 type InitialState = {
-    defaultFieldConfig: SqlPivotChartLayout | undefined;
+    defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
     config: PieChartSqlConfig | undefined;
     options: {
-        groupFieldOptions: IndexLayoutOptions[];
-        metricFieldOptions: ValuesLayoutOptions[];
+        groupFieldOptions: VizIndexLayoutOptions[];
+        metricFieldOptions: VizValuesLayoutOptions[];
     };
 };
 
@@ -36,7 +37,7 @@ export const pieChartConfigSlice = createSlice({
     reducers: {
         setGroupFieldIds: (
             { config },
-            action: PayloadAction<SqlPivotChartLayout['x']>,
+            action: PayloadAction<VizSqlCartesianChartLayout['x']>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = {
@@ -45,24 +46,53 @@ export const pieChartConfigSlice = createSlice({
                 };
             }
         },
+        setYAxisReference: (
+            state,
+            action: PayloadAction<{
+                reference: string;
+                index: number;
+            }>,
+        ) => {
+            if (state.config?.fieldConfig?.y) {
+                const yAxis = state.config.fieldConfig.y[action.payload.index];
+                if (yAxis) {
+                    yAxis.reference = action.payload.reference;
+                    yAxis.aggregation =
+                        state.options.metricFieldOptions.find(
+                            (option) =>
+                                option.reference === action.payload.reference,
+                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
+                }
+            }
+        },
+        setYAxisAggregation: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                aggregation: VizAggregationOptions;
+            }>,
+        ) => {
+            if (!config) return;
+            if (!config?.fieldConfig?.y) return;
+
+            const yAxis = config.fieldConfig.y[action.payload.index];
+            if (yAxis) {
+                yAxis.aggregation = action.payload.aggregation;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
             if (action.payload) {
-                const sqlRunnerResultsTransformer =
-                    new SqlRunnerResultsTransformerFE({
-                        rows: action.payload.results,
-                        columns: action.payload.columns,
-                    });
                 const pieChartModel = new PieChartDataTransformer({
-                    transformer: sqlRunnerResultsTransformer,
+                    transformer: action.payload.transformer,
                 });
-                if (action.payload.columns) {
+                if (action.payload) {
                     state.options = {
                         groupFieldOptions:
-                            sqlRunnerResultsTransformer.pivotChartIndexLayoutOptions(),
+                            action.payload.transformer.pivotChartIndexLayoutOptions(),
                         metricFieldOptions:
-                            sqlRunnerResultsTransformer.pivotChartValuesLayoutOptions(),
+                            action.payload.transformer.pivotChartValuesLayoutOptions(),
                     };
                 }
 
@@ -76,4 +106,5 @@ export const pieChartConfigSlice = createSlice({
         });
     },
 });
-export const { setGroupFieldIds } = pieChartConfigSlice.actions;
+export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =
+    pieChartConfigSlice.actions;

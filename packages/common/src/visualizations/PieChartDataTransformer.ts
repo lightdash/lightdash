@@ -1,9 +1,6 @@
 import { ChartKind } from '../types/savedCharts';
-import {
-    type PivotChartData,
-    type ResultsRunnerBase,
-} from './ResultsRunnerBase';
-import { type PieChartDisplay } from './SqlResultsRunner';
+import { type ResultsRunnerBase } from './ResultsRunnerBase';
+import { type PivotChartData, type VizPieChartDisplay } from './types';
 
 type PieChartConfig<TPivotChartLayout> = {
     metadata: {
@@ -11,7 +8,7 @@ type PieChartConfig<TPivotChartLayout> = {
     };
     type: ChartKind.PIE;
     fieldConfig: TPivotChartLayout | undefined;
-    display: PieChartDisplay | undefined;
+    display: VizPieChartDisplay | undefined;
 };
 
 export class PieChartDataTransformer<TPivotChartLayout> {
@@ -38,16 +35,24 @@ export class PieChartDataTransformer<TPivotChartLayout> {
 
     async getTransformedData(
         layout: TPivotChartLayout | undefined,
+        sql?: string,
+        projectUuid?: string,
+        limit?: number,
     ): Promise<PivotChartData | undefined> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(layout);
+        return this.transformer.getPivotChartData(
+            layout,
+            sql,
+            projectUuid,
+            limit,
+        );
     }
 
     getEchartsSpec(
         transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
-        display: PieChartDisplay | undefined,
+        display: VizPieChartDisplay | undefined,
     ) {
         if (!transformedData) {
             return {};

@@ -143,7 +143,6 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
-export * from './transformers';
 export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';
@@ -230,8 +229,8 @@ export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataTransformer';
 export * from './visualizations/PieChartDataTransformer';
 export * from './visualizations/ResultsRunnerBase';
-export * from './visualizations/SqlResultsRunner';
-export * from './visualizations/SqlRunnerResultsTableTransformer';
+export * from './visualizations/ResultsTableTransformer';
+export * from './visualizations/types';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {

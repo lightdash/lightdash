@@ -1,11 +1,11 @@
-import { type ApiError } from '..';
+import { type ApiError, type PivotChartData } from '..';
 import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
 import {
-    type PieChartDisplay,
-    type SqlCartesianChartLayout,
-    type SqlColumn,
-    type SqlPivotChartLayout,
-} from '../visualizations/SqlResultsRunner';
+    type VizAggregationOptions,
+    type VizPieChartDisplay,
+    type VizSqlCartesianChartLayout,
+    type VizSqlColumn,
+} from '../visualizations/types';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';
@@ -17,27 +17,47 @@ import { type LightdashUser } from './user';
 
 export type SqlRunnerPayload = {
     projectUuid: string;
-    sql: string;
-    limit?: number;
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
     context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+} & SqlRunnerBody;
+
+type ApiSqlRunnerPivotQueryPayload = {
+    indexColumn: {
+        reference: string;
+        type: string;
+    };
+    valuesColumns: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupByColumns: { reference: string }[] | undefined;
 };
+
+export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
+    ApiSqlRunnerPivotQueryPayload;
 
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
 };
 
+export type SqlRunnerPivotQueryBody = SqlRunnerBody &
+    ApiSqlRunnerPivotQueryPayload;
+
 export type SqlRunnerResults = ResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
+export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
 };
+
+type SqlRunnerPivotQueryJobStatusSuccessDetails =
+    SqlRunnerJobStatusSuccessDetails & Omit<PivotChartData, 'results'>;
 
 type SqlRunnerJobStatusErrorDetails = {
     error: string;
@@ -74,6 +94,19 @@ export const isApiSqlRunnerJobSuccessResponse = (
 ): response is ApiSqlRunnerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
 
+// TODO: common type with semantic viewer and should be abstracted
+export type ApiSqlRunnerJobPivotQuerySuccessResponse = {
+    results: {
+        status: SchedulerJobStatus.COMPLETED;
+        details: SqlRunnerPivotQueryJobStatusSuccessDetails;
+    };
+};
+
+export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
+    response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
+): response is ApiSqlRunnerJobPivotQuerySuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;
+
 export type SqlRunnerChartConfig = {
     metadata: {
         version: number;
@@ -100,26 +133,26 @@ export type TableChartSqlConfig = SqlRunnerChartConfig &
 
 export type CartesianChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: SqlCartesianChartLayout | undefined;
+    fieldConfig: VizSqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type BarChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: SqlCartesianChartLayout | undefined;
+    fieldConfig: VizSqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type LineChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.LINE;
-    fieldConfig: SqlPivotChartLayout | undefined; // PR NOTE: types are identical
+    fieldConfig: VizSqlCartesianChartLayout | undefined; // PR NOTE: types are identical
     display: CartesianChartDisplay | undefined;
 };
 
 export type PieChartSqlConfig = SqlRunnerChartConfig & {
     type: ChartKind.PIE;
-    fieldConfig: SqlPivotChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
-    display: PieChartDisplay | undefined;
+    fieldConfig: VizSqlCartesianChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
+    display: VizPieChartDisplay | undefined;
 };
 
 export const isTableChartSQLConfig = (

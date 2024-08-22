@@ -551,8 +551,7 @@ columns](#parsing-json-columns), or creating persisted groups/buckets based off 
 A "normal" dimension is a column created in your .sql file in dbt that is written to your data warehouse.
 An additional dimension is not included in your dbt .sql file, so it's not written to your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
 
-All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
-dimensions. You can also [use additional dimensions when defining metrics](#using-additional-dimensions-in-metrics).
+All [dimension configurations](#dimension-configuration) are available for additional dimensions. You can also [use additional dimensions when defining metrics](#using-additional-dimensions-in-metrics).
 
 :::info
 
@@ -614,13 +613,32 @@ columns:
           sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
 ```
 
+### Adding multiple timezones for the same dimension
+
+You can use additional dimensions to convert a timestamp into multiple timezones:
+
+```yaml
+columns:
+  - name: created_at
+    description: 'The time that the thing was created'
+    meta:
+      dimension:
+        label: 'Created (UTC)'
+        type: timestamp
+      additional_dimensions:
+        created_at_est:
+          type: timestamp
+          label: 'Created (EST)'
+          description: 'The time that the thing was created, in EST'
+          sql: "convert_timezone('UTC', 'America/New_York', ${TABLE}.created_at)"
+```
+
 ### Using additional dimensions in metrics
 
 To define metrics based on additional dimensions, you need to add them to the model's meta metrics, or use custom SQL in
 defining them under the column's meta.
 
 ```yaml
-version: 2
 models:
   - name: users
     meta:

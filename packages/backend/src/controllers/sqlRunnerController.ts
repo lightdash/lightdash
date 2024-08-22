@@ -10,8 +10,9 @@ import {
     ApiWarehouseTableFields,
     CreateSqlChart,
     SqlRunnerBody,
+    SqlRunnerPivotQueryBody,
+    SqlRunnerPivotQueryPayload,
     UpdateSqlChart,
-    WarehouseCatalog,
 } from '@lightdash/common';
 import {
     Body,
@@ -111,6 +112,29 @@ export class SqlRunnerController extends BaseController {
                     body.sql,
                     body.limit,
                 ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/runPivotQuery')
+    @OperationId('runSqlPivotQuery')
+    async runSqlPivotQuery(
+        @Path() projectUuid: string,
+        @Body() body: SqlRunnerPivotQueryBody,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getResultJobFromSqlPivotQuery(req.user!, projectUuid, body),
         };
     }
 

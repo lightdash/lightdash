@@ -1,3 +1,62 @@
+# [0.1227.0](https://github.com/lightdash/lightdash/compare/0.1226.0...0.1227.0) (2024-08-22)
+
+
+### Bug Fixes
+
+* google drive authentication ([#11211](https://github.com/lightdash/lightdash/issues/11211)) ([e304e00](https://github.com/lightdash/lightdash/commit/e304e00660718110dd649a558e54a8e9b1925196))
+
+
+### Features
+
+* pivot sql query against warehouse ([#11222](https://github.com/lightdash/lightdash/issues/11222)) ([2be7c33](https://github.com/lightdash/lightdash/commit/2be7c331d5375951ffdca5d17eb8f214330ba4af))
+
+# [0.1226.0](https://github.com/lightdash/lightdash/compare/0.1225.0...0.1226.0) (2024-08-22)
+
+
+### Features
+
+* preview projects as upstream project ([#11234](https://github.com/lightdash/lightdash/issues/11234)) ([c01670a](https://github.com/lightdash/lightdash/commit/c01670a5cbe8c7001d39b2de8be60ee941cae554))
+
+# [0.1225.0](https://github.com/lightdash/lightdash/compare/0.1224.0...0.1225.0) (2024-08-22)
+
+
+### Features
+
+* allow toggling schemas ([#11209](https://github.com/lightdash/lightdash/issues/11209)) ([a8d8d46](https://github.com/lightdash/lightdash/commit/a8d8d46a27f0ba6b53a42a34ec254dea321e7807))
+
+# [0.1224.0](https://github.com/lightdash/lightdash/compare/0.1223.4...0.1224.0) (2024-08-22)
+
+
+### Features
+
+* add pivot config backend ([#11174](https://github.com/lightdash/lightdash/issues/11174)) ([df0344a](https://github.com/lightdash/lightdash/commit/df0344ad188e3d6e8e7e87591c5a8c078b65b5a2))
+
+## [0.1223.4](https://github.com/lightdash/lightdash/compare/0.1223.3...0.1223.4) (2024-08-20)
+
+
+### Bug Fixes
+
+* amend debounce callback ([#11204](https://github.com/lightdash/lightdash/issues/11204)) ([4bfa3f8](https://github.com/lightdash/lightdash/commit/4bfa3f8330f8d732d2947ac5594a8e78e1eb6d83))
+
+## [0.1223.3](https://github.com/lightdash/lightdash/compare/0.1223.2...0.1223.3) (2024-08-19)
+
+
+### Bug Fixes
+
+* Modified sqlRunner to have a clearer message when error is thrown ([#11188](https://github.com/lightdash/lightdash/issues/11188)) ([2082e04](https://github.com/lightdash/lightdash/commit/2082e04021742c1888a5d1d88bedeb39c202a8df))
+
+
+### Performance Improvements
+
+* debounce on sql change ([#11193](https://github.com/lightdash/lightdash/issues/11193)) ([0882efd](https://github.com/lightdash/lightdash/commit/0882efdaa7398561e387631b06d93eb2f90a7da6))
+
+## [0.1223.2](https://github.com/lightdash/lightdash/compare/0.1223.1...0.1223.2) (2024-08-19)
+
+
+### Bug Fixes
+
+* strip trailing semicolon on sql runners ([#11190](https://github.com/lightdash/lightdash/issues/11190)) ([bd97fa1](https://github.com/lightdash/lightdash/commit/bd97fa1864765390434bb18af68bdb2b8a831508))
+
 ## [0.1223.1](https://github.com/lightdash/lightdash/compare/0.1223.0...0.1223.1) (2024-08-19)
 
 

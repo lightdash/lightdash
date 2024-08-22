@@ -4,11 +4,12 @@ import {
     type ApiScheduledDownloadCsv,
     type UploadMetricGsheet,
 } from '@lightdash/common';
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
 import useHealth from '../health/useHealth';
+import useToaster from '../toaster/useToaster';
 
 const getGdriveAccessToken = async () =>
     lightdashApi<ApiGdriveAccessTokenResponse['results']>({
@@ -17,53 +18,60 @@ const getGdriveAccessToken = async () =>
         body: undefined,
     });
 
-export const useGdriveAccessToken = (
-    useQueryOptions?: UseQueryOptions<
+export const useGdriveAccessToken = () => {
+    const { showToastError } = useToaster();
+    const health = useHealth();
+    const popupRef = useRef<Window | null>(null);
+    const isAuthConcludedWithSuccess = useRef(false);
+
+    const { error, data, mutate } = useMutation<
         ApiGdriveAccessTokenResponse['results'],
         ApiError
-    >,
-) => {
-    const health = useHealth();
-    const gdriveUrl = `${health?.data?.siteUrl}/api/v1/login/gdrive`;
-    const [googleLoginPopup, setGoogleLoginPopup] = useState<Window | null>(
-        null,
-    );
-
-    useQuery<ApiGdriveAccessTokenResponse['results'], ApiError>({
-        queryKey: ['gdrive_access_token'],
-        queryFn: getGdriveAccessToken,
-        retry: false,
-        refetchInterval: 2000,
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        ...useQueryOptions,
-        staleTime: 0,
-        onSuccess: (result) => {
-            if (googleLoginPopup) {
-                googleLoginPopup.close();
-            }
-            useQueryOptions?.onSuccess?.(result);
-        },
-        onError: () => {
-            if (googleLoginPopup?.closed) return false;
-            if (googleLoginPopup === null) {
-                const popupWindow = window.open(
-                    gdriveUrl,
-                    'login-popup',
-                    'width=600,height=600',
-                );
-                setGoogleLoginPopup(popupWindow);
-            }
-        },
+    >({
+        mutationFn: getGdriveAccessToken,
     });
 
-    return {
-        closePopup: () => {
-            if (googleLoginPopup !== null) {
-                window.close();
-                setGoogleLoginPopup(null);
+    useEffect(() => {
+        const channel = new BroadcastChannel('lightdash-oauth-popup');
+        if (error) {
+            // show error if they concluded the auth flow without the necessary scopes
+            if (isAuthConcludedWithSuccess.current) {
+                showToastError({
+                    title: 'Authentication failed',
+                    subtitle: error.error.message,
+                });
+                isAuthConcludedWithSuccess.current = false;
             }
-        },
+            const popupWindow = window.open(
+                `${health?.data?.siteUrl}/api/v1/login/gdrive?isPopup=true`,
+                'login-popup',
+                'width=600,height=600',
+            );
+            if (popupWindow) {
+                popupRef.current = popupWindow;
+                channel.addEventListener('message', (event) => {
+                    if (event.origin !== health.data?.siteUrl) return;
+                    if (event.data === 'success') {
+                        isAuthConcludedWithSuccess.current = true;
+                        mutate();
+                    } else {
+                        showToastError({
+                            title: 'Authentication failed',
+                            subtitle: 'Please try again',
+                        });
+                    }
+                    popupRef.current = null;
+                });
+            }
+        }
+        return () => {
+            channel.close();
+        };
+    }, [error, popupRef, mutate, health.data, showToastError]);
+
+    return {
+        mutate,
+        token: data,
     };
 };
 

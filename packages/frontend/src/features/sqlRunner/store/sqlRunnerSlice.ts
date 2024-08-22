@@ -1,9 +1,9 @@
 import {
     ChartKind,
     type SqlChart,
-    type SqlColumn,
     type SqlTableConfig,
     type TableChartSqlConfig,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -45,7 +45,7 @@ export interface SqlRunnerState {
         };
     };
     quoteChar: string;
-    sqlColumns: SqlColumn[] | undefined;
+    sqlColumns: VizSqlColumn[] | undefined;
     activeConfigs: ChartKind[];
 }
 

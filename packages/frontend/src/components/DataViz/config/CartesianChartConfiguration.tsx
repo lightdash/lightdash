@@ -1,4 +1,4 @@
-import { ChartKind, type SqlColumn } from '@lightdash/common';
+import { ChartKind, type VizSqlColumn } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -13,11 +13,11 @@ export const CartesianChartConfig = ({
     sqlColumns,
 }: {
     selectedChartType: ChartKind;
-    sqlColumns: SqlColumn[];
+    sqlColumns: VizSqlColumn[];
 }) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
-    const [isStylingOpen, setIsStylingOpen] = useState(true);
+    const [isStylingOpen, setIsStylingOpen] = useState(false);
 
     const actions =
         selectedChartType === ChartKind.LINE

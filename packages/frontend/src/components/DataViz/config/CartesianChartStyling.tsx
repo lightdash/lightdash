@@ -1,4 +1,4 @@
-import { IndexType, type ChartKind } from '@lightdash/common';
+import { VizIndexType, type ChartKind } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -97,7 +97,7 @@ export const CartesianChartStyling = ({
                             dispatch(
                                 actions.setXAxisLabel({
                                     label: e.target.value,
-                                    type: IndexType.CATEGORY,
+                                    type: VizIndexType.CATEGORY,
                                 }),
                             )
                         }

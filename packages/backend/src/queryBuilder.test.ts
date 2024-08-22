@@ -1006,9 +1006,17 @@ describe('applyLimitToSqlQuery', () => {
         const sqlQuery = 'SELECT * FROM users';
         const limit = 10;
 
-        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should strip semicolon from the end of the query', () => {
+        const sqlQuery = 'SELECT * FROM users;';
+        const limit = 10;
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
         expect(result).toBe(expectedQuery);
     });
 
@@ -1016,7 +1024,7 @@ describe('applyLimitToSqlQuery', () => {
         const sqlQuery = 'SELECT * FROM users';
         const limit = 0;
 
-        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
         expect(result).toBe(expectedQuery);
@@ -1030,7 +1038,7 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 5;
 
-        const expectedQuery = `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\n${sqlQuery}\n) select * from user_sql limit ${limit}`;
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
         expect(result).toBe(expectedQuery);

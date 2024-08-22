@@ -2,7 +2,7 @@ import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
-import { type IndexType } from './SqlResultsRunner';
+import { type VizIndexType } from './types';
 
 type CartesianChartKind = Extract<
     ChartKind,
@@ -85,11 +85,21 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         };
     }
 
-    async getTransformedData(layout: TPivotChartLayout | undefined) {
+    async getTransformedData(
+        layout: TPivotChartLayout | undefined,
+        sql?: string,
+        projectUuid?: string,
+        limit?: number,
+    ) {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(layout);
+        return this.transformer.getPivotChartData(
+            layout,
+            sql,
+            projectUuid,
+            limit,
+        );
     }
 
     getEchartsSpec(
@@ -218,7 +228,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
 export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
-        type: IndexType;
+        type: VizIndexType;
     };
     yAxis?: {
         label?: string;

@@ -6,23 +6,24 @@ import {
     PieChartDataTransformer,
     type CartesianChartSqlConfig,
     type PieChartSqlConfig,
-    type ResultRow,
-    type SqlColumn,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
+import { type ResultsTransformer } from './ResultsTransformer';
 
-export const useChart = (
-    rows: ResultRow[],
-    columns: SqlColumn[],
-    config: CartesianChartSqlConfig | PieChartSqlConfig,
-) => {
-    const transformer = useMemo(
-        () => new SqlRunnerResultsTransformerFE({ rows, columns }),
-        [rows, columns],
-    );
-
+export const useChart = <T extends ResultsTransformer>({
+    config,
+    transformer,
+    sql,
+    projectUuid,
+    limit,
+}: {
+    config: CartesianChartSqlConfig | PieChartSqlConfig;
+    transformer: T;
+    sql?: string;
+    projectUuid?: string;
+    limit?: number;
+}) => {
     const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {
             return new PieChartDataTransformer({ transformer });
@@ -39,8 +40,16 @@ export const useChart = (
     }, [transformer, config.type]);
 
     const getTransformedData = useCallback(
-        async () => chartTransformer.getTransformedData(config.fieldConfig),
-        [chartTransformer, config.fieldConfig],
+        async () =>
+            chartTransformer.getTransformedData(
+                config.fieldConfig,
+                sql,
+                projectUuid,
+                limit,
+            ),
+        // TODO: FIX THIS ISSUE - it should include the SQL, but the sql shouldn't change on change, but on run query
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [chartTransformer, config.fieldConfig, projectUuid, limit],
     );
 
     const transformedData = useAsync(getTransformedData, [getTransformedData]);

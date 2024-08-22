@@ -41,13 +41,15 @@ import {
     SessionUser,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
-    SqlColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
+    sqlRunnerPivotQueryJob,
+    SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    VizSqlColumn,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -921,7 +923,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | SqlColumn[]>(
+        await this.logWrapper<string | VizSqlColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,
@@ -933,6 +935,22 @@ export default class SchedulerTask {
                     await this.projectService.streamSqlQueryIntoFile(payload);
                 return { fileUrl, columns };
             },
+        );
+    }
+
+    protected async sqlRunnerPivotQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SqlRunnerPivotQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: sqlRunnerPivotQueryJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => this.projectService.pivotQueryWorkerTask(payload),
         );
     }
 
