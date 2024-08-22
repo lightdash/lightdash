@@ -5,7 +5,6 @@ import {
     isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
-    OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
@@ -54,7 +53,7 @@ const Login: FC<{}> = () => {
         }
     }, [flashMessages.data, showToastError]);
 
-    const [fetchOptionsEnabled, setFetchOptionsEnabled] = useState(false);
+    const [preCheckEmail, setPreCheckEmail] = useState<string>();
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -74,14 +73,12 @@ const Login: FC<{}> = () => {
 
     const {
         data: loginOptions,
+        isInitialLoading: isInitialLoadingLoginOptions,
         isLoading: loginOptionsLoading,
         isFetched: loginOptionsFetched,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
-        email: form.values.email,
-        useQueryOptions: {
-            enabled: fetchOptionsEnabled && form.values.email !== '',
-        },
+        email: preCheckEmail,
     });
 
     // Disable fetch once it has succeeded
@@ -90,7 +87,6 @@ const Login: FC<{}> = () => {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
                 window.location.href = loginOptions.redirectUri;
             }
-            setFetchOptionsEnabled(false);
         }
     }, [loginOptionsSuccess, loginOptions]);
 
@@ -118,8 +114,7 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const formStage =
-        loginOptionsSuccess && loginOptions?.showOptions ? 'login' : 'precheck';
+    const formStage = preCheckEmail ? 'login' : 'precheck';
 
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
@@ -127,7 +122,7 @@ const Login: FC<{}> = () => {
 
     const handleFormSubmit = useCallback(() => {
         if (formStage === 'precheck' && form.values.email !== '') {
-            setFetchOptionsEnabled(true);
+            setPreCheckEmail(form.values.email);
         } else if (
             formStage === 'login' &&
             isEmailLoginAvailable &&
@@ -145,34 +140,13 @@ const Login: FC<{}> = () => {
         isSuccess;
 
     const ssoOptions = useMemo(() => {
-        const options = new Set<OpenIdIdentityIssuerType>();
+        if (!loginOptions) {
+            return [];
+        }
+        return loginOptions.showOptions.filter(isOpenIdIdentityIssuerType);
+    }, [loginOptions]);
 
-        if (health.data?.auth.google.enabled) {
-            options.add(OpenIdIdentityIssuerType.GOOGLE);
-        }
-        if (health.data?.auth.azuread.enabled) {
-            options.add(OpenIdIdentityIssuerType.AZUREAD);
-        }
-        if (health.data?.auth.oneLogin.enabled) {
-            options.add(OpenIdIdentityIssuerType.ONELOGIN);
-        }
-        if (health.data?.auth.okta.enabled) {
-            options.add(OpenIdIdentityIssuerType.OKTA);
-        }
-        if (health.data?.auth.oidc.enabled) {
-            options.add(OpenIdIdentityIssuerType.GENERIC_OIDC);
-        }
-        if (loginOptions) {
-            const userSsoOptions = loginOptions.showOptions.filter(
-                isOpenIdIdentityIssuerType,
-            );
-            userSsoOptions.forEach((option) => options.add(option));
-        }
-
-        return Array.from(options);
-    }, [health.data, loginOptions]);
-
-    if (health.isInitialLoading || isDemo) {
+    if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
         return <PageSpinner />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {
