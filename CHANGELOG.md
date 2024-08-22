@@ -1,3 +1,10 @@
+# [0.1225.0](https://github.com/lightdash/lightdash/compare/0.1224.0...0.1225.0) (2024-08-22)
+
+
+### Features
+
+* allow toggling schemas ([#11209](https://github.com/lightdash/lightdash/issues/11209)) ([a8d8d46](https://github.com/lightdash/lightdash/commit/a8d8d46a27f0ba6b53a42a34ec254dea321e7807))
+
 # [0.1224.0](https://github.com/lightdash/lightdash/compare/0.1223.4...0.1224.0) (2024-08-22)
 
 
