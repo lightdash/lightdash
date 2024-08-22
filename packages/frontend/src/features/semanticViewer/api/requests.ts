@@ -4,6 +4,7 @@ import {
     type ApiJobScheduledResponse,
     type SemanticLayerField,
     type SemanticLayerQuery,
+    type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
@@ -69,7 +70,7 @@ type PostSemanticLayerQueryRequestParams = {
     query: SemanticLayerQuery;
 };
 
-export const apiPostSemanticLayerRun = ({
+const apiPostSemanticLayerRun = ({
     projectUuid,
     query,
 }: PostSemanticLayerQueryRequestParams) =>
@@ -93,5 +94,5 @@ export const apiGetSemanticLayerQueryResults = async ({
             ? job.details.fileUrl
             : undefined;
 
-    return getResultsFromStream(url);
+    return getResultsFromStream<SemanticLayerResultRow>(url);
 };
