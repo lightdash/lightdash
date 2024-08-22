@@ -7,6 +7,7 @@ declare module 'express-session' {
             returnTo?: string | undefined;
             codeVerifier?: string | undefined;
             state?: string | undefined;
+            isPopup?: boolean | undefined;
         };
     }
 }
