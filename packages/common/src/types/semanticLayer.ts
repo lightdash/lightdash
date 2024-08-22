@@ -57,14 +57,32 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
     direction: SemanticLayerSortByDirection;
 };
 
+// These agg functions match 1:1 to polars' agg functions, they're not typed
+export type SemanticLayerAggFunc =
+    | 'sum'
+    | 'max'
+    | 'min'
+    | 'mean'
+    | 'median'
+    | 'first'
+    | 'last'
+    | 'count';
+
+export type SemanticLayerPivot = {
+    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
+    on: string[];
+    index: string[];
+};
+
 export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
     sortBy: SemanticLayerSortBy[];
-    offset?: number;
+    offset?: number; // ! Needed for cube results
     limit?: number;
     timezone?: string;
+    pivot?: SemanticLayerPivot;
 };
 
 export type SemanticLayerResultRow = Record<

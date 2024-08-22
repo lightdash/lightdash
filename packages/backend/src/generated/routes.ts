@@ -6580,17 +6580,17 @@ const models: TsoaRoute.Models = {
         enums: ['line'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    IndexType: {
+    VizIndexType: {
         dataType: 'refEnum',
         enums: ['time', 'category'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AggregationOptions: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
+    VizAggregationOptions: {
+        dataType: 'refEnum',
+        enums: ['sum', 'count', 'min', 'max', 'first'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlCartesianChartLayout: {
+    VizSqlCartesianChartLayout: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6620,7 +6620,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
                             aggregation: {
-                                ref: 'AggregationOptions',
+                                ref: 'VizAggregationOptions',
                                 required: true,
                             },
                             reference: { dataType: 'string', required: true },
@@ -6631,7 +6631,7 @@ const models: TsoaRoute.Models = {
                 x: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        type: { ref: 'IndexType', required: true },
+                        type: { ref: 'VizIndexType', required: true },
                         reference: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -6698,7 +6698,7 @@ const models: TsoaRoute.Models = {
                 xAxis: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        type: { ref: 'IndexType', required: true },
+                        type: { ref: 'VizIndexType', required: true },
                         label: { dataType: 'string' },
                     },
                 },
@@ -6727,7 +6727,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'SqlCartesianChartLayout' },
+                                { ref: 'VizSqlCartesianChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6752,12 +6752,7 @@ const models: TsoaRoute.Models = {
         enums: ['pie'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlPivotChartLayout: {
-        dataType: 'refAlias',
-        type: { ref: 'SqlCartesianChartLayout', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartDisplay: {
+    VizPieChartDisplay: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6778,7 +6773,7 @@ const models: TsoaRoute.Models = {
                         display: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'PieChartDisplay' },
+                                { ref: 'VizPieChartDisplay' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6786,7 +6781,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'SqlPivotChartLayout' },
+                                { ref: 'VizSqlCartesianChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -8176,11 +8171,64 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerAggFunc: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['sum'] },
+                { dataType: 'enum', enums: ['max'] },
+                { dataType: 'enum', enums: ['min'] },
+                { dataType: 'enum', enums: ['mean'] },
+                { dataType: 'enum', enums: ['median'] },
+                { dataType: 'enum', enums: ['first'] },
+                { dataType: 'enum', enums: ['last'] },
+                { dataType: 'enum', enums: ['count'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerPivot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                index: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                on: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                values: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            aggFunction: {
+                                ref: 'SemanticLayerAggFunc',
+                                required: true,
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivot: { ref: 'SemanticLayerPivot' },
                 timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 offset: { dataType: 'double' },

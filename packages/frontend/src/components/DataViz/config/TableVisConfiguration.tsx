@@ -1,4 +1,4 @@
-import { type SqlColumn } from '@lightdash/common';
+import { type VizSqlColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -11,7 +11,7 @@ import {
     updateFieldLabel,
 } from '../store/tableVisSlice';
 
-const TableVisConfiguration: FC<{ sqlColumns: SqlColumn[] }> = ({
+const TableVisConfiguration: FC<{ sqlColumns: VizSqlColumn[] }> = ({
     sqlColumns,
 }) => {
     const dispatch = useVizDispatch();

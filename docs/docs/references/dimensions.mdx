@@ -620,16 +620,16 @@ You can use additional dimensions to convert a timestamp into multiple timezones
 ```yaml
 columns:
   - name: created_at
-    description: "The time that the thing was created"
+    description: 'The time that the thing was created'
     meta:
       dimension:
-        label: "Created (UTC)"
+        label: 'Created (UTC)'
         type: timestamp
       additional_dimensions:
         created_at_est:
           type: timestamp
-          label: "Created (EST)"
-          description: "The time that the thing was created, in EST"
+          label: 'Created (EST)'
+          description: 'The time that the thing was created, in EST'
           sql: "convert_timezone('UTC', 'America/New_York', ${TABLE}.created_at)"
 ```
 

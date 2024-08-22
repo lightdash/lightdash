@@ -9,7 +9,8 @@ import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
 } from '../store/selectors';
-import { sanitizeFieldId, setResults } from '../store/semanticViewerSlice';
+import { setResults } from '../store/semanticViewerSlice';
+import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import RunQueryButton from './RunSqlQueryButton';
 
 const mapResultsToTableData = (
@@ -20,7 +21,7 @@ const mapResultsToTableData = (
             const [key, resultValue] = entry;
             return {
                 ...acc,
-                [sanitizeFieldId(key)]: {
+                [key]: {
                     value: {
                         raw: resultValue,
                         formatted: resultValue?.toString(),
@@ -62,10 +63,8 @@ export const RunSemanticQueryButton: FC = () => {
 
     useEffect(() => {
         if (resultsData) {
-            const allReferencedColumns = allSelectedFields.map(sanitizeFieldId);
-
             const usedColumns = columns.filter((c) =>
-                allReferencedColumns.includes(c.reference),
+                allSelectedFields.includes(c.reference),
             );
             dispatch(
                 setResults({
@@ -78,10 +77,27 @@ export const RunSemanticQueryButton: FC = () => {
                 onResults({
                     results: resultsData,
                     columns: usedColumns,
+                    transformer: new SemanticViewerResultsTransformer({
+                        rows: resultsData,
+                        columns: usedColumns,
+                        query: {
+                            ...allSelectedFieldsByKind,
+                            sortBy,
+                        },
+                        projectUuid,
+                    }),
                 }),
             );
         }
-    }, [resultsData, columns, dispatch, allSelectedFields]);
+    }, [
+        resultsData,
+        columns,
+        dispatch,
+        allSelectedFields,
+        allSelectedFieldsByKind,
+        projectUuid,
+        sortBy,
+    ]);
 
     return (
         <RunQueryButton

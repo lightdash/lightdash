@@ -82,7 +82,6 @@ import {
     SortField,
     SpaceQuery,
     SpaceSummary,
-    SqlColumn,
     SqlRunnerPayload,
     SummaryExplore,
     TablesConfiguration,
@@ -93,10 +92,10 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    VizSqlColumn,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
-    WarehouseTables,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -107,8 +106,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
-import { nanoid } from 'nanoid';
-import { PassThrough, Readable } from 'stream';
+import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -1974,7 +1972,7 @@ export class ProjectService extends BaseService {
         context,
     }: SqlRunnerPayload): Promise<{
         fileUrl: string;
-        columns: SqlColumn[];
+        columns: VizSqlColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2003,7 +2001,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: SqlColumn[] = [];
+        const columns: VizSqlColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,

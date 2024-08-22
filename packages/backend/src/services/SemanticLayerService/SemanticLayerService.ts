@@ -6,6 +6,7 @@ import {
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
+    SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -189,23 +191,52 @@ export class SemanticLayerService extends BaseService {
 
         this.validateQueryLimit(query);
 
+        // Default stream function, just streams results into a file
+        let streamFunctionCallback: (
+            writer: (data: SemanticLayerResultRow) => void,
+        ) => Promise<void> = async (writer) => {
+            await client.streamResults(
+                projectUuid,
+                {
+                    ...query,
+                    limit: query.limit ?? this.lightdashConfig.query.maxLimit,
+                },
+                async (rows) => {
+                    rows.forEach(writer);
+                },
+            );
+        };
+
+        // When pivot is present, we need to pivot the results
+        // To do this we first need to fetch all the results and then pivot them
+        if (query.pivot) {
+            const results = [] as SemanticLayerResultRow[];
+
+            // Wait for all results to be fetched
+            await client.streamResults(projectUuid, query, async (rows) => {
+                results.push(...rows);
+            });
+
+            // Pivot results
+            const pivotedResults = pivotResults(
+                results,
+                [
+                    ...query.dimensions.map((d) => d.name),
+                    ...query.timeDimensions.map((d) => d.name),
+                ],
+                query.pivot,
+            );
+
+            streamFunctionCallback = async (writer) => {
+                pivotedResults.forEach(writer);
+            };
+        }
+
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
         )(
             `${this.lightdashConfig.siteUrl}/api/v2/projects/${projectUuid}/semantic-layer/results`,
-            async (writer) => {
-                await client.streamResults(
-                    projectUuid,
-                    {
-                        ...query,
-                        limit:
-                            query.limit ?? this.lightdashConfig.query.maxLimit,
-                    },
-                    async (rows) => {
-                        rows.forEach(writer);
-                    },
-                );
-            },
+            streamFunctionCallback,
             this.s3Client,
         );
 

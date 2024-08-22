@@ -40,6 +40,7 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -84,7 +85,15 @@ export const ContentPanel: FC = () => {
         onSuccess: (data) => {
             if (data) {
                 dispatch(setSqlRunnerResults(data));
-                dispatch(onResults(data));
+                dispatch(
+                    onResults({
+                        ...data,
+                        transformer: new SqlRunnerResultsTransformer({
+                            rows: data.results,
+                            columns: data.columns,
+                        }),
+                    }),
+                );
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -113,6 +122,15 @@ export const ContentPanel: FC = () => {
             notifications.clean();
         },
         [runSqlQuery, sql, limit],
+    );
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformer({
+                rows: queryResults?.results ?? [],
+                columns: queryResults?.columns ?? [],
+            }),
+        [queryResults],
     );
 
     const activeConfigs = useAppSelector((state) => {
@@ -273,6 +291,7 @@ export const ContentPanel: FC = () => {
                                                 data={queryResults}
                                                 config={c}
                                                 isLoading={isLoading}
+                                                transformer={transformer}
                                                 style={{
                                                     height: deferredInputSectionHeight,
                                                     width: '100%',

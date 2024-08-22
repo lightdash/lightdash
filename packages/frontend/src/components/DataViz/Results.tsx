@@ -1,6 +1,6 @@
-import { type ResultRow, type SqlColumn } from '@lightdash/common';
+import { type ResultRow, type VizSqlColumn } from '@lightdash/common';
 
 export type ResultsAndColumns = {
     results: ResultRow[];
-    columns: SqlColumn[];
+    columns: VizSqlColumn[];
 };

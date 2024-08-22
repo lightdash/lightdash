@@ -6,23 +6,15 @@ import {
     PieChartDataTransformer,
     type CartesianChartSqlConfig,
     type PieChartSqlConfig,
-    type ResultRow,
-    type SqlColumn,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { SqlRunnerResultsTransformerFE } from '../../../features/sqlRunner/transformers/SqlRunnerResultsTransformerFE';
+import { type ResultsTransformer } from './ResultsTransformer';
 
-export const useChart = (
-    rows: ResultRow[],
-    columns: SqlColumn[],
+export const useChart = <T extends ResultsTransformer>(
     config: CartesianChartSqlConfig | PieChartSqlConfig,
+    transformer: T,
 ) => {
-    const transformer = useMemo(
-        () => new SqlRunnerResultsTransformerFE({ rows, columns }),
-        [rows, columns],
-    );
-
     const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {
             return new PieChartDataTransformer({ transformer });

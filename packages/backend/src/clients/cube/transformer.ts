@@ -1,5 +1,6 @@
 import {
     Cube,
+    PivotConfig,
     Query as CubeQuery,
     QueryOrder,
     ResultSet,
@@ -15,7 +16,6 @@ import {
     FieldType as FieldKind,
     SemanticLayerField,
     SemanticLayerFieldType,
-    SemanticLayerSortBy,
     SemanticLayerSortByDirection,
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
@@ -219,6 +219,6 @@ export const cubeTransfomers: SemanticLayerTransformer<
         timezone: query.timezone,
         limit: query.limit,
     }),
-    resultsToResultRows: (cubeResultSet) => cubeResultSet.tablePivot(),
+    resultsToResultRows: (results) => results.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),
 };
