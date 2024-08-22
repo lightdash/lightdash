@@ -1,7 +1,7 @@
 import { type ApiError, type PivotChartData } from '..';
 import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
-import { type AggregationOptions } from '../visualizations/SqlResultsRunner';
 import {
+    type VizAggregationOptions,
     type VizPieChartDisplay,
     type VizSqlCartesianChartLayout,
     type VizSqlColumn,
@@ -30,7 +30,7 @@ type ApiSqlRunnerPivotQueryPayload = {
     };
     valuesColumns: {
         reference: string;
-        aggregation: AggregationOptions;
+        aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
 };
