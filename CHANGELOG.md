@@ -1,3 +1,10 @@
+# [0.1224.0](https://github.com/lightdash/lightdash/compare/0.1223.4...0.1224.0) (2024-08-22)
+
+
+### Features
+
+* add pivot config backend ([#11174](https://github.com/lightdash/lightdash/issues/11174)) ([df0344a](https://github.com/lightdash/lightdash/commit/df0344ad188e3d6e8e7e87591c5a8c078b65b5a2))
+
 ## [0.1223.4](https://github.com/lightdash/lightdash/compare/0.1223.3...0.1223.4) (2024-08-20)
 
 
