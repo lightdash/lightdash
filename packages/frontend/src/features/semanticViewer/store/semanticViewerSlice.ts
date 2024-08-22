@@ -214,6 +214,10 @@ export const semanticViewerSlice = createSlice({
             }
         },
 
+        setLimit: (state, action: PayloadAction<number>) => {
+            state.limit = action.payload;
+        },
+
         setSavedChartData: (state, action: PayloadAction<any>) => {
             console.debug('setSavedChartData state', state, action);
             throw new Error('Not implemented');
@@ -249,5 +253,6 @@ export const {
     setFields,
     selectField,
     deselectField,
+    setLimit,
     updateTimeDimensionGranularity,
 } = semanticViewerSlice.actions;
