@@ -7291,7 +7291,8 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "AggregationOptions": {
+            "VizAggregationOptions": {
+                "enum": ["sum", "count", "min", "max", "first"],
                 "type": "string"
             },
             "ApiSqlRunnerPivotQueryPayload": {
@@ -7312,7 +7313,7 @@
                         "items": {
                             "properties": {
                                 "aggregation": {
-                                    "$ref": "#/components/schemas/AggregationOptions"
+                                    "$ref": "#/components/schemas/VizAggregationOptions"
                                 },
                                 "reference": {
                                     "type": "string"
@@ -7378,10 +7379,6 @@
             },
             "VizIndexType": {
                 "enum": ["time", "category"],
-                "type": "string"
-            },
-            "VizAggregationOptions": {
-                "enum": ["sum", "count", "min", "max", "first"],
                 "type": "string"
             },
             "VizSqlCartesianChartLayout": {
@@ -9125,18 +9122,6 @@
             },
             "SemanticLayerPivot": {
                 "properties": {
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "values": {
                         "items": {
                             "properties": {
@@ -9151,9 +9136,21 @@
                             "type": "object"
                         },
                         "type": "array"
+                    },
+                    "index": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["index", "on", "values"],
+                "required": ["values", "index", "on"],
                 "type": "object"
             },
             "SemanticLayerQuery": {
@@ -9442,7 +9439,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1223.4",
+        "version": "0.1227.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

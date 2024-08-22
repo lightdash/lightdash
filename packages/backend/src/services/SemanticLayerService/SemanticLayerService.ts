@@ -20,7 +20,7 @@ import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { pivotResults } from './Pivoting';
+import { groupResults, pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -218,14 +218,20 @@ export class SemanticLayerService extends BaseService {
             });
 
             // Pivot results
-            const pivotedResults = pivotResults(
-                results,
-                [
-                    ...query.dimensions.map((d) => d.name),
-                    ...query.timeDimensions.map((d) => d.name),
-                ],
-                query.pivot,
-            );
+            const pivotedResults =
+                query.pivot.index.length === 0
+                    ? groupResults(results, {
+                          values: query.pivot.values,
+                          groupBy: query.pivot.on,
+                      })
+                    : pivotResults(
+                          results,
+                          [
+                              ...query.dimensions.map((d) => d.name),
+                              ...query.timeDimensions.map((d) => d.name),
+                          ],
+                          query.pivot,
+                      );
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);

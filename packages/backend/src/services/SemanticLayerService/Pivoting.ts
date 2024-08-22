@@ -1,28 +1,17 @@
-import { SemanticLayerPivot, SemanticLayerResultRow } from '@lightdash/common';
+import {
+    SemanticLayerGroupBy,
+    SemanticLayerPivot,
+    SemanticLayerResultRow,
+} from '@lightdash/common';
 import uniq from 'lodash/uniq';
 import pl from 'nodejs-polars';
 
 export function pivotResults(
     results: SemanticLayerResultRow[],
     allDimensions: string[],
-    pivot: SemanticLayerPivot,
+    { values, ...options }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
-    const { values, ...options } = pivot;
     const df = pl.DataFrame(results);
-
-    if (!options.index.length) {
-        const aliasedAggs: pl.Expr[] = values.map((v) =>
-            pl
-                .col(v.name)
-                [v.aggFunction]()
-                .alias(`${v.aggFunction}(${v.name})`),
-        );
-
-        return df
-            .groupBy(options.on)
-            .agg(...aliasedAggs)
-            .toRecords();
-    }
 
     // Group by all dimensions that are not in the values
     const dimensionsToGroupBy = uniq([
@@ -48,3 +37,19 @@ export function pivotResults(
         )
         .toRecords();
 }
+
+export const groupResults = (
+    results: SemanticLayerResultRow[],
+    { values, groupBy }: SemanticLayerGroupBy,
+): SemanticLayerResultRow[] => {
+    const df = pl.DataFrame(results);
+
+    const aliasedAggs: pl.Expr[] = values.map((v) =>
+        pl.col(v.name)[v.aggFunction]().alias(`${v.aggFunction}(${v.name})`),
+    );
+
+    return df
+        .groupBy(groupBy)
+        .agg(...aliasedAggs)
+        .toRecords();
+};

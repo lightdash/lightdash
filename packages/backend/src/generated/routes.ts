@@ -6553,9 +6553,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AggregationOptions: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
+    VizAggregationOptions: {
+        dataType: 'refEnum',
+        enums: ['sum', 'count', 'min', 'max', 'first'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSqlRunnerPivotQueryPayload: {
@@ -6588,7 +6588,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
                             aggregation: {
-                                ref: 'AggregationOptions',
+                                ref: 'VizAggregationOptions',
                                 required: true,
                             },
                             reference: { dataType: 'string', required: true },
@@ -6652,11 +6652,6 @@ const models: TsoaRoute.Models = {
     VizIndexType: {
         dataType: 'refEnum',
         enums: ['time', 'category'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizAggregationOptions: {
-        dataType: 'refEnum',
-        enums: ['sum', 'count', 'min', 'max', 'first'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizSqlCartesianChartLayout: {
@@ -8263,16 +8258,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                index: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                on: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 values: {
                     dataType: 'array',
                     array: {
@@ -8285,6 +8270,16 @@ const models: TsoaRoute.Models = {
                             name: { dataType: 'string', required: true },
                         },
                     },
+                    required: true,
+                },
+                index: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                on: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
             },
