@@ -79,7 +79,6 @@ export type SemanticLayerQuery = {
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
     sortBy: SemanticLayerSortBy[];
-    offset?: number; // ! Needed for cube results
     limit?: number;
     timezone?: string;
     pivot?: SemanticLayerPivot;

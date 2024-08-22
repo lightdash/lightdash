@@ -31,10 +31,12 @@ export function pivotResults(
     console.info('Grouped by data frame ----------------------');
     console.info(groupedByDf);
 
-    const pivotedDf = groupedByDf.fillNull('zero').pivot(
-        values.map((v) => v.name),
-        options,
-    );
+    const pivotedDf = groupedByDf
+        .withColumns(pl.col(dimensionsToGroupBy).fillNull('zero'))
+        .pivot(
+            values.map((v) => v.name),
+            options,
+        );
 
     console.info('Pivoted data frame ----------------------');
     console.info(pivotedDf);

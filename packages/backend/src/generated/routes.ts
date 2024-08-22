@@ -8300,7 +8300,6 @@ const models: TsoaRoute.Models = {
                 pivot: { ref: 'SemanticLayerPivot' },
                 timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
-                offset: { dataType: 'double' },
                 sortBy: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SemanticLayerSortBy' },

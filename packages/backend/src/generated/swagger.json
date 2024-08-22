@@ -9168,10 +9168,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "offset": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"

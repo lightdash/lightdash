@@ -198,27 +198,30 @@ export const cubeTransfomers: SemanticLayerTransformer<
             label: view.title,
             visible: Boolean(view.public),
         })),
-    semanticLayerQueryToQuery: (query) => ({
-        measures: query.metrics.map((m) => m.name),
-        dimensions: [
-            ...query.dimensions.map((d) => d.name),
-            ...query.timeDimensions.map((td) => td.name),
-        ],
-        timeDimensions: query.timeDimensions.map((td) => ({
-            dimension: td.name,
-            granularity:
-                td.granularity &&
-                getCubeTimeDimensionGranularity(td.granularity),
-        })),
-        order: query.sortBy.map((sort): TQueryOrderArray[number] => [
+    semanticLayerQueryToQuery: (query) => {
+        const order = query.sortBy.map((sort): TQueryOrderArray[number] => [
             sort.name,
             getCubeQueryOrder(sort.direction),
-        ]),
-        filters: [],
-        offset: query.offset,
-        timezone: query.timezone,
-        limit: query.limit,
-    }),
+        ]);
+
+        return {
+            measures: query.metrics.map((m) => m.name),
+            dimensions: [
+                ...query.dimensions.map((d) => d.name),
+                ...query.timeDimensions.map((td) => td.name),
+            ],
+            timeDimensions: query.timeDimensions.map((td) => ({
+                dimension: td.name,
+                granularity:
+                    td.granularity &&
+                    getCubeTimeDimensionGranularity(td.granularity),
+            })),
+            order: order.length > 0 ? order : undefined, // if order is empty array cube doesn't apply any order which could break partial results https://cube.dev/docs/product/apis-integrations/rest-api/query-format
+            filters: [],
+            timezone: query.timezone,
+            limit: query.limit,
+        };
+    },
     resultsToResultRows: (results) => results.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),
 };
