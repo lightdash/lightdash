@@ -234,6 +234,9 @@ export class ResultsTransformer
 
     getPivotChartData(
         _config: VizSqlCartesianChartLayout,
+        _sql?: string,
+        _projectUuid?: string,
+        _limit?: number,
     ): Promise<PivotChartData> {
         throw new Error('Method not implemented.');
     }

@@ -85,11 +85,21 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         };
     }
 
-    async getTransformedData(layout: TPivotChartLayout | undefined) {
+    async getTransformedData(
+        layout: TPivotChartLayout | undefined,
+        sql?: string,
+        projectUuid?: string,
+        limit?: number,
+    ) {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(layout);
+        return this.transformer.getPivotChartData(
+            layout,
+            sql,
+            projectUuid,
+            limit,
+        );
     }
 
     getEchartsSpec(

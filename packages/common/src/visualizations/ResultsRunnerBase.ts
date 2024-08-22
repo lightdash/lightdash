@@ -2,7 +2,12 @@ import { type PivotChartData } from './types';
 
 export interface ResultsRunnerBase<TPivotChartLayout> {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
-    getPivotChartData(config: TPivotChartLayout): Promise<PivotChartData>;
+    getPivotChartData(
+        config: TPivotChartLayout,
+        sql?: string,
+        projectUuid?: string,
+        limit?: number,
+    ): Promise<PivotChartData>;
 
     defaultPivotChartLayout(): TPivotChartLayout | undefined;
 

@@ -17,12 +17,18 @@ type ChartViewProps<T extends ResultsTransformer> = {
     config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
     transformer: T;
+    sql?: string;
+    projectUuid?: string;
+    limit?: number;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo(
     <T extends ResultsTransformer>({
         data: _data,
         config,
+        sql,
+        projectUuid,
+        limit,
         isLoading: isLoadingProp,
         transformer,
         style,
@@ -31,7 +37,8 @@ const ChartView = memo(
             loading: transformLoading,
             error,
             value: spec,
-        } = useChart(config, transformer);
+        } = useChart({ config, transformer, sql, projectUuid, limit });
+
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust

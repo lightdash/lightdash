@@ -67,9 +67,3 @@ export type PivotChartData = {
     indexColumn: { reference: string; type: string };
     valuesColumns: string[];
 };
-
-export type DuckDBSqlFunction = (
-    sql: string,
-    rowData: RowData[],
-    columns: VizSqlColumn[],
-) => Promise<RowData[]>;

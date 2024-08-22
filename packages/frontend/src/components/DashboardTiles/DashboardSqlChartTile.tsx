@@ -118,6 +118,8 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     }}
                     transformer={transformer}
                     isLoading={isLoading}
+                    sql={data.chart.sql}
+                    projectUuid={projectUuid}
                 />
             )}
         </TileBase>

@@ -1,6 +1,7 @@
-import { type ApiError } from '..';
+import { type ApiError, type PivotChartData } from '..';
 import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
 import {
+    type VizAggregationOptions,
     type VizPieChartDisplay,
     type VizSqlCartesianChartLayout,
     type VizSqlColumn,
@@ -16,27 +17,47 @@ import { type LightdashUser } from './user';
 
 export type SqlRunnerPayload = {
     projectUuid: string;
-    sql: string;
-    limit?: number;
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
     context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+} & SqlRunnerBody;
+
+type ApiSqlRunnerPivotQueryPayload = {
+    indexColumn: {
+        reference: string;
+        type: string;
+    };
+    valuesColumns: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupByColumns: { reference: string }[] | undefined;
 };
+
+export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
+    ApiSqlRunnerPivotQueryPayload;
 
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
 };
 
+export type SqlRunnerPivotQueryBody = SqlRunnerBody &
+    ApiSqlRunnerPivotQueryPayload;
+
 export type SqlRunnerResults = ResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
+export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
     columns: VizSqlColumn[];
 };
+
+type SqlRunnerPivotQueryJobStatusSuccessDetails =
+    SqlRunnerJobStatusSuccessDetails & Omit<PivotChartData, 'results'>;
 
 type SqlRunnerJobStatusErrorDetails = {
     error: string;
@@ -72,6 +93,18 @@ export const isApiSqlRunnerJobSuccessResponse = (
     response.status === SchedulerJobStatus.COMPLETED;
 
 // TODO: common type with semantic viewer and should be abstracted
+export type ApiSqlRunnerJobPivotQuerySuccessResponse = {
+    results: {
+        status: SchedulerJobStatus.COMPLETED;
+        details: SqlRunnerPivotQueryJobStatusSuccessDetails;
+    };
+};
+
+export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
+    response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
+): response is ApiSqlRunnerJobPivotQuerySuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;
+
 export type SqlRunnerChartConfig = {
     metadata: {
         version: number;

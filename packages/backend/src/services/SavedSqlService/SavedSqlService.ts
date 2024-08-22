@@ -13,6 +13,8 @@ import {
     SpaceShare,
     SpaceSummary,
     SqlChart,
+    SqlRunnerPivotQueryBody,
+    SqlRunnerPivotQueryPayload,
     UpdateSqlChart,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
@@ -25,6 +27,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { isFeatureFlagEnabled } from '../../postHog';
+import { applyLimitToSqlQuery } from '../../queryBuilder';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
@@ -35,6 +38,8 @@ type SavedSqlServiceArguments = {
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
 };
+
+// TODO: Rename to SqlRunnerService
 
 export class SavedSqlService extends BaseService {
     private readonly analytics: LightdashAnalytics;
@@ -394,6 +399,37 @@ export class SavedSqlService extends BaseService {
             projectUuid,
             sql,
             limit,
+            context: QueryExecutionContext.SQL_RUNNER,
+        });
+
+        return { jobId };
+    }
+
+    async getResultJobFromSqlPivotQuery(
+        user: SessionUser,
+        projectUuid: string,
+        body: SqlRunnerPivotQueryBody,
+    ): Promise<{ jobId: string }> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const jobId = await this.schedulerClient.runSqlPivotQuery({
+            ...body,
+            userUuid: user.userUuid,
+            organizationUuid,
+            projectUuid,
             context: QueryExecutionContext.SQL_RUNNER,
         });
 
