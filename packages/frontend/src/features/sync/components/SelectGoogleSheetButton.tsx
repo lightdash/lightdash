@@ -7,7 +7,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -46,17 +46,18 @@ export const SelectGoogleSheetButton: FC = () => {
         [methods],
     );
 
-    const { mutate } = useGdriveAccessToken({
-        onSuccess: (accessToken) => {
-            if (
-                !health.data?.auth.google.oauth2ClientId ||
-                !health.data.auth.google.googleDriveApiKey
-            )
-                return;
+    const { mutate, token } = useGdriveAccessToken();
+
+    useEffect(() => {
+        if (
+            token &&
+            health.data?.auth.google.oauth2ClientId &&
+            health.data.auth.google.googleDriveApiKey
+        ) {
             openPicker({
-                clientId: health.data?.auth.google.oauth2ClientId,
+                clientId: health.data.auth.google.oauth2ClientId,
                 developerKey: health.data.auth.google.googleDriveApiKey,
-                token: accessToken,
+                token,
                 showUploadView: true,
                 viewId: 'SPREADSHEETS',
                 showUploadFolders: true,
@@ -66,8 +67,10 @@ export const SelectGoogleSheetButton: FC = () => {
                 multiselect: false,
                 callbackFunction: onGooglePickerSelect,
             });
-        },
-    });
+        }
+        // Adding openPicker and onGooglePickerSelect to the dependency array causes an infinite loop
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token, health.data]);
 
     if (googleDriveId) {
         return (

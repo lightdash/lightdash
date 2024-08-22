@@ -1,7 +1,7 @@
 import { type ApiScheduledDownloadCsv } from '@lightdash/common';
 import { Button, Loader, Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useEffect, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
@@ -26,11 +26,13 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
             getGsheetLink,
         });
 
-        const { mutate } = useGdriveAccessToken({
-            onSuccess: () => {
+        const { mutate, token } = useGdriveAccessToken();
+
+        useEffect(() => {
+            if (token) {
                 startExporting();
-            },
-        });
+            }
+        }, [token, startExporting]);
 
         if (!hasGoogleDrive) {
             // We should not load this component on `ExporSelector` if google keys are not available

@@ -4,7 +4,7 @@ import {
     type ApiScheduledDownloadCsv,
     type UploadMetricGsheet,
 } from '@lightdash/common';
-import { useMutation, type UseQueryOptions } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
@@ -18,29 +18,18 @@ const getGdriveAccessToken = async () =>
         body: undefined,
     });
 
-export const useGdriveAccessToken = (
-    useQueryOptions?: UseQueryOptions<
-        ApiGdriveAccessTokenResponse['results'],
-        ApiError
-    >,
-) => {
+export const useGdriveAccessToken = () => {
     const { showToastError } = useToaster();
     const health = useHealth();
     const popupRef = useRef<Window | null>(null);
     const isAuthConcludedWithSuccess = useRef(false);
 
-    const { error, isSuccess, data, mutate } = useMutation<
+    const { error, data, mutate } = useMutation<
         ApiGdriveAccessTokenResponse['results'],
         ApiError
     >({
         mutationFn: getGdriveAccessToken,
     });
-
-    useEffect(() => {
-        if (isSuccess) {
-            useQueryOptions?.onSuccess?.(data);
-        }
-    }, [isSuccess, data, useQueryOptions]);
 
     useEffect(() => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
@@ -82,6 +71,7 @@ export const useGdriveAccessToken = (
 
     return {
         mutate,
+        token: data,
     };
 };
 
