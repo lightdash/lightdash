@@ -140,7 +140,6 @@ module.exports = {
                 'guides/how-to-create-multiple-projects',
                 'guides/customizing-the-appearance-of-your-project',
                 'guides/dbt-semantic-layer',
-                'guides/how-to-reset-your-password',
                 'guides/how-to-promote-content',
             ],
         },
@@ -171,7 +170,6 @@ module.exports = {
                 'references/the-sql-runner',
                 'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
-                'references/ip_addresses',
                 'references/usage-analytics',
                 {
                     type: 'doc',

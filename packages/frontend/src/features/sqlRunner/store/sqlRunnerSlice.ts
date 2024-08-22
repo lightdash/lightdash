@@ -46,6 +46,7 @@ export interface SqlRunnerState {
     };
     quoteChar: string;
     sqlColumns: VizSqlColumn[] | undefined;
+    activeConfigs: ChartKind[];
 }
 
 const initialState: SqlRunnerState = {
@@ -73,6 +74,7 @@ const initialState: SqlRunnerState = {
     },
     quoteChar: '"',
     sqlColumns: undefined,
+    activeConfigs: [ChartKind.VERTICAL_BAR],
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -148,6 +150,9 @@ export const sqlRunnerSlice = createSlice({
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
+            if (!state.activeConfigs.includes(action.payload)) {
+                state.activeConfigs.push(action.payload);
+            }
         },
         toggleActiveTable: (
             state,

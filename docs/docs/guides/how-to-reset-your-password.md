@@ -14,7 +14,7 @@ Once you fill out your email and click `send reset email`, you should get an ema
 
 ## If you've deployed Lightdash locally
 
-We recommend [adding the SMTP environment variables](https://docs.lightdash.com/references/environmentVariables#smtp-environment-variables) so Lightdash can display a `Forgot your password?` button in the login page and send emails to reset password. Basically, the same flow as above.
+We recommend [adding the SMTP environment variables](/references/environmentVariables#smtp-environment-variables) so Lightdash can display a `Forgot your password?` button in the login page and send emails to reset password. Basically, the same flow as above.
 
 You can override a user password in just a few steps:
 

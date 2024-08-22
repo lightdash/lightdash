@@ -17,7 +17,7 @@ export const CartesianChartConfig = ({
 }) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
-    const [isStylingOpen, setIsStylingOpen] = useState(true);
+    const [isStylingOpen, setIsStylingOpen] = useState(false);
 
     const actions =
         selectedChartType === ChartKind.LINE

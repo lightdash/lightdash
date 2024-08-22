@@ -86,9 +86,10 @@ export const useSqlQueryRun = ({
         },
         {
             mutationKey: ['sqlRunner', 'run'],
-            onError: () => {
+            onError: (err: ApiError) => {
                 showToastError({
                     title: 'Could not fetch SQL query results',
+                    subtitle: err.error.message,
                 });
             },
             onMutate: () => {

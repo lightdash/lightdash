@@ -96,7 +96,6 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
-    WarehouseTables,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -107,8 +106,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
-import { nanoid } from 'nanoid';
-import { PassThrough, Readable } from 'stream';
+import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
@@ -1955,10 +1953,10 @@ export class ProjectService extends BaseService {
         };
 
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
-        const cteWithLimit = `
-            WITH cte AS (${sql})
-            SELECT *
-            FROM cte LIMIT ${this.lightdashConfig.query.maxLimit}`;
+        const cteWithLimit = applyLimitToSqlQuery({
+            sqlQuery: sql,
+            limit: this.lightdashConfig.query.maxLimit,
+        });
 
         const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
         await sshTunnel.disconnect();

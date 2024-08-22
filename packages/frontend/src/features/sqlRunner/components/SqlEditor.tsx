@@ -4,6 +4,7 @@ import Editor, {
     type BeforeMount,
     type EditorProps,
     type Monaco,
+    type OnChange,
     type OnMount,
 } from '@monaco-editor/react';
 import {
@@ -11,13 +12,17 @@ import {
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { debounce } from 'lodash';
 import { type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
 import { useTables } from '../hooks/useTables';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setSql } from '../store/sqlRunnerSlice';
+
+const DEBOUNCE_TIME = 500;
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -180,10 +185,10 @@ const generateTableCompletions = (
 };
 
 export const SqlEditor: FC<{
-    sql: string;
-    onSqlChange: (value: string) => void;
-    onSubmit?: () => void;
-}> = ({ sql, onSqlChange, onSubmit }) => {
+    onSubmit: () => void;
+}> = ({ onSubmit }) => {
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data, isLoading } = useProject(projectUuid);
@@ -240,6 +245,10 @@ export const SqlEditor: FC<{
         });
     }, []);
 
+    const onChange: OnChange = debounce((value: string | undefined) => {
+        dispatch(setSql(value ?? ''));
+    }, DEBOUNCE_TIME);
+
     if (isLoading || isTablesDataLoading) {
         return (
             <Center h="100%">
@@ -264,7 +273,7 @@ export const SqlEditor: FC<{
             onMount={onMount}
             language={language}
             value={sql}
-            onChange={(value) => onSqlChange(value ?? '')}
+            onChange={onChange}
             options={MONACO_DEFAULT_OPTIONS}
             theme="lightdash"
         />

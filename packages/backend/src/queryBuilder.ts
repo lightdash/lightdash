@@ -307,7 +307,10 @@ export const applyLimitToSqlQuery = ({
     limit: number | undefined;
 }): string => {
     if (limit === undefined) return sqlQuery;
-    return `WITH user_sql AS (${sqlQuery}) select * from user_sql limit ${limit}`;
+    return `WITH user_sql AS (\n${sqlQuery.replace(
+        /;$/,
+        '',
+    )}\n) select * from user_sql limit ${limit}`;
 };
 
 export const getCustomSqlDimensionSql = ({
