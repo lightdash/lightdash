@@ -3,6 +3,7 @@ import {
     Box,
     Center,
     CopyButton,
+    Group,
     Highlight,
     Loader,
     ScrollArea,
@@ -14,13 +15,20 @@ import {
     type BoxProps,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
-import { memo, useState, type FC } from 'react';
+import {
+    IconChevronDown,
+    IconChevronRight,
+    IconCopy,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
-import { useTables } from '../hooks/useTables';
+import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+
 interface TableItemProps extends BoxProps {
     table: string;
     search: string;
@@ -114,12 +122,66 @@ const TableItem: FC<TableItemProps> = memo(
     },
 );
 
+const Table: FC<{
+    schema: NonNullable<TablesBySchema>[number]['schema'];
+    tables: NonNullable<TablesBySchema>[number]['tables'];
+    search: string;
+    activeTable: string | undefined;
+    database: string;
+}> = ({ schema, tables, search, activeTable, database }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const hasMatchingTable = useMemo(() => {
+        if (!search || search.trim().length <= 2) return false;
+        return Object.keys(tables).some(
+            (table) =>
+                table.toLowerCase().includes(search.toLowerCase()) ||
+                schema.toString().toLowerCase().includes(search.toLowerCase()),
+        );
+    }, [tables, schema, search]);
+
+    useEffect(() => {
+        if (activeTable && Object.keys(tables).includes(activeTable)) {
+            setIsExpanded(true);
+        }
+        if (hasMatchingTable) {
+            setIsExpanded(true);
+        }
+    }, [activeTable, tables, hasMatchingTable]);
+    return (
+        <Stack spacing={0}>
+            <Group noWrap spacing="two">
+                <Text p={6} fw={700} fz="md" c="gray.7">
+                    {schema}
+                </Text>
+                <ActionIcon onClick={() => setIsExpanded(!isExpanded)}>
+                    <MantineIcon
+                        icon={isExpanded ? IconChevronDown : IconChevronRight}
+                    />
+                </ActionIcon>
+            </Group>
+            {isExpanded &&
+                Object.keys(tables).map((table) => (
+                    <TableItem
+                        key={table}
+                        search={search}
+                        isActive={activeTable === table}
+                        table={table}
+                        schema={`${schema}`}
+                        database={database}
+                        ml="sm"
+                    />
+                ))}
+        </Stack>
+    );
+};
+
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
     const [search, setSearch] = useState<string>('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const [debouncedSearch] = useDebouncedValue(search, 500);
     const isValidSearch = Boolean(
         debouncedSearch && debouncedSearch.trim().length > 2,
     );
@@ -133,7 +195,7 @@ export const Tables: FC = () => {
         <>
             <TextInput
                 size="xs"
-                disabled={!data && !isValidSearch}
+                disabled={!data && !debouncedSearch}
                 icon={
                     isLoading ? (
                         <Loader size="xs" />
@@ -169,22 +231,14 @@ export const Tables: FC = () => {
                 {isSuccess &&
                     data &&
                     data.tablesBySchema?.map(({ schema, tables }) => (
-                        <Stack spacing={0} key={schema}>
-                            <Text p={6} fw={700} fz="md" c="gray.7">
-                                {schema}
-                            </Text>
-                            {Object.keys(tables).map((table) => (
-                                <TableItem
-                                    key={table}
-                                    search={search}
-                                    isActive={activeTable === table}
-                                    table={table}
-                                    schema={`${schema}`}
-                                    database={data.database}
-                                    ml="sm"
-                                />
-                            ))}
-                        </Stack>
+                        <Table
+                            key={schema}
+                            schema={schema}
+                            tables={tables}
+                            search={search}
+                            activeTable={activeTable}
+                            database={data.database}
+                        />
                     ))}
             </ScrollArea>
 
