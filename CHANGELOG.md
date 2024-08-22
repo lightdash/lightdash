@@ -1,3 +1,10 @@
+## [0.1227.1](https://github.com/lightdash/lightdash/compare/0.1227.0...0.1227.1) (2024-08-22)
+
+
+### Bug Fixes
+
+* use generators for file streaming + pivot and group by ([#11245](https://github.com/lightdash/lightdash/issues/11245)) ([8362604](https://github.com/lightdash/lightdash/commit/8362604633d09b656cd141b7840473a23c61ac40))
+
 # [0.1227.0](https://github.com/lightdash/lightdash/compare/0.1226.0...0.1227.0) (2024-08-22)
 
 
