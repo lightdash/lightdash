@@ -55,7 +55,6 @@ export const DashboardSqlChartTile: FC<Props> = ({
             new SqlRunnerResultsTransformer({
                 rows: sqlRunnerChartData.results,
                 columns: sqlRunnerChartData.columns,
-                pivotQueryFunction: undefined,
             }),
         [sqlRunnerChartData],
     );
