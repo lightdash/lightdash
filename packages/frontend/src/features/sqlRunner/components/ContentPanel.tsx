@@ -346,9 +346,7 @@ export const ContentPanel: FC = () => {
                                     >
                                         {(styles) => (
                                             <Box
-                                                pt="xs"
-                                                px="sm"
-                                                pb="sm"
+                                                p="xs"
                                                 style={{
                                                     flex: 1,
                                                     ...styles,
@@ -416,6 +414,7 @@ export const ContentPanel: FC = () => {
                     <Paper
                         shadow="none"
                         radius={0}
+                        pt="md"
                         sx={(theme) => ({
                             overflow: 'auto',
                             borderWidth: '0 0 1px 1px',
