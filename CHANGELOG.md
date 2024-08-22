@@ -1,3 +1,15 @@
+# [0.1227.0](https://github.com/lightdash/lightdash/compare/0.1226.0...0.1227.0) (2024-08-22)
+
+
+### Bug Fixes
+
+* google drive authentication ([#11211](https://github.com/lightdash/lightdash/issues/11211)) ([e304e00](https://github.com/lightdash/lightdash/commit/e304e00660718110dd649a558e54a8e9b1925196))
+
+
+### Features
+
+* pivot sql query against warehouse ([#11222](https://github.com/lightdash/lightdash/issues/11222)) ([2be7c33](https://github.com/lightdash/lightdash/commit/2be7c331d5375951ffdca5d17eb8f214330ba4af))
+
 # [0.1226.0](https://github.com/lightdash/lightdash/compare/0.1225.0...0.1226.0) (2024-08-22)
 
 
