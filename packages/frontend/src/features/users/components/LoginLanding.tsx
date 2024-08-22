@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 
 import {
+    ActionIcon,
     Anchor,
     Button,
     Card,
@@ -22,8 +23,10 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconX } from '@tabler/icons-react';
 import { Redirect, useLocation } from 'react-router-dom';
 import { z } from 'zod';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -75,7 +78,6 @@ const Login: FC<{}> = () => {
         data: loginOptions,
         isInitialLoading: isInitialLoadingLoginOptions,
         isLoading: loginOptionsLoading,
-        isFetched: loginOptionsFetched,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
         email: preCheckEmail,
@@ -134,7 +136,7 @@ const Login: FC<{}> = () => {
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
-        (loginOptionsLoading && loginOptionsFetched) ||
+        loginOptionsLoading ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
@@ -188,6 +190,21 @@ const Login: FC<{}> = () => {
                             required
                             {...form.getInputProps('email')}
                             disabled={disableControls}
+                            rightSection={
+                                preCheckEmail ? (
+                                    <ActionIcon
+                                        onClick={() => {
+                                            setPreCheckEmail(undefined);
+                                            form.setValues({
+                                                email: '',
+                                                password: '',
+                                            });
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                ) : null
+                            }
                         />
                         {isEmailLoginAvailable && formStage === 'login' && (
                             <>
@@ -203,28 +220,41 @@ const Login: FC<{}> = () => {
                                 <Anchor href="/recover-password" mx="auto">
                                     Forgot your password?
                                 </Anchor>
+                                <Button
+                                    type="submit"
+                                    loading={disableControls}
+                                    data-cy="signin-button"
+                                >
+                                    Sign in
+                                </Button>
                             </>
                         )}
-                        <Button
-                            type="submit"
-                            loading={disableControls}
-                            data-cy="signin-button"
-                        >
-                            {formStage === 'login' && !loginOptionsFetched
-                                ? 'Sign in'
-                                : 'Continue'}
-                        </Button>
+                        {formStage === 'precheck' && (
+                            <Button
+                                type="submit"
+                                loading={disableControls}
+                                data-cy="signin-button"
+                            >
+                                Continue
+                            </Button>
+                        )}
                         {ssoOptions.length > 0 && (
                             <>
-                                <Divider
-                                    my="sm"
-                                    labelPosition="center"
-                                    label={
-                                        <Text color="gray.5" size="sm" fw={500}>
-                                            OR
-                                        </Text>
-                                    }
-                                />
+                                {isEmailLoginAvailable && (
+                                    <Divider
+                                        my="sm"
+                                        labelPosition="center"
+                                        label={
+                                            <Text
+                                                color="gray.5"
+                                                size="sm"
+                                                fw={500}
+                                            >
+                                                OR
+                                            </Text>
+                                        }
+                                    />
+                                )}
                                 <Stack>
                                     {ssoOptions.map((providerName) => (
                                         <ThirdPartySignInButton
