@@ -104,7 +104,6 @@ import {
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import { log } from 'console';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
@@ -2151,7 +2150,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: SqlColumn[] = [];
+        const columns: VizSqlColumn[] = [];
 
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
