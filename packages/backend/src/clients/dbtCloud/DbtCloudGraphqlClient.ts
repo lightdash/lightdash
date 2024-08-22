@@ -122,7 +122,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         pageNum: number = 1,
     ): Promise<{
         totalPages: number | null;
-        queryStatus: DbtQueryStatus;
         results: SemanticLayerResultRow[];
     } | null> {
         const getQueryResultsQuery = `
@@ -158,7 +157,6 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
         return {
             totalPages: rawResponse.totalPages,
-            queryStatus: rawResponse.status,
             results: this.transformers.resultsToResultRows(jsonResult),
         };
     }
@@ -169,21 +167,16 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
     ): AsyncGenerator<SemanticLayerResultRow[]> {
         let nextPageNum = pageNum;
         let totalPages = 1;
-        let queryStatus: DbtQueryStatus | undefined;
 
         const result = await this.getResults(queryId, pageNum);
 
         if (result) {
             nextPageNum += 1;
             totalPages = result.totalPages ?? 1;
-            queryStatus = result.queryStatus;
             yield result.results;
         }
 
-        if (
-            queryStatus !== DbtQueryStatus.SUCCESSFUL ||
-            nextPageNum <= totalPages
-        ) {
+        if (nextPageNum <= totalPages) {
             yield* this.getResultsGenerator(queryId, nextPageNum);
         }
     }
