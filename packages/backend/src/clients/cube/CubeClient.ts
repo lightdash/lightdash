@@ -136,7 +136,7 @@ export default class CubeClient implements SemanticLayerClient {
         return this.transformers.resultsToResultRows(resultSet);
     }
 
-    private async *getResultsGen(
+    private async *getResultsGenerator(
         query: SemanticLayerQuery,
         {
             queryLimit,
@@ -168,7 +168,7 @@ export default class CubeClient implements SemanticLayerClient {
             partialResults.length >= partialResultsLimit &&
             totalResultsFetched < queryLimit
         ) {
-            yield* this.getResultsGen(query, {
+            yield* this.getResultsGenerator(query, {
                 queryLimit,
                 offset: totalResultsFetched,
                 partialResultsLimit: Math.min(
@@ -195,13 +195,13 @@ export default class CubeClient implements SemanticLayerClient {
 
         let resultsFetched = 0;
 
-        const gen = this.getResultsGen(query, {
+        const resultsGenerator = this.getResultsGenerator(query, {
             queryLimit,
             offset: resultsFetched,
             partialResultsLimit,
         });
 
-        for await (const partialResults of gen) {
+        for await (const partialResults of resultsGenerator) {
             resultsFetched += partialResults.length; // update the total number of results fetched
             callback(partialResults);
         }

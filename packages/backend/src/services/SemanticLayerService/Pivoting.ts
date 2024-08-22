@@ -7,6 +7,19 @@ export function pivotResults(
     allDimensions: string[],
     { values, ...options }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
+    const dimensionsToGroupBy = uniq([
+        ...options.on,
+        ...options.index,
+        ...allDimensions,
+    ]).filter((dim) => !values.map((v) => v.name).includes(dim));
+
+    if (dimensionsToGroupBy.length === 0) {
+        console.info(
+            'skipping pivot, no dimensions to group by -----------------------',
+        );
+        return results;
+    }
+
     const df = pl.DataFrame(results);
 
     console.info('og pivot config ----------------------');
@@ -15,16 +28,10 @@ export function pivotResults(
     console.info('OG data frame ----------------------');
     console.info(df);
 
-    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
-
-    const dimensionsToGroupBy = uniq([
-        ...options.on,
-        ...options.index,
-        ...allDimensions,
-    ]).filter((dim) => !values.map((v) => v.name).includes(dim));
-
     console.info({ on: options.on, index: options.index, allDimensions });
     console.info({ dimensionsToGroupBy });
+
+    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
 
     const groupedByDf = df.groupBy(dimensionsToGroupBy).agg(...aggs);
 
