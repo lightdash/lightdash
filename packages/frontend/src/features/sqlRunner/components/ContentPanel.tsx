@@ -62,6 +62,7 @@ export const ContentPanel: FC = () => {
         [resultsHeight, maxResultsHeight],
     );
 
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const {
         sql,
         limit,
@@ -161,7 +162,6 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const showTable = useMemo(
         () => isTableChartSQLConfig(currentVisConfig),
@@ -299,13 +299,7 @@ export const ContentPanel: FC = () => {
                                         timingFunction="ease"
                                     >
                                         {(styles) => (
-                                            <Box
-                                                px="sm"
-                                                pb="sm"
-                                                style={{
-                                                    ...styles,
-                                                }}
-                                            >
+                                            <Box px="sm" pb="sm" style={styles}>
                                                 {activeConfigs.chartConfigs.map(
                                                     (c) => (
                                                         <ConditionalVisibility
@@ -315,33 +309,27 @@ export const ContentPanel: FC = () => {
                                                                 c.type
                                                             }
                                                         >
-                                                            {activeChartTypes.has(
-                                                                c.type,
-                                                            ) && (
-                                                                <ChartView
-                                                                    data={
-                                                                        queryResults
-                                                                    }
-                                                                    transformer={
-                                                                        transformer
-                                                                    }
-                                                                    config={c}
-                                                                    isLoading={
-                                                                        isLoading
-                                                                    }
-                                                                    sql={sql}
-                                                                    projectUuid={
-                                                                        projectUuid
-                                                                    }
-                                                                    limit={
-                                                                        limit
-                                                                    }
-                                                                    style={{
-                                                                        height: inputSectionHeight,
-                                                                        width: '100%',
-                                                                    }}
-                                                                />
-                                                            )}
+                                                            <ChartView
+                                                                data={
+                                                                    queryResults
+                                                                }
+                                                                transformer={
+                                                                    transformer
+                                                                }
+                                                                config={c}
+                                                                isLoading={
+                                                                    isLoading
+                                                                }
+                                                                sql={sql}
+                                                                projectUuid={
+                                                                    projectUuid
+                                                                }
+                                                                limit={limit}
+                                                                style={{
+                                                                    height: inputSectionHeight,
+                                                                    width: '100%',
+                                                                }}
+                                                            />
                                                         </ConditionalVisibility>
                                                     ),
                                                 )}
