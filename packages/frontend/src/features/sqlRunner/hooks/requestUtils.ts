@@ -5,12 +5,11 @@ import {
     type ApiError,
     type ApiSqlRunnerJobStatusResponse,
     type ApiSqlRunnerJobSuccessResponse,
-    type ResultRow,
 } from '@lightdash/common';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 
 // To be reused across all hooks that need to fetch SQL query results
-export const getResultsFromStream = async (url: string | undefined) => {
+export const getResultsFromStream = async <T>(url: string | undefined) => {
     try {
         if (!url) {
             throw new Error('No URL provided');
@@ -51,7 +50,7 @@ export const getResultsFromStream = async (url: string | undefined) => {
 
         // Split the JSON strings by newline
         const jsonStrings = result.trim().split('\n');
-        const jsonObjects: ResultRow[] = jsonStrings
+        const jsonObjects: T[] = jsonStrings
             .map((jsonString) => {
                 try {
                     return JSON.parse(jsonString);

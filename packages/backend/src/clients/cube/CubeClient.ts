@@ -123,14 +123,60 @@ export default class CubeClient implements SemanticLayerClient {
         );
     }
 
-    async getResults(query: SemanticLayerQuery) {
+    async getResults(query: SemanticLayerQuery, offset = 0) {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
 
         const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
-        const resultSet = await this.cubeApi.load(cubeQuery);
+        const resultSet = await this.cubeApi.load({
+            ...cubeQuery,
+            offset,
+        });
 
         return this.transformers.resultsToResultRows(resultSet);
+    }
+
+    private async *getResultsGenerator(
+        query: SemanticLayerQuery,
+        {
+            queryLimit,
+            offset,
+            partialResultsLimit,
+        }: {
+            queryLimit: number;
+            offset: number;
+            partialResultsLimit: number;
+        },
+    ): AsyncGenerator<SemanticLayerResultRow[]> {
+        const partialResults = await this.getResults(
+            {
+                ...query,
+                limit: partialResultsLimit,
+            },
+            offset,
+        );
+
+        const totalResultsFetched = offset + partialResults.length;
+
+        if (!partialResults.length) {
+            return;
+        }
+
+        yield partialResults;
+
+        if (
+            partialResults.length >= partialResultsLimit &&
+            totalResultsFetched < queryLimit
+        ) {
+            yield* this.getResultsGenerator(query, {
+                queryLimit,
+                offset: totalResultsFetched,
+                partialResultsLimit: Math.min(
+                    partialResultsLimit,
+                    queryLimit - offset,
+                ),
+            });
+        }
     }
 
     async streamResults(
@@ -142,44 +188,26 @@ export default class CubeClient implements SemanticLayerClient {
         const queryLimit = Math.min(query.limit || 500, this.maxQueryLimit);
 
         // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
-        let partialResultsLimit = Math.min(
+        const partialResultsLimit = Math.min(
             this.maxPartialResultsLimit,
             queryLimit,
         );
 
-        let prevPartialResultsLimit = partialResultsLimit;
-        let offset = 0;
-        let partialResults: SemanticLayerResultRow[] = [];
+        let resultsFetched = 0;
 
-        do {
-            /* eslint-disable-next-line no-await-in-loop */
-            partialResults = await this.getResults({
-                ...query,
-                offset,
-                limit: partialResultsLimit,
-            });
+        const resultsGenerator = this.getResultsGenerator(query, {
+            queryLimit,
+            offset: resultsFetched,
+            partialResultsLimit,
+        });
 
+        for await (const partialResults of resultsGenerator) {
+            resultsFetched += partialResults.length; // update the total number of results fetched
             callback(partialResults);
-
-            // update the offset
-            offset += partialResults.length;
-
-            // keep track of the previous partial results limit so that we can stop when result count is less than it
-            prevPartialResultsLimit = partialResultsLimit;
-
-            // decrease the amount of results to fetch if the limit is less than the query limit so that we don't fetch more than the query limit
-            partialResultsLimit = Math.min(
-                partialResultsLimit,
-                queryLimit - offset,
-            );
-        } while (
-            partialResults.length > 0 &&
-            partialResults.length >= prevPartialResultsLimit &&
-            offset < queryLimit
-        );
+        }
 
         // return the total number of results
-        return offset;
+        return resultsFetched;
     }
 
     async getSql(query: SemanticLayerQuery) {

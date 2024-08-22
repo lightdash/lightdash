@@ -71,7 +71,7 @@ export const useSqlQueryRun = ({
                     job.details && !isErrorDetails(job.details)
                         ? job.details.fileUrl
                         : undefined;
-                const results = await getResultsFromStream(url);
+                const results = await getResultsFromStream<ResultRow>(url);
 
                 return {
                     results,

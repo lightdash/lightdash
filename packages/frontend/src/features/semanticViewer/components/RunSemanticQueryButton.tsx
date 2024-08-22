@@ -1,10 +1,9 @@
 import { type ResultRow, type SemanticLayerResultRow } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useSemanticViewerQueryRun } from '../api/streamingResults';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
-
+import { useEffect, useMemo, type FC } from 'react';
 import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useSemanticLayerQueryResults } from '../api/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
@@ -45,14 +44,10 @@ export const RunSemanticQueryButton: FC = () => {
     const dispatch = useAppDispatch();
 
     const {
-        data: resultsData,
+        data: semanticLayerResultRows,
         mutateAsync: runSemanticViewerQuery,
         isLoading,
-    } = useSemanticViewerQueryRun({
-        select: (data) => {
-            if (!data) return undefined;
-            return mapResultsToTableData(data);
-        },
+    } = useSemanticLayerQueryResults(projectUuid, {
         onError: (data) => {
             showToastError({
                 title: 'Could not fetch SQL query results',
@@ -60,6 +55,12 @@ export const RunSemanticQueryButton: FC = () => {
             });
         },
     });
+
+    const resultsData = useMemo(() => {
+        if (semanticLayerResultRows) {
+            return mapResultsToTableData(semanticLayerResultRows);
+        }
+    }, [semanticLayerResultRows]);
 
     useEffect(() => {
         if (resultsData) {
@@ -105,11 +106,8 @@ export const RunSemanticQueryButton: FC = () => {
             //limit={limit}
             onSubmit={() =>
                 runSemanticViewerQuery({
-                    projectUuid,
-                    query: {
-                        ...allSelectedFieldsByKind,
-                        sortBy,
-                    },
+                    ...allSelectedFieldsByKind,
+                    sortBy,
                 })
             }
             isLoading={isLoading} /*onLimitChange={(newLimit) => {

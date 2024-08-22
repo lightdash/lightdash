@@ -2,10 +2,17 @@ import {
     type ApiError,
     type SemanticLayerField,
     type SemanticLayerQuery,
+    type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import {
+    useMutation,
+    useQuery,
+    type UseMutationOptions,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
+import {
+    apiGetSemanticLayerQueryResults,
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
@@ -72,4 +79,21 @@ export const useSemanticLayerSql = (
         ],
         queryFn: () => apiPostSemanticLayerSql({ projectUuid, payload }),
         ...useQueryParams,
+    });
+
+export const useSemanticLayerQueryResults = (
+    projectUuid: string,
+    useMutationParams?: UseMutationOptions<
+        SemanticLayerResultRow[],
+        ApiError,
+        SemanticLayerQuery
+    >,
+) =>
+    useMutation<SemanticLayerResultRow[], ApiError, SemanticLayerQuery>({
+        mutationFn: (query) =>
+            apiGetSemanticLayerQueryResults({
+                projectUuid,
+                query,
+            }),
+        ...useMutationParams,
     });

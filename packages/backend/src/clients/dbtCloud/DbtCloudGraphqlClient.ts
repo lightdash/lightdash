@@ -117,6 +117,70 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         });
     }
 
+    async getResults(
+        queryId: string,
+        pageNum: number = 1,
+    ): Promise<{
+        totalPages: number | null;
+        results: SemanticLayerResultRow[];
+    } | null> {
+        const getQueryResultsQuery = `
+            query GetQueryResults($environmentId: BigInt!) {
+                query(environmentId: $environmentId, queryId: "${queryId}", pageNum: ${pageNum}) {
+                    status
+                    sql
+                    jsonResult
+                    totalPages
+                    error
+                }
+            }
+        `;
+
+        const { query: rawResponse } =
+            await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
+                getQueryResultsQuery,
+            );
+
+        if (rawResponse.status === DbtQueryStatus.FAILED) {
+            throw new Error(
+                `DBT Query failed with error: ${rawResponse.error}`,
+            );
+        }
+
+        const jsonResult = rawResponse.jsonResult
+            ? (JSON.parse(
+                  Buffer.from(rawResponse.jsonResult, 'base64').toString(),
+              ) as DbtGraphQLJsonResult)
+            : null;
+
+        if (!jsonResult) return null;
+
+        return {
+            totalPages: rawResponse.totalPages,
+            results: this.transformers.resultsToResultRows(jsonResult),
+        };
+    }
+
+    private async *getResultsGenerator(
+        queryId: string,
+        pageNum: number = 1,
+    ): AsyncGenerator<SemanticLayerResultRow[]> {
+        let nextPageNum = pageNum;
+        let totalPages = 1;
+
+        const result = await this.getResults(queryId, pageNum);
+
+        if (result) {
+            nextPageNum += 1;
+            totalPages = result.totalPages ?? 1;
+            yield result.results;
+        }
+
+        if (nextPageNum <= totalPages) {
+            yield* this.getResultsGenerator(queryId, nextPageNum);
+        }
+    }
+
     async streamResults(
         _projectUuid: string,
         query: SemanticLayerQuery,
@@ -147,55 +211,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 createQuery,
             );
 
-        let pageNum = 1;
-        let totalPages = 1; // Default to 1 page
-        let queryStatus: DbtQueryStatus | undefined;
         let rowCount = 0;
 
-        while (
-            queryStatus !== DbtQueryStatus.SUCCESSFUL ||
-            pageNum <= totalPages
-        ) {
-            const getQueryResultsQuery = `
-                query GetQueryResults($environmentId: BigInt!) {
-                    query(environmentId: $environmentId, queryId: "${createQueryResponse.queryId}", pageNum: ${pageNum}) {
-                        status
-                        sql
-                        jsonResult
-                        totalPages
-                        error
-                    }
-                }
-            `;
-
-            // TODO: refactor to use Promise.all
-            const { query: rawResponse } =
-                // eslint-disable-next-line no-await-in-loop
-                await this.runGraphQlQuery<DbtGraphQLRunQueryRawResponse>(
-                    getQueryResultsQuery,
-                );
-
-            if (rawResponse.status === DbtQueryStatus.FAILED) {
-                throw new Error(
-                    `DBT Query failed with error: ${rawResponse.error}`,
-                );
-            }
-
-            const jsonResult = rawResponse.jsonResult
-                ? (JSON.parse(
-                      Buffer.from(rawResponse.jsonResult, 'base64').toString(),
-                  ) as DbtGraphQLJsonResult)
-                : null;
-
-            if (jsonResult) {
-                const rows = this.transformers.resultsToResultRows(jsonResult);
-                callback(rows);
-                rowCount += rows.length;
-                pageNum += 1;
-            }
-
-            queryStatus = rawResponse.status;
-            totalPages = rawResponse.totalPages ?? 1;
+        for await (const rows of this.getResultsGenerator(
+            createQueryResponse.queryId,
+        )) {
+            rowCount += rows.length;
+            callback(rows);
         }
 
         return rowCount;

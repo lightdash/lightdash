@@ -3,6 +3,7 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
+    type ResultRow,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -30,7 +31,7 @@ const getSqlChartResults = async ({
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream(url);
+    const results = await getResultsFromStream<ResultRow>(url);
 
     return {
         results,

@@ -1,4 +1,8 @@
-import { SemanticLayerPivot, SemanticLayerResultRow } from '@lightdash/common';
+import {
+    SemanticLayerGroupBy,
+    SemanticLayerPivot,
+    SemanticLayerResultRow,
+} from '@lightdash/common';
 import uniq from 'lodash/uniq';
 import pl from 'nodejs-polars';
 
@@ -9,35 +13,43 @@ export function pivotResults(
 ): SemanticLayerResultRow[] {
     const df = pl.DataFrame(results);
 
-    console.info('og pivot config ----------------------');
-    console.info({ values, ...options });
-
-    console.info('OG data frame ----------------------');
-    console.info(df);
-
-    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
-
+    // Group by all dimensions that are not in the values
     const dimensionsToGroupBy = uniq([
         ...options.on,
         ...options.index,
         ...allDimensions,
     ]).filter((dim) => !values.map((v) => v.name).includes(dim));
 
-    console.info({ on: options.on, index: options.index, allDimensions });
-    console.info({ dimensionsToGroupBy });
+    // This can happen when we group by and aggregate on the same dimension
+    if (dimensionsToGroupBy.length === 0) {
+        return results;
+    }
 
-    const groupedByDf = df.groupBy(dimensionsToGroupBy).agg(...aggs);
+    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
 
-    console.info('Grouped by data frame ----------------------');
-    console.info(groupedByDf);
+    return df
+        .groupBy(dimensionsToGroupBy)
+        .agg(...aggs)
+        .withColumns(pl.col(dimensionsToGroupBy).fillNull('zero'))
+        .pivot(
+            values.map((v) => v.name),
+            options,
+        )
+        .toRecords();
+}
 
-    const pivotedDf = groupedByDf.fillNull('zero').pivot(
-        values.map((v) => v.name),
-        options,
+export const groupResults = (
+    results: SemanticLayerResultRow[],
+    { values, groupBy }: SemanticLayerGroupBy,
+): SemanticLayerResultRow[] => {
+    const df = pl.DataFrame(results);
+
+    const aliasedAggs: pl.Expr[] = values.map((v) =>
+        pl.col(v.name)[v.aggFunction]().alias(`${v.aggFunction}(${v.name})`),
     );
 
-    console.info('Pivoted data frame ----------------------');
-    console.info(pivotedDf);
-
-    return pivotedDf.toRecords();
-}
+    return df
+        .groupBy(groupBy)
+        .agg(...aliasedAggs)
+        .toRecords();
+};

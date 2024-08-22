@@ -69,9 +69,14 @@ export type SemanticLayerAggFunc =
     | 'count';
 
 export type SemanticLayerPivot = {
-    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
     on: string[];
     index: string[];
+    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
+};
+
+export type SemanticLayerGroupBy = {
+    groupBy: string[];
+    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
 };
 
 export type SemanticLayerQuery = {
@@ -79,7 +84,6 @@ export type SemanticLayerQuery = {
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
     sortBy: SemanticLayerSortBy[];
-    offset?: number; // ! Needed for cube results
     limit?: number;
     timezone?: string;
     pivot?: SemanticLayerPivot;

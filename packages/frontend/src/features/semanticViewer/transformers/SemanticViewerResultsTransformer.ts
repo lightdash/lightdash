@@ -15,9 +15,7 @@ const transformChartLayoutToSemanticPivot = (
 ): SemanticLayerPivot => {
     return {
         on: [config.x.reference],
-        index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [
-            config.x.reference,
-        ],
+        index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
         values: config.y.map((y) => ({
             name: y.reference,
             aggFunction: y.aggregation,
