@@ -528,7 +528,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 );
                 // also match the line number and character number in the error message
                 const lineMatch = error.message.match(
-                    /syntax error line\s+(\d+)\s+at\s+position\s+(\d+)/,
+                    /line\s+(\d+)\s+at\s+position\s+(\d+)/,
                 );
                 if (lineMatch) {
                     // Find the position of the inner query within the full query
@@ -540,7 +540,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     // parse out line number and character number
                     const lineNumber = Number(lineMatch[1]) || undefined;
                     let charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
-                    console.log('index', innerQueryStartIndex);
                     // subtract the length of the first part of the query from the character number
                     // so long as the charnumber ends up > 0
                     if (
