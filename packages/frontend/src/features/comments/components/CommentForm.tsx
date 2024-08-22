@@ -9,6 +9,7 @@ import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { CommentWithMentions } from './CommentWithMentions';
+import LoadingCommentWithMentions from './LoadingCommentWithMentions';
 
 type Props = {
     userName: string;
@@ -83,6 +84,9 @@ export const CommentForm: FC<Props> = ({
         );
         setShouldClearEditor(true);
     });
+
+    if (isSuccess && userNames?.length < 1)
+        return <LoadingCommentWithMentions />;
 
     return (
         <form onSubmit={handleSubmit}>
