@@ -95,7 +95,7 @@ export const getCubeTimeDimensionGranularity = (
 };
 
 export const getCubeFilterOperatorFromSemanticLayerFilterOperator = (
-    operator: SemanticLayerStringFilterOperator,
+    operator: SemanticLayerFilter['operator'],
 ): BinaryOperator => {
     switch (operator) {
         case SemanticLayerStringFilterOperator.IS:

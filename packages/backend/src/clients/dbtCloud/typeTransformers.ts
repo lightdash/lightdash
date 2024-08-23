@@ -1,9 +1,13 @@
 import {
     assertUnreachable,
     DbtDimensionType,
+    DbtGraphQLWhereInput,
     DbtMetricType,
     DbtTimeGranularity,
+    DbtWhereOperator,
     SemanticLayerFieldType,
+    SemanticLayerFilter,
+    SemanticLayerStringFilterOperator,
     SemanticLayerTimeGranularity,
 } from '@lightdash/common';
 
@@ -93,3 +97,79 @@ export const getDbtTimeGranularity = (
             );
     }
 };
+
+export const getDbtFilterOperatorFromSemanticLayerOperator = (
+    operator: SemanticLayerFilter['operator'],
+    values: SemanticLayerFilter['values'],
+): DbtWhereOperator => {
+    switch (operator) {
+        case SemanticLayerStringFilterOperator.IS:
+            if (values.length > 1) {
+                return DbtWhereOperator.IN;
+            }
+
+            return DbtWhereOperator.EQUALS;
+        case SemanticLayerStringFilterOperator.IS_NOT:
+            if (values.length > 1) {
+                return DbtWhereOperator.NOT_IN;
+            }
+
+            return DbtWhereOperator.NOT_EQUALS;
+        default:
+            return assertUnreachable(
+                operator,
+                `Unknown semantic layer filter operator: ${operator}`,
+            );
+    }
+};
+
+export const getDbtFilterValuesFromSemanticLayerFilterValues = (
+    values: SemanticLayerFilter['values'],
+) => {
+    if (values.length === 0) {
+        throw new Error('Filter values cannot be empty');
+    }
+
+    if (values.length > 1) {
+        return `(${values.map((value) => `'${value}'`).join(', ')})`;
+    }
+
+    return `'${values[0]}'`;
+};
+
+const getDbtFilterSqlFromSemanticLayerFilter = (
+    filter: SemanticLayerFilter,
+): string => {
+    const baseFilterSql = `{{ Dimension('${
+        filter.field
+    }') }} ${getDbtFilterOperatorFromSemanticLayerOperator(
+        filter.operator,
+        filter.values,
+    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+
+    const andSql = filter.and
+        ?.map(getDbtFilterSqlFromSemanticLayerFilter)
+        .join(' AND');
+
+    const orSql = filter.or
+        ?.map(getDbtFilterSqlFromSemanticLayerFilter)
+        .join(' OR ');
+
+    let sql = baseFilterSql;
+
+    if (andSql) {
+        sql += ` AND (${andSql})`;
+    }
+
+    if (orSql) {
+        sql += ` OR (${orSql})`;
+    }
+
+    return sql;
+};
+
+export const getDbtFilterFromSemanticLayerFilter = (
+    filter: SemanticLayerFilter,
+): DbtGraphQLWhereInput => ({
+    sql: getDbtFilterSqlFromSemanticLayerFilter(filter),
+});
