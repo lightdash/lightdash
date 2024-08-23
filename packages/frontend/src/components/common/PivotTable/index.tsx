@@ -53,6 +53,12 @@ const rowColumn: TableColumn = {
     enableGrouping: false,
 };
 
+const allPivotedSpacerColumn: TableColumn = {
+    id: 'all-pivoted-spacer',
+    cell: () => null,
+    enableGrouping: false,
+};
+
 const VirtualizedArea: FC<{
     cellCount: number;
     height: number;
@@ -94,6 +100,11 @@ const PivotTable: FC<PivotTableProps> = ({
     const hasRowTotals = data.pivotConfig.rowTotals;
 
     const { columns, columnOrder } = useMemo(() => {
+        // Pivoting all dimensions requires a spacer column under the pivoted headers.
+        const allDimensionsPivoted =
+            data.indexValueTypes.length === 0 &&
+            data.titleFields[0].length === 1;
+
         const indexPlaceholders: Record<string, ResultValue>[] = Array(
             data.indexValueTypes.length,
         ).fill({});
@@ -122,6 +133,8 @@ const PivotTable: FC<PivotTableProps> = ({
 
         const newColumnOrder: string[] = [];
         if (!hideRowNumbers) newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
+        if (allDimensionsPivoted)
+            newColumnOrder.push(allPivotedSpacerColumn.id);
 
         let newColumns = data.retrofitData.pivotColumnInfo.map(
             (col, colIndex) => {
@@ -205,6 +218,8 @@ const PivotTable: FC<PivotTableProps> = ({
             },
         );
 
+        if (allDimensionsPivoted)
+            newColumns = [allPivotedSpacerColumn, ...newColumns];
         if (!hideRowNumbers) newColumns = [rowColumn, ...newColumns];
 
         return { columns: newColumns, columnOrder: newColumnOrder };
@@ -212,6 +227,7 @@ const PivotTable: FC<PivotTableProps> = ({
         data.retrofitData.pivotColumnInfo,
         data.indexValueTypes.length,
         data.headerValues,
+        data.titleFields,
         getField,
         hideRowNumbers,
     ]);
@@ -491,16 +507,6 @@ const PivotTable: FC<PivotTableProps> = ({
 
                     return (
                         <Table.Row key={`row-${rowIndex}`} index={rowIndex}>
-                            {/* renders empty rows if there are no index values but titles */}
-                            {data.indexValueTypes.length === 0 &&
-                                data.titleFields[0].map(
-                                    (_titleField, titleFieldIndex) => (
-                                        <Table.Cell
-                                            key={`empty-title-${rowIndex}-${titleFieldIndex}`}
-                                        />
-                                    ),
-                                )}
-
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 const meta = cell.column.columnDef.meta;
                                 let item = meta?.item;
@@ -761,7 +767,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         {value.formatted}
                                     </Table.CellHead>
                                 ) : (
-                                    <Table.Cell
+                                    <Table.CellHead
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                     />
                                 );
