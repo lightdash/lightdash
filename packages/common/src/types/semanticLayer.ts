@@ -112,6 +112,13 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
+export function getDefaultedLimit(
+    maxQueryLimit: number,
+    queryLimit?: number,
+): number {
+    return Math.min(queryLimit || 500, maxQueryLimit);
+}
+
 export interface SemanticLayerClient {
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
