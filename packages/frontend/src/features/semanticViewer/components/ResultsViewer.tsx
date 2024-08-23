@@ -46,6 +46,7 @@ const ResultsViewer: FC = () => {
                 query: {
                     ...allSelectedFieldsByKind,
                     sortBy: [],
+                    filters: [],
                 },
                 projectUuid,
             }),

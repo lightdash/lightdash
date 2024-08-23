@@ -12,6 +12,7 @@ import {
     SemanticLayerView,
 } from '@lightdash/common';
 import {
+    getDbtFilterFromSemanticLayerFilter,
     getDbtTimeGranularity,
     getSemanticLayerTimeGranularity,
     getSemanticLayerTypeFromDbtType,
@@ -65,7 +66,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
                         td.granularity && getDbtTimeGranularity(td.granularity),
                 })),
             ],
-            where: [],
+            where: query.filters.map(getDbtFilterFromSemanticLayerFilter),
             orderBy: query.sortBy.map((sort) => {
                 const { name, kind, direction } = sort;
                 const descending =
