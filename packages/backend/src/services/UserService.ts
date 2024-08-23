@@ -1452,32 +1452,51 @@ export class UserService extends BaseService {
     }
 
     async getLoginOptions(email?: string): Promise<LoginOptions> {
-        const options = this.getInstanceLoginOptions();
-
-        if (email) {
-            const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
-            // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
-            const activeIssuers = openIdIssuers.filter((issuer) =>
-                options.has(issuer),
-            );
-            if (activeIssuers.length === 1) {
-                // Force redirect to the only issuer option
-                return {
-                    showOptions: Array.from(options),
-                    forceRedirect: true,
-                    redirectUri: new URL(
-                        `/api/v1${this.getRedirectUri(
-                            activeIssuers[0],
-                        )}?login_hint=${encodeURIComponent(email)}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href,
-                };
-            }
+        const instancesOptions = this.getInstanceLoginOptions();
+        if (!email) {
+            return {
+                showOptions: Array.from(instancesOptions),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
         }
 
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        const hasPassword = await this.userModel.hasPasswordByEmail(email);
+        const userOptions = hasPassword
+            ? [LocalIssuerTypes.EMAIL, ...openIdIssuers]
+            : openIdIssuers;
+        // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
+        const validUserOptions = userOptions.filter((option) =>
+            instancesOptions.has(option),
+        );
+
+        // if user has no valid options, return instance options
+        if (validUserOptions.length === 0) {
+            return {
+                showOptions: Array.from(instancesOptions),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        const oidcOptions = validUserOptions.filter(isOpenIdIdentityIssuerType);
+        if (oidcOptions.length === 1) {
+            // Force redirect to the only issuer option
+            return {
+                showOptions: validUserOptions,
+                forceRedirect: true,
+                redirectUri: new URL(
+                    `/api/v1${this.getRedirectUri(
+                        oidcOptions[0],
+                    )}?login_hint=${encodeURIComponent(email)}`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
+            };
+        }
         return {
-            showOptions: Array.from(options),
-            forceRedirect: undefined,
+            showOptions: validUserOptions,
+            forceRedirect: false,
             redirectUri: undefined,
         };
     }
