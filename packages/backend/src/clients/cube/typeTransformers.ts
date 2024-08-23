@@ -118,4 +118,10 @@ export const getCubeFilterFromSemanticLayerFilter = (
         filter.operator,
     ),
     values: filter.values,
+    ...(filter.or && {
+        or: filter.or.map(getCubeFilterFromSemanticLayerFilter),
+    }),
+    ...(filter.and && {
+        and: filter.and.map(getCubeFilterFromSemanticLayerFilter),
+    }),
 });
