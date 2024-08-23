@@ -180,9 +180,19 @@ const useTableConfig = (
         });
     }, [columnOrder, itemsMap]);
 
-    const canUseSubtotals =
-        !metricsAsRows &&
-        dimensions.length - (pivotDimensions?.length || 0) > 1;
+    const numUnpivotedDimensions =
+        dimensions.length - (pivotDimensions?.length || 0);
+
+    const canUseSubtotals = useMemo(() => {
+        return !metricsAsRows && numUnpivotedDimensions > 1;
+    }, [metricsAsRows, numUnpivotedDimensions]);
+
+    // Once dimensions are loaded, if there are not enough dimensions to use subtotals then
+    // turn off "Show subtotals" so that "Show metrics as rows" can be enabled.
+    useEffect(() => {
+        if (dimensions.length > 0 && numUnpivotedDimensions < 2)
+            setShowSubtotals(false);
+    }, [dimensions.length, numUnpivotedDimensions]);
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
