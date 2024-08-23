@@ -1,4 +1,7 @@
 import { type FieldType } from './field';
+import { type SemanticLayerFilter } from './semanticLayerFilter';
+
+export * from './semanticLayerFilter';
 
 export type SemanticLayerView = {
     name: string;
@@ -87,6 +90,7 @@ export type SemanticLayerQuery = {
     limit?: number;
     timezone?: string;
     pivot?: SemanticLayerPivot;
+    filters: SemanticLayerFilter[];
 };
 
 export type SemanticLayerResultRow = Record<
