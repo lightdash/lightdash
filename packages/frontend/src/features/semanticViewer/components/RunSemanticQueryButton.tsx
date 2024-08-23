@@ -76,6 +76,7 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
+                filters: [],
             },
             projectUuid,
         });
@@ -106,6 +107,7 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
+                filters: [],
             }),
         [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy, limit],
     );

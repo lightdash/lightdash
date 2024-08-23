@@ -9230,8 +9230,76 @@
                 "required": ["values", "index", "on"],
                 "type": "object"
             },
+            "SemanticLayerFilterBase": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["field"],
+                "type": "object"
+            },
+            "SemanticLayerStringFilterOperator": {
+                "enum": ["IS", "IS NOT"],
+                "type": "string"
+            },
+            "SemanticLayerStringFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            }
+                        },
+                        "required": ["values", "operator"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFilterTypes": {
+                "$ref": "#/components/schemas/SemanticLayerStringFilter"
+            },
+            "SemanticLayerFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
+                    },
+                    {
+                        "properties": {
+                            "or": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            },
+                            "and": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                        },
+                        "type": "array"
+                    },
                     "pivot": {
                         "$ref": "#/components/schemas/SemanticLayerPivot"
                     },
@@ -9268,6 +9336,7 @@
                     }
                 },
                 "required": [
+                    "filters",
                     "sortBy",
                     "metrics",
                     "timeDimensions",

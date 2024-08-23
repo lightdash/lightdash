@@ -24,6 +24,7 @@ const SqlViewer: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
+                filters: [],
             },
         },
         {
