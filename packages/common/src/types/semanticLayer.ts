@@ -112,14 +112,35 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
+const SEMANTIC_LAYER_MAX_QUERY_LIMIT = 500;
+
 export function getDefaultedLimit(
     maxQueryLimit: number,
     queryLimit?: number,
 ): number {
-    return Math.min(queryLimit || 500, maxQueryLimit);
+    return Math.min(
+        queryLimit ?? SEMANTIC_LAYER_MAX_QUERY_LIMIT,
+        maxQueryLimit,
+    );
+}
+
+export interface SemanticLayerClientInfo {
+    name: string;
+    features: {
+        views: boolean;
+    };
+    config: {
+        maxQueryLimit: number;
+    };
+}
+
+export interface ApiSemanticLayerClientInfo {
+    status: 'ok';
+    results: SemanticLayerClientInfo;
 }
 
 export interface SemanticLayerClient {
+    getClientInfo: () => SemanticLayerClientInfo;
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
         viewName: string,

@@ -5,6 +5,7 @@ import {
     FieldType,
     SemanticLayerFieldType,
     type ResultRow,
+    type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
@@ -53,53 +54,12 @@ type SemanticLayerStateField =
     | SemanticLayerStateMetric
     | SemanticLayerStateTimeDimension;
 
-export interface SemanticViewerState {
-    projectUuid: string;
-
-    view: string | undefined;
-    activeEditorTab: EditorTabs;
-    activeSidebarTab: SidebarTabs;
-    selectedChartType: ChartKind | undefined;
-
-    resultsTableConfig: SqlTableConfig | undefined;
-
-    results: ResultRow[];
-    columns: VizSqlColumn[];
-
-    selectedDimensions: Record<string, SemanticLayerStateDimension>;
-    selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
-    selectedMetrics: Record<string, SemanticLayerStateMetric>;
-
-    limit: number | undefined;
-
-    sortBy: SemanticLayerSortBy[];
-}
-
 export const isSemanticLayerStateTimeDimension = (
     field: SemanticLayerStateField,
 ): field is SemanticLayerStateTimeDimension => {
     return 'granularity' in field;
 };
 
-const initialState: SemanticViewerState = {
-    projectUuid: '',
-    activeEditorTab: EditorTabs.VISUALIZATION,
-    activeSidebarTab: SidebarTabs.TABLES,
-    selectedChartType: ChartKind.TABLE,
-    resultsTableConfig: undefined,
-
-    view: undefined,
-
-    selectedDimensions: {},
-    selectedMetrics: {},
-    selectedTimeDimensions: {},
-
-    results: [],
-    columns: [],
-    limit: undefined,
-
-    sortBy: [],
-};
 const getKeyByField = (
     field:
         | Pick<SemanticLayerField, 'name' | 'kind' | 'type'>
@@ -156,6 +116,58 @@ export type ResultsAndColumns = {
     sortBy: [];
 };
 
+export enum SemanticViewerStateStatus {
+    LOADING,
+    INITIALIZED,
+}
+
+export interface SemanticViewerState {
+    status: SemanticViewerStateStatus;
+
+    info: undefined | (SemanticLayerClientInfo & { projectUuid: string });
+
+    view: string | undefined;
+    activeEditorTab: EditorTabs;
+    activeSidebarTab: SidebarTabs;
+    selectedChartType: ChartKind | undefined;
+
+    resultsTableConfig: SqlTableConfig | undefined;
+
+    results: ResultRow[];
+    columns: VizSqlColumn[];
+
+    selectedDimensions: Record<string, SemanticLayerStateDimension>;
+    selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
+    selectedMetrics: Record<string, SemanticLayerStateMetric>;
+
+    limit: number | undefined;
+
+    sortBy: SemanticLayerSortBy[];
+}
+
+const initialState: SemanticViewerState = {
+    status: SemanticViewerStateStatus.LOADING,
+
+    info: undefined,
+
+    activeEditorTab: EditorTabs.VISUALIZATION,
+    activeSidebarTab: SidebarTabs.TABLES,
+    selectedChartType: ChartKind.TABLE,
+    resultsTableConfig: undefined,
+
+    view: undefined,
+
+    selectedDimensions: {},
+    selectedMetrics: {},
+    selectedTimeDimensions: {},
+
+    results: [],
+    columns: [],
+    limit: undefined,
+
+    sortBy: [],
+};
+
 export const semanticViewerSlice = createSlice({
     name: 'semanticViewer',
     initialState,
@@ -163,8 +175,17 @@ export const semanticViewerSlice = createSlice({
         resetState: () => {
             return initialState;
         },
-        setProjectUuid: (state, action: PayloadAction<string>) => {
-            state.projectUuid = action.payload;
+        setSemanticLayerStatus: (
+            state,
+            action: PayloadAction<SemanticViewerStateStatus>,
+        ) => {
+            state.status = action.payload;
+        },
+        setSemanticLayerInfo: (
+            state,
+            action: PayloadAction<SemanticViewerState['info']>,
+        ) => {
+            state.info = action.payload;
         },
         enterView: (state, action: PayloadAction<string>) => {
             state.view = action.payload;
@@ -245,7 +266,8 @@ export const semanticViewerSlice = createSlice({
 
 export const {
     resetState,
-    setProjectUuid,
+    setSemanticLayerInfo,
+    setSemanticLayerStatus,
     enterView,
     setResults,
     setActiveEditorTab,

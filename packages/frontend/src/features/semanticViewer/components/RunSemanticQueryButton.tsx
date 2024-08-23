@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
+    selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
 import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
@@ -46,8 +47,10 @@ export const RunSemanticQueryButton: FC = () => {
     const os = useOs();
     const { showToastError } = useToaster();
 
+    const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
+
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { projectUuid, columns, limit, sortBy } = useAppSelector(
+    const { columns, limit, sortBy } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const allSelectedFieldsByKind = useAppSelector(
@@ -170,7 +173,8 @@ export const RunSemanticQueryButton: FC = () => {
                 <LimitButton
                     disabled={allSelectedFields.length === 0}
                     size="xs"
-                    limit={limit || 500}
+                    maxLimit={config.maxQueryLimit}
+                    limit={limit ?? config.maxQueryLimit}
                     onLimitChange={handleLimitChange}
                 />
             )}

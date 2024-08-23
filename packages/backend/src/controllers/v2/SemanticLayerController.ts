@@ -1,6 +1,8 @@
 import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
+    ApiSemanticLayerClientInfo,
+    SemanticLayerClientInfo,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,
@@ -30,6 +32,27 @@ import { BaseController } from '../baseController';
 // FIXME: unhide
 @Hidden() // Hide this endpoint from the documentation for now
 export class SemanticLayerController extends BaseController {
+    /**
+     * Get semantic layer info
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('getSemanticLayerInfo')
+    async getSemanticLayerInfo(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiSemanticLayerClientInfo> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticLayerService()
+                .getSemanticLayerClientInfo(req.user!, projectUuid),
+        };
+    }
+
     /**
      * Get views from semantic layer
      */
@@ -93,24 +116,6 @@ export class SemanticLayerController extends BaseController {
             results: await this.services
                 .getSemanticLayerService()
                 .getStreamingResults(req.user!, projectUuid, body),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/max-query-limit')
-    @OperationId('getMaxQueryLimit')
-    async getMaxQueryLimit(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-    ): Promise<{ status: 'ok'; results: number }> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.services
-                .getSemanticLayerService()
-                .getMaxQueryLimit(req.user!, projectUuid),
         };
     }
 
