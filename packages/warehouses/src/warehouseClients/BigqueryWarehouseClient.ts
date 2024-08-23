@@ -5,15 +5,7 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
-    JobResponse,
 } from '@google-cloud/bigquery';
-import {
-    common as bigqueryCommon,
-    JobsQueryResponse,
-    QueryResultsResponse,
-    SimpleQueryRowsCallback,
-    SimpleQueryRowsResponse,
-} from '@google-cloud/bigquery/build/src/bigquery';
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     CreateBigqueryCredentials,
@@ -361,36 +353,31 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             case 'invalidQuery':
                 // if the location is in query and the end of the message looks like "at [line:char]"
                 if (error?.message && error?.location === 'query') {
-                    // the query will look something like this:
-                    // 'WITH user_sql AS (SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;) select * from user_sql limit 500';
-                    // we want to strip the characters from the first part before the inner query
+                    // The query will look something like this:
+                    // 'WITH user_sql AS (
+                    //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
+                    // ) select * from user_sql limit 500';
+                    // We want to check for the first part of the query, if so strip the first and last lines
                     const queryMatch = query.match(
                         /(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i,
                     );
                     // also match the line number and character number in the error message
                     const lineMatch = error.message.match(/at \[(\d+):(\d+)\]/);
                     if (lineMatch) {
-                        // get length of first part of query to strip
-                        const firstPartLength = queryMatch
-                            ? queryMatch[0].length
-                            : 0;
                         // parse out line number and character number
-                        const lineNumber = Number(lineMatch[1]) || undefined;
-                        let charNumber = Number(lineMatch[2]) || undefined;
-                        // subtract the length of the first part of the query from the character number
-                        // so long as the charnumber ends up > 0
-                        if (
-                            charNumber && // only do this if we found a char number
-                            firstPartLength && // only do this if we found the inner query
-                            lineNumber === 1 // only do this if the error is on the first line
-                        ) {
-                            const n = charNumber - firstPartLength;
-                            if (n > 0) {
-                                charNumber = n; // set the new char number
-                            }
+                        let lineNumber = Number(lineMatch[1]) || undefined;
+                        const charNumber = Number(lineMatch[2]) || undefined;
+                        // if query match, subtract the number of lines from the line number
+                        if (queryMatch && lineNumber && lineNumber > 1) {
+                            lineNumber -= 1;
                         }
+                        // re-inject the line and character number into the error message
+                        const message = error.message.replace(
+                            /at \[\d+:\d+\]/,
+                            `at [${lineNumber}:${charNumber}]`,
+                        );
                         // return a new error with the line and character number in data object
-                        return new WarehouseQueryError(error.message, {
+                        return new WarehouseQueryError(message, {
                             lineNumber,
                             charNumber,
                         });
@@ -398,8 +385,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     break;
                 }
                 break;
-            // case: 'accessDenied':
-            //     break
             default:
                 break;
         }

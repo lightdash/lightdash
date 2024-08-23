@@ -17,7 +17,6 @@ import {
     ConnectionOptions,
     createConnection,
     SnowflakeError,
-    SnowflakeErrorExternal,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
@@ -520,43 +519,33 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         switch (errorType) {
             // if query is mistyped (compilation error)
             case 'COMPILATION':
-                // the query will look something like this:
-                // 'WITH user_sql AS (SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;) select * from user_sql limit 500';
-                // we want to take the inner query and count the number of characters in the first part
+                // The query will look something like this:
+                // 'WITH user_sql AS (
+                //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
+                // ) select * from user_sql limit 500';
+                // We want to check for the first part of the query, if so strip the first and last lines
                 const queryMatch = query.match(
-                    /WITH\s+[a-zA-Z_]+\s+AS\s*\(\s*([\s\S]*?)\s*\)\s*select\s+\*\s+from\s+[a-zA-Z_]+\s+limit\s+\d+/i,
+                    /(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i,
                 );
                 // also match the line number and character number in the error message
                 const lineMatch = error.message.match(
                     /line\s+(\d+)\s+at\s+position\s+(\d+)/,
                 );
                 if (lineMatch) {
-                    // Find the position of the inner query within the full query
-                    const innerQuery =
-                        queryMatch && queryMatch.length > 0
-                            ? queryMatch[1]
-                            : query;
-                    const innerQueryStartIndex = query.indexOf(innerQuery);
                     // parse out line number and character number
-                    const lineNumber = Number(lineMatch[1]) || undefined;
-                    let charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
-                    // subtract the length of the first part of the query from the character number
-                    // so long as the charnumber ends up > 0
-                    if (
-                        charNumber && // only do this if we found a char number
-                        innerQueryStartIndex > -1 && // only do this if we found the inner query
-                        lineNumber === 1 // only do this if the error is on the first line
-                    ) {
-                        const n = charNumber - innerQueryStartIndex;
-                        if (n > 0) {
-                            charNumber = n; // set the new char number
-                        }
-                        // if char number is greater than the length of the inner query, set it to the end of the inner query
-                        if (charNumber > innerQuery.length) {
-                            charNumber = innerQuery.length;
-                        }
+                    let lineNumber = Number(lineMatch[1]) || undefined;
+                    const charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
+                    // if query match, subtract the number of lines from the line number
+                    if (queryMatch && lineNumber && lineNumber > 1) {
+                        lineNumber -= 1;
                     }
-                    return new WarehouseQueryError(error.message, {
+                    // re-inject the line and character number into the error message
+                    const message = error.message.replace(
+                        /line\s+\d+\s+at\s+position\s+\d+/,
+                        `line ${lineNumber} at position ${charNumber}`,
+                    );
+                    // return a new error with the line and character number in data object
+                    return new WarehouseQueryError(message, {
                         lineNumber,
                         charNumber,
                     });

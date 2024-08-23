@@ -1,11 +1,10 @@
-import { WarehouseTypes, type MonacoHighlightLine } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
 import Editor, {
     useMonaco,
     type BeforeMount,
     type EditorProps,
     type Monaco,
-    type OnChange,
     type OnMount,
 } from '@monaco-editor/react';
 import {
@@ -13,15 +12,34 @@ import {
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { debounce } from 'lodash';
 import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
+import '../../../styles/monaco.css';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+
+// monaco highlight character
+export type MonacoHighlightChar = {
+    line: number;
+    char: number;
+};
+
+// monaco highlight line
+type MonacoHighlightLine = {
+    start: MonacoHighlightChar;
+    end?: MonacoHighlightChar;
+};
 
 const DEBOUNCE_TIME = 500;
 
@@ -202,6 +220,7 @@ export const SqlEditor: FC<{
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
     const sqlRef = useRef(sql);
     const onSubmitRef = useRef(onSubmit);
+    const [value, setValue] = useState<string | undefined>(sql);
 
     useEffect(() => {
         sqlRef.current = sql;
@@ -241,7 +260,6 @@ export const SqlEditor: FC<{
     );
 
     const monaco = useMonaco();
-    // const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const decorationsCollectionRef =
         useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
 
@@ -295,12 +313,19 @@ export const SqlEditor: FC<{
         decorationsCollectionRef.current.set(newDecorations);
     }, [sql, monaco, highlightText]);
 
-    const onChange: OnChange = debounce((value: string | undefined) => {
-        dispatch(setSql(value ?? ''));
-        if (highlightText) {
+    useEffect(() => {
+        // on every change reset the highlight error (if any)
+        if (resetHighlightError) {
             resetHighlightError?.();
         }
-    }, DEBOUNCE_TIME);
+        // debounce the sql value
+        const handler = setTimeout(() => {
+            dispatch(setSql(value ?? ''));
+        }, DEBOUNCE_TIME);
+        return () => clearTimeout(handler);
+        // ignore the dispatch and resetHighlightError dependencies
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
 
     if (isLoading || isTablesDataLoading) {
         return (
@@ -326,7 +351,7 @@ export const SqlEditor: FC<{
             onMount={onMount}
             language={language}
             value={sql}
-            onChange={onChange}
+            onChange={(val) => setValue(val)}
             options={MONACO_DEFAULT_OPTIONS}
             theme="lightdash"
         />

@@ -20,7 +20,6 @@ import {
 
 import { DashboardSqlChartTile as SqlChartTile } from '../components/DashboardTiles/DashboardSqlChartTile';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
-import '../styles/monaco.css';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);

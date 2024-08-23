@@ -50,7 +50,8 @@ Object.entries(warehouseConnections).forEach(
             // test for invalid sql
             // note each db type may have different error messages
             it(`Get error on invalid SQL for ${warehouseName}`, () => {
-                const sql = `SELECT test;`;
+                const sql =
+                    'SELECT * FROM `fake_test_db`.e2e_jaffle_shop`.`raw_customers`';
                 cy.request({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
                     headers: { 'Content-type': 'application/json' },
@@ -87,7 +88,7 @@ Object.entries(warehouseConnections).forEach(
                                         );
                                         expect(
                                             resp.body.results.details.error,
-                                        ).to.include('invalid identifier');
+                                        ).to.include('SQL compilation error:');
                                         expect(
                                             resp.body.results.details
                                                 .lineNumber,
@@ -95,7 +96,7 @@ Object.entries(warehouseConnections).forEach(
                                         expect(
                                             resp.body.results.details
                                                 .charNumber,
-                                        ).to.eq(8);
+                                        ).to.eq(48);
                                         break;
                                     case WarehouseTypes.BIGQUERY:
                                         expect(resp.body.results.status).to.eq(
@@ -103,7 +104,7 @@ Object.entries(warehouseConnections).forEach(
                                         );
                                         expect(
                                             resp.body.results.details.error,
-                                        ).to.include('Unrecognized name: test');
+                                        ).to.include('Syntax error:');
                                         expect(
                                             resp.body.results.details
                                                 .lineNumber,
@@ -111,7 +112,7 @@ Object.entries(warehouseConnections).forEach(
                                         expect(
                                             resp.body.results.details
                                                 .charNumber,
-                                        ).to.eq(8);
+                                        ).to.eq(48);
                                         break;
                                     default:
                                         expect(resp.body.results.status).to.eq(
@@ -119,9 +120,7 @@ Object.entries(warehouseConnections).forEach(
                                         );
                                         expect(
                                             resp.body.results.details.error,
-                                        ).to.include(
-                                            'column "test" does not exist',
-                                        );
+                                        ).to.include('syntax error');
                                         break;
                                 }
                             } // Else keep polling

@@ -1,6 +1,5 @@
 import {
     isTableChartSQLConfig,
-    type MonacoHighlightChar,
     type TableChartSqlConfig,
 } from '@lightdash/common';
 import {
@@ -42,7 +41,7 @@ import {
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
-import { SqlEditor } from './SqlEditor';
+import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
 
