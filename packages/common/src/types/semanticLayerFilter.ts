@@ -12,5 +12,10 @@ export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
     values: string[];
 };
 
-// TODO: right now we only support string filters
-export type SemanticLayerFilter = SemanticLayerStringFilter;
+// TODO: right now we only support string filters, this type should be a union of all filter types
+type SemanticLayerFilterTypes = SemanticLayerStringFilter;
+
+export type SemanticLayerFilter = SemanticLayerFilterTypes & {
+    and?: SemanticLayerFilter[];
+    or?: SemanticLayerFilter[];
+};
