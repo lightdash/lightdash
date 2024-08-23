@@ -96,6 +96,24 @@ export class SemanticLayerController extends BaseController {
         };
     }
 
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/max-query-limit')
+    @OperationId('getMaxQueryLimit')
+    async getMaxQueryLimit(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<{ status: 'ok'; results: number }> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticLayerService()
+                .getMaxQueryLimit(req.user!, projectUuid),
+        };
+    }
+
     /**
      * Get semantic layer results from a file
      * @param fileId the fileId for the file

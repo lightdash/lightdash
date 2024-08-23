@@ -167,10 +167,7 @@ export class SemanticLayerService extends BaseService {
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
             projectUuid,
             userUuid: user.userUuid,
-            query: {
-                ...query,
-                limit: query.limit ?? this.lightdashConfig.query.maxLimit,
-            },
+            query,
             context: 'semanticViewer',
         });
 
@@ -195,16 +192,9 @@ export class SemanticLayerService extends BaseService {
         let streamFunctionCallback: (
             writer: (data: SemanticLayerResultRow) => void,
         ) => Promise<void> = async (writer) => {
-            await client.streamResults(
-                projectUuid,
-                {
-                    ...query,
-                    limit: query.limit ?? this.lightdashConfig.query.maxLimit,
-                },
-                async (rows) => {
-                    rows.forEach(writer);
-                },
-            );
+            await client.streamResults(projectUuid, query, async (rows) => {
+                rows.forEach(writer);
+            });
         };
 
         // When pivot is present, we need to pivot the results
@@ -257,9 +247,15 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
         this.validateQueryLimit(query);
-        return client.getSql({
-            ...query,
-            limit: query.limit ?? this.lightdashConfig.query.maxLimit,
-        });
+        return client.getSql(query);
+    }
+
+    async getMaxQueryLimit(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<number> {
+        await this.checkCanViewProject(user, projectUuid);
+        const client = await this.getSemanticLayerClient(projectUuid);
+        return client.getMaxQueryLimit();
     }
 }

@@ -13,6 +13,7 @@ import {
     DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
     DbtQueryStatus,
+    getDefaultedLimit,
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
@@ -189,8 +190,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
-        const { limit } = graphqlArgs;
-        const queryLimit = Math.min(limit || 500, this.maxQueryLimit);
+        const defaultedLimit = getDefaultedLimit(
+            this.maxQueryLimit,
+            graphqlArgs.limit,
+        );
 
         const createQuery = `
             mutation CreateQuery($environmentId: BigInt!) {
@@ -198,7 +201,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${queryLimit}
+                    limit: ${defaultedLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {
@@ -225,7 +228,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     async getSql(query: SemanticLayerQuery) {
         const graphqlArgs = this.transformers.semanticLayerQueryToQuery(query);
-        const { limit } = graphqlArgs;
+        const defaultedLimit = getDefaultedLimit(
+            this.maxQueryLimit,
+            graphqlArgs.limit,
+        );
 
         const { groupByString, metricsString, orderByString, whereString } =
             await DbtCloudGraphqlClient.getPreparedCreateQueryArgs(graphqlArgs);
@@ -236,7 +242,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                     environmentId: $environmentId
                     metrics: ${metricsString}
                     groupBy: ${groupByString}
-                    limit: ${limit ?? this.maxQueryLimit}
+                    limit: ${defaultedLimit}
                     where: ${whereString}
                     orderBy: ${orderByString}
                 ) {
@@ -392,5 +398,9 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             dimensions,
             metrics,
         );
+    }
+
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
     }
 }

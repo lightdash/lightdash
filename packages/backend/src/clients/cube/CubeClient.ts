@@ -1,5 +1,6 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
 import {
+    getDefaultedLimit,
     MissingConfigError,
     NotFoundError,
     SemanticLayerClient,
@@ -139,19 +140,27 @@ export default class CubeClient implements SemanticLayerClient {
     private async *getResultsGenerator(
         query: SemanticLayerQuery,
         {
-            queryLimit,
             offset,
             partialResultsLimit,
         }: {
-            queryLimit: number;
             offset: number;
-            partialResultsLimit: number;
+            partialResultsLimit?: number;
         },
     ): AsyncGenerator<SemanticLayerResultRow[]> {
+        const defaultedLimit = getDefaultedLimit(
+            this.maxQueryLimit,
+            query.limit,
+        );
+
+        // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
+        const generatorPartialResultsLimit =
+            partialResultsLimit ??
+            Math.min(this.maxPartialResultsLimit, defaultedLimit);
+
         const partialResults = await this.getResults(
             {
                 ...query,
-                limit: partialResultsLimit,
+                limit: generatorPartialResultsLimit,
             },
             offset,
         );
@@ -165,15 +174,14 @@ export default class CubeClient implements SemanticLayerClient {
         yield partialResults;
 
         if (
-            partialResults.length >= partialResultsLimit &&
-            totalResultsFetched < queryLimit
+            partialResults.length >= generatorPartialResultsLimit &&
+            totalResultsFetched < defaultedLimit
         ) {
             yield* this.getResultsGenerator(query, {
-                queryLimit,
                 offset: totalResultsFetched,
                 partialResultsLimit: Math.min(
-                    partialResultsLimit,
-                    queryLimit - offset,
+                    generatorPartialResultsLimit,
+                    defaultedLimit - offset,
                 ),
             });
         }
@@ -184,21 +192,10 @@ export default class CubeClient implements SemanticLayerClient {
         query: SemanticLayerQuery,
         callback: (results: SemanticLayerResultRow[]) => void,
     ): Promise<number> {
-        // if the query limit is not set, use the default limit from the config (LIGHTDASH_QUERY_MAX_LIMIT || 5000)
-        const queryLimit = Math.min(query.limit || 500, this.maxQueryLimit);
-
-        // if the query limit is less than the max partial results limit, use the query limit as the partial results limit
-        const partialResultsLimit = Math.min(
-            this.maxPartialResultsLimit,
-            queryLimit,
-        );
-
         let resultsFetched = 0;
 
         const resultsGenerator = this.getResultsGenerator(query, {
-            queryLimit,
             offset: resultsFetched,
-            partialResultsLimit,
         });
 
         for await (const partialResults of resultsGenerator) {
@@ -214,7 +211,21 @@ export default class CubeClient implements SemanticLayerClient {
         if (this.cubeApi === undefined)
             throw new MissingConfigError('Cube has not been initialized');
         const cubeQuery = this.transformers.semanticLayerQueryToQuery(query);
-        const sql = await this.cubeApi.sql(cubeQuery);
+
+        const defaultedLimit = getDefaultedLimit(
+            this.maxQueryLimit,
+            query.limit,
+        );
+
+        const sql = await this.cubeApi.sql({
+            ...cubeQuery,
+            limit: defaultedLimit,
+        });
+
         return this.transformers.sqlToString(sql);
+    }
+
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
     }
 }
