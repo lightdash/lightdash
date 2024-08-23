@@ -160,7 +160,7 @@ module.exports = {
                         {
                             type: 'doc',
                             id: 'guides/cli/how-to-use-lightdash-preview',
-                            label: 'Lightdash Generate',
+                            label: 'Lightdash Preview',
                         },
                         {
                             type: 'doc',
