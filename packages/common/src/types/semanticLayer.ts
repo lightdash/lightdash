@@ -134,6 +134,7 @@ export interface SemanticLayerClient {
         callback: (results: SemanticLayerResultRow[]) => void,
     ) => Promise<number>;
     getSql: (query: SemanticLayerQuery) => Promise<string>;
+    getMaxQueryLimit: () => number;
 }
 
 export const semanticLayerQueryJob = 'semanticLayer';

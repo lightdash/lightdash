@@ -249,4 +249,13 @@ export class SemanticLayerService extends BaseService {
         this.validateQueryLimit(query);
         return client.getSql(query);
     }
+
+    async getMaxQueryLimit(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<number> {
+        await this.checkCanViewProject(user, projectUuid);
+        const client = await this.getSemanticLayerClient(projectUuid);
+        return client.getMaxQueryLimit();
+    }
 }

@@ -399,4 +399,8 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             metrics,
         );
     }
+
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
+    }
 }

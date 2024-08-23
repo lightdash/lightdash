@@ -224,4 +224,8 @@ export default class CubeClient implements SemanticLayerClient {
 
         return this.transformers.sqlToString(sql);
     }
+
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
+    }
 }
