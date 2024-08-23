@@ -1,3 +1,10 @@
+# [0.1228.0](https://github.com/lightdash/lightdash/compare/0.1227.1...0.1228.0) (2024-08-23)
+
+
+### Features
+
+* simplify limit logic and add endpoint to get the client max query limit ([#11251](https://github.com/lightdash/lightdash/issues/11251)) ([df46c1b](https://github.com/lightdash/lightdash/commit/df46c1b9a29b0e0c6bdca9d51f98e3d72d1297af))
+
 ## [0.1227.1](https://github.com/lightdash/lightdash/compare/0.1227.0...0.1227.1) (2024-08-22)
 
 
