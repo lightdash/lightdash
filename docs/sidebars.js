@@ -181,12 +181,12 @@ module.exports = {
                 },
                 {
                     type: 'category',
-                    label: 'Analytics Engineering',
+                    label: 'Lightdash Development',
                     link: {
                         type: 'generated-index',
-                        title: 'Develop in Lightdash',
+                        title: 'Lightdash Development Reference Docs',
                         description:
-                            'Below are detailed reference docs for all areas of Lightdash for data development!',
+                            'Below are detailed reference docs about data development in Lightdash. That includes the YAML in Lightdash Semantic Layer and anywhere you need to use SQL.',
                         slug: '/references/develop',
                     },
                     items: [
@@ -224,9 +224,9 @@ module.exports = {
                     label: 'Data Exploration',
                     link: {
                         type: 'generated-index',
-                        title: 'Explore Data in Lightdash',
+                        title: 'Data Exploration Reference Docs',
                         description:
-                            'Below are detailed reference docs for all the ways you can explore and visualize data in Lightdash!',
+                            'Below are detailed reference docs for all the ways you can explore and visualize data in Lightdash.',
                         slug: '/references/explore',
                     },
                     items: [
@@ -250,7 +250,7 @@ module.exports = {
                     label: 'Integrations',
                     link: {
                         type: 'generated-index',
-                        title: 'Lightdash Integrations',
+                        title: 'Lightdash Integration Reference Docs',
                         description:
                             'Reference docs for all integrations available on Lightdash.',
                         slug: '/references/integrations',
