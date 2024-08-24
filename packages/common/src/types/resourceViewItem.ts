@@ -159,7 +159,7 @@ export const contentToResourceViewItems = (content: SummaryContent[]) =>
                     ...c,
                     description: c.description || undefined,
                     spaceUuid: c.space.uuid,
-                    pinnedListUuid: null,
+                    pinnedListUuid: c.pinnedList?.uuid || null,
                     pinnedListOrder: null,
                     updatedAt: c.lastUpdatedAt || c.createdAt,
                     updatedByUser: updatedByUser && {
@@ -178,7 +178,7 @@ export const contentToResourceViewItems = (content: SummaryContent[]) =>
                     ...c,
                     description: c.description || undefined,
                     spaceUuid: c.space.uuid,
-                    pinnedListUuid: null,
+                    pinnedListUuid: c.pinnedList?.uuid || null,
                     pinnedListOrder: null,
                     updatedAt: c.lastUpdatedAt || c.createdAt,
                     updatedByUser: updatedByUser && {

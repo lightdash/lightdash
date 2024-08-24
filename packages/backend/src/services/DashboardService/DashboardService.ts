@@ -662,6 +662,7 @@ export class DashboardService extends BaseService {
             projectUuid,
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
+            items: pinnedList.items,
         };
     }
 

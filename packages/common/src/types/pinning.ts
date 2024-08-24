@@ -97,7 +97,10 @@ export type PinnedItems = Array<
     ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
 >;
 
-export type TogglePinnedItemInfo = Pick<PinnedListAndItems, 'pinnedListUuid'> &
+export type TogglePinnedItemInfo = Pick<
+    PinnedListAndItems,
+    'pinnedListUuid' | 'items'
+> &
     Pick<ChartSummary, 'projectUuid' | 'spaceUuid'>;
 
 export type ApiTogglePinnedItem = {

@@ -489,6 +489,7 @@ export class SavedChartService extends BaseService {
             projectUuid,
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
+            items: pinnedList.items,
         };
     }
 
