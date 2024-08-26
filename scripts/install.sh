@@ -278,7 +278,11 @@ install_docker_compose() {
 start_docker() {
     echo "Starting Docker ..."
     if [ $os = "Mac" ]; then
+      if open -Ra Docker; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done
+      else
+        open --background -a OrbStack && while ! docker system info > /dev/null 2>&1; do sleep 1; done
+      fi
     elif [ $os = "Windows" ]; then
       echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
       echo "Make sure Docker Desktop is running."
