@@ -20,6 +20,7 @@ import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
     useCallback,
     useDeferredValue,
+    useEffect,
     useMemo,
     useState,
     type FC,
@@ -32,7 +33,11 @@ import { selectChartConfigByKind } from '../../../components/DataViz/store/selec
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
-import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    useSqlQueryRun,
+    type ResultsAndColumns,
+} from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -46,6 +51,8 @@ import { SqlEditor } from './SqlEditor';
 const MIN_RESULTS_HEIGHT = 10;
 
 export const ContentPanel: FC = () => {
+    const { showToastError } = useToaster();
+
     const dispatch = useAppDispatch();
 
     const {
@@ -65,6 +72,7 @@ export const ContentPanel: FC = () => {
     );
 
     const {
+        projectUuid,
         sql,
         limit,
         activeEditorTab,
@@ -77,61 +85,69 @@ export const ContentPanel: FC = () => {
         selectChartConfigByKind(state, selectedChartType),
     );
 
-    const {
-        mutate: runSqlQuery,
-        data: queryResults,
-        isLoading,
-    } = useSqlQueryRun({
-        onSuccess: (data) => {
-            if (data) {
-                dispatch(setSqlRunnerResults(data));
-                dispatch(
-                    onResults({
-                        ...data,
-                        transformer: new SqlRunnerResultsTransformer({
-                            rows: data.results,
-                            columns: data.columns,
-                        }),
-                    }),
-                );
-                if (resultsHeight === MIN_RESULTS_HEIGHT) {
-                    setResultsHeight(inputSectionHeight / 2);
-                }
-            }
-        },
-    });
-
-    // Run query on cmd + enter
-    useHotkeys([
-        [
-            'mod + enter',
-            () => {
-                if (sql) runSqlQuery({ sql, limit: 7 });
+    const { mutateAsync: runSqlQuery, isLoading } = useSqlQueryRun(
+        projectUuid,
+        {
+            onError: (err) => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                    subtitle: err.error.message,
+                });
             },
-            { preventDefault: true },
-        ],
-    ]);
+        },
+    );
+
+    // React Query Mutation does not have a way to keep previous results
+    // like the React Query useQuery hook does. So we need to store the results
+    // in the state to keep them around when the query is re-run.
+    const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
 
     const handleRunQuery = useCallback(
-        (limitOverride?: number) => {
+        async (limitOverride?: number) => {
             if (!sql) return;
-            runSqlQuery({
+            const newQueryResults = await runSqlQuery({
                 sql,
-                limit: limitOverride || limit,
+                limit: limitOverride ?? limit,
             });
+
+            setQueryResults(newQueryResults);
             notifications.clean();
         },
         [runSqlQuery, sql, limit],
     );
 
-    const transformer = useMemo(
-        () =>
-            new SqlRunnerResultsTransformer({
-                rows: queryResults?.results ?? [],
-                columns: queryResults?.columns ?? [],
-            }),
-        [queryResults],
-    );
+    // Run query on cmd + enter
+    useHotkeys([
+        ['mod + enter', () => handleRunQuery, { preventDefault: true }],
+    ]);
+
+    const transformer = useMemo(() => {
+        if (!queryResults) return;
+
+        return new SqlRunnerResultsTransformer({
+            rows: queryResults.results,
+            columns: queryResults.columns,
+        });
+    }, [queryResults]);
+
+    useEffect(() => {
+        // note: be mindful what you change here as the react-hooks/exhaustive-deps rule is disabled
+        if (!queryResults || !transformer) return;
+
+        dispatch(setSqlRunnerResults(queryResults));
+        dispatch(onResults({ ...queryResults, transformer }));
+
+        if (resultsHeight === MIN_RESULTS_HEIGHT) {
+            setResultsHeight(inputSectionHeight / 2);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        // inputSectionHeight,
+        // resultsHeight,
+        transformer,
+        dispatch,
+        queryResults,
+    ]);
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
@@ -156,7 +172,6 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     return (
         <Stack
@@ -238,7 +253,7 @@ export const ContentPanel: FC = () => {
                                 onSubmit={() => handleRunQuery()}
                                 onLimitChange={(newLimit) => {
                                     dispatch(setSqlLimit(newLimit));
-                                    handleRunQuery(newLimit);
+                                    return handleRunQuery(newLimit);
                                 }}
                             />
                         </Group>
@@ -279,54 +294,57 @@ export const ContentPanel: FC = () => {
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results && currentVisConfig && (
-                                <>
-                                    {activeConfigs.chartConfigs.map((c) => (
-                                        <ConditionalVisibility
-                                            key={c.type}
-                                            isVisible={
-                                                selectedChartType === c.type
-                                            }
-                                        >
-                                            <ChartView
-                                                data={queryResults}
-                                                config={c}
-                                                isLoading={isLoading}
-                                                transformer={transformer}
-                                                style={{
-                                                    height: deferredInputSectionHeight,
-                                                    width: '100%',
-                                                    flex: 1,
-                                                    marginTop:
-                                                        mantineTheme.spacing.sm,
-                                                }}
-                                                sql={sql}
-                                                projectUuid={projectUuid}
-                                                limit={limit}
-                                            />
-                                        </ConditionalVisibility>
-                                    ))}
-
-                                    {activeConfigs.tableConfig && (
-                                        <Paper
-                                            shadow="none"
-                                            radius={0}
-                                            px="sm"
-                                            pb="sm"
-                                            sx={() => ({
-                                                flex: 1,
-                                            })}
-                                        >
-                                            <Table
-                                                data={queryResults.results}
-                                                config={
-                                                    activeConfigs.tableConfig
+                            {queryResults?.results &&
+                                transformer &&
+                                currentVisConfig && (
+                                    <>
+                                        {activeConfigs.chartConfigs.map((c) => (
+                                            <ConditionalVisibility
+                                                key={c.type}
+                                                isVisible={
+                                                    selectedChartType === c.type
                                                 }
-                                            />
-                                        </Paper>
-                                    )}
-                                </>
-                            )}
+                                            >
+                                                <ChartView
+                                                    data={queryResults}
+                                                    config={c}
+                                                    isLoading={isLoading}
+                                                    transformer={transformer}
+                                                    style={{
+                                                        height: deferredInputSectionHeight,
+                                                        width: '100%',
+                                                        flex: 1,
+                                                        marginTop:
+                                                            mantineTheme.spacing
+                                                                .sm,
+                                                    }}
+                                                    sql={sql}
+                                                    projectUuid={projectUuid}
+                                                    limit={limit}
+                                                />
+                                            </ConditionalVisibility>
+                                        ))}
+
+                                        {activeConfigs.tableConfig && (
+                                            <Paper
+                                                shadow="none"
+                                                radius={0}
+                                                px="sm"
+                                                pb="sm"
+                                                sx={() => ({
+                                                    flex: 1,
+                                                })}
+                                            >
+                                                <Table
+                                                    data={queryResults.results}
+                                                    config={
+                                                        activeConfigs.tableConfig
+                                                    }
+                                                />
+                                            </Paper>
+                                        )}
+                                    </>
+                                )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>

@@ -39,6 +39,10 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
+    // TODO: this sometimes runs `/api/v1/projects//spaces` request
+    // because initial `projectUuid` is set to '' (empty string)
+    // we should handle this by creating an impossible state
+    // check first few lines inside `features/semanticViewer/store/selectors.ts`
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
     const [isFormPopulated, setIsFormPopulated] = useState(false);

@@ -7,11 +7,8 @@ import {
     type SqlRunnerBody,
     type VizSqlColumn,
 } from '@lightdash/common';
-import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useAppSelector } from '../store/hooks';
 import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
 
 const scheduleSqlJob = async ({
@@ -34,30 +31,20 @@ export type ResultsAndColumns = {
     columns: VizSqlColumn[];
 };
 
-/**
- * Gets the SQL query results from the server
- * This is a hook that is used to get the results of a SQL query - used in the SQL runner
- * @param onSuccess - The function to call when the results are fetched.
- * @returns The results of the SQL query
- */
-export const useSqlQueryRun = ({
-    onSuccess,
-}: {
-    onSuccess: (data: ResultsAndColumns | undefined) => void;
-}) => {
-    const { showToastError } = useToaster();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const [data, setData] = useState<ResultsAndColumns | undefined>(undefined);
-    const previousDataRef = useRef<ResultsAndColumns | undefined>(undefined);
+type UseSqlQueryRunParams = {
+    sql: SqlRunnerBody['sql'];
+    limit: SqlRunnerBody['limit'];
+};
 
-    const { mutate, isLoading } = useMutation<
+export const useSqlQueryRun = (
+    projectUuid: string,
+    useMutationOptions?: UseMutationOptions<
         ResultsAndColumns | undefined,
         ApiError,
-        {
-            sql: SqlRunnerBody['sql'];
-            limit: SqlRunnerBody['limit'];
-        }
-    >(
+        UseSqlQueryRunParams
+    >,
+) =>
+    useMutation<ResultsAndColumns | undefined, ApiError, UseSqlQueryRunParams>(
         async ({ sql, limit }) => {
             const scheduledJob = await scheduleSqlJob({
                 projectUuid,
@@ -86,28 +73,6 @@ export const useSqlQueryRun = ({
         },
         {
             mutationKey: ['sqlRunner', 'run'],
-            onError: (err: ApiError) => {
-                showToastError({
-                    title: 'Could not fetch SQL query results',
-                    subtitle: err.error.message,
-                });
-            },
-            onMutate: () => {
-                // Save the current data to the previousDataRef so we can simulate a keepPreviousData behavior
-                previousDataRef.current = data;
-            },
-            onSuccess: (newData) => {
-                setData(newData);
-                onSuccess(newData);
-            },
+            ...useMutationOptions,
         },
     );
-
-    const currentData = isLoading ? previousDataRef.current : data;
-
-    return {
-        mutate,
-        isLoading,
-        data: currentData,
-    };
-};
