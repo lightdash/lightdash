@@ -131,7 +131,8 @@ module.exports = {
                 'guides/how-to-embed-content',
                 'guides/spaces',
                 'guides/pinning',
-                'guides/sharing-in-slack',
+                'guides/adding-slack-integration',
+                'guides/using-slack-integration',
                 'guides/how-to-create-scheduled-deliveries',
                 'guides/how-to-create-syncs',
                 'guides/how-to-create-alerts',
@@ -170,6 +171,7 @@ module.exports = {
                 'references/the-sql-runner',
                 'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
+                'references/slack-integration',
                 'references/usage-analytics',
                 {
                     type: 'doc',
