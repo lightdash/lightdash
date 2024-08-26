@@ -1,3 +1,10 @@
+## [0.1228.1](https://github.com/lightdash/lightdash/compare/0.1228.0...0.1228.1) (2024-08-26)
+
+
+### Bug Fixes
+
+* Unable to find application named 'Docker' ([#11256](https://github.com/lightdash/lightdash/issues/11256)) ([699ee63](https://github.com/lightdash/lightdash/commit/699ee63a1c69e981c7c399aae573d004c8eb7da7))
+
 # [0.1228.0](https://github.com/lightdash/lightdash/compare/0.1227.1...0.1228.0) (2024-08-23)
 
 
