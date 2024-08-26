@@ -114,6 +114,19 @@ Object.entries(warehouseConnections).forEach(
                                                 .charNumber,
                                         ).to.eq(48);
                                         break;
+                                    case WarehouseTypes.POSTGRES:
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(15);
+                                        break;
                                     default:
                                         expect(resp.body.results.status).to.eq(
                                             'error',
