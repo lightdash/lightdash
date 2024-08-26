@@ -112,14 +112,14 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
-const SEMANTIC_LAYER_MAX_QUERY_LIMIT = 500;
+const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
 
 export function getDefaultedLimit(
     maxQueryLimit: number,
     queryLimit?: number,
 ): number {
     return Math.min(
-        queryLimit ?? SEMANTIC_LAYER_MAX_QUERY_LIMIT,
+        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
         maxQueryLimit,
     );
 }

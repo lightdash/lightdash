@@ -53,7 +53,7 @@ export default class CubeClient implements SemanticLayerClient {
         return this.maxQueryLimit;
     }
 
-    public getClientInfo() {
+    getClientInfo() {
         return {
             name: 'cube',
             features: {

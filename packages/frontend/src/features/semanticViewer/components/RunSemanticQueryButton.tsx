@@ -99,6 +99,7 @@ export const RunSemanticQueryButton: FC = () => {
                         query: {
                             ...allSelectedFieldsByKind,
                             sortBy,
+                            limit,
                         },
                         projectUuid,
                     }),
@@ -113,6 +114,7 @@ export const RunSemanticQueryButton: FC = () => {
         allSelectedFieldsByKind,
         projectUuid,
         sortBy,
+        limit,
     ]);
 
     const handleSubmit = useCallback(
@@ -120,8 +122,9 @@ export const RunSemanticQueryButton: FC = () => {
             runSemanticViewerQuery({
                 ...allSelectedFieldsByKind,
                 sortBy,
+                limit,
             }),
-        [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy],
+        [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy, limit],
     );
 
     const handleLimitChange = useCallback(
