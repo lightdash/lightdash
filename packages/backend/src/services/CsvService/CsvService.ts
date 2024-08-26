@@ -508,6 +508,7 @@ export class CsvService extends BaseService {
         dashboardUuid: string,
         options: SchedulerCsvOptions | undefined,
         schedulerFilters?: SchedulerFilterRule[],
+        selectedTabs?: string[] | undefined,
         overrideDashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
     ) {
@@ -526,6 +527,10 @@ export class CsvService extends BaseService {
         const chartTileUuidsWithChartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
             .filter((tile) => tile.properties.savedChartUuid)
+            .filter(
+                (tile) =>
+                    !selectedTabs || selectedTabs.includes(tile.tabUuid || ''),
+            )
             .map((tile) => ({
                 tileUuid: tile.uuid,
                 chartUuid: tile.properties.savedChartUuid!,
@@ -931,6 +936,7 @@ export class CsvService extends BaseService {
             user,
             dashboardUuid,
             options,
+            undefined,
             undefined,
             dashboardFilters,
             dateZoomGranularity,

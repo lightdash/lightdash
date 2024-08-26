@@ -328,6 +328,9 @@ export default class SchedulerTask {
                             isDashboardScheduler(scheduler)
                                 ? scheduler.filters
                                 : undefined,
+                            isDashboardScheduler(scheduler)
+                                ? scheduler.selectedTabs
+                                : undefined,
                         );
 
                         this.analytics.track({

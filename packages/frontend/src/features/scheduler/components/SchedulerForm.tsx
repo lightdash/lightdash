@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getItemId,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
@@ -47,6 +48,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
+import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
@@ -96,6 +98,7 @@ const DEFAULT_VALUES = {
     slackTargets: [] as string[],
     filters: undefined,
     customViewportWidth: undefined,
+    selectedTabs: undefined,
     thresholds: [],
 };
 
@@ -164,6 +167,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         ...(isDashboardScheduler(schedulerData) && {
             filters: schedulerData.filters,
             customViewportWidth: schedulerData.customViewportWidth,
+            selectedTabs: schedulerData.selectedTabs,
         }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
@@ -303,6 +307,7 @@ const SchedulerForm: FC<Props> = ({
                 ...(resource?.type === 'dashboard' && {
                     filters: values.filters,
                     customViewportWidth: values.customViewportWidth,
+                    selectedTabs: values.selectedTabs,
                 }),
                 thresholds: values.thresholds,
                 enabled: true,
@@ -333,9 +338,16 @@ const SchedulerForm: FC<Props> = ({
     };
 
     const isDashboard = resource && resource.type === 'dashboard';
+    const isDashboardTabsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardTabs,
+    );
     const { data: dashboard } = useDashboardQuery(resource?.uuid, {
         enabled: isDashboard,
     });
+
+    const [allTabsSelected, setAllTabsSelected] = useState(
+        dashboard?.tabs.length === form.values.selectedTabs?.length,
+    );
 
     const slackQuery = useGetSlack();
     const slackState = useMemo(() => {
@@ -755,6 +767,67 @@ const SchedulerForm: FC<Props> = ({
                                             </Group>
                                         </Collapse>
                                     </Stack>
+                                )}
+                            </Stack>
+                        )}
+
+                        {isDashboardTabsEnabled && !isThresholdAlert && (
+                            <Stack spacing={10}>
+                                <Input.Label>
+                                    Dashboard Tabs
+                                    <Tooltip
+                                        withinPortal={true}
+                                        maw={400}
+                                        multiline
+                                        label="Select all tabs to include all tabs in the delivery. If you don't select this option, only selected tab will be included in the delivery."
+                                    >
+                                        <MantineIcon
+                                            icon={IconHelpCircle}
+                                            size="md"
+                                            display="inline"
+                                            color="gray"
+                                            style={{
+                                                marginLeft: '4px',
+                                                marginBottom: '-4px',
+                                            }}
+                                        />
+                                    </Tooltip>
+                                </Input.Label>
+                                <Checkbox
+                                    size="xs"
+                                    label="Include all tabs"
+                                    labelPosition="right"
+                                    checked={allTabsSelected}
+                                    onChange={(e) => {
+                                        setAllTabsSelected((old) => !old);
+                                        form.setFieldValue(
+                                            'selectedTabs',
+                                            e.target.checked
+                                                ? dashboard?.tabs.map(
+                                                      (tab) => tab.uuid,
+                                                  )
+                                                : [],
+                                        );
+                                    }}
+                                />
+                                {!allTabsSelected && (
+                                    <MultiSelect
+                                        placeholder="Select tabs to include in the delivery"
+                                        value={form.values.selectedTabs}
+                                        data={(dashboard?.tabs || []).map(
+                                            (tab) => ({
+                                                value: tab.uuid,
+                                                label: tab.name,
+                                            }),
+                                        )}
+                                        searchable
+                                        onChange={(val) => {
+                                            form.setFieldValue(
+                                                'selectedTabs',
+                                                val,
+                                            );
+                                        }}
+                                    />
                                 )}
                             </Stack>
                         )}

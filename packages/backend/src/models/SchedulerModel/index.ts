@@ -70,6 +70,7 @@ export class SchedulerModel {
             thresholds: scheduler.thresholds || undefined,
             enabled: scheduler.enabled,
             notificationFrequency: scheduler.notification_frequency,
+            selectedTabs: scheduler.selected_tabs,
         } as Scheduler;
     }
 
@@ -233,6 +234,11 @@ export class SchedulerModel {
                     enabled: true,
                     notification_frequency:
                         newScheduler.notificationFrequency || null,
+                    selected_tabs:
+                        isDashboardScheduler(newScheduler) &&
+                        newScheduler.selectedTabs
+                            ? JSON.stringify(newScheduler.selectedTabs)
+                            : null,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -297,6 +303,10 @@ export class SchedulerModel {
                         : null,
                     notification_frequency:
                         scheduler.notificationFrequency || null,
+                    selected_tabs:
+                        'selectedTabs' in scheduler && scheduler.selectedTabs
+                            ? JSON.stringify(scheduler.selectedTabs)
+                            : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 
