@@ -489,8 +489,6 @@ export class PostgresClient<
         if (!positionObj) return new WarehouseQueryError(error?.message);
         let lineNumber = positionObj.line;
         const charNumber = positionObj.charPosition;
-        // parse out line number and character number
-        // const charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
         // if query match, subtract the number of lines from the line number
         if (queryMatch && lineNumber && lineNumber > 1) {
             lineNumber -= 1;
