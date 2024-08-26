@@ -6,8 +6,23 @@ import SlackDashboardUnfurl from './assets/slack-dashboard-unfurl.png';
 import SlackScheduledChart from './assets/slack-scheduled-chart.png';
 import SlackScheduledDashboard from './assets/slack-scheduled-dashboard.png';
 
+---
+sidebar_label: Slack
+---
 
-# Slack integration
+
+# Slack integration reference doc
+
+Below is everything you need to know about the Lightdash Slack integration. For walk through videos, check out our guides on [adding the Slack integration](guides/adding-slack-integration.mdx) and [using the Slack integration](guides/using-slack-integration.mdx).
+
+## Required permissions
+
+The Lightdash Slack app will request permission for these scopes:
+
+- **`[links:read]` for lightdash.cloud** : Links to lightdash.cloud will be sent to our App so we can make an internal request and fetch information from charts and dashboards so we can later share it in slack.
+- **`[links:write]`** : This allows us to unfurl the URL previously mentioned.
+
+No other content will be shared from your workspace.
 
 
 ## Settings
@@ -37,16 +52,6 @@ You can customize the avatar for your Lightdash slack app by adding an image URL
 ### AI Bot channel mappings
 
 Here you can choose which project is used by the Lightdash AI analyst co-pilot for each of your Slack channels. Only one project can be used for each channel.
-
-
-## Required permissions
-
-The Lightdash Slack app will request permission for these scopes:
-
-- **`[links:read]` for lightdash.cloud** : Links to lightdash.cloud will be sent to our App so we can make an internal request and fetch information from charts and dashboards so we can later share it in slack.
-- **`[links:write]`** : This allows us to unfurl the URL previously mentioned.
-
-No other content will be shared from your workspace.
 
 
 ## Unfurl Lightdash links
