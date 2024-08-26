@@ -1,0 +1,121 @@
+import SlackAI from './assets/slack-ai-analyst.png';
+import SlackAlert from './assets/slack-alert.png';
+import SlackSettings from './assets/slack-settings.png';
+import SlackChartUnfurl from './assets/slack-chart-unfurl.png';
+import SlackDashboardUnfurl from './assets/slack-dashboard-unfurl.png';
+import SlackScheduledChart from './assets/slack-scheduled-chart.png';
+import SlackScheduledDashboard from './assets/slack-scheduled-dashboard.png';
+
+
+# Slack integration
+
+
+## Settings
+
+After installing the app you'll see these settings:
+
+<img
+  src={SlackSettings}
+  width="1338"
+  height="659"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+
+### Select a notification channel
+
+Here you may choose a Slack channel where Lightdash will send alerts when any scheduled deliviries fail in your organization. 
+
+You must add the Lightdash app into that organization for notifications to work properly.
+
+
+### Slack bot avatar
+
+You can customize the avatar for your Lightdash slack app by adding an image URL in the Profile photo URL field. Slack recommends these images be square with a minimum of 512x512 pixels, but no larger than 1024x1024 pixels.
+
+
+### AI Bot channel mappings
+
+Here you can choose which project is used by the Lightdash AI analyst co-pilot for each of your Slack channels. Only one project can be used for each channel.
+
+
+## Required permissions
+
+The Lightdash Slack app will request permission for these scopes:
+
+- **`[links:read]` for lightdash.cloud** : Links to lightdash.cloud will be sent to our App so we can make an internal request and fetch information from charts and dashboards so we can later share it in slack.
+- **`[links:write]`** : This allows us to unfurl the URL previously mentioned.
+
+No other content will be shared from your workspace.
+
+
+## Unfurl Lightdash links
+
+After installing the Slack app it will automatically unfurl links you share in Slack from your Lightdash project. The Lightdash app must be invited to a channel before it will unfurl links in that channel.
+
+Chart and dashbaord links unfurl for links copied from the URL field and also "share" links copied by clicking the link icon.
+
+Here's what an individual chart looks like unfurled: 
+
+<img
+  src={SlackChartUnfurl}
+  width="2166"
+  height="1054"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+And an unfurled dashboard:
+
+<img
+  src={SlackDashboardUnfurl}
+  width="1794"
+  height="860"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+
+## Scheduled deliveries
+
+Once Slack is added to your Lightdash organization you can use it as a destination for scheduled deliveries. You can schedule refreshes for either Charts or Dashboards and push the results into a Slack channel or DM. 
+
+The result will look like this for charts if you choose to attach an image of the chart:
+
+<img
+  src={SlackScheduledChart}
+  width="1748"
+  height="1040"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+And like this for dashbaords if you chose _not_ to include an image:
+
+<img
+  src={SlackScheduledDashboard}
+  width="2138"
+  height="932"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+
+## Saved Chart Alerts in Slack
+
+In addition to scheduled deliveries, you can also set up [alerts on saved charts]() that only send to slack if certain criteria are met. 
+
+<img
+  src={SlackAlert}
+  width="1944"
+  height="918"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+
+## AI analyst co-pilot
+
+The Slack integration is also used by the AI analyst co-pilot. Once you have access to the AI analyst you'll chat with it by mentioning the Lightdash Slack app.
+
+<img
+  src={SlackAI}
+  width="1492"
+  height="404"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
