@@ -1,3 +1,10 @@
+# [0.1229.0](https://github.com/lightdash/lightdash/compare/0.1228.1...0.1229.0) (2024-08-26)
+
+
+### Features
+
+* semantic viewer run query button ([#11244](https://github.com/lightdash/lightdash/issues/11244)) ([97e5e2b](https://github.com/lightdash/lightdash/commit/97e5e2b8b43395124f878c4493f14cfb8ea05c49))
+
 ## [0.1228.1](https://github.com/lightdash/lightdash/compare/0.1228.0...0.1228.1) (2024-08-26)
 
 
