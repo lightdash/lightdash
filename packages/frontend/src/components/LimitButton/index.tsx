@@ -8,12 +8,13 @@ import LimitForm from './LimitForm';
 export type Props = {
     size?: MantineSize;
     disabled?: boolean;
+    maxLimit: number;
     limit: number;
     onLimitChange: (value: number) => void;
 };
 
 const LimitButton: FC<Props> = memo(
-    ({ size, disabled, limit, onLimitChange }) => {
+    ({ size, disabled, maxLimit, limit, onLimitChange }) => {
         const [opened, { open, close }] = useDisclosure(false);
         const ref = useClickOutside(
             () => setTimeout(() => close(), 0),
@@ -50,6 +51,7 @@ const LimitButton: FC<Props> = memo(
                 <Popover.Dropdown>
                     <LimitForm
                         ref={ref}
+                        maxLimit={maxLimit}
                         limit={limit}
                         onLimitChange={handleLimitChange}
                     />

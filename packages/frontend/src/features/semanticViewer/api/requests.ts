@@ -2,6 +2,7 @@ import {
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiJobScheduledResponse,
+    type ApiSemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
@@ -12,6 +13,20 @@ import {
     getResultsFromStream,
     getSqlRunnerCompleteJob,
 } from '../../sqlRunner/hooks/requestUtils';
+
+type GetSemanticLayerInfoRequestParams = {
+    projectUuid: string;
+};
+
+export const apiGetSemanticLayerInfo = ({
+    projectUuid,
+}: GetSemanticLayerInfoRequestParams) =>
+    lightdashApi<ApiSemanticLayerClientInfo['results']>({
+        version: 'v2',
+        method: 'GET',
+        url: `/projects/${projectUuid}/semantic-layer`,
+        body: undefined,
+    });
 
 type GetSemanticLayerViewsRequestParams = {
     projectUuid: string;
