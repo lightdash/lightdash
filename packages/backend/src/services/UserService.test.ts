@@ -32,6 +32,7 @@ import {
 
 const userModel = {
     getOpenIdIssuers: jest.fn(async () => []),
+    hasPasswordByEmail: jest.fn(async () => false),
     findSessionUserByOpenId: jest.fn(async () => undefined),
     findSessionUserByUUID: jest.fn(async () => sessionUser),
     createUser: jest.fn(async () => sessionUser),
@@ -196,7 +197,7 @@ describe('UserService', () => {
             showOptions: ['okta'],
         });
     });
-    test('redirect is true if only one option is available', async () => {
+    test('should not redirect if only 1 sso is available but no email match', async () => {
         const service = createUserService({
             ...lightdashConfigMock,
             auth: {
@@ -211,9 +212,8 @@ describe('UserService', () => {
         });
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
-            forceRedirect: true,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/google?login_hint=test%40lightdash.com',
+            forceRedirect: false,
+            redirectUri: undefined,
             showOptions: ['google'],
         });
     });
@@ -248,9 +248,8 @@ describe('UserService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
-            showOptions: ['azuread', 'google', 'okta', 'oneLogin', 'email'],
+            redirectUri: undefined,
+            showOptions: ['email', 'google', 'azuread', 'oneLogin', 'okta'],
         });
     });
 
@@ -285,9 +284,8 @@ describe('UserService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
-            showOptions: ['azuread', 'google', 'okta', 'oneLogin'],
+            redirectUri: undefined,
+            showOptions: ['google', 'azuread', 'oneLogin', 'okta'],
         });
     });
 

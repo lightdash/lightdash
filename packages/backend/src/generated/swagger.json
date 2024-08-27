@@ -15169,14 +15169,14 @@
                         }
                     }
                 },
-                "description": "Get login options for email",
+                "description": "Get login options",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
                     {
                         "in": "query",
                         "name": "email",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "string"
                         }

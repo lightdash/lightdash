@@ -16517,12 +16517,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                email: {
-                    in: 'query',
-                    name: 'email',
-                    required: true,
-                    dataType: 'string',
-                },
+                email: { in: 'query', name: 'email', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
