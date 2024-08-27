@@ -12,7 +12,7 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
+    Transition,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -56,14 +56,13 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const mantineTheme = useMantineTheme();
-    const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
     const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
         [resultsHeight, maxResultsHeight],
     );
 
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const {
         sql,
         limit,
@@ -75,6 +74,13 @@ export const ContentPanel: FC = () => {
     // currently editing chart config
     const currentVisConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
+    );
+
+    const hideResultsPanel = useMemo(
+        () =>
+            activeEditorTab === EditorTabs.VISUALIZATION &&
+            isTableChartSQLConfig(currentVisConfig),
+        [activeEditorTab, currentVisConfig],
     );
 
     const {
@@ -156,7 +162,11 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+
+    const showTable = useMemo(
+        () => isTableChartSQLConfig(currentVisConfig),
+        [currentVisConfig],
+    );
 
     return (
         <Stack
@@ -281,50 +291,82 @@ export const ContentPanel: FC = () => {
                         >
                             {queryResults?.results && currentVisConfig && (
                                 <>
-                                    {activeConfigs.chartConfigs.map((c) => (
-                                        <ConditionalVisibility
-                                            key={c.type}
-                                            isVisible={
-                                                selectedChartType === c.type
-                                            }
-                                        >
-                                            <ChartView
-                                                data={queryResults}
-                                                config={c}
-                                                isLoading={isLoading}
-                                                transformer={transformer}
-                                                style={{
-                                                    height: deferredInputSectionHeight,
-                                                    width: '100%',
-                                                    flex: 1,
-                                                    marginTop:
-                                                        mantineTheme.spacing.sm,
-                                                }}
-                                                sql={sql}
-                                                projectUuid={projectUuid}
-                                                limit={limit}
-                                            />
-                                        </ConditionalVisibility>
-                                    ))}
+                                    <Transition
+                                        keepMounted
+                                        mounted={!showTable}
+                                        transition="fade"
+                                        duration={400}
+                                        timingFunction="ease"
+                                    >
+                                        {(styles) => (
+                                            <Box px="sm" pb="sm" style={styles}>
+                                                {activeConfigs.chartConfigs.map(
+                                                    (c) => (
+                                                        <ConditionalVisibility
+                                                            key={c.type}
+                                                            isVisible={
+                                                                selectedChartType ===
+                                                                c.type
+                                                            }
+                                                        >
+                                                            <ChartView
+                                                                data={
+                                                                    queryResults
+                                                                }
+                                                                transformer={
+                                                                    transformer
+                                                                }
+                                                                config={c}
+                                                                isLoading={
+                                                                    isLoading
+                                                                }
+                                                                sql={sql}
+                                                                projectUuid={
+                                                                    projectUuid
+                                                                }
+                                                                limit={limit}
+                                                                style={{
+                                                                    height: inputSectionHeight,
+                                                                    width: '100%',
+                                                                }}
+                                                            />
+                                                        </ConditionalVisibility>
+                                                    ),
+                                                )}
+                                            </Box>
+                                        )}
+                                    </Transition>
 
-                                    {activeConfigs.tableConfig && (
-                                        <Paper
-                                            shadow="none"
-                                            radius={0}
-                                            px="sm"
-                                            pb="sm"
-                                            sx={() => ({
-                                                flex: 1,
-                                            })}
-                                        >
-                                            <Table
-                                                data={queryResults.results}
-                                                config={
-                                                    activeConfigs.tableConfig
-                                                }
-                                            />
-                                        </Paper>
-                                    )}
+                                    <Transition
+                                        keepMounted
+                                        mounted={showTable}
+                                        transition="fade"
+                                        duration={300}
+                                        timingFunction="ease"
+                                    >
+                                        {(styles) => (
+                                            <Box
+                                                p="xs"
+                                                style={{
+                                                    flex: 1,
+                                                    ...styles,
+                                                }}
+                                            >
+                                                <ConditionalVisibility
+                                                    isVisible={showTable}
+                                                >
+                                                    <Table
+                                                        data={
+                                                            queryResults.results
+                                                        }
+                                                        config={
+                                                            activeConfigs.tableConfig
+                                                        }
+                                                    />
+                                                </ConditionalVisibility>
+                                            </Box>
+                                        )}
+                                    </Transition>
                                 </>
                             )}
                         </ConditionalVisibility>
@@ -362,7 +404,7 @@ export const ContentPanel: FC = () => {
                     }
                     style={{
                         position: 'relative',
-                        display: 'flex',
+                        display: hideResultsPanel ? 'none' : 'flex',
                         flexDirection: 'column',
                     }}
                     onResizeStop={(e, data) =>
@@ -372,10 +414,8 @@ export const ContentPanel: FC = () => {
                     <Paper
                         shadow="none"
                         radius={0}
-                        p="sm"
-                        mt="sm"
+                        pt="md"
                         sx={(theme) => ({
-                            flex: 1,
                             overflow: 'auto',
                             borderWidth: '0 0 1px 1px',
                             borderStyle: 'solid',
