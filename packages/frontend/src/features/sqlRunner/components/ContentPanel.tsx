@@ -132,7 +132,7 @@ export const ContentPanel: FC = () => {
         [
             'mod + enter',
             () => {
-                if (sql) runSqlQuery({ sql, limit: 7 });
+                if (sql) runSqlQuery({ sql, limit });
             },
             { preventDefault: true },
         ],
