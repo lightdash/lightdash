@@ -1,3 +1,10 @@
+## [0.1230.2](https://github.com/lightdash/lightdash/compare/0.1230.1...0.1230.2) (2024-08-27)
+
+
+### Bug Fixes
+
+* parse sql error message and highlight on editor ([#11238](https://github.com/lightdash/lightdash/issues/11238)) ([a4a2887](https://github.com/lightdash/lightdash/commit/a4a28876b30e8b3c4abe3d72f8437b901ce75245))
+
 ## [0.1230.1](https://github.com/lightdash/lightdash/compare/0.1230.0...0.1230.1) (2024-08-27)
 
 
