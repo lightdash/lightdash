@@ -57,7 +57,7 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => (
                             explore page. Read more about your{' '}
                             <Anchor
                                 href={
-                                    'https://docs.lightdash.com/references/syncing_your_dbt_changes#2-in-the-ui-syncing-your-dbt-changes-using-refresh-dbt'
+                                    'https://docs.lightdash.com/references/dbt-projects'
                                 }
                                 target="_blank"
                                 rel="noreferrer"
