@@ -1,5 +1,5 @@
 import { type ApiError, type PivotChartData } from '..';
-import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataTransformer';
+import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataModel';
 import {
     type VizAggregationOptions,
     type VizPieChartDisplay,

@@ -1,6 +1,6 @@
 import { type SqlRunnerResults } from '../types/sqlRunner';
 
-export class ResultsTableTransformer {
+export class ResultsTableModel {
     // TODO: remove sql runner specific types
     private readonly data: SqlRunnerResults;
 

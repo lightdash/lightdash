@@ -227,10 +227,10 @@ export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
-export * from './visualizations/CartesianChartDataTransformer';
-export * from './visualizations/PieChartDataTransformer';
+export * from './visualizations/CartesianChartDataModel';
+export * from './visualizations/PieChartDataModel';
 export * from './visualizations/ResultsRunnerBase';
-export * from './visualizations/ResultsTableTransformer';
+export * from './visualizations/ResultsTableModel';
 export * from './visualizations/types';
 
 export const validateEmail = (email: string): boolean => {

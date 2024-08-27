@@ -18,13 +18,13 @@ type CartesianChartConfig<TPivotChartLayout> = {
     display: CartesianChartDisplay | undefined;
 };
 
-export class CartesianChartDataTransformer<TPivotChartLayout> {
-    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
+export class CartesianChartDataModel<TPivotChartLayout> {
+    private readonly resultsRunner: ResultsRunnerBase<TPivotChartLayout>;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
-        this.transformer = args.transformer;
+    constructor(args: { resultsRunner: ResultsRunnerBase<TPivotChartLayout> }) {
+        this.resultsRunner = args.resultsRunner;
 
         this.colorMap = new Map();
     }
@@ -78,7 +78,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                 version: 1,
             },
             type,
-            fieldConfig: this.transformer.mergePivotChartLayout(
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(
                 existingConfig?.fieldConfig,
             ),
             display: existingConfig?.display,
@@ -94,7 +94,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(
+        return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,
@@ -149,7 +149,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                         0,
                     tooltip: {
                         valueFormatter: seriesFormat
-                            ? CartesianChartDataTransformer.getTooltipFormatter(
+                            ? CartesianChartDataModel.getTooltipFormatter(
                                   seriesFormat,
                               )
                             : undefined,
@@ -208,7 +208,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                         ? {
                               axisLabel: {
                                   formatter:
-                                      CartesianChartDataTransformer.getTooltipFormatter(
+                                      CartesianChartDataModel.getTooltipFormatter(
                                           display?.yAxis?.[0].format,
                                       ),
                               },

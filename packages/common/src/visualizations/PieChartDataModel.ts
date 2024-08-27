@@ -11,11 +11,11 @@ type PieChartConfig<TPivotChartLayout> = {
     display: VizPieChartDisplay | undefined;
 };
 
-export class PieChartDataTransformer<TPivotChartLayout> {
-    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
+export class PieChartDataModel<TPivotChartLayout> {
+    private readonly resultsRunner: ResultsRunnerBase<TPivotChartLayout>;
 
-    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
-        this.transformer = args.transformer;
+    constructor(args: { resultsRunner: ResultsRunnerBase<TPivotChartLayout> }) {
+        this.resultsRunner = args.resultsRunner;
     }
 
     mergeConfig(
@@ -26,7 +26,7 @@ export class PieChartDataTransformer<TPivotChartLayout> {
                 version: 1,
             },
             type: ChartKind.PIE as ChartKind.PIE, // without this cast, TS will complain
-            fieldConfig: this.transformer.mergePivotChartLayout(
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(
                 existingConfig?.fieldConfig,
             ),
             display: existingConfig?.display,
@@ -42,7 +42,7 @@ export class PieChartDataTransformer<TPivotChartLayout> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(
+        return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,
