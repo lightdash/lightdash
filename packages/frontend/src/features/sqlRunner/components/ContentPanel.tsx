@@ -1,7 +1,4 @@
-import {
-    isTableChartSQLConfig,
-    type TableChartSqlConfig,
-} from '@lightdash/common';
+import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -157,14 +154,14 @@ export const ContentPanel: FC = () => {
                     config !== undefined,
             );
 
-        const tableConfig = configsWithTable.find(isTableChartSQLConfig);
+        const tableConfig = configsWithTable.find(isVizTableConfig);
         const chartConfigs = configsWithTable.filter(
             (
                 c,
             ): c is Exclude<
                 NonNullable<ReturnType<typeof selectChartConfigByKind>>,
-                TableChartSqlConfig
-            > => !isTableChartSQLConfig(c),
+                VizTableConfig
+            > => !isVizTableConfig(c),
         );
 
         return {
@@ -276,7 +273,7 @@ export const ContentPanel: FC = () => {
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
-                            overflowY: isTableChartSQLConfig(currentVisConfig)
+                            overflowY: isVizTableConfig(currentVisConfig)
                                 ? 'auto'
                                 : 'hidden',
                             height: inputSectionHeight,

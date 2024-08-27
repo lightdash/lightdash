@@ -1,36 +1,33 @@
-import { type ResultRow } from '../types/results';
-import {
-    type SqlTableConfig,
-    type TableChartSqlConfig,
-} from '../types/sqlRunner';
-import { type VizTableOptions } from './types';
+import { type VizTableConfig, type VizTableOptions } from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
+import type { IResultsRunner } from './types/IResultsRunner';
 
-export class TableDataModel implements IChartDataModel<VizTableOptions> {
-    private rows: ResultRow[];
+export class TableDataModel<TPivotChartLayout, TRow>
+    implements IChartDataModel<VizTableOptions>
+{
+    private readonly resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
 
-    private config: SqlTableConfig | undefined;
-
-    constructor(
-        private data: ResultRow[],
-        private tableChartSqlConfig: SqlTableConfig | undefined,
-    ) {
-        this.config = this.tableChartSqlConfig;
-        this.rows = data;
+    constructor(args: {
+        resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
+    }) {
+        this.resultsRunner = args.resultsRunner;
     }
 
     private getColumns() {
-        return Object.keys(this.data[0]);
+        return this.resultsRunner.getColumns();
     }
 
     public getVisibleColumns() {
-        return this.getColumns().filter((column) =>
-            this.config ? this.config.columns[column]?.visible : true,
-        );
+        // ! TODO: implement
+        // return this.getColumns().filter((column) =>
+        //     this.config ? this.config.columns[column]?.visible : true,
+        // );
+
+        return this.getColumns();
     }
 
     public getRows() {
-        return this.rows;
+        return this.resultsRunner.getRows();
     }
 
     public getRowsCount(): number {
@@ -42,9 +39,7 @@ export class TableDataModel implements IChartDataModel<VizTableOptions> {
     }
 
     public getResultOptions() {
-        const columns = this.getColumns().reduce<
-            TableChartSqlConfig['columns']
-        >(
+        const columns = this.getColumns().reduce<VizTableConfig['columns']>(
             (acc, key) => ({
                 ...acc,
                 [key]: {

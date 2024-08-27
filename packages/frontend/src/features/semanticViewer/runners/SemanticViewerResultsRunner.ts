@@ -1,7 +1,6 @@
 import {
     type PivotChartData,
     type ResultRow,
-    type RowData,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type VizSqlCartesianChartLayout,
@@ -23,7 +22,7 @@ const transformChartLayoutToSemanticPivot = (
     };
 };
 
-export class SemanticViewerResultsRunner extends ResultsRunner {
+export class SemanticViewerResultsRunner extends ResultsRunner<ResultRow> {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;
@@ -35,7 +34,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
-        rows: (RowData | ResultRow)[];
+        rows: ResultRow[];
         columns: VizSqlColumn[];
     }) {
         super(args);

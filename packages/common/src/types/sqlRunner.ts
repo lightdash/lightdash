@@ -2,9 +2,11 @@ import { type ApiError, type PivotChartData } from '..';
 import { type CartesianChartDisplay } from '../visualizations/CartesianChartDataModel';
 import {
     type VizAggregationOptions,
+    type VizBaseConfig,
     type VizPieChartDisplay,
     type VizSqlCartesianChartLayout,
     type VizSqlColumn,
+    type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
@@ -105,75 +107,47 @@ export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
 ): response is ApiSqlRunnerJobPivotQuerySuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
 
-export type SqlRunnerChartConfig = {
-    metadata: {
-        version: number;
-    };
-    type: ChartKind;
-};
-
-export type SqlTableConfig = {
-    columns: {
-        [key: string]: {
-            visible: boolean;
-            reference: string;
-            label: string;
-            frozen: boolean;
-            order?: number;
-        };
-    };
-};
-
-export type TableChartSqlConfig = SqlRunnerChartConfig &
-    SqlTableConfig & {
-        type: ChartKind.TABLE;
-    };
-
-export type CartesianChartSqlConfig = SqlRunnerChartConfig & {
+export type CartesianChartSqlConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
     fieldConfig: VizSqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
-export type BarChartSqlConfig = SqlRunnerChartConfig & {
+export type BarChartSqlConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
     fieldConfig: VizSqlCartesianChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
-export type LineChartSqlConfig = SqlRunnerChartConfig & {
+export type LineChartSqlConfig = VizBaseConfig & {
     type: ChartKind.LINE;
     fieldConfig: VizSqlCartesianChartLayout | undefined; // PR NOTE: types are identical
     display: CartesianChartDisplay | undefined;
 };
 
-export type PieChartSqlConfig = SqlRunnerChartConfig & {
+export type PieChartSqlConfig = VizBaseConfig & {
     type: ChartKind.PIE;
     fieldConfig: VizSqlCartesianChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
     display: VizPieChartDisplay | undefined;
 };
 
-export const isTableChartSQLConfig = (
-    value: SqlRunnerChartConfig | undefined,
-): value is TableChartSqlConfig => !!value && value.type === ChartKind.TABLE;
-
 export const isBarChartSQLConfig = (
-    value: SqlRunnerChartConfig | undefined,
+    value: VizBaseConfig | undefined,
 ): value is BarChartSqlConfig =>
     !!value && value.type === ChartKind.VERTICAL_BAR;
 
 export const isLineChartSQLConfig = (
-    value: SqlRunnerChartConfig | undefined,
+    value: VizBaseConfig | undefined,
 ): value is LineChartSqlConfig => !!value && value.type === ChartKind.LINE;
 
 export const isCartesianChartSQLConfig = (
-    value: SqlRunnerChartConfig | undefined,
+    value: VizBaseConfig | undefined,
 ): value is CartesianChartSqlConfig =>
     !!value &&
     (value.type === ChartKind.LINE || value.type === ChartKind.VERTICAL_BAR);
 
 export const isPieChartSQLConfig = (
-    value: SqlRunnerChartConfig | undefined,
+    value: VizBaseConfig | undefined,
 ): value is PieChartSqlConfig => !!value && value.type === ChartKind.PIE;
 
 export type SqlChart = {
@@ -183,8 +157,8 @@ export type SqlChart = {
     slug: string;
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig &
-        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
+    config: VizBaseConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | VizTableConfig);
     chartKind: ChartKind;
     createdAt: Date;
     createdBy: Pick<
@@ -207,8 +181,8 @@ export type CreateSqlChart = {
     description: string | null;
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig &
-        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
+    config: VizBaseConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | VizTableConfig);
     spaceUuid: string;
 };
 
@@ -221,8 +195,8 @@ export type UpdateUnversionedSqlChart = {
 export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
-    config: SqlRunnerChartConfig &
-        (CartesianChartSqlConfig | PieChartSqlConfig | TableChartSqlConfig);
+    config: VizBaseConfig &
+        (CartesianChartSqlConfig | PieChartSqlConfig | VizTableConfig);
 };
 
 export type UpdateSqlChart = {

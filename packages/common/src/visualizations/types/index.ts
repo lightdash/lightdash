@@ -1,5 +1,5 @@
 import { type DimensionType } from '../../types/field';
-import { type TableChartSqlConfig } from '../../types/sqlRunner';
+import { ChartKind } from '../../types/savedCharts';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -82,5 +82,33 @@ export type VizPieChartOptions = {
 
 // TODO: FIXME!! it should be a common type!
 export type VizTableOptions = {
-    defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
+    defaultColumnConfig: VizTableColumnsConfig['columns'] | undefined;
 };
+
+export type VizTableColumnsConfig = {
+    columns: {
+        [key: string]: {
+            visible: boolean;
+            reference: string;
+            label: string;
+            frozen: boolean;
+            order?: number;
+        };
+    };
+};
+
+export type VizBaseConfig = {
+    metadata: {
+        version: number;
+    };
+    type: ChartKind;
+};
+
+export type VizTableConfig = VizBaseConfig &
+    VizTableColumnsConfig & {
+        type: ChartKind.TABLE;
+    };
+
+export const isVizTableConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizTableConfig => !!value && value.type === ChartKind.TABLE;

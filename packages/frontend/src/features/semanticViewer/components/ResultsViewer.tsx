@@ -1,4 +1,4 @@
-import { isTableChartSQLConfig } from '@lightdash/common';
+import { isVizTableConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
@@ -84,7 +84,7 @@ const ResultsViewer: FC = () => {
                         ),
                 )}
 
-            {results && isTableChartSQLConfig(currentVisConfig) && (
+            {results && isVizTableConfig(currentVisConfig) && (
                 <Paper
                     shadow="none"
                     radius={0}

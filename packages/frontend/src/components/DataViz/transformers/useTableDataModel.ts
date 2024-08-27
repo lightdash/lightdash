@@ -1,7 +1,7 @@
 import {
     TableDataModel,
     type ResultRow,
-    type SqlTableConfig,
+    type VizTableConfig,
 } from '@lightdash/common';
 import {
     getCoreRowModel,
@@ -15,10 +15,10 @@ import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
 export const useTableDataModel = (
     data: ResultRow[],
-    config: SqlTableConfig | undefined,
+    config: VizTableConfig | undefined,
 ) => {
     const transformer = useMemo(
-        () => new TableDataModel(data, config),
+        () => new TableDataModel<ResultRow>(data, config),
         [data, config],
     );
 

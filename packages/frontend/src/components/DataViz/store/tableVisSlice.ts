@@ -1,7 +1,7 @@
 import {
     ChartKind,
-    isTableChartSQLConfig,
-    type TableChartSqlConfig,
+    isVizTableConfig,
+    type VizTableConfig,
     type VizTableOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -9,7 +9,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 
 export type TableVizState = {
-    config: TableChartSqlConfig | undefined;
+    config: VizTableConfig | undefined;
     options: VizTableOptions;
 };
 
@@ -51,7 +51,7 @@ export const tableVisSlice = createSlice({
             }
         });
         builder.addCase(setChartConfig, (state, action) => {
-            if (isTableChartSQLConfig(action.payload)) {
+            if (isVizTableConfig(action.payload)) {
                 state.config = action.payload;
             }
         });

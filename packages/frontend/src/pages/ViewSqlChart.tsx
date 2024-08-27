@@ -1,4 +1,4 @@
-import { isTableChartSQLConfig } from '@lightdash/common';
+import { isVizTableConfig } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -171,15 +171,13 @@ const ViewSqlChart = () => {
                         >
                             {activeTab === TabOption.CHART && currentVisConfig && (
                                 <>
-                                    {isTableChartSQLConfig(
-                                        currentVisConfig,
-                                    ) && (
+                                    {isVizTableConfig(currentVisConfig) && (
                                         <Table
                                             data={data.results}
                                             config={currentVisConfig}
                                         />
                                     )}
-                                    {!isTableChartSQLConfig(currentVisConfig) &&
+                                    {!isVizTableConfig(currentVisConfig) &&
                                         data && (
                                             <ChartView
                                                 resultsRunner={resultsRunner}

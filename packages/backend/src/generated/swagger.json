@@ -7548,7 +7548,7 @@
                     }
                 ]
             },
-            "SqlTableConfig": {
+            "VizTableConfig": {
                 "properties": {
                     "columns": {
                         "properties": {},
@@ -7595,7 +7595,7 @@
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
                     },
                     {
-                        "$ref": "#/components/schemas/SqlTableConfig"
+                        "$ref": "#/components/schemas/VizTableConfig"
                     },
                     {
                         "properties": {

@@ -3,10 +3,8 @@ import {
     VizAggregationOptions,
     vizAggregationOptions,
     VizIndexType,
+    type IResultsRunner,
     type PivotChartData,
-    type ResultRow,
-    type ResultsRunnerBase,
-    type RowData,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizSqlCartesianChartLayout,
@@ -15,42 +13,37 @@ import {
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
 
-const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
-    if (rows.length === 0) return false;
+// const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
+//     if (rows.length === 0) return false;
 
-    const firstRow = rows[0];
-    if (typeof firstRow !== 'object' || firstRow === null) return false;
+//     const firstRow = rows[0];
+//     if (typeof firstRow !== 'object' || firstRow === null) return false;
 
-    const firstValue = Object.values(firstRow)[0];
-    if (typeof firstValue !== 'object' || firstValue === null) return false;
+//     const firstValue = Object.values(firstRow)[0];
+//     if (typeof firstValue !== 'object' || firstValue === null) return false;
 
-    return 'value' in firstValue;
-};
+//     return 'value' in firstValue;
+// };
 
-const convertToRowData = (data: ResultRow[]): RowData[] => {
-    return data.map((row) => {
-        return Object.fromEntries(
-            Object.entries(row).map(([key, value]) => {
-                return [key, value.value.raw];
-            }),
-        );
-    });
-};
+// const convertToRowData = (data: ResultRow[]): RowData[] => {
+//     return data.map((row) => {
+//         return Object.fromEntries(
+//             Object.entries(row).map(([key, value]) => {
+//                 return [key, value.value.raw];
+//             }),
+//         );
+//     });
+// };
 
-export class ResultsRunner
-    implements ResultsRunnerBase<VizSqlCartesianChartLayout>
+export class ResultsRunner<TRow>
+    implements IResultsRunner<VizSqlCartesianChartLayout, TRow>
 {
-    protected readonly rows: RowData[];
+    protected readonly rows: TRow[];
 
     protected readonly columns: VizSqlColumn[];
 
-    constructor(args: {
-        rows: (RowData | ResultRow)[];
-        columns: VizSqlColumn[];
-    }) {
-        this.rows = isResultRows(args.rows)
-            ? convertToRowData(args.rows)
-            : args.rows;
+    constructor(args: { rows: TRow[]; columns: VizSqlColumn[] }) {
+        this.rows = args.rows;
         this.columns = args.columns;
     }
 
@@ -239,5 +232,13 @@ export class ResultsRunner
         _limit?: number,
     ): Promise<PivotChartData> {
         throw new Error('Method not implemented.');
+    }
+
+    getColumns(): string[] {
+        return this.columns.map((column) => column.reference);
+    }
+
+    getRows() {
+        return this.rows;
     }
 }

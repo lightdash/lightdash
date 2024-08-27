@@ -1,6 +1,6 @@
 import {
     ChartKind,
-    isTableChartSQLConfig,
+    isVizTableConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -99,7 +99,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {...rest}
         >
             {data.chart.config.type === ChartKind.TABLE &&
-                isTableChartSQLConfig(data.chart.config) && (
+                isVizTableConfig(data.chart.config) && (
                     <Table
                         data={data.resultsAndColumns.results}
                         config={data.chart.config}

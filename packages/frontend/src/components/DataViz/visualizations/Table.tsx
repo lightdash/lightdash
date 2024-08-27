@@ -1,8 +1,4 @@
-import {
-    type ResultRow,
-    type SqlTableConfig,
-    type TableChartSqlConfig,
-} from '@lightdash/common';
+import { type ResultRow, type VizTableConfig } from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
@@ -19,7 +15,7 @@ import { useTableDataModel } from '../transformers/useTableDataModel';
 
 type Props = {
     data: ResultRow[];
-    config?: TableChartSqlConfig | SqlTableConfig;
+    config?: VizTableConfig;
 };
 
 export const Table: FC<Props> = ({ data, config }) => {
