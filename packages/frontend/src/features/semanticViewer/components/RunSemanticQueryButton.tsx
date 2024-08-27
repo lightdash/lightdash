@@ -1,4 +1,8 @@
-import { type ResultRow, type SemanticLayerResultRow } from '@lightdash/common';
+import {
+    ChartKind,
+    type ResultRow,
+    type SemanticLayerResultRow,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -136,9 +140,6 @@ if (
 */
 }
 
-// eslint-disable-next-line
-const temporary_variable = getChartDataModel;
-
 export const RunSemanticQueryButton: FC = () => {
     const os = useOs();
     const { showToastError } = useToaster();
@@ -185,22 +186,24 @@ export const RunSemanticQueryButton: FC = () => {
                 }),
             );
 
-            dispatch(
-                onResults({
-                    results: resultsData,
-                    columns: usedColumns,
-                    transformer: new SemanticViewerResultsRunner({
-                        rows: resultsData,
-                        columns: usedColumns,
-                        query: {
-                            ...allSelectedFieldsByKind,
-                            sortBy,
-                            limit,
-                        },
-                        projectUuid,
-                    }),
-                }),
-            );
+            const resultsRunner = new SemanticViewerResultsRunner({
+                rows: resultsData,
+                columns: usedColumns,
+                query: {
+                    ...allSelectedFieldsByKind,
+                    sortBy,
+                    limit,
+                },
+                projectUuid,
+            });
+
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+            const chartDataModel = getChartDataModel(
+                resultsRunner,
+                ChartKind.TABLE,
+            ); // TODO: this should take in the currently selected chart kind (probably can get it from the state)
+
+            dispatch(onResults({}));
         }
     }, [
         resultsData,

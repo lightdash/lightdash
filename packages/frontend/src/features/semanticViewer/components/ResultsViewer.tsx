@@ -4,13 +4,13 @@ import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
 } from '../store/selectors';
-import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();

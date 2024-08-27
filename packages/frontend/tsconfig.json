@@ -25,5 +25,9 @@
             "@lightdash/common": ["./../common/src"]
         }
     },
-    "include": ["src", "src/testing/vitest.setup.ts"]
+    "include": [
+        "src",
+        "src/testing/vitest.setup.ts",
+        "../common/src/visualizations/TableDataModel.ts"
+    ]
 }

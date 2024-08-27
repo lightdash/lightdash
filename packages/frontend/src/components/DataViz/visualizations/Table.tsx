@@ -15,7 +15,7 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
-import { useTableDataTransformer } from '../transformers/useTableDataTransformer';
+import { useTableDataModel } from '../transformers/useTableDataModel';
 
 type Props = {
     data: ResultRow[];
@@ -29,7 +29,7 @@ export const Table: FC<Props> = ({ data, config }) => {
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataTransformer(data, config);
+    } = useTableDataModel(data, config);
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();

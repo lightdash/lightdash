@@ -1,25 +1,50 @@
-import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import {
+    TableDataModel,
+    type ResultRow,
+    type SqlTableConfig,
+} from '@lightdash/common';
+import {
+    getCoreRowModel,
+    useReactTable,
+    type ColumnDef,
+} from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
+import { getRawValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
-import { TableDataTransformer } from './TableDataTransformer';
 
-export const useTableDataTransformer = (
+export const useTableDataModel = (
     data: ResultRow[],
     config: SqlTableConfig | undefined,
 ) => {
     const transformer = useMemo(
-        () => new TableDataTransformer(data, config),
+        () => new TableDataModel(data, config),
         [data, config],
     );
 
-    const columns = useMemo(() => transformer.getColumns(), [transformer]);
+    const columns = useMemo(
+        () => transformer.getVisibleColumns(),
+        [transformer],
+    );
     const rows = useMemo(() => transformer.getRows(), [transformer]);
+
+    const tanstackColumns: ColumnDef<ResultRow, any>[] = useMemo(
+        () =>
+            columns.map((column) => ({
+                id: column,
+                // react table has a bug with accessors that has dots in them
+                // we found the fix here -> https://github.com/TanStack/table/issues/1671
+                // do not remove the line below
+                accessorFn: (row) => row[column],
+                header: config?.columns[column].label || column,
+                cell: getRawValueCell,
+            })),
+        [columns, config],
+    );
 
     const table = useReactTable({
         data: rows,
-        columns,
+        columns: tanstackColumns,
         getCoreRowModel: getCoreRowModel(),
     });
 

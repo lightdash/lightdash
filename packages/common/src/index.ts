@@ -230,7 +230,7 @@ export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/PieChartDataModel';
 export * from './visualizations/ResultsRunnerBase';
-export * from './visualizations/ResultsTableModel';
+export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
 
 export const validateEmail = (email: string): boolean => {
