@@ -1,3 +1,10 @@
+# [0.1230.0](https://github.com/lightdash/lightdash/compare/0.1229.0...0.1230.0) (2024-08-27)
+
+
+### Features
+
+* hide results table when viewing table chart ([#11207](https://github.com/lightdash/lightdash/issues/11207)) ([286adcd](https://github.com/lightdash/lightdash/commit/286adcd2bfa5757795caa4b7278217a4228c5e66))
+
 # [0.1229.0](https://github.com/lightdash/lightdash/compare/0.1228.1...0.1229.0) (2024-08-26)
 
 
