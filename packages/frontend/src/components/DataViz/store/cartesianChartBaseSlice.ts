@@ -2,19 +2,19 @@ import {
     isFormat,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
-    type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type LineChartSqlConfig,
     type VizAggregationOptions,
+    type VizBarChartConfig,
+    type VizCartesianChartLayout,
     type VizCartesianChartOptions,
-    type VizSqlCartesianChartLayout,
+    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export type CartesianChartState = {
-    defaultLayout: VizSqlCartesianChartLayout | undefined;
-    config: BarChartSqlConfig | LineChartSqlConfig | undefined;
+    defaultLayout: VizCartesianChartLayout | undefined;
+    config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
 };
 
@@ -34,7 +34,7 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         setXAxisReference: (
             state,
-            action: PayloadAction<VizSqlCartesianChartLayout['x']['reference']>,
+            action: PayloadAction<VizCartesianChartLayout['x']['reference']>,
         ) => {
             if (state.config?.fieldConfig?.x) {
                 state.config.fieldConfig.x.reference = action.payload;

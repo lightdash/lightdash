@@ -7381,7 +7381,7 @@
                 "enum": ["time", "category"],
                 "type": "string"
             },
-            "VizSqlCartesianChartLayout": {
+            "VizCartesianChartLayout": {
                 "properties": {
                     "groupBy": {
                         "items": {
@@ -7485,7 +7485,7 @@
                 },
                 "type": "object"
             },
-            "CartesianChartSqlConfig": {
+            "VizCartesianChartConfig": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
@@ -7496,7 +7496,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizCartesianChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7526,7 +7526,7 @@
                 },
                 "type": "object"
             },
-            "PieChartSqlConfig": {
+            "VizPieChartConfig": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/SqlRunnerChartConfig"
@@ -7537,7 +7537,7 @@
                                 "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizCartesianChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
@@ -7716,10 +7716,10 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
                                         "$ref": "#/components/schemas/TableChartSqlConfig"
@@ -7842,10 +7842,10 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
                                         "$ref": "#/components/schemas/TableChartSqlConfig"
@@ -7929,10 +7929,10 @@
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
                                         "$ref": "#/components/schemas/TableChartSqlConfig"

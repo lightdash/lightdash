@@ -6654,7 +6654,7 @@ const models: TsoaRoute.Models = {
         enums: ['time', 'category'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizSqlCartesianChartLayout: {
+    VizCartesianChartLayout: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6771,7 +6771,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CartesianChartSqlConfig: {
+    VizCartesianChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -6791,7 +6791,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizSqlCartesianChartLayout' },
+                                { ref: 'VizCartesianChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6825,7 +6825,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartSqlConfig: {
+    VizPieChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -6845,7 +6845,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizSqlCartesianChartLayout' },
+                                { ref: 'VizCartesianChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7013,8 +7013,8 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'VizCartesianChartConfig' },
+                                { ref: 'VizPieChartConfig' },
                                 { ref: 'TableChartSqlConfig' },
                             ],
                         },
@@ -7102,8 +7102,8 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'VizCartesianChartConfig' },
+                                { ref: 'VizPieChartConfig' },
                                 { ref: 'TableChartSqlConfig' },
                             ],
                         },
@@ -7184,8 +7184,8 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
+                                { ref: 'VizCartesianChartConfig' },
+                                { ref: 'VizPieChartConfig' },
                                 { ref: 'TableChartSqlConfig' },
                             ],
                         },

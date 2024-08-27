@@ -1,4 +1,4 @@
-import { ChartKind, isBarChartSQLConfig } from '@lightdash/common';
+import { ChartKind, isVizBarChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -16,7 +16,7 @@ export const barChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setChartConfig, (state, action) => {
-            if (isBarChartSQLConfig(action.payload)) {
+            if (isVizBarChartConfig(action.payload)) {
                 state.config = action.payload;
             }
         });

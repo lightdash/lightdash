@@ -1,6 +1,6 @@
 import {
-    type CartesianChartSqlConfig,
-    type PieChartSqlConfig,
+    type VizCartesianChartConfig,
+    type VizPieChartConfig,
 } from '@lightdash/common';
 import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -14,7 +14,7 @@ import { useChart } from '../transformers/useChart';
 type ChartViewProps<T extends ResultsRunner> = {
     // TODO: we probably can remove this prop
     data: ResultsAndColumns;
-    config: CartesianChartSqlConfig | PieChartSqlConfig;
+    config: VizCartesianChartConfig | VizPieChartConfig;
     isLoading: boolean;
     resultsRunner: T;
     sql?: string;

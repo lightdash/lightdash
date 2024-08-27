@@ -1,23 +1,16 @@
 import { ChartKind } from '../types/savedCharts';
 import {
     type PivotChartData,
+    type VizPieChartConfig,
     type VizPieChartDisplay,
     type VizPieChartOptions,
 } from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
 import { type IResultsRunner } from './types/IResultsRunner';
 
-type PieChartConfig<TPivotChartLayout> = {
-    metadata: {
-        version: number;
-    };
-    type: ChartKind.PIE;
-    fieldConfig: TPivotChartLayout | undefined;
-    display: VizPieChartDisplay | undefined;
-};
-
 export class PieChartDataModel<TPivotChartLayout>
-    implements IChartDataModel<VizPieChartOptions>
+    implements
+        IChartDataModel<VizPieChartOptions, VizPieChartConfig, ChartKind.PIE>
 {
     private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
 
@@ -26,17 +19,17 @@ export class PieChartDataModel<TPivotChartLayout>
     }
 
     mergeConfig(
-        existingConfig?: PieChartConfig<TPivotChartLayout>,
-    ): PieChartConfig<TPivotChartLayout> {
+        currentConfig: VizPieChartConfig | undefined,
+    ): VizPieChartConfig {
         return {
             metadata: {
                 version: 1,
             },
-            type: ChartKind.PIE as ChartKind.PIE, // without this cast, TS will complain
+            type: ChartKind.PIE,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                existingConfig?.fieldConfig,
+                currentConfig?.fieldConfig,
             ),
-            display: existingConfig?.display,
+            display: currentConfig?.display,
         };
     }
 

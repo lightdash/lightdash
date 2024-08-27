@@ -1,7 +1,12 @@
 import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
-import { type VizCartesianChartOptions, type VizIndexType } from './types';
+import {
+    VizCartesianChartLayout,
+    type VizCartesianChartConfig,
+    type VizCartesianChartOptions,
+    type VizIndexType,
+} from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
 import { type IResultsRunner } from './types/IResultsRunner';
 
@@ -10,23 +15,29 @@ type CartesianChartKind = Extract<
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-type CartesianChartConfig<TPivotChartLayout> = {
-    metadata: {
-        version: number;
-    };
-    type: CartesianChartKind;
-    fieldConfig: TPivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
-};
+// type CartesianChartConfig<TPivotChartLayout> = {
+//     metadata: {
+//         version: number;
+//     };
+//     type: CartesianChartKind;
+//     fieldConfig: TPivotChartLayout | undefined;
+//     display: CartesianChartDisplay | undefined;
+// };
 
-export class CartesianChartDataModel<TPivotChartLayout>
-    implements IChartDataModel<VizCartesianChartOptions>
+export class CartesianChartDataModel<
+    TChartLayout extends VizCartesianChartLayout,
+> implements
+        IChartDataModel<
+            VizCartesianChartOptions,
+            VizCartesianChartConfig,
+            CartesianChartKind
+        >
 {
-    private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
+    private readonly resultsRunner: IResultsRunner<TChartLayout>;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: { resultsRunner: IResultsRunner<TPivotChartLayout> }) {
+    constructor(args: { resultsRunner: IResultsRunner<TChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
 
         this.colorMap = new Map();
@@ -73,14 +84,14 @@ export class CartesianChartDataModel<TPivotChartLayout>
     }
 
     mergeConfig(
-        type: CartesianChartKind,
-        existingConfig?: CartesianChartConfig<TPivotChartLayout>,
-    ): CartesianChartConfig<TPivotChartLayout> {
+        chartKind: CartesianChartKind,
+        existingConfig: VizCartesianChartConfig | undefined,
+    ): VizCartesianChartConfig {
         return {
             metadata: {
                 version: 1,
             },
-            type,
+            type: chartKind,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
                 existingConfig?.fieldConfig,
             ),
@@ -93,7 +104,7 @@ export class CartesianChartDataModel<TPivotChartLayout>
     }
 
     async getTransformedData(
-        layout: TPivotChartLayout | undefined,
+        layout: TChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,

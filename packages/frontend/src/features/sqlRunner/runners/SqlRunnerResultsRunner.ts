@@ -5,7 +5,7 @@ import {
     type PivotChartData,
     type RowData,
     type SqlRunnerPivotQueryBody,
-    type VizSqlCartesianChartLayout,
+    type VizCartesianChartLayout,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
@@ -60,7 +60,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
 export class SqlRunnerResultsRunner extends ResultsRunner {
     // args should be rows, columns, values (blocked by db migration)
     public async getPivotChartData(
-        config: VizSqlCartesianChartLayout,
+        config: VizCartesianChartLayout,
         sql: string,
         projectUuid: string,
         limit: number,

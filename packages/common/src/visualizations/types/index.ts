@@ -1,5 +1,6 @@
 import { type DimensionType } from '../../types/field';
 import { ChartKind } from '../../types/savedCharts';
+import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -43,7 +44,7 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
-export type VizSqlCartesianChartLayout = {
+export type VizCartesianChartLayout = {
     x: {
         reference: string;
         type: VizIndexType;
@@ -104,10 +105,53 @@ export type VizBaseConfig = {
     type: ChartKind;
 };
 
-export type VizTableConfig = VizBaseConfig &
-    VizTableColumnsConfig & {
-        type: ChartKind.TABLE;
-    };
+export type VizCartesianChartConfig = VizBaseConfig & {
+    type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
+    fieldConfig: VizCartesianChartLayout | undefined;
+    display: CartesianChartDisplay | undefined;
+};
+
+export type VizBarChartConfig = VizBaseConfig & {
+    type: ChartKind.VERTICAL_BAR;
+    fieldConfig: VizCartesianChartLayout | undefined;
+    display: CartesianChartDisplay | undefined;
+};
+
+export type VizLineChartConfig = VizBaseConfig & {
+    type: ChartKind.LINE;
+    fieldConfig: VizCartesianChartLayout | undefined; // PR NOTE: types are identical
+    display: CartesianChartDisplay | undefined;
+};
+
+export type VizPieChartConfig = VizBaseConfig & {
+    type: ChartKind.PIE;
+    fieldConfig: VizCartesianChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
+    display: VizPieChartDisplay | undefined;
+};
+
+export type VizTableConfig = VizBaseConfig & {
+    type: ChartKind.TABLE;
+    columns: VizTableColumnsConfig['columns'];
+};
+
+export const isVizBarChartConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizBarChartConfig =>
+    !!value && value.type === ChartKind.VERTICAL_BAR;
+
+export const isVizLineChartConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizLineChartConfig => !!value && value.type === ChartKind.LINE;
+
+export const isVizCartesianChartConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizCartesianChartConfig =>
+    !!value &&
+    (value.type === ChartKind.LINE || value.type === ChartKind.VERTICAL_BAR);
+
+export const isVizPieChartConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizPieChartConfig => !!value && value.type === ChartKind.PIE;
 
 export const isVizTableConfig = (
     value: VizBaseConfig | undefined,

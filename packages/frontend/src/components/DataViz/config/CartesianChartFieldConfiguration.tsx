@@ -1,9 +1,9 @@
 import {
     DimensionType,
     type ChartKind,
+    type VizCartesianChartLayout,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlCartesianChartLayout,
     type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
@@ -28,7 +28,7 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: VizSqlCartesianChartLayout['y'][number];
+    field: VizCartesianChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -151,7 +151,7 @@ const XFieldAxisConfig = ({
 }: {
     sqlColumns: VizSqlColumn[];
 
-    field: VizSqlCartesianChartLayout['x'];
+    field: VizCartesianChartLayout['x'];
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {

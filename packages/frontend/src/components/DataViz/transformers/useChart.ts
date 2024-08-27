@@ -1,11 +1,11 @@
 import {
     CartesianChartDataModel,
     ChartKind,
-    isCartesianChartSQLConfig,
-    isPieChartSQLConfig,
+    isVizCartesianChartConfig,
+    isVizPieChartConfig,
     PieChartDataModel,
-    type CartesianChartSqlConfig,
-    type PieChartSqlConfig,
+    type VizCartesianChartConfig,
+    type VizPieChartConfig,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
@@ -18,7 +18,7 @@ export const useChart = <T extends ResultsRunner>({
     projectUuid,
     limit,
 }: {
-    config: CartesianChartSqlConfig | PieChartSqlConfig;
+    config: VizCartesianChartConfig | VizPieChartConfig;
     resultsRunner: T;
     sql?: string;
     projectUuid?: string;
@@ -58,7 +58,7 @@ export const useChart = <T extends ResultsRunner>({
         if (!transformedData.value) return undefined;
 
         if (
-            isPieChartSQLConfig(config) &&
+            isVizPieChartConfig(config) &&
             chartTransformer instanceof PieChartDataModel
         ) {
             return chartTransformer.getEchartsSpec(
@@ -67,7 +67,7 @@ export const useChart = <T extends ResultsRunner>({
             );
         }
         if (
-            isCartesianChartSQLConfig(config) &&
+            isVizCartesianChartConfig(config) &&
             chartTransformer instanceof CartesianChartDataModel
         ) {
             return chartTransformer.getEchartsSpec(

@@ -1,8 +1,8 @@
 import {
-    type CartesianChartSqlConfig,
     type ChartKind,
-    type PieChartSqlConfig,
+    type VizCartesianChartConfig,
     type VizCartesianChartOptions,
+    type VizPieChartConfig,
     type VizPieChartOptions,
     type VizTableConfig,
     type VizTableOptions,
@@ -26,5 +26,5 @@ type ResultsPayload =
 export const onResults = createAction<ResultsPayload>('chart/onResults');
 
 export const setChartConfig = createAction<
-    CartesianChartSqlConfig | PieChartSqlConfig | VizTableConfig
+    VizCartesianChartConfig | VizPieChartConfig | VizTableConfig
 >('chart/setChartConfig');

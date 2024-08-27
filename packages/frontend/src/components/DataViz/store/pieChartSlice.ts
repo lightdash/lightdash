@@ -1,19 +1,19 @@
 import {
     ChartKind,
-    isPieChartSQLConfig,
+    isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
-    type PieChartSqlConfig,
     type VizAggregationOptions,
+    type VizCartesianChartLayout,
+    type VizPieChartConfig,
     type VizPieChartOptions,
-    type VizSqlCartesianChartLayout,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 
 export type PieChartState = {
-    defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
-    config: PieChartSqlConfig | undefined;
+    defaultFieldConfig: VizCartesianChartLayout | undefined;
+    config: VizPieChartConfig | undefined;
     options: VizPieChartOptions;
 };
 
@@ -32,7 +32,7 @@ export const pieChartConfigSlice = createSlice({
     reducers: {
         setGroupFieldIds: (
             { config },
-            action: PayloadAction<VizSqlCartesianChartLayout['x']>,
+            action: PayloadAction<VizCartesianChartLayout['x']>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = {
@@ -83,7 +83,7 @@ export const pieChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setChartConfig, (state, action) => {
-            if (isPieChartSQLConfig(action.payload)) {
+            if (isVizPieChartConfig(action.payload)) {
                 state.config = action.payload;
             }
         });

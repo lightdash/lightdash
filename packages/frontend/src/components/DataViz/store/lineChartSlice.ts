@@ -1,4 +1,4 @@
-import { ChartKind, isLineChartSQLConfig } from '@lightdash/common';
+import { ChartKind, isVizLineChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -16,7 +16,7 @@ export const lineChartConfigSlice = createSlice({
             }
         });
         builder.addCase(setChartConfig, (state, action) => {
-            if (isLineChartSQLConfig(action.payload)) {
+            if (isVizLineChartConfig(action.payload)) {
                 state.config = action.payload;
             }
         });
