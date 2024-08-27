@@ -1,3 +1,10 @@
+## [0.1230.1](https://github.com/lightdash/lightdash/compare/0.1230.0...0.1230.1) (2024-08-27)
+
+
+### Bug Fixes
+
+* show instance SSO options ([#11203](https://github.com/lightdash/lightdash/issues/11203)) ([c39043f](https://github.com/lightdash/lightdash/commit/c39043f254f4734d91aa5816b706f2d87c9de4ea))
+
 # [0.1230.0](https://github.com/lightdash/lightdash/compare/0.1229.0...0.1230.0) (2024-08-27)
 
 
