@@ -12,6 +12,7 @@ import {
     type CustomDimension,
     type Field,
     type ItemsMap,
+    type RawResultRow,
     type ResultRow,
     type ResultValue,
     type TableCalculation,
@@ -60,7 +61,7 @@ export const getRawValueCell = (
 };
 
 export const getValueCell = (
-    info: CellContext<ResultRow, { value: unknown }>,
+    info: CellContext<RawResultRow, { value: unknown }>,
 ) => {
     const value = info.getValue();
     if (value === null) return '∅';

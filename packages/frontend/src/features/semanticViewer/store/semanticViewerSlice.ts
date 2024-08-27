@@ -4,7 +4,7 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
-    type ResultRow,
+    type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerSortBy,
@@ -111,7 +111,7 @@ function getDimensionTypeFromSemanticLayerFieldType(
 }
 
 export type ResultsAndColumns = {
-    results: ResultRow[];
+    results: RawResultRow[];
     columns: VizSqlColumn[];
     sortBy: [];
 };
@@ -133,7 +133,7 @@ export interface SemanticViewerState {
 
     resultsTableConfig: SqlTableConfig | undefined;
 
-    results: ResultRow[];
+    results: RawResultRow[];
     columns: VizSqlColumn[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
@@ -193,7 +193,7 @@ export const semanticViewerSlice = createSlice({
         setResults: (
             state,
             action: PayloadAction<{
-                results: ResultRow[];
+                results: RawResultRow[];
                 columns: VizSqlColumn[];
             }>,
         ) => {

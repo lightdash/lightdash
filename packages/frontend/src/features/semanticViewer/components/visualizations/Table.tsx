@@ -1,5 +1,5 @@
 import {
-    type ResultRow,
+    type RawResultRow,
     type SqlTableConfig,
     type TableChartSqlConfig,
 } from '@lightdash/common';
@@ -18,7 +18,7 @@ import {
 import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
 
 type Props = {
-    data: ResultRow[];
+    data: RawResultRow[];
     config?: TableChartSqlConfig | SqlTableConfig;
 };
 
@@ -82,7 +82,7 @@ export const Table: FC<Props> = ({ data, config }) => {
                                         .map((cell) => {
                                             const cellValue =
                                                 cell.getValue() as
-                                                    | ResultRow[0]
+                                                    | RawResultRow[0]
                                                     | undefined;
 
                                             return (
@@ -94,8 +94,7 @@ export const Table: FC<Props> = ({ data, config }) => {
                                                     hasData={!!cellValue}
                                                     isLargeText={
                                                         (
-                                                            cellValue?.value
-                                                                ?.formatted ||
+                                                            cellValue?.toString() ||
                                                             ''
                                                         ).length >
                                                         SMALL_TEXT_LENGTH

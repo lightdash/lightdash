@@ -1,4 +1,4 @@
-import { type ResultRow, type SqlTableConfig } from '@lightdash/common';
+import { type RawResultRow, type SqlTableConfig } from '@lightdash/common';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
@@ -6,7 +6,7 @@ import { ROW_HEIGHT_PX } from '../../../components/common/Table/Table.styles';
 import { TableDataTransformer } from './TableDataTransformer';
 
 export const useTableDataTransformer = (
-    data: ResultRow[],
+    data: RawResultRow[],
     config: SqlTableConfig | undefined,
 ) => {
     const transformer = useMemo(

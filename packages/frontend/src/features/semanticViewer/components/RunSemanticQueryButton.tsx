@@ -1,4 +1,3 @@
-import { type ResultRow, type SemanticLayerResultRow } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -9,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import LimitButton from '../../../components/LimitButton';
@@ -23,25 +22,6 @@ import {
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
 import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
-
-const mapResultsToTableData = (
-    resultRows: SemanticLayerResultRow[],
-): ResultRow[] => {
-    return resultRows.map((result) => {
-        return Object.entries(result).reduce((acc, entry) => {
-            const [key, resultValue] = entry;
-            return {
-                ...acc,
-                [key]: {
-                    value: {
-                        raw: resultValue,
-                        formatted: resultValue?.toString(),
-                    },
-                },
-            };
-        }, {});
-    });
-};
 
 export const RunSemanticQueryButton: FC = () => {
     const os = useOs();
@@ -59,7 +39,7 @@ export const RunSemanticQueryButton: FC = () => {
     const dispatch = useAppDispatch();
 
     const {
-        data: semanticLayerResultRows,
+        data: resultsData,
         mutateAsync: runSemanticViewerQuery,
         isLoading,
     } = useSemanticLayerQueryResults(projectUuid, {
@@ -70,12 +50,6 @@ export const RunSemanticQueryButton: FC = () => {
             });
         },
     });
-
-    const resultsData = useMemo(() => {
-        if (semanticLayerResultRows) {
-            return mapResultsToTableData(semanticLayerResultRows);
-        }
-    }, [semanticLayerResultRows]);
 
     useEffect(() => {
         if (resultsData) {
