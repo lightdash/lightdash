@@ -20,6 +20,7 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
@@ -79,6 +80,7 @@ const ViewSqlChart = () => {
     useEffect(() => {
         if (sqlChart) {
             dispatch(setSavedChartData(sqlChart));
+            dispatch(setChartConfig(sqlChart.config));
         }
     }, [dispatch, sqlChart]);
 

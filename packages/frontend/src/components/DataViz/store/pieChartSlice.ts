@@ -10,8 +10,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { onResults } from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
 
 type InitialState = {
     defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
@@ -99,9 +98,9 @@ export const pieChartConfigSlice = createSlice({
                 state.config = pieChartModel.mergeConfig(state.config);
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isPieChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isPieChartSQLConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },

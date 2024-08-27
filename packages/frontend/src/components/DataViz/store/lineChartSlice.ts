@@ -4,11 +4,8 @@ import {
     isLineChartSQLConfig,
 } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import {
-    cartesianChartConfigSlice,
-    onResults,
-} from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
+import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
@@ -32,9 +29,9 @@ export const lineChartConfigSlice = createSlice({
                 );
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isLineChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isLineChartSQLConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },

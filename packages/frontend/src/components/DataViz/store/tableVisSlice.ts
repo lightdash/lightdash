@@ -6,8 +6,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { onResults } from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
 
 type InitialState = {
     defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
@@ -85,9 +84,9 @@ export const tableVisSlice = createSlice({
                 }
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isTableChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isTableChartSQLConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },
