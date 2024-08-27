@@ -4,7 +4,7 @@ import {
     type SqlTableConfig,
 } from '@lightdash/common';
 import { type ColumnDef } from '@tanstack/react-table';
-import { getRawValueCell } from '../../../hooks/useColumns';
+import { getValueCell } from '../../../hooks/useColumns';
 
 export class TableDataTransformer {
     private transformer: SqlRunnerResultsTableTransformer;
@@ -34,7 +34,7 @@ export class TableDataTransformer {
                 id: column,
                 accessorKey: column,
                 header: this.config?.columns[column].label || column,
-                cell: getRawValueCell,
+                cell: getValueCell,
             }));
     }
 

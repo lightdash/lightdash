@@ -59,6 +59,16 @@ export const getRawValueCell = (
     return <span>{`${raw}`}</span>;
 };
 
+export const getValueCell = (
+    info: CellContext<ResultRow, { value: ResultValue }>,
+) => {
+    let value = info.getValue();
+    if (value === null) return '∅';
+    if (value === undefined) return '-';
+    if (value instanceof Date) return <span>{value.toISOString()}</span>;
+    return <span>{`${value}`}</span>;
+};
+
 export const useColumns = (): TableColumn[] => {
     const activeFields = useExplorerContext(
         (context) => context.state.activeFields,
