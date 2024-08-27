@@ -3,7 +3,7 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type ResultRow,
+    type RawResultRow,
     type SqlRunnerBody,
     type VizSqlColumn,
 } from '@lightdash/common';
@@ -30,7 +30,7 @@ const scheduleSqlJob = async ({
     });
 
 export type ResultsAndColumns = {
-    results: ResultRow[];
+    results: RawResultRow[];
     columns: VizSqlColumn[];
 };
 
@@ -73,7 +73,9 @@ export const useSqlQueryRun = ({
                     job.details && !isErrorDetails(job.details)
                         ? job.details.fileUrl
                         : undefined;
-                const results = await getResultsFromStream<ResultRow>(url);
+                const results = await getResultsFromStream<
+                    ResultsAndColumns['results'][number]
+                >(url);
 
                 return {
                     results,

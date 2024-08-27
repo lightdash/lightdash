@@ -4,3 +4,5 @@ export type ResultValue = {
 };
 
 export type ResultRow = Record<string, { value: ResultValue }>;
+
+export type RawResultRow = Record<string, unknown>;

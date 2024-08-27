@@ -60,9 +60,9 @@ export const getRawValueCell = (
 };
 
 export const getValueCell = (
-    info: CellContext<ResultRow, { value: ResultValue }>,
+    info: CellContext<ResultRow, { value: unknown }>,
 ) => {
-    let value = info.getValue();
+    const value = info.getValue();
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (value instanceof Date) return <span>{value.toISOString()}</span>;
