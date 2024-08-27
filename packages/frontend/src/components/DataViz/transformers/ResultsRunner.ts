@@ -37,7 +37,7 @@ const convertToRowData = (data: ResultRow[]): RowData[] => {
     });
 };
 
-export class ResultsTransformer
+export class ResultsRunner
     implements ResultsRunnerBase<VizSqlCartesianChartLayout>
 {
     protected readonly rows: RowData[];

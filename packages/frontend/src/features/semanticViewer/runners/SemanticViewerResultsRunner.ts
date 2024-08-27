@@ -7,7 +7,7 @@ import {
     type VizSqlCartesianChartLayout,
     type VizSqlColumn,
 } from '@lightdash/common';
-import { ResultsTransformer } from '../../../components/DataViz/transformers/ResultsTransformer';
+import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
@@ -23,7 +23,7 @@ const transformChartLayoutToSemanticPivot = (
     };
 };
 
-export class SemanticViewerResultsTransformer extends ResultsTransformer {
+export class SemanticViewerResultsRunner extends ResultsRunner {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;

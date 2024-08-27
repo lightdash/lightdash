@@ -1,25 +1,25 @@
 import {
-    CartesianChartDataTransformer,
+    CartesianChartDataModel,
     ChartKind,
-    PieChartDataTransformer,
+    PieChartDataModel,
 } from '@lightdash/common';
-import { type ResultsTransformer } from './ResultsTransformer';
+import { type ResultsRunner } from './ResultsRunner';
 
-const getChartTransformer = (
-    transformer: ResultsTransformer,
+const getChartDataModel = (
+    resultsRunner: ResultsRunner,
     chartType: ChartKind,
 ) => {
     switch (chartType) {
         case ChartKind.PIE:
-            return new PieChartDataTransformer({ transformer });
+            return new PieChartDataModel({ resultsRunner });
         case ChartKind.TABLE:
             throw new Error('Table chart type not implemented!!!!!!!!!!!!');
         case ChartKind.VERTICAL_BAR:
         case ChartKind.LINE:
-            return new CartesianChartDataTransformer({ transformer });
+            return new CartesianChartDataModel({ resultsRunner });
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);
     }
 };
 
-export default getChartTransformer;
+export default getChartDataModel;

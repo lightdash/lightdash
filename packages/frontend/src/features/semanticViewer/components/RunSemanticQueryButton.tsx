@@ -12,10 +12,11 @@ import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
-import getChartTransformer from '../../../components/DataViz/transformers/getChartTransformer';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -23,7 +24,6 @@ import {
     selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
-import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 
 const mapResultsToTableData = (
     resultRows: SemanticLayerResultRow[],
@@ -137,7 +137,7 @@ if (
 }
 
 // eslint-disable-next-line
-const temporary_variable = getChartTransformer;
+const temporary_variable = getChartDataModel;
 
 export const RunSemanticQueryButton: FC = () => {
     const os = useOs();
@@ -189,7 +189,7 @@ export const RunSemanticQueryButton: FC = () => {
                 onResults({
                     results: resultsData,
                     columns: usedColumns,
-                    transformer: new SemanticViewerResultsTransformer({
+                    transformer: new SemanticViewerResultsRunner({
                         rows: resultsData,
                         columns: usedColumns,
                         query: {

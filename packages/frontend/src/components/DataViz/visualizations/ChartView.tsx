@@ -8,36 +8,36 @@ import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
-import { type ResultsTransformer } from '../transformers/ResultsTransformer';
+import { type ResultsRunner } from '../transformers/ResultsRunner';
 import { useChart } from '../transformers/useChart';
 
-type ChartViewProps<T extends ResultsTransformer> = {
+type ChartViewProps<T extends ResultsRunner> = {
     // TODO: we probably can remove this prop
     data: ResultsAndColumns;
     config: CartesianChartSqlConfig | PieChartSqlConfig;
     isLoading: boolean;
-    transformer: T;
+    resultsRunner: T;
     sql?: string;
     projectUuid?: string;
     limit?: number;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo(
-    <T extends ResultsTransformer>({
+    <T extends ResultsRunner>({
         data: _data,
         config,
         sql,
         projectUuid,
         limit,
         isLoading: isLoadingProp,
-        transformer,
+        resultsRunner,
         style,
     }: ChartViewProps<T>) => {
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useChart({ config, transformer, sql, projectUuid, limit });
+        } = useChart({ config, resultsRunner, sql, projectUuid, limit });
 
         const loading = isLoadingProp || transformLoading;
 

@@ -1,43 +1,43 @@
 import {
-    CartesianChartDataTransformer,
+    CartesianChartDataModel,
     ChartKind,
     isCartesianChartSQLConfig,
     isPieChartSQLConfig,
-    PieChartDataTransformer,
+    PieChartDataModel,
     type CartesianChartSqlConfig,
     type PieChartSqlConfig,
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
-import { type ResultsTransformer } from './ResultsTransformer';
+import { type ResultsRunner } from './ResultsRunner';
 
-export const useChart = <T extends ResultsTransformer>({
+export const useChart = <T extends ResultsRunner>({
     config,
-    transformer,
+    resultsRunner,
     sql,
     projectUuid,
     limit,
 }: {
     config: CartesianChartSqlConfig | PieChartSqlConfig;
-    transformer: T;
+    resultsRunner: T;
     sql?: string;
     projectUuid?: string;
     limit?: number;
 }) => {
     const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {
-            return new PieChartDataTransformer({ transformer });
+            return new PieChartDataModel({ resultsRunner });
         }
         if (
             config.type === ChartKind.VERTICAL_BAR ||
             config.type === ChartKind.LINE
         ) {
-            return new CartesianChartDataTransformer({
-                transformer,
+            return new CartesianChartDataModel({
+                resultsRunner,
             });
         }
         throw new Error('Unknown chart type');
-    }, [transformer, config.type]);
+    }, [resultsRunner, config.type]);
 
     const getTransformedData = useCallback(
         async () =>
@@ -59,7 +59,7 @@ export const useChart = <T extends ResultsTransformer>({
 
         if (
             isPieChartSQLConfig(config) &&
-            chartTransformer instanceof PieChartDataTransformer
+            chartTransformer instanceof PieChartDataModel
         ) {
             return chartTransformer.getEchartsSpec(
                 transformedData.value,
@@ -68,7 +68,7 @@ export const useChart = <T extends ResultsTransformer>({
         }
         if (
             isCartesianChartSQLConfig(config) &&
-            chartTransformer instanceof CartesianChartDataTransformer
+            chartTransformer instanceof CartesianChartDataModel
         ) {
             return chartTransformer.getEchartsSpec(
                 transformedData.value,

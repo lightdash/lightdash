@@ -4,12 +4,12 @@ import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
 } from '../store/selectors';
-import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
@@ -42,9 +42,9 @@ const ResultsViewer: FC = () => {
         selectAllSelectedFieldsByKind,
     );
 
-    const transformer = useMemo(
+    const resultsRunner = useMemo(
         () =>
-            new SemanticViewerResultsTransformer({
+            new SemanticViewerResultsRunner({
                 rows: results ?? [],
                 columns: columns ?? [],
                 query: {
@@ -68,7 +68,7 @@ const ResultsViewer: FC = () => {
                                 isVisible={selectedChartType === config?.type}
                             >
                                 <ChartView
-                                    transformer={transformer}
+                                    resultsRunner={resultsRunner}
                                     data={{ results, columns }}
                                     config={config}
                                     isLoading={false}

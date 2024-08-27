@@ -1,5 +1,5 @@
 import {
-    ResultsTableTransformer,
+    ResultsTableModel,
     type ResultRow,
     type SqlTableConfig,
 } from '@lightdash/common';
@@ -7,7 +7,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { getRawValueCell } from '../../../hooks/useColumns';
 
 export class TableDataTransformer {
-    private transformer: ResultsTableTransformer;
+    private tableModel: ResultsTableModel;
 
     private columns: ColumnDef<ResultRow, any>[];
 
@@ -18,14 +18,14 @@ export class TableDataTransformer {
         private tableChartSqlConfig: SqlTableConfig | undefined,
     ) {
         this.config = this.tableChartSqlConfig;
-        this.transformer = new ResultsTableTransformer({
+        this.tableModel = new ResultsTableModel({
             data: this.data,
         });
         this.columns = this.createColumns();
     }
 
     private createColumns(): ColumnDef<ResultRow, any>[] {
-        const columns = this.transformer.getColumns();
+        const columns = this.tableModel.getColumns();
         return columns
             .filter((column) =>
                 this.config ? this.config.columns[column]?.visible : true,
@@ -46,7 +46,7 @@ export class TableDataTransformer {
     }
 
     public getRows(): ResultRow[] {
-        return this.transformer.getRows();
+        return this.tableModel.getRows();
     }
 
     public getRowsCount(): number {

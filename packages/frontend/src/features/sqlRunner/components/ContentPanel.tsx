@@ -38,6 +38,7 @@ import {
     useSqlQueryRun,
     type ResultsAndColumns,
 } from '../hooks/useSqlQueryRun';
+import { SqlRunnerResultsRunner } from '../runners/SqlRunnerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -45,7 +46,6 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
 import { SqlEditor } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
@@ -121,10 +121,10 @@ export const ContentPanel: FC = () => {
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
 
-    const transformer = useMemo(() => {
+    const resultsRunner = useMemo(() => {
         if (!queryResults) return;
 
-        return new SqlRunnerResultsTransformer({
+        return new SqlRunnerResultsRunner({
             rows: queryResults.results,
             columns: queryResults.columns,
         });
@@ -132,10 +132,10 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         // note: be mindful what you change here as the react-hooks/exhaustive-deps rule is disabled
-        if (!queryResults || !transformer) return;
+        if (!queryResults || !resultsRunner) return;
 
         dispatch(setSqlRunnerResults(queryResults));
-        dispatch(onResults({ ...queryResults, transformer }));
+        dispatch(onResults({ ...queryResults, resultsRunner })); // TODO: Fix onResults
 
         if (resultsHeight === MIN_RESULTS_HEIGHT) {
             setResultsHeight(inputSectionHeight / 2);
@@ -144,7 +144,7 @@ export const ContentPanel: FC = () => {
     }, [
         // inputSectionHeight,
         // resultsHeight,
-        transformer,
+        resultsRunner,
         dispatch,
         queryResults,
     ]);
@@ -295,7 +295,7 @@ export const ContentPanel: FC = () => {
                             }
                         >
                             {queryResults?.results &&
-                                transformer &&
+                                resultsRunner &&
                                 currentVisConfig && (
                                     <>
                                         {activeConfigs.chartConfigs.map((c) => (
@@ -309,7 +309,9 @@ export const ContentPanel: FC = () => {
                                                     data={queryResults}
                                                     config={c}
                                                     isLoading={isLoading}
-                                                    transformer={transformer}
+                                                    resultsRunner={
+                                                        resultsRunner
+                                                    }
                                                     style={{
                                                         height: deferredInputSectionHeight,
                                                         width: '100%',
