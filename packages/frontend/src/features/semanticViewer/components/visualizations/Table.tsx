@@ -15,7 +15,7 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../../../components/common/Table/Table.styles';
-import { useTableDataTransformer } from '../../transformers/useTableDataTransformer';
+import { useTableDataTransformer } from '../../../../components/DataViz/transformers/useTableDataTransformer';
 
 type Props = {
     data: ResultRow[];

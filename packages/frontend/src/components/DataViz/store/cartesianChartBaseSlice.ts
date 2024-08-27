@@ -14,7 +14,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
-type CartesianChartState = {
+export type CartesianChartState = {
     defaultLayout: VizSqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
     options: {

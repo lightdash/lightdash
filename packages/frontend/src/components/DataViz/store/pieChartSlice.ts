@@ -1,6 +1,6 @@
 import {
+    ChartKind,
     isPieChartSQLConfig,
-    PieChartDataTransformer,
     VIZ_DEFAULT_AGGREGATION,
     type PieChartSqlConfig,
     type VizAggregationOptions,
@@ -12,7 +12,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 
-type InitialState = {
+export type PieChartState = {
     defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
     config: PieChartSqlConfig | undefined;
     options: {
@@ -21,7 +21,7 @@ type InitialState = {
     };
 };
 
-const initialState: InitialState = {
+const initialState: PieChartState = {
     defaultFieldConfig: undefined,
     config: undefined,
     options: {
@@ -82,20 +82,8 @@ export const pieChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload) {
-                const pieChartModel = new PieChartDataTransformer({
-                    transformer: action.payload.transformer,
-                });
-                if (action.payload) {
-                    state.options = {
-                        groupFieldOptions:
-                            action.payload.transformer.pivotChartIndexLayoutOptions(),
-                        metricFieldOptions:
-                            action.payload.transformer.pivotChartValuesLayoutOptions(),
-                    };
-                }
-
-                state.config = pieChartModel.mergeConfig(state.config);
+            if (action.payload.type === ChartKind.PIE) {
+                state.options = action.payload.options;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {

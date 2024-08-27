@@ -1,8 +1,4 @@
-import {
-    CartesianChartDataTransformer,
-    ChartKind,
-    isLineChartSQLConfig,
-} from '@lightdash/common';
+import { ChartKind, isLineChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -15,18 +11,8 @@ export const lineChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload) {
-                const lineChartModel = new CartesianChartDataTransformer({
-                    transformer: action.payload.transformer,
-                });
-
-                state.options =
-                    action.payload.transformer.getPivotChartLayoutOptions();
-
-                state.config = lineChartModel.mergeConfig(
-                    ChartKind.LINE,
-                    state.config,
-                );
+            if (action.payload.type === ChartKind.LINE) {
+                state.options = action.payload.options;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {

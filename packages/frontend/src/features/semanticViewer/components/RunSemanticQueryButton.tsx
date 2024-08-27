@@ -12,6 +12,7 @@ import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
+import getChartTransformer from '../../../components/DataViz/transformers/getChartTransformer';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
@@ -42,6 +43,101 @@ const mapResultsToTableData = (
         }, {});
     });
 };
+
+// THIS HAS TO BE DONE SOMEWHERE
+
+{
+    /*
+//  this is for bar chart
+const barChartModel = new CartesianChartDataTransformer({
+    transformer: action.payload.transformer,
+});
+
+state.options =
+    action.payload.transformer.getPivotChartLayoutOptions();
+
+state.config = barChartModel.mergeConfig(
+    ChartKind.VERTICAL_BAR,
+    state.config,
+);
+
+
+
+// this is for line chart
+const lineChartModel = new CartesianChartDataTransformer({
+    transformer: action.payload.transformer,
+});
+
+state.options =
+    action.payload.transformer.getPivotChartLayoutOptions();
+
+state.config = lineChartModel.mergeConfig(
+    ChartKind.LINE,
+    state.config,
+);
+
+
+// this is for pie chart
+const pieChartModel = new PieChartDataTransformer({
+    transformer: action.payload.transformer,
+});
+
+if (action.payload) {
+    state.options = {
+        groupFieldOptions:
+            action.payload.transformer.pivotChartIndexLayoutOptions(),
+        metricFieldOptions:
+            action.payload.transformer.pivotChartValuesLayoutOptions(),
+    };
+}
+
+state.config = pieChartModel.mergeConfig(state.config);
+
+
+// this is for table
+
+ // TODO: this should come from the transformer
+ const columns = Object.keys(action.payload.results[0]).reduce<
+ TableChartSqlConfig['columns']
+>(
+ (acc, key) => ({
+     ...acc,
+     [key]: {
+         visible: true,
+         reference: key,
+         label: key,
+         frozen: true,
+         order: undefined,
+     },
+ }),
+ {},
+);
+
+const oldDefaultColumnConfig = state.defaultColumnConfig;
+const newDefaultColumnConfig = columns;
+
+state.defaultColumnConfig = columns;
+
+if (
+ !state.config ||
+ !deepEqual(
+     oldDefaultColumnConfig || {},
+     newDefaultColumnConfig || {},
+ )
+) {
+ state.config = {
+     type: ChartKind.TABLE,
+     metadata: {
+         version: 1,
+     },
+     columns,
+ };
+}
+*/
+}
+
+// eslint-disable-next-line
+const temporary_variable = getChartTransformer;
 
 export const RunSemanticQueryButton: FC = () => {
     const os = useOs();

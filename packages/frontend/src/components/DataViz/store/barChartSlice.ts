@@ -1,8 +1,4 @@
-import {
-    CartesianChartDataTransformer,
-    ChartKind,
-    isBarChartSQLConfig,
-} from '@lightdash/common';
+import { ChartKind, isBarChartSQLConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -15,18 +11,8 @@ export const barChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload) {
-                const barChartModel = new CartesianChartDataTransformer({
-                    transformer: action.payload.transformer,
-                });
-
-                state.options =
-                    action.payload.transformer.getPivotChartLayoutOptions();
-
-                state.config = barChartModel.mergeConfig(
-                    ChartKind.VERTICAL_BAR,
-                    state.config,
-                );
+            if (action.payload.type === ChartKind.VERTICAL_BAR) {
+                state.options = action.payload.options;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {

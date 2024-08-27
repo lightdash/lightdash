@@ -6,7 +6,6 @@ import {
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { type FC } from 'react';
-import { useTableDataTransformer } from '../../../features/sqlRunner/transformers/useTableDataTransformer';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
@@ -16,6 +15,7 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
+import { useTableDataTransformer } from '../transformers/useTableDataTransformer';
 
 type Props = {
     data: ResultRow[];
