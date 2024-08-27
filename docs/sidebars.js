@@ -171,7 +171,11 @@ module.exports = {
                 'references/the-sql-runner',
                 'references/syncing_your_dbt_changes',
                 'references/personal_tokens',
-                'references/slack-integration',
+                {
+                    type: 'doc',
+                    id: 'references/slack-integration',
+                    label: 'Slack',
+                },
                 'references/usage-analytics',
                 {
                     type: 'doc',
