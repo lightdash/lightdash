@@ -2,14 +2,12 @@ import { type VizTableConfig, type VizTableOptions } from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
 import type { IResultsRunner } from './types/IResultsRunner';
 
-export class TableDataModel<TPivotChartLayout, TRow>
+export class TableDataModel<TPivotChartLayout>
     implements IChartDataModel<VizTableOptions>
 {
-    private readonly resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
+    private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
 
-    constructor(args: {
-        resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
-    }) {
+    constructor(args: { resultsRunner: IResultsRunner<TPivotChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
     }
 

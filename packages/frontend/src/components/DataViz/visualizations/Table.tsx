@@ -1,7 +1,6 @@
-import { type ResultRow, type VizTableConfig } from '@lightdash/common';
+import { type ResultRow, type VizTableColumnsConfig } from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import { type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
@@ -11,21 +10,25 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
+import { type ResultsRunner } from '../transformers/ResultsRunner';
 import { useTableDataModel } from '../transformers/useTableDataModel';
 
-type Props = {
-    data: ResultRow[];
-    config?: VizTableConfig;
+type TableProps<T extends ResultsRunner> = {
+    config?: VizTableColumnsConfig;
+    resultsRunner: T;
 };
 
-export const Table: FC<Props> = ({ data, config }) => {
+export const Table = <T extends ResultsRunner>({
+    resultsRunner,
+    config,
+}: TableProps<T>) => {
     const {
         tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataModel(data, config);
+    } = useTableDataModel({ config, resultsRunner });
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();

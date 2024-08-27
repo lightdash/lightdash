@@ -27,6 +27,7 @@ import { ConditionalVisibility } from '../../../components/common/ConditionalVis
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import getChartResultOptions from '../../../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
@@ -129,10 +130,16 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         // note: be mindful what you change here as the react-hooks/exhaustive-deps rule is disabled
-        if (!queryResults || !resultsRunner) return;
+        if (!queryResults || !resultsRunner || !selectedChartType) return;
 
         dispatch(setSqlRunnerResults(queryResults));
-        dispatch(onResults({ ...queryResults, resultsRunner })); // TODO: Fix onResults
+
+        const chartResultOptions = getChartResultOptions(
+            resultsRunner,
+            selectedChartType,
+        );
+
+        dispatch(onResults(chartResultOptions));
 
         if (resultsHeight === MIN_RESULTS_HEIGHT) {
             setResultsHeight(inputSectionHeight / 2);
@@ -335,7 +342,9 @@ export const ContentPanel: FC = () => {
                                                 })}
                                             >
                                                 <Table
-                                                    data={queryResults.results}
+                                                    resultsRunner={
+                                                        resultsRunner
+                                                    }
                                                     config={
                                                         activeConfigs.tableConfig
                                                     }
@@ -405,9 +414,9 @@ export const ContentPanel: FC = () => {
                             }}
                             visible={isLoading}
                         />
-                        {queryResults?.results && (
+                        {queryResults?.results && resultsRunner && (
                             <Table
-                                data={queryResults.results}
+                                resultsRunner={resultsRunner}
                                 config={resultsTableConfig}
                             />
                         )}

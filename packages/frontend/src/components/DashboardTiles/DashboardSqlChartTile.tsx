@@ -101,7 +101,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
                     <Table
-                        data={data.resultsAndColumns.results}
+                        resultsRunner={resultsRunner}
                         config={data.chart.config}
                     />
                 )}

@@ -1,9 +1,9 @@
 import {
     ChartKind,
     type SqlChart,
-    type SqlTableConfig,
-    type TableChartSqlConfig,
     type VizSqlColumn,
+    type VizTableColumnsConfig,
+    type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -32,7 +32,7 @@ export interface SqlRunnerState {
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
-    resultsTableConfig: SqlTableConfig | undefined;
+    resultsTableConfig: VizTableColumnsConfig | undefined;
     modals: {
         saveChartModal: {
             isOpen: boolean;
@@ -98,7 +98,7 @@ export const sqlRunnerSlice = createSlice({
             state.sqlColumns = action.payload.columns;
             // Set the initial results table config
             const columns = Object.keys(action.payload.results[0]).reduce<
-                TableChartSqlConfig['columns']
+                VizTableConfig['columns']
             >(
                 (acc, key) => ({
                     ...acc,

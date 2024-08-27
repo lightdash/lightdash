@@ -6,8 +6,8 @@ import {
 } from '@lightdash/common';
 import { type ResultsRunner } from './ResultsRunner';
 
-const getChartResultOptions = <TRow>(
-    resultsRunner: ResultsRunner<TRow>,
+const getChartResultOptions = (
+    resultsRunner: ResultsRunner,
     chartType: ChartKind,
 ) => {
     switch (chartType) {

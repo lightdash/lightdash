@@ -11,7 +11,7 @@ import { useCallback, useMemo } from 'react';
 import { useAsync } from 'react-use';
 import { type ResultsRunner } from './ResultsRunner';
 
-export const useChart = <TRow, T extends ResultsRunner<TRow>>({
+export const useChart = <T extends ResultsRunner>({
     config,
     resultsRunner,
     sql,

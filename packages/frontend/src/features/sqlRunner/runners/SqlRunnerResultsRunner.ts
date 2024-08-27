@@ -57,7 +57,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     }
 };
 
-export class SqlRunnerResultsRunner extends ResultsRunner<RowData> {
+export class SqlRunnerResultsRunner extends ResultsRunner {
     // args should be rows, columns, values (blocked by db migration)
     public async getPivotChartData(
         config: VizSqlCartesianChartLayout,

@@ -22,7 +22,7 @@ const transformChartLayoutToSemanticPivot = (
     };
 };
 
-export class SemanticViewerResultsRunner extends ResultsRunner<ResultRow> {
+export class SemanticViewerResultsRunner extends ResultsRunner {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;

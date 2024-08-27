@@ -1,7 +1,7 @@
 import {
     TableDataModel,
     type ResultRow,
-    type VizTableConfig,
+    type VizTableColumnsConfig,
 } from '@lightdash/common';
 import {
     getCoreRowModel,
@@ -12,14 +12,18 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getRawValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
+import { type ResultsRunner } from './ResultsRunner';
 
-export const useTableDataModel = (
-    data: ResultRow[],
-    config: VizTableConfig | undefined,
-) => {
+export const useTableDataModel = <T extends ResultsRunner>({
+    config,
+    resultsRunner,
+}: {
+    config: VizTableColumnsConfig | undefined;
+    resultsRunner: T;
+}) => {
     const transformer = useMemo(
-        () => new TableDataModel<ResultRow>(data, config),
-        [data, config],
+        () => new TableDataModel({ resultsRunner }),
+        [resultsRunner],
     );
 
     const columns = useMemo(

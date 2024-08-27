@@ -5,6 +5,7 @@ import {
     VizIndexType,
     type IResultsRunner,
     type PivotChartData,
+    type ResultRow,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizSqlCartesianChartLayout,
@@ -35,14 +36,14 @@ import { intersectionBy } from 'lodash';
 //     });
 // };
 
-export class ResultsRunner<TRow>
-    implements IResultsRunner<VizSqlCartesianChartLayout, TRow>
+export class ResultsRunner
+    implements IResultsRunner<VizSqlCartesianChartLayout>
 {
-    protected readonly rows: TRow[];
+    protected readonly rows: ResultRow[];
 
     protected readonly columns: VizSqlColumn[];
 
-    constructor(args: { rows: TRow[]; columns: VizSqlColumn[] }) {
+    constructor(args: { rows: ResultRow[]; columns: VizSqlColumn[] }) {
         this.rows = args.rows;
         this.columns = args.columns;
     }

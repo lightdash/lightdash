@@ -19,16 +19,14 @@ type CartesianChartConfig<TPivotChartLayout> = {
     display: CartesianChartDisplay | undefined;
 };
 
-export class CartesianChartDataModel<TPivotChartLayout, TRow>
+export class CartesianChartDataModel<TPivotChartLayout>
     implements IChartDataModel<VizCartesianChartOptions>
 {
-    private readonly resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
+    private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: {
-        resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
-    }) {
+    constructor(args: { resultsRunner: IResultsRunner<TPivotChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
 
         this.colorMap = new Map();

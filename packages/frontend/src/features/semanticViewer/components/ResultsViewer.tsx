@@ -94,7 +94,10 @@ const ResultsViewer: FC = () => {
                         overflow: 'auto',
                     })}
                 >
-                    <Table data={results || []} config={currentVisConfig} />
+                    <Table
+                        resultsRunner={resultsRunner}
+                        config={currentVisConfig}
+                    />
                 </Paper>
             )}
         </>

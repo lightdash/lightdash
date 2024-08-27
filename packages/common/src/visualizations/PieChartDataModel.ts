@@ -16,14 +16,12 @@ type PieChartConfig<TPivotChartLayout> = {
     display: VizPieChartDisplay | undefined;
 };
 
-export class PieChartDataModel<TPivotChartLayout, TRow>
+export class PieChartDataModel<TPivotChartLayout>
     implements IChartDataModel<VizPieChartOptions>
 {
-    private readonly resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
+    private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
 
-    constructor(args: {
-        resultsRunner: IResultsRunner<TPivotChartLayout, TRow>;
-    }) {
+    constructor(args: { resultsRunner: IResultsRunner<TPivotChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
     }
 

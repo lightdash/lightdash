@@ -173,7 +173,7 @@ const ViewSqlChart = () => {
                                 <>
                                     {isVizTableConfig(currentVisConfig) && (
                                         <Table
-                                            data={data.results}
+                                            resultsRunner={resultsRunner}
                                             config={currentVisConfig}
                                         />
                                     )}
@@ -196,7 +196,7 @@ const ViewSqlChart = () => {
                             )}
                             {activeTab === TabOption.RESULTS && (
                                 <Table
-                                    data={data.results}
+                                    resultsRunner={resultsRunner}
                                     config={resultsTableConfig}
                                 />
                             )}
