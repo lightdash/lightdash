@@ -659,12 +659,15 @@ export class UserModel {
         };
     }
 
-    async findSessionUserByPrimaryEmail(email: string): Promise<SessionUser> {
+    async findSessionUserByPrimaryEmail(
+        email: string,
+    ): Promise<SessionUser | undefined> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
+            .andWhere('emails.is_primary', true)
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
-            throw new NotFoundError(`Cannot find user with uuid ${email}`);
+            return undefined;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(
