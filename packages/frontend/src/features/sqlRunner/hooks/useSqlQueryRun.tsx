@@ -42,8 +42,10 @@ export type ResultsAndColumns = {
  */
 export const useSqlQueryRun = ({
     onSuccess,
+    onError,
 }: {
     onSuccess: (data: ResultsAndColumns | undefined) => void;
+    onError?: (error: ApiError) => void;
 }) => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -91,6 +93,7 @@ export const useSqlQueryRun = ({
                     title: 'Could not fetch SQL query results',
                     subtitle: err.error.message,
                 });
+                onError?.(err); // pass the error to the onError callback if it exists
             },
             onMutate: () => {
                 // Save the current data to the previousDataRef so we can simulate a keepPreviousData behavior

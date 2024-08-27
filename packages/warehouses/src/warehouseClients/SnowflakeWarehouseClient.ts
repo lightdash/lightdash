@@ -16,6 +16,7 @@ import {
     Connection,
     ConnectionOptions,
     createConnection,
+    SnowflakeError,
 } from 'snowflake-sdk';
 import { pipeline, Transform, Writable } from 'stream';
 import * as Util from 'util';
@@ -241,7 +242,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 options,
             );
         } catch (e) {
-            throw new WarehouseQueryError(e.message);
+            const error = e as SnowflakeError;
+            throw this.parseError(error, sql);
         } finally {
             await new Promise((resolve, reject) => {
                 connection.destroy((err, conn) => {
@@ -269,7 +271,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 streamResult: true,
                 complete: (err, stmt) => {
                     if (err) {
-                        reject(new WarehouseQueryError(err.message));
+                        reject(err);
                     }
 
                     const columns = stmt.getColumns();
@@ -304,7 +306,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         }),
                         (error) => {
                             if (error) {
-                                reject(new WarehouseQueryError(error.message));
+                                reject(error);
                             } else {
                                 resolve();
                             }
@@ -459,12 +461,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const databaseName = this.connectionOptions.database;
         const whereSql = databaseName ? `AND TABLE_CATALOG ILIKE ?` : '';
         const query = `
-            SELECT 
-                LOWER(TABLE_CATALOG) as "table_catalog", 
+            SELECT
+                LOWER(TABLE_CATALOG) as "table_catalog",
                 LOWER(TABLE_SCHEMA) as "table_schema",
                 LOWER(TABLE_NAME) as "table_name"
             FROM information_schema.tables
-            WHERE TABLE_TYPE = 'BASE TABLE' 
+            WHERE TABLE_TYPE = 'BASE TABLE'
             ${whereSql}
             ORDER BY 1,2,3
         `;
@@ -505,5 +507,54 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             schema ? [tableName, schema] : [tableName],
         );
         return this.parseWarehouseCatalog(rows, mapFieldType);
+    }
+
+    parseError(error: SnowflakeError, query: string = '') {
+        // if the error has no code or data, return a generic error
+        if (!error?.code && !error.data) {
+            return new WarehouseQueryError(error?.message || 'Unknown error');
+        }
+        // pull error type from data object
+        const errorType = error.data?.type || error.code;
+        switch (errorType) {
+            // if query is mistyped (compilation error)
+            case 'COMPILATION':
+                // The query will look something like this:
+                // 'WITH user_sql AS (
+                //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
+                // ) select * from user_sql limit 500';
+                // We want to check for the first part of the query, if so strip the first and last lines
+                const queryMatch = query.match(
+                    /(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i,
+                );
+                // also match the line number and character number in the error message
+                const lineMatch = error.message.match(
+                    /line\s+(\d+)\s+at\s+position\s+(\d+)/,
+                );
+                if (lineMatch) {
+                    // parse out line number and character number
+                    let lineNumber = Number(lineMatch[1]) || undefined;
+                    const charNumber = Number(lineMatch[2]) + 1 || undefined; // Note the + 1 as it is 0 indexed
+                    // if query match, subtract the number of lines from the line number
+                    if (queryMatch && lineNumber && lineNumber > 1) {
+                        lineNumber -= 1;
+                    }
+                    // re-inject the line and character number into the error message
+                    const message = error.message.replace(
+                        /line\s+\d+\s+at\s+position\s+\d+/,
+                        `line ${lineNumber} at position ${charNumber}`,
+                    );
+                    // return a new error with the line and character number in data object
+                    return new WarehouseQueryError(message, {
+                        lineNumber,
+                        charNumber,
+                    });
+                }
+                break;
+            default:
+                break;
+        }
+        // otherwise return a generic error
+        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }

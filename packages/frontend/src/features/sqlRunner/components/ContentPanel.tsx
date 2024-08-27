@@ -41,12 +41,17 @@ import {
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
-import { SqlEditor } from './SqlEditor';
+import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
+
+    // state for helping highlight errors in the editor
+    const [hightlightError, setHightlightError] = useState<
+        MonacoHighlightChar | undefined
+    >(undefined);
 
     const {
         ref: inputSectionRef,
@@ -102,6 +107,21 @@ export const ContentPanel: FC = () => {
                 );
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
+                }
+            }
+            // reset error highlighting
+            setHightlightError(undefined);
+        },
+        onError: ({ error }) => {
+            if (error?.data) {
+                // highlight error in editor
+                const line = error?.data?.lineNumber;
+                const char = error?.data?.charNumber;
+                if (line && char) {
+                    setHightlightError({
+                        line: Number(error.data.lineNumber),
+                        char: Number(error.data.charNumber),
+                    });
                 }
             }
         },
@@ -281,7 +301,21 @@ export const ContentPanel: FC = () => {
                         <ConditionalVisibility
                             isVisible={activeEditorTab === EditorTabs.SQL}
                         >
-                            <SqlEditor onSubmit={() => handleRunQuery()} />
+                            <SqlEditor
+                                resetHighlightError={() =>
+                                    setHightlightError(undefined)
+                                }
+                                onSubmit={() => handleRunQuery()}
+                                highlightText={
+                                    hightlightError
+                                        ? {
+                                              // set set single character highlight (no end/range defined)
+                                              start: hightlightError,
+                                              end: undefined,
+                                          }
+                                        : undefined
+                                }
+                            />
                         </ConditionalVisibility>
 
                         <ConditionalVisibility

@@ -47,6 +47,110 @@ Object.entries(warehouseConnections).forEach(
                 cy.deleteProjectsByName([projectName]);
             });
 
+            // test for invalid sql
+            // note each db type may have different error messages
+            it(`Get error on invalid SQL for ${warehouseName}`, () => {
+                const sql =
+                    'SELECT * FROM `fake_test_db`.e2e_jaffle_shop`.`raw_customers`';
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql,
+                    }),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(500);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            cy.log(JSON.stringify(resp));
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                switch (warehouseConfig.type) {
+                                    case WarehouseTypes.SNOWFLAKE:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('SQL compilation error:');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.BIGQUERY:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('Syntax error:');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.POSTGRES:
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(15);
+                                        break;
+                                    default:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        break;
+                                }
+                            } // Else keep polling
+                            else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+
             it(`Get tables for SQL runner ${warehouseName}`, () => {
                 cy.request({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables`,
@@ -97,8 +201,8 @@ Object.entries(warehouseConnections).forEach(
                 const selectFields =
                     warehouseConfig.type !== WarehouseTypes.SNOWFLAKE
                         ? `*`
-                        : `payment_id as "payment_id", 
-                amount as "amount", 
+                        : `payment_id as "payment_id",
+                amount as "amount",
                 payment_method as "payment_method"`; // Need to lowercase column ids in snowflake
                 const sql = `SELECT ${selectFields}
                              FROM ${database}.${schema}.payments
