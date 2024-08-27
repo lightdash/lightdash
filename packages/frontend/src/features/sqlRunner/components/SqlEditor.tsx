@@ -5,6 +5,7 @@ import Editor, {
     type BeforeMount,
     type EditorProps,
     type Monaco,
+    type OnChange,
     type OnMount,
 } from '@monaco-editor/react';
 import {
@@ -12,16 +13,10 @@ import {
     snowflakeLanguageDefinition,
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { debounce } from 'lodash';
 import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
 import '../../../styles/monaco.css';
@@ -220,7 +215,6 @@ export const SqlEditor: FC<{
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
     const sqlRef = useRef(sql);
     const onSubmitRef = useRef(onSubmit);
-    const [value, setValue] = useState<string | undefined>(sql);
 
     useEffect(() => {
         sqlRef.current = sql;
@@ -313,19 +307,24 @@ export const SqlEditor: FC<{
         decorationsCollectionRef.current.set(newDecorations);
     }, [sql, monaco, highlightText]);
 
-    useEffect(() => {
-        // on every change reset the highlight error (if any)
-        if (resetHighlightError) {
-            resetHighlightError?.();
-        }
-        // debounce the sql value
-        const handler = setTimeout(() => {
-            dispatch(setSql(value ?? ''));
-        }, DEBOUNCE_TIME);
-        return () => clearTimeout(handler);
-        // ignore the dispatch and resetHighlightError dependencies
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value]);
+    const debouncedSetSql = useMemo(
+        () =>
+            debounce(
+                (valStr: string) => dispatch(setSql(valStr)),
+                DEBOUNCE_TIME,
+            ),
+        [dispatch],
+    );
+
+    const onChange: OnChange = useCallback(
+        (val: string | undefined) => {
+            if (highlightText && resetHighlightError) {
+                resetHighlightError();
+            }
+            debouncedSetSql(val ?? '');
+        },
+        [debouncedSetSql, highlightText, resetHighlightError],
+    );
 
     if (isLoading || isTablesDataLoading) {
         return (
@@ -351,7 +350,7 @@ export const SqlEditor: FC<{
             onMount={onMount}
             language={language}
             value={sql}
-            onChange={(val) => setValue(val)}
+            onChange={onChange}
             options={MONACO_DEFAULT_OPTIONS}
             theme="lightdash"
         />
