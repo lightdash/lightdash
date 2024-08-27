@@ -2,7 +2,8 @@ import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
-import { type VizIndexType } from './types';
+import { type VizCartesianChartOptions, type VizIndexType } from './types';
+import { type IChartDataModel } from './types/IChartDataModel';
 
 type CartesianChartKind = Extract<
     ChartKind,
@@ -18,7 +19,9 @@ type CartesianChartConfig<TPivotChartLayout> = {
     display: CartesianChartDisplay | undefined;
 };
 
-export class CartesianChartDataModel<TPivotChartLayout> {
+export class CartesianChartDataModel<TPivotChartLayout>
+    implements IChartDataModel<VizCartesianChartOptions>
+{
     private readonly resultsRunner: ResultsRunnerBase<TPivotChartLayout>;
 
     private colorMap: Map<string, string>;
@@ -83,6 +86,10 @@ export class CartesianChartDataModel<TPivotChartLayout> {
             ),
             display: existingConfig?.display,
         };
+    }
+
+    getResultOptions() {
+        return this.resultsRunner.pivotChartOptions();
     }
 
     async getTransformedData(

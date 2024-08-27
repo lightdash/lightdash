@@ -1,4 +1,4 @@
-import { type PivotChartData } from './types';
+import { type PivotChartData, type VizCartesianChartOptions } from './types';
 
 export interface ResultsRunnerBase<TPivotChartLayout> {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
@@ -15,11 +15,12 @@ export interface ResultsRunnerBase<TPivotChartLayout> {
         existingConfig?: TPivotChartLayout,
     ): TPivotChartLayout | undefined;
 
+    pivotChartOptions(): VizCartesianChartOptions;
+
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.
     // getEventAnalyticsData() // funnel building + sankey
     // getTimeSeriesData() // period-over-period and overlay multiple time series
     // getMapData() // detailed mapping
-
     // where does big number live?
 }

@@ -2,19 +2,20 @@ import {
     ChartKind,
     isTableChartSQLConfig,
     type TableChartSqlConfig,
+    type VizTableOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 
 export type TableVizState = {
-    defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
     config: TableChartSqlConfig | undefined;
+    options: VizTableOptions;
 };
 
 const initialState: TableVizState = {
-    defaultColumnConfig: undefined,
     config: undefined,
+    options: { defaultColumnConfig: undefined },
 };
 
 export const tableVisSlice = createSlice({
@@ -46,7 +47,7 @@ export const tableVisSlice = createSlice({
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
             if (action.payload.type === ChartKind.TABLE) {
-                state.defaultColumnConfig = action.payload.defaultColumnConfig;
+                state.options = action.payload.options;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {

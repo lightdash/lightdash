@@ -4,9 +4,8 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type PieChartSqlConfig,
     type VizAggregationOptions,
-    type VizIndexLayoutOptions,
+    type VizPieChartOptions,
     type VizSqlCartesianChartLayout,
-    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -15,10 +14,7 @@ import { onResults, setChartConfig } from './actions/commonChartActions';
 export type PieChartState = {
     defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
     config: PieChartSqlConfig | undefined;
-    options: {
-        groupFieldOptions: VizIndexLayoutOptions[];
-        metricFieldOptions: VizValuesLayoutOptions[];
-    };
+    options: VizPieChartOptions;
 };
 
 const initialState: PieChartState = {

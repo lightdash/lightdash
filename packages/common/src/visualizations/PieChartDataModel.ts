@@ -1,6 +1,11 @@
 import { ChartKind } from '../types/savedCharts';
 import { type ResultsRunnerBase } from './ResultsRunnerBase';
-import { type PivotChartData, type VizPieChartDisplay } from './types';
+import {
+    type PivotChartData,
+    type VizPieChartDisplay,
+    type VizPieChartOptions,
+} from './types';
+import { type IChartDataModel } from './types/IChartDataModel';
 
 type PieChartConfig<TPivotChartLayout> = {
     metadata: {
@@ -11,7 +16,9 @@ type PieChartConfig<TPivotChartLayout> = {
     display: VizPieChartDisplay | undefined;
 };
 
-export class PieChartDataModel<TPivotChartLayout> {
+export class PieChartDataModel<TPivotChartLayout>
+    implements IChartDataModel<VizPieChartOptions>
+{
     private readonly resultsRunner: ResultsRunnerBase<TPivotChartLayout>;
 
     constructor(args: { resultsRunner: ResultsRunnerBase<TPivotChartLayout> }) {
@@ -30,6 +37,16 @@ export class PieChartDataModel<TPivotChartLayout> {
                 existingConfig?.fieldConfig,
             ),
             display: existingConfig?.display,
+        };
+    }
+
+    getResultOptions() {
+        const { indexLayoutOptions, valuesLayoutOptions } =
+            this.resultsRunner.pivotChartOptions();
+
+        return {
+            groupFieldOptions: indexLayoutOptions,
+            metricFieldOptions: valuesLayoutOptions,
         };
     }
 

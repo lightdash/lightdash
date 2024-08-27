@@ -6,10 +6,8 @@ import {
     type CartesianChartDisplay,
     type LineChartSqlConfig,
     type VizAggregationOptions,
-    type VizIndexLayoutOptions,
-    type VizPivotLayoutOptions,
+    type VizCartesianChartOptions,
     type VizSqlCartesianChartLayout,
-    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -17,11 +15,7 @@ import { createSlice } from '@reduxjs/toolkit';
 export type CartesianChartState = {
     defaultLayout: VizSqlCartesianChartLayout | undefined;
     config: BarChartSqlConfig | LineChartSqlConfig | undefined;
-    options: {
-        indexLayoutOptions: VizIndexLayoutOptions[];
-        valuesLayoutOptions: VizValuesLayoutOptions[];
-        pivotLayoutOptions: VizPivotLayoutOptions[];
-    };
+    options: VizCartesianChartOptions;
 };
 
 const initialState: CartesianChartState = {

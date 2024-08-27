@@ -3,24 +3,24 @@ import {
     type ChartKind,
     type PieChartSqlConfig,
     type TableChartSqlConfig,
+    type VizCartesianChartOptions,
+    type VizPieChartOptions,
+    type VizTableOptions,
 } from '@lightdash/common';
 import { createAction } from '@reduxjs/toolkit';
-import { type CartesianChartState } from '../cartesianChartBaseSlice';
-import { type PieChartState } from '../pieChartSlice';
-import { type TableVizState } from '../tableVisSlice';
 
 type ResultsPayload =
     | {
           type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-          options: CartesianChartState['options'];
+          options: VizCartesianChartOptions;
       }
     | {
           type: ChartKind.PIE;
-          options: PieChartState['options'];
+          options: VizPieChartOptions;
       }
     | {
           type: ChartKind.TABLE;
-          defaultColumnConfig: TableVizState['defaultColumnConfig'];
+          options: VizTableOptions;
       };
 
 export const onResults = createAction<ResultsPayload>('chart/onResults');

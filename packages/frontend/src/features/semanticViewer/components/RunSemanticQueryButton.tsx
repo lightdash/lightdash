@@ -1,8 +1,4 @@
-import {
-    ChartKind,
-    type ResultRow,
-    type SemanticLayerResultRow,
-} from '@lightdash/common';
+import { type ResultRow, type SemanticLayerResultRow } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -16,7 +12,7 @@ import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
-import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import getChartResultOptions from '../../../components/DataViz/transformers/getChartDataModel';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
@@ -56,6 +52,7 @@ const mapResultsToTableData = (
 const barChartModel = new CartesianChartDataTransformer({
     transformer: action.payload.transformer,
 });
+
 
 state.options =
     action.payload.transformer.getPivotChartLayoutOptions();
@@ -101,21 +98,6 @@ state.config = pieChartModel.mergeConfig(state.config);
 // this is for table
 
  // TODO: this should come from the transformer
- const columns = Object.keys(action.payload.results[0]).reduce<
- TableChartSqlConfig['columns']
->(
- (acc, key) => ({
-     ...acc,
-     [key]: {
-         visible: true,
-         reference: key,
-         label: key,
-         frozen: true,
-         order: undefined,
-     },
- }),
- {},
-);
 
 const oldDefaultColumnConfig = state.defaultColumnConfig;
 const newDefaultColumnConfig = columns;
@@ -147,7 +129,7 @@ export const RunSemanticQueryButton: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, sortBy } = useAppSelector(
+    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const allSelectedFieldsByKind = useAppSelector(
@@ -175,37 +157,37 @@ export const RunSemanticQueryButton: FC = () => {
     }, [semanticLayerResultRows]);
 
     useEffect(() => {
-        if (resultsData) {
-            const usedColumns = columns.filter((c) =>
-                allSelectedFields.includes(c.reference),
-            );
-            dispatch(
-                setResults({
-                    results: resultsData,
-                    columns: usedColumns,
-                }),
-            );
+        if (!resultsData || selectedChartType === undefined) return;
 
-            const resultsRunner = new SemanticViewerResultsRunner({
-                rows: resultsData,
+        const usedColumns = columns.filter((c) =>
+            allSelectedFields.includes(c.reference),
+        );
+        dispatch(
+            setResults({
+                results: resultsData,
                 columns: usedColumns,
-                query: {
-                    ...allSelectedFieldsByKind,
-                    sortBy,
-                    limit,
-                },
-                projectUuid,
-            });
+            }),
+        );
 
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            const chartDataModel = getChartDataModel(
-                resultsRunner,
-                ChartKind.TABLE,
-            ); // TODO: this should take in the currently selected chart kind (probably can get it from the state)
+        const resultsRunner = new SemanticViewerResultsRunner({
+            rows: resultsData,
+            columns: usedColumns,
+            query: {
+                ...allSelectedFieldsByKind,
+                sortBy,
+                limit,
+            },
+            projectUuid,
+        });
 
-            dispatch(onResults({}));
-        }
+        const chartResultOptions = getChartResultOptions(
+            resultsRunner,
+            selectedChartType,
+        );
+
+        dispatch(onResults(chartResultOptions));
     }, [
+        selectedChartType,
         resultsData,
         columns,
         dispatch,

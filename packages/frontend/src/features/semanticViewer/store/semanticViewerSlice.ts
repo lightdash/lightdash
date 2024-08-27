@@ -129,6 +129,7 @@ export interface SemanticViewerState {
     view: string | undefined;
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
+    // TODO: rename this
     selectedChartType: ChartKind | undefined;
 
     resultsTableConfig: SqlTableConfig | undefined;

@@ -135,7 +135,7 @@ export class ResultsRunner
         }, []);
     }
 
-    getPivotChartLayoutOptions(): {
+    pivotChartOptions(): {
         indexLayoutOptions: VizIndexLayoutOptions[];
         valuesLayoutOptions: VizValuesLayoutOptions[];
         pivotLayoutOptions: VizPivotLayoutOptions[];

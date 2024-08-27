@@ -1,4 +1,5 @@
 import { type DimensionType } from '../../types/field';
+import { type TableChartSqlConfig } from '../../types/sqlRunner';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -66,4 +67,20 @@ export type PivotChartData = {
     results: RowData[];
     indexColumn: { reference: string; type: string };
     valuesColumns: string[];
+};
+
+export type VizCartesianChartOptions = {
+    indexLayoutOptions: VizIndexLayoutOptions[];
+    valuesLayoutOptions: VizValuesLayoutOptions[];
+    pivotLayoutOptions: VizPivotLayoutOptions[];
+};
+
+export type VizPieChartOptions = {
+    groupFieldOptions: VizIndexLayoutOptions[];
+    metricFieldOptions: VizValuesLayoutOptions[];
+};
+
+// TODO: FIXME!! it should be a common type!
+export type VizTableOptions = {
+    defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
 };
