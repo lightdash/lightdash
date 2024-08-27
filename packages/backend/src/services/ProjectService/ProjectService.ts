@@ -2008,34 +2008,37 @@ export class ProjectService extends BaseService {
 
         const columns: VizSqlColumn[] = [];
 
-        const fileUrl = await this.downloadFileModel.streamFunction(
-            this.s3Client,
-        )(
-            `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
-            async (writer) => {
-                await warehouseClient.streamQuery(
-                    query,
-                    async ({ rows, fields }) => {
-                        if (!columns.length) {
-                            // Get column types from first row of results
-                            columns.push(
-                                ...Object.keys(fields).map((fieldName) => ({
-                                    reference: fieldName,
-                                    type: fields[fieldName].type,
-                                })),
-                            );
-                        }
+        const fileUrl = await this.downloadFileModel
+            .streamFunction(this.s3Client)(
+                `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
+                async (writer) => {
+                    await warehouseClient.streamQuery(
+                        query,
+                        async ({ rows, fields }) => {
+                            if (!columns.length) {
+                                // Get column types from first row of results
+                                columns.push(
+                                    ...Object.keys(fields).map((fieldName) => ({
+                                        reference: fieldName,
+                                        type: fields[fieldName].type,
+                                    })),
+                                );
+                            }
 
-                        const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
-                        formattedRows.forEach(writer);
-                    },
-                    {
-                        tags: queryTags,
-                    },
-                );
-            },
-            this.s3Client,
-        );
+                            const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
+                            formattedRows.forEach(writer);
+                        },
+                        {
+                            tags: queryTags,
+                        },
+                    );
+                },
+                this.s3Client,
+            )
+            // catch any errors
+            .catch(async (e) => {
+                throw e;
+            });
 
         await sshTunnel.disconnect();
 

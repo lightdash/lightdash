@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     MissingConfigError,
     ParameterError,
+    SemanticLayerClientInfo,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
@@ -250,12 +251,12 @@ export class SemanticLayerService extends BaseService {
         return client.getSql(query);
     }
 
-    async getMaxQueryLimit(
+    async getSemanticLayerClientInfo(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<number> {
+    ): Promise<SemanticLayerClientInfo> {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
-        return client.getMaxQueryLimit();
+        return client.getClientInfo();
     }
 }

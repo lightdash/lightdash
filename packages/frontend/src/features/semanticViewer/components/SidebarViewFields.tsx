@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
+    selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setFields } from '../store/semanticViewerSlice';
 import SidebarViewFieldsGroup from './SidebarViewFieldsGroup';
@@ -37,13 +38,12 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
-    const { projectUuid, view } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
+    const { view } = useAppSelector((state) => state.semanticViewer);
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const allSelectedFieldsBykind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
 
     const dispatch = useAppDispatch();
 

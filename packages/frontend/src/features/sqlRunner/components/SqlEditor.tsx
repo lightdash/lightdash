@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { Center, Loader } from '@mantine/core';
 import Editor, {
+    useMonaco,
     type BeforeMount,
     type EditorProps,
     type Monaco,
@@ -13,14 +14,27 @@ import {
 } from '@popsql/monaco-sql-languages';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { debounce } from 'lodash';
-import { type languages } from 'monaco-editor';
+import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useProject } from '../../../hooks/useProject';
+import '../../../styles/monaco.css';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+
+// monaco highlight character
+export type MonacoHighlightChar = {
+    line: number;
+    char: number;
+};
+
+// monaco highlight line
+type MonacoHighlightLine = {
+    start: MonacoHighlightChar;
+    end?: MonacoHighlightChar;
+};
 
 const DEBOUNCE_TIME = 500;
 
@@ -185,8 +199,10 @@ const generateTableCompletions = (
 };
 
 export const SqlEditor: FC<{
-    onSubmit: () => void;
-}> = ({ onSubmit }) => {
+    onSubmit?: () => void;
+    highlightText?: MonacoHighlightLine;
+    resetHighlightError?: () => void;
+}> = ({ onSubmit, highlightText, resetHighlightError }) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
@@ -237,17 +253,76 @@ export const SqlEditor: FC<{
         [language, quoteChar, tablesData],
     );
 
-    const onMount: OnMount = useCallback((editor, monaco) => {
-        editorRef.current = editor;
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-            // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
-            onSubmitRef.current?.();
-        });
+    const monaco = useMonaco();
+    const decorationsCollectionRef =
+        useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
+
+    const onMount: OnMount = useCallback((editorObj, monacoObj) => {
+        editorRef.current = editorObj;
+        decorationsCollectionRef.current =
+            editorObj.createDecorationsCollection(); // Initialize the decorations collection
+        editorObj.addCommand(
+            monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
+            () => {
+                // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
+                onSubmitRef.current?.();
+            },
+        );
     }, []);
 
-    const onChange: OnChange = debounce((value: string | undefined) => {
-        dispatch(setSql(value ?? ''));
-    }, DEBOUNCE_TIME);
+    useEffect(() => {
+        // remove any existing decorations
+        if (decorationsCollectionRef.current) {
+            decorationsCollectionRef.current.set([]);
+        }
+        if (!editorRef.current || !monaco || !decorationsCollectionRef.current)
+            return;
+        // do nothing if no highlightText is provided
+        if (!highlightText) return;
+        // if no end, highlight only the start + 1 character
+        if (!highlightText.end) {
+            highlightText.end = {
+                line: highlightText.start.line,
+                char: highlightText.start.char + 1,
+            };
+        }
+        const range = new monaco.Range(
+            highlightText.start.line,
+            highlightText.start.char,
+            highlightText.end.line,
+            highlightText.end.char,
+        );
+        const newDecorations = [
+            {
+                range,
+                options: {
+                    inlineClassName: 'editorError',
+                },
+            },
+        ];
+
+        // Update decorations using the decorations collection
+        decorationsCollectionRef.current.set(newDecorations);
+    }, [sql, monaco, highlightText]);
+
+    const debouncedSetSql = useMemo(
+        () =>
+            debounce(
+                (valStr: string) => dispatch(setSql(valStr)),
+                DEBOUNCE_TIME,
+            ),
+        [dispatch],
+    );
+
+    const onChange: OnChange = useCallback(
+        (val: string | undefined) => {
+            if (highlightText && resetHighlightError) {
+                resetHighlightError();
+            }
+            debouncedSetSql(val ?? '');
+        },
+        [debouncedSetSql, highlightText, resetHighlightError],
+    );
 
     if (isLoading || isTablesDataLoading) {
         return (

@@ -10,6 +10,7 @@ import {
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { memo, useCallback, type FC } from 'react';
+import useHealth from '../hooks/health/useHealth';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
 import { EventName } from '../types/Events';
@@ -17,6 +18,9 @@ import MantineIcon from './common/MantineIcon';
 import LimitButton from './LimitButton';
 
 export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
+    const health = useHealth();
+    const maxLimit = health.data?.query.maxLimit ?? 5000;
+
     const os = useOs();
     const limit = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.limit,
@@ -90,6 +94,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
             <LimitButton
                 disabled={!isValidQuery}
                 size={size}
+                maxLimit={maxLimit}
                 limit={limit}
                 onLimitChange={setRowLimit}
             />

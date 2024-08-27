@@ -294,6 +294,15 @@ export class UserModel {
         return user !== undefined;
     }
 
+    async hasPasswordByEmail(email: string): Promise<boolean> {
+        const results = await this.database('password_logins')
+            .leftJoin('emails', 'password_logins.user_id', 'emails.user_id')
+            .andWhere('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('password_logins.user_id');
+        return results.length > 0;
+    }
+
     async getUserByUuidAndPassword(
         userUuid: string,
         password: string,

@@ -278,9 +278,8 @@ export class PostgresClient<
             });
         })
             .catch((e) => {
-                throw new WarehouseQueryError(
-                    `Error running postgres query: ${e}`,
-                );
+                const error = e as pg.DatabaseError;
+                throw this.parseError(error, sql);
             })
             .finally(() => {
                 pool?.end().catch(() => {
@@ -443,6 +442,64 @@ export class PostgresClient<
 
     concatString(...args: string[]) {
         return `(${args.join(' || ')})`;
+    }
+
+    parseError(error: pg.DatabaseError, query: string = '') {
+        // getErrorLineAndCharPosition is a helper function to get the line and character position of the error
+        // NOTE: the database returns "position" which is the count of characters from the start of the query, regardless of newlines
+        // this function converts the position to line number and character position
+        const getErrorLineAndCharPosition = (
+            queryString: string,
+            position: string | undefined,
+        ) => {
+            if (!position) return undefined;
+            // convert the position to a number
+            const positionNum = parseInt(position, 10);
+            // If the position is not a number, return an error message
+            if (Number.isNaN(positionNum)) return undefined;
+            // Split the queryString into lines
+            const lines = queryString.split('\n');
+            let currentCharCount = 0;
+            // Loop through each line to determine the line number and character position
+            for (let i = 0; i < lines.length; i += 1) {
+                const line = lines[i];
+                const nextCharCount = currentCharCount + line.length + 1; // +1 accounts for the newline character
+                // If the position falls within this line
+                if (positionNum <= nextCharCount) {
+                    const charPosition = positionNum - currentCharCount;
+                    return { line: i + 1, charPosition };
+                }
+                // Update the current character count
+                currentCharCount = nextCharCount;
+            }
+            // If the position is beyond the queryString length, return an error message
+            return undefined;
+        };
+        // do noithing if there is no position returned)
+        if (!error?.position) return new WarehouseQueryError(error?.message);
+        // The query will look something like this:
+        // 'WITH user_sql AS (
+        //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
+        // ) select * from user_sql limit 500';
+        // We want to check for the first part of the query, if so strip the first and last lines
+        const queryMatch = query.match(/(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i);
+        // get the position and line from the position returned from postgres
+        const positionObj = getErrorLineAndCharPosition(query, error?.position);
+        // do nothing if the line and charNumber cannot be determined
+        if (!positionObj) return new WarehouseQueryError(error?.message);
+        let lineNumber = positionObj.line;
+        const charNumber = positionObj.charPosition;
+        // if query match, subtract the number of lines from the line number
+        if (queryMatch && lineNumber && lineNumber > 1) {
+            lineNumber -= 1;
+        }
+        // return a new error with the line and character number in data object
+        return new WarehouseQueryError(error.message, {
+            lineNumber,
+            charNumber,
+        });
+
+        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }
 

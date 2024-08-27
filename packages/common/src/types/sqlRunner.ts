@@ -61,6 +61,8 @@ type SqlRunnerPivotQueryJobStatusSuccessDetails =
 
 type SqlRunnerJobStatusErrorDetails = {
     error: string;
+    charNumber?: number;
+    lineNumber?: number;
     createdByUserUuid: string;
 };
 

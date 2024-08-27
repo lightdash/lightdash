@@ -90,6 +90,8 @@ export interface WarehouseClient {
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;
+
+    parseError(error: Error): Error;
 }
 
 export type ApiWarehouseCatalog = {

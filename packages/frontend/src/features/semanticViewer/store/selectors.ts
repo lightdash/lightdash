@@ -1,6 +1,17 @@
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
+export const selectSemanticViewerState = (state: RootState) =>
+    state.semanticViewer.status;
+
+export const selectSemanticLayerInfo = (state: RootState) => {
+    if (!state.semanticViewer.info) {
+        throw new Error('Semantic layer has not been initialized');
+    }
+
+    return state.semanticViewer.info;
+};
+
 const selectSelectedDimensions = (state: RootState) =>
     state.semanticViewer.selectedDimensions;
 const selectSelectedTimeDimensions = (state: RootState) =>

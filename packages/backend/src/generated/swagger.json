@@ -8948,6 +8948,50 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SemanticLayerClientInfo": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "features": {
+                        "properties": {
+                            "views": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["views"],
+                        "type": "object"
+                    },
+                    "config": {
+                        "properties": {
+                            "maxQueryLimit": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["maxQueryLimit"],
+                        "type": "object"
+                    }
+                },
+                "required": ["name", "features", "config"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiSemanticLayerClientInfo": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SemanticLayerView": {
                 "properties": {
                     "visible": {
@@ -15125,14 +15169,14 @@
                         }
                     }
                 },
-                "description": "Get login options for email",
+                "description": "Get login options",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
                     {
                         "in": "query",
                         "name": "email",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "string"
                         }

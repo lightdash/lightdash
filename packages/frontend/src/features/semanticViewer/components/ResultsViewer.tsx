@@ -5,14 +5,19 @@ import { ConditionalVisibility } from '../../../components/common/ConditionalVis
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { useAppSelector } from '../store/hooks';
-import { selectAllSelectedFieldsByKind } from '../store/selectors';
+import {
+    selectAllSelectedFieldsByKind,
+    selectSemanticLayerInfo,
+} from '../store/selectors';
 import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();
 
-    const { results, columns, selectedChartType, projectUuid } = useAppSelector(
+    const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
+
+    const { results, columns, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
     );
 

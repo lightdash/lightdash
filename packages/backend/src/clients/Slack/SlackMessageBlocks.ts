@@ -21,13 +21,23 @@ type GetChartAndDashboardBlocksArgs = {
 
 const getSectionFields = (
     fields: [string, string | undefined][],
-): SectionBlock['fields'] =>
-    fields
-        .filter(([, text]) => Boolean(text))
-        .map(([title, text]) => ({
-            type: 'mrkdwn',
-            text: `*${title}*: \n${text}`,
-        }));
+): SectionBlock['fields'] => {
+    const availableFields = fields.filter(([, text]) => Boolean(text));
+
+    if (availableFields.length === 0) {
+        // Return empty field placeholder to avoid `cannot_parse_attachment` error from Slack
+        return [
+            {
+                type: 'mrkdwn',
+                text: ' ',
+            },
+        ];
+    }
+    return availableFields.map(([title, text]) => ({
+        type: 'mrkdwn',
+        text: `*${title}*: \n${text}`,
+    }));
+};
 
 const getBlocks = (blocks: (KnownBlock | undefined)[]): KnownBlock[] =>
     blocks.filter((block): block is KnownBlock => Boolean(block));
