@@ -257,20 +257,18 @@ export const SqlEditor: FC<{
     const decorationsCollectionRef =
         useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
 
-    const onMount: OnMount = useCallback(
-        (editorObj, monacoObj) => {
-            editorRef.current = editorObj;
-            decorationsCollectionRef.current =
-                editorObj.createDecorationsCollection(); // Initialize the decorations collection
-            editorObj.addCommand(
-                monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
-                () => {
-                    onSubmit?.();
-                },
-            );
-        },
-        [onSubmit],
-    );
+    const onMount: OnMount = useCallback((editorObj, monacoObj) => {
+        editorRef.current = editorObj;
+        decorationsCollectionRef.current =
+            editorObj.createDecorationsCollection(); // Initialize the decorations collection
+        editorObj.addCommand(
+            monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
+            () => {
+                // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
+                onSubmitRef.current?.();
+            },
+        );
+    }, []);
 
     useEffect(() => {
         // remove any existing decorations
