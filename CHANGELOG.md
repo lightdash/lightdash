@@ -1,3 +1,10 @@
+## [0.1230.4](https://github.com/lightdash/lightdash/compare/0.1230.3...0.1230.4) (2024-08-27)
+
+
+### Bug Fixes
+
+* allow cmd+space when focusing sql editor ([#11281](https://github.com/lightdash/lightdash/issues/11281)) ([2048cc1](https://github.com/lightdash/lightdash/commit/2048cc1e8225e6cbf7a56b0acd326bdb2f334e5f))
+
 ## [0.1230.3](https://github.com/lightdash/lightdash/compare/0.1230.2...0.1230.3) (2024-08-27)
 
 
