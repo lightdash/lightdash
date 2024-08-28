@@ -1297,9 +1297,15 @@ export default class SchedulerTask {
 
         const getValue = (resultIdx: number) => {
             if (resultIdx >= results.length) {
-                throw new NotEnoughResults(
-                    `Threshold alert error: Can't find enough results`,
-                );
+                if (results.length === 1) {
+                    throw new NotEnoughResults(
+                        `Threshold alert error: Query returned only 1 row, but more rows are required to evaluate the threshold.`,
+                    );
+                } else {
+                    throw new NotEnoughResults(
+                        `Threshold alert error: Insufficient results returned by query. Expected more than ${resultIdx + 1} rows.`,
+                    );
+                }
             }
             const result = results[resultIdx];
 
