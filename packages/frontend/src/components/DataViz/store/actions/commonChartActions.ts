@@ -9,22 +9,31 @@ import {
 } from '@lightdash/common';
 import { createAction } from '@reduxjs/toolkit';
 
-type ResultsPayload =
-    | {
-          type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-          options: VizCartesianChartOptions;
-      }
-    | {
-          type: ChartKind.PIE;
-          options: VizPieChartOptions;
-      }
-    | {
-          type: ChartKind.TABLE;
-          options: VizTableOptions;
-      };
+type ChartTypeConfig = {
+    [ChartKind.VERTICAL_BAR]: {
+        options: VizCartesianChartOptions;
+        config: VizCartesianChartConfig;
+    };
+    [ChartKind.LINE]: {
+        options: VizCartesianChartOptions;
+        config: VizCartesianChartConfig;
+    };
+    [ChartKind.PIE]: {
+        options: VizPieChartOptions;
+        config: VizPieChartConfig;
+    };
+    [ChartKind.TABLE]: {
+        options: VizTableOptions;
+        config: VizTableConfig;
+    };
+};
+
+type ResultsPayload = {
+    [K in keyof ChartTypeConfig]: { type: K } & ChartTypeConfig[K];
+}[keyof ChartTypeConfig];
+
+type ChartConfig = ChartTypeConfig[keyof ChartTypeConfig]['config'];
 
 export const onResults = createAction<ResultsPayload>('chart/onResults');
 
-export const setChartConfig = createAction<
-    VizCartesianChartConfig | VizPieChartConfig | VizTableConfig
->('chart/setChartConfig');
+export const setChartConfig = createAction<ChartConfig>('chart/setChartConfig');

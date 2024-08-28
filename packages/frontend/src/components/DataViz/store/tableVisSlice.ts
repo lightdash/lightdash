@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    deepEqual,
     isVizTableConfig,
     type VizTableConfig,
     type VizTableOptions,
@@ -46,8 +47,17 @@ export const tableVisSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload.type === ChartKind.TABLE) {
-                state.options = action.payload.options;
+            if (action.payload.type !== ChartKind.TABLE) {
+                return;
+            }
+
+            state.options = action.payload.options;
+
+            if (
+                !state.config ||
+                !deepEqual(state.config, action.payload.config)
+            ) {
+                state.config = action.payload.config;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {

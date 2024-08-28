@@ -11,10 +11,7 @@ import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    onResults,
-    setChartConfig,
-} from '../../../components/DataViz/store/actions/commonChartActions';
+import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
@@ -194,18 +191,17 @@ export const RunSemanticQueryButton: FC = () => {
         );
 
         dispatch(onResults(chartResultOptions));
-        dispatch(setChartConfig(chartResultOptions.config));
     }, [
-        selectedChartType,
-        resultsData,
+        allSelectedFields,
+        allSelectedFieldsByKind,
         columns,
         currentVizConfig,
         dispatch,
-        allSelectedFields,
-        allSelectedFieldsByKind,
-        projectUuid,
-        sortBy,
         limit,
+        projectUuid,
+        resultsData,
+        selectedChartType,
+        sortBy,
     ]);
 
     const handleSubmit = useCallback(

@@ -25,10 +25,7 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    onResults,
-    setChartConfig,
-} from '../../../components/DataViz/store/actions/commonChartActions';
+import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
@@ -144,7 +141,6 @@ export const ContentPanel: FC = () => {
         );
 
         dispatch(onResults(chartResultOptions));
-        dispatch(setChartConfig(chartResultOptions.config));
 
         if (resultsHeight === MIN_RESULTS_HEIGHT) {
             setResultsHeight(inputSectionHeight / 2);
