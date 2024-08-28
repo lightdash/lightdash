@@ -6621,7 +6621,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlRunnerChartConfig: {
+    VizBaseConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6776,7 +6776,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -6830,7 +6830,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -6858,46 +6858,47 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizTableConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                columns: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            order: { dataType: 'double' },
-                            frozen: { dataType: 'boolean', required: true },
-                            label: { dataType: 'string', required: true },
-                            reference: { dataType: 'string', required: true },
-                            visible: { dataType: 'boolean', required: true },
-                        },
-                    },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartKind.TABLE': {
         dataType: 'refEnum',
         enums: ['table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableChartSqlConfig: {
+    VizTableConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
-                { ref: 'VizTableConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        columns: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {},
+                            additionalProperties: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: { dataType: 'double' },
+                                    frozen: {
+                                        dataType: 'boolean',
+                                        required: true,
+                                    },
+                                    label: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    reference: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    visible: {
+                                        dataType: 'boolean',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
                 },
@@ -7009,13 +7010,13 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
+                        { ref: 'VizBaseConfig' },
                         {
                             dataType: 'union',
                             subSchemas: [
                                 { ref: 'VizCartesianChartConfig' },
                                 { ref: 'VizPieChartConfig' },
-                                { ref: 'TableChartSqlConfig' },
+                                { ref: 'VizTableConfig' },
                             ],
                         },
                     ],
@@ -7098,13 +7099,13 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
+                        { ref: 'VizBaseConfig' },
                         {
                             dataType: 'union',
                             subSchemas: [
                                 { ref: 'VizCartesianChartConfig' },
                                 { ref: 'VizPieChartConfig' },
-                                { ref: 'TableChartSqlConfig' },
+                                { ref: 'VizTableConfig' },
                             ],
                         },
                     ],
@@ -7180,13 +7181,13 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
+                        { ref: 'VizBaseConfig' },
                         {
                             dataType: 'union',
                             subSchemas: [
                                 { ref: 'VizCartesianChartConfig' },
                                 { ref: 'VizPieChartConfig' },
-                                { ref: 'TableChartSqlConfig' },
+                                { ref: 'VizTableConfig' },
                             ],
                         },
                     ],

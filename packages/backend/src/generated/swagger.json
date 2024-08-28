@@ -7350,7 +7350,7 @@
                     }
                 ]
             },
-            "SqlRunnerChartConfig": {
+            "VizBaseConfig": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/ChartKind"
@@ -7488,7 +7488,7 @@
             "VizCartesianChartConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
@@ -7529,7 +7529,7 @@
             "VizPieChartConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
@@ -7548,62 +7548,53 @@
                     }
                 ]
             },
-            "VizTableConfig": {
-                "properties": {
-                    "columns": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "properties": {
-                                "order": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "frozen": {
-                                    "type": "boolean"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                },
-                                "visible": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "frozen",
-                                "label",
-                                "reference",
-                                "visible"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "object"
-                    }
-                },
-                "required": ["columns"],
-                "type": "object"
-            },
             "ChartKind.TABLE": {
                 "enum": ["table"],
                 "type": "string"
             },
-            "TableChartSqlConfig": {
+            "VizTableConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizTableConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
+                            "columns": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        "frozen": {
+                                            "type": "boolean"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": "string"
+                                        },
+                                        "visible": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "frozen",
+                                        "label",
+                                        "reference",
+                                        "visible"
+                                    ],
+                                    "type": "object"
+                                },
+                                "type": "object"
+                            },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.TABLE"
                             }
                         },
-                        "required": ["type"],
+                        "required": ["columns", "type"],
                         "type": "object"
                     }
                 ]
@@ -7711,7 +7702,7 @@
                     "config": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                                "$ref": "#/components/schemas/VizBaseConfig"
                             },
                             {
                                 "anyOf": [
@@ -7722,7 +7713,7 @@
                                         "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizTableConfig"
                                     }
                                 ]
                             }
@@ -7837,7 +7828,7 @@
                     "config": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                                "$ref": "#/components/schemas/VizBaseConfig"
                             },
                             {
                                 "anyOf": [
@@ -7848,7 +7839,7 @@
                                         "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizTableConfig"
                                     }
                                 ]
                             }
@@ -7924,7 +7915,7 @@
                     "config": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                                "$ref": "#/components/schemas/VizBaseConfig"
                             },
                             {
                                 "anyOf": [
@@ -7935,7 +7926,7 @@
                                         "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizTableConfig"
                                     }
                                 ]
                             }
@@ -9483,7 +9474,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1227.1",
+        "version": "0.1231.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
