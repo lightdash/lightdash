@@ -75,7 +75,6 @@ export const PieChartConfiguration = ({
                 <Config.Heading>Aggregate by</Config.Heading>
 
                 <FieldReferenceSelect
-                    clearable
                     data={aggregateFieldOptions.map((y) => ({
                         value: y.reference,
                         label: y.reference,

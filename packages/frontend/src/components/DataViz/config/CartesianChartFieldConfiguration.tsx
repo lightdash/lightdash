@@ -53,7 +53,7 @@ const YFieldsAxisConfig: FC<{
                                 yLayoutOptions.find(
                                     (y) => y.reference === field.reference,
                                 ) === undefined &&
-                                `Column "${field.reference}" not in SQL query`
+                                `Column "${field.reference}" does not exist. Choose another`
                             }
                             placeholder="Select Y axis"
                             onChange={(value) => {
@@ -134,7 +134,7 @@ const XFieldAxisConfig = ({
                 field?.reference &&
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
                     undefined &&
-                `Column "${field.reference}" not in SQL query`
+                `Column "${field.reference}" does not exist. Choose another`
             }
             fieldType={
                 (field?.reference &&
@@ -171,7 +171,7 @@ const GroupByFieldAxisConfig = ({
             error={
                 field !== undefined &&
                 !groupByOptions.find((x) => x.reference === field.reference) &&
-                `Column "${field.reference}" not in SQL query`
+                `Column "${field.reference}" does not exist. Choose another`
             }
             onChange={(value) => {
                 if (!value) {
