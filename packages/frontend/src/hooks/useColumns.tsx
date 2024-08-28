@@ -31,6 +31,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -60,14 +61,10 @@ export const getRawValueCell = (
     return <span>{`${raw}`}</span>;
 };
 
-export const getValueCell = (
-    info: CellContext<RawResultRow, { value: unknown }>,
-) => {
+export const getValueCell = (info: CellContext<RawResultRow, string>) => {
     const value = info.getValue();
-    if (value === null) return '∅';
-    if (value === undefined) return '-';
-    if (value instanceof Date) return <span>{value.toISOString()}</span>;
-    return <span>{`${value}`}</span>;
+    const formatted = formatRowValueFromWarehouse(value);
+    return <span>{formatted}</span>;
 };
 
 export const useColumns = (): TableColumn[] => {
