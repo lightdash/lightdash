@@ -59,7 +59,6 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
-// TODO: what is `type`?
 export type PivotChartData = {
     results: RawResultRow[];
     indexColumn: { reference: string; type: string };
