@@ -7337,7 +7337,7 @@
                         "type": "object"
                     }
                 },
-                "required": ["valuesColumns", "indexColumn"],
+                "required": ["valuesColumns"],
                 "type": "object"
             },
             "SqlRunnerPivotQueryBody": {
@@ -7423,7 +7423,7 @@
                         "type": "object"
                     }
                 },
-                "required": ["y", "x"],
+                "required": ["y"],
                 "type": "object"
             },
             "Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__": {
@@ -9483,7 +9483,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1227.1",
+        "version": "0.1231.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

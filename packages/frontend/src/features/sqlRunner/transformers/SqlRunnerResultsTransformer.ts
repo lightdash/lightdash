@@ -71,6 +71,13 @@ export class SqlRunnerResultsTransformer extends ResultsTransformer {
         projectUuid: string,
         limit: number,
     ): Promise<PivotChartData> {
+        if (config.x === undefined || config.y.length === 0) {
+            return {
+                results: [],
+                indexColumn: undefined,
+                valuesColumns: [],
+            };
+        }
         const pivotResults = await pivotQueryFn({
             projectUuid,
             sql,

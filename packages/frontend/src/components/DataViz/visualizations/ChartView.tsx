@@ -39,6 +39,21 @@ const ChartView = memo(
             value: spec,
         } = useChart({ config, transformer, sql, projectUuid, limit });
 
+        if (!config.fieldConfig?.x || config.fieldConfig.y.length === 0) {
+            return (
+                <SuboptimalState
+                    title="Incomplete chart configuration"
+                    description={
+                        !config.fieldConfig?.x
+                            ? "You're missing an X axis"
+                            : "You're missing a Y axis"
+                    }
+                    icon={IconAlertCircle}
+                    mt="xl"
+                />
+            );
+        }
+
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust
@@ -46,12 +61,13 @@ const ChartView = memo(
             ? 'Some specified columns do not exist in the data'
             : error?.message;
 
-        if (error) {
+        if (error && !loading) {
             return (
                 <SuboptimalState
                     title="Error generating chart"
                     description={errorMessage}
                     icon={IconAlertCircle}
+                    mt="xl"
                 />
             );
         }

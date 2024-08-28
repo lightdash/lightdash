@@ -7,15 +7,8 @@ import {
     type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, UnstyledButton } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import {
-    IconChevronDown,
-    IconChevronRight,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import { Box } from '@mantine/core';
+import { type FC } from 'react';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -35,47 +28,11 @@ const YFieldsAxisConfig: FC<{
     actions: CartesianChartActionsType;
     sqlColumns: VizSqlColumn[];
 }> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
-    const { hovered, ref } = useHover();
     const dispatch = useVizDispatch();
-    const [isOpen, setIsOpen] = useState(true);
 
     return (
         <>
-            {!isSingle && (
-                <Group ref={ref} position="apart">
-                    <UnstyledButton
-                        onClick={() => setIsOpen(!isOpen)}
-                        sx={{
-                            flex: 1,
-                        }}
-                    >
-                        <Group spacing="two">
-                            <MantineIcon
-                                icon={
-                                    isOpen ? IconChevronDown : IconChevronRight
-                                }
-                            />
-
-                            <Config.Subheading>
-                                Series {index + 1}
-                            </Config.Subheading>
-                        </Group>
-                    </UnstyledButton>
-                    <ActionIcon
-                        onClick={() => {
-                            dispatch(actions.removeYAxisField(index));
-                        }}
-                        sx={{
-                            visibility: hovered ? 'visible' : 'hidden',
-                        }}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ActionIcon>
-                </Group>
-            )}
-
             <Box
-                display={isOpen ? 'block' : 'none'}
                 sx={(theme) => ({
                     paddingLeft: !isSingle ? theme.spacing.xs : 0,
                     borderLeft: !isSingle
@@ -86,6 +43,7 @@ const YFieldsAxisConfig: FC<{
                 <Config>
                     <Config.Section>
                         <FieldReferenceSelect
+                            clearable
                             data={yLayoutOptions.map((y) => ({
                                 value: y.reference,
                                 label: y.reference,
@@ -95,17 +53,19 @@ const YFieldsAxisConfig: FC<{
                                 yLayoutOptions.find(
                                     (y) => y.reference === field.reference,
                                 ) === undefined &&
-                                `Column "${field.reference}" not in SQL query`
+                                `Column "${field.reference}" does not exist. Choose another`
                             }
                             placeholder="Select Y axis"
                             onChange={(value) => {
-                                if (!value) return;
-                                dispatch(
-                                    actions.setYAxisReference({
-                                        reference: value,
-                                        index,
-                                    }),
-                                );
+                                if (!value) {
+                                    dispatch(actions.removeYAxisField(index));
+                                } else
+                                    dispatch(
+                                        actions.setYAxisReference({
+                                            reference: value,
+                                            index,
+                                        }),
+                                    );
                             }}
                             fieldType={
                                 sqlColumns?.find(
@@ -150,8 +110,7 @@ const XFieldAxisConfig = ({
     sqlColumns,
 }: {
     sqlColumns: VizSqlColumn[];
-
-    field: VizSqlCartesianChartLayout['x'];
+    field: VizSqlCartesianChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
@@ -159,23 +118,29 @@ const XFieldAxisConfig = ({
 
     return (
         <FieldReferenceSelect
+            clearable
             data={xLayoutOptions.map((x) => ({
                 value: x.reference,
                 label: x.reference,
             }))}
-            value={field.reference}
+            value={field?.reference ?? null}
             placeholder="Select X axis"
             onChange={(value) => {
-                if (!value) return;
-                dispatch(actions.setXAxisReference(value));
+                if (!value) {
+                    dispatch(actions.removeXAxisField());
+                } else dispatch(actions.setXAxisReference(value));
             }}
             error={
+                field?.reference &&
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
-                    undefined && `Column "${field.reference}" not in SQL query`
+                    undefined &&
+                `Column "${field.reference}" does not exist. Choose another`
             }
             fieldType={
-                sqlColumns?.find((x) => x.reference === field.reference)
-                    ?.type ?? DimensionType.STRING
+                (field?.reference &&
+                    sqlColumns?.find((x) => x.reference === field.reference)
+                        ?.type) ||
+                DimensionType.STRING
             }
         />
     );
@@ -206,7 +171,7 @@ const GroupByFieldAxisConfig = ({
             error={
                 field !== undefined &&
                 !groupByOptions.find((x) => x.reference === field.reference) &&
-                `Column "${field.reference}" not in SQL query`
+                `Column "${field.reference}" does not exist. Choose another`
             }
             onChange={(value) => {
                 if (!value) {
@@ -259,13 +224,12 @@ export const CartesianChartFieldConfiguration = ({
     const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
-
     return (
         <>
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
-                    {xAxisField && xLayoutOptions && (
+                    {xLayoutOptions && (
                         <XFieldAxisConfig
                             sqlColumns={sqlColumns}
                             field={xAxisField}
