@@ -116,7 +116,8 @@ module.exports = {
                 'guides/interactive-dashboards',
                 'guides/how-to-embed-content',
                 'guides/pinning',
-                'guides/sharing-in-slack',
+                'guides/adding-slack-integration',
+                'guides/using-slack-integration',
                 'guides/how-to-create-scheduled-deliveries',
                 'guides/how-to-create-alerts',
                 'guides/version-history',
@@ -258,6 +259,11 @@ module.exports = {
                     items: [
                         'references/dbt-projects',
                         'references/dbt-semantic-layer',
+                        {
+                          type: 'doc',
+                          id: 'references/slack-integration',
+                          label: 'Slack',
+                        },
                         'references/google-sheets',
                     ],
                 },
