@@ -4,11 +4,12 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useSemanticLayerViews } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectSemanticLayerInfo } from '../store/selectors';
 import { enterView } from '../store/semanticViewerSlice';
 
 const SidebarViews = () => {
     const dispatch = useAppDispatch();
-    const { projectUuid } = useAppSelector((state) => state.semanticViewer);
+    const { projectUuid, features } = useAppSelector(selectSemanticLayerInfo);
 
     const views = useSemanticLayerViews({ projectUuid });
 
@@ -28,7 +29,8 @@ const SidebarViews = () => {
         );
     }
 
-    if (views.data.length === 1) {
+    // if semantic layer does not support views, enter the default view.
+    if (!features.views) {
         dispatch(enterView(views.data[0].name));
         return null;
     }

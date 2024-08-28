@@ -3,7 +3,7 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type ResultRow,
+    type RawResultRow,
     type SqlRunnerBody,
     type VizSqlColumn,
 } from '@lightdash/common';
@@ -30,7 +30,7 @@ const scheduleSqlJob = async ({
     });
 
 export type ResultsAndColumns = {
-    results: ResultRow[];
+    results: RawResultRow[];
     columns: VizSqlColumn[];
 };
 
@@ -42,8 +42,10 @@ export type ResultsAndColumns = {
  */
 export const useSqlQueryRun = ({
     onSuccess,
+    onError,
 }: {
     onSuccess: (data: ResultsAndColumns | undefined) => void;
+    onError?: (error: ApiError) => void;
 }) => {
     const { showToastError } = useToaster();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -71,7 +73,9 @@ export const useSqlQueryRun = ({
                     job.details && !isErrorDetails(job.details)
                         ? job.details.fileUrl
                         : undefined;
-                const results = await getResultsFromStream<ResultRow>(url);
+                const results = await getResultsFromStream<
+                    ResultsAndColumns['results'][number]
+                >(url);
 
                 return {
                     results,
@@ -91,6 +95,7 @@ export const useSqlQueryRun = ({
                     title: 'Could not fetch SQL query results',
                     subtitle: err.error.message,
                 });
+                onError?.(err); // pass the error to the onError callback if it exists
             },
             onMutate: () => {
                 // Save the current data to the previousDataRef so we can simulate a keepPreviousData behavior

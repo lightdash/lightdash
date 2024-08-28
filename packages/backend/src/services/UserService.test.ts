@@ -1,4 +1,4 @@
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
+import { EmailStatus, OpenIdIdentityIssuerType } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -32,6 +32,7 @@ import {
 
 const userModel = {
     getOpenIdIssuers: jest.fn(async () => []),
+    hasPasswordByEmail: jest.fn(async () => false),
     findSessionUserByOpenId: jest.fn(async () => undefined),
     findSessionUserByUUID: jest.fn(async () => sessionUser),
     createUser: jest.fn(async () => sessionUser),
@@ -39,6 +40,7 @@ const userModel = {
     getOrganizationsForUser: jest.fn(async () => [sessionUser]),
     findUserByEmail: jest.fn(async () => undefined),
     createPendingUser: jest.fn(async () => newUser),
+    findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
 };
 
 const openIdIdentityModel = {
@@ -48,6 +50,13 @@ const openIdIdentityModel = {
 };
 
 const emailModel = {
+    getPrimaryEmailStatus: jest.fn(
+        async () =>
+            <EmailStatus>{
+                email: 'example',
+                isVerified: true,
+            },
+    ),
     verifyUserEmailIfExists: jest.fn(async () => []),
 };
 
@@ -196,7 +205,7 @@ describe('UserService', () => {
             showOptions: ['okta'],
         });
     });
-    test('redirect is true if only one option is available', async () => {
+    test('should not redirect if only 1 sso is available but no email match', async () => {
         const service = createUserService({
             ...lightdashConfigMock,
             auth: {
@@ -211,9 +220,8 @@ describe('UserService', () => {
         });
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
-            forceRedirect: true,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/google?login_hint=test%40lightdash.com',
+            forceRedirect: false,
+            redirectUri: undefined,
             showOptions: ['google'],
         });
     });
@@ -248,9 +256,8 @@ describe('UserService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
-            showOptions: ['azuread', 'google', 'okta', 'oneLogin', 'email'],
+            redirectUri: undefined,
+            showOptions: ['email', 'google', 'azuread', 'oneLogin', 'okta'],
         });
     });
 
@@ -285,9 +292,8 @@ describe('UserService', () => {
 
         expect(await service.getLoginOptions('test@lightdash.com')).toEqual({
             forceRedirect: false,
-            redirectUri:
-                'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=test%40lightdash.com',
-            showOptions: ['azuread', 'google', 'okta', 'oneLogin'],
+            redirectUri: undefined,
+            showOptions: ['google', 'azuread', 'oneLogin', 'okta'],
         });
     });
 
@@ -366,6 +372,33 @@ describe('UserService', () => {
                 auth: {
                     ...lightdashConfigMock.auth,
                     enableOidcLinking: true,
+                },
+            });
+            await service.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: sessionUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should link openid to an existing user that has the same verified email', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcToEmailLinking: true,
                 },
             });
             await service.loginWithOpenId(openIdUser, undefined, undefined);

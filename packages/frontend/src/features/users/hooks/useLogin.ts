@@ -13,9 +13,11 @@ import useQueryError from '../../../hooks/useQueryError';
 
 export type LoginParams = { email: string; password: string };
 
-const fetchLoginOptions = async (email: string) =>
+const fetchLoginOptions = async (email?: string) =>
     lightdashApi<LoginOptions>({
-        url: `/user/login-options?email=${encodeURIComponent(email)}`,
+        url: `/user/login-options${
+            email ? `?email=${encodeURIComponent(email)}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -24,7 +26,7 @@ export const useFetchLoginOptions = ({
     email,
     useQueryOptions,
 }: {
-    email: string;
+    email?: string;
     useQueryOptions?: UseQueryOptions<LoginOptions, ApiError>;
 }) => {
     const setErrorResponse = useQueryError();

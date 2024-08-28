@@ -49,6 +49,22 @@ export default class CubeClient implements SemanticLayerClient {
         return meta.cubes.filter((c) => c.type === 'view');
     }
 
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
+    }
+
+    getClientInfo() {
+        return {
+            name: 'cube',
+            features: {
+                views: true,
+            },
+            config: {
+                maxQueryLimit: this.getMaxQueryLimit(),
+            },
+        };
+    }
+
     async getViews() {
         const views = await this._getCubeViews();
         return this.transformers.viewsToSemanticLayerViews(views);
@@ -223,9 +239,5 @@ export default class CubeClient implements SemanticLayerClient {
         });
 
         return this.transformers.sqlToString(sql);
-    }
-
-    getMaxQueryLimit() {
-        return this.maxQueryLimit;
     }
 }

@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
@@ -12,19 +13,35 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import {
+    apiGetSemanticLayerInfo,
     apiGetSemanticLayerQueryResults,
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
 } from './requests';
 
-type useGetSemanticLayerViewsParams = {
+type SemanticLayerInfoParams = {
+    projectUuid: string;
+    useQueryParams?: UseQueryOptions<SemanticLayerClientInfo, ApiError>;
+};
+
+export const useSemanticLayerInfo = ({
+    projectUuid,
+    useQueryParams,
+}: SemanticLayerInfoParams) =>
+    useQuery<SemanticLayerClientInfo, ApiError>({
+        queryKey: [projectUuid, 'semanticLayer', 'info'],
+        queryFn: () => apiGetSemanticLayerInfo({ projectUuid }),
+        ...useQueryParams,
+    });
+
+type SemanticLayerViewsParams = {
     projectUuid: string;
 };
 
 export const useSemanticLayerViews = ({
     projectUuid,
-}: useGetSemanticLayerViewsParams) =>
+}: SemanticLayerViewsParams) =>
     useQuery<SemanticLayerView[], ApiError>({
         queryKey: [projectUuid, 'semanticLayer', 'views'],
         queryFn: () => apiGetSemanticLayerViews({ projectUuid }),
@@ -63,21 +80,16 @@ export const useSemanticLayerViewFields = (
 
 type SemanticLayerSqlParams = {
     projectUuid: string;
-    payload: SemanticLayerQuery;
+    query: SemanticLayerQuery;
 };
 
 export const useSemanticLayerSql = (
-    { projectUuid, payload }: SemanticLayerSqlParams,
+    { projectUuid, query }: SemanticLayerSqlParams,
     useQueryParams?: UseQueryOptions<string, ApiError>,
 ) =>
     useQuery<string, ApiError>({
-        queryKey: [
-            projectUuid,
-            'semanticLayer',
-            'sql',
-            JSON.stringify(payload),
-        ],
-        queryFn: () => apiPostSemanticLayerSql({ projectUuid, payload }),
+        queryKey: [projectUuid, 'semanticLayer', 'sql', JSON.stringify(query)],
+        queryFn: () => apiPostSemanticLayerSql({ projectUuid, payload: query }),
         ...useQueryParams,
     });
 

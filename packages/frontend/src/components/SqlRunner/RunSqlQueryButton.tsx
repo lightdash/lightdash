@@ -9,6 +9,7 @@ import {
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
+import useHealth from '../../hooks/health/useHealth';
 import MantineIcon from '../common/MantineIcon';
 import LimitButton from '../LimitButton';
 
@@ -19,6 +20,9 @@ const RunSqlQueryButton: FC<{
     onLimitChange?: (limit: number) => void;
     onSubmit: () => void;
 }> = ({ onSubmit, onLimitChange, isLoading, limit, disabled = false }) => {
+    const health = useHealth();
+    const maxLimit = health.data?.query.maxLimit ?? 5000;
+
     const os = useOs();
     return (
         <Button.Group>
@@ -63,6 +67,7 @@ const RunSqlQueryButton: FC<{
                 <LimitButton
                     disabled={disabled}
                     size="xs"
+                    maxLimit={maxLimit}
                     limit={limit || 500}
                     onLimitChange={onLimitChange}
                 />

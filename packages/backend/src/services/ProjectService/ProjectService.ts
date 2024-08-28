@@ -2026,8 +2026,7 @@ export class ProjectService extends BaseService {
                             );
                         }
 
-                        const formattedRows = formatRows(rows, {}); // TODO fields to itemmap
-                        formattedRows.forEach(writer);
+                        rows.forEach(writer);
                     },
                     {
                         tags: queryTags,

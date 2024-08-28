@@ -247,7 +247,11 @@ export class SavedChartController extends BaseController {
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/promote')
     @OperationId('promoteChart')

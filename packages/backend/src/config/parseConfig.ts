@@ -396,6 +396,7 @@ export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     enableGroupSync: boolean;
     enableOidcLinking: boolean;
+    enableOidcToEmailLinking: boolean;
     google: AuthGoogleConfig;
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
@@ -541,6 +542,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
             enableOidcLinking: process.env.AUTH_ENABLE_OIDC_LINKING === 'true',
+            enableOidcToEmailLinking:
+                process.env.AUTH_ENABLE_OIDC_TO_EMAIL_LINKING === 'true',
             google: {
                 oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
                 oauth2ClientSecret:
