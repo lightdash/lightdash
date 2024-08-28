@@ -13,8 +13,14 @@ export class TableDataModel
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-    constructor(args: { resultsRunner: IResultsRunner<VizChartLayout> }) {
+    private readonly config: VizTableConfig | undefined;
+
+    constructor(args: {
+        resultsRunner: IResultsRunner<VizChartLayout>;
+        config: VizTableConfig | undefined;
+    }) {
         this.resultsRunner = args.resultsRunner;
+        this.config = args.config;
     }
 
     private getColumns() {
@@ -22,12 +28,9 @@ export class TableDataModel
     }
 
     public getVisibleColumns() {
-        // ! TODO: implement
-        // return this.getColumns().filter((column) =>
-        //     this.config ? this.config.columns[column]?.visible : true,
-        // );
-
-        return this.getColumns();
+        return this.getColumns().filter((column) =>
+            this.config ? this.config.columns[column]?.visible : true,
+        );
     }
 
     public getRows() {
@@ -60,10 +63,7 @@ export class TableDataModel
         return { defaultColumnConfig: columns };
     }
 
-    mergeConfig(
-        chartKind: ChartKind.TABLE,
-        _currentConfig?: VizTableConfig,
-    ): VizTableConfig {
+    mergeConfig(chartKind: ChartKind.TABLE): VizTableConfig {
         return {
             type: chartKind,
             metadata: {

@@ -1,7 +1,9 @@
 import {
+    ChartKind,
     TableDataModel,
     type ResultRow,
     type VizTableColumnsConfig,
+    type VizTableConfig,
 } from '@lightdash/common';
 import {
     getCoreRowModel,
@@ -21,30 +23,38 @@ export const useTableDataModel = <T extends ResultsRunner>({
     config: VizTableColumnsConfig | undefined;
     resultsRunner: T;
 }) => {
-    const transformer = useMemo(
-        () => new TableDataModel({ resultsRunner }),
-        [resultsRunner],
-    );
+    const tableModel = useMemo(() => {
+        // TODO: currently usage of this hook relies just on columns, change to rely on full config so we don't have to create a dummy config
+        const tableConfig: VizTableConfig | undefined = config
+            ? {
+                  type: ChartKind.TABLE,
+                  metadata: {
+                      version: 1,
+                  },
+                  columns: config?.columns ?? {},
+              }
+            : undefined;
 
-    const columns = useMemo(
-        () => transformer.getVisibleColumns(),
-        [transformer],
-    );
-    const rows = useMemo(() => transformer.getRows(), [transformer]);
+        return new TableDataModel({
+            resultsRunner,
+            config: tableConfig,
+        });
+    }, [resultsRunner, config]);
 
-    const tanstackColumns: ColumnDef<ResultRow, any>[] = useMemo(
-        () =>
-            columns.map((column) => ({
-                id: column,
-                // react table has a bug with accessors that has dots in them
-                // we found the fix here -> https://github.com/TanStack/table/issues/1671
-                // do not remove the line below
-                accessorFn: (row) => row[column],
-                header: config?.columns[column].label || column,
-                cell: getRawValueCell,
-            })),
-        [columns, config],
-    );
+    const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
+    const rows = useMemo(() => tableModel.getRows(), [tableModel]);
+
+    const tanstackColumns: ColumnDef<ResultRow, any>[] = useMemo(() => {
+        return columns.map((column) => ({
+            id: column,
+            // react table has a bug with accessors that has dots in them
+            // we found the fix here -> https://github.com/TanStack/table/issues/1671
+            // do not remove the line below
+            accessorFn: (row) => row[column],
+            header: config?.columns[column].label || column,
+            cell: getRawValueCell,
+        }));
+    }, [columns, config]);
 
     const table = useReactTable({
         data: rows,
@@ -58,7 +68,7 @@ export const useTableDataModel = <T extends ResultsRunner>({
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
-        count: transformer.getRowsCount(),
+        count: tableModel.getRowsCount(),
         estimateSize: () => getRowHeight(),
         overscan: 25,
     });
@@ -91,8 +101,8 @@ export const useTableDataModel = <T extends ResultsRunner>({
         columns,
         rows,
         getRowHeight,
-        getRowsCount: () => transformer.getRowsCount(),
-        getColumnsCount: () => transformer.getColumnsCount(),
+        getRowsCount: () => tableModel.getRowsCount(),
+        getColumnsCount: () => tableModel.getColumnsCount(),
         getTableData,
         paddingTop,
         paddingBottom,

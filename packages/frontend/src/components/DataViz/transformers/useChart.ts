@@ -26,7 +26,7 @@ export const useChart = <T extends ResultsRunner>({
 }) => {
     const chartTransformer = useMemo(() => {
         if (config.type === ChartKind.PIE) {
-            return new PieChartDataModel({ resultsRunner });
+            return new PieChartDataModel({ resultsRunner, config });
         }
         if (
             config.type === ChartKind.VERTICAL_BAR ||
@@ -34,10 +34,11 @@ export const useChart = <T extends ResultsRunner>({
         ) {
             return new CartesianChartDataModel({
                 resultsRunner,
+                config,
             });
         }
         throw new Error('Unknown chart type');
-    }, [resultsRunner, config.type]);
+    }, [resultsRunner, config]);
 
     const getTransformedData = useCallback(
         async () =>

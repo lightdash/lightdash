@@ -18,62 +18,64 @@ const getChartConfigAndOptions = (
 ) => {
     switch (chartType) {
         case ChartKind.PIE:
-            const pieChartDataModel = new PieChartDataModel({ resultsRunner });
-
-            if (!isVizPieChartConfig(currentVizConfig)) {
+            if (currentVizConfig && !isVizPieChartConfig(currentVizConfig)) {
                 throw new Error('Invalid config for pie chart');
             }
+
+            const pieChartDataModel = new PieChartDataModel({
+                resultsRunner,
+                config: currentVizConfig,
+            });
 
             return {
                 type: chartType,
                 options: pieChartDataModel.getResultOptions(),
-                config: pieChartDataModel.mergeConfig(
-                    chartType,
-                    currentVizConfig,
-                ),
+                config: pieChartDataModel.mergeConfig(chartType),
             } as const;
         case ChartKind.TABLE:
-            if (!isVizTableConfig(currentVizConfig)) {
+            if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
                 throw new Error('Invalid config for table');
             }
 
-            const tableChartDataModel = new TableDataModel({ resultsRunner });
+            const tableChartDataModel = new TableDataModel({
+                resultsRunner,
+                config: currentVizConfig,
+            });
             return {
                 type: chartType,
                 options: tableChartDataModel.getResultOptions(),
-                config: tableChartDataModel.mergeConfig(
-                    chartType,
-                    currentVizConfig,
-                ),
+                config: tableChartDataModel.mergeConfig(chartType),
             } as const;
         case ChartKind.VERTICAL_BAR:
-            if (!isVizBarChartConfig(currentVizConfig)) {
+            if (currentVizConfig && !isVizBarChartConfig(currentVizConfig)) {
                 throw new Error('Invalid config for bar chart');
             }
 
             const barChartModel = new CartesianChartDataModel({
                 resultsRunner,
+                config: currentVizConfig,
             });
 
             return {
                 type: chartType,
                 options: barChartModel.getResultOptions(),
-                config: barChartModel.mergeConfig(chartType, currentVizConfig),
+                config: barChartModel.mergeConfig(chartType),
             } as const;
 
         case ChartKind.LINE:
-            if (!isVizLineChartConfig(currentVizConfig)) {
+            if (currentVizConfig && !isVizLineChartConfig(currentVizConfig)) {
                 throw new Error('Invalid config for line chart');
             }
 
             const lineChartModel = new CartesianChartDataModel({
                 resultsRunner,
+                config: currentVizConfig,
             });
 
             return {
                 type: chartType,
                 options: lineChartModel.getResultOptions(),
-                config: lineChartModel.mergeConfig(chartType, currentVizConfig),
+                config: lineChartModel.mergeConfig(chartType),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);

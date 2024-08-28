@@ -15,23 +15,26 @@ export class PieChartDataModel
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-    constructor(args: { resultsRunner: IResultsRunner<VizChartLayout> }) {
+    private readonly config: VizPieChartConfig | undefined;
+
+    constructor(args: {
+        resultsRunner: IResultsRunner<VizChartLayout>;
+        config: VizPieChartConfig | undefined;
+    }) {
         this.resultsRunner = args.resultsRunner;
+        this.config = args.config;
     }
 
-    mergeConfig(
-        chartKind: ChartKind.PIE,
-        currentConfig: VizPieChartConfig | undefined,
-    ): VizPieChartConfig {
+    mergeConfig(chartKind: ChartKind.PIE): VizPieChartConfig {
         return {
             metadata: {
                 version: 1,
             },
             type: chartKind,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                currentConfig?.fieldConfig,
+                this.config?.fieldConfig,
             ),
-            display: currentConfig?.display,
+            display: this.config?.display,
         };
     }
 
