@@ -84,6 +84,7 @@ export const pieChartConfigSlice = createSlice({
             }
 
             state.options = action.payload.options;
+
             if (
                 !state.config ||
                 !deepEqual(state.config, action.payload.config)

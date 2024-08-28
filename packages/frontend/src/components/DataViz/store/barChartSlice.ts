@@ -14,6 +14,7 @@ export const barChartConfigSlice = createSlice({
             if (action.payload.type !== ChartKind.VERTICAL_BAR) {
                 return;
             }
+
             state.options = action.payload.options;
 
             if (
