@@ -2052,9 +2052,8 @@ export class ProjectService extends BaseService {
         SqlRunnerPivotQueryPayload,
         'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
     >): string {
-        if (!indexColumn) {
-            return sql;
-        }
+        if (!indexColumn) throw new ParameterError('Index column is required');
+
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => col.reference),
