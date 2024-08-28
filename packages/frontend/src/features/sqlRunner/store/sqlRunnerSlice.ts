@@ -59,7 +59,7 @@ const initialState: SqlRunnerState = {
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
-    selectedChartType: undefined,
+    selectedChartType: ChartKind.VERTICAL_BAR,
     resultsTableConfig: undefined,
     modals: {
         saveChartModal: {

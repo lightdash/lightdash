@@ -129,7 +129,12 @@ export const ContentPanel: FC = () => {
     }, [queryResults]);
 
     useEffect(() => {
-        // note: be mindful what you change here as the react-hooks/exhaustive-deps rule is disabled
+        if (queryResults && resultsHeight === MIN_RESULTS_HEIGHT) {
+            setResultsHeight(inputSectionHeight / 2);
+        }
+    }, [queryResults, resultsHeight, inputSectionHeight]);
+
+    useEffect(() => {
         if (!queryResults || !resultsRunner || !selectedChartType) return;
 
         dispatch(setSqlRunnerResults(queryResults));
@@ -141,17 +146,12 @@ export const ContentPanel: FC = () => {
         );
 
         dispatch(onResults(chartResultOptions));
-
-        if (resultsHeight === MIN_RESULTS_HEIGHT) {
-            setResultsHeight(inputSectionHeight / 2);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        // inputSectionHeight,
-        // resultsHeight,
         resultsRunner,
         dispatch,
         queryResults,
+        selectedChartType,
+        currentVizConfig,
     ]);
 
     const activeConfigs = useAppSelector((state) => {
