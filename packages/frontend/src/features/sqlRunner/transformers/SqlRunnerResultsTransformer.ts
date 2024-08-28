@@ -3,7 +3,7 @@ import {
     isErrorDetails,
     type ApiJobScheduledResponse,
     type PivotChartData,
-    type RowData,
+    type RawResultRow,
     type SqlRunnerPivotQueryBody,
     type VizSqlCartesianChartLayout,
     type VizSqlColumn,
@@ -46,7 +46,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
             job.details && !isErrorDetails(job.details)
                 ? job.details.fileUrl
                 : undefined;
-        const results = await getResultsFromStream<RowData>(url);
+        const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
             results,
@@ -59,7 +59,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
 };
 
 export type SqlRunnerResultsTransformerDeps = {
-    rows: RowData[];
+    rows: RawResultRow[];
     columns: VizSqlColumn[];
 };
 

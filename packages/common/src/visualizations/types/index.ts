@@ -1,4 +1,5 @@
 import { type DimensionType } from '../../types/field';
+import { type RawResultRow } from '../../types/results';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -58,12 +59,8 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
-// ! TODO: Rename
-export type RowData = Record<string, unknown>;
-
-// TODO: what is `type`?
 export type PivotChartData = {
-    results: RowData[];
+    results: RawResultRow[];
     indexColumn: { reference: string; type: string };
     valuesColumns: string[];
 };
