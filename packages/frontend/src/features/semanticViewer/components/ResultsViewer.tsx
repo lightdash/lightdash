@@ -1,7 +1,8 @@
-import { isVizTableConfig } from '@lightdash/common';
+import { ChartKind, isVizTableConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
-import { useEffect, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
@@ -20,18 +21,18 @@ const ResultsViewer: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    // Select these configs so we can keep the charts mounted
-    //TODO - refactor to use selector from dataviz slice
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
+    const barChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.VERTICAL_BAR),
     );
-    const lineChartConfig = useAppSelector(
-        (state) => state.lineChartConfig.config,
+    const lineChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.LINE),
     );
-    const pieChartConfig = useAppSelector(
-        (state) => state.pieChartConfig.config,
+    const pieChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.PIE),
     );
-    const tableConfig = useAppSelector((state) => state.tableVisConfig.config);
+    const tableConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.TABLE),
+    );
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
@@ -50,10 +51,6 @@ const ResultsViewer: FC = () => {
             }),
         [results, columns, allSelectedFieldsByKind, projectUuid],
     );
-
-    useEffect(() => {
-        console.log(selectedChartType);
-    }, [selectedChartType]);
 
     return (
         <>
