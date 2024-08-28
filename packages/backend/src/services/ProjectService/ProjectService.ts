@@ -2052,6 +2052,9 @@ export class ProjectService extends BaseService {
         SqlRunnerPivotQueryPayload,
         'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
     >): string {
+        if (!indexColumn) {
+            return sql;
+        }
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => col.reference),
@@ -2116,6 +2119,7 @@ export class ProjectService extends BaseService {
             fileUrl: string;
         } & Omit<PivotChartData, 'results'>
     > {
+        if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
