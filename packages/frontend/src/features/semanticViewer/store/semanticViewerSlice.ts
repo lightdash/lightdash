@@ -9,8 +9,8 @@ import {
     type SemanticLayerField,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
-    type SqlTableConfig,
     type VizSqlColumn,
+    type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
@@ -129,9 +129,10 @@ export interface SemanticViewerState {
     view: string | undefined;
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
+    // TODO: rename this
     selectedChartType: ChartKind | undefined;
 
-    resultsTableConfig: SqlTableConfig | undefined;
+    resultsTableConfig: VizTableConfig | undefined;
 
     results: RawResultRow[];
     columns: VizSqlColumn[];

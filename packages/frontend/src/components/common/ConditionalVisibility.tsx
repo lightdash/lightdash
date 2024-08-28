@@ -16,12 +16,7 @@ export const ConditionalVisibility: FC<ConditionalVisibilityProps> = ({
     isVisible,
     children,
 }) => (
-    <Box
-        h={isVisible ? '100%' : 0}
-        sx={{
-            visibility: isVisible ? 'visible' : 'hidden',
-        }}
-    >
+    <Box h={isVisible ? '100%' : 0} hidden={!isVisible}>
         {children}
     </Box>
 );

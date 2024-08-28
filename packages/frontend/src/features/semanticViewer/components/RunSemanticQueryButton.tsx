@@ -10,10 +10,13 @@ import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
+import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -21,7 +24,6 @@ import {
     selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
-import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
 
 export const RunSemanticQueryButton: FC = () => {
     const os = useOs();
@@ -30,8 +32,11 @@ export const RunSemanticQueryButton: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, sortBy } = useAppSelector(
+    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
+    );
+    const currentVizConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
     );
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
@@ -52,43 +57,47 @@ export const RunSemanticQueryButton: FC = () => {
     });
 
     useEffect(() => {
-        if (resultsData) {
-            const usedColumns = columns.filter((c) =>
-                allSelectedFields.includes(c.reference),
-            );
-            dispatch(
-                setResults({
-                    results: resultsData,
-                    columns: usedColumns,
-                }),
-            );
+        if (!resultsData || selectedChartType === undefined) return;
 
-            dispatch(
-                onResults({
-                    results: resultsData,
-                    columns: usedColumns,
-                    transformer: new SemanticViewerResultsTransformer({
-                        rows: resultsData,
-                        columns: usedColumns,
-                        query: {
-                            ...allSelectedFieldsByKind,
-                            sortBy,
-                            limit,
-                        },
-                        projectUuid,
-                    }),
-                }),
-            );
-        }
+        const usedColumns = columns.filter((c) =>
+            allSelectedFields.includes(c.reference),
+        );
+        dispatch(
+            setResults({
+                results: resultsData,
+                columns: usedColumns,
+            }),
+        );
+
+        const resultsRunner = new SemanticViewerResultsRunner({
+            rows: resultsData,
+            columns: usedColumns,
+            query: {
+                ...allSelectedFieldsByKind,
+                sortBy,
+                limit,
+            },
+            projectUuid,
+        });
+
+        const chartResultOptions = getChartConfigAndOptions(
+            resultsRunner,
+            selectedChartType,
+            currentVizConfig,
+        );
+
+        dispatch(onResults(chartResultOptions));
     }, [
-        resultsData,
-        columns,
-        dispatch,
         allSelectedFields,
         allSelectedFieldsByKind,
-        projectUuid,
-        sortBy,
+        columns,
+        currentVizConfig,
+        dispatch,
         limit,
+        projectUuid,
+        resultsData,
+        selectedChartType,
+        sortBy,
     ]);
 
     const handleSubmit = useCallback(

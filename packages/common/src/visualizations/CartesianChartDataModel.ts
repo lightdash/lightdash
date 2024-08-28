@@ -1,30 +1,49 @@
 import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
-import { type ResultsRunnerBase } from './ResultsRunnerBase';
-import { type VizIndexType } from './types';
+import {
+    type VizCartesianChartConfig,
+    type VizCartesianChartOptions,
+    type VizChartLayout,
+    type VizIndexType,
+} from './types';
+import { type IChartDataModel } from './types/IChartDataModel';
+import { type IResultsRunner } from './types/IResultsRunner';
 
 type CartesianChartKind = Extract<
     ChartKind,
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-type CartesianChartConfig<TPivotChartLayout> = {
-    metadata: {
-        version: number;
-    };
-    type: CartesianChartKind;
-    fieldConfig: TPivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
-};
+// type CartesianChartConfig<TPivotChartLayout> = {
+//     metadata: {
+//         version: number;
+//     };
+//     type: CartesianChartKind;
+//     fieldConfig: TPivotChartLayout | undefined;
+//     display: CartesianChartDisplay | undefined;
+// };
 
-export class CartesianChartDataTransformer<TPivotChartLayout> {
-    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
+export class CartesianChartDataModel
+    implements
+        IChartDataModel<
+            VizCartesianChartOptions,
+            VizCartesianChartConfig,
+            CartesianChartKind
+        >
+{
+    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
+
+    private readonly config: VizCartesianChartConfig | undefined;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
-        this.transformer = args.transformer;
+    constructor(args: {
+        resultsRunner: IResultsRunner<VizChartLayout>;
+        config: VizCartesianChartConfig | undefined;
+    }) {
+        this.resultsRunner = args.resultsRunner;
+        this.config = args.config;
 
         this.colorMap = new Map();
     }
@@ -69,24 +88,25 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         return undefined;
     }
 
-    mergeConfig(
-        type: CartesianChartKind,
-        existingConfig?: CartesianChartConfig<TPivotChartLayout>,
-    ): CartesianChartConfig<TPivotChartLayout> {
+    mergeConfig(chartKind: CartesianChartKind): VizCartesianChartConfig {
         return {
             metadata: {
                 version: 1,
             },
-            type,
-            fieldConfig: this.transformer.mergePivotChartLayout(
-                existingConfig?.fieldConfig,
+            type: chartKind,
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(
+                this.config?.fieldConfig,
             ),
-            display: existingConfig?.display,
+            display: this.config?.display,
         };
     }
 
+    getResultOptions() {
+        return this.resultsRunner.pivotChartOptions();
+    }
+
     async getTransformedData(
-        layout: TPivotChartLayout | undefined,
+        layout: VizChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,
@@ -94,7 +114,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(
+        return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,
@@ -151,7 +171,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                         0,
                     tooltip: {
                         valueFormatter: seriesFormat
-                            ? CartesianChartDataTransformer.getTooltipFormatter(
+                            ? CartesianChartDataModel.getTooltipFormatter(
                                   seriesFormat,
                               )
                             : undefined,
@@ -210,7 +230,7 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                         ? {
                               axisLabel: {
                                   formatter:
-                                      CartesianChartDataTransformer.getTooltipFormatter(
+                                      CartesianChartDataModel.getTooltipFormatter(
                                           display?.yAxis?.[0].format,
                                       ),
                               },

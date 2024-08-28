@@ -4,9 +4,9 @@ import {
     CreateSqlChart,
     FeatureFlags,
     ForbiddenError,
-    isBarChartSQLConfig,
-    isLineChartSQLConfig,
-    isPieChartSQLConfig,
+    isVizBarChartConfig,
+    isVizLineChartConfig,
+    isVizPieChartConfig,
     Organization,
     Project,
     SessionUser,
@@ -69,7 +69,7 @@ export class SavedSqlService extends BaseService {
     > {
         return {
             chartKind: config.type,
-            barChart: isBarChartSQLConfig(config)
+            barChart: isVizBarChartConfig(config)
                 ? {
                       groupByCount: (config.fieldConfig?.groupBy ?? []).length,
                       yAxisCount: (config.fieldConfig?.y ?? []).length,
@@ -80,7 +80,7 @@ export class SavedSqlService extends BaseService {
                       ),
                   }
                 : undefined,
-            lineChart: isLineChartSQLConfig(config)
+            lineChart: isVizLineChartConfig(config)
                 ? {
                       groupByCount: (config.fieldConfig?.groupBy ?? []).length,
                       yAxisCount: (config.fieldConfig?.y ?? []).length,
@@ -91,7 +91,7 @@ export class SavedSqlService extends BaseService {
                       ),
                   }
                 : undefined,
-            pieChart: isPieChartSQLConfig(config)
+            pieChart: isVizPieChartConfig(config)
                 ? {
                       groupByCount: config.fieldConfig?.x ? 1 : 0,
                   }

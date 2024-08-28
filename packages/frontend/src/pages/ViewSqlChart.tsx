@@ -1,4 +1,4 @@
-import { isTableChartSQLConfig } from '@lightdash/common';
+import { isVizTableConfig } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -20,12 +20,14 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
+import { SqlRunnerResultsRunner } from '../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -36,7 +38,6 @@ import {
     setProjectUuid,
     setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformer } from '../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 
 enum TabOption {
     CHART = 'chart',
@@ -79,12 +80,13 @@ const ViewSqlChart = () => {
     useEffect(() => {
         if (sqlChart) {
             dispatch(setSavedChartData(sqlChart));
+            dispatch(setChartConfig(sqlChart.config));
         }
     }, [dispatch, sqlChart]);
 
-    const transformer = useMemo(
+    const resultsRunner = useMemo(
         () =>
-            new SqlRunnerResultsTransformer({
+            new SqlRunnerResultsRunner({
                 rows: data?.results ?? [],
                 columns: data?.columns ?? [],
             }),
@@ -169,18 +171,16 @@ const ViewSqlChart = () => {
                         >
                             {activeTab === TabOption.CHART && currentVisConfig && (
                                 <>
-                                    {isTableChartSQLConfig(
-                                        currentVisConfig,
-                                    ) && (
+                                    {isVizTableConfig(currentVisConfig) && (
                                         <Table
-                                            data={data.results}
+                                            resultsRunner={resultsRunner}
                                             config={currentVisConfig}
                                         />
                                     )}
-                                    {!isTableChartSQLConfig(currentVisConfig) &&
+                                    {!isVizTableConfig(currentVisConfig) &&
                                         data && (
                                             <ChartView
-                                                transformer={transformer}
+                                                resultsRunner={resultsRunner}
                                                 isLoading={isLoading}
                                                 data={data}
                                                 config={currentVisConfig}
@@ -196,7 +196,7 @@ const ViewSqlChart = () => {
                             )}
                             {activeTab === TabOption.RESULTS && (
                                 <Table
-                                    data={data.results}
+                                    resultsRunner={resultsRunner}
                                     config={resultsTableConfig}
                                 />
                             )}

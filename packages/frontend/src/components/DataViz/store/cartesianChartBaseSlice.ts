@@ -2,31 +2,23 @@ import {
     isFormat,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
-    type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type LineChartSqlConfig,
     type VizAggregationOptions,
-    type VizIndexLayoutOptions,
-    type VizPivotLayoutOptions,
-    type VizSqlCartesianChartLayout,
-    type VizValuesLayoutOptions,
+    type VizBarChartConfig,
+    type VizCartesianChartOptions,
+    type VizChartLayout,
+    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { type ResultsAndColumns } from '../Results';
-import { type ResultsTransformer } from '../transformers/ResultsTransformer';
 
-type InitialState = {
-    defaultLayout: VizSqlCartesianChartLayout | undefined;
-    config: BarChartSqlConfig | LineChartSqlConfig | undefined;
-    options: {
-        indexLayoutOptions: VizIndexLayoutOptions[];
-        valuesLayoutOptions: VizValuesLayoutOptions[];
-        pivotLayoutOptions: VizPivotLayoutOptions[];
-    };
+export type CartesianChartState = {
+    defaultLayout: VizChartLayout | undefined;
+    config: VizBarChartConfig | VizLineChartConfig | undefined;
+    options: VizCartesianChartOptions;
 };
 
-const initialState: InitialState = {
+const initialState: CartesianChartState = {
     defaultLayout: undefined,
     config: undefined,
     options: {
@@ -300,19 +292,5 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
-        onResults: (
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            state,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            action: PayloadAction<
-                ResultsAndColumns & { transformer: ResultsTransformer }
-            >,
-        ) => {
-            // This should be called from the sqlRunner or semanticViewer on results
-            // When this is called, this method will update the options and config on the different chat slices
-            // See extraReducers for more details
-        },
     },
 });
-
-export const { onResults } = cartesianChartConfigSlice.actions;
