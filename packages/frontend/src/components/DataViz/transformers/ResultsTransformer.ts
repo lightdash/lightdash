@@ -216,7 +216,7 @@ export class ResultsTransformer
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
-            currentConfig?.x.reference === newDefaultLayout?.x.reference ||
+            currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
             intersectionBy(
                 currentConfig?.y || [],
                 newDefaultLayout?.y || [],

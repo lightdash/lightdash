@@ -18,7 +18,7 @@ export const PieChartConfiguration = ({
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.x.reference,
+        (state) => state.pieChartConfig.config?.fieldConfig?.x?.reference,
     );
     const groupFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
@@ -75,6 +75,7 @@ export const PieChartConfiguration = ({
                 <Config.Heading>Aggregate by</Config.Heading>
 
                 <FieldReferenceSelect
+                    clearable
                     data={aggregateFieldOptions.map((y) => ({
                         value: y.reference,
                         label: y.reference,

@@ -43,10 +43,12 @@ export type VizPivotLayoutOptions = {
 };
 
 export type VizSqlCartesianChartLayout = {
-    x: {
-        reference: string;
-        type: VizIndexType;
-    };
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
     y: {
         reference: string;
         aggregation: VizAggregationOptions;
@@ -64,6 +66,6 @@ export type RowData = Record<string, unknown>;
 // TODO: what is `type`?
 export type PivotChartData = {
     results: RowData[];
-    indexColumn: { reference: string; type: string };
+    indexColumn: { reference: string; type: string } | undefined;
     valuesColumns: string[];
 };
