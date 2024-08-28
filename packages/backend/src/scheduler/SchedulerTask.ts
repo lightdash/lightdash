@@ -1743,7 +1743,7 @@ export default class SchedulerTask {
                         await this.projectService.getResultsForChart(
                             user,
                             savedChartUuid,
-                            QueryExecutionContext.THERSHOLD_ALERT_CHART,
+                            QueryExecutionContext.SCHEDULED_CHART,
                         );
 
                     if (

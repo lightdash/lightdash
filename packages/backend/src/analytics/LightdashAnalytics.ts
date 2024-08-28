@@ -166,7 +166,6 @@ export enum QueryExecutionContext {
     SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
     SCHEDULED_CHART = 'scheduledChart',
     SCHEDULED_DASHBOARD = 'scheduledDashboard',
-    THERSHOLD_ALERT_CHART = 'thresholdAlertChart',
     CALCULATE_TOTAL = 'calculateTotal',
     API = 'api',
     CLI = 'cli',
