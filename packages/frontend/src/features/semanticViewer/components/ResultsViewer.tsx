@@ -87,8 +87,7 @@ const ResultsViewer: FC = () => {
                                     isLoading={false}
                                     style={{
                                         // NOTE: Ensures the chart is always full height
-                                        //height: 500,
-                                        width: '100%',
+                                        minHeight: 500,
                                         flex: 1,
                                         marginTop: mantineTheme.spacing.sm,
                                     }}

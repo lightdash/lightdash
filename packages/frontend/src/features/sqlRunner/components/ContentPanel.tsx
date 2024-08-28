@@ -384,7 +384,7 @@ export const ContentPanel: FC = () => {
                                                                     }
                                                                     style={{
                                                                         height: inputSectionHeight,
-                                                                        width: '100%',
+                                                                        // width: '100%',
                                                                         flex: 1,
                                                                         marginTop:
                                                                             mantineTheme
