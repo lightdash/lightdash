@@ -49,6 +49,7 @@ const ChartView = memo(
                             : "You're missing a Y axis"
                     }
                     icon={IconAlertCircle}
+                    mt="xl"
                 />
             );
         }
@@ -66,6 +67,7 @@ const ChartView = memo(
                     title="Error generating chart"
                     description={errorMessage}
                     icon={IconAlertCircle}
+                    mt="xl"
                 />
             );
         }
