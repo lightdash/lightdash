@@ -14,7 +14,7 @@ import { useChart } from '../transformers/useChart';
 type ChartViewProps<T extends ResultsRunner> = {
     // TODO: we probably can remove this prop
     data: ResultsAndColumns;
-    config: VizCartesianChartConfig | VizPieChartConfig;
+    config?: VizCartesianChartConfig | VizPieChartConfig;
     isLoading: boolean;
     resultsRunner: T;
     sql?: string;

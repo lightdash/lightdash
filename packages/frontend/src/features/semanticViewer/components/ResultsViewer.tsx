@@ -1,8 +1,7 @@
 import { isVizTableConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
@@ -21,11 +20,6 @@ const ResultsViewer: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    // currently editing chart config
-
-    const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
-    );
     // Select these configs so we can keep the charts mounted
     //TODO - refactor to use selector from dataviz slice
     const barChartConfig = useAppSelector(
@@ -37,6 +31,7 @@ const ResultsViewer: FC = () => {
     const pieChartConfig = useAppSelector(
         (state) => state.pieChartConfig.config,
     );
+    const tableConfig = useAppSelector((state) => state.tableVisConfig.config);
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
@@ -56,17 +51,38 @@ const ResultsViewer: FC = () => {
         [results, columns, allSelectedFieldsByKind, projectUuid],
     );
 
+    useEffect(() => {
+        console.log(selectedChartType);
+    }, [selectedChartType]);
+
     return (
         <>
-            {results &&
-                currentVisConfig &&
-                [barChartConfig, lineChartConfig, pieChartConfig].map(
-                    (config, idx) =>
-                        config && (
-                            <ConditionalVisibility
-                                key={idx}
-                                isVisible={selectedChartType === config?.type}
-                            >
+            {[tableConfig, barChartConfig, lineChartConfig, pieChartConfig].map(
+                (config, idx) => {
+                    return (
+                        <ConditionalVisibility
+                            key={idx}
+                            isVisible={
+                                Boolean(config) &&
+                                selectedChartType === config?.type
+                            }
+                        >
+                            {isVizTableConfig(config) ? (
+                                <Paper
+                                    shadow="none"
+                                    radius={0}
+                                    p="sm"
+                                    sx={() => ({
+                                        flex: 1,
+                                        overflow: 'auto',
+                                    })}
+                                >
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        config={config}
+                                    />
+                                </Paper>
+                            ) : (
                                 <ChartView
                                     resultsRunner={resultsRunner}
                                     data={{ results, columns }}
@@ -80,25 +96,10 @@ const ResultsViewer: FC = () => {
                                         marginTop: mantineTheme.spacing.sm,
                                     }}
                                 />
-                            </ConditionalVisibility>
-                        ),
-                )}
-
-            {results && isVizTableConfig(currentVisConfig) && (
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    p="sm"
-                    sx={() => ({
-                        flex: 1,
-                        overflow: 'auto',
-                    })}
-                >
-                    <Table
-                        resultsRunner={resultsRunner}
-                        config={currentVisConfig}
-                    />
-                </Paper>
+                            )}
+                        </ConditionalVisibility>
+                    );
+                },
             )}
         </>
     );
