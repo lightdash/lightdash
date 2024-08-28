@@ -1,3 +1,10 @@
+# [0.1231.0](https://github.com/lightdash/lightdash/compare/0.1230.4...0.1231.0) (2024-08-28)
+
+
+### Features
+
+* allow OIDC to link to account with same verified email ([#11279](https://github.com/lightdash/lightdash/issues/11279)) ([d37eace](https://github.com/lightdash/lightdash/commit/d37eace5a696a492dc950ef6dc161b2e7670996a))
+
 ## [0.1230.4](https://github.com/lightdash/lightdash/compare/0.1230.3...0.1230.4) (2024-08-27)
 
 
