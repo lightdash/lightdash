@@ -300,6 +300,22 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+        setSeriesColor: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                color: string;
+                reference: string;
+            }>,
+        ) => {
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+            config.display.series[action.payload.reference] = {
+                ...config.display.series[action.payload.reference],
+                color: action.payload.color,
+            };
+        },
         onResults: (
             // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
             state,

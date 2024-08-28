@@ -53,7 +53,6 @@ const ChartView = memo(
                 />
             );
         }
-
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust

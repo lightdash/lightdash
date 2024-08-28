@@ -11,6 +11,7 @@ import {
 } from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
+import { CartesianChartSeries } from './CartesianChartSeries';
 
 export const CartesianChartStyling = ({
     selectedChartType,
@@ -200,6 +201,10 @@ export const CartesianChartStyling = ({
                     </Config.Group>
                 </Config.Section>
             </Config>
+            <CartesianChartSeries
+                selectedChartType={selectedChartType}
+                actions={actions}
+            />
         </Stack>
     );
 };

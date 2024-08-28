@@ -156,10 +156,10 @@ export class CartesianChartDataTransformer<TPivotChartLayout> {
                               )
                             : undefined,
                     },
-                    color: this.getSeriesColor(
-                        seriesColumn,
-                        possibleXAxisValues,
-                    ),
+                    color:
+                        (display?.series &&
+                            display.series[seriesColumn]?.color) ||
+                        this.getSeriesColor(seriesColumn, possibleXAxisValues),
                 };
             },
         );
@@ -239,7 +239,7 @@ export type CartesianChartDisplay = {
     }[];
     series?: Record<
         string,
-        { label?: string; format?: Format; yAxisIndex?: number }
+        { label?: string; format?: Format; yAxisIndex?: number; color?: string }
     >;
     legend?: {
         position: 'top' | 'bottom' | 'left' | 'right';
