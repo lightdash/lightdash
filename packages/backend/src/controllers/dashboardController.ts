@@ -16,7 +16,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/dashboards/{dashboardUuid}')
@@ -28,7 +32,11 @@ export class DashboardController extends BaseController {
      * @param dashboardUuid dashboardUuid for the dashboard to run
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/promote')
     @OperationId('promoteDashboard')

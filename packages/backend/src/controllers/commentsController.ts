@@ -21,7 +21,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/comments')
@@ -36,7 +40,11 @@ export class CommentsController extends BaseController {
      * @param dashboardTileUuid the uuid of the dashboard tile
      * @returns the id of the created comment
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/dashboards/{dashboardUuid}/{dashboardTileUuid}')
     @OperationId('createComment')
@@ -93,7 +101,11 @@ export class CommentsController extends BaseController {
      * @param dashboardUuid the uuid of the dashboard
      * @param commentId the uuid of the comment
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/dashboards/{dashboardUuid}/{commentId}')
     @OperationId('resolveComment')
@@ -117,7 +129,11 @@ export class CommentsController extends BaseController {
      * @param dashboardUuid the uuid of the dashboard
      * @param commentId the uuid of the comment
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/dashboards/{dashboardUuid}/{commentId}')
     @OperationId('deleteComment')
