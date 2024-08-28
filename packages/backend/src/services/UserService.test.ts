@@ -1,4 +1,4 @@
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
+import { EmailStatus, OpenIdIdentityIssuerType } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
@@ -40,6 +40,7 @@ const userModel = {
     getOrganizationsForUser: jest.fn(async () => [sessionUser]),
     findUserByEmail: jest.fn(async () => undefined),
     createPendingUser: jest.fn(async () => newUser),
+    findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
 };
 
 const openIdIdentityModel = {
@@ -49,6 +50,13 @@ const openIdIdentityModel = {
 };
 
 const emailModel = {
+    getPrimaryEmailStatus: jest.fn(
+        async () =>
+            <EmailStatus>{
+                email: 'example',
+                isVerified: true,
+            },
+    ),
     verifyUserEmailIfExists: jest.fn(async () => []),
 };
 
@@ -364,6 +372,33 @@ describe('UserService', () => {
                 auth: {
                     ...lightdashConfigMock.auth,
                     enableOidcLinking: true,
+                },
+            });
+            await service.loginWithOpenId(openIdUser, undefined, undefined);
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId as jest.Mock,
+            ).toHaveBeenCalledTimes(0);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: sessionUser.userId,
+                }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+            expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
+                0,
+            );
+        });
+        test('should link openid to an existing user that has the same verified email', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcToEmailLinking: true,
                 },
             });
             await service.loginWithOpenId(openIdUser, undefined, undefined);

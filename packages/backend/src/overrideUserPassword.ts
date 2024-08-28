@@ -1,3 +1,4 @@
+import { NotFoundError } from '@lightdash/common';
 import knex from 'knex';
 import { lightdashConfig } from './config/lightdashConfig';
 import knexConfig from './knexfile';
@@ -29,6 +30,9 @@ import { UserModel } from './models/UserModel';
 
     Logger.info(`Get user by email: ${email}`);
     const user = await userModel.findSessionUserByPrimaryEmail(email);
+    if (user === undefined) {
+        throw new NotFoundError(`Cannot find user with uuid ${email}`);
+    }
     Logger.info(`Update user (${user.userId}) password`);
     await userModel.updatePassword(user.userId, newPassword);
     Logger.info(`Successfully updated user (${user.userId}) password`);
