@@ -32,6 +32,7 @@ import getChartConfigAndOptions from '../../../components/DataViz/transformers/g
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useSqlQueryRun,
     type ResultsAndColumns,
@@ -51,6 +52,7 @@ const MIN_RESULTS_HEIGHT = 10;
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
     const mantineTheme = useMantineTheme();
+    const { showToastError } = useToaster();
 
     // state for helping highlight errors in the editor
     const [hightlightError, setHightlightError] = useState<
@@ -100,6 +102,11 @@ export const ContentPanel: FC = () => {
                 setHightlightError(undefined);
             },
             onError: ({ error }) => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                    subtitle: error.message,
+                });
+
                 if (error?.data) {
                     // highlight error in editor
                     const line = error?.data?.lineNumber;
