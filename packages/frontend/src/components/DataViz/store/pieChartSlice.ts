@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    deepEqual,
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
@@ -85,10 +84,7 @@ export const pieChartConfigSlice = createSlice({
 
             state.options = action.payload.options;
 
-            if (
-                !state.config ||
-                !deepEqual(state.config, action.payload.config)
-            ) {
+            if (!state.config) {
                 state.config = action.payload.config;
             }
         });

@@ -1,4 +1,4 @@
-import { ChartKind, deepEqual, isVizBarChartConfig } from '@lightdash/common';
+import { ChartKind, isVizBarChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { onResults, setChartConfig } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
@@ -17,10 +17,7 @@ export const barChartConfigSlice = createSlice({
 
             state.options = action.payload.options;
 
-            if (
-                !state.config ||
-                !deepEqual(state.config, action.payload.config)
-            ) {
+            if (!state.config) {
                 state.config = action.payload.config;
             }
         });
