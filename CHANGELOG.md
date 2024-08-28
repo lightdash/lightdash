@@ -1,3 +1,10 @@
+# [0.1232.0](https://github.com/lightdash/lightdash/compare/0.1231.0...0.1232.0) (2024-08-28)
+
+
+### Features
+
+* sql runner remove fields ([#11285](https://github.com/lightdash/lightdash/issues/11285)) ([931512a](https://github.com/lightdash/lightdash/commit/931512a3dd50b4b815e3f42dada8ba2dd3656ef5))
+
 # [0.1231.0](https://github.com/lightdash/lightdash/compare/0.1230.4...0.1231.0) (2024-08-28)
 
 
