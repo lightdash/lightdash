@@ -3,7 +3,7 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type ResultRow,
+    type RawResultRow,
     type SqlRunnerBody,
     type VizSqlColumn,
 } from '@lightdash/common';
@@ -27,7 +27,7 @@ const scheduleSqlJob = async ({
     });
 
 export type ResultsAndColumns = {
-    results: ResultRow[];
+    results: RawResultRow[];
     columns: VizSqlColumn[];
 };
 
@@ -36,6 +36,10 @@ type UseSqlQueryRunParams = {
     limit: SqlRunnerBody['limit'];
 };
 
+/**
+ * Gets the SQL query results from the server
+ * This is a hook that is used to get the results of a SQL query - used in the SQL runner
+ */
 export const useSqlQueryRun = (
     projectUuid: string,
     useMutationOptions?: UseMutationOptions<
@@ -58,7 +62,9 @@ export const useSqlQueryRun = (
                     job.details && !isErrorDetails(job.details)
                         ? job.details.fileUrl
                         : undefined;
-                const results = await getResultsFromStream<ResultRow>(url);
+                const results = await getResultsFromStream<
+                    ResultsAndColumns['results'][number]
+                >(url);
 
                 return {
                     results,

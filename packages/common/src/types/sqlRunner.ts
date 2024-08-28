@@ -10,7 +10,7 @@ import {
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';
-import { type ResultRow } from './results';
+import { type RawResultRow } from './results';
 import { type ChartKind } from './savedCharts';
 import { SchedulerJobStatus, type ApiJobScheduledResponse } from './scheduler';
 import { type SpaceSummary } from './space';
@@ -47,7 +47,7 @@ export type SqlRunnerBody = {
 export type SqlRunnerPivotQueryBody = SqlRunnerBody &
     ApiSqlRunnerPivotQueryPayload;
 
-export type SqlRunnerResults = ResultRow[];
+export type SqlRunnerResults = RawResultRow[];
 
 export const sqlRunnerJob = 'sqlRunner';
 export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
@@ -62,6 +62,8 @@ type SqlRunnerPivotQueryJobStatusSuccessDetails =
 
 type SqlRunnerJobStatusErrorDetails = {
     error: string;
+    charNumber?: number;
+    lineNumber?: number;
     createdByUserUuid: string;
 };
 

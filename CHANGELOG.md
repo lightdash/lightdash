@@ -1,3 +1,45 @@
+# [0.1231.0](https://github.com/lightdash/lightdash/compare/0.1230.4...0.1231.0) (2024-08-28)
+
+
+### Features
+
+* allow OIDC to link to account with same verified email ([#11279](https://github.com/lightdash/lightdash/issues/11279)) ([d37eace](https://github.com/lightdash/lightdash/commit/d37eace5a696a492dc950ef6dc161b2e7670996a))
+
+## [0.1230.4](https://github.com/lightdash/lightdash/compare/0.1230.3...0.1230.4) (2024-08-27)
+
+
+### Bug Fixes
+
+* allow cmd+space when focusing sql editor ([#11281](https://github.com/lightdash/lightdash/issues/11281)) ([2048cc1](https://github.com/lightdash/lightdash/commit/2048cc1e8225e6cbf7a56b0acd326bdb2f334e5f))
+
+## [0.1230.3](https://github.com/lightdash/lightdash/compare/0.1230.2...0.1230.3) (2024-08-27)
+
+
+### Bug Fixes
+
+* empty description on slack unfurl ([#11263](https://github.com/lightdash/lightdash/issues/11263)) ([9ac16cf](https://github.com/lightdash/lightdash/commit/9ac16cfe38ab9a61f691129ceed4a44af2b6a833))
+
+## [0.1230.2](https://github.com/lightdash/lightdash/compare/0.1230.1...0.1230.2) (2024-08-27)
+
+
+### Bug Fixes
+
+* parse sql error message and highlight on editor ([#11238](https://github.com/lightdash/lightdash/issues/11238)) ([a4a2887](https://github.com/lightdash/lightdash/commit/a4a28876b30e8b3c4abe3d72f8437b901ce75245))
+
+## [0.1230.1](https://github.com/lightdash/lightdash/compare/0.1230.0...0.1230.1) (2024-08-27)
+
+
+### Bug Fixes
+
+* show instance SSO options ([#11203](https://github.com/lightdash/lightdash/issues/11203)) ([c39043f](https://github.com/lightdash/lightdash/commit/c39043f254f4734d91aa5816b706f2d87c9de4ea))
+
+# [0.1230.0](https://github.com/lightdash/lightdash/compare/0.1229.0...0.1230.0) (2024-08-27)
+
+
+### Features
+
+* hide results table when viewing table chart ([#11207](https://github.com/lightdash/lightdash/issues/11207)) ([286adcd](https://github.com/lightdash/lightdash/commit/286adcd2bfa5757795caa4b7278217a4228c5e66))
+
 # [0.1229.0](https://github.com/lightdash/lightdash/compare/0.1228.1...0.1229.0) (2024-08-26)
 
 

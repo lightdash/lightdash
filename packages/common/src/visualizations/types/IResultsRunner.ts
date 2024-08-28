@@ -1,5 +1,5 @@
 import { type PivotChartData, type VizCartesianChartOptions } from '.';
-import { type ResultRow } from '../../types/results';
+import { type RawResultRow } from '../../types/results';
 
 export interface IResultsRunner<TPivotChartLayout> {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
@@ -20,7 +20,7 @@ export interface IResultsRunner<TPivotChartLayout> {
 
     getColumns(): string[];
 
-    getRows(): ResultRow[];
+    getRows(): RawResultRow[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

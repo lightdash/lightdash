@@ -3,7 +3,7 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiSqlChartWithResults,
-    type ResultRow,
+    type RawResultRow,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
@@ -33,7 +33,7 @@ const getSqlChartAndResults = async ({
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream<ResultRow>(url);
+    const results = await getResultsFromStream<RawResultRow>(url);
 
     return {
         chart: chartAndScheduledJob.chart,

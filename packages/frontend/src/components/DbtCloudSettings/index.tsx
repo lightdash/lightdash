@@ -81,7 +81,7 @@ const DbtCloudSettings: FC<DbtCloudSettingsProps> = ({ projectUuid }) => {
                         </Text>
                         <Text color="dimmed">
                             Read more about using dbt Semantic Layer in our{' '}
-                            <Anchor href="https://docs.lightdash.com/guides/dbt-semantic-layer">
+                            <Anchor href="https://docs.lightdash.com/references/dbt-semantic-layer">
                                 docs guide
                             </Anchor>
                         </Text>

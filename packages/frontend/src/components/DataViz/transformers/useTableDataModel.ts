@@ -1,7 +1,7 @@
 import {
     ChartKind,
     TableDataModel,
-    type ResultRow,
+    type RawResultRow,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -12,7 +12,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
-import { getRawValueCell } from '../../../hooks/useColumns';
+import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 import { type ResultsRunner } from './ResultsRunner';
 
@@ -44,7 +44,7 @@ export const useTableDataModel = <T extends ResultsRunner>({
     const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
     const rows = useMemo(() => tableModel.getRows(), [tableModel]);
 
-    const tanstackColumns: ColumnDef<ResultRow, any>[] = useMemo(() => {
+    const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columns.map((column) => ({
             id: column,
             // react table has a bug with accessors that has dots in them
@@ -52,7 +52,7 @@ export const useTableDataModel = <T extends ResultsRunner>({
             // do not remove the line below
             accessorFn: (row) => row[column],
             header: config?.columns[column].label || column,
-            cell: getRawValueCell,
+            cell: getValueCell,
         }));
     }, [columns, config]);
 

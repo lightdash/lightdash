@@ -3,9 +3,10 @@ import {
     isErrorDetails,
     type ApiJobScheduledResponse,
     type PivotChartData,
-    type RowData,
+    type RawResultRow,
     type SqlRunnerPivotQueryBody,
     type VizChartLayout,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
@@ -45,7 +46,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
             job.details && !isErrorDetails(job.details)
                 ? job.details.fileUrl
                 : undefined;
-        const results = await getResultsFromStream<RowData>(url);
+        const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
             results,
@@ -55,6 +56,11 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     } else {
         throw job;
     }
+};
+
+export type SqlRunnerResultsRunnerDeps = {
+    rows: RawResultRow[];
+    columns: VizSqlColumn[];
 };
 
 export class SqlRunnerResultsRunner extends ResultsRunner {

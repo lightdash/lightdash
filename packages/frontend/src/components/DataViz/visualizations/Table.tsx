@@ -1,4 +1,7 @@
-import { type ResultRow, type VizTableColumnsConfig } from '@lightdash/common';
+import {
+    type RawResultRow,
+    type VizTableColumnsConfig,
+} from '@lightdash/common';
 import { Flex } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
@@ -81,7 +84,7 @@ export const Table = <T extends ResultsRunner>({
                                         .map((cell) => {
                                             const cellValue =
                                                 cell.getValue() as
-                                                    | ResultRow[0]
+                                                    | RawResultRow[0]
                                                     | undefined;
 
                                             return (
@@ -93,8 +96,7 @@ export const Table = <T extends ResultsRunner>({
                                                     hasData={!!cellValue}
                                                     isLargeText={
                                                         (
-                                                            cellValue?.value
-                                                                ?.formatted ||
+                                                            cellValue?.toString() ||
                                                             ''
                                                         ).length >
                                                         SMALL_TEXT_LENGTH

@@ -5,7 +5,7 @@ import {
     VizIndexType,
     type IResultsRunner,
     type PivotChartData,
-    type ResultRow,
+    type RawResultRow,
     type VizChartLayout,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -14,34 +14,12 @@ import {
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
 
-// const isResultRows = (rows: (RowData | ResultRow)[]): rows is ResultRow[] => {
-//     if (rows.length === 0) return false;
-
-//     const firstRow = rows[0];
-//     if (typeof firstRow !== 'object' || firstRow === null) return false;
-
-//     const firstValue = Object.values(firstRow)[0];
-//     if (typeof firstValue !== 'object' || firstValue === null) return false;
-
-//     return 'value' in firstValue;
-// };
-
-// const convertToRowData = (data: ResultRow[]): RowData[] => {
-//     return data.map((row) => {
-//         return Object.fromEntries(
-//             Object.entries(row).map(([key, value]) => {
-//                 return [key, value.value.raw];
-//             }),
-//         );
-//     });
-// };
-
 export class ResultsRunner implements IResultsRunner<VizChartLayout> {
-    protected readonly rows: ResultRow[];
+    protected readonly rows: RawResultRow[];
 
     protected readonly columns: VizSqlColumn[];
 
-    constructor(args: { rows: ResultRow[]; columns: VizSqlColumn[] }) {
+    constructor(args: { rows: RawResultRow[]; columns: VizSqlColumn[] }) {
         this.rows = args.rows;
         this.columns = args.columns;
     }
