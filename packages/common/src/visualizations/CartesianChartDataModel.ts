@@ -3,8 +3,8 @@ import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     type VizCartesianChartConfig,
-    type VizCartesianChartLayout,
     type VizCartesianChartOptions,
+    type VizChartLayout,
     type VizIndexType,
 } from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
@@ -24,20 +24,19 @@ type CartesianChartKind = Extract<
 //     display: CartesianChartDisplay | undefined;
 // };
 
-export class CartesianChartDataModel<
-    TChartLayout extends VizCartesianChartLayout,
-> implements
+export class CartesianChartDataModel
+    implements
         IChartDataModel<
             VizCartesianChartOptions,
             VizCartesianChartConfig,
             CartesianChartKind
         >
 {
-    private readonly resultsRunner: IResultsRunner<TChartLayout>;
+    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
     private colorMap: Map<string, string>;
 
-    constructor(args: { resultsRunner: IResultsRunner<TChartLayout> }) {
+    constructor(args: { resultsRunner: IResultsRunner<VizChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
 
         this.colorMap = new Map();
@@ -104,7 +103,7 @@ export class CartesianChartDataModel<
     }
 
     async getTransformedData(
-        layout: TChartLayout | undefined,
+        layout: VizChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,

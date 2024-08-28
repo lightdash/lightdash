@@ -1,15 +1,19 @@
 import { type ChartKind } from '../types/savedCharts';
-import { type VizTableConfig, type VizTableOptions } from './types';
+import {
+    type VizChartLayout,
+    type VizTableConfig,
+    type VizTableOptions,
+} from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
 import type { IResultsRunner } from './types/IResultsRunner';
 
-export class TableDataModel<TPivotChartLayout>
+export class TableDataModel
     implements
         IChartDataModel<VizTableOptions, VizTableConfig, ChartKind.TABLE>
 {
-    private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
+    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-    constructor(args: { resultsRunner: IResultsRunner<TPivotChartLayout> }) {
+    constructor(args: { resultsRunner: IResultsRunner<VizChartLayout> }) {
         this.resultsRunner = args.resultsRunner;
     }
 

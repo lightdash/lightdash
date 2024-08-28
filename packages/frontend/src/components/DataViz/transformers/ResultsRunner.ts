@@ -6,7 +6,7 @@ import {
     type IResultsRunner,
     type PivotChartData,
     type ResultRow,
-    type VizCartesianChartLayout,
+    type VizChartLayout,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizSqlColumn,
@@ -36,7 +36,7 @@ import { intersectionBy } from 'lodash';
 //     });
 // };
 
-export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
+export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     protected readonly rows: ResultRow[];
 
     protected readonly columns: VizSqlColumn[];
@@ -139,7 +139,7 @@ export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
         };
     }
 
-    defaultPivotChartLayout(): VizCartesianChartLayout | undefined {
+    defaultPivotChartLayout(): VizChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
         );
@@ -161,7 +161,7 @@ export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: VizCartesianChartLayout['x'] = {
+        const x: VizChartLayout['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
@@ -187,7 +187,7 @@ export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
         if (yColumn === undefined) {
             return undefined;
         }
-        const y: VizCartesianChartLayout['y'] = [
+        const y: VizChartLayout['y'] = [
             {
                 reference: yColumn.reference,
                 aggregation:
@@ -204,7 +204,7 @@ export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
         };
     }
 
-    mergePivotChartLayout(currentConfig?: VizCartesianChartLayout) {
+    mergePivotChartLayout(currentConfig?: VizChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
@@ -225,7 +225,7 @@ export class ResultsRunner implements IResultsRunner<VizCartesianChartLayout> {
     }
 
     getPivotChartData(
-        _config: VizCartesianChartLayout,
+        _config: VizChartLayout,
         _sql?: string,
         _projectUuid?: string,
         _limit?: number,

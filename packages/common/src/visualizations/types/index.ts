@@ -44,7 +44,7 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
-export type VizCartesianChartLayout = {
+export type VizChartLayout = {
     x: {
         reference: string;
         type: VizIndexType;
@@ -107,25 +107,25 @@ export type VizBaseConfig = {
 
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: VizCartesianChartLayout | undefined;
+    fieldConfig: VizChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: VizCartesianChartLayout | undefined;
+    fieldConfig: VizChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
-    fieldConfig: VizCartesianChartLayout | undefined; // PR NOTE: types are identical
+    fieldConfig: VizChartLayout | undefined; // PR NOTE: types are identical
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
-    fieldConfig: VizCartesianChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
+    fieldConfig: VizChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
     display: VizPieChartDisplay | undefined;
 };
 
@@ -156,3 +156,9 @@ export const isVizPieChartConfig = (
 export const isVizTableConfig = (
     value: VizBaseConfig | undefined,
 ): value is VizTableConfig => !!value && value.type === ChartKind.TABLE;
+
+export type VizChartConfig =
+    | VizBarChartConfig
+    | VizLineChartConfig
+    | VizPieChartConfig
+    | VizTableConfig;

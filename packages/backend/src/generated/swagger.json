@@ -7381,7 +7381,7 @@
                 "enum": ["time", "category"],
                 "type": "string"
             },
-            "VizCartesianChartLayout": {
+            "VizChartLayout": {
                 "properties": {
                     "groupBy": {
                         "items": {
@@ -7496,7 +7496,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7537,7 +7537,7 @@
                                 "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"

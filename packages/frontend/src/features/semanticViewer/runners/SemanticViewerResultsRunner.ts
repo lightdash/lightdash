@@ -3,14 +3,14 @@ import {
     type ResultRow,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
-    type VizCartesianChartLayout,
+    type VizChartLayout,
     type VizSqlColumn,
 } from '@lightdash/common';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
-    config: VizCartesianChartLayout,
+    config: VizChartLayout,
 ): SemanticLayerPivot => {
     return {
         on: [config.x.reference],
@@ -43,9 +43,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         this.projectUuid = projectUuid;
     }
 
-    async getPivotChartData(
-        config: VizCartesianChartLayout,
-    ): Promise<PivotChartData> {
+    async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,

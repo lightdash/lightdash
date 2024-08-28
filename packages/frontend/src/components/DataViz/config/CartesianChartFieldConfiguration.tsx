@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type ChartKind,
-    type VizCartesianChartLayout,
+    type VizChartLayout,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizSqlColumn,
@@ -28,7 +28,7 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: VizCartesianChartLayout['y'][number];
+    field: VizChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -151,7 +151,7 @@ const XFieldAxisConfig = ({
 }: {
     sqlColumns: VizSqlColumn[];
 
-    field: VizCartesianChartLayout['x'];
+    field: VizChartLayout['x'];
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {

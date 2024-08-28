@@ -7,14 +7,14 @@ import {
     isVizTableConfig,
     PieChartDataModel,
     TableDataModel,
-    type VizBaseConfig,
+    type VizChartConfig,
 } from '@lightdash/common';
 import { type ResultsRunner } from './ResultsRunner';
 
-const getChartConfigAndOptions = <T extends VizBaseConfig>(
+const getChartConfigAndOptions = (
     resultsRunner: ResultsRunner,
     chartType: ChartKind,
-    currentVizConfig?: T,
+    currentVizConfig?: VizChartConfig,
 ) => {
     switch (chartType) {
         case ChartKind.PIE:
