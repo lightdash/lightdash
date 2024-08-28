@@ -11,8 +11,12 @@ import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
-import getChartResultOptions from '../../../components/DataViz/transformers/getChartDataModel';
+import {
+    onResults,
+    setChartConfig,
+} from '../../../components/DataViz/store/actions/commonChartActions';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
@@ -132,6 +136,9 @@ export const RunSemanticQueryButton: FC = () => {
     const { columns, limit, sortBy, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
     );
+    const currentVizConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
+    );
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
@@ -180,16 +187,19 @@ export const RunSemanticQueryButton: FC = () => {
             projectUuid,
         });
 
-        const chartResultOptions = getChartResultOptions(
+        const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
             selectedChartType,
+            currentVizConfig,
         );
 
         dispatch(onResults(chartResultOptions));
+        dispatch(setChartConfig(chartResultOptions.config));
     }, [
         selectedChartType,
         resultsData,
         columns,
+        currentVizConfig,
         dispatch,
         allSelectedFields,
         allSelectedFieldsByKind,

@@ -1,4 +1,4 @@
-import { ChartKind } from '../types/savedCharts';
+import { type ChartKind } from '../types/savedCharts';
 import {
     type PivotChartData,
     type VizPieChartConfig,
@@ -19,13 +19,14 @@ export class PieChartDataModel<TPivotChartLayout>
     }
 
     mergeConfig(
+        chartKind: ChartKind.PIE,
         currentConfig: VizPieChartConfig | undefined,
     ): VizPieChartConfig {
         return {
             metadata: {
                 version: 1,
             },
-            type: ChartKind.PIE,
+            type: chartKind,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
                 currentConfig?.fieldConfig,
             ),

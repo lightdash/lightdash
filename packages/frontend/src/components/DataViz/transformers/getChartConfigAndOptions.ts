@@ -11,10 +11,10 @@ import {
 } from '@lightdash/common';
 import { type ResultsRunner } from './ResultsRunner';
 
-const getChartResultOptions = <T extends VizBaseConfig>(
-    currentVizConfig: T,
+const getChartConfigAndOptions = <T extends VizBaseConfig>(
     resultsRunner: ResultsRunner,
     chartType: ChartKind,
+    currentVizConfig?: T,
 ) => {
     switch (chartType) {
         case ChartKind.PIE:
@@ -27,7 +27,10 @@ const getChartResultOptions = <T extends VizBaseConfig>(
             return {
                 type: chartType,
                 options: pieChartDataModel.getResultOptions(),
-                config: pieChartDataModel.mergeConfig(currentVizConfig),
+                config: pieChartDataModel.mergeConfig(
+                    chartType,
+                    currentVizConfig,
+                ),
             } as const;
         case ChartKind.TABLE:
             if (!isVizTableConfig(currentVizConfig)) {
@@ -38,7 +41,10 @@ const getChartResultOptions = <T extends VizBaseConfig>(
             return {
                 type: chartType,
                 options: tableChartDataModel.getResultOptions(),
-                config: tableChartDataModel.mergeConfig(currentVizConfig),
+                config: tableChartDataModel.mergeConfig(
+                    chartType,
+                    currentVizConfig,
+                ),
             } as const;
         case ChartKind.VERTICAL_BAR:
             if (!isVizBarChartConfig(currentVizConfig)) {
@@ -52,7 +58,7 @@ const getChartResultOptions = <T extends VizBaseConfig>(
             return {
                 type: chartType,
                 options: barChartModel.getResultOptions(),
-                config: barChartModel.mergeConfig(currentVizConfig),
+                config: barChartModel.mergeConfig(chartType, currentVizConfig),
             } as const;
 
         case ChartKind.LINE:
@@ -67,11 +73,11 @@ const getChartResultOptions = <T extends VizBaseConfig>(
             return {
                 type: chartType,
                 options: lineChartModel.getResultOptions(),
-                config: lineChartModel.mergeConfig(currentVizConfig),
+                config: lineChartModel.mergeConfig(chartType, currentVizConfig),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);
     }
 };
 
-export default getChartResultOptions;
+export default getChartConfigAndOptions;

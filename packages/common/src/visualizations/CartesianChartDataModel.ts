@@ -2,8 +2,8 @@ import { CustomFormatType, Format, friendlyName } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
-    VizCartesianChartLayout,
     type VizCartesianChartConfig,
+    type VizCartesianChartLayout,
     type VizCartesianChartOptions,
     type VizIndexType,
 } from './types';

@@ -25,9 +25,12 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
+import {
+    onResults,
+    setChartConfig,
+} from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
-import getChartResultOptions from '../../../components/DataViz/transformers/getChartDataModel';
+import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
@@ -79,7 +82,7 @@ export const ContentPanel: FC = () => {
     } = useAppSelector((state) => state.sqlRunner);
 
     // currently editing chart config
-    const currentVisConfig = useAppSelector((state) =>
+    const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
 
@@ -134,12 +137,14 @@ export const ContentPanel: FC = () => {
 
         dispatch(setSqlRunnerResults(queryResults));
 
-        const chartResultOptions = getChartResultOptions(
+        const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
             selectedChartType,
+            currentVizConfig,
         );
 
         dispatch(onResults(chartResultOptions));
+        dispatch(setChartConfig(chartResultOptions.config));
 
         if (resultsHeight === MIN_RESULTS_HEIGHT) {
             setResultsHeight(inputSectionHeight / 2);
@@ -280,7 +285,7 @@ export const ContentPanel: FC = () => {
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
-                            overflowY: isVizTableConfig(currentVisConfig)
+                            overflowY: isVizTableConfig(currentVizConfig)
                                 ? 'auto'
                                 : 'hidden',
                             height: inputSectionHeight,
@@ -300,7 +305,7 @@ export const ContentPanel: FC = () => {
                         >
                             {queryResults?.results &&
                                 resultsRunner &&
-                                currentVisConfig && (
+                                currentVizConfig && (
                                     <>
                                         {activeConfigs.chartConfigs.map((c) => (
                                             <ConditionalVisibility

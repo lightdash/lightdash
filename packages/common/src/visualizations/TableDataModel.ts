@@ -1,10 +1,11 @@
-import { ChartKind } from '../types/savedCharts';
+import { type ChartKind } from '../types/savedCharts';
 import { type VizTableConfig, type VizTableOptions } from './types';
 import { type IChartDataModel } from './types/IChartDataModel';
 import type { IResultsRunner } from './types/IResultsRunner';
 
 export class TableDataModel<TPivotChartLayout>
-    implements IChartDataModel<VizTableOptions, VizTableConfig>
+    implements
+        IChartDataModel<VizTableOptions, VizTableConfig, ChartKind.TABLE>
 {
     private readonly resultsRunner: IResultsRunner<TPivotChartLayout>;
 
@@ -55,9 +56,12 @@ export class TableDataModel<TPivotChartLayout>
         return { defaultColumnConfig: columns };
     }
 
-    mergeConfig(_currentConfig?: VizTableConfig): VizTableConfig {
+    mergeConfig(
+        chartKind: ChartKind.TABLE,
+        _currentConfig?: VizTableConfig,
+    ): VizTableConfig {
         return {
-            type: ChartKind.TABLE,
+            type: chartKind,
             metadata: {
                 version: 1,
             },

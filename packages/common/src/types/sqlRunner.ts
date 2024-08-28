@@ -2,6 +2,8 @@ import { type ApiError, type PivotChartData } from '..';
 import {
     type VizAggregationOptions,
     type VizBaseConfig,
+    type VizCartesianChartConfig,
+    type VizPieChartConfig,
     type VizSqlColumn,
     type VizTableConfig,
 } from '../visualizations/types';
@@ -9,7 +11,7 @@ import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type ResultRow } from './results';
-import { ChartKind } from './savedCharts';
+import { type ChartKind } from './savedCharts';
 import { SchedulerJobStatus, type ApiJobScheduledResponse } from './scheduler';
 import { type SpaceSummary } from './space';
 import { type LightdashUser } from './user';
