@@ -35,6 +35,12 @@ if [ $IS_MASTER_BRANCH = 1 ]; then
     exit 1
 fi
 
+HAS_RESTRICTED_WORDS=$(echo $BRANCH_INFO | grep -iq -e 'WORKDAY' -e 'PERFTOOL' && { echo 1; } || { echo 0; })
+if [ $HAS_RESTRICTED_WORDS = 1 ]; then
+    echo "#### Branch name must not use restricted words: WORKDAY, PERFTOOL"
+    exit 1
+fi
+
 HAS_PUBLIC_REMOTE=$(git remote get-url public | grep -q 'No such remote' && { echo 0; } || { echo 1; })
 if [ $HAS_PUBLIC_REMOTE = 0 ]; then
     echo '#### Please set a remote repo named "public" where code should be pushed.'
