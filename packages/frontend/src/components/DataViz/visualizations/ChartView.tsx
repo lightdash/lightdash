@@ -39,12 +39,12 @@ const ChartView = memo(
             value: spec,
         } = useChart({ config, resultsRunner, sql, projectUuid, limit });
 
-        if (!config.fieldConfig?.x || config.fieldConfig.y.length === 0) {
+        if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
             return (
                 <SuboptimalState
                     title="Incomplete chart configuration"
                     description={
-                        !config.fieldConfig?.x
+                        !config?.fieldConfig?.x
                             ? "You're missing an X axis"
                             : "You're missing a Y axis"
                     }
