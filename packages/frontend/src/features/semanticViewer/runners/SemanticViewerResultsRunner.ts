@@ -13,7 +13,7 @@ const transformChartLayoutToSemanticPivot = (
     config: VizChartLayout,
 ): SemanticLayerPivot => {
     return {
-        on: [config.x.reference],
+        on: config.x ? [config.x.reference] : [],
         index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
         values: config.y.map((y) => ({
             name: y.reference,

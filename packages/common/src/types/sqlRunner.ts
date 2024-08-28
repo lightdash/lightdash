@@ -25,10 +25,12 @@ export type SqlRunnerPayload = {
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
-    indexColumn: {
-        reference: string;
-        type: string;
-    };
+    indexColumn:
+        | {
+              reference: string;
+              type: string;
+          }
+        | undefined;
     valuesColumns: {
         reference: string;
         aggregation: VizAggregationOptions;

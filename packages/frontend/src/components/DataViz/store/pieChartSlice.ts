@@ -4,6 +4,7 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
     type VizChartLayout,
+    type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
 } from '@lightdash/common';
@@ -32,7 +33,10 @@ export const pieChartConfigSlice = createSlice({
     reducers: {
         setGroupFieldIds: (
             { config },
-            action: PayloadAction<VizChartLayout['x']>,
+            action: PayloadAction<{
+                reference: string;
+                type: VizIndexType;
+            }>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = {

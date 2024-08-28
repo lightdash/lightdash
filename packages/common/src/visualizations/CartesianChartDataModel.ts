@@ -138,8 +138,10 @@ export class CartesianChartDataModel
 
         const shouldStack = display?.stack === true;
 
-        const possibleXAxisValues = transformedData.results.map(
-            (row) => `${row[transformedData.indexColumn.reference]}`,
+        const possibleXAxisValues = transformedData.results.map((row) =>
+            transformedData.indexColumn?.reference
+                ? `${row[transformedData.indexColumn.reference]}`
+                : '-',
         );
 
         const series = transformedData.valuesColumns.map(
@@ -150,7 +152,7 @@ export class CartesianChartDataModel
 
                 return {
                     dimensions: [
-                        transformedData.indexColumn.reference,
+                        transformedData.indexColumn?.reference,
                         seriesColumn,
                     ],
                     type: defaultSeriesType,
@@ -160,7 +162,7 @@ export class CartesianChartDataModel
                             display.series[seriesColumn]?.label) ||
                         friendlyName(seriesColumn),
                     encode: {
-                        x: transformedData.indexColumn.reference,
+                        x: transformedData.indexColumn?.reference,
                         y: seriesColumn,
                     },
                     yAxisIndex:
@@ -194,12 +196,12 @@ export class CartesianChartDataModel
             xAxis: {
                 type:
                     display?.xAxis?.type ||
-                    transformedData.indexColumn.type ||
+                    transformedData.indexColumn?.type ||
                     DEFAULT_X_AXIS_TYPE,
                 name:
                     display?.xAxis?.label ||
                     friendlyName(
-                        transformedData.indexColumn.reference || 'xAxisColumn',
+                        transformedData.indexColumn?.reference || 'xAxisColumn',
                     ),
                 nameLocation: 'center',
                 nameGap: 30,

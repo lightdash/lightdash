@@ -6597,11 +6597,20 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 indexColumn: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        type: { dataType: 'string', required: true },
-                        reference: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: { dataType: 'string', required: true },
+                                reference: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
             },
@@ -6693,11 +6702,20 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 x: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        type: { ref: 'VizIndexType', required: true },
-                        reference: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: { ref: 'VizIndexType', required: true },
+                                reference: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
             },

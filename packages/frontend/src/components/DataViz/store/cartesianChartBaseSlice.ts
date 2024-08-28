@@ -32,16 +32,15 @@ export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
-        setXAxisReference: (
-            state,
-            action: PayloadAction<VizChartLayout['x']['reference']>,
-        ) => {
-            if (state.config?.fieldConfig?.x) {
-                state.config.fieldConfig.x.reference = action.payload;
-                state.config.fieldConfig.x.type =
-                    state.options.indexLayoutOptions.find(
-                        (x) => x.reference === action.payload,
-                    )?.type ?? VizIndexType.CATEGORY;
+        setXAxisReference: (state, action: PayloadAction<string>) => {
+            if (state.config?.fieldConfig) {
+                state.config.fieldConfig.x = {
+                    reference: action.payload,
+                    type:
+                        state.options.indexLayoutOptions.find(
+                            (x) => x.reference === action.payload,
+                        )?.type ?? VizIndexType.CATEGORY,
+                };
             }
         },
         setGroupByReference: (
@@ -217,6 +216,10 @@ export const cartesianChartConfigSlice = createSlice({
                     );
                 }
             }
+        },
+        removeXAxisField: (state) => {
+            if (!state.config?.fieldConfig) return;
+            delete state.config.fieldConfig.x;
         },
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;

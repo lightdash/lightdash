@@ -91,8 +91,10 @@ export class PieChartDataModel
                     radius: display?.isDonut ? ['30%', '70%'] : '50%',
                     center: ['50%', '50%'],
                     data: transformedData.results.map((result) => ({
-                        name: result[transformedData.indexColumn.reference],
-                        groupId: transformedData.indexColumn.reference,
+                        name: transformedData.indexColumn?.reference
+                            ? result[transformedData.indexColumn.reference]
+                            : '-',
+                        groupId: transformedData.indexColumn?.reference,
                         value: result[transformedData.valuesColumns[0]],
                     })),
                 },
