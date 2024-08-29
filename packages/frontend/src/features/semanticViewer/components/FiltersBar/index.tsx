@@ -1,6 +1,6 @@
 import { SemanticLayerStringFilterOperator } from '@lightdash/common';
-import { Button, Select, Stack } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { ActionIcon, Button, Group, Select, Stack } from '@mantine/core';
+import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useSemanticLayerViewFields } from '../../api/hooks';
@@ -74,24 +74,31 @@ const FiltersBar: FC = () => {
                     Add filter
                 </Button>
             ) : (
-                <Select
-                    size="xs"
-                    data={availableFieldOptions}
-                    onChange={(value) => {
-                        if (value) {
-                            dispatch(
-                                addFilter({
-                                    field: value,
-                                    operator:
-                                        SemanticLayerStringFilterOperator.IS,
-                                    values: [],
-                                }),
-                            );
-                        }
+                <Group spacing="xs">
+                    <Select
+                        size="xs"
+                        data={availableFieldOptions}
+                        placeholder="Select field"
+                        searchable
+                        onChange={(value) => {
+                            if (value) {
+                                dispatch(
+                                    addFilter({
+                                        field: value,
+                                        operator:
+                                            SemanticLayerStringFilterOperator.IS,
+                                        values: [],
+                                    }),
+                                );
+                            }
 
-                        setCanAddFilter(true);
-                    }}
-                />
+                            setCanAddFilter(true);
+                        }}
+                    />
+                    <ActionIcon size="xs" onClick={() => setCanAddFilter(true)}>
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Group>
             )}
         </Stack>
     );
