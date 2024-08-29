@@ -2,7 +2,8 @@ import {
     SemanticLayerStringFilterOperator,
     type SemanticLayerFilter,
 } from '@lightdash/common';
-import { Button, Flex, Select, type SelectItem } from '@mantine/core';
+import { ActionIcon, Flex, Select, type SelectItem } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MultiStringInput from './MultiStringInput';
 
@@ -20,8 +21,10 @@ const Filter: FC<FilterProps> = ({
     onUpdate,
 }) => {
     return (
-        <Flex>
+        <Flex align="center" gap="xs" m="sm">
             <Select
+                size="xs"
+                style={{ flex: 1 }}
                 data={availableFields}
                 value={filter.field}
                 onChange={(value) => {
@@ -34,6 +37,8 @@ const Filter: FC<FilterProps> = ({
             />
             {/* TODO: Add operator dropdown - this should come from filter.availableOperators which isn't yet available from the API */}
             <Select
+                size="xs"
+                style={{ flex: 1 }}
                 data={Object.values(SemanticLayerStringFilterOperator)}
                 value={filter.operator}
                 onChange={(value: SemanticLayerStringFilterOperator | null) => {
@@ -45,12 +50,16 @@ const Filter: FC<FilterProps> = ({
                 }}
             />
             <MultiStringInput
+                size="xs"
+                style={{ flex: 2 }}
                 values={filter.values}
                 onChange={(values) => {
                     onUpdate({ ...filter, values });
                 }}
             />
-            <Button onClick={onDelete}>Delete</Button>
+            <ActionIcon size="xs" onClick={onDelete}>
+                <IconTrash color="red" />
+            </ActionIcon>
         </Flex>
     );
 };
