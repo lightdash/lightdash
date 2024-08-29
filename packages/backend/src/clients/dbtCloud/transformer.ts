@@ -6,6 +6,7 @@ import {
     DbtGraphQLJsonResult,
     DbtGraphQLMetric,
     FieldType as FieldKind,
+    getAvailableSemanticLayerFilterOperators,
     SemanticLayerField,
     SemanticLayerSortByDirection,
     SemanticLayerTransformer,
@@ -28,28 +29,43 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
 > = {
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
         const semanticDimensions: SemanticLayerField[] = dimensions.map(
-            (dimension) => ({
-                name: dimension.name,
-                label: dimension.label ?? dimension.name,
-                description: dimension.description ?? '',
-                type: getSemanticLayerTypeFromDbtType(dimension.type),
-                visible: dimension.visible,
-                kind: FieldKind.DIMENSION,
-                availableGranularities: dimension.queryableGranularities.map(
-                    getSemanticLayerTimeGranularity,
-                ),
-            }),
+            (dimension) => {
+                const type = getSemanticLayerTypeFromDbtType(dimension.type);
+                const availableOperators =
+                    getAvailableSemanticLayerFilterOperators(type);
+
+                return {
+                    name: dimension.name,
+                    label: dimension.label ?? dimension.name,
+                    description: dimension.description ?? '',
+                    type,
+                    visible: dimension.visible,
+                    kind: FieldKind.DIMENSION,
+                    availableGranularities:
+                        dimension.queryableGranularities.map(
+                            getSemanticLayerTimeGranularity,
+                        ),
+                    availableOperators,
+                };
+            },
         );
 
-        const semanticMetrics: SemanticLayerField[] = metrics.map((metric) => ({
-            name: metric.name,
-            label: metric.label ?? metric.name,
-            description: metric.description ?? '',
-            visible: metric.visible,
-            type: getSemanticLayerTypeFromDbtType(metric.type),
-            kind: FieldKind.METRIC,
-            availableGranularities: [],
-        }));
+        const semanticMetrics: SemanticLayerField[] = metrics.map((metric) => {
+            const type = getSemanticLayerTypeFromDbtType(metric.type);
+            const availableOperators =
+                getAvailableSemanticLayerFilterOperators(type);
+
+            return {
+                name: metric.name,
+                label: metric.label ?? metric.name,
+                description: metric.description ?? '',
+                visible: metric.visible,
+                type,
+                kind: FieldKind.METRIC,
+                availableGranularities: [],
+                availableOperators,
+            };
+        });
 
         return [...semanticDimensions, ...semanticMetrics];
     },

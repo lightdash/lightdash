@@ -1,5 +1,9 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
-import { type SemanticLayerFilter } from './semanticLayerFilter';
+import {
+    SemanticLayerStringFilterOperator,
+    type SemanticLayerFilter,
+} from './semanticLayerFilter';
 
 export * from './semanticLayerFilter';
 
@@ -46,6 +50,7 @@ export type SemanticLayerField = {
     visible: boolean;
     aggType?: string; // eg: count, sum
     availableGranularities: SemanticLayerTimeGranularity[];
+    availableOperators: SemanticLayerStringFilterOperator[];
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
@@ -153,3 +158,24 @@ export type SemanticLayerQueryPayload = {
     query: SemanticLayerQuery;
     context: 'semanticViewer';
 };
+
+export function getAvailableSemanticLayerFilterOperators(
+    fieldType: SemanticLayerFieldType,
+) {
+    switch (fieldType) {
+        case SemanticLayerFieldType.STRING:
+            return [
+                SemanticLayerStringFilterOperator.IS,
+                SemanticLayerStringFilterOperator.IS_NOT,
+            ];
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.BOOLEAN:
+        case SemanticLayerFieldType.TIME:
+            return [];
+        default:
+            return assertUnreachable(
+                fieldType,
+                `Unsupported field type: ${fieldType}`,
+            );
+    }
+}

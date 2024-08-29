@@ -12,6 +12,7 @@ import {
 import {
     assertUnreachable,
     FieldType as FieldKind,
+    getAvailableSemanticLayerFilterOperators,
     SemanticLayerField,
     SemanticLayerFieldType,
     SemanticLayerSortByDirection,
@@ -80,6 +81,8 @@ export const cubeTransfomers: SemanticLayerTransformer<
     fieldsToSemanticLayerFields: (dimensions, metrics) => {
         const semanticDimensions: SemanticLayerField[] = dimensions.map((d) => {
             const type = getSemanticLayerTypeFromCubeType(d.type);
+            const availableOperators =
+                getAvailableSemanticLayerFilterOperators(type);
 
             // TODO: check if cube has a function to get available granularities
             const availableGranularities =
@@ -97,18 +100,26 @@ export const cubeTransfomers: SemanticLayerTransformer<
                 visible: Boolean(d.public && d.visible),
                 kind: FieldKind.DIMENSION,
                 availableGranularities,
+                availableOperators,
             };
         });
 
-        const semanticMetrics: SemanticLayerField[] = metrics.map((d) => ({
-            name: d.name,
-            label: d.title,
-            description: d.shortTitle,
-            visible: Boolean(d.public && d.visible),
-            type: getSemanticLayerTypeFromCubeType(d.type),
-            kind: FieldKind.METRIC,
-            availableGranularities: [],
-        }));
+        const semanticMetrics: SemanticLayerField[] = metrics.map((d) => {
+            const type = getSemanticLayerTypeFromCubeType(d.type);
+            const availableOperators =
+                getAvailableSemanticLayerFilterOperators(type);
+
+            return {
+                name: d.name,
+                label: d.title,
+                description: d.shortTitle,
+                visible: Boolean(d.public && d.visible),
+                type,
+                kind: FieldKind.METRIC,
+                availableGranularities: [],
+                availableOperators,
+            };
+        });
 
         return [...semanticDimensions, ...semanticMetrics];
     },
