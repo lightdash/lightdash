@@ -1,3 +1,10 @@
+## [0.1232.1](https://github.com/lightdash/lightdash/compare/0.1232.0...0.1232.1) (2024-08-29)
+
+
+### Bug Fixes
+
+* amend expectactions on sql runner api test ([#11296](https://github.com/lightdash/lightdash/issues/11296)) ([9fc730f](https://github.com/lightdash/lightdash/commit/9fc730fa42cc7008ef9b7a2c09bf2c49c76b3b4a))
+
 # [0.1232.0](https://github.com/lightdash/lightdash/compare/0.1231.0...0.1232.0) (2024-08-28)
 
 
