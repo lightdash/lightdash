@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
@@ -21,7 +21,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
-    selectFilters,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
@@ -34,11 +33,12 @@ export const RunSemanticQueryButton: FC = () => {
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
 
-    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { columns, limit, sortBy, selectedChartType, filters } =
+        useAppSelector((state) => state.semanticViewer);
 
-    const filters = useAppSelector(selectFilters);
+    const filtersArr = useMemo(() => {
+        return Object.values(filters);
+    }, [filters]);
 
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
@@ -83,7 +83,7 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters,
+                filters: filtersArr,
             },
             projectUuid,
         });
@@ -101,7 +101,7 @@ export const RunSemanticQueryButton: FC = () => {
         columns,
         currentVizConfig,
         dispatch,
-        filters,
+        filtersArr,
         limit,
         projectUuid,
         resultsData,
@@ -115,14 +115,14 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters,
+                filters: filtersArr,
             }),
         [
             allSelectedFieldsByKind,
             runSemanticViewerQuery,
             sortBy,
             limit,
-            filters,
+            filtersArr,
         ],
     );
 

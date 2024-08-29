@@ -126,10 +126,6 @@ export const getDbtFilterOperatorFromSemanticLayerOperator = (
 export const getDbtFilterValuesFromSemanticLayerFilterValues = (
     values: SemanticLayerFilter['values'],
 ) => {
-    if (values.length === 0) {
-        return `''`;
-    }
-
     if (values.length > 1) {
         return `(${values.map((value) => `'${value}'`).join(', ')})`;
     }
@@ -140,6 +136,10 @@ export const getDbtFilterValuesFromSemanticLayerFilterValues = (
 const getDbtFilterSqlFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): string => {
+    if (filter.values.length === 0) {
+        return 'TRUE';
+    }
+
     const baseFilterSql = `{{ Dimension('${
         filter.field
     }') }} ${getDbtFilterOperatorFromSemanticLayerOperator(

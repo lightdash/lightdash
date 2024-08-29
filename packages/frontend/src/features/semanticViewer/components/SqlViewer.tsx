@@ -1,20 +1,23 @@
 import { Box, LoadingOverlay } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
-    selectFilters,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
 
-    const { sortBy, limit } = useAppSelector((state) => state.semanticViewer);
+    const { sortBy, limit, filters } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
 
-    const filters = useAppSelector(selectFilters);
+    const filtersArr = useMemo(() => {
+        return Object.values(filters);
+    }, [filters]);
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
@@ -27,7 +30,7 @@ const SqlViewer: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters,
+                filters: filtersArr,
             },
         },
         {
