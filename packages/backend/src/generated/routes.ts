@@ -6896,6 +6896,9 @@ const models: TsoaRoute.Models = {
                             additionalProperties: {
                                 dataType: 'nestedObjectLiteral',
                                 nestedProperties: {
+                                    aggregation: {
+                                        ref: 'VizAggregationOptions',
+                                    },
                                     order: { dataType: 'double' },
                                     frozen: {
                                         dataType: 'boolean',

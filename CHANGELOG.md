@@ -1,3 +1,29 @@
+# [0.1234.0](https://github.com/lightdash/lightdash/compare/0.1233.0...0.1234.0) (2024-08-29)
+
+
+### Bug Fixes
+
+* non-bar charts not showing on edit ([#11303](https://github.com/lightdash/lightdash/issues/11303)) ([c35a378](https://github.com/lightdash/lightdash/commit/c35a378dfd263b163a5c95b8c3b74a1147774d3b))
+
+
+### Features
+
+* remove limit and display chart results in chart viz ([#11291](https://github.com/lightdash/lightdash/issues/11291)) ([0d44301](https://github.com/lightdash/lightdash/commit/0d443012e62372697a8ed95b029e8006f5b3d64b))
+
+# [0.1233.0](https://github.com/lightdash/lightdash/compare/0.1232.1...0.1233.0) (2024-08-29)
+
+
+### Features
+
+* edit sql chart from dashboard ([#11300](https://github.com/lightdash/lightdash/issues/11300)) ([47dc49d](https://github.com/lightdash/lightdash/commit/47dc49d351229f882853b09efd3f8a99187620d0))
+
+## [0.1232.1](https://github.com/lightdash/lightdash/compare/0.1232.0...0.1232.1) (2024-08-29)
+
+
+### Bug Fixes
+
+* amend expectactions on sql runner api test ([#11296](https://github.com/lightdash/lightdash/issues/11296)) ([9fc730f](https://github.com/lightdash/lightdash/commit/9fc730fa42cc7008ef9b7a2c09bf2c49c76b3b4a))
+
 # [0.1232.0](https://github.com/lightdash/lightdash/compare/0.1231.0...0.1232.0) (2024-08-28)
 
 

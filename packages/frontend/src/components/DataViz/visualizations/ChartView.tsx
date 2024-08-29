@@ -1,4 +1,5 @@
 import {
+    type PivotChartData,
     type VizCartesianChartConfig,
     type VizPieChartConfig,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ type ChartViewProps<T extends ResultsRunner> = {
     sql?: string;
     projectUuid?: string;
     limit?: number;
+    onPivot?: (pivotData: PivotChartData | undefined) => void;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo(
@@ -33,6 +35,7 @@ const ChartView = memo(
         isLoading: isLoadingProp,
         resultsRunner,
         style,
+        onPivot,
     }: ChartViewProps<T>) => {
         const { data: org } = useOrganization();
 
@@ -47,6 +50,7 @@ const ChartView = memo(
             projectUuid,
             limit,
             orgColors: org?.chartColors,
+            onPivot,
         });
 
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {

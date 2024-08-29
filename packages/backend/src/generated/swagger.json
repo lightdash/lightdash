@@ -7577,6 +7577,9 @@
                                 "properties": {},
                                 "additionalProperties": {
                                     "properties": {
+                                        "aggregation": {
+                                            "$ref": "#/components/schemas/VizAggregationOptions"
+                                        },
                                         "order": {
                                             "type": "number",
                                             "format": "double"
