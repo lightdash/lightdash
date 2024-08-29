@@ -9,6 +9,13 @@ import { type selectChartConfigByKind } from '../../../components/DataViz/store/
 import { SqlRunnerResultsRunner } from '../runners/SqlRunnerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 
+/**
+ * This hook is used to get the table config for the chart results table.
+ * When the pivot data is received, it is used to update the table config so that it matches what is configured/displayed in the chart.
+ * @param resultsRunner - The results runner for the chart.
+ * @param activeConfigs - The active configs in the SQL Runner.
+ * @returns {Object} { tableConfigByChartType, resultsTableRunnerByChartType, handlePivotData } - The table config for the chart results table + the results table runner for the chart results table + the function to handle the pivot data.
+ */
 export const useChartResultsTableConfig = (
     resultsRunner: SqlRunnerResultsRunner | undefined,
     activeConfigs: {
