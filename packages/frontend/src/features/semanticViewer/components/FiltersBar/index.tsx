@@ -71,7 +71,6 @@ const FiltersBar: FC = () => {
                 <Select
                     data={availableFieldOptions}
                     onChange={(value) => {
-                        setCanAddFilter(true);
                         if (value) {
                             dispatch(
                                 addFilter({
@@ -82,6 +81,8 @@ const FiltersBar: FC = () => {
                                 }),
                             );
                         }
+
+                        setCanAddFilter(true);
                     }}
                 />
             )}
