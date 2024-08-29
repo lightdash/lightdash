@@ -85,7 +85,8 @@ const MultiStringInput: FC<MultiStringInputProps> = ({
                     setPastePopUpOpened(false);
                     return;
                 }
-                handleAdd(tempPasteValues);
+
+                handleAdd(tempPasteValues.replaceAll('\n', ''));
             }}
         >
             <MultiSelect
