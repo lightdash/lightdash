@@ -3,6 +3,7 @@ import {
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
+    type VizChartConfig,
     type VizPieChartConfig,
     type VizSqlColumn,
     type VizTableConfig,
@@ -144,8 +145,7 @@ export type CreateSqlChart = {
     description: string | null;
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: VizChartConfig;
     spaceUuid: string;
 };
 
@@ -158,8 +158,7 @@ export type UpdateUnversionedSqlChart = {
 export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: VizChartConfig;
 };
 
 export type UpdateSqlChart = {

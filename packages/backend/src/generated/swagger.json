@@ -7426,11 +7426,6 @@
                 "required": ["y"],
                 "type": "object"
             },
-            "Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "CartesianChartDisplay": {
                 "properties": {
                     "stack": {
@@ -7451,7 +7446,26 @@
                         "type": "object"
                     },
                     "series": {
-                        "$ref": "#/components/schemas/Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__"
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "color": {
+                                    "type": "string"
+                                },
+                                "yAxisIndex": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "object"
                     },
                     "yAxis": {
                         "items": {

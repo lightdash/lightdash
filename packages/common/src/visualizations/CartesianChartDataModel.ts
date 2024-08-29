@@ -42,6 +42,7 @@ export class CartesianChartDataModel
     private getSeriesColor(
         seriesIdentifier: string,
         possibleXAxisValues: string[] | undefined,
+        orgColors?: string[],
     ): string | undefined {
         // Go through the possibleXAxisValues and check if the seriesIdentifier is in the value - "completed_sum(order_id)" is the identifier and "completed" is one of the possible values
         const foundValue = possibleXAxisValues?.find((value) =>
@@ -58,10 +59,10 @@ export class CartesianChartDataModel
         );
 
         if (genericIdentifier && !this.colorMap.has(genericIdentifier)) {
+            const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
             // This code assigns a color to a series in the chart
             const color =
-                // TODO: Update this to support the organization color palette
-                ECHARTS_DEFAULT_COLORS[
+                colorPalette[
                     this.colorMap.size % ECHARTS_DEFAULT_COLORS.length // This ensures we cycle through the colors if we have more series than colors
                 ];
             this.colorMap.set(genericIdentifier, color);
@@ -113,10 +114,21 @@ export class CartesianChartDataModel
         );
     }
 
+    static getDefaultColor(index: number, orgColors?: string[]) {
+        const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
+        // This code assigns a color to a series in the chart
+        const color =
+            colorPalette[
+                index % colorPalette.length // This ensures we cycle through the colors if we have more series than colors
+            ];
+        return color;
+    }
+
     getEchartsSpec(
         transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
         display: CartesianChartDisplay | undefined,
         type: ChartKind,
+        orgColors?: string[],
     ) {
         if (!transformedData) {
             return {};
@@ -128,12 +140,13 @@ export class CartesianChartDataModel
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         const shouldStack = display?.stack === true;
-
+        /*
+// For old colors method
         const possibleXAxisValues = transformedData.results.map((row) =>
             transformedData.indexColumn?.reference
                 ? `${row[transformedData.indexColumn.reference]}`
                 : '-',
-        );
+        ); */
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
@@ -167,10 +180,14 @@ export class CartesianChartDataModel
                               )
                             : undefined,
                     },
-                    color: this.getSeriesColor(
-                        seriesColumn,
-                        possibleXAxisValues,
-                    ),
+                    color:
+                        (display?.series &&
+                            display.series[seriesColumn]?.color) ||
+                        CartesianChartDataModel.getDefaultColor(
+                            index,
+                            orgColors,
+                        ),
+                    // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
                 };
             },
         );
@@ -248,10 +265,14 @@ export type CartesianChartDisplay = {
         position?: string;
         format?: Format;
     }[];
-    series?: Record<
-        string,
-        { label?: string; format?: Format; yAxisIndex?: number }
-    >;
+    series?: {
+        [key: string]: {
+            label?: string;
+            format?: Format;
+            yAxisIndex?: number;
+            color?: string;
+        };
+    };
     legend?: {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';

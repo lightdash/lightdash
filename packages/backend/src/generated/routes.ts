@@ -6723,16 +6723,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {},
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
         dataType: 'refAlias',
         type: {
@@ -6764,7 +6754,17 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 series: {
-                    ref: 'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            color: { dataType: 'string' },
+                            yAxisIndex: { dataType: 'double' },
+                            format: { ref: 'Format' },
+                            label: { dataType: 'string' },
+                        },
+                    },
                 },
                 yAxis: {
                     dataType: 'array',

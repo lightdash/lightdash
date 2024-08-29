@@ -7,6 +7,7 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
@@ -36,6 +37,8 @@ const ChartView = memo(
         style,
         onPivot,
     }: ChartViewProps<T>) => {
+        const { data: org } = useOrganization();
+
         const {
             loading: transformLoading,
             error,
@@ -46,6 +49,7 @@ const ChartView = memo(
             sql,
             projectUuid,
             limit,
+            orgColors: org?.chartColors,
             onPivot,
         });
 
@@ -63,7 +67,6 @@ const ChartView = memo(
                 />
             );
         }
-
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust

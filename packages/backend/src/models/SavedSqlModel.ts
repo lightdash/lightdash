@@ -6,6 +6,7 @@ import {
     SqlChart,
     UpdateSqlChart,
     VizBaseConfig,
+    VizChartConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -254,7 +255,7 @@ export class SavedSqlModel {
         data: {
             savedSqlUuid: string;
             userUuid: string;
-            config: VizBaseConfig;
+            config: VizChartConfig;
             sql: string;
             limit: number;
         },

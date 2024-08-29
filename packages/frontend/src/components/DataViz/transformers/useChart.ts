@@ -18,6 +18,7 @@ export const useChart = <T extends ResultsRunner>({
     sql,
     projectUuid,
     limit,
+    orgColors,
     onPivot,
 }: {
     config?: VizCartesianChartConfig | VizPieChartConfig;
@@ -25,6 +26,7 @@ export const useChart = <T extends ResultsRunner>({
     sql?: string;
     projectUuid?: string;
     limit?: number;
+    orgColors?: string[];
     onPivot?: (pivotData: PivotChartData) => void;
 }) => {
     const chartTransformer = useMemo(() => {
@@ -83,9 +85,10 @@ export const useChart = <T extends ResultsRunner>({
                 transformedData.value,
                 config.display,
                 config.type,
+                orgColors,
             );
         }
-    }, [chartTransformer, config, transformedData.value]);
+    }, [chartTransformer, config, transformedData.value, orgColors]);
 
     return {
         ...transformedData,
