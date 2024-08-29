@@ -2061,20 +2061,24 @@ export class ProjectService extends BaseService {
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map(
                 (col) =>
-                    `${col.aggregation}(${col.reference}) as ${col.reference}`,
+                    `${col.aggregation}(${col.reference}) as ${col.reference}_${col.aggregation}`,
             ),
         ];
         const groupByQuery = `SELECT ${[
-            ...groupBySelectDimensions,
+            ...new Set(groupBySelectDimensions), // Remove duplicate columns
             ...groupBySelectMetrics,
-        ].join(
-            ', ',
-        )} FROM original_query group by ${groupBySelectDimensions.join(', ')}`;
+        ].join(', ')} FROM original_query group by ${Array.from(
+            new Set(groupBySelectDimensions),
+        ).join(', ')}`;
 
         const selectReferences = [
             indexColumn.reference,
             ...(groupByColumns || []).map((col) => col.reference),
-            ...(valuesColumns || []).map((col) => col.reference),
+            ...(valuesColumns || []).map((col) =>
+                groupByColumns && groupByColumns.length > 0
+                    ? `${col.reference}_${col.aggregation}`
+                    : `${col.reference}_${col.aggregation} as ${col.reference}`,
+            ),
         ];
 
         const pivotQuery = `SELECT ${selectReferences.join(
@@ -2204,7 +2208,7 @@ export class ProjectService extends BaseService {
                                 currentTransformedRow =
                                     currentTransformedRow ?? {};
                                 currentTransformedRow[valueColumnReference] =
-                                    row[col.reference];
+                                    row[`${col.reference}_${col.aggregation}`];
                             });
                         });
                     },
@@ -2222,7 +2226,9 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: groupByColumns
                 ? Array.from(valuesColumnReferences)
-                : valuesColumns.map((col) => col.reference),
+                : valuesColumns.map(
+                      (col) => `${col.reference}_${col.aggregation}`,
+                  ),
             indexColumn,
         };
     }

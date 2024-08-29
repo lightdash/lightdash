@@ -15,15 +15,6 @@ type CartesianChartKind = Extract<
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-// type CartesianChartConfig<TPivotChartLayout> = {
-//     metadata: {
-//         version: number;
-//     };
-//     type: CartesianChartKind;
-//     fieldConfig: TPivotChartLayout | undefined;
-//     display: CartesianChartDisplay | undefined;
-// };
-
 export class CartesianChartDataModel
     implements
         IChartDataModel<

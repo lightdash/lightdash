@@ -4,6 +4,7 @@ import {
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     PieChartDataModel,
+    type PivotChartData,
     type VizCartesianChartConfig,
     type VizPieChartConfig,
 } from '@lightdash/common';
@@ -17,12 +18,14 @@ export const useChart = <T extends ResultsRunner>({
     sql,
     projectUuid,
     limit,
+    onPivot,
 }: {
     config?: VizCartesianChartConfig | VizPieChartConfig;
     resultsRunner: T;
     sql?: string;
     projectUuid?: string;
     limit?: number;
+    onPivot?: (pivotData: PivotChartData) => void;
 }) => {
     const chartTransformer = useMemo(() => {
         if (config?.type === ChartKind.PIE) {
@@ -52,7 +55,13 @@ export const useChart = <T extends ResultsRunner>({
         [chartTransformer, config?.fieldConfig, projectUuid, limit],
     );
 
-    const transformedData = useAsync(getTransformedData, [getTransformedData]);
+    const transformedData = useAsync(async () => {
+        const data = await getTransformedData();
+        if (onPivot && data) {
+            onPivot(data);
+        }
+        return data;
+    }, [getTransformedData]);
 
     const chartSpec = useMemo(() => {
         if (!transformedData.value) return undefined;
