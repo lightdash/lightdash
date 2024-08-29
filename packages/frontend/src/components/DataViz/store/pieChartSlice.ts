@@ -1,29 +1,24 @@
 import {
-    isPieChartSQLConfig,
-    PieChartDataTransformer,
+    ChartKind,
+    isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
-    type PieChartSqlConfig,
     type VizAggregationOptions,
-    type VizIndexLayoutOptions,
+    type VizChartLayout,
     type VizIndexType,
-    type VizSqlCartesianChartLayout,
-    type VizValuesLayoutOptions,
+    type VizPieChartConfig,
+    type VizPieChartOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { onResults } from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
 
-type InitialState = {
-    defaultFieldConfig: VizSqlCartesianChartLayout | undefined;
-    config: PieChartSqlConfig | undefined;
-    options: {
-        groupFieldOptions: VizIndexLayoutOptions[];
-        metricFieldOptions: VizValuesLayoutOptions[];
-    };
+export type PieChartState = {
+    defaultFieldConfig: VizChartLayout | undefined;
+    config: VizPieChartConfig | undefined;
+    options: VizPieChartOptions;
 };
 
-const initialState: InitialState = {
+const initialState: PieChartState = {
     defaultFieldConfig: undefined,
     config: undefined,
     options: {
@@ -87,25 +82,19 @@ export const pieChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload) {
-                const pieChartModel = new PieChartDataTransformer({
-                    transformer: action.payload.transformer,
-                });
-                if (action.payload) {
-                    state.options = {
-                        groupFieldOptions:
-                            action.payload.transformer.pivotChartIndexLayoutOptions(),
-                        metricFieldOptions:
-                            action.payload.transformer.pivotChartValuesLayoutOptions(),
-                    };
-                }
+            if (action.payload.type !== ChartKind.PIE) {
+                return;
+            }
 
-                state.config = pieChartModel.mergeConfig(state.config);
+            state.options = action.payload.options;
+
+            if (!state.config) {
+                state.config = action.payload.config;
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isPieChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isVizPieChartConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },

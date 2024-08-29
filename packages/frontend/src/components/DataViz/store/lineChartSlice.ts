@@ -1,14 +1,7 @@
-import {
-    CartesianChartDataTransformer,
-    ChartKind,
-    isLineChartSQLConfig,
-} from '@lightdash/common';
+import { ChartKind, isVizLineChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import {
-    cartesianChartConfigSlice,
-    onResults,
-} from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
+import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
@@ -18,23 +11,19 @@ export const lineChartConfigSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload) {
-                const lineChartModel = new CartesianChartDataTransformer({
-                    transformer: action.payload.transformer,
-                });
+            if (action.payload.type !== ChartKind.LINE) {
+                return;
+            }
 
-                state.options =
-                    action.payload.transformer.getPivotChartLayoutOptions();
+            state.options = action.payload.options;
 
-                state.config = lineChartModel.mergeConfig(
-                    ChartKind.LINE,
-                    state.config,
-                );
+            if (!state.config) {
+                state.config = action.payload.config;
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isLineChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isVizLineChartConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },

@@ -1,13 +1,13 @@
 import {
     ChartKind,
-    isTableChartSQLConfig,
+    isVizTableConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
-import { SqlRunnerResultsTransformer } from '../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
+import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
@@ -50,9 +50,9 @@ export const DashboardSqlChartTile: FC<Props> = ({
         [data],
     );
 
-    const transformer = useMemo(
+    const resultsRunner = useMemo(
         () =>
-            new SqlRunnerResultsTransformer({
+            new SqlRunnerResultsRunner({
                 rows: sqlRunnerChartData.results,
                 columns: sqlRunnerChartData.columns,
             }),
@@ -99,9 +99,9 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {...rest}
         >
             {data.chart.config.type === ChartKind.TABLE &&
-                isTableChartSQLConfig(data.chart.config) && (
+                isVizTableConfig(data.chart.config) && (
                     <Table
-                        data={data.resultsAndColumns.results}
+                        resultsRunner={resultsRunner}
                         config={data.chart.config}
                     />
                 )}
@@ -116,7 +116,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                         height: '100%',
                         width: '100%',
                     }}
-                    transformer={transformer}
+                    resultsRunner={resultsRunner}
                     isLoading={isLoading}
                     sql={data.chart.sql}
                     projectUuid={projectUuid}

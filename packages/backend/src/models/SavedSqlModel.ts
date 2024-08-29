@@ -5,8 +5,9 @@ import {
     SpaceSummary,
     SqlChart,
     UpdateSqlChart,
+    VizBaseConfig,
+    VizChartConfig,
 } from '@lightdash/common';
-import { SqlRunnerChartConfig } from '@lightdash/common/src/types/sqlRunner';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import {
@@ -245,7 +246,7 @@ export class SavedSqlModel {
         data: {
             savedSqlUuid: string;
             userUuid: string;
-            config: SqlRunnerChartConfig;
+            config: VizChartConfig;
             sql: string;
             limit: number;
         },

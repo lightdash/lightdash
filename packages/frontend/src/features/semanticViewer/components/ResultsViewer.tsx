@@ -1,16 +1,16 @@
-import { isTableChartSQLConfig } from '@lightdash/common';
+import { ChartKind, isVizTableConfig } from '@lightdash/common';
 import { Paper, useMantineTheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import { Table } from '../../../components/DataViz/visualizations/Table';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
 } from '../store/selectors';
-import { SemanticViewerResultsTransformer } from '../transformers/SemanticViewerResultsTransformer';
-import { Table } from './visualizations/Table';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();
@@ -21,30 +21,26 @@ const ResultsViewer: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    // currently editing chart config
-
-    const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+    const barChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.VERTICAL_BAR),
     );
-    // Select these configs so we can keep the charts mounted
-    //TODO - refactor to use selector from dataviz slice
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
+    const lineChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.LINE),
     );
-    const lineChartConfig = useAppSelector(
-        (state) => state.lineChartConfig.config,
+    const pieChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.PIE),
     );
-    const pieChartConfig = useAppSelector(
-        (state) => state.pieChartConfig.config,
+    const tableConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, ChartKind.TABLE),
     );
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
 
-    const transformer = useMemo(
+    const resultsRunner = useMemo(
         () =>
-            new SemanticViewerResultsTransformer({
+            new SemanticViewerResultsRunner({
                 rows: results ?? [],
                 columns: columns ?? [],
                 query: {
@@ -58,44 +54,48 @@ const ResultsViewer: FC = () => {
 
     return (
         <>
-            {results &&
-                currentVisConfig &&
-                [barChartConfig, lineChartConfig, pieChartConfig].map(
-                    (config, idx) =>
-                        config && (
-                            <ConditionalVisibility
-                                key={idx}
-                                isVisible={selectedChartType === config?.type}
-                            >
+            {[tableConfig, barChartConfig, lineChartConfig, pieChartConfig].map(
+                (config, idx) => {
+                    return (
+                        <ConditionalVisibility
+                            key={idx}
+                            isVisible={
+                                Boolean(config) &&
+                                selectedChartType === config?.type
+                            }
+                        >
+                            {isVizTableConfig(config) ? (
+                                <Paper
+                                    shadow="none"
+                                    radius={0}
+                                    p="sm"
+                                    sx={() => ({
+                                        flex: 1,
+                                        overflow: 'auto',
+                                    })}
+                                >
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        config={config}
+                                    />
+                                </Paper>
+                            ) : (
                                 <ChartView
-                                    transformer={transformer}
+                                    resultsRunner={resultsRunner}
                                     data={{ results, columns }}
                                     config={config}
                                     isLoading={false}
                                     style={{
                                         // NOTE: Ensures the chart is always full height
-                                        //height: 500,
-                                        width: '100%',
+                                        minHeight: 500,
                                         flex: 1,
                                         marginTop: mantineTheme.spacing.sm,
                                     }}
                                 />
-                            </ConditionalVisibility>
-                        ),
-                )}
-
-            {results && isTableChartSQLConfig(currentVisConfig) && (
-                <Paper
-                    shadow="none"
-                    radius={0}
-                    p="sm"
-                    sx={() => ({
-                        flex: 1,
-                        overflow: 'auto',
-                    })}
-                >
-                    <Table data={results || []} config={currentVisConfig} />
-                </Paper>
+                            )}
+                        </ConditionalVisibility>
+                    );
+                },
             )}
         </>
     );

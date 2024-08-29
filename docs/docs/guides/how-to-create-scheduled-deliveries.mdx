@@ -9,7 +9,6 @@ import GsheetDelivery from './assets/gsheet-delivery.png';
 import DashboardScheduledDeliveryFilters from './assets/scheduled-delivery-dashboard-filters.png';
 import ScheduledDeliveryCustomization from './assets/scheduled-delivery-customization.png';
 
-
 # Scheduled deliveries
 
 Scheduled deliveries let you send a dashboard or saved chart, and their results to people via email or Slack - even to people who don't have an account in your Lightdash instance.
@@ -20,13 +19,11 @@ If your Lightdash organization has [Slack](/guides/adding-slack-integration.mdx)
 For security reasons, the delivered files expire after 3 days. This means old emails or Slack shares will have broken images and there is not an option to retrieve them. If you want to keep the sent files, it's best to download them from the scheduled delivery.
 :::
 
-
 ## Enabling scheduled deliveries
 
 Emailed scheduled deliveries are available on all Lightdash Cloud plans.
 
 To set up Slack, an organization admin will have to [add the Slack integration](/guides/adding-slack-integration.mdx).
-
 
 ## Creating a scheduled delivery
 
@@ -47,7 +44,6 @@ You'll get a modal that pops up and shows you the list of existing scheduled del
   height="605"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
-
 
 ### Setup
 
@@ -70,7 +66,6 @@ The options are:
   - `CSV`: sends a downloadable .csv file of the results table from your chart, or if you're sending a dashboard, it sends a single message with multiple .csv files for the results tables from each of your charts. You can set the `values` to either be `raw` (we remove the formatting applied dates, numbers, or other fields in Lightdash) or `formatted` (the way the values appear in your table in Lightdash is how they'll appear in the .csv). You can also adjust the `limit` and specify the number of rows that you want to be delivered in your .csv. `Results in table` will deliver the number of results that are currently in the results table for your charts. You can also set a custom number of rows to be delivered using `custom`, or set all results to be delivered so there's no maximum row limit for each chart using `all results`.
     - **Limit on CSV format**: We limit CSV downloads to 100,000 cells by default, so if you are trying to download more cells, your file will get truncated.
 - **Send to**: here, you can pick if you want to send your scheduled delivery to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send a scheduled delivery to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
-
 
 ### Filters
 

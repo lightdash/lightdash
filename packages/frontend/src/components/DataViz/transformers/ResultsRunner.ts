@@ -3,20 +3,18 @@ import {
     VizAggregationOptions,
     vizAggregationOptions,
     VizIndexType,
+    type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
-    type ResultsRunnerBase,
+    type VizChartLayout,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlCartesianChartLayout,
     type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
 
-export class ResultsTransformer
-    implements ResultsRunnerBase<VizSqlCartesianChartLayout>
-{
+export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     protected readonly rows: RawResultRow[];
 
     protected readonly columns: VizSqlColumn[];
@@ -107,7 +105,7 @@ export class ResultsTransformer
         }, []);
     }
 
-    getPivotChartLayoutOptions(): {
+    pivotChartOptions(): {
         indexLayoutOptions: VizIndexLayoutOptions[];
         valuesLayoutOptions: VizValuesLayoutOptions[];
         pivotLayoutOptions: VizPivotLayoutOptions[];
@@ -119,7 +117,7 @@ export class ResultsTransformer
         };
     }
 
-    defaultPivotChartLayout(): VizSqlCartesianChartLayout | undefined {
+    defaultPivotChartLayout(): VizChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
         );
@@ -141,7 +139,7 @@ export class ResultsTransformer
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: VizSqlCartesianChartLayout['x'] = {
+        const x: VizChartLayout['x'] = {
             reference: xColumn.reference,
             type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
                 xColumn.type,
@@ -167,7 +165,7 @@ export class ResultsTransformer
         if (yColumn === undefined) {
             return undefined;
         }
-        const y: VizSqlCartesianChartLayout['y'] = [
+        const y: VizChartLayout['y'] = [
             {
                 reference: yColumn.reference,
                 aggregation:
@@ -184,7 +182,7 @@ export class ResultsTransformer
         };
     }
 
-    mergePivotChartLayout(currentConfig?: VizSqlCartesianChartLayout) {
+    mergePivotChartLayout(currentConfig?: VizChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =
@@ -205,11 +203,19 @@ export class ResultsTransformer
     }
 
     getPivotChartData(
-        _config: VizSqlCartesianChartLayout,
+        _config: VizChartLayout,
         _sql?: string,
         _projectUuid?: string,
         _limit?: number,
     ): Promise<PivotChartData> {
         throw new Error('Method not implemented.');
+    }
+
+    getColumns(): string[] {
+        return this.columns.map((column) => column.reference);
+    }
+
+    getRows() {
+        return this.rows;
     }
 }

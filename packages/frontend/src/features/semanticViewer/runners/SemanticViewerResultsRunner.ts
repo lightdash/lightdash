@@ -3,14 +3,14 @@ import {
     type RawResultRow,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
-    type VizSqlCartesianChartLayout,
+    type VizChartLayout,
     type VizSqlColumn,
 } from '@lightdash/common';
-import { ResultsTransformer } from '../../../components/DataViz/transformers/ResultsTransformer';
+import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
-    config: VizSqlCartesianChartLayout,
+    config: VizChartLayout,
 ): SemanticLayerPivot => {
     return {
         on: config.x ? [config.x.reference] : [],
@@ -22,7 +22,7 @@ const transformChartLayoutToSemanticPivot = (
     };
 };
 
-export class SemanticViewerResultsTransformer extends ResultsTransformer {
+export class SemanticViewerResultsRunner extends ResultsRunner {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;
@@ -43,9 +43,7 @@ export class SemanticViewerResultsTransformer extends ResultsTransformer {
         this.projectUuid = projectUuid;
     }
 
-    async getPivotChartData(
-        config: VizSqlCartesianChartLayout,
-    ): Promise<PivotChartData> {
+    async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,

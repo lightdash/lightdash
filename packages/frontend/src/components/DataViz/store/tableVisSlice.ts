@@ -1,25 +1,27 @@
 import {
     ChartKind,
     deepEqual,
-    isTableChartSQLConfig,
-    type TableChartSqlConfig,
+    isVizTableConfig,
+    type VizTableConfig,
+    type VizTableOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { setSavedChartData } from '../../../features/sqlRunner/store/sqlRunnerSlice';
-import { onResults } from './cartesianChartBaseSlice';
+import { onResults, setChartConfig } from './actions/commonChartActions';
 
-type InitialState = {
-    defaultColumnConfig: TableChartSqlConfig['columns'] | undefined;
-    config: TableChartSqlConfig | undefined;
+export type TableVizState = {
+    config: VizTableConfig | undefined;
+    options: VizTableOptions;
+};
+
+const initialState: TableVizState = {
+    config: undefined,
+    options: { defaultColumnConfig: undefined },
 };
 
 export const tableVisSlice = createSlice({
     name: 'tableVisConfig',
-    initialState: {
-        defaultColumnConfig: undefined,
-        config: undefined,
-    } as InitialState,
+    initialState,
     reducers: {
         updateFieldLabel: (
             { config },
@@ -45,49 +47,22 @@ export const tableVisSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder.addCase(onResults, (state, action) => {
-            if (action.payload.columns) {
-                // TODO: this should come from the transformer
-                const columns = Object.keys(action.payload.results[0]).reduce<
-                    TableChartSqlConfig['columns']
-                >(
-                    (acc, key) => ({
-                        ...acc,
-                        [key]: {
-                            visible: true,
-                            reference: key,
-                            label: key,
-                            frozen: true,
-                            order: undefined,
-                        },
-                    }),
-                    {},
-                );
+            if (action.payload.type !== ChartKind.TABLE) {
+                return;
+            }
 
-                const oldDefaultColumnConfig = state.defaultColumnConfig;
-                const newDefaultColumnConfig = columns;
+            state.options = action.payload.options;
 
-                state.defaultColumnConfig = columns;
-
-                if (
-                    !state.config ||
-                    !deepEqual(
-                        oldDefaultColumnConfig || {},
-                        newDefaultColumnConfig || {},
-                    )
-                ) {
-                    state.config = {
-                        type: ChartKind.TABLE,
-                        metadata: {
-                            version: 1,
-                        },
-                        columns,
-                    };
-                }
+            if (
+                !state.config ||
+                !deepEqual(state.config, action.payload.config)
+            ) {
+                state.config = action.payload.config;
             }
         });
-        builder.addCase(setSavedChartData, (state, action) => {
-            if (isTableChartSQLConfig(action.payload.config)) {
-                state.config = action.payload.config;
+        builder.addCase(setChartConfig, (state, action) => {
+            if (isVizTableConfig(action.payload)) {
+                state.config = action.payload;
             }
         });
     },

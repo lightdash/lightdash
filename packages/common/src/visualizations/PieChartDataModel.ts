@@ -1,40 +1,55 @@
-import { ChartKind } from '../types/savedCharts';
-import { type ResultsRunnerBase } from './ResultsRunnerBase';
-import { type PivotChartData, type VizPieChartDisplay } from './types';
+import { type ChartKind } from '../types/savedCharts';
+import {
+    type PivotChartData,
+    type VizChartLayout,
+    type VizPieChartConfig,
+    type VizPieChartDisplay,
+    type VizPieChartOptions,
+} from './types';
+import { type IChartDataModel } from './types/IChartDataModel';
+import { type IResultsRunner } from './types/IResultsRunner';
 
-type PieChartConfig<TPivotChartLayout> = {
-    metadata: {
-        version: number;
-    };
-    type: ChartKind.PIE;
-    fieldConfig: TPivotChartLayout | undefined;
-    display: VizPieChartDisplay | undefined;
-};
+export class PieChartDataModel
+    implements
+        IChartDataModel<VizPieChartOptions, VizPieChartConfig, ChartKind.PIE>
+{
+    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-export class PieChartDataTransformer<TPivotChartLayout> {
-    private readonly transformer: ResultsRunnerBase<TPivotChartLayout>;
+    private readonly config: VizPieChartConfig | undefined;
 
-    constructor(args: { transformer: ResultsRunnerBase<TPivotChartLayout> }) {
-        this.transformer = args.transformer;
+    constructor(args: {
+        resultsRunner: IResultsRunner<VizChartLayout>;
+        config: VizPieChartConfig | undefined;
+    }) {
+        this.resultsRunner = args.resultsRunner;
+        this.config = args.config;
     }
 
-    mergeConfig(
-        existingConfig?: PieChartConfig<TPivotChartLayout>,
-    ): PieChartConfig<TPivotChartLayout> {
+    mergeConfig(chartKind: ChartKind.PIE): VizPieChartConfig {
         return {
             metadata: {
                 version: 1,
             },
-            type: ChartKind.PIE as ChartKind.PIE, // without this cast, TS will complain
-            fieldConfig: this.transformer.mergePivotChartLayout(
-                existingConfig?.fieldConfig,
+            type: chartKind,
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(
+                this.config?.fieldConfig,
             ),
-            display: existingConfig?.display,
+            display: this.config?.display,
+        };
+    }
+
+    getResultOptions() {
+        const { indexLayoutOptions, valuesLayoutOptions } =
+            this.resultsRunner.pivotChartOptions();
+
+        return {
+            groupFieldOptions: indexLayoutOptions,
+            metricFieldOptions: valuesLayoutOptions,
         };
     }
 
     async getTransformedData(
-        layout: TPivotChartLayout | undefined,
+        layout: VizChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,
@@ -42,7 +57,7 @@ export class PieChartDataTransformer<TPivotChartLayout> {
         if (!layout) {
             return undefined;
         }
-        return this.transformer.getPivotChartData(
+        return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,

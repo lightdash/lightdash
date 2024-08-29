@@ -6,7 +6,6 @@ import SlackDashboardUnfurl from './assets/slack-dashboard-unfurl.png';
 import SlackScheduledChart from './assets/slack-scheduled-chart.png';
 import SlackScheduledDashboard from './assets/slack-scheduled-dashboard.png';
 
-
 # Slack integration reference
 
 Below is everything you need to know about the Lightdash Slack integration. For walk through videos, check out our guides on [adding the Slack integration](guides/adding-slack-integration.mdx) and [using the Slack integration](guides/using-slack-integration.mdx).
@@ -20,7 +19,6 @@ The Lightdash Slack app will request permission for these scopes:
 
 No other content will be shared from your workspace.
 
-
 ## Settings
 
 After installing the app you'll see these settings:
@@ -32,23 +30,19 @@ After installing the app you'll see these settings:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-
 ### Select a notification channel
 
-Here you may choose a Slack channel where Lightdash will send alerts when any scheduled deliviries fail in your organization. 
+Here you may choose a Slack channel where Lightdash will send alerts when any scheduled deliviries fail in your organization.
 
 You must add the Lightdash app into that organization for notifications to work properly.
-
 
 ### Slack bot avatar
 
 You can customize the avatar for your Lightdash slack app by adding an image URL in the Profile photo URL field. Slack recommends these images be square with a minimum of 512x512 pixels, but no larger than 1024x1024 pixels.
 
-
 ### AI Bot channel mappings
 
 Here you can choose which project is used by the Lightdash AI analyst co-pilot for each of your Slack channels. Only one project can be used for each channel.
-
 
 ## Unfurl Lightdash links
 
@@ -56,7 +50,7 @@ After installing the Slack app it will automatically unfurl links you share in S
 
 Chart and dashbaord links unfurl for links copied from the URL field and also "share" links copied by clicking the link icon.
 
-Here's what an individual chart looks like unfurled: 
+Here's what an individual chart looks like unfurled:
 
 <img
   src={SlackChartUnfurl}
@@ -74,10 +68,9 @@ And an unfurled dashboard:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-
 ## Scheduled deliveries
 
-Once Slack is added to your Lightdash organization you can use it as a destination for scheduled deliveries. You can schedule refreshes for either Charts or Dashboards and push the results into a Slack channel or DM. 
+Once Slack is added to your Lightdash organization you can use it as a destination for scheduled deliveries. You can schedule refreshes for either Charts or Dashboards and push the results into a Slack channel or DM.
 
 The result will look like this for charts if you choose to attach an image of the chart:
 
@@ -97,10 +90,9 @@ And like this for dashbaords if you chose _not_ to include an image:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-
 ## Saved Chart Alerts in Slack
 
-In addition to scheduled deliveries, you can also set up [alerts on saved charts](guides/how-to-create-alerts.mdx) that only send to slack if certain criteria are met. 
+In addition to scheduled deliveries, you can also set up [alerts on saved charts](guides/how-to-create-alerts.mdx) that only send to slack if certain criteria are met.
 
 <img
   src={SlackAlert}
@@ -108,7 +100,6 @@ In addition to scheduled deliveries, you can also set up [alerts on saved charts
   height="918"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
-
 
 ## AI analyst co-pilot
 
