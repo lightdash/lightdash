@@ -62,22 +62,20 @@ const SidebarViewFields = () => {
                 'timeDimensions',
             ]),
         },
-        {
-            keepPreviousData: true,
-        },
+        { keepPreviousData: true },
     );
+
+    useEffect(() => {
+        if (!fields.data) return;
+
+        dispatch(setFields(fields.data));
+    }, [dispatch, fields.data]);
 
     const searchedFields = useMemo(() => {
         if (!fields.data) return;
 
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
-
-    useEffect(() => {
-        if (fields.data) {
-            dispatch(setFields(fields.data));
-        }
-    }, [dispatch, fields.data]);
 
     if (fields.isError) {
         throw fields.error;
