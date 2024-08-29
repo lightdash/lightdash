@@ -220,7 +220,7 @@ export const ContentPanel: FC = () => {
         return (
             queryResults?.results &&
             activeEditorTab === EditorTabs.SQL &&
-            queryResults.results.length > 500
+            queryResults.results.length >= 500
         );
     }, [queryResults, activeEditorTab]);
 
