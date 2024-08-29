@@ -23,6 +23,7 @@ import {
     LightdashAnalytics,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -37,6 +38,7 @@ type SavedSqlServiceArguments = {
     spaceModel: SpaceModel;
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
+    analyticsModel: AnalyticsModel;
 };
 
 // TODO: Rename to SqlRunnerService
@@ -52,6 +54,8 @@ export class SavedSqlService extends BaseService {
 
     private readonly schedulerClient: SchedulerClient;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -59,6 +63,7 @@ export class SavedSqlService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
+        this.analyticsModel = args.analyticsModel;
     }
 
     static getCreateVersionEventProperties(
@@ -465,6 +470,10 @@ export class SavedSqlService extends BaseService {
             context: QueryExecutionContext.SQL_CHART,
         });
 
+        await this.analyticsModel.addSqlChartViewEvent(
+            savedChart.savedSqlUuid,
+            user.userUuid,
+        );
         return {
             jobId,
         };

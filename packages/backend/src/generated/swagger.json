@@ -7658,6 +7658,18 @@
             },
             "SqlChart": {
                 "properties": {
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "organization": {
                         "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
                     },
@@ -7744,6 +7756,9 @@
                     }
                 },
                 "required": [
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
                     "organization",
                     "project",
                     "dashboard",
@@ -9477,7 +9492,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1232.0",
+        "version": "0.1234.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

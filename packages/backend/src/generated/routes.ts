@@ -6988,6 +6988,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                lastViewedAt: { dataType: 'datetime', required: true },
+                firstViewedAt: { dataType: 'datetime', required: true },
+                views: { dataType: 'double', required: true },
                 organization: {
                     ref: 'Pick_Organization.organizationUuid_',
                     required: true,

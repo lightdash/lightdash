@@ -134,6 +134,9 @@ export type SqlChart = {
     dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
     project: Pick<Project, 'projectUuid'>;
     organization: Pick<Organization, 'organizationUuid'>;
+    views: number;
+    firstViewedAt: Date;
+    lastViewedAt: Date;
 };
 
 export type CreateSqlChart = {

@@ -91,6 +91,30 @@ export class AnalyticsModel {
         });
     }
 
+    async addSqlChartViewEvent(
+        sqlChartUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // TODO add sql views table for tracking user views
+            /*  await trx(AnalyticsSqlChartViewsTableName).insert({
+                chart_uuid: chartUuid,
+                user_uuid: userUuid,
+            }); */
+            await trx(`saved_sql`)
+                .update({
+                    // @ts-expect-error knex types don't support raw queries
+                    views_count: trx.raw('views_count + 1'),
+                    // @ts-expect-error knex types don't support raw queries
+                    first_viewed_at: trx.raw(
+                        'COALESCE(first_viewed_at, NOW())',
+                    ), // update first_viewed_at if it is null
+                    last_viewed_at: trx.raw('NOW()'),
+                })
+                .where('saved_sql_uuid', sqlChartUuid);
+        });
+    }
+
     async countDashboardViews(dashboardUuid: string): Promise<number> {
         const [{ count }] = await this.database(
             AnalyticsDashboardViewsTableName,
