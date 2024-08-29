@@ -141,26 +141,6 @@ export const CartesianChartStyling = ({
                             />
                         </Config.Group>
                     )}
-                    {series.length > 1 && (
-                        <Config.Subheading>Series</Config.Subheading>
-                    )}
-                    {series.map((s, index) => (
-                        <Config.Group key={index}>
-                            <Config.Label>{`Series ${index + 1}`}</Config.Label>
-                            <CartesianChartFormatConfig
-                                format={s.format}
-                                onChangeFormat={(value) => {
-                                    dispatch(
-                                        actions.setSeriesFormat({
-                                            index,
-                                            format: value,
-                                            reference: s.reference,
-                                        }),
-                                    );
-                                }}
-                            />
-                        </Config.Group>
-                    ))}
 
                     <Config.Group>
                         <Config.Label>{`Position`}</Config.Label>

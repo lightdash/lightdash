@@ -1,6 +1,7 @@
 import { ECHARTS_DEFAULT_COLORS, type ChartKind } from '@lightdash/common';
-import { ColorInput, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, TextInput } from '@mantine/core';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import {
     useVizDispatch,
@@ -8,6 +9,7 @@ import {
     type CartesianChartActionsType,
 } from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
+import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
 type SeriesColorProps = {
     selectedChartType: ChartKind;
@@ -25,24 +27,37 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
-    const series = currentConfig?.config?.fieldConfig?.y || [];
-    const seriesColors = currentConfig?.config?.display?.series || {};
+    const serieFields = currentConfig?.config?.fieldConfig?.y || [];
+    const series = currentConfig?.config?.display?.series || {};
+
     return (
         <Config>
             <Config.Section>
-                <Config.Heading>Series Colors</Config.Heading>
+                <Config.Heading>Series</Config.Heading>
                 <Stack spacing="xs">
-                    {series.map((field, index) => (
+                    {serieFields.map((field, index) => (
                         <Group key={field.reference} spacing="xs" noWrap>
-                            <Text size="sm" style={{ flex: 1 }}>
-                                {field.reference}
-                            </Text>
-                            <ColorInput
+                            <TextInput
                                 value={
-                                    seriesColors[field.reference]?.color ||
+                                    series[field.reference]?.label ||
+                                    field.reference
+                                }
+                                onChange={(e) => {
+                                    //TODO implement debounce?
+                                    dispatch(
+                                        actions.setSeriesLabel({
+                                            label: e.target.value,
+                                            reference: field.reference,
+                                        }),
+                                    );
+                                }}
+                            />
+                            <ColorSelector
+                                color={
+                                    series[field.reference]?.color ||
                                     colors[index]
                                 }
-                                onChange={(color) => {
+                                onColorChange={(color) => {
                                     dispatch(
                                         actions.setSeriesColor({
                                             index,
@@ -51,7 +66,20 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                         }),
                                     );
                                 }}
-                                sx={{ width: '200px' }}
+                                swatches={colors}
+                            />
+
+                            <CartesianChartFormatConfig
+                                format={series[field.reference]?.format}
+                                onChangeFormat={(value) => {
+                                    dispatch(
+                                        actions.setSeriesFormat({
+                                            index,
+                                            format: value,
+                                            reference: field.reference,
+                                        }),
+                                    );
+                                }}
                             />
                         </Group>
                     ))}

@@ -132,12 +132,13 @@ export const cartesianChartConfigSlice = createSlice({
                 label: string;
             }>,
         ) => {
-            if (!config || !config.display) return;
-
-            if (config.display.series) {
-                config.display.series[action.payload.reference].label =
-                    action.payload.label;
-            }
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+            config.display.series[action.payload.reference] = {
+                ...config.display.series[action.payload.reference],
+                label: action.payload.label,
+            };
         },
         setYAxisPosition: (
             { config },
