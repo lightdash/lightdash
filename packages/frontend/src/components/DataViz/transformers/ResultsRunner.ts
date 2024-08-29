@@ -10,6 +10,7 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizSqlColumn,
+    type VizTableConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
@@ -117,6 +118,45 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         };
     }
 
+    getResultsColumns(
+        fieldConfig: VizChartLayout,
+    ): Pick<VizTableConfig, 'columns'> | undefined {
+        if (!fieldConfig?.x) {
+            return undefined;
+        }
+
+        const columnX = {
+            [fieldConfig.x.reference]: {
+                visible: true,
+                reference: fieldConfig.x.reference,
+                label: fieldConfig.x.reference,
+                frozen: true,
+                order: 1,
+            },
+        };
+        const columnYs = fieldConfig.y.reduce<
+            Record<string, VizTableConfig['columns'][string]>
+        >(
+            (acc, y, index) => ({
+                ...acc,
+                [`${y.reference}_${y.aggregation}`]: {
+                    visible: true,
+                    reference: `${y.reference}_${y.aggregation}`,
+                    label: y.reference,
+                    frozen: true,
+                    order: index + 2,
+                    aggregation: y.aggregation,
+                },
+            }),
+            {},
+        );
+        const columns: VizTableConfig['columns'] = {
+            ...columnX,
+            ...columnYs,
+        };
+        return { columns };
+    }
+
     defaultPivotChartLayout(): VizChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
@@ -124,8 +164,12 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         const booleanColumns = this.columns.filter(
             (column) => column.type === DimensionType.BOOLEAN,
         );
-        const dateColumns = this.columns.filter((column) =>
-            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type),
+        const dateColumns = this.columns.filter(
+            (column) =>
+                column.type &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    column.type,
+                ),
         );
         const numericColumns = this.columns.filter(
             (column) => column.type === DimensionType.NUMBER,
@@ -141,11 +185,13 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         }
         const x: VizChartLayout['x'] = {
             reference: xColumn.reference,
-            type: [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                xColumn.type,
-            )
-                ? VizIndexType.TIME
-                : VizIndexType.CATEGORY,
+            type:
+                xColumn.type &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    xColumn.type,
+                )
+                    ? VizIndexType.TIME
+                    : VizIndexType.CATEGORY,
         };
 
         const yColumn =

@@ -2061,7 +2061,7 @@ export class ProjectService extends BaseService {
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map(
                 (col) =>
-                    `${col.aggregation}(${col.reference}) as ${col.reference}`,
+                    `${col.aggregation}(${col.reference}) as ${col.reference}_${col.aggregation}`,
             ),
         ];
         const groupByQuery = `SELECT ${[
@@ -2222,7 +2222,9 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: groupByColumns
                 ? Array.from(valuesColumnReferences)
-                : valuesColumns.map((col) => col.reference),
+                : valuesColumns.map(
+                      (col) => `${col.reference}_${col.aggregation}`,
+                  ),
             indexColumn,
         };
     }
