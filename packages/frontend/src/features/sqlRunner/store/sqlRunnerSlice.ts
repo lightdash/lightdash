@@ -147,6 +147,7 @@ export const sqlRunnerSlice = createSlice({
             state.limit = action.payload.limit || 500;
             state.selectedChartType =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;
+            state.activeConfigs.push(action.payload.config.type);
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
