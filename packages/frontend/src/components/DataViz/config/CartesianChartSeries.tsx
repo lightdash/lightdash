@@ -24,6 +24,7 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
     const currentConfig = useVizSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
     );
+
     const series = currentConfig?.config?.fieldConfig?.y || [];
     const seriesColors = currentConfig?.config?.display?.series || {};
     return (

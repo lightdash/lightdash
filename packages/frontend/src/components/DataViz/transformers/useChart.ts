@@ -17,12 +17,14 @@ export const useChart = <T extends ResultsRunner>({
     sql,
     projectUuid,
     limit,
+    orgColors,
 }: {
     config?: VizCartesianChartConfig | VizPieChartConfig;
     resultsRunner: T;
     sql?: string;
     projectUuid?: string;
     limit?: number;
+    orgColors?: string[];
 }) => {
     const chartTransformer = useMemo(() => {
         if (config?.type === ChartKind.PIE) {
@@ -74,9 +76,10 @@ export const useChart = <T extends ResultsRunner>({
                 transformedData.value,
                 config.display,
                 config.type,
+                orgColors,
             );
         }
-    }, [chartTransformer, config, transformedData.value]);
+    }, [chartTransformer, config, transformedData.value, orgColors]);
 
     return {
         ...transformedData,

@@ -6,6 +6,7 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
@@ -33,11 +34,20 @@ const ChartView = memo(
         resultsRunner,
         style,
     }: ChartViewProps<T>) => {
+        const { data: org } = useOrganization();
+
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useChart({ config, resultsRunner, sql, projectUuid, limit });
+        } = useChart({
+            config,
+            resultsRunner,
+            sql,
+            projectUuid,
+            limit,
+            orgColors: org?.chartColors,
+        });
 
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
             return (
