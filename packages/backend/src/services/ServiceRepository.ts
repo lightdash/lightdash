@@ -647,6 +647,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    analyticsModel: this.models.getAnalyticsModel(),
                 }),
         );
     }

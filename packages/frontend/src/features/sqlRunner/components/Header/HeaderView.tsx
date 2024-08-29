@@ -83,8 +83,8 @@ export const HeaderView: FC = () => {
                                 description={
                                     savedSqlChart.description ?? undefined
                                 }
-                                viewStats={1} // todo: update endpoint to return view stats
-                                firstViewedAt={undefined}
+                                viewStats={savedSqlChart.views}
+                                firstViewedAt={savedSqlChart.firstViewedAt}
                                 withChartData={false}
                             />
                         </Group>

@@ -20,6 +20,7 @@ export type DbSavedSql = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
+    last_viewed_at: Date | null;
 };
 
 type InsertSqlBase = Pick<
