@@ -1,3 +1,10 @@
+# [0.1235.0](https://github.com/lightdash/lightdash/compare/0.1234.0...0.1235.0) (2024-08-29)
+
+
+### Features
+
+* track views sql runner chart ([#11302](https://github.com/lightdash/lightdash/issues/11302)) ([c1a431b](https://github.com/lightdash/lightdash/commit/c1a431b17eda9660fb89edc944d5f3791e79837e))
+
 # [0.1234.0](https://github.com/lightdash/lightdash/compare/0.1233.0...0.1234.0) (2024-08-29)
 
 
