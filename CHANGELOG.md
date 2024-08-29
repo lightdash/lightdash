@@ -1,3 +1,10 @@
+# [0.1236.0](https://github.com/lightdash/lightdash/compare/0.1235.0...0.1236.0) (2024-08-29)
+
+
+### Features
+
+* change colors and labels sql runner ([#11295](https://github.com/lightdash/lightdash/issues/11295)) ([3d0ae64](https://github.com/lightdash/lightdash/commit/3d0ae645504d7bf241b8119ec114337cf44f5165))
+
 # [0.1235.0](https://github.com/lightdash/lightdash/compare/0.1234.0...0.1235.0) (2024-08-29)
 
 
