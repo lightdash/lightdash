@@ -8,6 +8,8 @@ export interface IResultsRunner<TPivotChartLayout> {
         sql?: string,
         projectUuid?: string,
         limit?: number,
+        slug?: string,
+        uuid?: string,
     ): Promise<PivotChartData>;
 
     defaultPivotChartLayout(): TPivotChartLayout | undefined;

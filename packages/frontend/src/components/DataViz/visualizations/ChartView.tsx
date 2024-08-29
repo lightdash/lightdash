@@ -23,6 +23,8 @@ type ChartViewProps<T extends ResultsRunner> = {
     projectUuid?: string;
     limit?: number;
     onPivot?: (pivotData: PivotChartData | undefined) => void;
+    slug?: string;
+    uuid?: string;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo(
@@ -36,6 +38,8 @@ const ChartView = memo(
         resultsRunner,
         style,
         onPivot,
+        slug,
+        uuid,
     }: ChartViewProps<T>) => {
         const { data: org } = useOrganization();
 
@@ -51,6 +55,8 @@ const ChartView = memo(
             limit,
             orgColors: org?.chartColors,
             onPivot,
+            slug,
+            uuid,
         });
 
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {

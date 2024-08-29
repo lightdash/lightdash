@@ -7280,6 +7280,12 @@
             },
             "SqlRunnerBody": {
                 "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
                     "limit": {
                         "type": "number",
                         "format": "double"
@@ -7852,30 +7858,73 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "VizBarChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/VizChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "VizLineChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/VizChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.LINE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "VizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
             "CreateSqlChart": {
                 "properties": {
                     "spaceUuid": {
                         "type": "string"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/VizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -7945,24 +7994,7 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/VizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -9506,7 +9538,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1234.0",
+        "version": "0.1236.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

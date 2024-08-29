@@ -102,15 +102,20 @@ export class CartesianChartDataModel
         sql?: string,
         projectUuid?: string,
         limit?: number,
+        slug?: string,
+        uuid?: string,
     ) {
         if (!layout) {
             return undefined;
         }
+
         return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,
             limit,
+            slug,
+            uuid,
         );
     }
 
