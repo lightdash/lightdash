@@ -225,15 +225,34 @@ export const ContentPanel: FC = () => {
     }, [queryResults, activeEditorTab]);
 
     const showSqlResultsTable = useMemo(() => {
-        return !!(queryResults?.results && activeEditorTab === EditorTabs.SQL);
-    }, [queryResults, activeEditorTab]);
+        return !!(
+            (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
+            // if the chart is pivoted, show the sql results table
+            activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
+                ?.fieldConfig?.groupBy
+        );
+    }, [
+        queryResults,
+        activeEditorTab,
+        activeConfigs.chartConfigs,
+        selectedChartType,
+    ]);
 
     const showChartResultsTable = useMemo(() => {
         return !!(
             queryResults?.results &&
-            activeEditorTab === EditorTabs.VISUALIZATION
+            activeEditorTab === EditorTabs.VISUALIZATION &&
+            // if the chart is not pivoted, show the chart results table
+            !activeConfigs.chartConfigs.find(
+                (c) => c.type === selectedChartType,
+            )?.fieldConfig?.groupBy
         );
-    }, [queryResults, activeEditorTab]);
+    }, [
+        queryResults,
+        activeEditorTab,
+        activeConfigs.chartConfigs,
+        selectedChartType,
+    ]);
 
     return (
         <Stack
