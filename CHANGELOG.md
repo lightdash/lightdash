@@ -1,3 +1,10 @@
+# [0.1233.0](https://github.com/lightdash/lightdash/compare/0.1232.1...0.1233.0) (2024-08-29)
+
+
+### Features
+
+* edit sql chart from dashboard ([#11300](https://github.com/lightdash/lightdash/issues/11300)) ([47dc49d](https://github.com/lightdash/lightdash/commit/47dc49d351229f882853b09efd3f8a99187620d0))
+
 ## [0.1232.1](https://github.com/lightdash/lightdash/compare/0.1232.0...0.1232.1) (2024-08-29)
 
 
