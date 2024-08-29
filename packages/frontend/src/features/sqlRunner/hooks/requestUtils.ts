@@ -56,6 +56,9 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
         const jsonObjects: T[] = jsonStrings
             .map((jsonString) => {
                 try {
+                    if (!jsonString) {
+                        return null;
+                    }
                     return JSON.parse(jsonString);
                 } catch (e) {
                     throw new Error('Error parsing JSON');
