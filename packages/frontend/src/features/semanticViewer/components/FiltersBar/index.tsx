@@ -1,6 +1,8 @@
 import { SemanticLayerStringFilterOperator } from '@lightdash/common';
-import { Button, Select } from '@mantine/core';
+import { Button, Select, Stack } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { useSemanticLayerViewFields } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -51,7 +53,7 @@ const FiltersBar: FC = () => {
     }, [fields]);
 
     return (
-        <>
+        <Stack align="flex-start" spacing="sm" p="sm">
             {Object.entries(filters).map(([uuid, filter]) => (
                 <Filter
                     key={uuid}
@@ -64,11 +66,16 @@ const FiltersBar: FC = () => {
                 />
             ))}
             {canAddFilter ? (
-                <Button onClick={() => setCanAddFilter(false)}>
+                <Button
+                    size="xs"
+                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setCanAddFilter(false)}
+                >
                     Add filter
                 </Button>
             ) : (
                 <Select
+                    size="xs"
                     data={availableFieldOptions}
                     onChange={(value) => {
                         if (value) {
@@ -86,7 +93,7 @@ const FiltersBar: FC = () => {
                     }}
                 />
             )}
-        </>
+        </Stack>
     );
 };
 

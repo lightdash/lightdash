@@ -89,8 +89,6 @@ const MultiStringInput: FC<MultiStringInputProps> = ({
             }}
         >
             <MultiSelect
-                size="xs"
-                w="100%"
                 placeholder={
                     values.length > 0 || disabled ? undefined : placeholder
                 }

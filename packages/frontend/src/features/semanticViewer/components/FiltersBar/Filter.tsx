@@ -21,7 +21,7 @@ const Filter: FC<FilterProps> = ({
     onUpdate,
 }) => {
     return (
-        <Flex align="center" gap="xs" m="sm">
+        <Flex align="center" gap="xs" w="50%">
             <Select
                 size="xs"
                 style={{ flex: 1 }}
