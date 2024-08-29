@@ -124,9 +124,6 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
-        setSqlLimit: (state, action: PayloadAction<number>) => {
-            state.limit = action.payload;
-        },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
             if (action.payload === EditorTabs.VISUALIZATION) {
@@ -147,6 +144,7 @@ export const sqlRunnerSlice = createSlice({
             state.limit = action.payload.limit || 500;
             state.selectedChartType =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;
+            state.activeConfigs.push(action.payload.config.type);
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
@@ -179,7 +177,6 @@ export const {
     setSqlRunnerResults,
     updateName,
     setSql,
-    setSqlLimit,
     setActiveEditorTab,
     setSavedChartData,
     setSelectedChartType,

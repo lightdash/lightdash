@@ -23,7 +23,7 @@ export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
 export type VizSqlColumn = {
     reference: string;
-    type: DimensionType;
+    type?: DimensionType;
 };
 
 export enum VizIndexType {
@@ -93,6 +93,7 @@ export type VizTableColumnsConfig = {
             label: string;
             frozen: boolean;
             order?: number;
+            aggregation?: VizAggregationOptions;
         };
     };
 };
