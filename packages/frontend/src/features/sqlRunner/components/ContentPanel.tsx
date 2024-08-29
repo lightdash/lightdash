@@ -33,6 +33,7 @@ import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useChartResultsTableConfig } from '../hooks/useChartResultsTableConfig';
 import {
     useSqlQueryRun,
     type ResultsAndColumns,
@@ -42,7 +43,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
@@ -210,6 +210,31 @@ export const ContentPanel: FC = () => {
         [currentVizConfig],
     );
 
+    const {
+        tableConfigByChartType,
+        resultsTableRunnerByChartType,
+        handlePivotData,
+    } = useChartResultsTableConfig(resultsRunner, activeConfigs);
+
+    const showLimitText = useMemo(() => {
+        return (
+            queryResults?.results &&
+            activeEditorTab === EditorTabs.SQL &&
+            queryResults.results.length > 500
+        );
+    }, [queryResults, activeEditorTab]);
+
+    const showSqlResultsTable = useMemo(() => {
+        return !!(queryResults?.results && activeEditorTab === EditorTabs.SQL);
+    }, [queryResults, activeEditorTab]);
+
+    const showChartResultsTable = useMemo(() => {
+        return !!(
+            queryResults?.results &&
+            activeEditorTab === EditorTabs.VISUALIZATION
+        );
+    }, [queryResults, activeEditorTab]);
+
     return (
         <Stack
             spacing="none"
@@ -282,18 +307,11 @@ export const ContentPanel: FC = () => {
                             />
                         </Group>
 
-                        <Group spacing="md">
-                            <RunSqlQueryButton
-                                isLoading={isLoading}
-                                disabled={!sql}
-                                limit={limit}
-                                onSubmit={() => handleRunQuery()}
-                                onLimitChange={(newLimit) => {
-                                    dispatch(setSqlLimit(newLimit));
-                                    return handleRunQuery(newLimit);
-                                }}
-                            />
-                        </Group>
+                        <RunSqlQueryButton
+                            isLoading={isLoading}
+                            disabled={!sql}
+                            onSubmit={() => handleRunQuery()}
+                        />
                     </Group>
                 </Paper>
 
@@ -398,6 +416,14 @@ export const ContentPanel: FC = () => {
                                                                     limit={
                                                                         limit
                                                                     }
+                                                                    onPivot={(
+                                                                        pivotData,
+                                                                    ) =>
+                                                                        handlePivotData(
+                                                                            c.type,
+                                                                            pivotData,
+                                                                        )
+                                                                    }
                                                                 />
                                                             </ConditionalVisibility>
                                                         ),
@@ -469,7 +495,15 @@ export const ContentPanel: FC = () => {
                                 borderColor: theme.colors.gray[3],
                                 cursor: 'ns-resize',
                             })}
-                        />
+                        >
+                            {showLimitText && (
+                                <Group position="center">
+                                    <Text fz="sm" fw={500}>
+                                        Showing first {limit} rows
+                                    </Text>
+                                </Group>
+                            )}
+                        </Paper>
                     }
                     style={{
                         position: 'relative',
@@ -483,7 +517,7 @@ export const ContentPanel: FC = () => {
                     <Paper
                         shadow="none"
                         radius={0}
-                        pt="md"
+                        pt={showLimitText ? 'xxl' : 'sm'}
                         sx={(theme) => ({
                             overflow: 'auto',
                             borderWidth: '0 0 1px 1px',
@@ -498,10 +532,40 @@ export const ContentPanel: FC = () => {
                             visible={isLoading}
                         />
                         {queryResults?.results && resultsRunner && (
-                            <Table
-                                resultsRunner={resultsRunner}
-                                config={resultsTableConfig}
-                            />
+                            <>
+                                <ConditionalVisibility
+                                    isVisible={showSqlResultsTable}
+                                >
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        config={resultsTableConfig}
+                                    />
+                                </ConditionalVisibility>
+
+                                <ConditionalVisibility
+                                    isVisible={showChartResultsTable}
+                                >
+                                    {selectedChartType &&
+                                        tableConfigByChartType &&
+                                        resultsTableRunnerByChartType &&
+                                        resultsTableRunnerByChartType[
+                                            selectedChartType
+                                        ] && (
+                                            <Table
+                                                resultsRunner={
+                                                    resultsTableRunnerByChartType[
+                                                        selectedChartType
+                                                    ]!
+                                                }
+                                                config={
+                                                    tableConfigByChartType[
+                                                        selectedChartType
+                                                    ]
+                                                }
+                                            />
+                                        )}
+                                </ConditionalVisibility>
+                            </>
                         )}
                     </Paper>
                 </ResizableBox>
