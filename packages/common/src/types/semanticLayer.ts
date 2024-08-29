@@ -57,10 +57,6 @@ export type SemanticLayerTimeDimension = SemanticLayerField & {
     granularity?: SemanticLayerTimeGranularity;
 };
 
-export const isSemanticLayerTimeDimension = (
-    field: SemanticLayerField,
-): field is SemanticLayerTimeDimension => 'granularity' in field;
-
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
     direction: SemanticLayerSortByDirection;
 };
@@ -105,18 +101,6 @@ export interface SemanticLayerTransformer<
     sqlToString: (sql: SqlType) => string;
 }
 
-const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
-
-export function getDefaultedLimit(
-    maxQueryLimit: number,
-    queryLimit?: number,
-): number {
-    return Math.min(
-        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
-        maxQueryLimit,
-    );
-}
-
 export interface SemanticLayerClientInfo {
     name: string;
     features: {
@@ -151,13 +135,32 @@ export interface SemanticLayerClient {
     getMaxQueryLimit: () => number;
 }
 
-export const semanticLayerQueryJob = 'semanticLayer';
 export type SemanticLayerQueryPayload = {
     projectUuid: string;
     userUuid: string;
     query: SemanticLayerQuery;
     context: 'semanticViewer';
 };
+
+// Helper functions and constants
+
+export const semanticLayerQueryJob = 'semanticLayer';
+
+const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
+
+export const isSemanticLayerTimeDimension = (
+    field: SemanticLayerField,
+): field is SemanticLayerTimeDimension => 'granularity' in field;
+
+export function getDefaultedLimit(
+    maxQueryLimit: number,
+    queryLimit?: number,
+): number {
+    return Math.min(
+        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
+        maxQueryLimit,
+    );
+}
 
 export function getAvailableSemanticLayerFilterOperators(
     fieldType: SemanticLayerFieldType,
