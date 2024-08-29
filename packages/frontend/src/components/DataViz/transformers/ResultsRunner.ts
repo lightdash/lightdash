@@ -131,20 +131,18 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
                 reference: fieldConfig.x.reference,
                 label: fieldConfig.x.reference,
                 frozen: true,
-                order: 1,
             },
         };
         const columnYs = fieldConfig.y.reduce<
             Record<string, VizTableConfig['columns'][string]>
         >(
-            (acc, y, index) => ({
+            (acc, y) => ({
                 ...acc,
                 [`${y.reference}_${y.aggregation}`]: {
                     visible: true,
                     reference: `${y.reference}_${y.aggregation}`,
                     label: y.reference,
                     frozen: true,
-                    order: index + 2,
                     aggregation: y.aggregation,
                 },
             }),
