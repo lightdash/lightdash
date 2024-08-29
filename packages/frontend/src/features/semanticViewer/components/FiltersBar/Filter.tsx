@@ -6,6 +6,7 @@ import {
 import { ActionIcon, Flex, Select, type SelectItem } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import getOperatorString from './getOperatorString';
 import MultiStringInput from './MultiStringInput';
 
 interface FilterProps {
@@ -34,6 +35,13 @@ const Filter: FC<FilterProps> = ({
             : currentField?.availableOperators[0];
     }, [currentField, filter.operator]);
 
+    const operatorsOpts = useMemo(() => {
+        return currentField?.availableOperators.map((operator) => ({
+            value: operator,
+            label: getOperatorString(operator),
+        }));
+    }, [currentField]);
+
     return (
         <Flex align="center" gap="xs" w="50%">
             <Select
@@ -52,7 +60,7 @@ const Filter: FC<FilterProps> = ({
             <Select
                 size="xs"
                 style={{ flex: 1 }}
-                data={currentField?.availableOperators ?? []}
+                data={operatorsOpts ?? []}
                 value={currentOperator}
                 onChange={(value: SemanticLayerStringFilterOperator | null) => {
                     if (!value) {
