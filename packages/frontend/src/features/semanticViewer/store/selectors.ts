@@ -60,3 +60,6 @@ export const selectAllSelectedFieldNames = createSelector(
         ];
     },
 );
+
+export const selectFilters = (state: RootState) =>
+    Object.values(state.semanticViewer.filters);

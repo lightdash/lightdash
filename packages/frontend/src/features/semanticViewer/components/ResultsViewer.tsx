@@ -9,6 +9,7 @@ import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRun
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
+    selectFilters,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 
@@ -17,8 +18,10 @@ const ResultsViewer: FC = () => {
 
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
 
-    const { results, columns, selectedChartType, sortBy, filters, limit } =
+    const { results, columns, selectedChartType, sortBy, limit } =
         useAppSelector((state) => state.semanticViewer);
+
+    const filters = useAppSelector(selectFilters);
 
     const barChartConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, ChartKind.VERTICAL_BAR),

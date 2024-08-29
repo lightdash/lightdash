@@ -21,6 +21,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
+    selectFilters,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
@@ -33,8 +34,11 @@ export const RunSemanticQueryButton: FC = () => {
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
 
-    const { columns, limit, sortBy, filters, selectedChartType } =
-        useAppSelector((state) => state.semanticViewer);
+    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+
+    const filters = useAppSelector(selectFilters);
 
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),

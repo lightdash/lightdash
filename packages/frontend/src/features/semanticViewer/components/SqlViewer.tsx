@@ -5,15 +5,16 @@ import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
+    selectFilters,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
 
-    const { sortBy, limit, filters } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { sortBy, limit } = useAppSelector((state) => state.semanticViewer);
+
+    const filters = useAppSelector(selectFilters);
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,

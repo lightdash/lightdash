@@ -7,6 +7,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectAllSelectedFieldNames } from '../store/selectors';
 import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
+import FiltersBar from './FiltersBar';
 import ResultsViewer from './ResultsViewer';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
 import SqlViewer from './SqlViewer';
@@ -88,6 +89,8 @@ const Content: FC = () => {
                     </Group>
                 </Group>
             </Paper>
+
+            <FiltersBar />
 
             <Paper
                 ref={inputSectionRef}

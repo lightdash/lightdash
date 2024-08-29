@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { v4 as uuidv4 } from 'uuid';
 
 export enum EditorTabs {
     SQL = 'sql',
@@ -145,7 +146,10 @@ export interface SemanticViewerState {
     limit: number | undefined;
 
     sortBy: SemanticLayerSortBy[];
-    filters: SemanticLayerFilter[];
+
+    filters: {
+        [uuid: string]: SemanticLayerFilter;
+    };
 }
 
 const initialState: SemanticViewerState = {
@@ -169,7 +173,7 @@ const initialState: SemanticViewerState = {
     limit: undefined,
 
     sortBy: [],
-    filters: [],
+    filters: {},
 };
 
 export const semanticViewerSlice = createSlice({
@@ -265,6 +269,21 @@ export const semanticViewerSlice = createSlice({
 
             state.columns = sqlColumns;
         },
+        addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
+            state.filters[uuidv4()] = action.payload;
+        },
+        removeFilter: (state, action: PayloadAction<string>) => {
+            delete state.filters[action.payload];
+        },
+        updateFilter: (
+            state,
+            action: PayloadAction<{
+                uuid: string;
+                filter: SemanticLayerFilter;
+            }>,
+        ) => {
+            state.filters[action.payload.uuid] = action.payload.filter;
+        },
     },
 });
 
@@ -281,4 +300,7 @@ export const {
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
+    addFilter,
+    removeFilter,
+    updateFilter,
 } = semanticViewerSlice.actions;

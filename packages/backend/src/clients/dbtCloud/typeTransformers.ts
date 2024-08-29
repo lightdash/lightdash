@@ -127,7 +127,7 @@ export const getDbtFilterValuesFromSemanticLayerFilterValues = (
     values: SemanticLayerFilter['values'],
 ) => {
     if (values.length === 0) {
-        throw new Error('Filter values cannot be empty');
+        return `''`;
     }
 
     if (values.length > 1) {
