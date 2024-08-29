@@ -51,7 +51,6 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                     return isTableCalculation(field) ? (
                         <FilterMultiStringInput
                             disabled={disabled}
-                            field={field}
                             placeholder={placeholder}
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}

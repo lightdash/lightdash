@@ -1,31 +1,22 @@
-import { type FilterableItem } from '@lightdash/common';
 import { Group, MultiSelect, Text, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../MantineIcon';
-import { useFiltersContext } from '../FiltersProvider';
 import MultiValuePastePopover from './MultiValuePastePopover';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
-    field: FilterableItem;
     values: string[];
     onChange: (values: string[]) => void;
 };
 
 const FilterMultiStringInput: FC<Props> = ({
     values,
-    field,
     disabled,
     onChange,
     placeholder,
     ...rest
 }) => {
-    const { projectUuid } = useFiltersContext();
-    if (!projectUuid) {
-        throw new Error('projectUuid is required in FiltersProvider');
-    }
-
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
     const [tempPasteValues, setTempPasteValues] = useState<

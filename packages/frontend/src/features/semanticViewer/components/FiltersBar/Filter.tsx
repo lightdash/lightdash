@@ -6,8 +6,8 @@ import {
 import { ActionIcon, Flex, Select, type SelectItem } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import getOperatorString from './getOperatorString';
-import MultiStringInput from './MultiStringInput';
 
 interface FilterProps {
     filter: SemanticLayerFilter;
@@ -70,7 +70,7 @@ const Filter: FC<FilterProps> = ({
                     onUpdate({ ...filter, operator: value });
                 }}
             />
-            <MultiStringInput
+            <FilterMultiStringInput
                 size="xs"
                 style={{ flex: 2 }}
                 values={filter.values}
