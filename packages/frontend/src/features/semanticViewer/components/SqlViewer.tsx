@@ -4,31 +4,20 @@ import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-
-    const { sortBy, limit } = useAppSelector((state) => state.semanticViewer);
-
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const sql = useSemanticLayerSql(
         {
             projectUuid,
-            query: {
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            },
+            query: semanticQuery,
         },
-        {
-            keepPreviousData: true,
-        },
+        { keepPreviousData: true },
     );
 
     if (sql.isError) {

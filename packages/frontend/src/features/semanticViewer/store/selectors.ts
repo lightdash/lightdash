@@ -19,7 +19,7 @@ const selectSelectedTimeDimensions = (state: RootState) =>
 const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
 
-export const selectAllSelectedFieldsByKind = createSelector(
+const selectAllSelectedFieldsByKind = createSelector(
     [
         selectSelectedDimensions,
         selectSelectedTimeDimensions,
@@ -58,5 +58,19 @@ export const selectAllSelectedFieldNames = createSelector(
             ...timeDimensions.map((td) => td.name),
             ...metrics.map((m) => m.name),
         ];
+    },
+);
+
+const selectLimit = (state: RootState) => state.semanticViewer.limit;
+const selectSortBy = (state: RootState) => state.semanticViewer.sortBy;
+
+export const selectSemanticLayerQuery = createSelector(
+    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit],
+    (allSelectedFieldsByKind, sortBy, limit) => {
+        return {
+            ...allSelectedFieldsByKind,
+            sortBy,
+            limit,
+        };
     },
 );

@@ -8,14 +8,15 @@ import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 
 const ResultsViewer: FC = () => {
     const mantineTheme = useMantineTheme();
 
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const { results, columns, selectedChartType } = useAppSelector(
         (state) => state.semanticViewer,
@@ -34,22 +35,15 @@ const ResultsViewer: FC = () => {
         selectChartConfigByKind(state, ChartKind.TABLE),
     );
 
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
-
     const resultsRunner = useMemo(
         () =>
             new SemanticViewerResultsRunner({
+                query: semanticQuery,
                 rows: results ?? [],
                 columns: columns ?? [],
-                query: {
-                    ...allSelectedFieldsByKind,
-                    sortBy: [],
-                },
                 projectUuid,
             }),
-        [results, columns, allSelectedFieldsByKind, projectUuid],
+        [columns, projectUuid, results, semanticQuery],
     );
 
     return (
