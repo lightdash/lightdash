@@ -7,16 +7,12 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { Prism } from '@mantine/prism';
-import {
-    IconChartHistogram,
-    IconCodeCircle,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
+import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -145,17 +141,6 @@ const ViewSqlChart = () => {
                                         </Group>
                                     ),
                                 },
-                                {
-                                    value: TabOption.SQL,
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconCodeCircle}
-                                            />
-                                            <Text>Query</Text>
-                                        </Group>
-                                    ),
-                                },
                             ]}
                             value={activeTab}
                             onChange={(val: TabOption) => setActiveTab(val)}
@@ -169,42 +154,45 @@ const ViewSqlChart = () => {
                                 flex: 1,
                             }}
                         >
-                            {activeTab === TabOption.CHART && currentVisConfig && (
-                                <>
-                                    {isVizTableConfig(currentVisConfig) && (
-                                        <Table
-                                            resultsRunner={resultsRunner}
-                                            config={currentVisConfig}
-                                        />
-                                    )}
-                                    {!isVizTableConfig(currentVisConfig) &&
-                                        data && (
-                                            <ChartView
+                            <ConditionalVisibility
+                                isVisible={activeTab === TabOption.CHART}
+                            >
+                                {currentVisConfig && (
+                                    <>
+                                        {isVizTableConfig(currentVisConfig) && (
+                                            <Table
                                                 resultsRunner={resultsRunner}
-                                                isLoading={isLoading}
-                                                data={data}
                                                 config={currentVisConfig}
-                                                style={{
-                                                    height: '100%',
-                                                    width: '100%',
-                                                }}
-                                                sql={sql}
-                                                projectUuid={projectUuid}
                                             />
                                         )}
-                                </>
-                            )}
-                            {activeTab === TabOption.RESULTS && (
+                                        {!isVizTableConfig(currentVisConfig) &&
+                                            data && (
+                                                <ChartView
+                                                    resultsRunner={
+                                                        resultsRunner
+                                                    }
+                                                    isLoading={isLoading}
+                                                    data={data}
+                                                    config={currentVisConfig}
+                                                    style={{
+                                                        height: '100%',
+                                                    }}
+                                                    sql={sql}
+                                                    projectUuid={projectUuid}
+                                                />
+                                            )}
+                                    </>
+                                )}
+                            </ConditionalVisibility>
+
+                            <ConditionalVisibility
+                                isVisible={activeTab === TabOption.RESULTS}
+                            >
                                 <Table
                                     resultsRunner={resultsRunner}
                                     config={resultsTableConfig}
                                 />
-                            )}
-                            {activeTab === TabOption.SQL && (
-                                <Prism language="sql" withLineNumbers>
-                                    {sql || ''}
-                                </Prism>
-                            )}
+                            </ConditionalVisibility>
                         </Box>
                     )}
                 </Stack>
