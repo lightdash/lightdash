@@ -7,6 +7,7 @@ import {
     type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
+    type SemanticLayerFilter,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
     type VizSqlColumn,
@@ -144,6 +145,7 @@ export interface SemanticViewerState {
     limit: number | undefined;
 
     sortBy: SemanticLayerSortBy[];
+    filters: SemanticLayerFilter[];
 }
 
 const initialState: SemanticViewerState = {
@@ -167,6 +169,7 @@ const initialState: SemanticViewerState = {
     limit: undefined,
 
     sortBy: [],
+    filters: [],
 };
 
 export const semanticViewerSlice = createSlice({

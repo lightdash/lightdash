@@ -17,9 +17,8 @@ const ResultsViewer: FC = () => {
 
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
 
-    const { results, columns, selectedChartType } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { results, columns, selectedChartType, sortBy, filters, limit } =
+        useAppSelector((state) => state.semanticViewer);
 
     const barChartConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, ChartKind.VERTICAL_BAR),
@@ -45,12 +44,21 @@ const ResultsViewer: FC = () => {
                 columns: columns ?? [],
                 query: {
                     ...allSelectedFieldsByKind,
-                    sortBy: [],
-                    filters: [],
+                    sortBy,
+                    filters,
+                    limit,
                 },
                 projectUuid,
             }),
-        [results, columns, allSelectedFieldsByKind, projectUuid],
+        [
+            limit,
+            results,
+            columns,
+            allSelectedFieldsByKind,
+            projectUuid,
+            sortBy,
+            filters,
+        ],
     );
 
     return (

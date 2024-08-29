@@ -32,15 +32,18 @@ export const RunSemanticQueryButton: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+
+    const { columns, limit, sortBy, filters, selectedChartType } =
+        useAppSelector((state) => state.semanticViewer);
+
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
+
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
+
     const dispatch = useAppDispatch();
 
     const {
@@ -76,7 +79,7 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters: [],
+                filters,
             },
             projectUuid,
         });
@@ -94,6 +97,7 @@ export const RunSemanticQueryButton: FC = () => {
         columns,
         currentVizConfig,
         dispatch,
+        filters,
         limit,
         projectUuid,
         resultsData,
@@ -107,9 +111,15 @@ export const RunSemanticQueryButton: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters: [],
+                filters,
             }),
-        [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy, limit],
+        [
+            allSelectedFieldsByKind,
+            runSemanticViewerQuery,
+            sortBy,
+            limit,
+            filters,
+        ],
     );
 
     const handleLimitChange = useCallback(

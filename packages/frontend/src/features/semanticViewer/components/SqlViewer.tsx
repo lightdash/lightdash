@@ -11,7 +11,9 @@ import {
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
 
-    const { sortBy, limit } = useAppSelector((state) => state.semanticViewer);
+    const { sortBy, limit, filters } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
 
     const allSelectedFieldsByKind = useAppSelector(
         selectAllSelectedFieldsByKind,
@@ -24,7 +26,7 @@ const SqlViewer: FC = () => {
                 ...allSelectedFieldsByKind,
                 sortBy,
                 limit,
-                filters: [],
+                filters,
             },
         },
         {
