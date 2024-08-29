@@ -1,3 +1,15 @@
+# [0.1234.0](https://github.com/lightdash/lightdash/compare/0.1233.0...0.1234.0) (2024-08-29)
+
+
+### Bug Fixes
+
+* non-bar charts not showing on edit ([#11303](https://github.com/lightdash/lightdash/issues/11303)) ([c35a378](https://github.com/lightdash/lightdash/commit/c35a378dfd263b163a5c95b8c3b74a1147774d3b))
+
+
+### Features
+
+* remove limit and display chart results in chart viz ([#11291](https://github.com/lightdash/lightdash/issues/11291)) ([0d44301](https://github.com/lightdash/lightdash/commit/0d443012e62372697a8ed95b029e8006f5b3d64b))
+
 # [0.1233.0](https://github.com/lightdash/lightdash/compare/0.1232.1...0.1233.0) (2024-08-29)
 
 
