@@ -1,8 +1,8 @@
-import { SemanticLayerStringFilterOperator } from '@lightdash/common';
 import { ActionIcon, Button, Group, Select, Stack } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useSemanticLayerViewFields } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -25,6 +25,8 @@ const FiltersBar: FC = () => {
     );
 
     const dispatch = useAppDispatch();
+
+    const { showToastError } = useToaster();
 
     if (!view) {
         throw new Error('View not set');
@@ -58,7 +60,8 @@ const FiltersBar: FC = () => {
                 <Filter
                     key={uuid}
                     filter={filter}
-                    availableFields={availableFieldOptions}
+                    fieldOptions={availableFieldOptions}
+                    allFields={fields ?? []}
                     onDelete={() => dispatch(removeFilter(uuid))}
                     onUpdate={(updatedFilter) =>
                         dispatch(updateFilter({ uuid, filter: updatedFilter }))
@@ -81,18 +84,32 @@ const FiltersBar: FC = () => {
                         placeholder="Select field"
                         searchable
                         onChange={(value) => {
-                            if (value) {
-                                dispatch(
-                                    addFilter({
-                                        field: value,
-                                        operator:
-                                            SemanticLayerStringFilterOperator.IS,
-                                        values: [],
-                                    }),
-                                );
+                            setCanAddFilter(true);
+
+                            if (!value) {
+                                return;
                             }
 
-                            setCanAddFilter(true);
+                            const defaultOperator = fields?.find(
+                                (f) => f.name === value,
+                            )?.availableOperators[0];
+
+                            if (!defaultOperator) {
+                                showToastError({
+                                    title: 'Error',
+                                    subtitle:
+                                        'No filter operators available for this field',
+                                });
+                                return;
+                            }
+
+                            dispatch(
+                                addFilter({
+                                    field: value,
+                                    operator: defaultOperator,
+                                    values: [],
+                                }),
+                            );
                         }}
                     />
                     <ActionIcon size="xs" onClick={() => setCanAddFilter(true)}>
