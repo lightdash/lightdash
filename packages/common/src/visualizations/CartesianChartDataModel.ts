@@ -20,6 +20,7 @@ export class CartesianChartDataModel
         IChartDataModel<
             VizCartesianChartOptions,
             VizCartesianChartConfig,
+            CartesianChartDisplay,
             CartesianChartKind
         >
 {
