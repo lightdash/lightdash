@@ -160,8 +160,8 @@ export const sqlRunnerSlice = createSlice({
                 { table: string; schema: string } | undefined
             >,
         ) => {
-            state.activeTable = action.payload.table;
-            state.activeSchema = action.payload.schema;
+            state.activeTable = action.payload?.table;
+            state.activeSchema = action.payload?.schema;
         },
         toggleModal: (
             state,
