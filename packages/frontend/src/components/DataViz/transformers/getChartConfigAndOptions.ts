@@ -24,13 +24,16 @@ const getChartConfigAndOptions = (
 
             const pieChartDataModel = new PieChartDataModel({
                 resultsRunner,
-                config: currentVizConfig,
+                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
                 type: chartType,
                 options: pieChartDataModel.getResultOptions(),
-                config: pieChartDataModel.mergeConfig(chartType),
+                config: pieChartDataModel.mergeConfig(
+                    chartType,
+                    currentVizConfig?.display,
+                ),
             } as const;
         case ChartKind.TABLE:
             if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
@@ -53,13 +56,16 @@ const getChartConfigAndOptions = (
 
             const barChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                config: currentVizConfig,
+                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
                 type: chartType,
                 options: barChartModel.getResultOptions(),
-                config: barChartModel.mergeConfig(chartType),
+                config: barChartModel.mergeConfig(
+                    chartType,
+                    currentVizConfig?.display,
+                ),
             } as const;
 
         case ChartKind.LINE:
@@ -69,13 +75,16 @@ const getChartConfigAndOptions = (
 
             const lineChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                config: currentVizConfig,
+                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
                 type: chartType,
                 options: lineChartModel.getResultOptions(),
-                config: lineChartModel.mergeConfig(chartType),
+                config: lineChartModel.mergeConfig(
+                    chartType,
+                    currentVizConfig?.display,
+                ),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);

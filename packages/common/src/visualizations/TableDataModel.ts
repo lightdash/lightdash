@@ -9,7 +9,12 @@ import type { IResultsRunner } from './types/IResultsRunner';
 
 export class TableDataModel
     implements
-        IChartDataModel<VizTableOptions, VizTableConfig, ChartKind.TABLE>
+        IChartDataModel<
+            VizTableOptions,
+            VizTableConfig,
+            undefined,
+            ChartKind.TABLE
+        >
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
