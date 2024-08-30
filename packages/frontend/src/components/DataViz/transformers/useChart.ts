@@ -35,7 +35,10 @@ export const useChart = <T extends ResultsRunner>({
 }) => {
     const chartTransformer = useMemo(() => {
         if (config?.type === ChartKind.PIE) {
-            return new PieChartDataModel({ resultsRunner, config });
+            return new PieChartDataModel({
+                resultsRunner,
+                fieldConfig: config?.fieldConfig,
+            });
         }
         if (
             config?.type === ChartKind.VERTICAL_BAR ||
@@ -43,10 +46,10 @@ export const useChart = <T extends ResultsRunner>({
         ) {
             return new CartesianChartDataModel({
                 resultsRunner,
-                config,
+                fieldConfig: config.fieldConfig,
             });
         }
-    }, [resultsRunner, config]);
+    }, [resultsRunner, config?.fieldConfig, config?.type]);
 
     const getTransformedData = useCallback(
         async () =>

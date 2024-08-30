@@ -20,21 +20,22 @@ export class CartesianChartDataModel
         IChartDataModel<
             VizCartesianChartOptions,
             VizCartesianChartConfig,
+            CartesianChartDisplay,
             CartesianChartKind
         >
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-    private readonly config: VizCartesianChartConfig | undefined;
+    private readonly fieldConfig: VizCartesianChartConfig['fieldConfig'];
 
     private colorMap: Map<string, string>;
 
     constructor(args: {
         resultsRunner: IResultsRunner<VizChartLayout>;
-        config: VizCartesianChartConfig | undefined;
+        fieldConfig: VizCartesianChartConfig['fieldConfig'];
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config;
+        this.fieldConfig = args.fieldConfig;
 
         this.colorMap = new Map();
     }
@@ -80,16 +81,19 @@ export class CartesianChartDataModel
         return undefined;
     }
 
-    mergeConfig(chartKind: CartesianChartKind): VizCartesianChartConfig {
+    mergeConfig(
+        chartKind: CartesianChartKind,
+        display: CartesianChartDisplay | undefined,
+    ): VizCartesianChartConfig {
         return {
             metadata: {
                 version: 1,
             },
             type: chartKind,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                this.config?.fieldConfig,
+                this.fieldConfig,
             ),
-            display: this.config?.display,
+            display,
         };
     }
 
