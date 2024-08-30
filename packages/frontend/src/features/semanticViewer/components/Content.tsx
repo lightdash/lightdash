@@ -7,7 +7,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectAllSelectedFieldNames } from '../store/selectors';
 import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
-import FiltersBar from './FiltersBar';
+import Filters from './Filters';
 import ResultsViewer from './ResultsViewer';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
 import SqlViewer from './SqlViewer';
@@ -37,7 +37,7 @@ const Content: FC = () => {
                 })}
             >
                 <Group position="apart">
-                    <Group position="apart">
+                    <Group position="apart" pos="relative">
                         <SegmentedControl
                             color="dark"
                             size="sm"
@@ -82,6 +82,7 @@ const Content: FC = () => {
                                 }
                             }}
                         />
+                        <Filters />
                     </Group>
 
                     <Group spacing="md">
@@ -89,8 +90,6 @@ const Content: FC = () => {
                     </Group>
                 </Group>
             </Paper>
-
-            <FiltersBar />
 
             <Paper
                 ref={inputSectionRef}

@@ -43,9 +43,10 @@ const Filter: FC<FilterProps> = ({
     }, [currentField]);
 
     return (
-        <Flex align="center" gap="xs" w="50%">
+        <Flex align="center" gap="xs" w="100%">
             <Select
                 size="xs"
+                withinPortal={true}
                 style={{ flex: 1 }}
                 data={fieldOptions}
                 value={filter.field}
@@ -59,6 +60,7 @@ const Filter: FC<FilterProps> = ({
             />
             <Select
                 size="xs"
+                withinPortal={true}
                 style={{ flex: 1 }}
                 data={operatorsOpts ?? []}
                 value={currentOperator}
@@ -72,7 +74,7 @@ const Filter: FC<FilterProps> = ({
             />
             <FilterMultiStringInput
                 size="xs"
-                style={{ flex: 2 }}
+                style={{ flex: 1 }}
                 values={filter.values}
                 onChange={(values) => {
                     onUpdate({ ...filter, values });
