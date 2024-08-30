@@ -6,6 +6,7 @@ import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 export enum VizAggregationOptions {
     SUM = 'sum',
     COUNT = 'count',
+    AVERAGE = 'avg',
     MIN = 'min',
     MAX = 'max',
     FIRST = 'first',
@@ -14,6 +15,7 @@ export enum VizAggregationOptions {
 export const vizAggregationOptions = [
     VizAggregationOptions.SUM,
     VizAggregationOptions.COUNT,
+    VizAggregationOptions.AVERAGE,
     VizAggregationOptions.MIN,
     VizAggregationOptions.MAX,
     VizAggregationOptions.FIRST,

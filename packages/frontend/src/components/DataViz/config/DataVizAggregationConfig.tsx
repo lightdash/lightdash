@@ -1,6 +1,6 @@
 import {
     MetricType,
-    type VizAggregationOptions,
+    VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
@@ -30,6 +30,7 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             icon = IconSum;
             break;
         case MetricType.AVERAGE:
+        case VizAggregationOptions.AVERAGE:
             icon = IconTrendingUp;
             break;
         case MetricType.MIN:
