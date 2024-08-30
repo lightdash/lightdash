@@ -1,3 +1,15 @@
+## [0.1236.2](https://github.com/lightdash/lightdash/compare/0.1236.1...0.1236.2) (2024-08-30)
+
+
+### Bug Fixes
+
+* sql runner fields on different schema ([#11313](https://github.com/lightdash/lightdash/issues/11313)) ([0f8349d](https://github.com/lightdash/lightdash/commit/0f8349d76ed45b7faafec6a15118fa106f8cdf48))
+
+
+### Performance Improvements
+
+* only trigger query when config.type/config.fieldConfig changes ([#11304](https://github.com/lightdash/lightdash/issues/11304)) ([e9fb8e6](https://github.com/lightdash/lightdash/commit/e9fb8e62951a163611b2415d5115bfd936e40e7e))
+
 ## [0.1236.1](https://github.com/lightdash/lightdash/compare/0.1236.0...0.1236.1) (2024-08-30)
 
 
