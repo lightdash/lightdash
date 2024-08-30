@@ -63,6 +63,7 @@ export type SemanticLayerAggFunc =
     | 'max'
     | 'min'
     | 'mean'
+    | 'avg'
     | 'median'
     | 'first'
     | 'last'

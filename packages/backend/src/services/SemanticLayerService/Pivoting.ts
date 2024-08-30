@@ -25,7 +25,12 @@ export function pivotResults(
         return results;
     }
 
-    const aggs: pl.Expr[] = values.map((v) => pl.col(v.name)[v.aggFunction]());
+    const aggs: pl.Expr[] = values.map((v) => {
+        if (v.aggFunction === 'avg') {
+            return pl.col(v.name).mean();
+        }
+        return pl.col(v.name)[v.aggFunction]();
+    });
 
     return df
         .groupBy(dimensionsToGroupBy)
@@ -44,9 +49,15 @@ export const groupResults = (
 ): SemanticLayerResultRow[] => {
     const df = pl.DataFrame(results);
 
-    const aliasedAggs: pl.Expr[] = values.map((v) =>
-        pl.col(v.name)[v.aggFunction]().alias(`${v.aggFunction}(${v.name})`),
-    );
+    const aliasedAggs: pl.Expr[] = values.map((v) => {
+        if (v.aggFunction === 'avg') {
+            return pl.col(v.name).mean().alias(`avg(${v.name})`);
+        }
+        return pl
+            .col(v.name)
+            [v.aggFunction]()
+            .alias(`${v.aggFunction}(${v.name})`);
+    });
 
     return df
         .groupBy(groupBy)
