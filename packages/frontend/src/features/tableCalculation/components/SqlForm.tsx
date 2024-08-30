@@ -66,6 +66,7 @@ export const SqlForm: FC<Props> = ({ form, isFullScreen }) => {
                     setOptions={{
                         autoScrollEditorIntoView: true,
                     }}
+                    style={{ zIndex: 0 }}
                     onLoad={setAceEditor}
                     enableLiveAutocompletion
                     enableBasicAutocompletion

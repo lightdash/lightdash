@@ -9,11 +9,17 @@ export type DbCatalog = {
     type: CatalogType;
     search_vector: string;
     embedding_vector?: string;
+    field_type?: string;
 };
 
 export type DbCatalogIn = Pick<
     DbCatalog,
-    'cached_explore_uuid' | 'project_uuid' | 'name' | 'description' | 'type'
+    | 'cached_explore_uuid'
+    | 'project_uuid'
+    | 'name'
+    | 'description'
+    | 'type'
+    | 'field_type'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate = Pick<DbCatalog, 'embedding_vector'>;

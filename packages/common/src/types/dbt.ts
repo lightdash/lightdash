@@ -47,6 +47,11 @@ export type DbtRawModelNode = CompiledModelNode & {
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;
+    unrendered_config?: {
+        meta?: {
+            joins?: Array<{ join: string }>;
+        };
+    };
 };
 export type DbtModelColumn = ColumnInfo & {
     meta: DbtColumnMetadata;

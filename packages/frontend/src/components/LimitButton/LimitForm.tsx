@@ -2,16 +2,12 @@ import { Button, NumberInput, Stack } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { forwardRef } from 'react';
 import { z } from 'zod';
-import useHealth from '../../hooks/health/useHealth';
 import { type Props } from './index';
 
-type LimitFormProps = Pick<Props, 'limit' | 'onLimitChange'>;
+type LimitFormProps = Pick<Props, 'limit' | 'maxLimit' | 'onLimitChange'>;
 
 const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
-    ({ limit, onLimitChange }, ref) => {
-        const health = useHealth();
-        const max = health.data?.query.maxLimit || 5000;
-
+    ({ limit, maxLimit, onLimitChange }, ref) => {
         const schema = z.object({
             limit: z
                 .number({
@@ -19,7 +15,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
                 })
                 .int()
                 .min(1, 'Minimum value: 1')
-                .max(max, `Maximum value: ${max}`),
+                .max(maxLimit, `Maximum value: ${maxLimit}`),
         });
 
         const form = useForm({
@@ -28,9 +24,7 @@ const LimitForm = forwardRef<HTMLFormElement, LimitFormProps>(
             initialValues: { limit },
         });
 
-        if (!health.data) {
-            return null;
-        }
+        if (!maxLimit) return null;
 
         return (
             <form

@@ -431,6 +431,7 @@ export class CsvService extends BaseService {
             csvLimit: getSchedulerCsvLimit(options),
             context: QueryExecutionContext.CSV,
             granularity: dateZoomGranularity,
+            chartUuid,
         });
         const numberRows = rows.length;
 
@@ -786,6 +787,7 @@ export class CsvService extends BaseService {
                 exploreName: exploreId,
                 csvLimit,
                 context: QueryExecutionContext.CSV,
+                chartUuid: undefined,
             });
             const numberRows = rows.length;
 

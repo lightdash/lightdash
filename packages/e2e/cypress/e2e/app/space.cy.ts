@@ -24,11 +24,20 @@ describe('Space', () => {
         cy.contains('Total order amount').click();
         cy.contains('Status').click();
         cy.contains('Save chart').click();
-        cy.findByPlaceholderText(
-            'eg. How many weekly active users do we have?',
-        ).type(`Private chart ${timestamp}`);
+        cy.contains('Enter a memorable name for your chart');
+
+        cy.get('.mantine-Modal-body').find('button').should('be.disabled');
+        cy.contains('Select a space to save the chart directly to'); // Wait until it finishes loading, otherwise the input will be cleared
+        cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .type(`Private chart ${timestamp}`)
+            .should('have.value', `Private chart ${timestamp}`);
+
         // Saves to space by default
-        cy.get('.mantine-Modal-body').find('button').contains('Save').click();
+        cy.get('.mantine-Modal-body')
+            .find('button')
+            .should('not.be.disabled')
+            .contains('Save')
+            .click();
 
         // Go back to space using breadcrumbs
         cy.contains('Private space').click();

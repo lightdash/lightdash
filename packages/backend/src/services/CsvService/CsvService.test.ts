@@ -18,6 +18,7 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
@@ -43,6 +44,7 @@ describe('Csv service', () => {
             sshKeyPairModel: {} as SshKeyPairModel,
             userAttributesModel: {} as UserAttributesModel,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+            warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
             emailModel: {
                 getPrimaryEmailStatus: (userUuid: string) => ({
                     isVerified: true,

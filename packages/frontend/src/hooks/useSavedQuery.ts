@@ -51,7 +51,7 @@ const duplicateSavedQuery = async (
         body: JSON.stringify(data),
     });
 
-export const deleteSavedQuery = async (id: string) =>
+const deleteSavedQuery = async (id: string) =>
     lightdashApi<null>({
         url: `/saved/${id}`,
         method: 'DELETE',

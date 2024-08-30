@@ -401,6 +401,9 @@ describe('Date tests', () => {
         cy.contains('Pick a metric & select its dimensions').should(
             'be.visible',
         );
+
+        cy.contains('Search Jaffle shop'); // Wait until it finishes loading the nav bar
+        cy.contains('Save chart').should('be.disabled'); // Wait until it finishes loading the button
         cy.contains('Filters').should('be.visible');
 
         cy.findAllByText('Loading chart').should('have.length', 0);
@@ -456,6 +459,11 @@ describe('Date tests', () => {
 
         cy.findByTestId('page-spinner').should('not.exist');
         cy.get('[data-testid=Chart-card-expand]').click(); // Close chart
+
+        cy.contains('Search Jaffle shop'); // Wait until it finishes loading the nav bar
+        cy.contains('Save chart'); // Wait until it finishes loading the button
+
+        cy.contains('Results may be incomplete');
 
         cy.contains('Filters').should('be.visible');
 

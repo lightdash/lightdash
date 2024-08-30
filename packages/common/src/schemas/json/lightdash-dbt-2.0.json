@@ -38,6 +38,19 @@
                             ]
                         }
                     },
+                    "data_tests": {
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "object"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ]
+                        }
+                    },
                     "meta": {
                         "type": "object",
                         "properties": {
@@ -63,6 +76,25 @@
                                 "type": "string",
                                 "enum": ["index", "label"]
                             },
+                            "group_details": {
+                                "type": "object",
+                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 2 levels",
+                                "patternProperties": {
+                                    "^[a-zA-Z0-9_]+$": {
+                                        "type": "object",
+                                        "properties": {
+                                            "label": {
+                                                "type": "string",
+                                                "minLength": 1
+                                            },
+                                            "description": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["label"]
+                                    }
+                                }
+                            },
                             "metrics": {
                                 "type": "object",
                                 "patternProperties": {
@@ -87,13 +119,16 @@
                                                 ]
                                             },
                                             "label": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "description": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "sql": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "minLength": 1
                                             },
                                             "hidden": {
                                                 "type": "boolean"
@@ -116,6 +151,15 @@
                                             },
                                             "percentile": {
                                                 "type": "number"
+                                            },
+                                            "groups": {
+                                                "type": "array",
+                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                "items": {
+                                                    "type": "string",
+                                                    "minLength": 1
+                                                },
+                                                "maxItems": 2
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -139,6 +183,19 @@
                                     "type": "boolean"
                                 },
                                 "tests": {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "data_tests": {
                                     "type": "array",
                                     "items": {
                                         "anyOf": [
@@ -184,13 +241,16 @@
                                                             ]
                                                         },
                                                         "label": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "description": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "sql": {
-                                                            "type": "string"
+                                                            "type": "string",
+                                                            "minLength": 1
                                                         },
                                                         "hidden": {
                                                             "type": "boolean"
@@ -213,6 +273,15 @@
                                                         },
                                                         "percentile": {
                                                             "type": "number"
+                                                        },
+                                                        "groups": {
+                                                            "type": "array",
+                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                            "items": {
+                                                                "type": "string",
+                                                                "minLength": 1
+                                                            },
+                                                            "maxItems": 2
                                                         }
                                                     },
                                                     "required": ["type"]
@@ -222,14 +291,27 @@
                                         "dimension": {
                                             "type": "object",
                                             "properties": {
+                                                "type": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "string",
+                                                        "number",
+                                                        "timestamp",
+                                                        "date",
+                                                        "boolean"
+                                                    ]
+                                                },
                                                 "label": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "description": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "sql": {
-                                                    "type": "string"
+                                                    "type": "string",
+                                                    "minLength": 1
                                                 },
                                                 "hidden": {
                                                     "type": "boolean"
@@ -290,6 +372,15 @@
                                                             ]
                                                         }
                                                     ]
+                                                },
+                                                "groups": {
+                                                    "type": "array",
+                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "minLength": 1
+                                                    },
+                                                    "maxItems": 2
                                                 }
                                             }
                                         }
@@ -387,6 +478,12 @@
             }
         },
         "tests": {
+            "type": "array",
+            "items": {
+                "type": "object"
+            }
+        },
+        "unit_tests": {
             "type": "array",
             "items": {
                 "type": "object"

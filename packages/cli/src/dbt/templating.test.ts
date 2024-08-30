@@ -54,6 +54,13 @@ describe('Templating', () => {
                     ),
                 ).toBe('default_value');
             });
+            test('should convert env_var function and fallback to default value using keyword default', () => {
+                expect(
+                    renderProfilesYml(
+                        "{{ env_var('DBT_USER', default='default_value') }}",
+                    ),
+                ).toBe('default_value');
+            });
         });
         describe('var()', () => {
             test('should convert var functions and return env var values', () => {

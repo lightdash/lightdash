@@ -24,6 +24,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -47,7 +48,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/results')
-    @OperationId('postChartResults')
+    @OperationId('PostChartResults')
     async postChartResults(
         @Body()
         body: {
@@ -64,6 +65,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
+                context: getContextFromHeader(req),
             }),
         };
     }
@@ -71,7 +73,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
-    @OperationId('postChartResults')
+    @OperationId('PostDashboardTile')
     async postDashboardTile(
         @Body()
         body: {
@@ -80,6 +82,7 @@ export class SavedChartController extends BaseController {
             dashboardSorts: SortField[];
             dashboardUuid: string;
             granularity?: DateGranularity;
+            autoRefresh?: boolean;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -97,6 +100,8 @@ export class SavedChartController extends BaseController {
                     dashboardSorts: body.dashboardSorts,
                     granularity: body.granularity,
                     dashboardUuid: body.dashboardUuid,
+                    autoRefresh: body.autoRefresh,
+                    context: getContextFromHeader(req),
                 }),
         };
     }
@@ -109,7 +114,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/history')
-    @OperationId('get')
+    @OperationId('GetChartHistory')
     async getChartHistory(
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -132,7 +137,7 @@ export class SavedChartController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/version/{versionUuid}')
-    @OperationId('get')
+    @OperationId('GetChartVersion')
     async getChartVersion(
         @Path() chartUuid: string,
         @Path() versionUuid: string,
@@ -163,12 +168,14 @@ export class SavedChartController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
                 user: req.user!,
                 chartUuid,
                 versionUuid,
+                context: getContextFromHeader(req),
             }),
         };
     }
@@ -240,7 +247,11 @@ export class SavedChartController extends BaseController {
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/promote')
     @OperationId('promoteChart')

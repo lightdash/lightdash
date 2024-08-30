@@ -47,6 +47,110 @@ Object.entries(warehouseConnections).forEach(
                 cy.deleteProjectsByName([projectName]);
             });
 
+            // test for invalid sql
+            // note each db type may have different error messages
+            it(`Get error on invalid SQL for ${warehouseName}`, () => {
+                const sql =
+                    'SELECT * FROM `fake_test_db`.e2e_jaffle_shop`.`raw_customers`';
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql,
+                    }),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(500);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            cy.log(JSON.stringify(resp));
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                switch (warehouseConfig.type) {
+                                    case WarehouseTypes.SNOWFLAKE:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('SQL compilation error:');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.BIGQUERY:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('Syntax error:');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.POSTGRES:
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(15);
+                                        break;
+                                    default:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        break;
+                                }
+                            } // Else keep polling
+                            else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+
             it(`Get tables for SQL runner ${warehouseName}`, () => {
                 cy.request({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables`,
@@ -97,8 +201,8 @@ Object.entries(warehouseConnections).forEach(
                 const selectFields =
                     warehouseConfig.type !== WarehouseTypes.SNOWFLAKE
                         ? `*`
-                        : `payment_id as "payment_id", 
-                amount as "amount", 
+                        : `payment_id as "payment_id",
+                amount as "amount",
                 payment_method as "payment_method"`; // Need to lowercase column ids in snowflake
                 const sql = `SELECT ${selectFields}
                              FROM ${database}.${schema}.payments
@@ -149,28 +253,17 @@ Object.entries(warehouseConnections).forEach(
                                     );
 
                                     expect(results).to.have.length(2);
-                                    expect(
-                                        results[0].payment_id.value.raw,
-                                    ).to.be.eq(1);
-                                    expect(
-                                        results[0].payment_id.value.formatted,
-                                    ).to.be.eq('1');
-                                    expect(
-                                        results[0].payment_method.value.raw,
-                                    ).to.be.eq('credit_card');
-                                    expect(
-                                        results[0].payment_method.value
-                                            .formatted,
-                                    ).to.be.eq('credit_card');
-                                    // TODO FIX amount, DIfferent warehouses have different format
-                                    // expect(results[0].amount.value.raw).to.be.eq("10.0000000000000000");
 
-                                    expect(
-                                        results[1].payment_id.value.raw,
-                                    ).to.be.eq(2);
-                                    expect(
-                                        results[1].payment_method.value.raw,
-                                    ).to.be.eq('credit_card');
+                                    expect(results[0].payment_id).to.be.eq(1);
+
+                                    expect(results[0].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
+
+                                    expect(results[1].payment_id).to.be.eq(2);
+                                    expect(results[1].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
                                 });
                             } // Else keep polling
                             else if (retries < maxRetries) {
@@ -264,7 +357,7 @@ describe.skip(`Load testing`, () => {
     });
 });
 
-describe.only(`Saved SQL chart`, () => {
+describe(`Saved SQL chart`, () => {
     beforeEach(() => {
         cy.login();
     });
@@ -279,7 +372,8 @@ describe.only(`Saved SQL chart`, () => {
             const sqlChartToCreate: CreateSqlChart = {
                 name: 'test',
                 description: null,
-                sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 21',
+                sql: 'SELECT * FROM postgres.jaffle.payments',
+                limit: 21,
                 config: {
                     metadata: {
                         version: 1,
@@ -307,7 +401,8 @@ describe.only(`Saved SQL chart`, () => {
                         spaceUuid: space.uuid,
                     },
                     versionedData: {
-                        sql: 'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                        sql: 'SELECT * FROM postgres.jaffle.payments',
+                        limit: 22,
                         config: {
                             metadata: {
                                 version: 1,
@@ -334,7 +429,7 @@ describe.only(`Saved SQL chart`, () => {
                         const { results } = getResp.body;
                         expect(results.name).to.be.eq('test update');
                         expect(results.sql).to.be.eq(
-                            'SELECT * FROM postgres.jaffle.payments LIMIT 22',
+                            'SELECT * FROM postgres.jaffle.payments',
                         );
 
                         // delete sql chart

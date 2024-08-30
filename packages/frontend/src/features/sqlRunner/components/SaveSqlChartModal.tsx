@@ -1,4 +1,3 @@
-import { ChartKind } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -11,10 +10,11 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
+    SaveDestination,
     SaveToSpace,
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -24,6 +24,11 @@ import {
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+
+import {
+    selectChartConfigByKind,
+    selectTableVisConfigState,
+} from '../../../components/DataViz/store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -33,34 +38,52 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+
+    // TODO: this sometimes runs `/api/v1/projects//spaces` request
+    // because initial `projectUuid` is set to '' (empty string)
+    // we should handle this by creating an impossible state
+    // check first few lines inside `features/semanticViewer/store/selectors.ts`
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
+    const [isFormPopulated, setIsFormPopulated] = useState(false);
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
+        initialValues: {
+            name: '',
+            description: '',
+            spaceUuid: '',
+            newSpaceName: '',
+            saveDestination: SaveDestination.Space,
+        },
         validate: zodResolver(validationSchema),
     });
 
     useEffect(() => {
-        if (!form.values.name && name) {
-            form.setFieldValue('name', name);
+        if (!isFormPopulated) {
+            if (name) {
+                form.setFieldValue('name', name);
+            }
+            if (description) {
+                form.setFieldValue('description', description);
+            }
+            if (spaces.length > 0) {
+                form.setFieldValue('spaceUuid', spaces[0].uuid);
+            }
+            setIsFormPopulated(true);
         }
-        if (!form.values.description && description) {
-            form.setFieldValue('description', description);
-        }
-        if (!form.values.spaceUuid && spaces.length > 0) {
-            form.setFieldValue('spaceUuid', spaces[0].uuid);
-        }
-    }, [name, form, description, spaces]);
+    }, [name, form, description, spaces, isFormPopulated]);
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const config = useAppSelector((state) =>
-        state.sqlRunner.selectedChartType === ChartKind.TABLE
-            ? state.sqlRunner.tableChartConfig
-            : state.barChartConfig.config,
+    const { sql, selectedChartType } = useAppSelector(
+        (state) => state.sqlRunner,
     );
+    const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const selectedChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
+    );
+    const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
     const {
         mutateAsync: createSavedSqlChart,
@@ -87,31 +110,37 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             : undefined;
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
-        await createSavedSqlChart({
-            name: form.values.name,
-            description: form.values.description || '',
-            sql: sql,
-            // TODO: should initial version get generated on the BE?
-            config: config || {
-                metadata: { version: 1 },
-                type: ChartKind.VERTICAL_BAR,
-            },
-            spaceUuid: spaceUuid,
-        });
+
+        const configToSave = selectedChartConfig ?? defaultChartConfig.config;
+
+        if (configToSave && sql) {
+            await createSavedSqlChart({
+                name: form.values.name,
+                description: form.values.description || '',
+                sql,
+                limit,
+                config: configToSave,
+                spaceUuid: spaceUuid,
+            });
+        }
+
         dispatch(updateName(form.values.name));
+
         onClose();
     }, [
-        config,
-        createSavedSqlChart,
-        dispatch,
-        form.values.description,
-        form.values.name,
-        form.values.spaceUuid,
-        form.values.newSpaceName,
-        onClose,
         spaces,
-        sql,
+        form.values.newSpaceName,
+        form.values.spaceUuid,
+        form.values.name,
+        form.values.description,
         createSpace,
+        selectedChartConfig,
+        defaultChartConfig.config,
+        sql,
+        dispatch,
+        onClose,
+        createSavedSqlChart,
+        limit,
     ]);
 
     return (
@@ -170,7 +199,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name}
+                        disabled={!form.values.name || !sql}
                         loading={isCreatingSavedSqlChart}
                     >
                         Save

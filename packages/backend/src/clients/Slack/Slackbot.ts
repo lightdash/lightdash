@@ -1,4 +1,7 @@
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    SlackInstallationNotFoundError,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { Express } from 'express';
@@ -189,7 +192,11 @@ export class SlackBot {
                             details?.organizationUuid,
                         );
 
-                    appProfilePhotoUrl = installation?.appProfilePhotoUrl;
+                    if (!installation) {
+                        throw new SlackInstallationNotFoundError();
+                    }
+
+                    appProfilePhotoUrl = installation.appProfilePhotoUrl;
 
                     const { imageUrl } = await this.unfurlService.unfurlImage({
                         url: details.minimalUrl,

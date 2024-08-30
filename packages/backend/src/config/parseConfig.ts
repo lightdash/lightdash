@@ -269,6 +269,15 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    cube: {
+        token: string;
+        domain?: string;
+    };
+    dbtCloud: {
+        bearerToken?: string;
+        environmentId?: string;
+        domain: string;
+    };
 };
 
 export type SlackConfig = {
@@ -387,6 +396,7 @@ export type AuthConfig = {
     disablePasswordAuthentication: boolean;
     enableGroupSync: boolean;
     enableOidcLinking: boolean;
+    enableOidcToEmailLinking: boolean;
     google: AuthGoogleConfig;
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
@@ -532,6 +542,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',
             enableOidcLinking: process.env.AUTH_ENABLE_OIDC_LINKING === 'true',
+            enableOidcToEmailLinking:
+                process.env.AUTH_ENABLE_OIDC_TO_EMAIL_LINKING === 'true',
             google: {
                 oauth2ClientId: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
                 oauth2ClientSecret:
@@ -759,6 +771,17 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+        },
+        cube: {
+            token: process.env.CUBE_TOKEN || '',
+            domain: process.env.CUBE_DOMAIN,
+        },
+        dbtCloud: {
+            bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,
+            environmentId: process.env.DBT_CLOUD_ENVIRONMENT_ID,
+            domain:
+                process.env.DBT_CLOUD_DOMAIN ||
+                `https://semantic-layer.cloud.getdbt.com`,
         },
     };
 };

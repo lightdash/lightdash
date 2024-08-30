@@ -22,6 +22,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { METRIC_QUERY, warehouseClientMock } from '../../queryBuilder.mock';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { ProjectService } from './ProjectService';
@@ -110,6 +111,7 @@ describe('ProjectService', () => {
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: {
             getPrimaryEmailStatus: (userUuid: string) => ({
                 isVerified: true,
@@ -130,7 +132,7 @@ describe('ProjectService', () => {
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
-                event: 'sql.executed',
+                event: 'query.executed',
             }),
         );
     });

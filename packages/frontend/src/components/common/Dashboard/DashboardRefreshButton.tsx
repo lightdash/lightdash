@@ -62,6 +62,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             (c) => c.clearCacheAndFetch,
         );
 
+        const setIsAutoRefresh = useDashboardContext((c) => c.setIsAutoRefresh);
         const isOneAtLeastFetching = isFetching > 0;
 
         const invalidateAndSetRefreshTime = useCallback(async () => {
@@ -166,6 +167,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                             fz="xs"
                             onClick={() => {
                                 setRefreshInterval(undefined);
+                                setIsAutoRefresh(false);
                             }}
                             disabled={refreshInterval === undefined}
                             bg={
@@ -190,6 +192,7 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                                     const valNum = +value;
                                     setRefreshInterval(valNum);
                                     onIntervalChange(valNum);
+                                    setIsAutoRefresh(true);
                                     showToastSuccess({
                                         title: `Your dashboard will refresh every ${
                                             REFRESH_INTERVAL_OPTIONS.find(

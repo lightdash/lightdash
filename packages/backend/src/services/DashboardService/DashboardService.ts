@@ -113,6 +113,9 @@ export class DashboardService extends BaseService {
             chartTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.SAVED_CHART,
             ).length,
+            sqlChartTilesCount: dashboard.tiles.filter(
+                ({ type }) => type === DashboardTileTypes.SQL_CHART,
+            ).length,
             markdownTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.MARKDOWN,
             ).length,
@@ -129,6 +132,7 @@ export class DashboardService extends BaseService {
         const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
             dashboardUuid,
         );
+
         await Promise.all(
             orphanedCharts.map(async (chart) => {
                 const deletedChart = await this.savedChartModel.delete(

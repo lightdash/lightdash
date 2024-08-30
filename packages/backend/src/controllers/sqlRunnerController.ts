@@ -10,6 +10,7 @@ import {
     ApiWarehouseTableFields,
     CreateSqlChart,
     SqlRunnerBody,
+    SqlRunnerPivotQueryBody,
     UpdateSqlChart,
 } from '@lightdash/common';
 import {
@@ -22,6 +23,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -74,6 +76,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Path() tableName: string,
         @Request() req: express.Request,
+        @Query() schema?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -81,7 +84,7 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseFields(req.user!, projectUuid, tableName),
+                .getWarehouseFields(req.user!, projectUuid, tableName, schema),
         };
     }
 
@@ -103,14 +106,43 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getProjectService()
-                .scheduleSqlJob(req.user!, projectUuid, body.sql),
+                .getSavedSqlService()
+                .getResultJobFromSql(
+                    req.user!,
+                    projectUuid,
+                    body.sql,
+                    body.limit,
+                ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/runPivotQuery')
+    @OperationId('runSqlPivotQuery')
+    async runSqlPivotQuery(
+        @Path() projectUuid: string,
+        @Body() body: SqlRunnerPivotQueryBody,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getResultJobFromSqlPivotQuery(req.user!, projectUuid, body),
         };
     }
 
     /**
      * Get results from a file stored locally
      * @param fileId the fileId for the file
+     * @param projectUuid the uuid for the project
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -190,6 +222,31 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Schedules a job to get its results
+     * @param projectUuid - the uuid of the project
+     * @param slug - the uuid of the saved chart
+     * @param req - express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/slug/{slug}/results-job')
+    @OperationId('getSavedSqlResultsJob')
+    async getSavedSqlResultsJob(
+        @Path() slug: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChartResultJob(req.user!, projectUuid, slug),
+        };
+    }
+
+    /**
      * Gets chart and schedules a job to get its results
      * @param projectUuid - the uuid of the project
      * @param uuid - the uuid of the saved chart
@@ -206,20 +263,11 @@ export class SqlRunnerController extends BaseController {
     ): Promise<ApiSqlChartWithResults> {
         this.setStatus(200);
 
-        const chart = await this.services
-            .getSavedSqlService()
-            .getSqlChart(req.user!, projectUuid, uuid);
-
         return {
             status: 'ok',
-            results: {
-                jobId: (
-                    await this.services
-                        .getProjectService()
-                        .scheduleSqlJob(req.user!, projectUuid, chart.sql)
-                ).jobId,
-                chart,
-            },
+            results: await this.services
+                .getSavedSqlService()
+                .getChartWithResultJob(req.user!, projectUuid, uuid),
         };
     }
 
@@ -304,6 +352,33 @@ export class SqlRunnerController extends BaseController {
         await this.services
             .getSavedSqlService()
             .deleteSqlChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Refresh the catalog cache
+     * @param uuid the uuid for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('refresh-catalog')
+    @OperationId('refreshSqlRunnerCatalog')
+    async refreshSqlRunnerCatalog(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .populateWarehouseTablesCache(req.user!, projectUuid);
         return {
             status: 'ok',
             results: undefined,

@@ -12,6 +12,7 @@ import {
     type CustomDimension,
     type Field,
     type ItemsMap,
+    type RawResultRow,
     type ResultRow,
     type ResultValue,
     type TableCalculation,
@@ -30,6 +31,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../components/common/Table/types';
+import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -57,6 +59,12 @@ export const getRawValueCell = (
     if (raw === undefined) return '-';
     if (raw instanceof Date) return <span>{raw.toISOString()}</span>;
     return <span>{`${raw}`}</span>;
+};
+
+export const getValueCell = (info: CellContext<RawResultRow, string>) => {
+    const value = info.getValue();
+    const formatted = formatRowValueFromWarehouse(value);
+    return <span>{formatted}</span>;
 };
 
 export const useColumns = (): TableColumn[] => {

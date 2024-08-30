@@ -69,7 +69,6 @@ const compileAdditionalMetric = ({
     const compiledMetric = exploreCompiler.compileMetricSql(
         metric,
         explore.tables,
-        {},
     );
     return {
         ...metric,

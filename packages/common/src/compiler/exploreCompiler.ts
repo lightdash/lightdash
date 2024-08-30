@@ -83,22 +83,14 @@ export type UncompiledExplore = {
 const getReferencedTable = (
     refTable: string,
     tables: Record<string, Table>,
-    currentTable: string,
-    joinAliases?: Record<string, Record<string, string>>,
-) =>
-    Object.values(tables).find((table) => {
-        const nameMatch =
-            (table.name === currentTable && table.originalName === refTable) ||
-            table.name === refTable;
-        if (nameMatch) return true;
-
-        if (!joinAliases?.[currentTable]) return false;
-        // Check if this `refTable` is an alias in its join
-        return Object.entries(joinAliases[currentTable]).some(
-            ([alias, joinTable]) =>
-                alias === refTable && joinTable === table.name,
-        );
-    });
+) => {
+    if (tables[refTable]) {
+        return tables[refTable];
+    }
+    return Object.values(tables).find(
+        (table) => table.name === refTable || table.originalName === refTable,
+    );
+};
 export class ExploreCompiler {
     private readonly warehouseClient: WarehouseClient;
 
@@ -118,7 +110,6 @@ export class ExploreCompiler {
         warehouse,
         ymlPath,
         sqlPath,
-        joinAliases,
     }: UncompiledExplore): Explore {
         // Check that base table and joined tables exist
         if (!tables[baseTable]) {
@@ -152,6 +143,7 @@ export class ExploreCompiler {
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
                     tables[join.table].label;
+
                 const requiredDimensionsForJoin = parseAllReferences(
                     join.sqlOn,
                     join.table,
@@ -244,7 +236,6 @@ export class ExploreCompiler {
                 [tableName]: this.compileTable(
                     includedTables[tableName],
                     includedTables,
-                    joinAliases,
                 ),
             }),
             {},
@@ -269,11 +260,7 @@ export class ExploreCompiler {
         };
     }
 
-    compileTable(
-        table: Table,
-        tables: Record<string, Table>,
-        joinAliases: UncompiledExplore['joinAliases'],
-    ): CompiledTable {
+    compileTable(table: Table, tables: Record<string, Table>): CompiledTable {
         const dimensions: Record<string, CompiledDimension> = Object.keys(
             table.dimensions,
         ).reduce(
@@ -294,22 +281,27 @@ export class ExploreCompiler {
                 [metricKey]: this.compileMetric(
                     table.metrics[metricKey],
                     tables,
-                    joinAliases,
                 ),
             }),
             {},
         );
-        const compiledSqlWhere = table.sqlWhere
-            ? table.sqlWhere.replace(
-                  lightdashVariablePattern,
-                  (_, p1) =>
-                      this.compileDimensionReference(p1, tables, table.name)
-                          .sql,
-              )
-            : undefined;
+
+        const compiledSqlWhere = table.sqlWhere?.replace(
+            lightdashVariablePattern,
+            (_, p1) => {
+                const compiledReference = this.compileDimensionReference(
+                    p1,
+                    tables,
+                    table.name,
+                );
+
+                return compiledReference.sql;
+            },
+        );
 
         return {
             ...table,
+            uncompiledSqlWhere: table.sqlWhere,
             sqlWhere: compiledSqlWhere,
             dimensions,
             metrics,
@@ -319,24 +311,14 @@ export class ExploreCompiler {
     compileMetric(
         metric: Metric,
         tables: Record<string, Table>,
-        joinAliases?: UncompiledExplore['joinAliases'],
     ): CompiledMetric {
-        const compiledMetric = this.compileMetricSql(
-            metric,
-            tables,
-            joinAliases,
-        );
+        const compiledMetric = this.compileMetricSql(metric, tables);
         metric.showUnderlyingValues?.forEach((dimReference) => {
             const { refTable, refName } = getParsedReference(
                 dimReference,
                 metric.table,
             );
-            const referencedTable = getReferencedTable(
-                refTable,
-                tables,
-                metric.table,
-                joinAliases,
-            );
+            const referencedTable = getReferencedTable(refTable, tables);
             const isValidReference = !!referencedTable?.dimensions[refName];
             if (!isValidReference) {
                 throw new CompileError(
@@ -369,7 +351,6 @@ export class ExploreCompiler {
     compileMetricSql(
         metric: Metric,
         tables: Record<string, Table>,
-        joinAliases: UncompiledExplore['joinAliases'],
     ): { sql: string; tablesReferences: Set<string> } {
         // Metric might have references to other dimensions
         if (!tables[metric.table]) {
@@ -393,12 +374,7 @@ export class ExploreCompiler {
 
                 const compiledReference = isNonAggregateMetric(metric)
                     ? this.compileMetricReference(p1, tables, metric.table)
-                    : this.compileDimensionReference(
-                          p1,
-                          tables,
-                          metric.table,
-                          joinAliases,
-                      );
+                    : this.compileDimensionReference(p1, tables, metric.table);
                 tablesReferences = new Set([
                     ...tablesReferences,
                     ...compiledReference.tablesReferences,
@@ -591,7 +567,6 @@ export class ExploreCompiler {
         ref: string,
         tables: Record<string, Table>,
         currentTable: string,
-        joinAliases?: UncompiledExplore['joinAliases'],
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
@@ -606,12 +581,7 @@ export class ExploreCompiler {
         const { refTable, refName } = getParsedReference(ref, currentTable);
 
         /** Resolve the table reference through its original name, or via an alias: */
-        const referencedTable = getReferencedTable(
-            refTable,
-            tables,
-            currentTable,
-            joinAliases,
-        );
+        const referencedTable = getReferencedTable(refTable, tables);
 
         const referencedDimension = referencedTable?.dimensions[refName];
 
@@ -639,7 +609,6 @@ export class ExploreCompiler {
         ref: string,
         tables: Record<string, Table>,
         currentTable: string,
-        joinAliases?: UncompiledExplore['joinAliases'],
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
@@ -662,11 +631,7 @@ export class ExploreCompiler {
         }
 
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        const compiledMetric = this.compileMetricSql(
-            referencedMetric,
-            tables,
-            joinAliases,
-        );
+        const compiledMetric = this.compileMetricSql(referencedMetric, tables);
         return {
             sql: `(${compiledMetric.sql})`,
             tablesReferences: new Set([
@@ -681,11 +646,15 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
     ): string {
         // Sql join contains references to dimensions
-        return join.sqlOn.replace(
-            lightdashVariablePattern,
-            (_, p1) =>
-                this.compileDimensionReference(p1, tables, join.table).sql,
-        );
+        return join.sqlOn.replace(lightdashVariablePattern, (_, p1) => {
+            const compiledReference = this.compileDimensionReference(
+                p1,
+                tables,
+                join.table,
+            );
+
+            return compiledReference.sql;
+        });
     }
 
     compileJoin(

@@ -294,6 +294,15 @@ export class UserModel {
         return user !== undefined;
     }
 
+    async hasPasswordByEmail(email: string): Promise<boolean> {
+        const results = await this.database('password_logins')
+            .leftJoin('emails', 'password_logins.user_id', 'emails.user_id')
+            .andWhere('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('password_logins.user_id');
+        return results.length > 0;
+    }
+
     async getUserByUuidAndPassword(
         userUuid: string,
         password: string,
@@ -650,12 +659,15 @@ export class UserModel {
         };
     }
 
-    async findSessionUserByPrimaryEmail(email: string): Promise<SessionUser> {
+    async findSessionUserByPrimaryEmail(
+        email: string,
+    ): Promise<SessionUser | undefined> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
+            .andWhere('emails.is_primary', true)
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
-            throw new NotFoundError(`Cannot find user with uuid ${email}`);
+            return undefined;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(
