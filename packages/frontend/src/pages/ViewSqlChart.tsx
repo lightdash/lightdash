@@ -166,7 +166,8 @@ const ViewSqlChart = () => {
                                             />
                                         )}
                                         {!isVizTableConfig(currentVisConfig) &&
-                                            data && (
+                                            data &&
+                                            params.slug && (
                                                 <ChartView
                                                     resultsRunner={
                                                         resultsRunner
@@ -179,6 +180,7 @@ const ViewSqlChart = () => {
                                                     }}
                                                     sql={sql}
                                                     projectUuid={projectUuid}
+                                                    slug={params.slug}
                                                 />
                                             )}
                                     </>
