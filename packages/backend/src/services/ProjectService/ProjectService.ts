@@ -3002,9 +3002,6 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        // const schema = ProjectService.getWarehouseSchema(credentials);
-        //
-        // console.log(schema);
         const warehouseTables = await warehouseClient.getAllTables();
 
         const catalog =
