@@ -1,3 +1,10 @@
+# [0.1237.0](https://github.com/lightdash/lightdash/compare/0.1236.2...0.1237.0) (2024-08-30)
+
+
+### Features
+
+* avg aggregation sql runner ([#11314](https://github.com/lightdash/lightdash/issues/11314)) ([0e3ea91](https://github.com/lightdash/lightdash/commit/0e3ea91ccc3a21711eeb9edf869ce63619da563f))
+
 ## [0.1236.2](https://github.com/lightdash/lightdash/compare/0.1236.1...0.1236.2) (2024-08-30)
 
 
