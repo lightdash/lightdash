@@ -3,7 +3,7 @@ import { type FC } from 'react';
 import { Helmet } from 'react-helmet';
 
 import { ProjectType } from '@lightdash/common';
-import { useElementSize } from '@mantine/hooks';
+import { useDisclosure, useElementSize } from '@mantine/hooks';
 import { ErrorBoundary } from '../../../features/errorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
@@ -30,6 +30,7 @@ type StyleProps = {
     flexContent?: boolean;
     hasBanner?: boolean;
     noContentPadding?: boolean;
+    isSidebarResizing?: boolean;
 };
 
 export const PAGE_CONTENT_WIDTH = 900;
@@ -65,6 +66,12 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                 ? {
                       display: 'flex',
                       flexDirection: 'row',
+                  }
+                : {}),
+
+            ...(params.isSidebarResizing
+                ? {
+                      userSelect: 'none',
                   }
                 : {}),
         },
@@ -182,6 +189,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     children,
 }) => {
     const { ref: mainRef, width: mainWidth } = useElementSize();
+    const [
+        isSidebarResizing,
+        { open: startSidebarResizing, close: stopSidebarResizing },
+    ] = useDisclosure(false);
     const { activeProjectUuid } = useActiveProjectUuid({
         refetchOnMount: true,
     });
@@ -209,6 +220,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             hasBanner: isCurrentProjectPreview,
             noContentPadding,
             flexContent,
+            isSidebarResizing,
         },
         { name: 'Page' },
     );
@@ -225,7 +237,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             <Box className={classes.root}>
                 {sidebar ? (
-                    <Sidebar isOpen={isSidebarOpen}>
+                    <Sidebar
+                        isOpen={isSidebarOpen}
+                        onResizeStart={startSidebarResizing}
+                        onResizeEnd={stopSidebarResizing}
+                    >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {sidebar}
                         </ErrorBoundary>
@@ -247,6 +263,8 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         position={SidebarPosition.RIGHT}
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
+                        onResizeStart={startSidebarResizing}
+                        onResizeEnd={stopSidebarResizing}
                     >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {rightSidebar}
